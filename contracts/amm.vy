@@ -109,7 +109,7 @@ def p_current_down(n: int256) -> uint256:
     return self._p_current_band(n, False)
 
 
-@internal
+@external
 @view
 def p_oracle_up(n: int256) -> uint256:
     """
@@ -118,10 +118,26 @@ def p_oracle_up(n: int256) -> uint256:
     return self._p_oracle_band(n, False)
 
 
-@internal
+@external
 @view
 def p_oracle_down(n: int256) -> uint256:
     """
     Lower price of the band `n` when `p_oracle` == `p`
     """
     return self._p_oracle_band(n, True)
+
+
+@external
+def deposit_range(amount: uint256, n1: int256, n2: int256):
+    n0: int256 = self.active_band
+    assert n1 < n0 and n2 < n0, "Deposits should be below current band"
+    y: uint256 = amount / (convert(abs(n2 - n1), uint256) + 1)
+
+    band: int256 = min(n1, n2)
+    finish: int256 = max(n1, n2)
+    for i in range(1000):
+        assert self.bands_x[band] == 0, "Band not empty"
+        self.bands_y[band] += y
+        band += 1
+        if band > finish:
+            break
