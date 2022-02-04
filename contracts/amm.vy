@@ -197,9 +197,9 @@ def get_y0(n: int256) -> uint256:
     return self._get_y0(x, y, p_o, p_oracle_up)
 
 
-@external
+@internal
 @view
-def get_p(y0: uint256 = MAX_UINT256) -> uint256:
+def _get_p(y0: uint256) -> uint256:
     n: int256 = self.active_band
     x: uint256 = self.bands_x[self.active_band]
     y: uint256 = self.bands_y[self.active_band]
@@ -216,3 +216,9 @@ def get_p(y0: uint256 = MAX_UINT256) -> uint256:
     f: uint256 = A * _y0 * p_o / p_o_up * p_o
     g: uint256 = (A - 1) * y0 * p_o_up / p_o
     return (f + x * 10**18) / (g + y)
+
+
+@external
+@view
+def get_p() -> uint256:
+    return self._get_p(MAX_UINT256)
