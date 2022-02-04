@@ -1,4 +1,5 @@
 # @version 0.3.1
+from vyper.interfaces import ERC20
 
 A: immutable(uint256)
 COLLATERAL_TOKEN: immutable(address)  # y
@@ -131,6 +132,8 @@ def p_oracle_down(n: int256) -> uint256:
 def deposit_range(amount: uint256, n1: int256, n2: int256):
     n0: int256 = self.active_band
     assert n1 < n0 and n2 < n0, "Deposits should be below current band"
+    assert ERC20(COLLATERAL_TOKEN).transferFrom(msg.sender, self, amount)
+
     y: uint256 = amount / (convert(abs(n2 - n1), uint256) + 1)
 
     band: int256 = min(n1, n2)
@@ -141,3 +144,40 @@ def deposit_range(amount: uint256, n1: int256, n2: int256):
         band += 1
         if band > finish:
             break
+
+
+@internal
+@pure
+def sqrt_int(x: uint256) -> uint256:
+    """
+    Originating from: https://github.com/vyperlang/vyper/issues/1266
+    """
+
+    if x == 0:
+        return 0
+
+    z: uint256 = (x + 10**18) / 2
+    y: uint256 = x
+
+    for i in range(256):
+        if z == y:
+            return y
+        y = z
+        z = (x * 10**18 / z + z) / 2
+
+    raise "Did not converge"
+
+
+@internal
+@view
+def get_y0(n: int256) -> uint256:
+    x: uint256 = self.bands_x[n]
+    y: uint256 = self.bands_y[n]
+    p_o: uint256 = self.price_oracle
+    p_top: uint256 = self._p_oracle_band(n, False)
+
+    # solve:
+    # p_o * A * y0**2 - y0 * (p_top/p_o * (A-1) * x + p_o**2/p_top * A * y) - xy = 0
+    b: uint256 = p_top * (A - 1) * x / p_o + A * p_o**2 / p_top * y / 10**18
+    D: uint256 = b**2 + (4 * A) * p_o * y / 10**18 * x
+    return (b + self.sqrt_int(D / 10**18)) * 10**18 / ((2 * A) * p_o)
