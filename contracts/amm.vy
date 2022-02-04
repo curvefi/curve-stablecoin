@@ -1,6 +1,8 @@
 # @version 0.3.1
 from vyper.interfaces import ERC20
 
+MAX_INT: constant(int256) = MAX_UINT256 / 2
+
 A: immutable(uint256)
 COLLATERAL_TOKEN: immutable(address)  # y
 BORROWED_TOKEN: immutable(address)    # x
@@ -16,6 +18,30 @@ p_base_current: public(uint256)
 
 bands_x: public(HashMap[int256, uint256])
 bands_y: public(HashMap[int256, uint256])
+
+
+# Low-level math
+@internal
+@pure
+def sqrt_int(x: uint256) -> uint256:
+    """
+    Originating from: https://github.com/vyperlang/vyper/issues/1266
+    """
+
+    if x == 0:
+        return 0
+
+    z: uint256 = (x + 10**18) / 2
+    y: uint256 = x
+
+    for i in range(256):
+        if z == y:
+            return y
+        y = z
+        z = (x * 10**18 / z + z) / 2
+
+    raise "Did not converge"
+# End of low-level math
 
 
 @external
@@ -147,37 +173,46 @@ def deposit_range(amount: uint256, n1: int256, n2: int256):
 
 
 @internal
-@pure
-def sqrt_int(x: uint256) -> uint256:
-    """
-    Originating from: https://github.com/vyperlang/vyper/issues/1266
-    """
-
-    if x == 0:
-        return 0
-
-    z: uint256 = (x + 10**18) / 2
-    y: uint256 = x
-
-    for i in range(256):
-        if z == y:
-            return y
-        y = z
-        z = (x * 10**18 / z + z) / 2
-
-    raise "Did not converge"
+@view
+def _get_y0(x: uint256, y: uint256, p_o: uint256, p_o_up: uint256) -> uint256:
+    # solve:
+    # p_o * A * y0**2 - y0 * (p_oracle_up/p_o * (A-1) * x + p_o**2/p_oracle_up * A * y) - xy = 0
+    b: uint256 = p_o_up * (A - 1) * x / p_o + A * p_o**2 / p_o_up * y / 10**18
+    D: uint256 = b**2 + (4 * A) * p_o * y / 10**18 * x
+    return (b + self.sqrt_int(D / 10**18)) * 10**18 / ((2 * A) * p_o)
 
 
-@internal
+@external
 @view
 def get_y0(n: int256) -> uint256:
     x: uint256 = self.bands_x[n]
     y: uint256 = self.bands_y[n]
     p_o: uint256 = self.price_oracle
-    p_top: uint256 = self._p_oracle_band(n, False)
+    p_oracle_up: uint256 = 0
+    if n == MAX_INT:
+        p_oracle_up = self.p_base_current
+    else:
+        p_oracle_up = self._p_oracle_band(n, False)
 
-    # solve:
-    # p_o * A * y0**2 - y0 * (p_top/p_o * (A-1) * x + p_o**2/p_top * A * y) - xy = 0
-    b: uint256 = p_top * (A - 1) * x / p_o + A * p_o**2 / p_top * y / 10**18
-    D: uint256 = b**2 + (4 * A) * p_o * y / 10**18 * x
-    return (b + self.sqrt_int(D / 10**18)) * 10**18 / ((2 * A) * p_o)
+    return self._get_y0(x, y, p_o, p_oracle_up)
+
+
+@external
+@view
+def get_p(y0: uint256 = MAX_UINT256) -> uint256:
+    n: int256 = self.active_band
+    x: uint256 = self.bands_x[self.active_band]
+    y: uint256 = self.bands_y[self.active_band]
+    p_o_up: uint256 = self.p_base_current
+    if x == 0 and y == 0:
+        return p_o_up * (2 * A - 1) / (2 * A)
+    p_o: uint256 = self.price_oracle
+
+    _y0: uint256 = y0
+    if _y0 == MAX_UINT256:
+        _y0 = self._get_y0(x, y, p_o, p_o_up)
+
+    # (f(y0) + x) / (g(y0) + y)
+    f: uint256 = A * _y0 * p_o / p_o_up * p_o
+    g: uint256 = (A - 1) * y0 * p_o_up / p_o
+    return (f + x * 10**18) / (g + y)
