@@ -8,6 +8,7 @@ struct UserTicks:
     ns: bytes32  # packs n1 and n2, each is int128
     ticks: uint256[MAX_TICKS/2]  # Share fractions packed 2 per slot
 
+ADMIN: immutable(address)
 A: immutable(uint256)
 COLLATERAL_TOKEN: immutable(address)  # y
 BORROWED_TOKEN: immutable(address)    # x
@@ -54,8 +55,8 @@ def sqrt_int(x: uint256) -> uint256:
 
 @external
 def __init__(_collateral_token: address, _borrowed_token: address,
-             _A: uint256, _base_price: uint256,
-             fee: uint256):
+             _A: uint256, _base_price: uint256, fee: uint256,
+             _admin: address):
     A = _A
     self.base_price_0 = _base_price
     self.base_price_time = block.timestamp
@@ -64,6 +65,7 @@ def __init__(_collateral_token: address, _borrowed_token: address,
     COLLATERAL_TOKEN = _collateral_token
     BORROWED_TOKEN = _borrowed_token
     self.fee = fee
+    ADMIN = _admin
 
 
 @external
@@ -281,10 +283,12 @@ def read_user_ticks(user: address, size: int256) -> uint256[MAX_TICKS]:
 
 
 @external
-def deposit_range(amount: uint256, n1: int256, n2: int256):
+def deposit_range(user: address, amount: uint256, n1: int256, n2: int256):
+    assert msg.sender == ADMIN
+
     n0: int256 = self.active_band
     assert n1 < n0 and n2 < n0, "Deposits should be below current band"
-    assert ERC20(COLLATERAL_TOKEN).transferFrom(msg.sender, self, amount)
+    assert ERC20(COLLATERAL_TOKEN).transferFrom(user, self, amount)
 
     y: uint256 = amount / (convert(abs(n2 - n1), uint256) + 1)
     assert y > 0, "Amount too low"
@@ -293,8 +297,8 @@ def deposit_range(amount: uint256, n1: int256, n2: int256):
     finish: int256 = max(n1, n2)
 
     save_n: bool = True
-    if self.has_liquidity(msg.sender):
-        ns: int256[2] = self.read_user_tick_numbers(msg.sender)
+    if self.has_liquidity(user):
+        ns: int256[2] = self.read_user_tick_numbers(user)
         assert (ns[0] == n1 and ns[1] == n2) or (ns[0] == n2 or ns[1] == n1), "Wrong range"
         save_n = False
 
@@ -321,4 +325,4 @@ def deposit_range(amount: uint256, n1: int256, n2: int256):
         if band > finish:
             break
 
-    self.save_user_ticks(msg.sender, n1, n2, user_shares, save_n)
+    self.save_user_ticks(user, n1, n2, user_shares, save_n)
