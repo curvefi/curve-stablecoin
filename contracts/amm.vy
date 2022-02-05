@@ -162,24 +162,6 @@ def p_oracle_down(n: int256) -> uint256:
     return self._p_oracle_band(n, True)
 
 
-@external
-def deposit_range(amount: uint256, n1: int256, n2: int256):
-    n0: int256 = self.active_band
-    assert n1 < n0 and n2 < n0, "Deposits should be below current band"
-    assert ERC20(COLLATERAL_TOKEN).transferFrom(msg.sender, self, amount)
-
-    y: uint256 = amount / (convert(abs(n2 - n1), uint256) + 1)
-
-    band: int256 = min(n1, n2)
-    finish: int256 = max(n1, n2)
-    for i in range(1000):
-        assert self.bands_x[band] == 0, "Band not empty"
-        self.bands_y[band] += y
-        band += 1
-        if band > finish:
-            break
-
-
 @internal
 @view
 def _get_y0(x: uint256, y: uint256, p_o: uint256, p_o_up: uint256) -> uint256:
@@ -233,13 +215,14 @@ def get_p() -> uint256:
 
 
 @internal
-def save_user_ticks(user: address, n1: int256, n2: int256, ticks: uint256[MAX_TICKS]):
+def save_user_ticks(user: address, n1: int256, n2: int256, ticks: uint256[MAX_TICKS], save_n: bool):
     """
     Packs and saves user ticks
     """
-    n1p: uint256 = convert(convert(convert(n1, int128), bytes32), uint256)
-    n2p: uint256 = convert(convert(convert(n2, int128), bytes32), uint256)
-    self.user_shares[user].ns = convert(bitwise_or(n1p, shift(n2p, 128)), bytes32)
+    if save_n:
+        n1p: uint256 = convert(convert(convert(n1, int128), bytes32), uint256)
+        n2p: uint256 = convert(convert(convert(n2, int128), bytes32), uint256)
+        self.user_shares[user].ns = convert(bitwise_or(n1p, shift(n2p, 128)), bytes32)
 
     dist: uint256 = convert(abs(n1 - n2), uint256)
     ptr: uint256 = 0
@@ -257,12 +240,12 @@ def save_user_ticks(user: address, n1: int256, n2: int256, ticks: uint256[MAX_TI
 @internal
 @view
 def has_liquidity(user: address) -> bool:
-    return self.user_shares[user].ns != empty(bytes32)
+    return self.user_shares[user].ticks[0] != 0
 
 
 @internal
 def empty_ticks(user: address):
-    self.user_shares[user].ns = empty(bytes32)
+    self.user_shares[user].ticks[0] = 0
 
 
 @internal
@@ -295,3 +278,47 @@ def read_user_ticks(user: address, size: int256) -> uint256[MAX_TICKS]:
             ticks[ptr] = shift(tick, -128)
         ptr += 1
     return ticks
+
+
+@external
+def deposit_range(amount: uint256, n1: int256, n2: int256):
+    n0: int256 = self.active_band
+    assert n1 < n0 and n2 < n0, "Deposits should be below current band"
+    assert ERC20(COLLATERAL_TOKEN).transferFrom(msg.sender, self, amount)
+
+    y: uint256 = amount / (convert(abs(n2 - n1), uint256) + 1)
+    assert y > 0, "Amount too low"
+
+    band: int256 = min(n1, n2)
+    finish: int256 = max(n1, n2)
+
+    save_n: bool = True
+    if self.has_liquidity(msg.sender):
+        ns: int256[2] = self.read_user_tick_numbers(msg.sender)
+        assert (ns[0] == n1 and ns[1] == n2) or (ns[0] == n2 or ns[1] == n1), "Wrong range"
+        save_n = False
+
+    user_shares: uint256[MAX_TICKS] = empty(uint256[MAX_TICKS])
+
+    for i in range(1000):
+        # Deposit coins
+        assert self.bands_x[band] == 0, "Band not empty"
+        total_y: uint256 = self.bands_y[band]
+        self.bands_y[band] = total_y + y
+        # Total / user share
+        s: uint256 = self.total_shares[band]
+        if s == 0:
+            s = y
+            user_shares[i] = y
+        else:
+            ds: uint256 = s * y / total_y
+            assert ds > 0, "Amount too low"
+            user_shares[i] = ds
+            s += ds
+        self.total_shares[band] = s
+        # End the cycle
+        band += 1
+        if band > finish:
+            break
+
+    self.save_user_ticks(msg.sender, n1, n2, user_shares, save_n)
