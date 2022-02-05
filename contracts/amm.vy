@@ -283,12 +283,13 @@ def read_user_ticks(user: address, size: int256) -> uint256[MAX_TICKS]:
 
 
 @external
-def deposit_range(user: address, amount: uint256, n1: int256, n2: int256):
+def deposit_range(user: address, amount: uint256, n1: int256, n2: int256, move_coins: bool):
     assert msg.sender == ADMIN
 
     n0: int256 = self.active_band
     assert n1 < n0 and n2 < n0, "Deposits should be below current band"
-    assert ERC20(COLLATERAL_TOKEN).transferFrom(user, self, amount)
+    if move_coins:
+        assert ERC20(COLLATERAL_TOKEN).transferFrom(user, self, amount)
 
     y: uint256 = amount / (convert(abs(n2 - n1), uint256) + 1)
     assert y > 0, "Amount too low"
@@ -304,7 +305,7 @@ def deposit_range(user: address, amount: uint256, n1: int256, n2: int256):
 
     user_shares: uint256[MAX_TICKS] = empty(uint256[MAX_TICKS])
 
-    for i in range(1000):
+    for i in range(MAX_TICKS):
         # Deposit coins
         assert self.bands_x[band] == 0, "Band not empty"
         total_y: uint256 = self.bands_y[band]
@@ -326,3 +327,42 @@ def deposit_range(user: address, amount: uint256, n1: int256, n2: int256):
             break
 
     self.save_user_ticks(user, n1, n2, user_shares, save_n)
+
+
+@external
+def withdraw(user: address, move_to: address) -> uint256[2]:
+    assert msg.sender == ADMIN
+
+    ns: int256[2] = self.read_user_tick_numbers(user)
+    if ns[1] < ns[0]:
+        ns = [ns[1], ns[0]]
+    user_shares: uint256[MAX_TICKS] = self.read_user_ticks(user, ns[1] - ns[0])
+    assert user_shares[0] > 0
+
+    total_x: uint256 = 0
+    total_y: uint256 = 0
+
+    for i in range(MAX_TICKS):
+        x: uint256 = self.bands_x[ns[0]]
+        y: uint256 = self.bands_y[ns[0]]
+        ds: uint256 = user_shares[i]
+        s: uint256 = self.total_shares[ns[0]]
+        dx: uint256 = x * ds / s
+        dy: uint256 = y * ds / s
+
+        self.total_shares[ns[0]] = s - ds
+        self.bands_x[ns[0]] = x - dx
+        self.bands_y[ns[0]] = y - dy
+        total_x += dx
+        total_y += dy
+
+        ns[0] += 1
+        if ns[0] > ns[1]:
+            break
+
+    self.empty_ticks(user)
+    if move_to != ZERO_ADDRESS:
+        assert ERC20(BORROWED_TOKEN).transfer(move_to, total_x)
+        assert ERC20(COLLATERAL_TOKEN).transfer(move_to, total_y)
+
+    return [total_x, total_y]
