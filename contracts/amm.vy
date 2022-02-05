@@ -256,6 +256,17 @@ def save_user_ticks(user: address, n1: int256, n2: int256, ticks: uint256[MAX_TI
 
 @internal
 @view
+def has_liquidity(user: address) -> bool:
+    return self.user_shares[user].ns != empty(bytes32)
+
+
+@internal
+def empty_ticks(user: address):
+    self.user_shares[user].ns = empty(bytes32)
+
+
+@internal
+@view
 def read_user_tick_numbers(user: address) -> int256[2]:
     """
     Unpacks and reads user tick numbers
