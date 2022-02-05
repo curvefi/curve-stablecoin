@@ -254,19 +254,33 @@ def save_user_ticks(user: address, n1: int256, n2: int256, ticks: uint256[MAX_TI
         self.user_shares[user].ticks[i] = tick
 
 
-# @internal
-# @view
-# def read_user_tick_numbers(user: address) -> int256[2]:
-#     """
-#     Unpacks and reads user tick numbers
-#     """
-#     pass
+@internal
+@view
+def read_user_tick_numbers(user: address) -> int256[2]:
+    """
+    Unpacks and reads user tick numbers
+    """
+    ns: uint256 = convert(self.user_shares[user].ns, uint256)
+    n1: int256 = convert(convert(convert(bitwise_and(ns, 2**128 - 1), bytes32), int128), int256)
+    n2: int256 = convert(convert(convert(shift(ns, -128), bytes32), int128), int256)
+    return [n1, n2]
 
 
-# @internal
-# @view
-# def read_user_ticks(user: address) -> uint256[MAX_TICKS]:
-#     """
-#     Unpacks and reads user ticks
-#     """
-#     pass
+@internal
+@view
+def read_user_ticks(user: address, size: int256) -> uint256[MAX_TICKS]:
+    """
+    Unpacks and reads user ticks
+    """
+    ticks: uint256[MAX_TICKS] = empty(uint256[MAX_TICKS])
+    ptr: int256 = 0
+    for i in range(MAX_TICKS / 2):
+        if ptr > size:
+            break
+        tick: uint256 = self.user_shares[user].ticks[i]
+        ticks[ptr] = bitwise_and(tick, 2**128 - 1)
+        ptr += 1
+        if ptr != size:
+            ticks[ptr] = shift(tick, -128)
+        ptr += 1
+    return ticks
