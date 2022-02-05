@@ -1,7 +1,12 @@
 # @version 0.3.1
 from vyper.interfaces import ERC20
 
-MAX_INT: constant(int256) = MAX_UINT256 / 2
+MAX_INT: constant(int256) = 57896044618658097711785492504343953926634992332820282019728792003956564819967  # 2**255 - 1
+MAX_TICKS: constant(int256) = 50
+
+struct UserTicks:
+    ns: bytes32  # packs n1 and n2, each is int128
+    ticks: uint256[MAX_TICKS/2]  # Share fractions packed 2 per slot
 
 A: immutable(uint256)
 COLLATERAL_TOKEN: immutable(address)  # y
@@ -18,6 +23,9 @@ p_base_current: public(uint256)
 
 bands_x: public(HashMap[int256, uint256])
 bands_y: public(HashMap[int256, uint256])
+
+total_shares: public(HashMap[int256, uint256])
+user_shares: public(HashMap[address, UserTicks])
 
 
 # Low-level math
@@ -222,3 +230,43 @@ def _get_p(y0: uint256) -> uint256:
 @view
 def get_p() -> uint256:
     return self._get_p(MAX_UINT256)
+
+
+@internal
+def save_user_ticks(user: address, n1: int256, n2: int256, ticks: uint256[MAX_TICKS]):
+    """
+    Packs and saves user ticks
+    """
+    n1p: uint256 = convert(convert(convert(n1, int128), bytes32), uint256)
+    n2p: uint256 = convert(convert(convert(n2, int128), bytes32), uint256)
+    self.user_shares[user].ns = convert(bitwise_or(n1p, shift(n2p, 128)), bytes32)
+
+    dist: uint256 = convert(abs(n1 - n2), uint256)
+    ptr: uint256 = 0
+    for i in range(MAX_TICKS / 2):
+        if ptr > dist:
+            break
+        tick: uint256 = ticks[ptr]
+        ptr += 1
+        if dist != ptr:
+            tick += shift(ticks[ptr], 128)
+        ptr += 1
+        self.user_shares[user].ticks[i] = tick
+
+
+# @internal
+# @view
+# def read_user_tick_numbers(user: address) -> int256[2]:
+#     """
+#     Unpacks and reads user tick numbers
+#     """
+#     pass
+
+
+# @internal
+# @view
+# def read_user_ticks(user: address) -> uint256[MAX_TICKS]:
+#     """
+#     Unpacks and reads user ticks
+#     """
+#     pass
