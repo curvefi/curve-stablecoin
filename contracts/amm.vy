@@ -8,6 +8,13 @@ struct UserTicks:
     ns: bytes32  # packs n1 and n2, each is int128
     ticks: uint256[MAX_TICKS/2]  # Share fractions packed 2 per slot
 
+struct DetailedTrade:
+    out_amount: uint256
+    n1: int256
+    n2: int256
+    ticks_i: uint256[MAX_TICKS]
+    last_tick_j: uint256
+
 ADMIN: immutable(address)
 A: immutable(uint256)
 COLLATERAL_TOKEN: immutable(address)  # y
@@ -66,6 +73,17 @@ def __init__(_collateral_token: address, _borrowed_token: address,
     BORROWED_TOKEN = _borrowed_token
     self.fee = fee
     ADMIN = _admin
+
+
+@external
+@view
+def coins(i: uint256) -> address:
+    if i == 0:
+        return BORROWED_TOKEN
+    elif i == 1:
+        return COLLATERAL_TOKEN
+    else:
+        raise "Out of range"
 
 
 @external
@@ -206,7 +224,7 @@ def _get_p(y0: uint256) -> uint256:
 
     # (f(y0) + x) / (g(y0) + y)
     f: uint256 = A * _y0 * p_o / p_o_up * p_o
-    g: uint256 = (A - 1) * y0 * p_o_up / p_o
+    g: uint256 = (A - 1) * _y0 * p_o_up / p_o
     return (f + x * 10**18) / (g + y)
 
 
@@ -252,7 +270,7 @@ def empty_ticks(user: address):
 
 @internal
 @view
-def read_user_tick_numbers(user: address) -> int256[2]:
+def _read_user_tick_numbers(user: address) -> int256[2]:
     """
     Unpacks and reads user tick numbers
     """
@@ -260,6 +278,12 @@ def read_user_tick_numbers(user: address) -> int256[2]:
     n1: int256 = convert(convert(convert(bitwise_and(ns, 2**128 - 1), bytes32), int128), int256)
     n2: int256 = convert(convert(convert(shift(ns, -128), bytes32), int128), int256)
     return [n1, n2]
+
+
+@external
+@view
+def read_user_tick_numbers(user: address) -> int256[2]:
+    return self._read_user_tick_numbers(user)
 
 
 @internal
@@ -299,7 +323,7 @@ def deposit_range(user: address, amount: uint256, n1: int256, n2: int256, move_c
 
     save_n: bool = True
     if self.has_liquidity(user):
-        ns: int256[2] = self.read_user_tick_numbers(user)
+        ns: int256[2] = self._read_user_tick_numbers(user)
         assert (ns[0] == n1 and ns[1] == n2) or (ns[0] == n2 or ns[1] == n1), "Wrong range"
         save_n = False
 
@@ -333,7 +357,7 @@ def deposit_range(user: address, amount: uint256, n1: int256, n2: int256, move_c
 def withdraw(user: address, move_to: address) -> uint256[2]:
     assert msg.sender == ADMIN
 
-    ns: int256[2] = self.read_user_tick_numbers(user)
+    ns: int256[2] = self._read_user_tick_numbers(user)
     if ns[1] < ns[0]:
         ns = [ns[1], ns[0]]
     user_shares: uint256[MAX_TICKS] = self.read_user_ticks(user, ns[1] - ns[0])
@@ -366,3 +390,47 @@ def withdraw(user: address, move_to: address) -> uint256[2]:
         assert ERC20(COLLATERAL_TOKEN).transfer(move_to, total_y)
 
     return [total_x, total_y]
+
+
+@internal
+@view
+def calc_swap_out(pump: bool, in_amount: uint256) -> DetailedTrade:
+    out: DetailedTrade = empty(DetailedTrade)
+    # pump = True: borrowable (USD) in, collateral (ETH) out; going up
+    # pump = False: collateral (ETH) in, borrowable (USD) out; going down
+    n: int256 = self.active_band
+    p_o: uint256 = self.price_oracle
+    p_o_up: uint256 = self.p_base_current
+
+    for i in range(MAX_TICKS):
+        # y0, g, f, x, y
+        x: uint256 = self.bands_x[n]
+        y: uint256 = self.bands_y[n]
+        y0: uint256 = self._get_y0(x, y, p_o, p_o_up)
+        f: uint256 = A * y0 * p_o / p_o_up * p_o
+        g: uint256 = (A - 1) * y0 * p_o_up / p_o
+
+        # change n
+        # change p_o_up
+
+    return out
+
+
+@external
+@view
+def get_dy(i: uint256, j: uint256, in_amount: uint256) -> uint256:
+    return 0
+
+
+@external
+@view
+def get_dx(i: uint256, j: uint256, out_amount: uint256) -> uint256:
+    return 0
+
+
+@external
+def exchange(i: uint256, j: uint256, out_amount: uint256, _for: address = msg.sender) -> uint256:
+    return 0
+
+
+# get_y_up(user) and get_x_down(user)
