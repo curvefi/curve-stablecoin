@@ -403,10 +403,10 @@ def calc_swap_out(pump: bool, in_amount: uint256) -> DetailedTrade:
     p_o: uint256 = self.price_oracle
     p_o_up: uint256 = self.p_base_current
     in_amount_left: uint256 = in_amount
+    x: uint256 = self.bands_x[n]
+    y: uint256 = self.bands_y[n]
 
     for i in range(MAX_TICKS):
-        x: uint256 = self.bands_x[n]  # Can do after to make 1 read
-        y: uint256 = self.bands_y[n]  # Can do after to make 1 read
         y0: uint256 = self._get_y0(x, y, p_o, p_o_up)
         f: uint256 = A * y0 * p_o / p_o_up * p_o
         g: uint256 = (A - 1) * y0 * p_o_up / p_o
@@ -430,6 +430,8 @@ def calc_swap_out(pump: bool, in_amount: uint256) -> DetailedTrade:
 
             n -= 1
             p_o_up = p_o_up * A / (A - 1)
+            x = 0
+            y = self.bands_y[n]
 
         else:  # dump
             y_dest: uint256 = Inv / f - g
@@ -449,6 +451,8 @@ def calc_swap_out(pump: bool, in_amount: uint256) -> DetailedTrade:
 
             n += 1
             p_o_up = p_o_up * (A - 1) / A
+            x = self.bands_x[n]
+            y = 0
 
     raise "Too many ticks"
 
