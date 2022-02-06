@@ -399,21 +399,52 @@ def calc_swap_out(pump: bool, in_amount: uint256) -> DetailedTrade:
     # pump = True: borrowable (USD) in, collateral (ETH) out; going up
     # pump = False: collateral (ETH) in, borrowable (USD) out; going down
     n: int256 = self.active_band
+    out.n1 = n
     p_o: uint256 = self.price_oracle
     p_o_up: uint256 = self.p_base_current
+    in_amount_left: uint256 = in_amount
 
     for i in range(MAX_TICKS):
-        # y0, g, f, x, y
-        x: uint256 = self.bands_x[n]
-        y: uint256 = self.bands_y[n]
+        x: uint256 = self.bands_x[n]  # Can do after to make 1 read
+        y: uint256 = self.bands_y[n]  # Can do after to make 1 read
         y0: uint256 = self._get_y0(x, y, p_o, p_o_up)
         f: uint256 = A * y0 * p_o / p_o_up * p_o
         g: uint256 = (A - 1) * y0 * p_o_up / p_o
+        Inv: uint256 = (f + x) * (g + y)
+
+        if pump:
+            x_dest: uint256 = Inv / g - f
+            if x_dest - x >= in_amount_left:
+                # This is the last band
+                x += in_amount_left
+                out.last_tick_j = Inv / (f + x) - g  # Should be always >= 0
+                out.out_amount += y - out.last_tick_j
+                out.ticks_i[i] = x
+                out.n2 = n
+                return out
+
+            else:
+                # We go into the next band
+                pass
+
+        else:  # dump
+            y_dest: uint256 = Inv / f - g
+            if y_dest - y >= in_amount_left:
+                # This is the last band
+                y += in_amount_left
+                out.last_tick_j = Inv / (g + y) - f
+                out.out_amount += x - out.last_tick_j
+                out.ticks_i[i] = y
+                out.n2 = n
+                return out
+            else:
+                # We go into the next band
+                pass
 
         # change n
         # change p_o_up
 
-    return out
+    raise "Too many ticks"
 
 
 @external
