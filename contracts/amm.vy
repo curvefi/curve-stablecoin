@@ -12,7 +12,7 @@ struct DetailedTrade:
     out_amount: uint256
     n1: int256
     n2: int256
-    ticks_i: uint256[MAX_TICKS]
+    ticks_in: uint256[MAX_TICKS]
     last_tick_j: uint256
 
 ADMIN: immutable(address)
@@ -419,13 +419,17 @@ def calc_swap_out(pump: bool, in_amount: uint256) -> DetailedTrade:
                 x += in_amount_left
                 out.last_tick_j = Inv / (f + x) - g  # Should be always >= 0
                 out.out_amount += y - out.last_tick_j
-                out.ticks_i[i] = x
+                out.ticks_in[i] = x
                 out.n2 = n
                 return out
 
             else:
                 # We go into the next band
-                pass
+                out.ticks_in[i] = x_dest
+                out.out_amount += y
+
+            n -= 1
+            p_o_up = p_o_up * A / (A - 1)
 
         else:  # dump
             y_dest: uint256 = Inv / f - g
@@ -434,15 +438,17 @@ def calc_swap_out(pump: bool, in_amount: uint256) -> DetailedTrade:
                 y += in_amount_left
                 out.last_tick_j = Inv / (g + y) - f
                 out.out_amount += x - out.last_tick_j
-                out.ticks_i[i] = y
+                out.ticks_in[i] = y
                 out.n2 = n
                 return out
+
             else:
                 # We go into the next band
-                pass
+                out.ticks_in[i] = y_dest
+                out.out_amount += x
 
-        # change n
-        # change p_o_up
+            n += 1
+            p_o_up = p_o_up * (A - 1) / A
 
     raise "Too many ticks"
 
