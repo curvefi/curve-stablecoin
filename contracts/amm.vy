@@ -460,7 +460,9 @@ def calc_swap_out(pump: bool, in_amount: uint256) -> DetailedTrade:
 @external
 @view
 def get_dy(i: uint256, j: uint256, in_amount: uint256) -> uint256:
-    return 0
+    assert (i == 0 and j == 1) or (i == 1 and j == 0), "Wrong index"
+    out: DetailedTrade = self.calc_swap_out(i == 0, in_amount)
+    return out.out_amount
 
 
 @external
@@ -470,7 +472,7 @@ def get_dx(i: uint256, j: uint256, out_amount: uint256) -> uint256:
 
 
 @external
-def exchange(i: uint256, j: uint256, out_amount: uint256, _for: address = msg.sender) -> uint256:
+def exchange(i: uint256, j: uint256, in_amount: uint256, min_amount: uint256, _for: address = msg.sender) -> uint256:
     return 0
 
 
