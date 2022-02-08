@@ -402,7 +402,9 @@ def calc_swap_out(pump: bool, in_amount: uint256) -> DetailedTrade:
     out.n1 = n
     p_o: uint256 = self.price_oracle
     p_o_up: uint256 = self.p_base_current
-    in_amount_left: uint256 = in_amount
+    fee: uint256 = self.fee
+    in_amount_left: uint256 = in_amount * (10**18 - fee) / 10**18
+    fee = (10**18)**2 / (10**18 - fee)
     x: uint256 = self.bands_x[n]
     y: uint256 = self.bands_y[n]
 
@@ -416,7 +418,7 @@ def calc_swap_out(pump: bool, in_amount: uint256) -> DetailedTrade:
             x_dest: uint256 = Inv / g - f
             if x_dest - x >= in_amount_left:
                 # This is the last band
-                x += in_amount_left
+                x += in_amount_left * fee / 10**18
                 out.last_tick_j = Inv / (f + x) - g  # Should be always >= 0
                 out.out_amount += y - out.last_tick_j
                 out.ticks_in[i] = x
@@ -425,7 +427,9 @@ def calc_swap_out(pump: bool, in_amount: uint256) -> DetailedTrade:
 
             else:
                 # We go into the next band
-                out.ticks_in[i] = x_dest
+                dx: uint256 = x_dest - x
+                in_amount_left -= dx
+                out.ticks_in[i] = x + dx * fee / 10**18
                 out.out_amount += y
 
             n -= 1
@@ -437,7 +441,7 @@ def calc_swap_out(pump: bool, in_amount: uint256) -> DetailedTrade:
             y_dest: uint256 = Inv / f - g
             if y_dest - y >= in_amount_left:
                 # This is the last band
-                y += in_amount_left
+                y += in_amount_left * fee / 10**18
                 out.last_tick_j = Inv / (g + y) - f
                 out.out_amount += x - out.last_tick_j
                 out.ticks_in[i] = y
@@ -446,7 +450,9 @@ def calc_swap_out(pump: bool, in_amount: uint256) -> DetailedTrade:
 
             else:
                 # We go into the next band
-                out.ticks_in[i] = y_dest
+                dy: uint256 = y_dest - y
+                in_amount_left -= dy
+                out.ticks_in[i] = y + dy * fee / 10**18
                 out.out_amount += x
 
             n += 1
@@ -504,3 +510,5 @@ def exchange(i: uint256, j: uint256, in_amount: uint256, min_amount: uint256, _f
     return out.out_amount
 
 # get_y_up(user) and get_x_down(user)
+# param setters: rate of base price growth (or maybe not growth?), fee
+# Dynamic base price
