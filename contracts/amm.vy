@@ -466,14 +466,41 @@ def get_dy(i: uint256, j: uint256, in_amount: uint256) -> uint256:
 
 
 @external
-@view
-def get_dx(i: uint256, j: uint256, out_amount: uint256) -> uint256:
-    return 0
-
-
-@external
 def exchange(i: uint256, j: uint256, in_amount: uint256, min_amount: uint256, _for: address = msg.sender) -> uint256:
-    return 0
+    assert (i == 0 and j == 1) or (i == 1 and j == 0), "Wrong index"
+    out: DetailedTrade = self.calc_swap_out(i == 0, in_amount)
+    assert out.out_amount >= min_amount, "Slippage"
 
+    in_coin: address = BORROWED_TOKEN
+    out_coin: address = COLLATERAL_TOKEN
+    if i == 1:
+        in_coin = COLLATERAL_TOKEN
+        out_coin = BORROWED_TOKEN
+
+    ERC20(in_coin).transferFrom(msg.sender, self, in_amount)
+    ERC20(out_coin).transfer(_for, out.out_amount)
+
+    n: int256 = out.n1
+    step: int256 = 1
+    if out.n2 < out.n1:
+        step = -1
+    for k in range(MAX_TICKS):
+        if i == 0:
+            self.bands_x[n] = out.ticks_in[k]
+            if n == out.n2:
+                self.bands_y[n] = out.last_tick_j
+                break
+            else:
+                self.bands_y[n] = 0
+        else:
+            self.bands_y[n] = out.ticks_in[k]
+            if n == out.n2:
+                self.bands_x[n] = out.last_tick_j
+                break
+            else:
+                self.bands_x[n] = 0
+        n += step
+
+    return out.out_amount
 
 # get_y_up(user) and get_x_down(user)
