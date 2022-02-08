@@ -27,7 +27,7 @@ base_price_time: uint256
 active_band: public(int256)
 
 price_oracle: public(uint256)
-p_base_current: public(uint256)
+p_base_mul: uint256
 
 bands_x: public(HashMap[int256, uint256])
 bands_y: public(HashMap[int256, uint256])
@@ -68,7 +68,7 @@ def __init__(_collateral_token: address, _borrowed_token: address,
     self.base_price_0 = _base_price
     self.base_price_time = block.timestamp
     self.price_oracle = _base_price
-    self.p_base_current = _base_price
+    self.p_base_mul = 10**18
     COLLATERAL_TOKEN = _collateral_token
     BORROWED_TOKEN = _borrowed_token
     self.fee = fee
@@ -113,7 +113,7 @@ def _p_oracle_band(n: int256, is_down: bool) -> uint256:
     # k = (self.A - 1) / self.A  # equal to (p_up / p_down)
     # return self.p_base * k ** n
     n_active: int256 = self.active_band
-    p_base: uint256 = self.p_base_current
+    p_base: uint256 = self._base_price() * self.p_base_mul / 10**18
     band_distance: int256 = abs(n - n_active)
 
     # k = (self.A - 1) / self.A  # equal to (p_up / p_down)
@@ -200,7 +200,7 @@ def get_y0(n: int256) -> uint256:
     p_o: uint256 = self.price_oracle
     p_oracle_up: uint256 = 0
     if n == MAX_INT:
-        p_oracle_up = self.p_base_current
+        p_oracle_up = self._base_price() * self.p_base_mul / 10**18
     else:
         p_oracle_up = self._p_oracle_band(n, False)
 
@@ -213,7 +213,7 @@ def _get_p(y0: uint256) -> uint256:
     n: int256 = self.active_band
     x: uint256 = self.bands_x[self.active_band]
     y: uint256 = self.bands_y[self.active_band]
-    p_o_up: uint256 = self.p_base_current
+    p_o_up: uint256 = self._base_price() * self.p_base_mul / 10**18
     if x == 0 and y == 0:
         return p_o_up * (2 * A - 1) / (2 * A)
     p_o: uint256 = self.price_oracle
@@ -401,7 +401,7 @@ def calc_swap_out(pump: bool, in_amount: uint256) -> DetailedTrade:
     n: int256 = self.active_band
     out.n1 = n
     p_o: uint256 = self.price_oracle
-    p_o_up: uint256 = self.p_base_current
+    p_o_up: uint256 = self._base_price() * self.p_base_mul / 10**18
     fee: uint256 = self.fee
     in_amount_left: uint256 = in_amount * (10**18 - fee) / 10**18
     fee = (10**18)**2 / (10**18 - fee)
@@ -506,6 +506,19 @@ def exchange(i: uint256, j: uint256, in_amount: uint256, min_amount: uint256, _f
             else:
                 self.bands_x[n] = 0
         n += step
+
+    self.active_band = n
+    p_base_mul: uint256 = self.p_base_mul
+    n = abs(out.n2 - out.n1)
+    for k in range(MAX_TICKS):
+        if step == 1:
+            p_base_mul = p_base_mul * (A - 1) / A
+        else:
+            p_base_mul = p_base_mul * A / (A - 1)
+        if n == 0:
+            break
+        n -= 1
+    self.p_base_mul = p_base_mul
 
     return out.out_amount
 
