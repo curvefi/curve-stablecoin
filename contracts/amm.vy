@@ -21,7 +21,7 @@ COLLATERAL_TOKEN: immutable(address)  # y
 BORROWED_TOKEN: immutable(address)    # x
 
 fee: public(uint256)
-rate: public(uint256)
+rate: public(int256)  # Rate can be negative, to support positive-rebase tokens
 base_price_0: uint256
 base_price_time: uint256
 active_band: public(int256)
@@ -98,7 +98,9 @@ def _base_price() -> uint256:
     """
     Base price grows with time to account for interest rate (which is 0 by default)
     """
-    return self.base_price_0 + self.rate * (block.timestamp - self.base_price_time) / 10**18
+    return convert(
+        convert(self.base_price_0, int256) + self.rate * convert(block.timestamp - self.base_price_time, int256) / 10**18,
+        uint256)
 
 
 @external
@@ -524,4 +526,3 @@ def exchange(i: uint256, j: uint256, in_amount: uint256, min_amount: uint256, _f
 
 # get_y_up(user) and get_x_down(user)
 # param setters: rate of base price growth (or maybe not growth?), fee
-# Dynamic base price
