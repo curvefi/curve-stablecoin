@@ -17,6 +17,7 @@ struct DetailedTrade:
 
 ADMIN: immutable(address)
 A: immutable(uint256)
+SQRT_BAND_RATIO: immutable(uint256)  # sqrt(A / (A - 1))
 COLLATERAL_TOKEN: immutable(address)  # y
 BORROWED_TOKEN: immutable(address)    # x
 
@@ -34,6 +35,34 @@ bands_y: public(HashMap[int256, uint256])
 
 total_shares: public(HashMap[int256, uint256])
 user_shares: public(HashMap[address, UserTicks])
+
+
+@external
+def __init__(_collateral_token: address, _borrowed_token: address,
+             _A: uint256, _base_price: uint256, fee: uint256,
+             _admin: address):
+    A = _A
+    self.base_price_0 = _base_price
+    self.base_price_time = block.timestamp
+    self.price_oracle = _base_price
+    self.p_base_mul = 10**18
+    COLLATERAL_TOKEN = _collateral_token
+    BORROWED_TOKEN = _borrowed_token
+    self.fee = fee
+    ADMIN = _admin
+
+    # Vyper cannot call functions from init
+    # So we repeat sqrt here. SAD
+    _x: uint256 = 10**18 * _A / (_A - 1)
+    _z: uint256 = (_x + 10**18) / 2
+    _y: uint256 = _x
+    for i in range(256):
+        if _z == _y:
+            break
+        _y = _z
+        _z = (_x * 10**18 / _z + _z) / 2
+    SQRT_BAND_RATIO = _y
+    # end of sqrt calc
 
 
 # Low-level math
@@ -58,21 +87,6 @@ def sqrt_int(x: uint256) -> uint256:
 
     raise "Did not converge"
 # End of low-level math
-
-
-@external
-def __init__(_collateral_token: address, _borrowed_token: address,
-             _A: uint256, _base_price: uint256, fee: uint256,
-             _admin: address):
-    A = _A
-    self.base_price_0 = _base_price
-    self.base_price_time = block.timestamp
-    self.price_oracle = _base_price
-    self.p_base_mul = 10**18
-    COLLATERAL_TOKEN = _collateral_token
-    BORROWED_TOKEN = _borrowed_token
-    self.fee = fee
-    ADMIN = _admin
 
 
 @external
@@ -217,7 +231,7 @@ def _get_p(y0: uint256) -> uint256:
     y: uint256 = self.bands_y[self.active_band]
     p_o_up: uint256 = self._base_price() * self.p_base_mul / 10**18
     if x == 0 and y == 0:
-        return p_o_up * (2 * A - 1) / (2 * A)
+        return p_o_up * 10**18 / SQRT_BAND_RATIO
     p_o: uint256 = self.price_oracle
 
     _y0: uint256 = y0
@@ -525,6 +539,53 @@ def exchange(i: uint256, j: uint256, in_amount: uint256, min_amount: uint256, _f
     return out.out_amount
 
 # get_y_up(user) and get_x_down(user)
+@internal
+@view
+def get_y_up(n: int256) -> uint256:
+    """
+    Measure the amount of y in the band n if we adiabatically trade near p_oracle on the way up
+    """
+    x: uint256 = self.bands_x[n]
+    y: uint256 = self.bands_y[n]
+    if x == 0:
+        return y
+    elif y == 0:
+        return x * SQRT_BAND_RATIO / self._p_current_band(n, True)
+
+    p_o: uint256 = self.price_oracle
+    p_o_up: uint256 = self._p_oracle_band(n, False)
+    y0: uint256 = self._get_y0(x, y, p_o, p_o_up)
+    f: uint256 = A * y0 * p_o / p_o_up * p_o / 10**18
+    g: uint256 = (A - 1) * y0 * p_o_up / p_o
+    # (f + x)(g + y) = const = p_top * A**2 * y0**2 = I
+    Inv: uint256 = (f + x) * (g + y)
+    # p = (f + x) / (g + y) => p * (g + y)**2 = I or (f + x)**2 / p = I
+
+    # First, "trade" in this band to p_oracle
+    x_o: uint256 = 0
+    y_o: uint256 = self.sqrt_int(Inv / p_o)
+    if y_o < g:
+        y_o = 0
+    else:
+        y_o -= g
+    if y_o > 0:
+        x_o = Inv / (g + y_o)
+        if x_o < f:
+            x_o = 0
+            y_o = Inv / f - g
+        else:
+            x_o -= f
+    else:
+        x_o = Inv / g - f
+        p_o = p_o_up * (A - 1) / A
+
+    if x_o == 0:
+        return y_o
+    else:
+        return y_o + x_o / self.sqrt_int(p_o_up * p_o / 10**18)
+
+
+# XXX method for price_oracle
 
 
 @external
