@@ -525,4 +525,18 @@ def exchange(i: uint256, j: uint256, in_amount: uint256, min_amount: uint256, _f
     return out.out_amount
 
 # get_y_up(user) and get_x_down(user)
-# param setters: rate of base price growth (or maybe not growth?), fee
+
+
+@external
+def set_rate(rate: int256):
+    assert msg.sender == ADMIN
+    self.base_price_0 = self._base_price()
+    self.base_price_time = block.timestamp
+    self.rate = rate
+
+
+@external
+def set_fee(fee: uint256):
+    assert msg.sender == ADMIN
+    assert fee < 10**18, "Fee is too high"
+    self.fee = fee
