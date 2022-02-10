@@ -542,52 +542,65 @@ def exchange(i: uint256, j: uint256, in_amount: uint256, min_amount: uint256, _f
 # get_y_up(user) and get_x_down(user)
 @internal
 @view
-def get_y_up(user: address, n: int256) -> uint256:
+def get_y_up(user: address) -> uint256:
     """
     Measure the amount of y in the band n if we adiabatically trade near p_oracle on the way up
     """
     ns: int256[2] = self._read_user_tick_numbers(user)
-
-    x: uint256 = self.bands_x[n]
-    y: uint256 = self.bands_y[n]
-    if x == 0:
-        return y
-    elif y == 0:
-        return x * SQRT_BAND_RATIO / self._p_current_band(n, True)
-
+    ticks: uint256[MAX_TICKS] = self.read_user_ticks(user, ns[1] - ns[0])
     p_o: uint256 = self.price_oracle
+
+    n: int256 = ns[0] - 1
     p_o_up: uint256 = self._p_oracle_band(n, False)
-    y0: uint256 = self._get_y0(x, y, p_o, p_o_up)
-    f: uint256 = A * y0 * p_o / p_o_up * p_o / 10**18
-    g: uint256 = (A - 1) * y0 * p_o_up / p_o
-    # (f + x)(g + y) = const = p_top * A**2 * y0**2 = I
-    Inv: uint256 = (f + x) * (g + y)
-    # p = (f + x) / (g + y) => p * (g + y)**2 = I or (f + x)**2 / p = I
+    Y: uint256 = 0
 
-    # First, "trade" in this band to p_oracle
-    x_o: uint256 = 0
-    y_o: uint256 = self.sqrt_int(Inv / p_o)
-    if y_o < g:
-        y_o = 0
-    else:
-        y_o -= g
-    if y_o > 0:
-        x_o = Inv / (g + y_o)
-        if x_o < f:
-            x_o = 0
-            y_o = Inv / f - g
+    for i in range(MAX_TICKS):
+        n += 1
+        if n > ns[1]:
+            break
+        p_o_up = p_o_up * (A - 1) / A
+
+        x: uint256 = self.bands_x[n]
+        y: uint256 = self.bands_y[n]
+        if x == 0:
+            Y += y
+            continue
+        elif y == 0:
+            Y += x * SQRT_BAND_RATIO / p_o_up
+            continue
+
+        y0: uint256 = self._get_y0(x, y, p_o, p_o_up)
+        f: uint256 = A * y0 * p_o / p_o_up * p_o / 10**18
+        g: uint256 = (A - 1) * y0 * p_o_up / p_o
+        # (f + x)(g + y) = const = p_top * A**2 * y0**2 = I
+        Inv: uint256 = (f + x) * (g + y)
+        # p = (f + x) / (g + y) => p * (g + y)**2 = I or (f + x)**2 / p = I
+
+        # First, "trade" in this band to p_oracle
+        x_o: uint256 = 0
+        y_o: uint256 = self.sqrt_int(Inv / p_o)
+        if y_o < g:
+            y_o = 0
         else:
-            x_o -= f
-    else:
-        x_o = Inv / g - f
-        p_o = p_o_up * (A - 1) / A
+            y_o -= g
+        p_o_use: uint256 = p_o
+        if y_o > 0:
+            x_o = Inv / (g + y_o)
+            if x_o < f:
+                x_o = 0
+                y_o = Inv / f - g
+            else:
+                x_o -= f
+        else:
+            x_o = Inv / g - f
+            p_o_use = p_o_up * (A - 1) / A
 
-    if x_o == 0:
-        return y_o
-    else:
-        return y_o + x_o / self.sqrt_int(p_o_up * p_o / 10**18)
+        if x_o == 0:
+            Y += y_o
+        else:
+            Y += y_o + x_o / self.sqrt_int(p_o_up * p_o_use / 10**18)
     # XXX split by user
-    # XXX multiple ticks
+    return Y
 
 
 # XXX method for price_oracle
