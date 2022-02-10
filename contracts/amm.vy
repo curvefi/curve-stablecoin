@@ -258,7 +258,10 @@ def save_user_ticks(user: address, n1: int256, n2: int256, ticks: uint256[MAX_TI
     if save_n:
         n1p: uint256 = convert(convert(convert(n1, int128), bytes32), uint256)
         n2p: uint256 = convert(convert(convert(n2, int128), bytes32), uint256)
-        self.user_shares[user].ns = convert(bitwise_or(n1p, shift(n2p, 128)), bytes32)
+        if n1 > n2:
+            self.user_shares[user].ns = convert(bitwise_or(n2p, shift(n1p, 128)), bytes32)
+        else:
+            self.user_shares[user].ns = convert(bitwise_or(n1p, shift(n2p, 128)), bytes32)
 
     dist: uint256 = convert(abs(n1 - n2), uint256)
     ptr: uint256 = 0
@@ -374,8 +377,6 @@ def withdraw(user: address, move_to: address) -> uint256[2]:
     assert msg.sender == ADMIN
 
     ns: int256[2] = self._read_user_tick_numbers(user)
-    if ns[1] < ns[0]:
-        ns = [ns[1], ns[0]]
     user_shares: uint256[MAX_TICKS] = self.read_user_ticks(user, ns[1] - ns[0])
     assert user_shares[0] > 0
 
@@ -541,10 +542,12 @@ def exchange(i: uint256, j: uint256, in_amount: uint256, min_amount: uint256, _f
 # get_y_up(user) and get_x_down(user)
 @internal
 @view
-def get_y_up(n: int256) -> uint256:
+def get_y_up(user: address, n: int256) -> uint256:
     """
     Measure the amount of y in the band n if we adiabatically trade near p_oracle on the way up
     """
+    ns: int256[2] = self._read_user_tick_numbers(user)
+
     x: uint256 = self.bands_x[n]
     y: uint256 = self.bands_y[n]
     if x == 0:
@@ -583,6 +586,8 @@ def get_y_up(n: int256) -> uint256:
         return y_o
     else:
         return y_o + x_o / self.sqrt_int(p_o_up * p_o / 10**18)
+    # XXX split by user
+    # XXX multiple ticks
 
 
 # XXX method for price_oracle
