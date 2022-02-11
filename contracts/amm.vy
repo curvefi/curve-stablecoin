@@ -559,14 +559,16 @@ def get_y_up(user: address) -> uint256:
         if n > ns[1]:
             break
         p_o_up = p_o_up * (A - 1) / A
+        total_share: uint256 = self.total_shares[n]
+        user_share: uint256 = ticks[i]
 
         x: uint256 = self.bands_x[n]
         y: uint256 = self.bands_y[n]
         if x == 0:
-            Y += y
+            Y += y * user_share / total_share
             continue
         elif y == 0:
-            Y += x * SQRT_BAND_RATIO / p_o_up
+            Y += x * SQRT_BAND_RATIO / p_o_up * user_share / total_share
             continue
 
         y0: uint256 = self._get_y0(x, y, p_o, p_o_up)
@@ -596,10 +598,10 @@ def get_y_up(user: address) -> uint256:
             p_o_use = p_o_up * (A - 1) / A
 
         if x_o == 0:
-            Y += y_o
+            Y += y_o * user_share / total_share
         else:
-            Y += y_o + x_o / self.sqrt_int(p_o_up * p_o_use / 10**18)
-    # XXX split by user
+            Y += (y_o + x_o / self.sqrt_int(p_o_up * p_o_use / 10**18)) * user_share / total_share
+
     return Y
 
 
