@@ -27,8 +27,7 @@ base_price_0: uint256
 base_price_time: uint256
 active_band: public(int256)
 
-price_oracle_contract: public(address)
-price_oracle_sig: public(bytes32)
+price_oracle_sig: uint256
 
 p_base_mul: uint256
 
@@ -43,7 +42,7 @@ user_shares: public(HashMap[address, UserTicks])
 def __init__(_collateral_token: address, _borrowed_token: address,
              _A: uint256, _base_price: uint256, fee: uint256,
              _admin: address,
-             _price_oracle_contract:address, _price_oracle_sig: Bytes[4]):
+             _price_oracle_contract:address, _price_oracle_sig: bytes32):
     A = _A
     self.base_price_0 = _base_price
     self.base_price_time = block.timestamp
@@ -52,8 +51,11 @@ def __init__(_collateral_token: address, _borrowed_token: address,
     BORROWED_TOKEN = _borrowed_token
     self.fee = fee
     ADMIN = _admin
-    self.price_oracle_contract = _price_oracle_contract
-    self.price_oracle_sig = convert(_price_oracle_sig, bytes32)
+
+    self.price_oracle_sig = bitwise_or(
+        shift(convert(_price_oracle_contract, uint256), 32),
+        convert(_price_oracle_sig, uint256)
+    )
 
     # Vyper cannot call functions from init
     # So we repeat sqrt here. SAD
@@ -93,12 +95,20 @@ def sqrt_int(x: uint256) -> uint256:
 # End of low-level math
 
 
+@external
+@view
+def price_oracle_signature() -> (address, Bytes[4]):
+    sig: uint256 = self.price_oracle_sig
+    return convert(shift(sig, -32), address), slice(convert(bitwise_and(sig, 2**32-1), bytes32), 28, 4)
+
+
 @internal
 @view
 def _price_oracle() -> uint256:
+    sig: uint256 = self.price_oracle_sig
     response: Bytes[32] = raw_call(
-        self.price_oracle_contract,
-        slice(self.price_oracle_sig, 0, 4),
+        convert(shift(sig, -32), address),
+        slice(convert(bitwise_and(sig, 2**32-1), bytes32), 28, 4),
         is_static_call=True,
         max_outsize=32
     )
