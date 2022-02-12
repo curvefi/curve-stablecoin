@@ -43,7 +43,7 @@ user_shares: public(HashMap[address, UserTicks])
 def __init__(_collateral_token: address, _borrowed_token: address,
              _A: uint256, _base_price: uint256, fee: uint256,
              _admin: address,
-             _price_oracle_contract:address, _price_oracle_sig: bytes32):
+             _price_oracle_contract:address, _price_oracle_sig: Bytes[4]):
     A = _A
     self.base_price_0 = _base_price
     self.base_price_time = block.timestamp
@@ -53,7 +53,7 @@ def __init__(_collateral_token: address, _borrowed_token: address,
     self.fee = fee
     ADMIN = _admin
     self.price_oracle_contract = _price_oracle_contract
-    self.price_oracle_sig = _price_oracle_sig
+    self.price_oracle_sig = convert(_price_oracle_sig, bytes32)
 
     # Vyper cannot call functions from init
     # So we repeat sqrt here. SAD
@@ -640,3 +640,6 @@ def set_fee(fee: uint256):
     assert msg.sender == ADMIN
     assert fee < 10**18, "Fee is too high"
     self.fee = fee
+
+
+# XXX PRECISIONS
