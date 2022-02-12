@@ -1,5 +1,10 @@
 # @version 0.3.1
-from vyper.interfaces import ERC20
+
+interface ERC20:
+    def transfer(_to: address, _value: uint256) -> bool: nonpayable
+    def transferFrom(_from: address, _to: address, _value: uint256) -> bool: nonpayable
+    def decimals() -> uint256: view
+    def balanceOf(_user: address) -> uint256: view
 
 MAX_INT: constant(int256) = 57896044618658097711785492504343953926634992332820282019728792003956564819967  # 2**255 - 1
 MAX_TICKS: constant(int256) = 50
@@ -20,6 +25,8 @@ A: immutable(uint256)
 SQRT_BAND_RATIO: immutable(uint256)  # sqrt(A / (A - 1))
 COLLATERAL_TOKEN: immutable(address)  # y
 BORROWED_TOKEN: immutable(address)    # x
+COLLATERAL_PRECISION: immutable(uint256)
+BORROWED_PRECISION: immutable(uint256)
 
 fee: public(uint256)
 rate: public(int256)  # Rate can be negative, to support positive-rebase tokens
@@ -49,6 +56,8 @@ def __init__(_collateral_token: address, _borrowed_token: address,
     self.p_base_mul = 10**18
     COLLATERAL_TOKEN = _collateral_token
     BORROWED_TOKEN = _borrowed_token
+    COLLATERAL_PRECISION = 10 ** (18 - ERC20(_collateral_token).decimals())
+    BORROWED_PRECISION = 10 ** (18 - ERC20(_borrowed_token).decimals())
     self.fee = fee
     ADMIN = _admin
 
@@ -366,7 +375,7 @@ def deposit_range(user: address, amount: uint256, n1: int256, n2: int256, move_c
     if move_coins:
         assert ERC20(COLLATERAL_TOKEN).transferFrom(user, self, amount)
 
-    y: uint256 = amount / (convert(abs(n2 - n1), uint256) + 1)
+    y: uint256 = amount * COLLATERAL_PRECISION / (convert(abs(n2 - n1), uint256) + 1)
     assert y > 0, "Amount too low"
 
     band: int256 = min(n1, n2)
@@ -434,6 +443,9 @@ def withdraw(user: address, move_to: address) -> uint256[2]:
             break
 
     self.empty_ticks(user)
+
+    total_x /= BORROWED_PRECISION
+    total_y /= COLLATERAL_PRECISION
     if move_to != ZERO_ADDRESS:
         assert ERC20(BORROWED_TOKEN).transfer(move_to, total_x)
         assert ERC20(COLLATERAL_TOKEN).transfer(move_to, total_y)
@@ -516,15 +528,26 @@ def calc_swap_out(pump: bool, in_amount: uint256) -> DetailedTrade:
 @view
 def get_dy(i: uint256, j: uint256, in_amount: uint256) -> uint256:
     assert (i == 0 and j == 1) or (i == 1 and j == 0), "Wrong index"
-    out: DetailedTrade = self.calc_swap_out(i == 0, in_amount)
+    precision: uint256 = 0
+    if i == 0:
+        precision = BORROWED_PRECISION
+    else:
+        precision = COLLATERAL_PRECISION
+    out: DetailedTrade = self.calc_swap_out(i == 0, in_amount * precision)
     return out.out_amount
 
 
 @external
 def exchange(i: uint256, j: uint256, in_amount: uint256, min_amount: uint256, _for: address = msg.sender) -> uint256:
     assert (i == 0 and j == 1) or (i == 1 and j == 0), "Wrong index"
-    out: DetailedTrade = self.calc_swap_out(i == 0, in_amount)
-    assert out.out_amount >= min_amount, "Slippage"
+    in_precision: uint256 = BORROWED_PRECISION
+    out_precision: uint256 = COLLATERAL_PRECISION
+    if i == 1:
+        in_precision = COLLATERAL_PRECISION
+        out_precision = BORROWED_PRECISION
+
+    out: DetailedTrade = self.calc_swap_out(i == 0, in_amount * in_precision)
+    assert out.out_amount / out_precision >= min_amount, "Slippage"
 
     in_coin: address = BORROWED_TOKEN
     out_coin: address = COLLATERAL_TOKEN
@@ -533,7 +556,7 @@ def exchange(i: uint256, j: uint256, in_amount: uint256, min_amount: uint256, _f
         out_coin = BORROWED_TOKEN
 
     ERC20(in_coin).transferFrom(msg.sender, self, in_amount)
-    ERC20(out_coin).transfer(_for, out.out_amount)
+    ERC20(out_coin).transfer(_for, out.out_amount / out_precision)
 
     n: int256 = out.n1
     step: int256 = 1
@@ -569,7 +592,7 @@ def exchange(i: uint256, j: uint256, in_amount: uint256, min_amount: uint256, _f
         n -= 1
     self.p_base_mul = p_base_mul
 
-    return out.out_amount
+    return out.out_amount / out_precision
 
 # get_y_up(user) and get_x_down(user)
 @internal
@@ -634,7 +657,7 @@ def get_y_up(user: address) -> uint256:
         else:
             Y += (y_o + x_o / self.sqrt_int(p_o_up * p_o_use / 10**18)) * user_share / total_share
 
-    return Y
+    return Y / COLLATERAL_PRECISION
 
 
 @external
@@ -652,4 +675,5 @@ def set_fee(fee: uint256):
     self.fee = fee
 
 
-# XXX PRECISIONS
+# XXX total X
+# XXX events

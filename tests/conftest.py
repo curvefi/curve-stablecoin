@@ -15,7 +15,7 @@ def collateral_token(ERC20Mock, accounts):
 
 @pytest.fixture(scope="module", autouse=True)
 def borrowed_token(ERC20Mock, accounts):
-    return ERC20Mock.deploy("Brrr", "USD", 18, {'from': accounts[0]})
+    return ERC20Mock.deploy("Brrr", "USD", 6, {'from': accounts[0]})
 
 
 @pytest.fixture(scope="module", autouse=True)
