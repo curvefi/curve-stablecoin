@@ -27,7 +27,9 @@ base_price_0: uint256
 base_price_time: uint256
 active_band: public(int256)
 
-price_oracle: public(uint256)
+price_oracle_contract: public(address)
+price_oracle_sig: public(bytes32)
+
 p_base_mul: uint256
 
 bands_x: public(HashMap[int256, uint256])
@@ -40,16 +42,18 @@ user_shares: public(HashMap[address, UserTicks])
 @external
 def __init__(_collateral_token: address, _borrowed_token: address,
              _A: uint256, _base_price: uint256, fee: uint256,
-             _admin: address):
+             _admin: address,
+             _price_oracle_contract:address, _price_oracle_sig: bytes32):
     A = _A
     self.base_price_0 = _base_price
     self.base_price_time = block.timestamp
-    self.price_oracle = _base_price
     self.p_base_mul = 10**18
     COLLATERAL_TOKEN = _collateral_token
     BORROWED_TOKEN = _borrowed_token
     self.fee = fee
     ADMIN = _admin
+    self.price_oracle_contract = _price_oracle_contract
+    self.price_oracle_sig = _price_oracle_sig
 
     # Vyper cannot call functions from init
     # So we repeat sqrt here. SAD
@@ -87,6 +91,24 @@ def sqrt_int(x: uint256) -> uint256:
 
     raise "Did not converge"
 # End of low-level math
+
+
+@internal
+@view
+def _price_oracle() -> uint256:
+    response: Bytes[32] = raw_call(
+        self.price_oracle_contract,
+        slice(self.price_oracle_sig, 0, 4),
+        is_static_call=True,
+        max_outsize=32
+    )
+    return convert(response, uint256)
+
+
+@external
+@view
+def price_oracle() -> uint256:
+    return self._price_oracle()
 
 
 @external
@@ -158,7 +180,7 @@ def _p_current_band(n: int256, is_up: bool) -> uint256:
     p_base: uint256 = self._p_oracle_band(n, is_up)
 
     # return self.p_oracle**3 / p_base**2
-    p_oracle: uint256 = self.price_oracle
+    p_oracle: uint256 = self._price_oracle()
     return p_oracle**2 / p_base * p_oracle / p_base
 
 
@@ -213,7 +235,7 @@ def _get_y0(x: uint256, y: uint256, p_o: uint256, p_o_up: uint256) -> uint256:
 def get_y0(n: int256) -> uint256:
     x: uint256 = self.bands_x[n]
     y: uint256 = self.bands_y[n]
-    p_o: uint256 = self.price_oracle
+    p_o: uint256 = self._price_oracle()
     p_oracle_up: uint256 = 0
     if n == MAX_INT:
         p_oracle_up = self._base_price() * self.p_base_mul / 10**18
@@ -232,7 +254,7 @@ def _get_p(y0: uint256) -> uint256:
     p_o_up: uint256 = self._base_price() * self.p_base_mul / 10**18
     if x == 0 and y == 0:
         return p_o_up * 10**18 / SQRT_BAND_RATIO
-    p_o: uint256 = self.price_oracle
+    p_o: uint256 = self._price_oracle()
 
     _y0: uint256 = y0
     if _y0 == MAX_UINT256:
@@ -417,7 +439,7 @@ def calc_swap_out(pump: bool, in_amount: uint256) -> DetailedTrade:
     # pump = False: collateral (ETH) in, borrowable (USD) out; going down
     n: int256 = self.active_band
     out.n1 = n
-    p_o: uint256 = self.price_oracle
+    p_o: uint256 = self._price_oracle()
     p_o_up: uint256 = self._base_price() * self.p_base_mul / 10**18
     fee: uint256 = self.fee
     in_amount_left: uint256 = in_amount * (10**18 - fee) / 10**18
@@ -548,7 +570,7 @@ def get_y_up(user: address) -> uint256:
     """
     ns: int256[2] = self._read_user_tick_numbers(user)
     ticks: uint256[MAX_TICKS] = self.read_user_ticks(user, ns[1] - ns[0])
-    p_o: uint256 = self.price_oracle
+    p_o: uint256 = self._price_oracle()
 
     n: int256 = ns[0] - 1
     p_o_up: uint256 = self._p_oracle_band(n, False)
@@ -603,9 +625,6 @@ def get_y_up(user: address) -> uint256:
             Y += (y_o + x_o / self.sqrt_int(p_o_up * p_o_use / 10**18)) * user_share / total_share
 
     return Y
-
-
-# XXX method for price_oracle
 
 
 @external
