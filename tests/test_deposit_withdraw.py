@@ -11,6 +11,7 @@ from .conftest import approx
 def test_deposit_withdraw(amm, amounts, accounts, ns, dns, collateral_token):
     admin = accounts[0]
     n0 = amm.active_band()
+    amounts = [a if a > 10**9 else 0 for a in amounts]
     deposits = {}
     for user, amount, n1, dn in zip(accounts[1:6], amounts, ns, dns):
         n2 = n1 + dn
