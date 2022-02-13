@@ -1,9 +1,4 @@
-from math import log
-from .conftest import PRICE
-
-
-def approx(x1, x2, precision):
-    return abs(log(x1 / x2)) <= precision
+from .conftest import PRICE, approx
 
 
 def test_price_oracle(PriceOracle, amm):

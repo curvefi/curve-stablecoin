@@ -1,6 +1,11 @@
 import pytest
+from math import log
 
 PRICE = 3000
+
+
+def approx(x1, x2, precision):
+    return abs(log(x1 / x2)) <= precision
 
 
 @pytest.fixture(scope="module", autouse=True)

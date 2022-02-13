@@ -10,6 +10,7 @@ from brownie.test import given, strategy
 def test_deposit_withdraw(amm, amounts, accounts, ns, dns, collateral_token):
     admin = accounts[0]
     n0 = amm.active_band()
+    customers = {}
     for user, amount, n1, dn in zip(accounts[1:6], amounts, ns, dns):
         n2 = n1 + dn
         collateral_token._mint_for_testing(user, amount)
@@ -22,3 +23,11 @@ def test_deposit_withdraw(amm, amounts, accounts, ns, dns, collateral_token):
                     amm.deposit_range(user, amount, n1, n2, True, {'from': admin})
             else:
                 amm.deposit_range(user, amount, n1, n2, True, {'from': admin})
+                customers[user] = amount
+                assert collateral_token.balanceOf(user) == 0
+    for user in accounts[1:6]:
+        if user in customers:
+            amm.withdraw(user, user, {'from': admin})
+        else:
+            with brownie.reverts("No deposits"):
+                amm.withdraw(user, user, {'from': admin})

@@ -419,7 +419,7 @@ def withdraw(user: address, move_to: address) -> uint256[2]:
 
     ns: int256[2] = self._read_user_tick_numbers(user)
     user_shares: uint256[MAX_TICKS] = self.read_user_ticks(user, ns[1] - ns[0])
-    assert user_shares[0] > 0
+    assert user_shares[0] > 0, "No deposits"
 
     total_x: uint256 = 0
     total_y: uint256 = 0
