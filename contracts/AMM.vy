@@ -312,7 +312,7 @@ def save_user_ticks(user: address, n1: int256, n2: int256, ticks: uint256[MAX_TI
         tick: uint256 = ticks[ptr]
         ptr += 1
         if dist != ptr:
-            tick += shift(ticks[ptr], 128)  # XXX or
+            tick = bitwise_or(tick, shift(ticks[ptr], 128))
         ptr += 1
         self.user_shares[user].ticks[i] = tick
 
