@@ -20,9 +20,13 @@ def borrowed_token(ERC20Mock, accounts):
 
 @pytest.fixture(scope="module", autouse=True)
 def amm(AMM, PriceOracle, collateral_token, borrowed_token, accounts):
-    return AMM.deploy(
+    amm = AMM.deploy(
         collateral_token, borrowed_token,
         100, PRICE * 10**18, 10**16,
         accounts[0],
         PriceOracle, PriceOracle.price.signature,
         {'from': accounts[0]})
+    for acct in accounts[1:6]:
+        collateral_token.approve(amm, 2**256-1, {'from': acct})
+        borrowed_token.approve(amm, 2**256-1, {'from': acct})
+    return amm
