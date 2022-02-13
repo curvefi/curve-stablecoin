@@ -304,15 +304,15 @@ def save_user_ticks(user: address, n1: int256, n2: int256, ticks: uint256[MAX_TI
         else:
             self.user_shares[user].ns = convert(bitwise_or(n1p, shift(n2p, 128)), bytes32)
 
-    dist: uint256 = convert(abs(n1 - n2), uint256)
+    dist: uint256 = convert(abs(n1 - n2), uint256) + 1
     ptr: uint256 = 0
     for i in range(MAX_TICKS / 2):
-        if ptr > dist:
+        if ptr >= dist:
             break
         tick: uint256 = ticks[ptr]
         ptr += 1
         if dist != ptr:
-            tick += shift(ticks[ptr], 128)
+            tick += shift(ticks[ptr], 128)  # XXX or
         ptr += 1
         self.user_shares[user].ticks[i] = tick
 
@@ -348,7 +348,7 @@ def read_user_tick_numbers(user: address) -> int256[2]:
 
 @internal
 @view
-def read_user_ticks(user: address, size: int256) -> uint256[MAX_TICKS]:
+def _read_user_ticks(user: address, size: int256) -> uint256[MAX_TICKS]:
     """
     Unpacks and reads user ticks
     """
@@ -367,6 +367,12 @@ def read_user_ticks(user: address, size: int256) -> uint256[MAX_TICKS]:
 
 
 @external
+@view
+def read_user_ticks(user: address, size: int256) -> uint256[MAX_TICKS]:
+    return self._read_user_ticks(user, size)
+
+
+@external
 def deposit_range(user: address, amount: uint256, n1: int256, n2: int256, move_coins: bool):
     assert msg.sender == ADMIN
 
@@ -375,16 +381,16 @@ def deposit_range(user: address, amount: uint256, n1: int256, n2: int256, move_c
     if move_coins:
         assert ERC20(COLLATERAL_TOKEN).transferFrom(user, self, amount)
 
-    y: uint256 = amount * COLLATERAL_PRECISION / (convert(abs(n2 - n1), uint256) + 1)
-    assert y > 0, "Amount too low"
-
     band: int256 = min(n1, n2)
     finish: int256 = max(n1, n2)
+
+    y: uint256 = amount * COLLATERAL_PRECISION / (convert(finish - band, uint256) + 1)
+    assert y > 0, "Amount too low"
 
     save_n: bool = True
     if self.has_liquidity(user):
         ns: int256[2] = self._read_user_tick_numbers(user)
-        assert (ns[0] == n1 and ns[1] == n2) or (ns[0] == n2 or ns[1] == n1), "Wrong range"
+        assert ns[0] == band and ns[1] == finish, "Wrong range"
         save_n = False
 
     user_shares: uint256[MAX_TICKS] = empty(uint256[MAX_TICKS])
@@ -418,7 +424,7 @@ def withdraw(user: address, move_to: address) -> uint256[2]:
     assert msg.sender == ADMIN
 
     ns: int256[2] = self._read_user_tick_numbers(user)
-    user_shares: uint256[MAX_TICKS] = self.read_user_ticks(user, ns[1] - ns[0])
+    user_shares: uint256[MAX_TICKS] = self._read_user_ticks(user, ns[1] - ns[0])
     assert user_shares[0] > 0, "No deposits"
 
     total_x: uint256 = 0
@@ -595,14 +601,16 @@ def exchange(i: uint256, j: uint256, in_amount: uint256, min_amount: uint256, _f
     return out.out_amount / out_precision
 
 # get_y_up(user) and get_x_down(user)
-@internal
+@external
 @view
 def get_y_up(user: address) -> uint256:
     """
     Measure the amount of y in the band n if we adiabatically trade near p_oracle on the way up
     """
     ns: int256[2] = self._read_user_tick_numbers(user)
-    ticks: uint256[MAX_TICKS] = self.read_user_ticks(user, ns[1] - ns[0])
+    ticks: uint256[MAX_TICKS] = self._read_user_ticks(user, ns[1] - ns[0] + 1)
+    if ticks[0] == 0:
+        return 0
     p_o: uint256 = self._price_oracle()
 
     n: int256 = ns[0] - 1
