@@ -33,11 +33,10 @@ def test_deposit_withdraw(amm, amounts, accounts, ns, dns, collateral_token):
         else:
             assert amm.get_y_up(user) == 0
 
-    if False:
-        for user in accounts[1:6]:
-            if user in deposits:
+    for user in accounts[1:6]:
+        if user in deposits:
+            amm.withdraw(user, user, {'from': admin})
+            assert approx(collateral_token.balanceOf(user), deposits[user], 1e-6)
+        else:
+            with brownie.reverts("No deposits"):
                 amm.withdraw(user, user, {'from': admin})
-                assert collateral_token.balanceOf(user) == deposits[user]
-            else:
-                with brownie.reverts("No deposits"):
-                    amm.withdraw(user, user, {'from': admin})
