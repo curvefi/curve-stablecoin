@@ -371,7 +371,7 @@ def deposit_range(user: address, amount: uint256, n1: int256, n2: int256, move_c
     assert msg.sender == ADMIN
 
     n0: int256 = self.active_band
-    assert n1 < n0 and n2 < n0, "Deposits should be below current band"
+    assert n1 > n0 and n2 > n0, "Deposits should be below current band"
     if move_coins:
         assert ERC20(COLLATERAL_TOKEN).transferFrom(user, self, amount)
 
