@@ -4,8 +4,11 @@ from math import log
 PRICE = 3000
 
 
-def approx(x1, x2, precision):
-    return abs(log(x1 / x2)) <= precision
+def approx(x1, x2, precision, abs_precision=None):
+    result = False
+    if abs_precision is not None:
+        result = abs(x2 - x1) <= abs_precision
+    return result or (abs(log(x1 / x2)) <= precision)
 
 
 @pytest.fixture(scope="module", autouse=True)

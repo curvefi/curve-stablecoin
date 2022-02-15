@@ -4,14 +4,13 @@ from .conftest import approx
 
 
 @given(
-        amounts=strategy('uint256[5]', min_value=10**9, max_value=10**6 * 10**18),
+        amounts=strategy('uint256[5]', min_value=0, max_value=10**6 * 10**18),
         ns=strategy('int256[5]', min_value=-20, max_value=20),
         dns=strategy('uint256[5]', min_value=0, max_value=20),
 )
 def test_deposit_withdraw(amm, amounts, accounts, ns, dns, collateral_token):
     admin = accounts[0]
     n0 = amm.active_band()
-    amounts = [a if a > 10**9 else 0 for a in amounts]
     deposits = {}
     for user, amount, n1, dn in zip(accounts[1:6], amounts, ns, dns):
         n2 = n1 + dn
@@ -30,14 +29,14 @@ def test_deposit_withdraw(amm, amounts, accounts, ns, dns, collateral_token):
 
     for user in accounts[1:6]:
         if user in deposits:
-            assert approx(amm.get_y_up(user), deposits[user], 1e-6)
+            assert approx(amm.get_y_up(user), deposits[user], 1e-6, 20)
         else:
             assert amm.get_y_up(user) == 0
 
     for user in accounts[1:6]:
         if user in deposits:
             amm.withdraw(user, user, {'from': admin})
-            assert approx(collateral_token.balanceOf(user), deposits[user], 1e-6)
+            assert approx(collateral_token.balanceOf(user), deposits[user], 1e-6, 20)
         else:
             with brownie.reverts("No deposits"):
                 amm.withdraw(user, user, {'from': admin})
