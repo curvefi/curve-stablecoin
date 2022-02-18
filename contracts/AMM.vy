@@ -14,6 +14,7 @@ struct UserTicks:
     ticks: uint256[MAX_TICKS/2]  # Share fractions packed 2 per slot
 
 struct DetailedTrade:
+    in_amount: uint256
     out_amount: uint256
     n1: int256
     n2: int256
@@ -527,7 +528,8 @@ def calc_swap_out(pump: bool, in_amount: uint256) -> DetailedTrade:
             x = self.bands_x[n]
             y = 0
 
-    raise "Too many ticks"
+    out.in_amount = in_amount - in_amount_left
+    return out
 
 
 @external
@@ -541,6 +543,22 @@ def get_dy(i: uint256, j: uint256, in_amount: uint256) -> uint256:
         precision = COLLATERAL_PRECISION
     out: DetailedTrade = self.calc_swap_out(i == 0, in_amount * precision)
     return out.out_amount
+
+
+@external
+@view
+def get_dydx(i: uint256, j: uint256, in_amount: uint256) -> (uint256, uint256):
+    """
+    Method to be used to figure if we have some in_amount left or not
+    """
+    assert (i == 0 and j == 1) or (i == 1 and j == 0), "Wrong index"
+    precision: uint256 = 0
+    if i == 0:
+        precision = BORROWED_PRECISION
+    else:
+        precision = COLLATERAL_PRECISION
+    out: DetailedTrade = self.calc_swap_out(i == 0, in_amount * precision)
+    return (out.in_amount, out.out_amount)
 
 
 @external
@@ -561,7 +579,7 @@ def exchange(i: uint256, j: uint256, in_amount: uint256, min_amount: uint256, _f
         in_coin = COLLATERAL_TOKEN
         out_coin = BORROWED_TOKEN
 
-    ERC20(in_coin).transferFrom(msg.sender, self, in_amount)
+    ERC20(in_coin).transferFrom(msg.sender, self, out.in_amount)
     ERC20(out_coin).transfer(_for, out.out_amount / out_precision)
 
     n: int256 = out.n1
