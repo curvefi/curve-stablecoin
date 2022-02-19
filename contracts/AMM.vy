@@ -478,7 +478,7 @@ def calc_swap_out(pump: bool, in_amount: uint256) -> DetailedTrade:
 
     for i in range(MAX_TICKS):
         y0: uint256 = self._get_y0(x, y, p_o, p_o_up)
-        f: uint256 = A * y0 * p_o / p_o_up * p_o
+        f: uint256 = A * y0 * p_o / p_o_up * p_o / 10**18
         g: uint256 = (A - 1) * y0 * p_o_up / p_o
         Inv: uint256 = (f + x) * (g + y)
 
@@ -492,6 +492,7 @@ def calc_swap_out(pump: bool, in_amount: uint256) -> DetailedTrade:
                     out.out_amount += y - out.last_tick_j
                     out.ticks_in[i] = x
                     out.n2 = n
+                    out.in_amount = in_amount
                     return out
 
                 else:
@@ -502,7 +503,7 @@ def calc_swap_out(pump: bool, in_amount: uint256) -> DetailedTrade:
                     out.out_amount += y
 
             n += 1
-            p_o_up = p_o_up * A / (A - 1)
+            p_o_up = p_o_up * (A - 1) / A
             x = 0
             y = self.bands_y[n]
 
@@ -516,6 +517,7 @@ def calc_swap_out(pump: bool, in_amount: uint256) -> DetailedTrade:
                     out.out_amount += x - out.last_tick_j
                     out.ticks_in[i] = y
                     out.n2 = n
+                    out.in_amount = in_amount
                     return out
 
                 else:
@@ -526,7 +528,7 @@ def calc_swap_out(pump: bool, in_amount: uint256) -> DetailedTrade:
                     out.out_amount += x
 
             n -= 1
-            p_o_up = p_o_up * (A - 1) / A
+            p_o_up = p_o_up * A / (A - 1)
             x = self.bands_x[n]
             y = 0
 
@@ -539,14 +541,18 @@ def calc_swap_out(pump: bool, in_amount: uint256) -> DetailedTrade:
 def get_dy(i: uint256, j: uint256, in_amount: uint256) -> uint256:
     assert (i == 0 and j == 1) or (i == 1 and j == 0), "Wrong index"
     precision: uint256 = 0
+    precision_out: uint256 = 0
     if i == 0:
         precision = BORROWED_PRECISION
+        precision_out = COLLATERAL_PRECISION
     else:
         precision = COLLATERAL_PRECISION
+        precision_out = BORROWED_PRECISION
     out: DetailedTrade = self.calc_swap_out(i == 0, in_amount * precision)
-    return out.out_amount
+    return out.out_amount / precision_out
 
 
+# Can collapse in one function XXX
 @external
 @view
 def get_dxdy(i: uint256, j: uint256, in_amount: uint256) -> (uint256, uint256):
@@ -555,12 +561,15 @@ def get_dxdy(i: uint256, j: uint256, in_amount: uint256) -> (uint256, uint256):
     """
     assert (i == 0 and j == 1) or (i == 1 and j == 0), "Wrong index"
     precision: uint256 = 0
+    precision_out: uint256 = 0
     if i == 0:
         precision = BORROWED_PRECISION
+        precision_out = COLLATERAL_PRECISION
     else:
         precision = COLLATERAL_PRECISION
+        precision_out = BORROWED_PRECISION
     out: DetailedTrade = self.calc_swap_out(i == 0, in_amount * precision)
-    return (out.in_amount, out.out_amount)
+    return (out.in_amount / precision, out.out_amount / precision_out)
 
 
 @external
