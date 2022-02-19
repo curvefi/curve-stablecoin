@@ -501,7 +501,7 @@ def calc_swap_out(pump: bool, in_amount: uint256) -> DetailedTrade:
                     out.ticks_in[i] = x + dx * fee / 10**18
                     out.out_amount += y
 
-            n -= 1
+            n += 1
             p_o_up = p_o_up * A / (A - 1)
             x = 0
             y = self.bands_y[n]
@@ -525,7 +525,7 @@ def calc_swap_out(pump: bool, in_amount: uint256) -> DetailedTrade:
                     out.ticks_in[i] = y + dy * fee / 10**18
                     out.out_amount += x
 
-            n += 1
+            n -= 1
             p_o_up = p_o_up * (A - 1) / A
             x = self.bands_x[n]
             y = 0
