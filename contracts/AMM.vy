@@ -483,22 +483,23 @@ def calc_swap_out(pump: bool, in_amount: uint256) -> DetailedTrade:
         Inv: uint256 = (f + x) * (g + y)
 
         if pump:
-            x_dest: uint256 = Inv / g - f
-            if x_dest - x >= in_amount_left:
-                # This is the last band
-                x += in_amount_left * fee / 10**18
-                out.last_tick_j = Inv / (f + x) - g  # Should be always >= 0
-                out.out_amount += y - out.last_tick_j
-                out.ticks_in[i] = x
-                out.n2 = n
-                return out
+            if y > 0:
+                x_dest: uint256 = Inv / g - f
+                if x_dest - x >= in_amount_left:
+                    # This is the last band
+                    x += in_amount_left * fee / 10**18
+                    out.last_tick_j = Inv / (f + x) - g  # Should be always >= 0
+                    out.out_amount += y - out.last_tick_j
+                    out.ticks_in[i] = x
+                    out.n2 = n
+                    return out
 
-            else:
-                # We go into the next band
-                dx: uint256 = x_dest - x
-                in_amount_left -= dx
-                out.ticks_in[i] = x + dx * fee / 10**18
-                out.out_amount += y
+                else:
+                    # We go into the next band
+                    dx: uint256 = x_dest - x
+                    in_amount_left -= dx
+                    out.ticks_in[i] = x + dx * fee / 10**18
+                    out.out_amount += y
 
             n -= 1
             p_o_up = p_o_up * A / (A - 1)
@@ -506,22 +507,23 @@ def calc_swap_out(pump: bool, in_amount: uint256) -> DetailedTrade:
             y = self.bands_y[n]
 
         else:  # dump
-            y_dest: uint256 = Inv / f - g
-            if y_dest - y >= in_amount_left:
-                # This is the last band
-                y += in_amount_left * fee / 10**18
-                out.last_tick_j = Inv / (g + y) - f
-                out.out_amount += x - out.last_tick_j
-                out.ticks_in[i] = y
-                out.n2 = n
-                return out
+            if x > 0:
+                y_dest: uint256 = Inv / f - g
+                if y_dest - y >= in_amount_left:
+                    # This is the last band
+                    y += in_amount_left * fee / 10**18
+                    out.last_tick_j = Inv / (g + y) - f
+                    out.out_amount += x - out.last_tick_j
+                    out.ticks_in[i] = y
+                    out.n2 = n
+                    return out
 
-            else:
-                # We go into the next band
-                dy: uint256 = y_dest - y
-                in_amount_left -= dy
-                out.ticks_in[i] = y + dy * fee / 10**18
-                out.out_amount += x
+                else:
+                    # We go into the next band
+                    dy: uint256 = y_dest - y
+                    in_amount_left -= dy
+                    out.ticks_in[i] = y + dy * fee / 10**18
+                    out.out_amount += x
 
             n += 1
             p_o_up = p_o_up * (A - 1) / A
@@ -547,7 +549,7 @@ def get_dy(i: uint256, j: uint256, in_amount: uint256) -> uint256:
 
 @external
 @view
-def get_dydx(i: uint256, j: uint256, in_amount: uint256) -> (uint256, uint256):
+def get_dxdy(i: uint256, j: uint256, in_amount: uint256) -> (uint256, uint256):
     """
     Method to be used to figure if we have some in_amount left or not
     """
