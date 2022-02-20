@@ -472,6 +472,7 @@ def calc_swap_out(pump: bool, in_amount: uint256) -> DetailedTrade:
     p_o_up: uint256 = self._base_price() * self.p_base_mul / 10**18
     fee: uint256 = self.fee
     in_amount_left: uint256 = in_amount * (10**18 - fee) / 10**18
+    in_amount_used: uint256 = 0
     fee = (10**18)**2 / (10**18 - fee)
     x: uint256 = self.bands_x[n]
     y: uint256 = self.bands_y[n]
@@ -499,7 +500,9 @@ def calc_swap_out(pump: bool, in_amount: uint256) -> DetailedTrade:
                     # We go into the next band
                     dx: uint256 = x_dest - x
                     in_amount_left -= dx
-                    out.ticks_in[i] = x + dx * fee / 10**18
+                    dx = dx * fee / 10**18
+                    out.ticks_in[i] = x + dx
+                    in_amount_used += dx
                     out.out_amount += y
 
             n += 1
@@ -524,7 +527,9 @@ def calc_swap_out(pump: bool, in_amount: uint256) -> DetailedTrade:
                     # We go into the next band
                     dy: uint256 = y_dest - y
                     in_amount_left -= dy
-                    out.ticks_in[i] = y + dy * fee / 10**18
+                    dy = dy * fee / 10**18
+                    out.ticks_in[i] = y + dy
+                    in_amount_used += dy
                     out.out_amount += x
 
             n -= 1
@@ -532,7 +537,7 @@ def calc_swap_out(pump: bool, in_amount: uint256) -> DetailedTrade:
             x = self.bands_x[n]
             y = 0
 
-    out.in_amount = in_amount - in_amount_left
+    out.in_amount = in_amount_used
     return out
 
 
