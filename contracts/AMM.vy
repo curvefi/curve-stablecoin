@@ -548,16 +548,13 @@ def _get_dxdy(i: uint256, j: uint256, in_amount: uint256) -> (uint256, uint256):
     Method to be used to figure if we have some in_amount left or not
     """
     assert (i == 0 and j == 1) or (i == 1 and j == 0), "Wrong index"
-    precision: uint256 = 0
-    precision_out: uint256 = 0
+    in_precision: uint256 = COLLATERAL_PRECISION
+    out_precision: uint256 = BORROWED_PRECISION
     if i == 0:
-        precision = BORROWED_PRECISION
-        precision_out = COLLATERAL_PRECISION
-    else:
-        precision = COLLATERAL_PRECISION
-        precision_out = BORROWED_PRECISION
-    out: DetailedTrade = self.calc_swap_out(i == 0, in_amount * precision)
-    return (out.in_amount / precision, out.out_amount / precision_out)
+        in_precision = BORROWED_PRECISION
+        out_precision = COLLATERAL_PRECISION
+    out: DetailedTrade = self.calc_swap_out(i == 0, in_amount * in_precision)
+    return (out.in_amount / in_precision, out.out_amount / out_precision)
 
 
 @external
