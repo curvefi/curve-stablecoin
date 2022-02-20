@@ -466,16 +466,16 @@ def calc_swap_out(pump: bool, in_amount: uint256) -> DetailedTrade:
     out: DetailedTrade = empty(DetailedTrade)
     # pump = True: borrowable (USD) in, collateral (ETH) out; going up
     # pump = False: collateral (ETH) in, borrowable (USD) out; going down
-    n: int256 = self.active_band
-    out.n1 = n
+    out.n1 = self.active_band
+    out.n2 = out.n1
     p_o: uint256 = self._price_oracle()
     p_o_up: uint256 = self._base_price() * self.p_base_mul / 10**18
     fee: uint256 = self.fee
     in_amount_left: uint256 = in_amount * (10**18 - fee) / 10**18
     in_amount_used: uint256 = 0
     fee = (10**18)**2 / (10**18 - fee)
-    x: uint256 = self.bands_x[n]
-    y: uint256 = self.bands_y[n]
+    x: uint256 = self.bands_x[out.n2]
+    y: uint256 = self.bands_y[out.n2]
 
     for i in range(MAX_TICKS):
         y0: uint256 = self._get_y0(x, y, p_o, p_o_up)
@@ -492,7 +492,6 @@ def calc_swap_out(pump: bool, in_amount: uint256) -> DetailedTrade:
                     out.last_tick_j = Inv / (f + x) - g  # Should be always >= 0
                     out.out_amount += y - out.last_tick_j
                     out.ticks_in[i] = x
-                    out.n2 = n
                     out.in_amount = in_amount
                     return out
 
@@ -505,10 +504,11 @@ def calc_swap_out(pump: bool, in_amount: uint256) -> DetailedTrade:
                     in_amount_used += dx
                     out.out_amount += y
 
-            n += 1
-            p_o_up = p_o_up * (A - 1) / A
-            x = 0
-            y = self.bands_y[n]
+            if i != MAX_TICKS - 1:
+                out.n2 += 1
+                p_o_up = p_o_up * (A - 1) / A
+                x = 0
+                y = self.bands_y[out.n2]
 
         else:  # dump
             if x > 0:
@@ -519,7 +519,6 @@ def calc_swap_out(pump: bool, in_amount: uint256) -> DetailedTrade:
                     out.last_tick_j = Inv / (g + y) - f
                     out.out_amount += x - out.last_tick_j
                     out.ticks_in[i] = y
-                    out.n2 = n
                     out.in_amount = in_amount
                     return out
 
@@ -532,10 +531,11 @@ def calc_swap_out(pump: bool, in_amount: uint256) -> DetailedTrade:
                     in_amount_used += dy
                     out.out_amount += x
 
-            n -= 1
-            p_o_up = p_o_up * A / (A - 1)
-            x = self.bands_x[n]
-            y = 0
+            if i != MAX_TICKS - 1:
+                out.n2 -= 1
+                p_o_up = p_o_up * A / (A - 1)
+                x = self.bands_x[out.n2]
+                y = 0
 
     out.in_amount = in_amount_used
     return out
@@ -575,20 +575,19 @@ def get_dxdy(i: uint256, j: uint256, in_amount: uint256) -> (uint256, uint256):
 @external
 def exchange(i: uint256, j: uint256, in_amount: uint256, min_amount: uint256, _for: address = msg.sender) -> uint256:
     assert (i == 0 and j == 1) or (i == 1 and j == 0), "Wrong index"
+
+    in_coin: address = BORROWED_TOKEN
+    out_coin: address = COLLATERAL_TOKEN
     in_precision: uint256 = BORROWED_PRECISION
     out_precision: uint256 = COLLATERAL_PRECISION
     if i == 1:
         in_precision = COLLATERAL_PRECISION
         out_precision = BORROWED_PRECISION
+        in_coin = COLLATERAL_TOKEN
+        out_coin = BORROWED_TOKEN
 
     out: DetailedTrade = self.calc_swap_out(i == 0, in_amount * in_precision)
     assert out.out_amount / out_precision >= min_amount, "Slippage"
-
-    in_coin: address = BORROWED_TOKEN
-    out_coin: address = COLLATERAL_TOKEN
-    if i == 1:
-        in_coin = COLLATERAL_TOKEN
-        out_coin = BORROWED_TOKEN
 
     ERC20(in_coin).transferFrom(msg.sender, self, out.in_amount)
     ERC20(out_coin).transfer(_for, out.out_amount / out_precision)
