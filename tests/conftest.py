@@ -38,3 +38,8 @@ def amm(AMM, PriceOracle, collateral_token, borrowed_token, accounts):
         collateral_token.approve(amm, 2**256-1, {'from': acct})
         borrowed_token.approve(amm, 2**256-1, {'from': acct})
     return amm
+
+
+@pytest.fixture(autouse=True)
+def isolate(fn_isolation):
+    pass

@@ -593,7 +593,7 @@ def exchange(i: uint256, j: uint256, in_amount: uint256, min_amount: uint256, _f
     out: DetailedTrade = self.calc_swap_out(i == 0, in_amount * in_precision)
     assert out.out_amount / out_precision >= min_amount, "Slippage"
 
-    ERC20(in_coin).transferFrom(msg.sender, self, out.in_amount)
+    ERC20(in_coin).transferFrom(msg.sender, self, out.in_amount / in_precision)
     ERC20(out_coin).transfer(_for, out.out_amount / out_precision)
 
     n: int256 = out.n1
