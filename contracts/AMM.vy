@@ -471,7 +471,7 @@ def calc_swap_out(pump: bool, in_amount: uint256) -> DetailedTrade:
     p_o: uint256 = self._price_oracle()
     p_o_up: uint256 = self._base_price() * self.p_base_mul / 10**18
     fee: uint256 = self.fee
-    in_amount_left: uint256 = in_amount * (10**18 - fee) / 10**18
+    in_amount_left: uint256 = in_amount
     in_amount_used: uint256 = 0
     fee = (10**18)**2 / (10**18 - fee)
     x: uint256 = self.bands_x[out.n2]
@@ -486,10 +486,10 @@ def calc_swap_out(pump: bool, in_amount: uint256) -> DetailedTrade:
         if pump:
             if y > 0:
                 x_dest: uint256 = Inv / g - f
-                if x_dest - x >= in_amount_left:
+                if (x_dest - x) * fee / 10**18 >= in_amount_left:
                     # This is the last band
-                    x += in_amount_left * fee / 10**18
-                    out.last_tick_j = Inv / (f + x) - g  # Should be always >= 0
+                    out.last_tick_j = Inv / (f + (x + in_amount_left * 10**18 / fee)) - g  # Should be always >= 0
+                    x += in_amount_left
                     out.out_amount += y - out.last_tick_j
                     out.ticks_in[i] = x
                     out.in_amount = in_amount
@@ -498,8 +498,8 @@ def calc_swap_out(pump: bool, in_amount: uint256) -> DetailedTrade:
                 else:
                     # We go into the next band
                     dx: uint256 = x_dest - x
-                    in_amount_left -= dx
                     dx = dx * fee / 10**18
+                    in_amount_left -= dx
                     out.ticks_in[i] = x + dx
                     in_amount_used += dx
                     out.out_amount += y
@@ -513,10 +513,10 @@ def calc_swap_out(pump: bool, in_amount: uint256) -> DetailedTrade:
         else:  # dump
             if x > 0:
                 y_dest: uint256 = Inv / f - g
-                if y_dest - y >= in_amount_left:
+                if (y_dest - y) * fee / 10**18 >= in_amount_left:
                     # This is the last band
-                    y += in_amount_left * fee / 10**18
-                    out.last_tick_j = Inv / (g + y) - f
+                    out.last_tick_j = Inv / (g + (y + in_amount_left * 10**18 / fee)) - f
+                    y += in_amount_left
                     out.out_amount += x - out.last_tick_j
                     out.ticks_in[i] = y
                     out.in_amount = in_amount
@@ -525,8 +525,8 @@ def calc_swap_out(pump: bool, in_amount: uint256) -> DetailedTrade:
                 else:
                     # We go into the next band
                     dy: uint256 = y_dest - y
-                    in_amount_left -= dy
                     dy = dy * fee / 10**18
+                    in_amount_left -= dy
                     out.ticks_in[i] = y + dy
                     in_amount_used += dy
                     out.out_amount += x
@@ -548,6 +548,8 @@ def _get_dxdy(i: uint256, j: uint256, in_amount: uint256) -> (uint256, uint256):
     Method to be used to figure if we have some in_amount left or not
     """
     assert (i == 0 and j == 1) or (i == 1 and j == 0), "Wrong index"
+    if in_amount == 0:
+        return (0, 0)
     in_precision: uint256 = COLLATERAL_PRECISION
     out_precision: uint256 = BORROWED_PRECISION
     if i == 0:
@@ -575,6 +577,8 @@ def get_dxdy(i: uint256, j: uint256, in_amount: uint256) -> (uint256, uint256):
 @external
 def exchange(i: uint256, j: uint256, in_amount: uint256, min_amount: uint256, _for: address = msg.sender) -> uint256:
     assert (i == 0 and j == 1) or (i == 1 and j == 0), "Wrong index"
+    if in_amount == 0:
+        return 0
 
     in_coin: address = BORROWED_TOKEN
     out_coin: address = COLLATERAL_TOKEN

@@ -34,7 +34,7 @@ def amm(AMM, PriceOracle, collateral_token, borrowed_token, accounts):
         accounts[0],
         PriceOracle, PriceOracle.price.signature,
         {'from': accounts[0]})
-    for acct in accounts[1:6]:
+    for acct in accounts[1:7]:
         collateral_token.approve(amm, 2**256-1, {'from': acct})
         borrowed_token.approve(amm, 2**256-1, {'from': acct})
     return amm
