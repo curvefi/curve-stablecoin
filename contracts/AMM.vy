@@ -384,8 +384,9 @@ def deposit_range(user: address, amount: uint256, n1: int256, n2: int256, move_c
 
     band: int256 = min(n1, n2)
     finish: int256 = max(n1, n2)
+    n_bands: uint256 = convert(finish - band, uint256) + 1
 
-    y: uint256 = amount * COLLATERAL_PRECISION / (convert(finish - band, uint256) + 1)
+    y: uint256 = amount * COLLATERAL_PRECISION / n_bands
     assert y > 0, "Amount too low"
 
     save_n: bool = True
@@ -397,6 +398,10 @@ def deposit_range(user: address, amount: uint256, n1: int256, n2: int256, move_c
     user_shares: uint256[MAX_TICKS] = empty(uint256[MAX_TICKS])
 
     for i in range(MAX_TICKS):
+        if band == finish:
+            # Take the dust in the last band
+            # Maybe could give up on this though
+            y = amount * COLLATERAL_PRECISION - y * (n_bands - 1)
         # Deposit coins
         assert self.bands_x[band] == 0, "Band not empty"
         total_y: uint256 = self.bands_y[band]
@@ -596,6 +601,7 @@ def exchange(i: uint256, j: uint256, in_amount: uint256, min_amount: uint256, _f
     ERC20(in_coin).transferFrom(msg.sender, self, out.in_amount / in_precision)
     ERC20(out_coin).transfer(_for, out.out_amount / out_precision)
 
+    p_base_mul: uint256 = self.p_base_mul
     n: int256 = out.n1
     step: int256 = 1
     if out.n2 < out.n1:
@@ -606,28 +612,22 @@ def exchange(i: uint256, j: uint256, in_amount: uint256, min_amount: uint256, _f
             if n == out.n2:
                 self.bands_y[n] = out.last_tick_j
                 break
-            else:
-                self.bands_y[n] = 0
+            self.bands_y[n] = 0
+
         else:
             self.bands_y[n] = out.ticks_in[k]
             if n == out.n2:
                 self.bands_x[n] = out.last_tick_j
                 break
-            else:
-                self.bands_x[n] = 0
-        n += step
+            self.bands_x[n] = 0
 
-    self.active_band = n
-    p_base_mul: uint256 = self.p_base_mul
-    n = abs(out.n2 - out.n1)
-    for k in range(MAX_TICKS):
-        if n == 0:
-            break
         if step == 1:
             p_base_mul = p_base_mul * (A - 1) / A
         else:
             p_base_mul = p_base_mul * A / (A - 1)
-        n -= 1
+        n += step
+
+    self.active_band = n
     self.p_base_mul = p_base_mul
 
     return out.out_amount / out_precision

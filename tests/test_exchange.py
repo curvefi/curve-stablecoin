@@ -61,6 +61,7 @@ def test_exchange_down_up(amm, amounts, accounts, ns, dns, amount,
     amm.exchange(0, 1, dx2, 0, {'from': u})
     assert borrowed_token.balanceOf(u) == 0
     assert collateral_token.balanceOf(u) == dy2
+
     sum_borrowed = sum(amm.bands_x(i) for i in range(50))
     sum_collateral = sum(amm.bands_y(i) for i in range(50))
     assert borrowed_token.balanceOf(amm) * 10**(18 - 6) == sum_borrowed

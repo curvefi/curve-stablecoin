@@ -8,6 +8,8 @@ def approx(x1, x2, precision, abs_precision=None):
     result = False
     if abs_precision is not None:
         result = abs(x2 - x1) <= abs_precision
+    if x2 == 0:
+        return x1 == 0
     return result or (abs(log(x1 / x2)) <= precision)
 
 
