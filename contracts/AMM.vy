@@ -37,7 +37,7 @@ active_band: public(int256)
 
 price_oracle_sig: uint256
 
-p_base_mul: uint256
+p_base_mul: public(uint256)
 
 bands_x: public(HashMap[int256, uint256])
 bands_y: public(HashMap[int256, uint256])
@@ -490,15 +490,14 @@ def calc_swap_out(pump: bool, in_amount: uint256) -> DetailedTrade:
                     # This is the last band
                     out.last_tick_j = Inv / (f + (x + in_amount_left * 10**18 / fee)) - g  # Should be always >= 0
                     x += in_amount_left
-                    out.out_amount += y - out.last_tick_j
+                    out.out_amount += y - out.last_tick_j  # d_balanceOf == d_y
                     out.ticks_in[i] = x
                     out.in_amount = in_amount
                     return out
 
                 else:
                     # We go into the next band
-                    dx: uint256 = x_dest - x
-                    dx = dx * fee / 10**18
+                    dx: uint256 = (x_dest - x) * fee / 10**18
                     in_amount_left -= dx
                     out.ticks_in[i] = x + dx
                     in_amount_used += dx
@@ -524,8 +523,7 @@ def calc_swap_out(pump: bool, in_amount: uint256) -> DetailedTrade:
 
                 else:
                     # We go into the next band
-                    dy: uint256 = y_dest - y
-                    dy = dy * fee / 10**18
+                    dy: uint256 = (y_dest - y) * fee / 10**18
                     in_amount_left -= dy
                     out.ticks_in[i] = y + dy
                     in_amount_used += dy
@@ -592,6 +590,8 @@ def exchange(i: uint256, j: uint256, in_amount: uint256, min_amount: uint256, _f
 
     out: DetailedTrade = self.calc_swap_out(i == 0, in_amount * in_precision)
     assert out.out_amount / out_precision >= min_amount, "Slippage"
+    if out.out_amount == 0:
+        return 0
 
     ERC20(in_coin).transferFrom(msg.sender, self, out.in_amount / in_precision)
     ERC20(out_coin).transfer(_for, out.out_amount / out_precision)
@@ -621,12 +621,12 @@ def exchange(i: uint256, j: uint256, in_amount: uint256, min_amount: uint256, _f
     p_base_mul: uint256 = self.p_base_mul
     n = abs(out.n2 - out.n1)
     for k in range(MAX_TICKS):
+        if n == 0:
+            break
         if step == 1:
             p_base_mul = p_base_mul * (A - 1) / A
         else:
             p_base_mul = p_base_mul * A / (A - 1)
-        if n == 0:
-            break
         n -= 1
     self.p_base_mul = p_base_mul
 
