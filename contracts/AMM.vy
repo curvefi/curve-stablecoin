@@ -489,7 +489,7 @@ def calc_swap_out(pump: bool, in_amount: uint256) -> DetailedTrade:
         Inv: uint256 = (f + x) * (g + y)
 
         if pump:
-            if y > 0:
+            if y > 0 and g > 0:
                 x_dest: uint256 = Inv / g - f
                 if (x_dest - x) * fee / 10**18 >= in_amount_left:
                     # This is the last band
@@ -515,7 +515,7 @@ def calc_swap_out(pump: bool, in_amount: uint256) -> DetailedTrade:
                 y = self.bands_y[out.n2]
 
         else:  # dump
-            if x > 0:
+            if x > 0 and f > 0:
                 y_dest: uint256 = Inv / f - g
                 if (y_dest - y) * fee / 10**18 >= in_amount_left:
                     # This is the last band
