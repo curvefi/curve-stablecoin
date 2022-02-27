@@ -2,12 +2,12 @@ from brownie.test import strategy
 
 
 class StatefulExchange:
-    amounts = strategy('uint256[5]', min_value=1, max_value=10**6 * 10**18)
+    amounts = strategy('uint256[5]', min_value=0, max_value=10**6 * 10**18)
     ns = strategy('int256[5]', min_value=1, max_value=20)
     dns = strategy('uint256[5]', min_value=0, max_value=20)
     amount = strategy('uint256', max_value=10**9 * 10**6)
     pump = strategy('bool')
-    user_id = strategy('uint256', max_value=5)
+    user_id = strategy('uint256', max_value=4)
 
     def __init__(self, amm, collateral_token, borrowed_token, accounts):
         self.amm = amm
@@ -20,7 +20,13 @@ class StatefulExchange:
         for user, amount, n1, dn in zip(self.accounts, amounts, ns, dns):
             n2 = n1 + dn
             self.collateral_token._mint_for_testing(user, amount)
-            self.amm.deposit_range(user, amount, n1, n2, True, {'from': self.admin})
+            try:
+                self.amm.deposit_range(user, amount, n1, n2, True, {'from': self.admin})
+            except Exception as e:
+                if 'Amount too low' in str(e):
+                    assert amount // (dn + 1) == 0
+                else:
+                    raise
 
     def rule_exchange(self, amount, pump, user_id):
         u = self.accounts[user_id]
