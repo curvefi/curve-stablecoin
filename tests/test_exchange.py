@@ -64,15 +64,15 @@ def test_exchange_down_up(amm, amounts, accounts, ns, dns, amount,
 
     sum_borrowed = sum(amm.bands_x(i) for i in range(50))
     sum_collateral = sum(amm.bands_y(i) for i in range(50))
-    assert borrowed_token.balanceOf(amm) * 10**(18 - 6) == sum_borrowed
-    assert collateral_token.balanceOf(amm) == sum_collateral
+    assert abs(borrowed_token.balanceOf(amm) - sum_borrowed // 10**(18 - 6)) <= 1
+    assert abs(collateral_token.balanceOf(amm) - sum_collateral) <= 1
 
     in_amount = int(dy2 / 0.98)  # two trades charge 1% twice
     expected_out_amount = dx2
 
     dx, dy = amm.get_dxdy(1, 0, in_amount)
     assert approx(dx, in_amount, 5e-4)  # Not precise because fee is charged on different directions
-    assert dy == expected_out_amount
+    assert abs(dy - expected_out_amount) <= 1
 
     collateral_token._mint_for_testing(u, dx - collateral_token.balanceOf(u))
     dy_measured = borrowed_token.balanceOf(u)

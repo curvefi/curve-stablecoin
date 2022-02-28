@@ -35,6 +35,7 @@ class StatefulExchange:
             j = 1
             in_token = self.borrowed_token
         else:
+            return # XXX
             i = 1
             j = 0
             in_token = self.collateral_token
@@ -42,6 +43,12 @@ class StatefulExchange:
         if amount > u_amount:
             in_token._mint_for_testing(u, amount - u_amount)
         self.amm.exchange(i, j, amount, 0, {'from': u})
+
+    def invariant_amm_solvent(self):
+        X = sum(self.amm.bands_x(n) for n in range(42))
+        Y = sum(self.amm.bands_y(n) for n in range(42))
+        assert self.borrowed_token.balanceOf(self.amm) * 10**(18 - 6) >= X
+        assert self.collateral_token.balanceOf(self.amm) >= Y
 
     # def invariant_dy_back(self):
     #     pass
