@@ -494,8 +494,9 @@ def calc_swap_out(pump: bool, in_amount: uint256) -> DetailedTrade:
                 if (x_dest - x) * fee / 10**18 >= in_amount_left:
                     # This is the last band
                     out.last_tick_j = Inv / (f + (x + in_amount_left * 10**18 / fee)) - g  # Should be always >= 0
-                    x += in_amount_left
-                    out.out_amount += y - out.last_tick_j  # d_balanceOf == d_y
+                    x += in_amount_left  # x is precise after this
+                    # Round down the output
+                    out.out_amount += (y - out.last_tick_j) / COLLATERAL_PRECISION * COLLATERAL_PRECISION
                     out.ticks_in[i] = x
                     out.in_amount = in_amount
                     return out
@@ -521,7 +522,7 @@ def calc_swap_out(pump: bool, in_amount: uint256) -> DetailedTrade:
                     # This is the last band
                     out.last_tick_j = Inv / (g + (y + in_amount_left * 10**18 / fee)) - f
                     y += in_amount_left
-                    out.out_amount += x - out.last_tick_j
+                    out.out_amount += (x - out.last_tick_j) / BORROWED_PRECISION * BORROWED_PRECISION
                     out.ticks_in[i] = y
                     out.in_amount = in_amount
                     return out
@@ -540,7 +541,18 @@ def calc_swap_out(pump: bool, in_amount: uint256) -> DetailedTrade:
                 x = self.bands_x[out.n2]
                 y = 0
 
+    # Round up what goes in and down what goes out
     out.in_amount = in_amount_used
+    if pump:
+        in_amount_used = in_amount_used / BORROWED_PRECISION * BORROWED_PRECISION
+        if in_amount_used != out.in_amount:
+            out.in_amount = in_amount_used + BORROWED_PRECISION
+        out.out_amount = out.out_amount / COLLATERAL_PRECISION * COLLATERAL_PRECISION
+    else:
+        in_amount_used = in_amount_used / COLLATERAL_PRECISION * COLLATERAL_PRECISION
+        if in_amount_used != out.in_amount:
+            out.in_amount = in_amount_used + COLLATERAL_PRECISION
+        out.out_amount = out.out_amount / BORROWED_PRECISION * BORROWED_PRECISION
     return out
 
 
