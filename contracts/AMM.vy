@@ -560,26 +560,29 @@ def calc_swap_out(pump: bool, in_amount: uint256) -> DetailedTrade:
 
 @internal
 @view
-def _get_dxdy(i: uint256, j: uint256, in_amount: uint256) -> (uint256, uint256):
+def _get_dxdy(i: uint256, j: uint256, in_amount: uint256) -> DetailedTrade:
     """
     Method to be used to figure if we have some in_amount left or not
     """
     assert (i == 0 and j == 1) or (i == 1 and j == 0), "Wrong index"
+    out: DetailedTrade = empty(DetailedTrade)
     if in_amount == 0:
-        return (0, 0)
+        return out
     in_precision: uint256 = COLLATERAL_PRECISION
     out_precision: uint256 = BORROWED_PRECISION
     if i == 0:
         in_precision = BORROWED_PRECISION
         out_precision = COLLATERAL_PRECISION
-    out: DetailedTrade = self.calc_swap_out(i == 0, in_amount * in_precision)
-    return (out.in_amount / in_precision, out.out_amount / out_precision)
+    out = self.calc_swap_out(i == 0, in_amount * in_precision)
+    out.in_amount /= in_precision
+    out.out_amount /= out_precision
+    return out
 
 
 @external
 @view
 def get_dy(i: uint256, j: uint256, in_amount: uint256) -> uint256:
-    return self._get_dxdy(i, j, in_amount)[1]
+    return self._get_dxdy(i, j, in_amount).out_amount
 
 
 @external
@@ -588,7 +591,8 @@ def get_dxdy(i: uint256, j: uint256, in_amount: uint256) -> (uint256, uint256):
     """
     Method to be used to figure if we have some in_amount left or not
     """
-    return self._get_dxdy(i, j, in_amount)
+    out: DetailedTrade = self._get_dxdy(i, j, in_amount)
+    return (out.in_amount, out.out_amount)
 
 
 @external
