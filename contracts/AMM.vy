@@ -374,6 +374,7 @@ def read_user_ticks(user: address, size: int256) -> uint256[MAX_TICKS]:
 
 
 @external
+@nonreentrant('lock')
 def deposit_range(user: address, amount: uint256, n1: int256, n2: int256, move_coins: bool):
     assert msg.sender == ADMIN
 
