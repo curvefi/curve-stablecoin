@@ -267,29 +267,24 @@ def get_y0(n: int256) -> uint256:
 
 @internal
 @view
-def _get_p(y0: uint256) -> uint256:
-    n: int256 = self.active_band
-    x: uint256 = self.bands_x[self.active_band]
-    y: uint256 = self.bands_y[self.active_band]
-    p_o_up: uint256 = self._base_price() * self.p_base_mul / 10**18
+def _get_p(n: int256, x: uint256, y: uint256) -> uint256:
+    p_o_up: uint256 = self._p_oracle_band(n, False)
     if x == 0 and y == 0:
         return p_o_up * 10**18 / SQRT_BAND_RATIO
     p_o: uint256 = self._price_oracle()
-
-    _y0: uint256 = y0
-    if _y0 == MAX_UINT256:
-        _y0 = self._get_y0(x, y, p_o, p_o_up)
+    y0: uint256 = self._get_y0(x, y, p_o, p_o_up)
 
     # (f(y0) + x) / (g(y0) + y)
-    f: uint256 = A * _y0 * p_o / p_o_up * p_o
-    g: uint256 = (A - 1) * _y0 * p_o_up / p_o
+    f: uint256 = A * y0 * p_o / p_o_up * p_o
+    g: uint256 = (A - 1) * y0 * p_o_up / p_o
     return (f + x * 10**18) / (g + y)
 
 
 @external
 @view
 def get_p() -> uint256:
-    return self._get_p(MAX_UINT256)
+    n: int256 = self.active_band
+    return self._get_p(n, self.bands_x[n], self.bands_y[n])
 
 
 @internal
@@ -593,6 +588,21 @@ def get_dxdy(i: uint256, j: uint256, in_amount: uint256) -> (uint256, uint256):
     """
     out: DetailedTrade = self._get_dxdy(i, j, in_amount)
     return (out.in_amount, out.out_amount)
+
+
+@external
+@view
+def get_end_price(i: uint256, j: uint256, in_amount: uint256) -> uint256:
+    out: DetailedTrade = self._get_dxdy(i, j, in_amount)
+    x: uint256 = 0
+    y: uint256 = 0
+    if i == 0:  # pump
+        x = out.ticks_in[abs(out.n2 - out.n1)]
+        y = out.last_tick_j
+    else:  # dump
+        x = out.last_tick_j
+        y = out.ticks_in[abs(out.n2 - out.n1)]
+    return self._get_p(out.n2, x, y)
 
 
 @external
