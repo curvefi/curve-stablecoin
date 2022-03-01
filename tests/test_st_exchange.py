@@ -58,9 +58,18 @@ class StatefulExchange:
             dx, dy = self.amm.get_dxdy(1, 0, to_swap)
             assert dx >= self.total_deposited - left_in_amm  # With fees, AMM will have more
 
-    # def teardown(self):
-    #     # Trade back and do the check
-    #     pass
+    def teardown(self):
+        u = self.accounts[1]
+        # Trade back and do the check
+        n = self.amm.active_band()
+        to_swap = self.total_deposited * 10
+        if n < 50:
+            _, dy = self.amm.get_dxdy(1, 0, to_swap)
+            if dy > 0:
+                self.collateral_token._mint_for_testing(u, to_swap)
+                self.amm.exchange(1, 0, to_swap, 0, {'from': u})
+                left_in_amm = sum(self.amm.bands_y(n) for n in range(42))
+                assert left_in_amm >= self.total_deposited
 
 
 def test_exchange(accounts, amm, collateral_token, borrowed_token, state_machine):
