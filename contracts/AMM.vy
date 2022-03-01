@@ -427,6 +427,7 @@ def deposit_range(user: address, amount: uint256, n1: int256, n2: int256, move_c
 
 
 @external
+@nonreentrant('lock')
 def withdraw(user: address, move_to: address) -> uint256[2]:
     assert msg.sender == ADMIN
 
@@ -591,6 +592,7 @@ def get_dxdy(i: uint256, j: uint256, in_amount: uint256) -> (uint256, uint256):
 
 
 @external
+@nonreentrant('lock')
 def exchange(i: uint256, j: uint256, in_amount: uint256, min_amount: uint256, _for: address = msg.sender) -> uint256:
     assert (i == 0 and j == 1) or (i == 1 and j == 0), "Wrong index"
     if in_amount == 0:
@@ -714,6 +716,7 @@ def get_y_up(user: address) -> uint256:
 
 
 @external
+@nonreentrant('lock')
 def set_rate(rate: int256):
     assert msg.sender == ADMIN
     self.base_price_0 = self._base_price()
@@ -722,6 +725,7 @@ def set_rate(rate: int256):
 
 
 @external
+@nonreentrant('lock')
 def set_fee(fee: uint256):
     assert msg.sender == ADMIN
     assert fee < 10**18, "Fee is too high"
