@@ -27,6 +27,7 @@ class StatefulExchange:
                     assert amount // (dn + 1) == 0
                 else:
                     raise
+        self.total_deposited = sum(self.amm.bands_y(n) for n in range(42))
 
     def rule_exchange(self, amount, pump, user_id):
         u = self.accounts[user_id]
@@ -35,7 +36,6 @@ class StatefulExchange:
             j = 1
             in_token = self.borrowed_token
         else:
-            return # XXX
             i = 1
             j = 0
             in_token = self.collateral_token
@@ -50,8 +50,13 @@ class StatefulExchange:
         assert self.borrowed_token.balanceOf(self.amm) * 10**(18 - 6) >= X
         assert self.collateral_token.balanceOf(self.amm) >= Y
 
-    # def invariant_dy_back(self):
-    #     pass
+    def invariant_dy_back(self):
+        n = self.amm.active_band()
+        to_swap = self.total_deposited * 10
+        left_in_amm = sum(self.amm.bands_y(n) for n in range(42))
+        if n < 50:
+            dx, dy = self.amm.get_dxdy(1, 0, to_swap)
+            assert dx >= self.total_deposited - left_in_amm  # With fees, AMM will have more
 
     # def teardown(self):
     #     # Trade back and do the check
