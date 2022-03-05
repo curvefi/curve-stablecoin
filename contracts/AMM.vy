@@ -34,6 +34,8 @@ rate: public(int256)  # Rate can be negative, to support positive-rebase tokens
 base_price_0: uint256
 base_price_time: uint256
 active_band: public(int256)
+min_band: public(int256)
+max_band: public(int256)
 
 price_oracle_sig: uint256
 
@@ -418,6 +420,8 @@ def deposit_range(user: address, amount: uint256, n1: int256, n2: int256, move_c
         if band > finish:
             break
 
+    self.min_band = min(self.min_band, n1)
+    self.max_band = min(self.min_band, n2)
     self.save_user_ticks(user, n1, n2, user_shares, save_n)
 
 
@@ -432,6 +436,8 @@ def withdraw(user: address, move_to: address) -> uint256[2]:
 
     total_x: uint256 = 0
     total_y: uint256 = 0
+    min_band: int256 = self.min_band
+    max_band: int256 = 0
 
     for i in range(MAX_TICKS):
         x: uint256 = self.bands_x[ns[0]]
@@ -442,8 +448,14 @@ def withdraw(user: address, move_to: address) -> uint256[2]:
         dy: uint256 = y * ds / s
 
         self.total_shares[ns[0]] = s - ds
-        self.bands_x[ns[0]] = x - dx
-        self.bands_y[ns[0]] = y - dy
+        x -= dx
+        y -= dy
+        if ns[0] == min_band and x == 0 and y == 0:
+            min_band += 1
+        if x > 0 or y > 0:
+            max_band = ns[0]
+        self.bands_x[ns[0]] = x
+        self.bands_y[ns[0]] = y
         total_x += dx
         total_y += dy
 
@@ -452,6 +464,10 @@ def withdraw(user: address, move_to: address) -> uint256[2]:
             break
 
     self.empty_ticks(user)
+
+    self.min_band = min_band
+    if self.max_band <= ns[1]:
+        self.max_band = max_band
 
     total_x /= BORROWED_PRECISION
     total_y /= COLLATERAL_PRECISION
