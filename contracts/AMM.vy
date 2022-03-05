@@ -421,7 +421,7 @@ def deposit_range(user: address, amount: uint256, n1: int256, n2: int256, move_c
             break
 
     self.min_band = min(self.min_band, n1)
-    self.max_band = min(self.min_band, n2)
+    self.max_band = max(self.max_band, n2)
     self.save_user_ticks(user, n1, n2, user_shares, save_n)
 
 
@@ -437,6 +437,7 @@ def withdraw(user: address, move_to: address) -> uint256[2]:
     total_x: uint256 = 0
     total_y: uint256 = 0
     min_band: int256 = self.min_band
+    old_min_band: int256 = min_band
     max_band: int256 = 0
 
     for i in range(MAX_TICKS):
@@ -465,7 +466,8 @@ def withdraw(user: address, move_to: address) -> uint256[2]:
 
     self.empty_ticks(user)
 
-    self.min_band = min_band
+    if old_min_band != min_band:
+        self.min_band = min_band
     if self.max_band <= ns[1]:
         self.max_band = max_band
 
@@ -494,6 +496,8 @@ def calc_swap_out(pump: bool, in_amount: uint256) -> DetailedTrade:
     fee = (10**18)**2 / (10**18 - fee)
     x: uint256 = self.bands_x[out.n2]
     y: uint256 = self.bands_y[out.n2]
+    min_band: int256 = self.min_band
+    max_band: int256 = self.max_band
 
     for i in range(MAX_TICKS):
         y0: uint256 = self._get_y0(x, y, p_o, p_o_up)
@@ -523,6 +527,8 @@ def calc_swap_out(pump: bool, in_amount: uint256) -> DetailedTrade:
                     out.out_amount += y
 
             if i != MAX_TICKS - 1:
+                if out.n2 == max_band:
+                    break
                 out.n2 += 1
                 p_o_up = p_o_up * (A - 1) / A
                 x = 0
@@ -549,6 +555,8 @@ def calc_swap_out(pump: bool, in_amount: uint256) -> DetailedTrade:
                     out.out_amount += x
 
             if i != MAX_TICKS - 1:
+                if out.n2 == min_band:
+                    break
                 out.n2 -= 1
                 p_o_up = p_o_up * A / (A - 1)
                 x = self.bands_x[out.n2]
