@@ -271,9 +271,18 @@ def get_y0(n: int256) -> uint256:
 @view
 def _get_p(n: int256, x: uint256, y: uint256) -> uint256:
     p_o_up: uint256 = self._p_oracle_band(n, False)
-    if x == 0 and y == 0:
-        return p_o_up * 10**18 / SQRT_BAND_RATIO
     p_o: uint256 = self._price_oracle()
+
+    # Special cases
+    if x == 0 and y == 0:
+        p_o_up = p_o_up * (A - 1) / A
+        return p_o**2 / p_o_up * p_o / p_o_up * 10**18 / SQRT_BAND_RATIO
+    if x == 0: # Lowest point of this band -> p_current_down
+        return p_o**2 / p_o_up * p_o / p_o_up
+    if y == 0: # Highest point of this band -> p_current_up
+        p_o_up = p_o_up * (A - 1) / A
+        return p_o**2 / p_o_up * p_o / p_o_up
+
     y0: uint256 = self._get_y0(x, y, p_o, p_o_up)
 
     # (f(y0) + x) / (g(y0) + y)
