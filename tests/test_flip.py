@@ -76,3 +76,9 @@ def test_flip(amm, PriceOracle, accounts, collateral_token, borrowed_token):
 
         p = p * 1000 // 995
         PriceOracle.set_price(p, {'from': admin})
+
+    final_y = sum(amm.bands_y(n) for n in range(1, 6))
+    # That actually wouldn't necessarily happen: could be a loss easily
+    # But this time, AMM made more money than lost
+    # We wanted to check if the loss is not too small, but in reality got a gain
+    assert final_y >= initial_y
