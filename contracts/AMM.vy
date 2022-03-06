@@ -757,7 +757,7 @@ def get_y_up(user: address) -> uint256:
         if x_o == 0:
             Y += y_o * user_share / total_share
         else:
-            Y += (y_o + x_o / self.sqrt_int(p_o_up * p_o_use / 10**18)) * user_share / total_share
+            Y += (y_o + x_o * 10**18 / self.sqrt_int(p_o_up * p_o_use / 10**18)) * user_share / total_share
 
     return Y / COLLATERAL_PRECISION
 
