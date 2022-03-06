@@ -9,7 +9,6 @@ AMOUNT_D = 5 * 10**18
 STEP = 0.1
 
 
-# @mark.skip('not ready')
 def test_flip(amm, PriceOracle, accounts, collateral_token, borrowed_token):
     admin = accounts[0]
     depositor = accounts[1]
