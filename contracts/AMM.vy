@@ -694,10 +694,10 @@ def exchange(i: uint256, j: uint256, in_amount: uint256, min_amount: uint256, _f
 
     return out.out_amount / out_precision
 
-# get_y_up(user) and get_x_down(user)
-@external
+
+@internal
 @view
-def get_y_up(user: address) -> uint256:
+def get_xy_up(user: address, use_y: bool) -> uint256:
     """
     Measure the amount of y in the band n if we adiabatically trade near p_oracle on the way up
     """
@@ -709,7 +709,7 @@ def get_y_up(user: address) -> uint256:
 
     n: int256 = ns[0] - 1
     p_o_up: uint256 = self._p_oracle_band(n, False)
-    Y: uint256 = 0
+    XY: uint256 = 0
 
     for i in range(MAX_TICKS):
         n += 1
@@ -722,10 +722,16 @@ def get_y_up(user: address) -> uint256:
         x: uint256 = self.bands_x[n]
         y: uint256 = self.bands_y[n]
         if x == 0:
-            Y += y * user_share / total_share
+            if use_y:
+                XY += y * user_share / total_share
+            else:
+                XY += y * p_o_up / SQRT_BAND_RATIO * user_share / total_share
             continue
         elif y == 0:
-            Y += x * SQRT_BAND_RATIO / p_o_up * user_share / total_share
+            if use_y:
+                XY += x * SQRT_BAND_RATIO / p_o_up * user_share / total_share
+            else:
+                XY += x * user_share / total_share
             continue
 
         y0: uint256 = self._get_y0(x, y, p_o, p_o_up)
@@ -737,29 +743,70 @@ def get_y_up(user: address) -> uint256:
 
         # First, "trade" in this band to p_oracle
         x_o: uint256 = 0
-        y_o: uint256 = self.sqrt_int(Inv / p_o)
-        if y_o < g:
-            y_o = 0
+        y_o: uint256 = 0
+        if use_y:
+            y_o = self.sqrt_int(Inv / p_o)
+            if y_o < g:
+                y_o = 0
+            else:
+                y_o -= g
         else:
-            y_o -= g
-        p_o_use: uint256 = p_o
-        if y_o > 0:
-            x_o = Inv / (g + y_o)
+            x_o = self.sqrt_int(Inv /10**18 * p_o / 10**18)
             if x_o < f:
                 x_o = 0
-                y_o = Inv / f - g
             else:
                 x_o -= f
+        p_o_use: uint256 = p_o
+        if use_y:
+            if y_o > 0:
+                x_o = Inv / (g + y_o)
+                if x_o < f:
+                    x_o = 0
+                    y_o = Inv / f - g
+                else:
+                    x_o -= f
+            else:
+                x_o = Inv / g - f
+                p_o_use = p_o_up * (A - 1) / A
         else:
-            x_o = Inv / g - f
-            p_o_use = p_o_up * (A - 1) / A
+            if x_o > 0:
+                y_o = Inv / (f + y_o)
+                if y_o < g:
+                    y_o = 0
+                    x_o = Inv / g - f
+                else:
+                    y_o -= g
+            else:
+                y_o = Inv / f - g
+                p_o_use = p_o_up
 
-        if x_o == 0:
-            Y += y_o * user_share / total_share
+        if use_y:
+            if x_o == 0:
+                XY += y_o * user_share / total_share
+            else:
+                XY += (y_o + x_o * 10**18 / self.sqrt_int(p_o_up * p_o_use / 10**18)) * user_share / total_share
         else:
-            Y += (y_o + x_o * 10**18 / self.sqrt_int(p_o_up * p_o_use / 10**18)) * user_share / total_share
+            if y_o == 0:
+                XY += x_o * user_share / total_share
+            else:
+                XY += (x_o + y_o * self.sqrt_int(p_o_up * p_o_use / 10**18) / 10**18) * user_share / total_share
 
-    return Y / COLLATERAL_PRECISION
+    if use_y:
+        return XY / COLLATERAL_PRECISION
+    else:
+        return XY / BORROWED_PRECISION
+
+
+@external
+@view
+def get_y_up(user: address) -> uint256:
+    return self.get_xy_up(user, True)
+
+
+@external
+@view
+def get_x_up(user: address) -> uint256:
+    return self.get_xy_up(user, False)
 
 
 @external
@@ -779,5 +826,4 @@ def set_fee(fee: uint256):
     self.fee = fee
 
 
-# XXX total X
 # XXX events
