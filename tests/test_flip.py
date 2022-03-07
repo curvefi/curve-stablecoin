@@ -37,6 +37,7 @@ def test_flip(amm, PriceOracle, accounts, collateral_token, borrowed_token):
             n1 = amm.active_band()
             p1 = amm.get_p()
             assert amm.get_y_up(depositor) >= sum(amm.bands_y(n) for n in range(1, 6))
+            assert amm.get_x_down(depositor) >= 5 * 0.95 * 3000 * 1e6
             amm.exchange(0, 1, dx, 0, {'from': trader})
             n2 = amm.active_band()
             p2 = amm.get_p()
@@ -50,6 +51,9 @@ def test_flip(amm, PriceOracle, accounts, collateral_token, borrowed_token):
         if is_empty:
             break
 
+    converted_x = sum(amm.bands_x(n) for n in range(1, 6)) // 10**(18 - 6)
+    assert converted_x >= 5 * 0.95**0.5 * 3000 * 1e6
+
     # Sell until we have 0 coins left
     for i in range(20):
         dy = int(STEP * AMOUNT_D)
@@ -60,6 +64,7 @@ def test_flip(amm, PriceOracle, accounts, collateral_token, borrowed_token):
             n1 = amm.active_band()
             p1 = amm.get_p()
             assert amm.get_y_up(depositor) >= sum(amm.bands_y(n) for n in range(1, 6))
+            assert amm.get_x_down(depositor) >= 5 * 0.95 * 3000 * 1e6
             amm.exchange(1, 0, dy, 0, {'from': trader})
             n2 = amm.active_band()
             p2 = amm.get_p()
@@ -77,8 +82,8 @@ def test_flip(amm, PriceOracle, accounts, collateral_token, borrowed_token):
         p = p * 1000 // 995
         PriceOracle.set_price(p, {'from': admin})
 
-    final_y = sum(amm.bands_y(n) for n in range(1, 6))
     # That actually wouldn't necessarily happen: could be a loss easily
     # But this time, AMM made more money than lost
     # We wanted to check if the loss is not too small, but in reality got a gain
-    assert final_y >= initial_y
+    assert amm.get_x_down(depositor) >= converted_x
+    assert sum(amm.bands_y(n) for n in range(1, 6)) >= initial_y
