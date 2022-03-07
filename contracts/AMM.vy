@@ -805,7 +805,7 @@ def get_y_up(user: address) -> uint256:
 
 @external
 @view
-def get_x_up(user: address) -> uint256:
+def get_x_down(user: address) -> uint256:
     return self.get_xy_up(user, False)
 
 
