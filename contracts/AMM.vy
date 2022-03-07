@@ -6,6 +6,35 @@ interface ERC20:
     def decimals() -> uint256: view
     def balanceOf(_user: address) -> uint256: view
 
+
+event TokenExchange:
+    buyer: indexed(address)
+    sold_id: uint256
+    tokens_sold: uint256
+    bought_id: uint256
+    tokens_bought: uint256
+
+event Deposit:
+    provider: indexed(address)
+    amount: uint256
+    n1: int256
+    n2: int256
+
+event Withdraw:
+    provider: indexed(address)
+    receiver: address
+    amount_borrowed: uint256
+    amount_collateral: uint256
+
+event SetRate:
+    rate: int256
+    base_price: uint256
+    time: uint256
+
+event SetFee:
+    fee: uint256
+
+
 MAX_INT: constant(int256) = 57896044618658097711785492504343953926634992332820282019728792003956564819967  # 2**255 - 1
 MAX_TICKS: constant(int256) = 50
 
@@ -433,6 +462,8 @@ def deposit_range(user: address, amount: uint256, n1: int256, n2: int256, move_c
     self.max_band = max(self.max_band, n2)
     self.save_user_ticks(user, n1, n2, user_shares, save_n)
 
+    log Deposit(user, amount, n1, n2)
+
 
 @external
 @nonreentrant('lock')
@@ -485,6 +516,7 @@ def withdraw(user: address, move_to: address) -> uint256[2]:
     if move_to != ZERO_ADDRESS:
         assert ERC20(BORROWED_TOKEN).transfer(move_to, total_x)
         assert ERC20(COLLATERAL_TOKEN).transfer(move_to, total_y)
+    log Withdraw(user, move_to, total_x, total_y)
 
     return [total_x, total_y]
 
@@ -656,12 +688,14 @@ def exchange(i: uint256, j: uint256, in_amount: uint256, min_amount: uint256, _f
         out_coin = BORROWED_TOKEN
 
     out: DetailedTrade = self.calc_swap_out(i == 0, in_amount * in_precision)
-    assert out.out_amount / out_precision >= min_amount, "Slippage"
-    if out.out_amount == 0:
+    in_amount_done: uint256 = out.in_amount / in_precision
+    out_amount_done: uint256 = out.out_amount / out_precision
+    assert out_amount_done >= min_amount, "Slippage"
+    if out_amount_done == 0:
         return 0
 
-    ERC20(in_coin).transferFrom(msg.sender, self, out.in_amount / in_precision)
-    ERC20(out_coin).transfer(_for, out.out_amount / out_precision)
+    ERC20(in_coin).transferFrom(msg.sender, self, in_amount_done)
+    ERC20(out_coin).transfer(_for, out_amount_done)
 
     p_base_mul: uint256 = self.p_base_mul
     n: int256 = out.n1
@@ -692,7 +726,9 @@ def exchange(i: uint256, j: uint256, in_amount: uint256, min_amount: uint256, _f
     self.active_band = n
     self.p_base_mul = p_base_mul
 
-    return out.out_amount / out_precision
+    log TokenExchange(_for, i, in_amount_done, j, out_amount_done)
+
+    return out_amount_done
 
 
 @internal
@@ -813,9 +849,11 @@ def get_x_down(user: address) -> uint256:
 @nonreentrant('lock')
 def set_rate(rate: int256):
     assert msg.sender == ADMIN
-    self.base_price_0 = self._base_price()
+    _base_price: uint256 = self._base_price()
+    self.base_price_0 = _base_price
     self.base_price_time = block.timestamp
     self.rate = rate
+    log SetRate(rate, _base_price, block.timestamp)
 
 
 @external
@@ -824,6 +862,4 @@ def set_fee(fee: uint256):
     assert msg.sender == ADMIN
     assert fee < 10**18, "Fee is too high"
     self.fee = fee
-
-
-# XXX events
+    log SetFee(fee)
