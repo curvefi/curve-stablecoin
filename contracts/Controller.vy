@@ -1,15 +1,21 @@
 # @version 0.3.1
-from vyper.interfaces import ERC20
-
 
 interface AMM:
     def A() -> uint256: view
     def base_price() -> uint256: view
     def active_band() -> int256: view
+    def deposit_range(user: address, amount: uint256, n1: int256, n2: int256, move_coins: bool): nonpayable
+
+interface ERC20:
+    def totalSupply() -> uint256: view
+    def mint(_to: address, _value: uint256) -> bool: nonpayable
+    def burnFrom(_to: address, _value: uint256) -> bool: nonpayable
+    def transferFrom(_from: address, _to: address, _value: uint256) -> bool: nonpayable
 
 
 COLLATERAL_TOKEN: immutable(address)
 BORROWED_TOKEN: immutable(address)
+STABLECOIN: immutable(address)
 MIN_LIQUIDATION_DISCOUNT: constant(uint256) = 10**16 # Start liquidating when threshold reached
 
 debt: public(HashMap[address, uint256])
@@ -24,10 +30,12 @@ logAratio: public(uint256)  # log(A / (A - 1))
 
 @external
 def __init__(admin: address, collateral_token: address, borrowed_token: address,
+             stablecoin: address,
              loan_discount: uint256, liquidation_discount: uint256):
     self.admin = admin
     COLLATERAL_TOKEN = collateral_token
     BORROWED_TOKEN = borrowed_token
+    STABLECOIN = stablecoin
 
     assert loan_discount > liquidation_discount
     assert liquidation_discount >= MIN_LIQUIDATION_DISCOUNT
@@ -99,8 +107,20 @@ def calculate_debt_n1(collateral: uint256, debt: uint256, N: uint256) -> int256:
 
 
 @external
+@nonreentrant('lock')
 def create_loan(collateral: uint256, debt: uint256, n: uint256):
-    pass
+    assert self.debt[msg.sender] == 0, "Loan already created"
+    amm: address = self.amm
+
+    n1: int256 = self._calculate_debt_n1(collateral, debt, n)
+    n2: int256 = n1 + convert(n, int256)
+
+    self.debt[msg.sender] = debt
+    AMM(amm).deposit_range(msg.sender, collateral, n1, n2, False)
+    ERC20(COLLATERAL_TOKEN).transferFrom(msg.sender, amm, collateral)
+    ERC20(STABLECOIN).mint(msg.sender, debt)
+
+    # log event XXX
 
 
 @external
