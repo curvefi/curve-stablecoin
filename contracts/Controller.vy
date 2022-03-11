@@ -78,19 +78,23 @@ def set_admin(admin: address):
 # n2 = n1 + N
 @internal
 @view
-def calculate_debt_n1(collateral: uint256, debt: uint256, N: uint256) -> int256:
+def _calculate_debt_n1(collateral: uint256, debt: uint256, N: uint256) -> int256:
     amm: address = self.amm
     p0: uint256 = AMM(amm).base_price()
     n0: int256 = AMM(amm).active_band()
 
     collateral_val: uint256 = (collateral * p0 / 10**18 * (10**18 - self.loan_discount))
     assert collateral_val >= debt, "Debt is too high"
-    n1_precise: uint256 = self.log2(collateral_val / debt) * 10**18 / self.logAratio
-    dn1: uint256 = 10**18 * N / 2
-    assert n1_precise >= dn1, "Debt is too high"
-    n1_precise -= dn1
+    n1_precise: uint256 = self.log2(collateral_val / debt) * 10**18 / self.logAratio - 10**18 * N / 2
+    assert n1_precise >= 10**18, "Debt is too high"
 
     return convert(n1_precise / 10**18, int256) + n0
+
+
+@external
+@view
+def calculate_debt_n1(collateral: uint256, debt: uint256, N: uint256) -> int256:
+    return self._calculate_debt_n1(collateral, debt, N)
 
 
 
