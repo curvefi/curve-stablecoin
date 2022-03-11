@@ -13,6 +13,14 @@ interface ERC20:
     def transferFrom(_from: address, _to: address, _value: uint256) -> bool: nonpayable
 
 
+event Borrow:
+    user: indexed(address)
+    collateral_amount: uint256
+    loan_amount: uint256
+    n1: int256
+    n2: int256
+
+
 COLLATERAL_TOKEN: immutable(address)
 BORROWED_TOKEN: immutable(address)
 STABLECOIN: immutable(address)
@@ -120,7 +128,7 @@ def create_loan(collateral: uint256, debt: uint256, n: uint256):
     ERC20(COLLATERAL_TOKEN).transferFrom(msg.sender, amm, collateral)
     ERC20(STABLECOIN).mint(msg.sender, debt)
 
-    # log event XXX
+    log Borrow(msg.sender, collateral, debt, n1, n2)
 
 
 @external
