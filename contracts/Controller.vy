@@ -125,7 +125,7 @@ def create_loan(collateral: uint256, debt: uint256, n: uint256):
     amm: address = self.amm
 
     n1: int256 = self._calculate_debt_n1(collateral, debt, n)
-    n2: int256 = n1 + convert(n, int256) - 1  # XXX check -1
+    n2: int256 = n1 + convert(n, int256)
 
     self.debt[msg.sender] = debt
     AMM(amm).deposit_range(msg.sender, collateral, n1, n2, False)
@@ -136,13 +136,14 @@ def create_loan(collateral: uint256, debt: uint256, n: uint256):
 
 
 @external
+@nonreentrant('lock')
 def add_collateral(d_collateral: uint256, _for: address):
     debt: uint256 = self.debt[_for]
     assert debt > 0, "Loan doesn't exist"
     amm: address = self.amm
     n: int256 = AMM(amm).active_band()
     ns: int256[2] = AMM(amm).read_user_tick_numbers(_for)
-    size: uint256 = convert(ns[1] - ns[0] + 1, uint256)  # XXX check - is it +1?
+    size: uint256 = convert(ns[1] - ns[0], uint256)
     assert ns[0] > n, "Already in liquidation mode"  # ns[1] >= ns[0] anyway
 
     collateral: uint256 = AMM(amm).get_sum_y(_for) + d_collateral
@@ -158,6 +159,7 @@ def add_collateral(d_collateral: uint256, _for: address):
 
 
 @external
+@nonreentrant('lock')
 def borrow(collateral: uint256, debt: uint256):
     # Deposit and borrow
     # debt = 0 if _for is nonzero!
@@ -165,6 +167,7 @@ def borrow(collateral: uint256, debt: uint256):
 
 
 @external
+@nonreentrant('lock')
 def repay(debt: uint256, _for: address):
     # Or repay all for MAX_UINT256
     # Withdraw if debt become 0
@@ -172,10 +175,12 @@ def repay(debt: uint256, _for: address):
 
 
 @external
+@nonreentrant('lock')
 def liquidate(user: address):
     pass
 
 
 @external
+@nonreentrant('lock')
 def self_liquidate():
     pass
