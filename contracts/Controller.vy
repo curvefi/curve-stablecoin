@@ -144,7 +144,7 @@ def _add_collateral_borrow(d_collateral: uint256, d_debt: uint256, _for: address
     n: int256 = AMM(amm).active_band()
     ns: int256[2] = AMM(amm).read_user_tick_numbers(_for)
     size: uint256 = convert(ns[1] - ns[0], uint256)
-    assert ns[0] > n, "Already in liquidation mode"  # ns[1] >= ns[0] anyway
+    assert ns[0] > n, "Already in underwater mode"  # ns[1] >= ns[0] anyway
 
     collateral: uint256 = AMM(amm).get_sum_y(_for) + d_collateral
     n1: int256 = self._calculate_debt_n1(collateral, debt, size)
@@ -191,7 +191,7 @@ def repay(d_debt: uint256, _for: address):
     n: int256 = AMM(amm).active_band()
     ns: int256[2] = AMM(amm).read_user_tick_numbers(_for)
     size: uint256 = convert(ns[1] - ns[0], uint256)
-    assert ns[0] > n, "Already in liquidation mode"  # ns[1] >= ns[0] anyway
+    assert ns[0] > n, "Already in underwater mode"  # ns[1] >= ns[0] anyway
 
     collateral: uint256 = AMM(amm).get_sum_y(_for)
     if debt == 0:
@@ -211,10 +211,14 @@ def repay(d_debt: uint256, _for: address):
 @external
 @nonreentrant('lock')
 def liquidate(user: address):
+    # Take all the fiat in the AMM, up to the debt size, and cancel the debt
+    # Bite into collateral if underwater
     pass
 
 
 @external
 @nonreentrant('lock')
 def self_liquidate():
+    # Take all the fiat in the AMM, up to the debt size, and cancel the debt
+    # Don't allow if underwater
     pass
