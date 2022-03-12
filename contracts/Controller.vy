@@ -135,11 +135,11 @@ def create_loan(collateral: uint256, debt: uint256, n: uint256):
     log Borrow(msg.sender, collateral, debt, n1, n2)
 
 
-@external
-@nonreentrant('lock')
-def add_collateral(d_collateral: uint256, _for: address):
+@internal
+def _add_collateral_borrow(d_collateral: uint256, d_debt: uint256, _for: address):
     debt: uint256 = self.debt[_for]
     assert debt > 0, "Loan doesn't exist"
+    debt += d_debt
     amm: address = self.amm
     n: int256 = AMM(amm).active_band()
     ns: int256[2] = AMM(amm).read_user_tick_numbers(_for)
@@ -152,18 +152,24 @@ def add_collateral(d_collateral: uint256, _for: address):
     n2: int256 = n1 + ns[1] - ns[0]
 
     AMM(amm).withdraw(_for, ZERO_ADDRESS)
-    AMM(amm).deposit_range(msg.sender, collateral, n1, n2, False)
-    ERC20(COLLATERAL_TOKEN).transferFrom(msg.sender, amm, d_collateral)
+    AMM(amm).deposit_range(_for, collateral, n1, n2, False)
 
-    log Borrow(msg.sender, collateral, debt, n1, n2)
+    log Borrow(_for, collateral, debt, n1, n2)
 
 
 @external
 @nonreentrant('lock')
-def borrow(collateral: uint256, debt: uint256):
-    # Deposit and borrow
-    # debt = 0 if _for is nonzero!
-    pass
+def add_collateral(collateral: uint256, _for: address):
+    self._add_collateral_borrow(collateral, 0, _for)
+    ERC20(COLLATERAL_TOKEN).transferFrom(msg.sender, self.amm, collateral)
+
+
+@external
+@nonreentrant('lock')
+def borrow_more(collateral: uint256, debt: uint256):
+    self._add_collateral_borrow(collateral, debt, msg.sender)
+    ERC20(COLLATERAL_TOKEN).transferFrom(msg.sender, self.amm, collateral)
+    ERC20(STABLECOIN).mint(msg.sender, debt)
 
 
 @external
