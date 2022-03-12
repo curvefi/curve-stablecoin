@@ -16,7 +16,7 @@ interface ERC20:
     def transferFrom(_from: address, _to: address, _value: uint256) -> bool: nonpayable
 
 
-event Borrow:
+event Borrow:  # It's in reality loan status
     user: indexed(address)
     collateral_amount: uint256
     loan_amount: uint256
@@ -174,10 +174,38 @@ def borrow_more(collateral: uint256, debt: uint256):
 
 @external
 @nonreentrant('lock')
-def repay(debt: uint256, _for: address):
+def repay(d_debt: uint256, _for: address):
     # Or repay all for MAX_UINT256
     # Withdraw if debt become 0
-    pass
+    debt: uint256 = self.debt[_for]
+    assert debt > 0, "Loan doesn't exist"
+    if d_debt == MAX_UINT256:
+        ERC20(BORROWED_TOKEN).burnFrom(msg.sender, debt)
+        debt = 0
+    else:
+        assert d_debt <= debt, "Repaid too much"
+        ERC20(BORROWED_TOKEN).burnFrom(msg.sender, d_debt)
+        debt -= d_debt
+
+    amm: address = self.amm
+    n: int256 = AMM(amm).active_band()
+    ns: int256[2] = AMM(amm).read_user_tick_numbers(_for)
+    size: uint256 = convert(ns[1] - ns[0], uint256)
+    assert ns[0] > n, "Already in liquidation mode"  # ns[1] >= ns[0] anyway
+
+    collateral: uint256 = AMM(amm).get_sum_y(_for)
+    if debt == 0:
+        AMM(amm).withdraw(_for, _for)
+        log Borrow(_for, 0, 0, 0, 0)
+    else:
+        AMM(amm).withdraw(_for, ZERO_ADDRESS)
+        n1: int256 = self._calculate_debt_n1(collateral, debt, size)
+        assert n1 >= ns[0], "Not enough collateral"
+        n2: int256 = n1 + ns[1] - ns[0]
+        AMM(amm).deposit_range(_for, collateral, n1, n2, False)
+        log Borrow(_for, collateral, debt, n1, n2)
+
+    self.debt[_for] = debt
 
 
 @external
