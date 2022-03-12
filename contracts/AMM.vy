@@ -164,17 +164,6 @@ def price_oracle() -> uint256:
 
 @external
 @view
-def coins(i: uint256) -> address:
-    if i == 0:
-        return BORROWED_TOKEN
-    elif i == 1:
-        return COLLATERAL_TOKEN
-    else:
-        raise "Out of range"
-
-
-@external
-@view
 def A() -> uint256:
     return A
 
@@ -757,6 +746,7 @@ def get_xy_up(user: address, use_y: bool) -> uint256:
 
         x: uint256 = self.bands_x[n]
         y: uint256 = self.bands_y[n]
+        # XXX can make one 0 when below or above active_band!
         if x == 0:
             if use_y:
                 XY += y * user_share / total_share
@@ -843,6 +833,20 @@ def get_y_up(user: address) -> uint256:
 @view
 def get_x_down(user: address) -> uint256:
     return self.get_xy_up(user, False)
+
+
+@external
+@view
+def get_sum_y(user: address) -> uint256:
+    y: uint256 = 0
+    ns: int256[2] = self._read_user_tick_numbers(user)
+    ticks: uint256[MAX_TICKS] = self._read_user_ticks(user, ns[1] - ns[0] + 1)
+    for i in range(MAX_TICKS):
+        y += self.bands_y[ns[0]] * ticks[i] / self.total_shares[ns[0]]
+        if ns[0] == ns[1]:
+            break
+        ns[0] += 1
+    return y / COLLATERAL_PRECISION
 
 
 @external

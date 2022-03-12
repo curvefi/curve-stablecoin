@@ -5,6 +5,9 @@ interface AMM:
     def base_price() -> uint256: view
     def active_band() -> int256: view
     def deposit_range(user: address, amount: uint256, n1: int256, n2: int256, move_coins: bool): nonpayable
+    def read_user_tick_numbers(_for: address) -> int256[2]: view
+    def get_sum_y(user: address) -> uint256: view
+    def withdraw(user: address, move_to: address) -> uint256[2]: view
 
 interface ERC20:
     def totalSupply() -> uint256: view
@@ -25,6 +28,7 @@ COLLATERAL_TOKEN: immutable(address)
 BORROWED_TOKEN: immutable(address)
 STABLECOIN: immutable(address)
 MIN_LIQUIDATION_DISCOUNT: constant(uint256) = 10**16 # Start liquidating when threshold reached
+MAX_TICKS: constant(int256) = 50
 
 debt: public(HashMap[address, uint256])
 amm: public(address)
@@ -121,7 +125,7 @@ def create_loan(collateral: uint256, debt: uint256, n: uint256):
     amm: address = self.amm
 
     n1: int256 = self._calculate_debt_n1(collateral, debt, n)
-    n2: int256 = n1 + convert(n, int256)
+    n2: int256 = n1 + convert(n, int256) - 1  # XXX check -1
 
     self.debt[msg.sender] = debt
     AMM(amm).deposit_range(msg.sender, collateral, n1, n2, False)
@@ -132,8 +136,25 @@ def create_loan(collateral: uint256, debt: uint256, n: uint256):
 
 
 @external
-def add_collateral(collateral: uint256, _for: address):
-    pass
+def add_collateral(d_collateral: uint256, _for: address):
+    debt: uint256 = self.debt[_for]
+    assert debt > 0, "Loan doesn't exist"
+    amm: address = self.amm
+    n: int256 = AMM(amm).active_band()
+    ns: int256[2] = AMM(amm).read_user_tick_numbers(_for)
+    size: uint256 = convert(ns[1] - ns[0] + 1, uint256)  # XXX check - is it +1?
+    assert ns[0] > n, "Already in liquidation mode"  # ns[1] >= ns[0] anyway
+
+    collateral: uint256 = AMM(amm).get_sum_y(_for) + d_collateral
+    n1: int256 = self._calculate_debt_n1(collateral, debt, size)
+    assert n1 >= ns[0], "Not enough collateral"
+    n2: int256 = n1 + ns[1] - ns[0]
+
+    AMM(amm).withdraw(_for, ZERO_ADDRESS)
+    AMM(amm).deposit_range(msg.sender, collateral, n1, n2, False)
+    ERC20(COLLATERAL_TOKEN).transferFrom(msg.sender, amm, d_collateral)
+
+    log Borrow(msg.sender, collateral, debt, n1, n2)
 
 
 @external
