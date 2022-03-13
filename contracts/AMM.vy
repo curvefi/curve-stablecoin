@@ -60,9 +60,9 @@ BORROWED_PRECISION: immutable(uint256)
 BASE_PRICE: immutable(uint256)
 
 fee: public(uint256)
-rate: public(int256)  # Rate can be negative, to support positive-rebase tokens
+rate: int256  # Rate can be negative, to support positive-rebase tokens
 rate_time: uint256
-rate_mul: uint256
+rate_mul: public(uint256)
 active_band: public(int256)
 min_band: int256
 max_band: int256
