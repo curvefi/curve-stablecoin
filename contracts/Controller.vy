@@ -8,6 +8,8 @@ interface AMM:
     def read_user_tick_numbers(_for: address) -> int256[2]: view
     def get_sum_y(user: address) -> uint256: view
     def withdraw(user: address, move_to: address) -> uint256[2]: view
+    def get_x_down(user: address) -> uint256: view
+    def rate() -> int256: view
 
 interface ERC20:
     def totalSupply() -> uint256: view
@@ -30,7 +32,8 @@ STABLECOIN: immutable(address)
 MIN_LIQUIDATION_DISCOUNT: constant(uint256) = 10**16 # Start liquidating when threshold reached
 MAX_TICKS: constant(int256) = 50
 
-debt: public(HashMap[address, uint256])
+debt0: HashMap[address, uint256]
+loan_time: public(HashMap[address, uint256])
 amm: public(address)
 admin: public(address)
 ltv: public(uint256)  # Loan to value at 1e18 base
@@ -93,6 +96,24 @@ def set_admin(admin: address):
     self.admin = admin
 
 
+@internal
+@view
+def _debt(user: address) -> uint256:
+    # XXX cache rate?
+    # algorithmic rate?
+    # also this is incorrect when rate changes: to review
+    rate: int256 = AMM(self.amm).rate()
+    return convert(
+        convert(self.debt0[user], int256) + rate * convert(block.timestamp - self.loan_time[user], int256) / 10**18,
+        uint256)
+
+
+@external
+@view
+def debt(user: address) -> uint256:
+    return self._debt(user)
+
+
 # n1 = log((collateral * p_base * (1 - discount)) / debt) / log(A / (A - 1)) - N / 2
 # round that down
 # n2 = n1 + N
@@ -121,13 +142,14 @@ def calculate_debt_n1(collateral: uint256, debt: uint256, N: uint256) -> int256:
 @external
 @nonreentrant('lock')
 def create_loan(collateral: uint256, debt: uint256, n: uint256):
-    assert self.debt[msg.sender] == 0, "Loan already created"
+    assert self.debt0[msg.sender] == 0, "Loan already created"
     amm: address = self.amm
 
     n1: int256 = self._calculate_debt_n1(collateral, debt, n)
     n2: int256 = n1 + convert(n, int256)
 
-    self.debt[msg.sender] = debt
+    self.debt0[msg.sender] = debt
+    self.loan_time[msg.sender] = block.timestamp
     AMM(amm).deposit_range(msg.sender, collateral, n1, n2, False)
     ERC20(COLLATERAL_TOKEN).transferFrom(msg.sender, amm, collateral)
     ERC20(STABLECOIN).mint(msg.sender, debt)
@@ -137,7 +159,7 @@ def create_loan(collateral: uint256, debt: uint256, n: uint256):
 
 @internal
 def _add_collateral_borrow(d_collateral: uint256, d_debt: uint256, _for: address):
-    debt: uint256 = self.debt[_for]
+    debt: uint256 = self._debt(_for)
     assert debt > 0, "Loan doesn't exist"
     debt += d_debt
     amm: address = self.amm
@@ -153,6 +175,8 @@ def _add_collateral_borrow(d_collateral: uint256, d_debt: uint256, _for: address
 
     AMM(amm).withdraw(_for, ZERO_ADDRESS)
     AMM(amm).deposit_range(_for, collateral, n1, n2, False)
+    self.debt0[_for] = debt
+    self.loan_time[_for] = block.timestamp
 
     log Borrow(_for, collateral, debt, n1, n2)
 
@@ -177,7 +201,7 @@ def borrow_more(collateral: uint256, debt: uint256):
 def repay(d_debt: uint256, _for: address):
     # Or repay all for MAX_UINT256
     # Withdraw if debt become 0
-    debt: uint256 = self.debt[_for]
+    debt: uint256 = self._debt(_for)
     assert debt > 0, "Loan doesn't exist"
     if d_debt == MAX_UINT256:
         ERC20(BORROWED_TOKEN).burnFrom(msg.sender, debt)
@@ -205,7 +229,8 @@ def repay(d_debt: uint256, _for: address):
         AMM(amm).deposit_range(_for, collateral, n1, n2, False)
         log Borrow(_for, collateral, debt, n1, n2)
 
-    self.debt[_for] = debt
+    self.debt0[_for] = debt
+    self.loan_time[_for] = block.timestamp
 
 
 @external
@@ -221,4 +246,10 @@ def liquidate(user: address):
 def self_liquidate():
     # Take all the fiat in the AMM, up to the debt size, and cancel the debt
     # Don't allow if underwater
-    pass
+    debt: uint256 = self._debt(msg.sender)
+    assert debt > 0, "Loan doesn't exist"
+    amm: address = self.amm
+    xmax: uint256 = AMM(amm).get_x_down(msg.sender)
+    assert xmax * (10**18 - self.liquidation_discount) / 10**18 >= debt, "Too rekt"
+
+    # XXX
