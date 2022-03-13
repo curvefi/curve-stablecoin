@@ -28,7 +28,7 @@ event Withdraw:
 
 event SetRate:
     rate: int256
-    base_price: uint256
+    rate_mul: uint256
     time: uint256
 
 event SetFee:
@@ -57,14 +57,15 @@ COLLATERAL_TOKEN: immutable(address)  # y
 BORROWED_TOKEN: immutable(address)    # x
 COLLATERAL_PRECISION: immutable(uint256)
 BORROWED_PRECISION: immutable(uint256)
+BASE_PRICE: immutable(uint256)
 
 fee: public(uint256)
 rate: public(int256)  # Rate can be negative, to support positive-rebase tokens
-base_price_0: uint256
-base_price_time: uint256
+rate_time: uint256
+rate_mul: uint256
 active_band: public(int256)
-min_band: public(int256)
-max_band: public(int256)
+min_band: int256
+max_band: int256
 
 price_oracle_sig: uint256
 
@@ -83,8 +84,9 @@ def __init__(_collateral_token: address, _borrowed_token: address,
              _admin: address,
              _price_oracle_contract:address, _price_oracle_sig: bytes32):
     A = _A
-    self.base_price_0 = _base_price
-    self.base_price_time = block.timestamp
+    BASE_PRICE = _base_price
+    self.rate_time = block.timestamp
+    self.rate_mul = 10**18
     self.p_base_mul = 10**18
     COLLATERAL_TOKEN = _collateral_token
     BORROWED_TOKEN = _borrowed_token
@@ -170,13 +172,23 @@ def A() -> uint256:
 
 @internal
 @view
+def _rate_mul() -> uint256:
+    return convert(convert(self.rate_mul, int256) + self.rate * convert(block.timestamp - self.rate_time, int256), uint256)
+
+
+@external
+@view
+def get_rate_mul() -> uint256:
+    return self._rate_mul()
+
+
+@internal
+@view
 def _base_price() -> uint256:
     """
     Base price grows with time to account for interest rate (which is 0 by default)
     """
-    return convert(
-        convert(self.base_price_0, int256) + self.rate * convert(block.timestamp - self.base_price_time, int256) / 10**18,
-        uint256)
+    return BASE_PRICE * self._rate_mul() / 10**18
 
 
 @external
@@ -344,17 +356,6 @@ def save_user_ticks(user: address, n1: int256, n2: int256, ticks: uint256[MAX_TI
 
 @internal
 @view
-def has_liquidity(user: address) -> bool:
-    return self.user_shares[user].ticks[0] != 0
-
-
-@internal
-def empty_ticks(user: address):
-    self.user_shares[user].ticks[0] = 0
-
-
-@internal
-@view
 def _read_user_tick_numbers(user: address) -> int256[2]:
     """
     Unpacks and reads user tick numbers
@@ -391,10 +392,11 @@ def _read_user_ticks(user: address, size: int256) -> uint256[MAX_TICKS]:
     return ticks
 
 
-@external
-@view
-def read_user_ticks(user: address, size: int256) -> uint256[MAX_TICKS]:
-    return self._read_user_ticks(user, size)
+# Unused
+# @external
+# @view
+# def read_user_ticks(user: address, size: int256) -> uint256[MAX_TICKS]:
+#     return self._read_user_ticks(user, size)
 
 
 @external
@@ -415,7 +417,7 @@ def deposit_range(user: address, amount: uint256, n1: int256, n2: int256, move_c
     assert y > 0, "Amount too low"
 
     save_n: bool = True
-    if self.has_liquidity(user):
+    if self.user_shares[user].ticks[0] != 0:  # Has liquidity
         ns: int256[2] = self._read_user_tick_numbers(user)
         assert ns[0] == band and ns[1] == finish, "Wrong range"
         save_n = False
@@ -450,6 +452,9 @@ def deposit_range(user: address, amount: uint256, n1: int256, n2: int256, move_c
     self.min_band = min(self.min_band, n1)
     self.max_band = max(self.max_band, n2)
     self.save_user_ticks(user, n1, n2, user_shares, save_n)
+
+    self.rate_mul = self._rate_mul()
+    self.rate_time = block.timestamp
 
     log Deposit(user, amount, n1, n2)
 
@@ -493,7 +498,8 @@ def withdraw(user: address, move_to: address) -> uint256[2]:
         if ns[0] > ns[1]:
             break
 
-    self.empty_ticks(user)
+    # Empty the ticks
+    self.user_shares[user].ticks[0] = 0
 
     if old_min_band != min_band:
         self.min_band = min_band
@@ -506,6 +512,9 @@ def withdraw(user: address, move_to: address) -> uint256[2]:
         assert ERC20(BORROWED_TOKEN).transfer(move_to, total_x)
         assert ERC20(COLLATERAL_TOKEN).transfer(move_to, total_y)
     log Withdraw(user, move_to, total_x, total_y)
+
+    self.rate_mul = self._rate_mul()
+    self.rate_time = block.timestamp
 
     return [total_x, total_y]
 
@@ -644,19 +653,20 @@ def get_dxdy(i: uint256, j: uint256, in_amount: uint256) -> (uint256, uint256):
     return (out.in_amount, out.out_amount)
 
 
-@external
-@view
-def get_end_price(i: uint256, j: uint256, in_amount: uint256) -> uint256:
-    out: DetailedTrade = self._get_dxdy(i, j, in_amount)
-    x: uint256 = 0
-    y: uint256 = 0
-    if i == 0:  # pump
-        x = out.ticks_in[abs(out.n2 - out.n1)]
-        y = out.last_tick_j
-    else:  # dump
-        x = out.last_tick_j
-        y = out.ticks_in[abs(out.n2 - out.n1)]
-    return self._get_p(out.n2, x, y)
+# Unused
+# @external
+# @view
+# def get_end_price(i: uint256, j: uint256, in_amount: uint256) -> uint256:
+#     out: DetailedTrade = self._get_dxdy(i, j, in_amount)
+#     x: uint256 = 0
+#     y: uint256 = 0
+#     if i == 0:  # pump
+#         x = out.ticks_in[abs(out.n2 - out.n1)]
+#         y = out.last_tick_j
+#     else:  # dump
+#         x = out.last_tick_j
+#         y = out.ticks_in[abs(out.n2 - out.n1)]
+#     return self._get_p(out.n2, x, y)
 
 
 @external
@@ -853,11 +863,11 @@ def get_sum_y(user: address) -> uint256:
 @nonreentrant('lock')
 def set_rate(rate: int256):
     assert msg.sender == ADMIN
-    _base_price: uint256 = self._base_price()
-    self.base_price_0 = _base_price
-    self.base_price_time = block.timestamp
+    rate_mul: uint256 = self._rate_mul()
+    self.rate_mul = rate_mul
+    self.rate_time = block.timestamp
     self.rate = rate
-    log SetRate(rate, _base_price, block.timestamp)
+    log SetRate(rate, rate_mul, block.timestamp)
 
 
 @external
