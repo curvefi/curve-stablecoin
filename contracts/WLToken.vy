@@ -11,6 +11,7 @@ interface ERC20:
     def symbol() -> String[32]: view
     def transfer(_to: address, _value: uint256) -> bool: nonpayable
     def transferFrom(_from: address, _to: address, _value: uint256) -> bool: nonpayable
+    def balanceOf(_user: address) -> uint256: view
 
 
 event Transfer:
@@ -267,3 +268,15 @@ def borrow(_value: uint256, _for: address):
     ERC20(COIN).transfer(_for, _value)
     self.borrowed += _value
     self.prev_rate = self._rate()  # After self.borrowed is changed
+
+
+@external
+def repay(_value: uint256, _from: address, _for: address):
+    assert msg.sender == ADMIN
+
+    val: uint256 = _value
+    if _value == MAX_UINT256:
+        val = min(ERC20(COIN).balanceOf(_from), self.borrowed)
+    ERC20(COIN).transferFrom(_from, self, val)
+    self.borrowed -= val
+    self.prev_rate = self._rate()
