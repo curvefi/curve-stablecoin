@@ -40,7 +40,8 @@ ADMIN: immutable(address)
 DECIMAL_MUL: immutable(uint256)
 
 # Compress?
-prev_conv: uint256
+prev_lend_conv: uint256
+prev_borrow_conv: uint256
 prev_time: uint256
 prev_rate: uint256
 
@@ -56,7 +57,8 @@ def __init__(coin: address, admin: address):
     NAME = concat('Curvy ', slice(ERC20(coin).name(), 0, 64-6))
     SYMBOL = concat('cl', slice(ERC20(coin).symbol(), 0, 32-2))
     DECIMAL_MUL = 10 ** (18 - ERC20(coin).decimals())
-    self.prev_conv = 10**18
+    self.prev_lend_conv = 10**18
+    self.prev_borrow_conv = 10**18
     self.prev_time = block.timestamp
 
     # Function to set these is needed TODO
@@ -192,13 +194,23 @@ def decreaseAllowance(_spender: address, _subtracted_value: uint256) -> bool:
 
 @internal
 @view
+def _borrow_conv() -> uint256[3]:
+    b0: uint256 = self.borrowed
+    b: uint256 = self.prev_borrow_conv * b0 / 10**18
+    db: uint256 = self.prev_rate * (block.timestamp - self.prev_time) * b / 10**18
+    return [(b + db) * 10**18 / b0, b, db]
+
+
+@internal
+@view
 def _rate() -> uint256:
     M: uint256 = self.model_M  # max rate
     S: uint256 = self.model_S  # steepness
 
-    x: uint256 = self.borrowed * 10**18
+    borrowed3: uint256[3] = self._borrow_conv()  # rate, borrowed, d_borrowed
+    x: uint256 = (borrowed3[1] + borrowed3[2]) * 10**18
     if x > 0:
-        x /= self.deposited
+        x /= (self.deposited * self.prev_lend_conv / 10**18 + dborrowed)
 
     # a = M / (2 * (S - 1))
     # b = (S - 1) / (S - 0.5)
@@ -206,6 +218,14 @@ def _rate() -> uint256:
     bx: uint256 = (S - 10**18) * x / (S - 5 * 10**17)
 
     return bx * M / (2 * (S - 10**18)) / (10**18 - bx)
+
+
+@internal
+def _borrow_rate_w() -> uint256:
+    r: uint256 = self._rate()
+    self.prev_rate = r
+    self.prev_time = block.timestamp
+    return r
 
 
 @external
@@ -216,14 +236,20 @@ def rate() -> uint256:
 
 @internal
 @view
-def _conv() -> uint256:
-    return self.prev_conv + self.prev_rate * (block.timestamp - self.prev_time) / 10**18
+def _conv_lend() -> uint256:
+    return self._conv()
+
+
+# XXX
+# need both BORROW rate and DEPOSIT rate
+# model is for borrow rate
 
 
 @external
 @view
 def pricePerShare() -> uint256:
-    return self._conv()
+    return 1
+    # return self._conv_lend()
 
 
 @external
