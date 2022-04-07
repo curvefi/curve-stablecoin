@@ -4,6 +4,8 @@ interface AMM:
     def A() -> uint256: view
     def base_price() -> uint256: view
     def active_band() -> int256: view
+    def p_current_up(n: int256) -> uint256: view
+    def p_current_down(n: int256) -> uint256: view
     def deposit_range(user: address, amount: uint256, n1: int256, n2: int256, move_coins: bool): nonpayable
     def read_user_tick_numbers(_for: address) -> int256[2]: view
     def get_sum_y(user: address) -> uint256: view
@@ -123,8 +125,11 @@ def debt(user: address) -> uint256:
 @view
 def _calculate_debt_n1(collateral: uint256, debt: uint256, N: uint256) -> int256:
     amm: address = self.amm
-    p0: uint256 = AMM(amm).base_price()
     n0: int256 = AMM(amm).active_band()
+    p0: uint256 = AMM(amm).p_current_down(n0)
+    # TODO If someone pumped the AMM and deposited
+    # - it will be sold if the price goes back down
+    # But this needs to be tested?
 
     collateral_val: uint256 = (collateral * p0 / 10**18 * (10**18 - self.loan_discount))
     assert collateral_val >= debt, "Debt is too high"
