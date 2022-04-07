@@ -38,6 +38,7 @@ BORROWED_TOKEN: immutable(address)
 STABLECOIN: immutable(address)
 MIN_LIQUIDATION_DISCOUNT: constant(uint256) = 10**16 # Start liquidating when threshold reached
 MAX_TICKS: constant(int256) = 50
+MIN_TICKS: constant(int256) = 5
 
 loans: HashMap[address, Loan]
 total_debt: Loan
@@ -150,6 +151,7 @@ def calculate_debt_n1(collateral: uint256, debt: uint256, N: uint256) -> int256:
 @nonreentrant('lock')
 def create_loan(collateral: uint256, debt: uint256, n: uint256):
     assert self.loans[msg.sender].initial_debt == 0, "Loan already created"
+    assert n >= MIN_TICKS, "Need more ticks"
     amm: address = self.amm
 
     n1: int256 = self._calculate_debt_n1(collateral, debt, n)
