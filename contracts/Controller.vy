@@ -270,4 +270,5 @@ def self_liquidate():
     xmax: uint256 = AMM(amm).get_x_down(msg.sender)
     assert xmax * (10**18 - self.liquidation_discount) / 10**18 >= debt, "Too rekt"
 
-    # XXX
+    # xy: uint256[2] = AMM(amm).withdraw(msg.sender, 
+    # self.loans[msg.se
