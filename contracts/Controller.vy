@@ -21,14 +21,22 @@ interface ERC20:
     def transferFrom(_from: address, _to: address, _value: uint256) -> bool: nonpayable
 
 
-event Borrow:  # It's in reality loan status
+event UserState:
     user: indexed(address)
-    collateral_amount: uint256
-    loan_amount: uint256
+    collateral: uint256
+    debt: uint256
     n1: int256
     n2: int256
 
-# Instead, let's do Status, Borrow, Repay XXX
+event Borrow:
+    user: indexed(address)
+    collateral_increase: uint256
+    loan_increase: uint256
+
+event Repay:
+    user: indexed(address)
+    collateral_decrease: uint256
+    loan_decrease: uint256
 
 
 struct Loan:
@@ -166,7 +174,8 @@ def create_loan(collateral: uint256, debt: uint256, n: uint256):
     ERC20(COLLATERAL_TOKEN).transferFrom(msg.sender, amm, collateral)
     ERC20(STABLECOIN).mint(msg.sender, debt)
 
-    log Borrow(msg.sender, collateral, debt, n1, n2)
+    log UserState(msg.sender, collateral, debt, n1, n2)
+    log Borrow(msg.sender, collateral, debt)
 
 
 @internal
@@ -195,7 +204,8 @@ def _add_collateral_borrow(d_collateral: uint256, d_debt: uint256, _for: address
         self.total_debt.initial_debt = self.total_debt.initial_debt * rate_mul / self.total_debt.rate_mul + d_debt
         self.total_debt.rate_mul = rate_mul
 
-    log Borrow(_for, collateral, debt, n1, n2)
+    log Borrow(_for, d_collateral, d_debt)
+    log UserState(_for, collateral, debt, n1, n2)
 
 
 @external
@@ -236,15 +246,17 @@ def repay(_d_debt: uint256, _for: address):
 
     collateral: uint256 = AMM(amm).get_sum_y(_for)
     if debt == 0:
-        AMM(amm).withdraw(_for, _for)
-        log Borrow(_for, 0, 0, 0, 0)  # XXX is it really borrow event?
+        xy: uint256[2] = AMM(amm).withdraw(_for, _for)
+        log UserState(_for, 0, 0, 0, 0)
+        log Repay(_for, xy[1], 0)
     else:
         AMM(amm).withdraw(_for, ZERO_ADDRESS)
         n1: int256 = self._calculate_debt_n1(collateral, debt, size)
         assert n1 >= ns[0], "Not enough collateral"
         n2: int256 = n1 + ns[1] - ns[0]
         AMM(amm).deposit_range(_for, collateral, n1, n2, False)
-        log Borrow(_for, collateral, debt, n1, n2)
+        log UserState(_for, collateral, debt, n1, n2)
+        log Repay(_for, 0, d_debt)
 
     self.loans[_for] = Loan({initial_debt: debt, rate_mul: rate_mul})
     d: uint256 = self.total_debt.initial_debt * rate_mul / self.total_debt.rate_mul
@@ -253,8 +265,6 @@ def repay(_d_debt: uint256, _for: address):
     else:
         self.total_debt.initial_debt = d - d_debt
     self.total_debt.rate_mul = rate_mul
-
-    # XXX event
 
 
 @external
@@ -296,7 +306,8 @@ def self_liquidate():
 
         AMM(amm).deposit_range(msg.sender, xy[1], n1, n2, False)
         self.loans[msg.sender] = Loan({initial_debt: debt, rate_mul: rate_mul})
-        log Borrow(msg.sender, xy[1], debt, n1, n2)
+        log UserState(msg.sender, xy[1], debt, n1, n2)
+        log Repay(msg.sender, 0, xy[0])
 
     else:
         # Full liquidation
@@ -306,7 +317,8 @@ def self_liquidate():
             AMM(amm).rugpull(STABLECOIN, msg.sender, xy[0] - debt)
         AMM(amm).rugpull(COLLATERAL_TOKEN, msg.sender, xy[1])
         self.loans[msg.sender] = Loan({initial_debt: 0, rate_mul: rate_mul})
-        log Borrow(msg.sender, 0, 0, 0, 0)
+        log UserState(msg.sender, 0, 0, 0, 0)
+        log Repay(msg.sender, xy[1], debt)
         xy[0] = debt
 
     # Total debt reduced by xy[0]
