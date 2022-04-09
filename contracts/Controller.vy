@@ -9,9 +9,10 @@ interface AMM:
     def deposit_range(user: address, amount: uint256, n1: int256, n2: int256, move_coins: bool): nonpayable
     def read_user_tick_numbers(_for: address) -> int256[2]: view
     def get_sum_y(user: address) -> uint256: view
-    def withdraw(user: address, move_to: address) -> uint256[2]: view
+    def withdraw(user: address, move_to: address) -> uint256[2]: nonpayable
     def get_x_down(user: address) -> uint256: view
     def get_rate_mul() -> uint256: view
+    def rugpull(coin: address, _to: address, val: uint256): nonpayable
 
 interface ERC20:
     def totalSupply() -> uint256: view
@@ -27,6 +28,8 @@ event Borrow:  # It's in reality loan status
     n1: int256
     n2: int256
 
+# Instead, let's do Status, Borrow, Repay XXX
+
 
 struct Loan:
     initial_debt: uint256
@@ -34,7 +37,6 @@ struct Loan:
 
 
 COLLATERAL_TOKEN: immutable(address)
-BORROWED_TOKEN: immutable(address)
 STABLECOIN: immutable(address)
 MIN_LIQUIDATION_DISCOUNT: constant(uint256) = 10**16 # Start liquidating when threshold reached
 MAX_TICKS: constant(int256) = 50
@@ -53,12 +55,10 @@ logAratio: public(uint256)  # log(A / (A - 1))
 
 
 @external
-def __init__(admin: address, collateral_token: address, borrowed_token: address,
-             stablecoin: address,
+def __init__(admin: address, collateral_token: address, stablecoin: address,
              loan_discount: uint256, liquidation_discount: uint256):
     self.admin = admin
     COLLATERAL_TOKEN = collateral_token
-    BORROWED_TOKEN = borrowed_token
     STABLECOIN = stablecoin
 
     assert loan_discount > liquidation_discount
@@ -223,10 +223,9 @@ def repay(_d_debt: uint256, _for: address):
     debt, rate_mul = self._debt(_for)
     assert debt > 0, "Loan doesn't exist"
     d_debt: uint256 = _d_debt
-    if _d_debt == MAX_UINT256:
+    if _d_debt > debt:
         d_debt = debt
-    assert d_debt <= debt, "Repaid too much"
-    ERC20(BORROWED_TOKEN).burnFrom(msg.sender, d_debt)
+    ERC20(STABLECOIN).burnFrom(msg.sender, d_debt)
     debt -= d_debt
 
     amm: address = self.amm
@@ -238,7 +237,7 @@ def repay(_d_debt: uint256, _for: address):
     collateral: uint256 = AMM(amm).get_sum_y(_for)
     if debt == 0:
         AMM(amm).withdraw(_for, _for)
-        log Borrow(_for, 0, 0, 0, 0)
+        log Borrow(_for, 0, 0, 0, 0)  # XXX is it really borrow event?
     else:
         AMM(amm).withdraw(_for, ZERO_ADDRESS)
         n1: int256 = self._calculate_debt_n1(collateral, debt, size)
@@ -254,6 +253,8 @@ def repay(_d_debt: uint256, _for: address):
     else:
         self.total_debt.initial_debt = d - d_debt
     self.total_debt.rate_mul = rate_mul
+
+    # XXX event
 
 
 @external
@@ -277,5 +278,42 @@ def self_liquidate():
     xmax: uint256 = AMM(amm).get_x_down(msg.sender)
     assert xmax * (10**18 - self.liquidation_discount) / 10**18 >= debt, "Too rekt"
 
-    # xy: uint256[2] = AMM(amm).withdraw(msg.sender, 
-    # self.loans[msg.se
+    # Send all the sender's stablecoin and collateral to our contract
+    xy: uint256[2] = AMM(amm).withdraw(msg.sender, ZERO_ADDRESS)  # [stable, collateral]
+
+    if xy[0] < debt:
+        # Partial liquidation:
+        # Burn the part to liquidate and decrease the debt
+        # Keep the rest of the debt but redeposit
+        ERC20(STABLECOIN).burnFrom(amm, xy[0])
+
+        ns: int256[2] = AMM(amm).read_user_tick_numbers(msg.sender)
+        size: uint256 = convert(ns[1] - ns[0], uint256)
+        debt -= xy[0]
+        n1: int256 = self._calculate_debt_n1(xy[1], debt, size)
+        assert n1 > AMM(amm).active_band(), "Not enough collateral"
+        n2: int256 = n1 + ns[1] - ns[0]
+
+        AMM(amm).deposit_range(msg.sender, xy[1], n1, n2, False)
+        self.loans[msg.sender] = Loan({initial_debt: debt, rate_mul: rate_mul})
+        log Borrow(msg.sender, xy[1], debt, n1, n2)
+
+    else:
+        # Full liquidation
+        # burn what has to be burned and returned the assets
+        ERC20(STABLECOIN).burnFrom(amm, debt)
+        if xy[0] > debt:
+            AMM(amm).rugpull(STABLECOIN, msg.sender, xy[0] - debt)
+        AMM(amm).rugpull(COLLATERAL_TOKEN, msg.sender, xy[1])
+        self.loans[msg.sender] = Loan({initial_debt: 0, rate_mul: rate_mul})
+        log Borrow(msg.sender, 0, 0, 0, 0)
+        xy[0] = debt
+
+    # Total debt reduced by xy[0]
+    if xy[0] > 0:
+        d: uint256 = self.total_debt.initial_debt * rate_mul / self.total_debt.rate_mul
+        if d <= xy[0]:
+            self.total_debt.initial_debt = 0
+        else:
+            self.total_debt.initial_debt = d - xy[0]
+        self.total_debt.rate_mul = rate_mul
