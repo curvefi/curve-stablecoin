@@ -38,6 +38,13 @@ event Repay:
     collateral_decrease: uint256
     loan_decrease: uint256
 
+event Liquidate:
+    liquidator: address
+    user: address
+    collateral_received: uint256
+    stablecoin_received: uint256
+    debt: uint256
+
 
 struct Loan:
     initial_debt: uint256
@@ -271,8 +278,32 @@ def repay(_d_debt: uint256, _for: address):
 @nonreentrant('lock')
 def liquidate(user: address):
     # Take all the fiat in the AMM, up to the debt size, and cancel the debt
-    # Bite into collateral if underwater
-    pass
+    # Return all funds to the liquidator
+    debt: uint256 = 0
+    rate_mul: uint256 = 0
+    debt, rate_mul = self._debt(user)
+    assert debt > 0, "Loan doesn't exist"
+    amm: address = self.amm
+    xmax: uint256 = AMM(amm).get_x_down(user)
+    assert xmax * (10**18 - self.liquidation_discount) / 10**18 < debt, "Not enough rekt"
+
+    xy: uint256[2] = AMM(amm).withdraw(user, ZERO_ADDRESS)  # [stable, collateral]
+    if xy[0] < debt:
+        ERC20(STABLECOIN).burnFrom(amm, xy[0])
+        xy[0] = 0
+    else:
+        ERC20(STABLECOIN).burnFrom(amm, debt)
+        xy[0] -= debt
+
+    self.loans[user] = Loan({initial_debt: 0, rate_mul: rate_mul})
+    if xy[0] > 0:
+        AMM(amm).rugpull(STABLECOIN, msg.sender, xy[0])
+    if xy[1] > 0:
+        AMM(amm).rugpull(COLLATERAL_TOKEN, msg.sender, xy[1])
+
+    log UserState(user, 0, 0, 0, 0)
+    log Repay(user, xy[1], debt)
+    log Liquidate(msg.sender, user, xy[1], xy[0], debt)
 
 
 @external
