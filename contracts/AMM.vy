@@ -848,31 +848,33 @@ def get_x_down(user: address) -> uint256:
 
 @external
 @view
-def get_sum_y(user: address) -> uint256:
+def get_sum_xy(user: address) -> uint256[2]:
+    x: uint256 = 0
     y: uint256 = 0
     ns: int256[2] = self._read_user_tick_numbers(user)
     ticks: uint256[MAX_TICKS] = self._read_user_ticks(user, ns[1] - ns[0] + 1)
     for i in range(MAX_TICKS):
-        y += self.bands_y[ns[0]] * ticks[i] / self.total_shares[ns[0]]
+        total_shares: uint256 = self.total_shares[ns[0]]
+        x += self.bands_x[ns[0]] * ticks[i] / total_shares
+        y += self.bands_y[ns[0]] * ticks[i] / total_shares
         if ns[0] == ns[1]:
             break
         ns[0] += 1
-    return y / COLLATERAL_PRECISION
+    return [x / BORROWED_PRECISION, y / COLLATERAL_PRECISION]
 
 
 @external
-@nonreentrant('lock')
-def set_rate(rate: int256):
+def set_rate(rate: int256) -> uint256:
     assert msg.sender == ADMIN
     rate_mul: uint256 = self._rate_mul()
     self.rate_mul = rate_mul
     self.rate_time = block.timestamp
     self.rate = rate
     log SetRate(rate, rate_mul, block.timestamp)
+    return rate_mul
 
 
 @external
-@nonreentrant('lock')
 def set_fee(fee: uint256):
     assert msg.sender == ADMIN
     assert fee < 10**18, "Fee is too high"
