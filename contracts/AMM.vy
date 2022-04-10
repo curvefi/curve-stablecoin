@@ -74,8 +74,8 @@ p_base_mul: public(uint256)
 bands_x: public(HashMap[int256, uint256])
 bands_y: public(HashMap[int256, uint256])
 
-total_shares: public(HashMap[int256, uint256])
-user_shares: public(HashMap[address, UserTicks])
+total_shares: HashMap[int256, uint256]
+user_shares: HashMap[address, UserTicks]
 
 
 @external
@@ -390,13 +390,6 @@ def _read_user_ticks(user: address, size: int256) -> uint256[MAX_TICKS]:
             ticks[ptr] = shift(tick, -128)
         ptr += 1
     return ticks
-
-
-# Unused
-# @external
-# @view
-# def read_user_ticks(user: address, size: int256) -> uint256[MAX_TICKS]:
-#     return self._read_user_ticks(user, size)
 
 
 @external

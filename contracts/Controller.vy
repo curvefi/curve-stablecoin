@@ -3,9 +3,12 @@
 interface AMM:
     def A() -> uint256: view
     def base_price() -> uint256: view
+    def get_p() -> uint256: view
     def active_band() -> int256: view
     def p_current_up(n: int256) -> uint256: view
     def p_current_down(n: int256) -> uint256: view
+    def p_oracle_up(n: int256) -> uint256: view
+    def p_oracle_down(n: int256) -> uint256: view
     def deposit_range(user: address, amount: uint256, n1: int256, n2: int256, move_coins: bool): nonpayable
     def read_user_tick_numbers(_for: address) -> int256[2]: view
     def get_sum_y(user: address) -> uint256: view
@@ -365,7 +368,7 @@ def self_liquidate():
 
 @view
 @external
-def health(user: address = msg.sender) -> int256:
+def health(user: address) -> int256:
     """
     Returns position health normalized to 1e18 for the user.
     Liquidation starts when < 0, however devaluation of collateral doesn't cause liquidation
@@ -374,3 +377,30 @@ def health(user: address = msg.sender) -> int256:
     assert debt > 0, "Loan doesn't exist"
     xmax: uint256 = AMM(self.amm).get_x_down(user)
     return convert(xmax * (10**18 - self.liquidation_discount) / 10**18, int256) - convert(debt, int256)
+
+
+@view
+@external
+def amm_price() -> uint256:
+    return AMM(self.amm).get_p()
+
+
+@view
+@external
+def user_prices(user: address) -> uint256[2]:  # Upper, lower
+    amm: address = self.amm
+    ns: int256[2] = AMM(amm).read_user_tick_numbers(user) # ns[1] > ns[0]
+    return [AMM(amm).p_oracle_up(ns[0]), AMM(amm).p_oracle_down(ns[1])]
+
+
+# XXX
+@view
+@external
+def user_state(user: address) -> uint256[3]:  # collateral, stablecoin, debt
+    amm: address = self.amm
+    ns: int256[2] = AMM(amm).read_user_tick_numbers(user) # ns[1] > ns[0]
+
+    return [0, 0, self._debt(user)[0]]
+
+
+# XXX feed back debt rate to AMM
