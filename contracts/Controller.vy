@@ -11,17 +11,22 @@ interface AMM:
     def p_oracle_down(n: int256) -> uint256: view
     def deposit_range(user: address, amount: uint256, n1: int256, n2: int256, move_coins: bool): nonpayable
     def read_user_tick_numbers(_for: address) -> int256[2]: view
-    def get_sum_y(user: address) -> uint256: view
+    def get_sum_xy(user: address) -> uint256[2]: view
     def withdraw(user: address, move_to: address) -> uint256[2]: nonpayable
     def get_x_down(user: address) -> uint256: view
     def get_rate_mul() -> uint256: view
     def rugpull(coin: address, _to: address, val: uint256): nonpayable
+    def set_rate(rate: int256) -> uint256: nonpayable
+    def set_fee(fee: uint256): nonpayable
 
 interface ERC20:
     def totalSupply() -> uint256: view
     def mint(_to: address, _value: uint256) -> bool: nonpayable
     def burnFrom(_to: address, _value: uint256) -> bool: nonpayable
     def transferFrom(_from: address, _to: address, _value: uint256) -> bool: nonpayable
+
+interface MonetaryPolicy:
+    def rate() -> int256: view
 
 
 event UserState:
@@ -65,6 +70,7 @@ total_debt: Loan
 
 amm: public(address)
 admin: public(address)
+monetary_policy: public(address)
 ltv: public(uint256)  # Loan to value at 1e18 base
 liquidation_discount: public(uint256)
 loan_discount: public(uint256)
@@ -74,10 +80,12 @@ logAratio: public(uint256)  # log(A / (A - 1))  XXX remove pub
 
 @external
 def __init__(admin: address, collateral_token: address, stablecoin: address,
+             monetary_policy: address,
              loan_discount: uint256, liquidation_discount: uint256):
     self.admin = admin
     COLLATERAL_TOKEN = collateral_token
     STABLECOIN = stablecoin
+    self.monetary_policy = monetary_policy
 
     assert loan_discount > liquidation_discount
     assert liquidation_discount >= MIN_LIQUIDATION_DISCOUNT
@@ -124,17 +132,24 @@ def set_admin(admin: address):
 
 
 @internal
-@view
 def _debt(user: address) -> (uint256, uint256):
-    rate_mul: uint256 = AMM(self.amm).get_rate_mul()
+    rate_mul: uint256 = AMM(self.amm).set_rate(MonetaryPolicy(self.monetary_policy).rate())
     loan: Loan = self.loans[user]
     return (loan.initial_debt * rate_mul / loan.rate_mul, rate_mul)
+
+
+@internal
+@view
+def _debt_ro(user: address) -> uint256:
+    rate_mul: uint256 = AMM(self.amm).get_rate_mul()
+    loan: Loan = self.loans[user]
+    return loan.initial_debt * rate_mul / loan.rate_mul
 
 
 @external
 @view
 def debt(user: address) -> uint256:
-    return self._debt(user)[0]
+    return self._debt_ro(user)
 
 
 # n1 = log((collateral * p_base * (1 - discount)) / debt) / log(A / (A - 1)) - N / 2
@@ -176,7 +191,7 @@ def create_loan(collateral: uint256, debt: uint256, n: uint256):
     n1: int256 = self._calculate_debt_n1(collateral, debt, n)
     n2: int256 = n1 + convert(n, int256)
 
-    rate_mul: uint256 = AMM(amm).get_rate_mul()
+    rate_mul: uint256 = AMM(amm).set_rate(MonetaryPolicy(self.monetary_policy).rate())
     self.loans[msg.sender] = Loan({initial_debt: debt, rate_mul: rate_mul})
     self.total_debt.initial_debt = self.total_debt.initial_debt * rate_mul / self.total_debt.rate_mul + debt
     self.total_debt.rate_mul = rate_mul
@@ -372,7 +387,7 @@ def health(user: address) -> int256:
     Returns position health normalized to 1e18 for the user.
     Liquidation starts when < 0, however devaluation of collateral doesn't cause liquidation
     """
-    debt: uint256 = self._debt(user)[0]
+    debt: uint256 = self._debt_ro(user)
     assert debt > 0, "Loan doesn't exist"
     xmax: uint256 = AMM(self.amm).get_x_down(user)
     return convert(xmax * (10**18 - self.liquidation_discount) / 10**18, int256) - convert(debt, int256)
@@ -392,14 +407,25 @@ def user_prices(user: address) -> uint256[2]:  # Upper, lower
     return [AMM(amm).p_oracle_up(ns[0]), AMM(amm).p_oracle_down(ns[1])]
 
 
-# XXX
 @view
 @external
 def user_state(user: address) -> uint256[3]:  # collateral, stablecoin, debt
-    amm: address = self.amm
-    ns: int256[2] = AMM(amm).read_user_tick_numbers(user) # ns[1] > ns[0]
+    xy: uint256[2] = AMM(self.amm).get_sum_xy(user)
+    return [xy[1], xy[0], self._debt_ro(user)]
 
-    return [0, 0, self._debt(user)[0]]
 
+@external
+def set_fee(fee: uint256):
+    assert msg.sender == self.admin
+    AMM(self.amm).set_fee(fee)
+
+
+@external
+def set_monetary_policy(monetary_policy: address):
+    assert msg.sender == self.admin
+    self.monetary_policy = monetary_policy
+    MonetaryPolicy(monetary_policy).rate()
 
 # XXX feed back debt rate to AMM
+# XXX limits in liquidatios to avoid sandwiching
+# XXX stabilizer
