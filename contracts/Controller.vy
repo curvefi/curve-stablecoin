@@ -197,18 +197,17 @@ def _add_collateral_borrow(d_collateral: uint256, d_debt: uint256, _for: address
     assert debt > 0, "Loan doesn't exist"
     debt += d_debt
     amm: address = self.amm
-    n: int256 = AMM(amm).active_band()
     ns: int256[2] = AMM(amm).read_user_tick_numbers(_for)
     size: uint256 = convert(ns[1] - ns[0], uint256)
-    assert ns[0] > n, "Already in underwater mode"  # ns[1] >= ns[0] anyway
 
-    collateral: uint256 = AMM(amm).get_sum_y(_for) + d_collateral
-    n1: int256 = self._calculate_debt_n1(collateral, debt, size)
+    xy: uint256[2] = AMM(amm).withdraw(_for, ZERO_ADDRESS)
+    assert xy[0] == 0, "Already in underwater mode"
+    xy[1] += d_collateral
+    n1: int256 = self._calculate_debt_n1(xy[1], debt, size)
     assert n1 >= ns[0], "Not enough collateral"
     n2: int256 = n1 + ns[1] - ns[0]
 
-    AMM(amm).withdraw(_for, ZERO_ADDRESS)
-    AMM(amm).deposit_range(_for, collateral, n1, n2, False)
+    AMM(amm).deposit_range(_for, xy[1], n1, n2, False)
     self.loans[_for] = Loan({initial_debt: debt, rate_mul: rate_mul})
 
     if d_debt > 0:
@@ -216,7 +215,7 @@ def _add_collateral_borrow(d_collateral: uint256, d_debt: uint256, _for: address
         self.total_debt.rate_mul = rate_mul
 
     log Borrow(_for, d_collateral, d_debt)
-    log UserState(_for, collateral, debt, n1, n2)
+    log UserState(_for, xy[1], debt, n1, n2)
 
 
 @external
@@ -250,23 +249,23 @@ def repay(_d_debt: uint256, _for: address):
     debt -= d_debt
 
     amm: address = self.amm
-    n: int256 = AMM(amm).active_band()
     ns: int256[2] = AMM(amm).read_user_tick_numbers(_for)
     size: uint256 = convert(ns[1] - ns[0], uint256)
-    assert ns[0] > n, "Already in underwater mode"  # ns[1] >= ns[0] anyway
 
-    collateral: uint256 = AMM(amm).get_sum_y(_for)
     if debt == 0:
         xy: uint256[2] = AMM(amm).withdraw(_for, _for)
+        assert xy[0] == 0, "Already in underwater mode"
         log UserState(_for, 0, 0, 0, 0)
         log Repay(_for, xy[1], 0)
+
     else:
-        AMM(amm).withdraw(_for, ZERO_ADDRESS)
-        n1: int256 = self._calculate_debt_n1(collateral, debt, size)
+        xy: uint256[2] = AMM(amm).withdraw(_for, ZERO_ADDRESS)
+        assert xy[0] == 0, "Already in underwater mode"
+        n1: int256 = self._calculate_debt_n1(xy[1], debt, size)
         assert n1 >= ns[0], "Not enough collateral"
         n2: int256 = n1 + ns[1] - ns[0]
-        AMM(amm).deposit_range(_for, collateral, n1, n2, False)
-        log UserState(_for, collateral, debt, n1, n2)
+        AMM(amm).deposit_range(_for, xy[1], n1, n2, False)
+        log UserState(_for, xy[1], debt, n1, n2)
         log Repay(_for, 0, d_debt)
 
     self.loans[_for] = Loan({initial_debt: debt, rate_mul: rate_mul})
