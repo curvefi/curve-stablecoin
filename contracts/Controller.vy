@@ -66,7 +66,7 @@ ltv: public(uint256)  # Loan to value at 1e18 base
 liquidation_discount: public(uint256)
 loan_discount: public(uint256)
 
-logAratio: public(uint256)  # log(A / (A - 1))
+logAratio: public(uint256)  # log(A / (A - 1))  XXX remove pub
 
 
 @external
@@ -166,7 +166,8 @@ def calculate_debt_n1(collateral: uint256, debt: uint256, N: uint256) -> int256:
 @nonreentrant('lock')
 def create_loan(collateral: uint256, debt: uint256, n: uint256):
     assert self.loans[msg.sender].initial_debt == 0, "Loan already created"
-    assert n >= MIN_TICKS, "Need more ticks"
+    assert n > MIN_TICKS-1, "Need more ticks"
+    assert n < MAX_TICKS+1, "Need less ticks"
     amm: address = self.amm
 
     n1: int256 = self._calculate_debt_n1(collateral, debt, n)
@@ -360,3 +361,16 @@ def self_liquidate():
         else:
             self.total_debt.initial_debt = d - xy[0]
         self.total_debt.rate_mul = rate_mul
+
+
+@view
+@external
+def health(user: address = msg.sender) -> int256:
+    """
+    Returns position health normalized to 1e18 for the user.
+    Liquidation starts when < 0, however devaluation of collateral doesn't cause liquidation
+    """
+    debt: uint256 = self._debt(user)[0]
+    assert debt > 0, "Loan doesn't exist"
+    xmax: uint256 = AMM(self.amm).get_x_down(user)
+    return convert(xmax * (10**18 - self.liquidation_discount) / 10**18, int256) - convert(debt, int256)

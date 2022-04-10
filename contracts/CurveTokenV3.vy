@@ -12,8 +12,8 @@ from vyper.interfaces import ERC20
 
 implements: ERC20
 
-interface Curve:
-    def owner() -> address: view
+interface Controller:
+    def admin() -> address: view
 
 
 event Transfer:
@@ -187,6 +187,6 @@ def set_minter(_minter: address):
 
 @external
 def set_name(_name: String[64], _symbol: String[32]):
-    assert Curve(self.minter).owner() == msg.sender
+    assert Controller(self.minter).admin() == msg.sender
     self.name = _name
     self.symbol = _symbol
