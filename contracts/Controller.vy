@@ -26,7 +26,7 @@ interface ERC20:
     def transferFrom(_from: address, _to: address, _value: uint256) -> bool: nonpayable
 
 interface MonetaryPolicy:
-    def rate() -> int256: view
+    def rate_write() -> int256: nonpayable
 
 
 event UserState:
@@ -133,7 +133,7 @@ def set_admin(admin: address):
 
 @internal
 def _debt(user: address) -> (uint256, uint256):
-    rate_mul: uint256 = AMM(self.amm).set_rate(MonetaryPolicy(self.monetary_policy).rate())
+    rate_mul: uint256 = AMM(self.amm).set_rate(MonetaryPolicy(self.monetary_policy).rate_write())
     loan: Loan = self.loans[user]
     return (loan.initial_debt * rate_mul / loan.rate_mul, rate_mul)
 
@@ -191,7 +191,7 @@ def create_loan(collateral: uint256, debt: uint256, n: uint256):
     n1: int256 = self._calculate_debt_n1(collateral, debt, n)
     n2: int256 = n1 + convert(n, int256)
 
-    rate_mul: uint256 = AMM(amm).set_rate(MonetaryPolicy(self.monetary_policy).rate())
+    rate_mul: uint256 = AMM(amm).set_rate(MonetaryPolicy(self.monetary_policy).rate_write())
     self.loans[msg.sender] = Loan({initial_debt: debt, rate_mul: rate_mul})
     self.total_debt.initial_debt = self.total_debt.initial_debt * rate_mul / self.total_debt.rate_mul + debt
     self.total_debt.rate_mul = rate_mul
@@ -424,7 +424,7 @@ def set_fee(fee: uint256):
 def set_monetary_policy(monetary_policy: address):
     assert msg.sender == self.admin
     self.monetary_policy = monetary_policy
-    MonetaryPolicy(monetary_policy).rate()
+    MonetaryPolicy(monetary_policy).rate_write()
 
 # XXX feed back debt rate to AMM
 # XXX limits in liquidatios to avoid sandwiching
