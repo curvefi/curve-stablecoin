@@ -294,7 +294,7 @@ def repay(_d_debt: uint256, _for: address):
 
 @external
 @nonreentrant('lock')
-def liquidate(user: address):
+def liquidate(user: address, max_x: uint256):
     # Take all the fiat in the AMM, up to the debt size, and cancel the debt
     # Return all funds to the liquidator
     debt: uint256 = 0
@@ -306,6 +306,7 @@ def liquidate(user: address):
     assert xmax * (10**18 - self.liquidation_discount) / 10**18 < debt, "Not enough rekt"
 
     xy: uint256[2] = AMM(amm).withdraw(user, ZERO_ADDRESS)  # [stable, collateral]
+    assert xy[0] >= max_x, "Sandwich"
     if xy[0] < debt:
         ERC20(STABLECOIN).burnFrom(amm, xy[0])
         xy[0] = 0
@@ -326,7 +327,7 @@ def liquidate(user: address):
 
 @external
 @nonreentrant('lock')
-def self_liquidate():
+def self_liquidate(max_x: uint256):
     # Take all the fiat in the AMM, up to the debt size, and cancel the debt
     # Don't allow if underwater
     debt: uint256 = 0
@@ -339,6 +340,7 @@ def self_liquidate():
 
     # Send all the sender's stablecoin and collateral to our contract
     xy: uint256[2] = AMM(amm).withdraw(msg.sender, ZERO_ADDRESS)  # [stable, collateral]
+    assert xy[0] >= max_x, "Sandwich"
 
     if xy[0] < debt:
         # Partial liquidation:
@@ -427,5 +429,4 @@ def set_monetary_policy(monetary_policy: address):
     MonetaryPolicy(monetary_policy).rate_write()
 
 # XXX feed back debt rate to AMM
-# XXX limits in liquidatios to avoid sandwiching
 # XXX stabilizer
