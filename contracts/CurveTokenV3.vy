@@ -34,14 +34,14 @@ balanceOf: public(HashMap[address, uint256])
 allowance: public(HashMap[address, HashMap[address, uint256]])
 totalSupply: public(uint256)
 
-minter: public(address)
+minters: public(HashMap[address, bool])
 
 
 @external
 def __init__(_name: String[64], _symbol: String[32]):
     self.name = _name
     self.symbol = _symbol
-    self.minter = msg.sender
+    self.minters[msg.sender] = True
     log Transfer(ZERO_ADDRESS, msg.sender, 0)
 
 
@@ -154,7 +154,7 @@ def mint(_to: address, _value: uint256) -> bool:
     @param _to The account that will receive the created tokens.
     @param _value The amount that will be created.
     """
-    assert msg.sender == self.minter
+    assert self.minters[msg.sender]
 
     self.totalSupply += _value
     self.balanceOf[_to] += _value
@@ -170,7 +170,7 @@ def burnFrom(_to: address, _value: uint256) -> bool:
     @param _to The account whose tokens will be burned.
     @param _value The amount that will be burned.
     """
-    assert msg.sender == self.minter
+    assert self.minters[msg.sender]
 
     self.totalSupply -= _value
     self.balanceOf[_to] -= _value
@@ -180,13 +180,6 @@ def burnFrom(_to: address, _value: uint256) -> bool:
 
 
 @external
-def set_minter(_minter: address):
-    assert msg.sender == self.minter
-    self.minter = _minter
-
-
-@external
-def set_name(_name: String[64], _symbol: String[32]):
-    assert Controller(self.minter).admin() == msg.sender
-    self.name = _name
-    self.symbol = _symbol
+def set_minter(_minter: address, _enabled: bool):
+    assert self.minters[msg.sender]
+    self.minters[_minter] = _enabled
