@@ -3,20 +3,23 @@
 interface Controller:
     def debt(user: address) -> uint256: view
 
+interface Pool:
+    def get_dx(i: int128, j: int128, _dy: uint256) -> uint256: view
+
 admin: public(address)
 
 rate0: public(int256)
 halving_shift: public(uint256)  # 10**16
 
-STABILIZER: immutable(address)
+PEG_KEEPER: immutable(address)
 POOL: immutable(address)
 
 
 @external
-def __init__(admin: address, stabilizer: address, pool: address,
+def __init__(admin: address, peg_keeper: address, pool: address,
              halving_shift: uint256):
     self.admin = admin
-    STABILIZER = stabilizer
+    PEG_KEEPER = peg_keeper
     POOL = pool
     self.halving_shift = halving_shift
 
@@ -29,13 +32,13 @@ def set_admin(admin: address):
 
 @internal
 @view
-def calculate_rate() -> uint256:
+def calculate_rate() -> int256:
     return 0
 
 
 @view
 @external
-def rate() -> uint256:
+def rate() -> int256:
     return self.rate0
 
 
