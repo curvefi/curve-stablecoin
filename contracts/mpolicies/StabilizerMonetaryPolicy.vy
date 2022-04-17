@@ -25,6 +25,9 @@ PRECISION_COIN: immutable(uint256)
 PRECISION_BASE: immutable(uint256)
 EXP_PRECISION: constant(uint256) = 10**10
 
+MAX_RATE: constant(uint256) = 43959106799  # 400% APY
+
+
 @external
 def __init__(admin: address, peg_keeper: address, pool: address,
              halving_shift: uint256):
@@ -89,17 +92,18 @@ def calculate_rate() -> uint256:
     # Calculate how much coin 1 is required to get `debt` of coin 0
     dy: uint256 = PegKeeper(PEG_KEEPER).debt() + 10**18
     dx: uint256 = Pool(POOL).get_dx(1, 0, dy)
+    if dx == MAX_UINT256:
+        return 0
     # p = dx / dy
     # r = r0 * 2**((1 - p) / h) = r0 * 0.5 ** ((p - 1) / h)
     p: uint256 = dx * PRECISION_BASE * 10**18 / (dy * PRECISION_COIN)
     h: uint256 = self.halving_shift
     r: uint256 = self.rate0
-    if p == 10**18:
-        return r
-    elif p > 10**18:
-        return r * self.halfpow((p - 10**18) * 10**18 / h) / 10**18
-    else:
-        return r * 10**18 / self.halfpow((10**18 - p) * 10**18 / h)
+    if p > 10**18:
+        r = r * self.halfpow((p - 10**18) * 10**18 / h) / 10**18
+    if p < 10**18:
+        r = r * 10**18 / self.halfpow((10**18 - p) * 10**18 / h)
+    return min(r, MAX_RATE)
 
 
 @view
