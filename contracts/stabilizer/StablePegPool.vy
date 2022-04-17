@@ -492,8 +492,8 @@ def _get_y(i: int128, j: int128, x: uint256, _xp: uint256[N_COINS]) -> uint256:
     raise
 
 
-@view
 @external
+@view
 def get_dy(i: int128, j: int128, _dx: uint256) -> uint256:
     xp: uint256[N_COINS] = self._xp()
     rates: uint256[N_COINS] = RATES
@@ -503,6 +503,21 @@ def get_dy(i: int128, j: int128, _dx: uint256) -> uint256:
     dy: uint256 = xp[j] - y - 1
     fee: uint256 = self.fee * dy / FEE_DENOMINATOR
     return (dy - fee) * PRECISION / rates[j]
+
+
+@view
+@external
+def get_dx(i: int128, j: int128, _dy: uint256) -> uint256:
+    xp: uint256[N_COINS] = self._xp()
+    rates: uint256[N_COINS] = RATES
+
+    y: uint256 = _dy * rates[j] / PRECISION
+    y = y * FEE_DENOMINATOR / (FEE_DENOMINATOR - self.fee)
+    if y >= xp[j]:
+        return MAX_UINT256
+    y = xp[j] - y
+
+    return self._get_y(j, i, y, xp) - xp[i]
 
 
 @external
