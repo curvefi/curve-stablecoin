@@ -60,6 +60,7 @@ BORROWED_PRECISION: immutable(uint256)
 BASE_PRICE: immutable(uint256)
 
 fee: public(uint256)
+admin_fee: public(uint256)
 rate: int256  # Rate can be negative, to support positive-rebase tokens
 rate_time: uint256
 rate_mul: public(uint256)
@@ -80,7 +81,7 @@ user_shares: HashMap[address, UserTicks]
 
 @external
 def __init__(_collateral_token: address, _borrowed_token: address,
-             _A: uint256, _base_price: uint256, fee: uint256,
+             _A: uint256, _base_price: uint256, fee: uint256, admin_fee: uint256,
              _admin: address,
              _price_oracle_contract:address, _price_oracle_sig: bytes32):
     A = _A
@@ -93,6 +94,7 @@ def __init__(_collateral_token: address, _borrowed_token: address,
     COLLATERAL_PRECISION = 10 ** (18 - ERC20(_collateral_token).decimals())
     BORROWED_PRECISION = 10 ** (18 - ERC20(_borrowed_token).decimals())
     self.fee = fee
+    self.admin_fee = admin_fee
     ADMIN = _admin
 
     self.price_oracle_sig = bitwise_or(
@@ -531,7 +533,9 @@ def calc_swap_out(pump: bool, in_amount: uint256) -> DetailedTrade:
     p_o: uint256 = self._price_oracle()
     p_o_up: uint256 = self._base_price() * self.p_base_mul / 10**18
     fee: uint256 = self.fee
-    in_amount_left: uint256 = in_amount
+    admin_fee: uint256 = self.admin_fee
+    in_amount_afee: uint256 = in_amount * fee / 10**18 * admin_fee / 10**18
+    in_amount_left: uint256 = in_amount - in_amount_afee
     in_amount_used: uint256 = 0
     fee = (10**18)**2 / (10**18 - fee)
     x: uint256 = self.bands_x[out.n2]
@@ -603,7 +607,7 @@ def calc_swap_out(pump: bool, in_amount: uint256) -> DetailedTrade:
                 y = 0
 
     # Round up what goes in and down what goes out
-    out.in_amount = in_amount_used
+    out.in_amount = in_amount_used + in_amount_afee
     if pump:
         in_amount_used = in_amount_used / BORROWED_PRECISION * BORROWED_PRECISION
         if in_amount_used != out.in_amount:

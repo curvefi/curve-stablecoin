@@ -32,7 +32,7 @@ def borrowed_token(ERC20Mock, accounts):
 def amm(AMM, PriceOracle, collateral_token, borrowed_token, accounts):
     amm = AMM.deploy(
         collateral_token, borrowed_token,
-        100, PRICE * 10**18, 10**16,
+        100, PRICE * 10**18, 10**16, 0,
         accounts[0],
         PriceOracle, PriceOracle.price.signature,
         {'from': accounts[0]})
