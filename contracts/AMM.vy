@@ -6,6 +6,9 @@ interface ERC20:
     def decimals() -> uint256: view
     def balanceOf(_user: address) -> uint256: view
 
+interface Factory:
+    def admin() -> address: view
+
 
 event TokenExchange:
     buyer: indexed(address)
@@ -50,15 +53,16 @@ struct DetailedTrade:
     ticks_in: uint256[MAX_TICKS]
     last_tick_j: uint256
 
-ADMIN: immutable(address)
-A: immutable(uint256)
-SQRT_BAND_RATIO: immutable(uint256)  # sqrt(A / (A - 1))
-COLLATERAL_TOKEN: immutable(address)  # y
 BORROWED_TOKEN: immutable(address)    # x
-COLLATERAL_PRECISION: immutable(uint256)
 BORROWED_PRECISION: immutable(uint256)
-BASE_PRICE: immutable(uint256)
+FACTORY: immutable(address)
 
+collateral_token: public(address)  # y
+collateral_precision: public(uint256)
+
+A: public(uint256)
+sqrt_band_ratio: public(uint256)  # sqrt(A / (A - 1))
+base_price: uint256
 fee: public(uint256)
 admin_fee: public(uint256)
 rate: int256  # Rate can be negative, to support positive-rebase tokens
@@ -80,40 +84,10 @@ user_shares: HashMap[address, UserTicks]
 
 
 @external
-def __init__(_collateral_token: address, _borrowed_token: address,
-             _A: uint256, _base_price: uint256, fee: uint256, admin_fee: uint256,
-             _admin: address,
-             _price_oracle_contract:address, _price_oracle_sig: bytes32):
-    A = _A
-    BASE_PRICE = _base_price
-    self.rate_time = block.timestamp
-    self.rate_mul = 10**18
-    self.p_base_mul = 10**18
-    COLLATERAL_TOKEN = _collateral_token
+def __init__(factory: address, _borrowed_token: address):
+    FACTORY = factory
     BORROWED_TOKEN = _borrowed_token
-    COLLATERAL_PRECISION = 10 ** (18 - ERC20(_collateral_token).decimals())
     BORROWED_PRECISION = 10 ** (18 - ERC20(_borrowed_token).decimals())
-    self.fee = fee
-    self.admin_fee = admin_fee
-    ADMIN = _admin
-
-    self.price_oracle_sig = bitwise_or(
-        shift(convert(_price_oracle_contract, uint256), 32),
-        convert(_price_oracle_sig, uint256)
-    )
-
-    # Vyper cannot call functions from init
-    # So we repeat sqrt here. SAD
-    _x: uint256 = 10**18 * _A / (_A - 1)
-    _z: uint256 = (_x + 10**18) / 2
-    _y: uint256 = _x
-    for i in range(256):
-        if _z == _y:
-            break
-        _y = _z
-        _z = (_x * 10**18 / _z + _z) / 2
-    SQRT_BAND_RATIO = _y
-    # end of sqrt calc
 
 
 # Low-level math
@@ -138,6 +112,34 @@ def sqrt_int(x: uint256) -> uint256:
 
     raise "Did not converge"
 # End of low-level math
+
+
+@external
+def initialize(
+    _A: uint256,
+    _base_price: uint256,
+    _collateral_token: address,
+    fee: uint256,
+    admin_fee: uint256,
+    _price_oracle_contract:address, _price_oracle_sig: bytes32,
+    ):
+    assert self.A == 0
+
+    self.A = _A
+    self.base_price = _base_price
+    self.rate_time = block.timestamp
+    self.rate_mul = 10**18
+    self.p_base_mul = 10**18
+    self.collateral_token = _collateral_token
+    self.collateral_precision = 10 ** (18 - ERC20(_collateral_token).decimals())
+    self.fee = fee
+    self.admin_fee = admin_fee
+
+    self.price_oracle_sig = bitwise_or(
+        shift(convert(_price_oracle_contract, uint256), 32),
+        convert(_price_oracle_sig, uint256)
+    )
+    self.sqrt_band_ratio = self.sqrt_int(10**18 * _A / (_A - 1))
 
 
 @external
@@ -166,12 +168,6 @@ def price_oracle() -> uint256:
     return self._price_oracle()
 
 
-@external
-@view
-def A() -> uint256:
-    return A
-
-
 @internal
 @view
 def _rate_mul() -> uint256:
@@ -190,12 +186,12 @@ def _base_price() -> uint256:
     """
     Base price grows with time to account for interest rate (which is 0 by default)
     """
-    return BASE_PRICE * self._rate_mul() / 10**18
+    return self.base_price * self._rate_mul() / 10**18
 
 
 @external
 @view
-def base_price() -> uint256:
+def get_base_price() -> uint256:
     return self._base_price()
 
 
@@ -207,6 +203,7 @@ def _p_oracle_band(n: int256, is_down: bool) -> uint256:
     n_active: int256 = self.active_band
     p_base: uint256 = self._base_price() * self.p_base_mul / 10**18
     band_distance: int256 = abs(n - n_active)
+    A: uint256 = self.A
 
     # k = (self.A - 1) / self.A  # equal to (p_up / p_down)
     # p_base = self.p_base * k ** (n_band + 1)
@@ -276,7 +273,7 @@ def p_oracle_down(n: int256) -> uint256:
 
 @internal
 @view
-def _get_y0(x: uint256, y: uint256, p_o: uint256, p_o_up: uint256) -> uint256:
+def _get_y0(x: uint256, y: uint256, p_o: uint256, p_o_up: uint256, A: uint256) -> uint256:
     # solve:
     # p_o * A * y0**2 - y0 * (p_oracle_up/p_o * (A-1) * x + p_o**2/p_oracle_up * A * y) - xy = 0
     b: uint256 = p_o_up * (A - 1) * x / p_o + A * p_o**2 / p_o_up * y / 10**18
@@ -296,7 +293,7 @@ def get_y0(n: int256) -> uint256:
     else:
         p_oracle_up = self._p_oracle_band(n, False)
 
-    return self._get_y0(x, y, p_o, p_oracle_up)
+    return self._get_y0(x, y, p_o, p_oracle_up, self.A)
 
 
 @internal
@@ -304,18 +301,19 @@ def get_y0(n: int256) -> uint256:
 def _get_p(n: int256, x: uint256, y: uint256) -> uint256:
     p_o_up: uint256 = self._p_oracle_band(n, False)
     p_o: uint256 = self._price_oracle()
+    A: uint256 = self.A
 
     # Special cases
     if x == 0 and y == 0:
         p_o_up = p_o_up * (A - 1) / A
-        return p_o**2 / p_o_up * p_o / p_o_up * 10**18 / SQRT_BAND_RATIO
+        return p_o**2 / p_o_up * p_o / p_o_up * 10**18 / self.sqrt_band_ratio
     if x == 0: # Lowest point of this band -> p_current_down
         return p_o**2 / p_o_up * p_o / p_o_up
     if y == 0: # Highest point of this band -> p_current_up
         p_o_up = p_o_up * (A - 1) / A
         return p_o**2 / p_o_up * p_o / p_o_up
 
-    y0: uint256 = self._get_y0(x, y, p_o, p_o_up)
+    y0: uint256 = self._get_y0(x, y, p_o, p_o_up, A)
 
     # (f(y0) + x) / (g(y0) + y)
     f: uint256 = A * y0 * p_o / p_o_up * p_o
@@ -397,18 +395,19 @@ def _read_user_ticks(user: address, size: int256) -> uint256[MAX_TICKS]:
 @external
 @nonreentrant('lock')
 def deposit_range(user: address, amount: uint256, n1: int256, n2: int256, move_coins: bool):
-    assert msg.sender == ADMIN
+    assert msg.sender == Factory(FACTORY).admin()
+    collateral_precision: uint256 = self.collateral_precision
 
     n0: int256 = self.active_band
     assert n1 > n0 and n2 > n0, "Deposits should be below current band"
     if move_coins:
-        assert ERC20(COLLATERAL_TOKEN).transferFrom(user, self, amount)
+        assert ERC20(self.collateral_token).transferFrom(user, self, amount)
 
     band: int256 = min(n1, n2)
     finish: int256 = max(n1, n2)
     n_bands: uint256 = convert(finish - band, uint256) + 1
 
-    y: uint256 = amount * COLLATERAL_PRECISION / n_bands
+    y: uint256 = amount * collateral_precision / n_bands
     assert y > 0, "Amount too low"
 
     save_n: bool = True
@@ -423,7 +422,7 @@ def deposit_range(user: address, amount: uint256, n1: int256, n2: int256, move_c
         if band == finish:
             # Take the dust in the last band
             # Maybe could give up on this though
-            y = amount * COLLATERAL_PRECISION - y * (n_bands - 1)
+            y = amount * collateral_precision - y * (n_bands - 1)
         # Deposit coins
         assert self.bands_x[band] == 0, "Band not empty"
         total_y: uint256 = self.bands_y[band]
@@ -457,7 +456,7 @@ def deposit_range(user: address, amount: uint256, n1: int256, n2: int256, move_c
 @external
 @nonreentrant('lock')
 def withdraw(user: address, move_to: address) -> uint256[2]:
-    assert msg.sender == ADMIN
+    assert msg.sender == Factory(FACTORY).admin()
 
     ns: int256[2] = self._read_user_tick_numbers(user)
     user_shares: uint256[MAX_TICKS] = self._read_user_ticks(user, ns[1] - ns[0] + 1)
@@ -502,10 +501,10 @@ def withdraw(user: address, move_to: address) -> uint256[2]:
         self.max_band = max_band
 
     total_x /= BORROWED_PRECISION
-    total_y /= COLLATERAL_PRECISION
+    total_y /= self.collateral_precision
     if move_to != ZERO_ADDRESS:
         assert ERC20(BORROWED_TOKEN).transfer(move_to, total_x)
-        assert ERC20(COLLATERAL_TOKEN).transfer(move_to, total_y)
+        assert ERC20(self.collateral_token).transfer(move_to, total_y)
     log Withdraw(user, move_to, total_x, total_y)
 
     self.rate_mul = self._rate_mul()
@@ -516,7 +515,7 @@ def withdraw(user: address, move_to: address) -> uint256[2]:
 
 @external
 def rugpull(coin: address, _to: address, val: uint256):
-    assert msg.sender == ADMIN
+    assert msg.sender == Factory(FACTORY).admin()
 
     if val > 0:
         assert ERC20(coin).transfer(_to, val)
@@ -542,9 +541,11 @@ def calc_swap_out(pump: bool, in_amount: uint256) -> DetailedTrade:
     y: uint256 = self.bands_y[out.n2]
     min_band: int256 = self.min_band
     max_band: int256 = self.max_band
+    collateral_precision: uint256 = self.collateral_precision
+    A: uint256 = self.A
 
     for i in range(MAX_TICKS):
-        y0: uint256 = self._get_y0(x, y, p_o, p_o_up)
+        y0: uint256 = self._get_y0(x, y, p_o, p_o_up, A)
         f: uint256 = A * y0 * p_o / p_o_up * p_o / 10**18
         g: uint256 = (A - 1) * y0 * p_o_up / p_o
         Inv: uint256 = (f + x) * (g + y)
@@ -557,7 +558,7 @@ def calc_swap_out(pump: bool, in_amount: uint256) -> DetailedTrade:
                     out.last_tick_j = Inv / (f + (x + in_amount_left * 10**18 / fee)) - g  # Should be always >= 0
                     x += in_amount_left  # x is precise after this
                     # Round down the output
-                    out.out_amount += (y - out.last_tick_j) / COLLATERAL_PRECISION * COLLATERAL_PRECISION
+                    out.out_amount += (y - out.last_tick_j) / collateral_precision * collateral_precision
                     out.ticks_in[i] = x
                     out.in_amount = in_amount
                     return out
@@ -612,11 +613,11 @@ def calc_swap_out(pump: bool, in_amount: uint256) -> DetailedTrade:
         in_amount_used = in_amount_used / BORROWED_PRECISION * BORROWED_PRECISION
         if in_amount_used != out.in_amount:
             out.in_amount = in_amount_used + BORROWED_PRECISION
-        out.out_amount = out.out_amount / COLLATERAL_PRECISION * COLLATERAL_PRECISION
+        out.out_amount = out.out_amount / collateral_precision * collateral_precision
     else:
-        in_amount_used = in_amount_used / COLLATERAL_PRECISION * COLLATERAL_PRECISION
+        in_amount_used = in_amount_used / collateral_precision * collateral_precision
         if in_amount_used != out.in_amount:
-            out.in_amount = in_amount_used + COLLATERAL_PRECISION
+            out.in_amount = in_amount_used + collateral_precision
         out.out_amount = out.out_amount / BORROWED_PRECISION * BORROWED_PRECISION
     return out
 
@@ -628,14 +629,15 @@ def _get_dxdy(i: uint256, j: uint256, in_amount: uint256) -> DetailedTrade:
     Method to be used to figure if we have some in_amount left or not
     """
     assert (i == 0 and j == 1) or (i == 1 and j == 0), "Wrong index"
+    collateral_precision: uint256 = self.collateral_precision
     out: DetailedTrade = empty(DetailedTrade)
     if in_amount == 0:
         return out
-    in_precision: uint256 = COLLATERAL_PRECISION
+    in_precision: uint256 = collateral_precision
     out_precision: uint256 = BORROWED_PRECISION
     if i == 0:
         in_precision = BORROWED_PRECISION
-        out_precision = COLLATERAL_PRECISION
+        out_precision = collateral_precision
     out = self.calc_swap_out(i == 0, in_amount * in_precision)
     out.in_amount /= in_precision
     out.out_amount /= out_precision
@@ -682,13 +684,13 @@ def exchange(i: uint256, j: uint256, in_amount: uint256, min_amount: uint256, _f
         return 0
 
     in_coin: address = BORROWED_TOKEN
-    out_coin: address = COLLATERAL_TOKEN
+    out_coin: address = self.collateral_token
     in_precision: uint256 = BORROWED_PRECISION
-    out_precision: uint256 = COLLATERAL_PRECISION
+    out_precision: uint256 = self.collateral_precision
     if i == 1:
-        in_precision = COLLATERAL_PRECISION
+        in_precision = out_precision
+        in_coin = out_coin
         out_precision = BORROWED_PRECISION
-        in_coin = COLLATERAL_TOKEN
         out_coin = BORROWED_TOKEN
 
     out: DetailedTrade = self.calc_swap_out(i == 0, in_amount * in_precision)
@@ -701,6 +703,7 @@ def exchange(i: uint256, j: uint256, in_amount: uint256, min_amount: uint256, _f
     ERC20(in_coin).transferFrom(msg.sender, self, in_amount_done)
     ERC20(out_coin).transfer(_for, out_amount_done)
 
+    A: uint256 = self.A
     p_base_mul: uint256 = self.p_base_mul
     n: int256 = out.n1
     step: int256 = 1
@@ -750,6 +753,8 @@ def get_xy_up(user: address, use_y: bool) -> uint256:
     n: int256 = ns[0] - 1
     p_o_up: uint256 = self._p_oracle_band(n, False)
     XY: uint256 = 0
+    A: uint256 = self.A
+    sqrt_band_ratio: uint256 = self.sqrt_band_ratio
 
     for i in range(MAX_TICKS):
         n += 1
@@ -766,16 +771,16 @@ def get_xy_up(user: address, use_y: bool) -> uint256:
             if use_y:
                 XY += y * user_share / total_share
             else:
-                XY += y * p_o_up / SQRT_BAND_RATIO * user_share / total_share
+                XY += y * p_o_up / sqrt_band_ratio * user_share / total_share
             continue
         elif y == 0:
             if use_y:
-                XY += x * SQRT_BAND_RATIO / p_o_up * user_share / total_share
+                XY += x * sqrt_band_ratio / p_o_up * user_share / total_share
             else:
                 XY += x * user_share / total_share
             continue
 
-        y0: uint256 = self._get_y0(x, y, p_o, p_o_up)
+        y0: uint256 = self._get_y0(x, y, p_o, p_o_up, A)
         f: uint256 = A * y0 * p_o / p_o_up * p_o / 10**18
         g: uint256 = (A - 1) * y0 * p_o_up / p_o
         # (f + x)(g + y) = const = p_top * A**2 * y0**2 = I
@@ -833,7 +838,7 @@ def get_xy_up(user: address, use_y: bool) -> uint256:
                 XY += (x_o + y_o * self.sqrt_int(p_o_up * p_o_use / 10**18) / 10**18) * user_share / total_share
 
     if use_y:
-        return XY / COLLATERAL_PRECISION
+        return XY / self.collateral_precision
     else:
         return XY / BORROWED_PRECISION
 
@@ -864,12 +869,12 @@ def get_sum_xy(user: address) -> uint256[2]:
         if ns[0] == ns[1]:
             break
         ns[0] += 1
-    return [x / BORROWED_PRECISION, y / COLLATERAL_PRECISION]
+    return [x / BORROWED_PRECISION, y / self.collateral_precision]
 
 
 @external
 def set_rate(rate: int256) -> uint256:
-    assert msg.sender == ADMIN
+    assert msg.sender == Factory(FACTORY).admin()
     rate_mul: uint256 = self._rate_mul()
     self.rate_mul = rate_mul
     self.rate_time = block.timestamp
@@ -880,7 +885,7 @@ def set_rate(rate: int256) -> uint256:
 
 @external
 def set_fee(fee: uint256):
-    assert msg.sender == ADMIN
+    assert msg.sender == Factory(FACTORY).admin()
     assert fee < 10**18, "Fee is too high"
     self.fee = fee
     log SetFee(fee)
