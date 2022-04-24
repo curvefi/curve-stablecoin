@@ -23,21 +23,6 @@ def __init__(stablecoin: address,
 
 
 @external
-def mint(_to: address, _value: uint256) -> bool:
-    return ERC20(STABLECOIN).mint(_to, _value)
-
-
-@external
-def burnFrom(_to: address, _value: uint256) -> bool:
-    return ERC20(STABLECOIN).burnFrom(_to, _value)
-
-
-@external
-def transferFrom(_from: address, _to: address, _value: uint256) -> bool:
-    return ERC20(STABLECOIN).transferFrom(_from, _to, _value)
-
-
-@external
 def create_market(token: uint256) -> address[2]:
     return [ZERO_ADDRESS, ZERO_ADDRESS]
 

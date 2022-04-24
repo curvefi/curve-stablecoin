@@ -6,9 +6,6 @@ interface ERC20:
     def decimals() -> uint256: view
     def balanceOf(_user: address) -> uint256: view
 
-interface Factory:
-    def admin() -> address: view
-
 
 event TokenExchange:
     buyer: indexed(address)
@@ -140,6 +137,12 @@ def initialize(
         convert(_price_oracle_sig, uint256)
     )
     self.sqrt_band_ratio = self.sqrt_int(10**18 * _A / (_A - 1))
+
+
+@external
+@view
+def factory() -> address:
+    return FACTORY
 
 
 @external
@@ -395,7 +398,7 @@ def _read_user_ticks(user: address, size: int256) -> uint256[MAX_TICKS]:
 @external
 @nonreentrant('lock')
 def deposit_range(user: address, amount: uint256, n1: int256, n2: int256, move_coins: bool):
-    assert msg.sender == Factory(FACTORY).admin()
+    assert msg.sender == FACTORY
     collateral_precision: uint256 = self.collateral_precision
 
     n0: int256 = self.active_band
@@ -456,7 +459,7 @@ def deposit_range(user: address, amount: uint256, n1: int256, n2: int256, move_c
 @external
 @nonreentrant('lock')
 def withdraw(user: address, move_to: address) -> uint256[2]:
-    assert msg.sender == Factory(FACTORY).admin()
+    assert msg.sender == FACTORY
 
     ns: int256[2] = self._read_user_tick_numbers(user)
     user_shares: uint256[MAX_TICKS] = self._read_user_ticks(user, ns[1] - ns[0] + 1)
@@ -515,7 +518,7 @@ def withdraw(user: address, move_to: address) -> uint256[2]:
 
 @external
 def rugpull(coin: address, _to: address, val: uint256):
-    assert msg.sender == Factory(FACTORY).admin()
+    assert msg.sender == FACTORY
 
     if val > 0:
         assert ERC20(coin).transfer(_to, val)
@@ -874,7 +877,7 @@ def get_sum_xy(user: address) -> uint256[2]:
 
 @external
 def set_rate(rate: int256) -> uint256:
-    assert msg.sender == Factory(FACTORY).admin()
+    assert msg.sender == FACTORY
     rate_mul: uint256 = self._rate_mul()
     self.rate_mul = rate_mul
     self.rate_time = block.timestamp
@@ -885,7 +888,7 @@ def set_rate(rate: int256) -> uint256:
 
 @external
 def set_fee(fee: uint256):
-    assert msg.sender == Factory(FACTORY).admin()
+    assert msg.sender == FACTORY
     assert fee < 10**18, "Fee is too high"
     self.fee = fee
     log SetFee(fee)
