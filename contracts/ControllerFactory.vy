@@ -7,7 +7,9 @@ interface ERC20:
 
 interface Controller:
     def initialize(
-        collateral_token: address, monetary_policy: address, loan_discount: uint256, liquidation_discount: uint256, amm: address
+        collateral_token: address, monetary_policy: address,
+        loan_discount: uint256, liquidation_discount: uint256,
+        amm: address, debt_ceiling: uint256
     ): nonpayable
 
 interface AMM:
@@ -43,7 +45,8 @@ def __init__(stablecoin: address,
 @external
 def create_market(token: address, A: uint256, fee: uint256, admin_fee: uint256,
                   _price_oracle_contract: address, _price_oracle_sig: bytes32,
-                  monetary_policy: address, loan_discount: uint256, liquidation_discount: uint256) -> address[2]:
+                  monetary_policy: address, loan_discount: uint256, liquidation_discount: uint256,
+                  debt_ceiling: uint256) -> address[2]:
     assert self.controllers[token] == ZERO_ADDRESS and self.amms[token] == ZERO_ADDRESS, "Already exists"
 
 
@@ -58,7 +61,7 @@ def create_market(token: address, A: uint256, fee: uint256, admin_fee: uint256,
     amm: address = create_forwarder_to(self.amm_implementation)
     controller: address = create_forwarder_to(self.controller_implementation)
     AMM(amm).initialize(A, p, token, fee, admin_fee, _price_oracle_contract, _price_oracle_sig)
-    Controller(controller).initialize(token, monetary_policy, loan_discount, liquidation_discount, amm)
+    Controller(controller).initialize(token, monetary_policy, loan_discount, liquidation_discount, amm, debt_ceiling)
     Stablecoin(STABLECOIN).set_minter(controller, True)
     return [controller, amm]
 

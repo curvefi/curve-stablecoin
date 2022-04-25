@@ -80,6 +80,7 @@ monetary_policy: public(address)
 ltv: public(uint256)  # Loan to value at 1e18 base
 liquidation_discount: public(uint256)
 loan_discount: public(uint256)
+debt_ceiling: public(uint256)
 
 logAratio: public(uint256)  # log(A / (A - 1))  XXX remove pub
 
@@ -119,7 +120,8 @@ def initialize(
     monetary_policy: address,
     loan_discount: uint256,
     liquidation_discount: uint256,
-    amm: address):
+    amm: address,
+    debt_ceiling: uint256):
     assert self.collateral_token == ZERO_ADDRESS
 
     self.collateral_token = collateral_token
@@ -129,6 +131,7 @@ def initialize(
     assert liquidation_discount >= MIN_LIQUIDATION_DISCOUNT
     self.liquidation_discount = liquidation_discount
     self.loan_discount = loan_discount
+    self.debt_ceiling = debt_ceiling
 
     self.amm = amm
     A: uint256 = AMM(amm).A()
@@ -203,6 +206,7 @@ def create_loan(collateral: uint256, debt: uint256, n: uint256):
     rate_mul: uint256 = AMM(amm).set_rate(MonetaryPolicy(self.monetary_policy).rate_write())
     self.loans[msg.sender] = Loan({initial_debt: debt, rate_mul: rate_mul})
     self.total_debt.initial_debt = self.total_debt.initial_debt * rate_mul / self.total_debt.rate_mul + debt
+    assert self.total_debt.initial_debt <= self.debt_ceiling, "Debt ceiling"
     self.total_debt.rate_mul = rate_mul
 
     AMM(amm).deposit_range(msg.sender, collateral, n1, n2, False)
@@ -236,6 +240,7 @@ def _add_collateral_borrow(d_collateral: uint256, d_debt: uint256, _for: address
 
     if d_debt > 0:
         self.total_debt.initial_debt = self.total_debt.initial_debt * rate_mul / self.total_debt.rate_mul + d_debt
+        assert self.total_debt.initial_debt <= self.debt_ceiling, "Debt ceiling"
         self.total_debt.rate_mul = rate_mul
 
     log Borrow(_for, d_collateral, d_debt)
@@ -436,6 +441,12 @@ def set_monetary_policy(monetary_policy: address):
     assert msg.sender == Factory(FACTORY).admin()
     self.monetary_policy = monetary_policy
     MonetaryPolicy(monetary_policy).rate_write()
+
+
+@external
+def set_debt_ceiling(_debt_ceiling: uint256):
+    assert msg.sender == Factory(FACTORY).admin()
+    self.debt_ceiling = _debt_ceiling
 
 # XXX feed back debt rate to AMM
 # XXX stabilizer
