@@ -23,6 +23,13 @@ interface Stablecoin:
     def set_minter(_minter: address, _enabled: bool): nonpayable
 
 
+event AddMarket:
+    collateral: address
+    controller: address
+    amm: address
+    monetary_policy: address
+
+
 STABLECOIN: immutable(address)
 controllers: public(HashMap[address, address])
 amms: public(HashMap[address, address])
@@ -43,7 +50,7 @@ def __init__(stablecoin: address,
 
 
 @external
-def create_market(token: address, A: uint256, fee: uint256, admin_fee: uint256,
+def add_market(token: address, A: uint256, fee: uint256, admin_fee: uint256,
                   _price_oracle_contract: address, _price_oracle_sig: bytes32,
                   monetary_policy: address, loan_discount: uint256, liquidation_discount: uint256,
                   debt_ceiling: uint256) -> address[2]:
@@ -63,6 +70,7 @@ def create_market(token: address, A: uint256, fee: uint256, admin_fee: uint256,
     AMM(amm).initialize(A, p, token, fee, admin_fee, _price_oracle_contract, _price_oracle_sig)
     Controller(controller).initialize(token, monetary_policy, loan_discount, liquidation_discount, amm, debt_ceiling)
     Stablecoin(STABLECOIN).set_minter(controller, True)
+    log AddMarket(token, controller, amm, monetary_policy)
     return [controller, amm]
 
 
