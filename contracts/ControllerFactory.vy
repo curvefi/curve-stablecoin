@@ -16,9 +16,6 @@ interface AMM:
         _price_oracle_contract:address, _price_oracle_sig: bytes32,
     ): nonpayable
 
-# interface Stablecoin:
-#     pass
-
 
 STABLECOIN: immutable(address)
 controllers: public(HashMap[address, address])
