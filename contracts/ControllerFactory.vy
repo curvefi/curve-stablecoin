@@ -17,6 +17,10 @@ interface AMM:
     ): nonpayable
 
 
+interface Stablecoin:
+    def set_minter(_minter: address, _enabled: bool): nonpayable
+
+
 STABLECOIN: immutable(address)
 controllers: public(HashMap[address, address])
 amms: public(HashMap[address, address])
@@ -55,6 +59,7 @@ def create_market(token: address, A: uint256, fee: uint256, admin_fee: uint256,
     controller: address = create_forwarder_to(self.controller_implementation)
     AMM(amm).initialize(A, p, token, fee, admin_fee, _price_oracle_contract, _price_oracle_sig)
     Controller(controller).initialize(token, monetary_policy, loan_discount, liquidation_discount, amm)
+    Stablecoin(STABLECOIN).set_minter(controller, True)
     return [controller, amm]
 
 
