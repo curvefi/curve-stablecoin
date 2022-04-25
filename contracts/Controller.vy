@@ -68,6 +68,9 @@ MIN_LIQUIDATION_DISCOUNT: constant(uint256) = 10**16 # Start liquidating when th
 MAX_TICKS: constant(int256) = 50
 MIN_TICKS: constant(int256) = 5
 
+MAX_RATE: constant(int256) = 43959106799  # 400% APY
+MIN_RATE: constant(int256) = -7075835584  # -20% APY
+
 loans: HashMap[address, Loan]
 total_debt: Loan
 
@@ -134,7 +137,12 @@ def initialize(
 
 @internal
 def _debt(user: address) -> (uint256, uint256):
-    rate_mul: uint256 = AMM(self.amm).set_rate(MonetaryPolicy(self.monetary_policy).rate_write())
+    rate: int256 = MonetaryPolicy(self.monetary_policy).rate_write()
+    if rate > MAX_RATE:
+        rate = MAX_RATE
+    if rate < MIN_RATE:
+        rate = MIN_RATE
+    rate_mul: uint256 = AMM(self.amm).set_rate(rate)
     loan: Loan = self.loans[user]
     return (loan.initial_debt * rate_mul / loan.rate_mul, rate_mul)
 

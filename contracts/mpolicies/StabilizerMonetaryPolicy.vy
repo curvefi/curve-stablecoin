@@ -25,8 +25,6 @@ PRECISION_COIN: immutable(uint256)
 PRECISION_BASE: immutable(uint256)
 EXP_PRECISION: constant(uint256) = 10**10
 
-MAX_RATE: constant(uint256) = 43959106799  # 400% APY
-
 
 @external
 def __init__(admin: address, peg_keeper: address, pool: address,
@@ -103,7 +101,7 @@ def calculate_rate() -> uint256:
         r = r * self.halfpow((p - 10**18) * 10**18 / h) / 10**18
     if p < 10**18:
         r = r * 10**18 / self.halfpow((10**18 - p) * 10**18 / h)
-    return min(r, MAX_RATE)
+    return r
 
 
 @view
