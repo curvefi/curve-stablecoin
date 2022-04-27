@@ -6,6 +6,10 @@ interface ERC20:
     def decimals() -> uint256: view
     def balanceOf(_user: address) -> uint256: view
 
+interface PriceOracle:
+    def price() -> uint256: view
+    def price_w() -> uint256: nonpayable
+
 
 event TokenExchange:
     buyer: indexed(address)
@@ -69,7 +73,7 @@ active_band: public(int256)
 min_band: int256
 max_band: int256
 
-price_oracle_sig: uint256
+price_oracle_contract: address
 
 p_base_mul: public(uint256)
 
@@ -118,7 +122,7 @@ def initialize(
     _collateral_token: address,
     fee: uint256,
     admin_fee: uint256,
-    _price_oracle_contract:address, _price_oracle_sig: bytes32,
+    _price_oracle_contract: address,
     ):
     assert self.A == 0
 
@@ -132,10 +136,7 @@ def initialize(
     self.fee = fee
     self.admin_fee = admin_fee
 
-    self.price_oracle_sig = bitwise_or(
-        shift(convert(_price_oracle_contract, uint256), 32),
-        convert(_price_oracle_sig, uint256)
-    )
+    self.price_oracle_contract = _price_oracle_contract
     self.sqrt_band_ratio = self.sqrt_int(10**18 * _A / (_A - 1))
 
 
@@ -147,28 +148,8 @@ def factory() -> address:
 
 @external
 @view
-def price_oracle_signature() -> (address, Bytes[4]):
-    sig: uint256 = self.price_oracle_sig
-    return convert(shift(sig, -32), address), slice(convert(bitwise_and(sig, 2**32-1), bytes32), 28, 4)
-
-
-@internal
-@view
-def _price_oracle() -> uint256:
-    sig: uint256 = self.price_oracle_sig
-    response: Bytes[32] = raw_call(
-        convert(shift(sig, -32), address),
-        slice(convert(bitwise_and(sig, 2**32-1), bytes32), 28, 4),
-        is_static_call=True,
-        max_outsize=32
-    )
-    return convert(response, uint256)
-
-
-@external
-@view
 def price_oracle() -> uint256:
-    return self._price_oracle()
+    return PriceOracle(self.price_oracle_contract).price()
 
 
 @internal
@@ -234,7 +215,7 @@ def _p_current_band(n: int256, is_up: bool) -> uint256:
     p_base: uint256 = self._p_oracle_band(n, is_up)
 
     # return self.p_oracle**3 / p_base**2
-    p_oracle: uint256 = self._price_oracle()
+    p_oracle: uint256 = PriceOracle(self.price_oracle_contract).price()
     return p_oracle**2 / p_base * p_oracle / p_base
 
 
@@ -289,7 +270,7 @@ def _get_y0(x: uint256, y: uint256, p_o: uint256, p_o_up: uint256, A: uint256) -
 def get_y0(n: int256) -> uint256:
     x: uint256 = self.bands_x[n]
     y: uint256 = self.bands_y[n]
-    p_o: uint256 = self._price_oracle()
+    p_o: uint256 = PriceOracle(self.price_oracle_contract).price()
     p_oracle_up: uint256 = 0
     if n == MAX_INT:
         p_oracle_up = self._base_price() * self.p_base_mul / 10**18
@@ -303,7 +284,7 @@ def get_y0(n: int256) -> uint256:
 @view
 def _get_p(n: int256, x: uint256, y: uint256) -> uint256:
     p_o_up: uint256 = self._p_oracle_band(n, False)
-    p_o: uint256 = self._price_oracle()
+    p_o: uint256 = PriceOracle(self.price_oracle_contract).price()
     A: uint256 = self.A
 
     # Special cases
@@ -526,13 +507,12 @@ def rugpull(coin: address, _to: address, val: uint256):
 
 @internal
 @view
-def calc_swap_out(pump: bool, in_amount: uint256) -> DetailedTrade:
+def calc_swap_out(pump: bool, in_amount: uint256, p_o: uint256) -> DetailedTrade:
     out: DetailedTrade = empty(DetailedTrade)
     # pump = True: borrowable (USD) in, collateral (ETH) out; going up
     # pump = False: collateral (ETH) in, borrowable (USD) out; going down
     out.n1 = self.active_band
     out.n2 = out.n1
-    p_o: uint256 = self._price_oracle()
     p_o_up: uint256 = self._base_price() * self.p_base_mul / 10**18
     fee: uint256 = self.fee
     admin_fee: uint256 = self.admin_fee
@@ -641,7 +621,7 @@ def _get_dxdy(i: uint256, j: uint256, in_amount: uint256) -> DetailedTrade:
     if i == 0:
         in_precision = BORROWED_PRECISION
         out_precision = collateral_precision
-    out = self.calc_swap_out(i == 0, in_amount * in_precision)
+    out = self.calc_swap_out(i == 0, in_amount * in_precision, PriceOracle(self.price_oracle_contract).price())
     out.in_amount /= in_precision
     out.out_amount /= out_precision
     return out
@@ -696,7 +676,7 @@ def exchange(i: uint256, j: uint256, in_amount: uint256, min_amount: uint256, _f
         out_precision = BORROWED_PRECISION
         out_coin = BORROWED_TOKEN
 
-    out: DetailedTrade = self.calc_swap_out(i == 0, in_amount * in_precision)
+    out: DetailedTrade = self.calc_swap_out(i == 0, in_amount * in_precision, PriceOracle(self.price_oracle_contract).price_w())
     in_amount_done: uint256 = out.in_amount / in_precision
     out_amount_done: uint256 = out.out_amount / out_precision
     assert out_amount_done >= min_amount, "Slippage"
@@ -751,7 +731,7 @@ def get_xy_up(user: address, use_y: bool) -> uint256:
     ticks: uint256[MAX_TICKS] = self._read_user_ticks(user, ns[1] - ns[0] + 1)
     if ticks[0] == 0:
         return 0
-    p_o: uint256 = self._price_oracle()
+    p_o: uint256 = PriceOracle(self.price_oracle_contract).price()
 
     n: int256 = ns[0] - 1
     p_o_up: uint256 = self._p_oracle_band(n, False)
