@@ -4,6 +4,8 @@ last_price: uint256
 last_timestamp: uint256
 EXP_PRECISION: constant(uint256) = 10**10
 MA_HALF_TIME: immutable(uint256)
+SIG_ADDRESS: immutable(address)
+SIG_METHOD: immutable(Bytes[4])
 price_oracle_sig: uint256
 
 
@@ -11,10 +13,8 @@ price_oracle_sig: uint256
 def __init__(ma_half_time: uint256,
              _price_oracle_contract:address, _price_oracle_sig: bytes32):
     MA_HALF_TIME = ma_half_time
-    self.price_oracle_sig = bitwise_or(
-        shift(convert(_price_oracle_contract, uint256), 32),
-        convert(_price_oracle_sig, uint256)
-    )
+    SIG_ADDRESS = _price_oracle_contract
+    SIG_METHOD = slice(_price_oracle_sig, 28, 4)  # XXX check
 
 
 @view
@@ -26,8 +26,7 @@ def ma_half_time() -> uint256:
 @external
 @view
 def price_oracle_signature() -> (address, Bytes[4]):
-    sig: uint256 = self.price_oracle_sig
-    return convert(shift(sig, -32), address), slice(convert(bitwise_and(sig, 2**32-1), bytes32), 28, 4)
+    return SIG_ADDRESS, SIG_METHOD
 
 
 @internal
@@ -35,8 +34,8 @@ def price_oracle_signature() -> (address, Bytes[4]):
 def _price_oracle() -> uint256:
     sig: uint256 = self.price_oracle_sig
     response: Bytes[32] = raw_call(
-        convert(shift(sig, -32), address),
-        slice(convert(bitwise_and(sig, 2**32-1), bytes32), 28, 4),
+        SIG_ADDRESS,
+        SIG_METHOD,
         is_static_call=True,
         max_outsize=32
     )
