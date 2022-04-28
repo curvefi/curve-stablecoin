@@ -14,7 +14,7 @@ def __init__(ma_half_time: uint256,
              _price_oracle_contract:address, _price_oracle_sig: bytes32):
     MA_HALF_TIME = ma_half_time
     SIG_ADDRESS = _price_oracle_contract
-    SIG_METHOD = slice(_price_oracle_sig, 28, 4)  # XXX check
+    SIG_METHOD = slice(_price_oracle_sig, 28, 4)
 
 
 @view
