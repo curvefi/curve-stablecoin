@@ -1,12 +1,11 @@
 # @version 0.3.1
 
-last_price: uint256
+last_price: public(uint256)
 last_timestamp: uint256
 EXP_PRECISION: constant(uint256) = 10**10
 MA_HALF_TIME: immutable(uint256)
 SIG_ADDRESS: immutable(address)
 SIG_METHOD: immutable(Bytes[4])
-price_oracle_sig: uint256
 
 
 @external
@@ -14,7 +13,17 @@ def __init__(ma_half_time: uint256,
              _price_oracle_contract:address, _price_oracle_sig: bytes32):
     MA_HALF_TIME = ma_half_time
     SIG_ADDRESS = _price_oracle_contract
-    SIG_METHOD = slice(_price_oracle_sig, 28, 4)
+    sig: Bytes[4] = slice(_price_oracle_sig, 28, 4)
+    SIG_METHOD = sig
+
+    response: Bytes[32] = raw_call(
+        _price_oracle_contract,
+        sig,
+        is_static_call=True,
+        max_outsize=32
+    )
+    self.last_price = convert(response, uint256)
+    self.last_timestamp = block.timestamp
 
 
 @view
@@ -32,7 +41,6 @@ def price_oracle_signature() -> (address, Bytes[4]):
 @internal
 @view
 def _price_oracle() -> uint256:
-    sig: uint256 = self.price_oracle_sig
     response: Bytes[32] = raw_call(
         SIG_ADDRESS,
         SIG_METHOD,

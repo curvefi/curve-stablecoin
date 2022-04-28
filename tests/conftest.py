@@ -19,6 +19,11 @@ def PriceOracle(DummyPriceOracle, accounts):
 
 
 @pytest.fixture(scope="module", autouse=True)
+def ema_price_oracle(PriceOracle, EmaPriceOracle, accounts):
+    return EmaPriceOracle.deploy(10000, PriceOracle, PriceOracle.price.signature, {'from': accounts[0]})
+
+
+@pytest.fixture(scope="module", autouse=True)
 def collateral_token(ERC20Mock, accounts):
     return ERC20Mock.deploy("Colalteral", "ETH", 18, {'from': accounts[0]})
 
