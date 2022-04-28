@@ -44,3 +44,12 @@ def test_ema_wrapping(chain, ema_price_oracle, PriceOracle):
     ema_price_oracle.price_w()
     chain.sleep(20000)
     assert PriceOracle.price() == ema_price_oracle.price()
+
+
+def test_ema_sleep(chain, ema_price_oracle, PriceOracle, accounts):
+    p = PriceOracle.price()
+    PriceOracle.set_price(p // 2, {'from': accounts[0]})
+    chain.sleep(5)
+    ema_price_oracle.price_w()
+    chain.sleep(1000000)
+    assert (ema_price_oracle.price() - p // 2) < p / 10
