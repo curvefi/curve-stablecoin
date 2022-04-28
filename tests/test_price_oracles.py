@@ -35,7 +35,12 @@ def test_p_current_updown(amm):
         assert approx(amm.p_current_down(i), p_current_down, 1e-14)
 
 
-def test_ema_wrapping(ema_price_oracle, PriceOracle):
+def test_ema_wrapping(chain, ema_price_oracle, PriceOracle):
     assert PriceOracle.price() == ema_price_oracle.last_price()
     assert PriceOracle.price() == ema_price_oracle.price()
     ema_price_oracle.price_w()
+    chain.sleep(20000)
+    assert PriceOracle.price() == ema_price_oracle.price()
+    ema_price_oracle.price_w()
+    chain.sleep(20000)
+    assert PriceOracle.price() == ema_price_oracle.price()
