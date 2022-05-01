@@ -29,6 +29,7 @@ interface MonetaryPolicy:
     def rate_write() -> int256: nonpayable
 
 interface Factory:
+    def stablecoin() -> address: view
     def admin() -> address: view
 
 
@@ -86,9 +87,9 @@ logAratio: public(uint256)  # log(A / (A - 1))  XXX remove pub
 
 
 @external
-def __init__(factory: address, stablecoin: address):
+def __init__(factory: address):
     FACTORY = factory
-    STABLECOIN = stablecoin
+    STABLECOIN = Factory(factory).stablecoin()
 
 
 @internal

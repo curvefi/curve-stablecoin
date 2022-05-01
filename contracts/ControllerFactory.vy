@@ -40,13 +40,15 @@ amm_implementation: public(address)
 
 @external
 def __init__(stablecoin: address,
-             _controller_implementation: address,
-             _amm_implementation: address,
              admin: address):
     STABLECOIN = stablecoin
     self.admin = admin
-    self.controller_implementation = _controller_implementation
-    self.amm_implementation = _amm_implementation
+
+
+@external
+@view
+def stablecoin() -> address:
+    return STABLECOIN
 
 
 @external
@@ -54,6 +56,7 @@ def add_market(token: address, A: uint256, fee: uint256, admin_fee: uint256,
                   _price_oracle_contract: address, _price_oracle_sig: bytes32,
                   monetary_policy: address, loan_discount: uint256, liquidation_discount: uint256,
                   debt_ceiling: uint256) -> address[2]:
+    assert msg.sender == self.admin, "Only admin"
     assert self.controllers[token] == ZERO_ADDRESS and self.amms[token] == ZERO_ADDRESS, "Already exists"
 
 
@@ -72,6 +75,13 @@ def add_market(token: address, A: uint256, fee: uint256, admin_fee: uint256,
     Stablecoin(STABLECOIN).set_minter(controller, True)
     log AddMarket(token, controller, amm, monetary_policy)
     return [controller, amm]
+
+
+@external
+def set_implementations(controller: address, amm: address):
+    assert msg.sender == self.admin
+    self.controller_implementation = controller
+    self.amm_implementation = amm
 
 
 @external
