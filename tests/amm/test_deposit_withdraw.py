@@ -1,6 +1,6 @@
 import brownie
 from brownie.test import given, strategy
-from .conftest import approx
+from ..conftest import approx
 
 
 @given(

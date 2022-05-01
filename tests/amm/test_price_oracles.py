@@ -1,4 +1,4 @@
-from .conftest import PRICE, approx
+from ..conftest import PRICE, approx
 
 
 def test_price_oracle(PriceOracle, amm):
