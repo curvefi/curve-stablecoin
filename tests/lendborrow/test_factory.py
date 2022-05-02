@@ -12,10 +12,16 @@ def test_stablecoin_admin(controller_factory, stablecoin, accounts):
 
 
 def test_stablecoin(controller_factory, stablecoin):
-    assert controller_factory.stablecoin() == stablecoin.address
+    assert controller_factory.stablecoin() == stablecoin
 
 
-def test_add_market(controller_factory, collateral_token, PriceOracle, monetary_policy, accounts):
+def test_impl(controller_factory, controller_impl, amm_impl):
+    assert controller_factory.controller_implementation() == controller_impl
+    assert controller_factory.amm_implementation() == amm_impl
+
+
+def test_add_market(controller_factory, collateral_token, PriceOracle, monetary_policy, accounts,
+                    Controller, AMM):
     # token: address, A: uint256, fee: uint256, admin_fee: uint256,
     # _price_oracle_contract: address,
     # monetary_policy: address, loan_discount: uint256, liquidation_discount: uint256,
@@ -24,10 +30,24 @@ def test_add_market(controller_factory, collateral_token, PriceOracle, monetary_
         collateral_token, 100, 10**16, 0,
         PriceOracle,
         monetary_policy, 5 * 10**16, 2 * 10**16,
-        10**8 * 10*18,
+        10**8 * 10**18,
         {'from': accounts[0]})
 
+    assert controller_factory.n_collaterals() == 1
+    assert controller_factory.collaterals(0) == collateral_token
 
-def test_impl(controller_factory, controller_impl, amm_impl):
-    assert controller_factory.controller_implementation() == controller_impl.address
-    assert controller_factory.amm_implementation() == amm_impl.address
+    controller = Controller.at(controller_factory.controllers(collateral_token))
+    amm = AMM.at(controller_factory.amms(collateral_token))
+
+    assert controller.factory() == controller_factory
+    assert controller.collateral_token() == collateral_token
+    assert controller.amm() == amm
+    assert controller.monetary_policy() == monetary_policy
+    assert controller.liquidation_discount() == 2 * 10**16
+    assert controller.loan_discount()  == 5 * 10**16
+    assert controller.debt_ceiling() == 10**8 * 10**18
+
+    assert amm.factory() == controller_factory
+    assert amm.A() == 100
+    assert amm.price_oracle_contract() == PriceOracle
+    assert amm.collateral_token() == collateral_token

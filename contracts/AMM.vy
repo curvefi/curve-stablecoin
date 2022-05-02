@@ -73,7 +73,7 @@ active_band: public(int256)
 min_band: int256
 max_band: int256
 
-price_oracle_contract: address
+price_oracle_contract: public(address)
 
 p_base_mul: public(uint256)
 

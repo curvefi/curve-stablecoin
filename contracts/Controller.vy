@@ -79,7 +79,6 @@ _total_debt: Loan
 amm: public(address)
 collateral_token: public(address)
 monetary_policy: public(address)
-ltv: public(uint256)  # Loan to value at 1e18 base
 liquidation_discount: public(uint256)
 loan_discount: public(uint256)
 debt_ceiling: public(uint256)
@@ -138,6 +137,12 @@ def initialize(
     self.amm = amm
     A: uint256 = AMM(amm).A()
     self.logAratio = self.log2(A * 10**18 / (A - 1))
+
+
+@external
+@view
+def factory() -> address:
+    return FACTORY
 
 
 @internal
