@@ -31,6 +31,7 @@ interface MonetaryPolicy:
 interface Factory:
     def stablecoin() -> address: view
     def admin() -> address: view
+    def fee_receiver() -> address: view
 
 
 event UserState:
@@ -456,6 +457,23 @@ def set_monetary_policy(monetary_policy: address):
 def set_debt_ceiling(_debt_ceiling: uint256):
     assert msg.sender == Factory(FACTORY).admin()
     self.debt_ceiling = _debt_ceiling
+
+
+@external
+@nonreentrant('lock')
+def collect_fees() -> uint256:
+    supply: uint256 = ERC20(STABLECOIN).totalSupply()
+    rate_mul: uint256 = AMM(self.amm).get_rate_mul()
+    loan: Loan = self._total_debt
+    loan.initial_debt = loan.initial_debt * rate_mul / loan.rate_mul
+    if loan.initial_debt > supply:
+        _to: address = Factory(FACTORY).fee_receiver()
+        supply = loan.initial_debt - supply
+        ERC20(STABLECOIN).mint(_to, supply)
+        return supply
+    else:
+        return 0
+
 
 # XXX feed back debt rate to AMM
 # XXX stabilizer

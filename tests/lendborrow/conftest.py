@@ -8,7 +8,7 @@ def stablecoin(Stablecoin, accounts):
 
 @pytest.fixture(scope="module", autouse=True)
 def controller_prefactory(ControllerFactory, stablecoin, accounts):
-    return ControllerFactory.deploy(stablecoin, accounts[0], {'from': accounts[0]})
+    return ControllerFactory.deploy(stablecoin, accounts[0], accounts[1], {'from': accounts[0]})
 
 
 @pytest.fixture(scope="module", autouse=True)

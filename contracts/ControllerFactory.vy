@@ -34,15 +34,18 @@ STABLECOIN: immutable(address)
 controllers: public(HashMap[address, address])
 amms: public(HashMap[address, address])
 admin: public(address)
+fee_receiver: public(address)
 controller_implementation: public(address)
 amm_implementation: public(address)
 
 
 @external
 def __init__(stablecoin: address,
-             admin: address):
+             admin: address,
+             fee_receiver: address):
     STABLECOIN = stablecoin
     self.admin = admin
+    self.fee_receiver = fee_receiver
 
 
 @external
@@ -88,3 +91,9 @@ def set_implementations(controller: address, amm: address):
 def set_admin(admin: address):
     assert msg.sender == self.admin
     self.admin = admin
+
+
+@external
+def set_fee_receiver(fee_receiver: address):
+    assert msg.sender == self.admin
+    self.fee_receiver = fee_receiver
