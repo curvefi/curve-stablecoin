@@ -73,7 +73,7 @@ MAX_RATE: constant(int256) = 43959106799  # 400% APY
 MIN_RATE: constant(int256) = -7075835584  # -20% APY
 
 loans: HashMap[address, Loan]
-total_debt: Loan
+_total_debt: Loan
 
 amm: public(address)
 collateral_token: public(address)
@@ -165,6 +165,14 @@ def debt(user: address) -> uint256:
     return self._debt_ro(user)
 
 
+@external
+@view
+def total_debt() -> uint256:
+    rate_mul: uint256 = AMM(self.amm).get_rate_mul()
+    loan: Loan = self._total_debt
+    return loan.initial_debt * rate_mul / loan.rate_mul
+
+
 # n1 = log((collateral * p_base * (1 - discount)) / debt) / log(A / (A - 1)) - N / 2
 # round that down
 # n2 = n1 + N
@@ -206,9 +214,9 @@ def create_loan(collateral: uint256, debt: uint256, n: uint256):
 
     rate_mul: uint256 = AMM(amm).set_rate(MonetaryPolicy(self.monetary_policy).rate_write())
     self.loans[msg.sender] = Loan({initial_debt: debt, rate_mul: rate_mul})
-    self.total_debt.initial_debt = self.total_debt.initial_debt * rate_mul / self.total_debt.rate_mul + debt
-    assert self.total_debt.initial_debt <= self.debt_ceiling, "Debt ceiling"
-    self.total_debt.rate_mul = rate_mul
+    self._total_debt.initial_debt = self._total_debt.initial_debt * rate_mul / self._total_debt.rate_mul + debt
+    assert self._total_debt.initial_debt <= self.debt_ceiling, "Debt ceiling"
+    self._total_debt.rate_mul = rate_mul
 
     AMM(amm).deposit_range(msg.sender, collateral, n1, n2, False)
     ERC20(self.collateral_token).transferFrom(msg.sender, amm, collateral)
@@ -240,9 +248,9 @@ def _add_collateral_borrow(d_collateral: uint256, d_debt: uint256, _for: address
     self.loans[_for] = Loan({initial_debt: debt, rate_mul: rate_mul})
 
     if d_debt > 0:
-        self.total_debt.initial_debt = self.total_debt.initial_debt * rate_mul / self.total_debt.rate_mul + d_debt
-        assert self.total_debt.initial_debt <= self.debt_ceiling, "Debt ceiling"
-        self.total_debt.rate_mul = rate_mul
+        self._total_debt.initial_debt = self._total_debt.initial_debt * rate_mul / self._total_debt.rate_mul + d_debt
+        assert self._total_debt.initial_debt <= self.debt_ceiling, "Debt ceiling"
+        self._total_debt.rate_mul = rate_mul
 
     log Borrow(_for, d_collateral, d_debt)
     log UserState(_for, xy[1], debt, n1, n2)
@@ -299,12 +307,12 @@ def repay(_d_debt: uint256, _for: address):
         log Repay(_for, 0, d_debt)
 
     self.loans[_for] = Loan({initial_debt: debt, rate_mul: rate_mul})
-    d: uint256 = self.total_debt.initial_debt * rate_mul / self.total_debt.rate_mul
+    d: uint256 = self._total_debt.initial_debt * rate_mul / self._total_debt.rate_mul
     if d <= d_debt:
-        self.total_debt.initial_debt = 0
+        self._total_debt.initial_debt = 0
     else:
-        self.total_debt.initial_debt = d - d_debt
-    self.total_debt.rate_mul = rate_mul
+        self._total_debt.initial_debt = d - d_debt
+    self._total_debt.rate_mul = rate_mul
 
 
 @external
@@ -389,12 +397,12 @@ def self_liquidate(max_x: uint256):
 
     # Total debt reduced by xy[0]
     if xy[0] > 0:
-        d: uint256 = self.total_debt.initial_debt * rate_mul / self.total_debt.rate_mul
+        d: uint256 = self._total_debt.initial_debt * rate_mul / self._total_debt.rate_mul
         if d <= xy[0]:
-            self.total_debt.initial_debt = 0
+            self._total_debt.initial_debt = 0
         else:
-            self.total_debt.initial_debt = d - xy[0]
-        self.total_debt.rate_mul = rate_mul
+            self._total_debt.initial_debt = d - xy[0]
+        self._total_debt.rate_mul = rate_mul
 
 
 @view
