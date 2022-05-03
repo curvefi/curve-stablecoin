@@ -221,7 +221,7 @@ def create_loan(collateral: uint256, debt: uint256, n: uint256):
     rate_mul: uint256 = AMM(amm).set_rate(MonetaryPolicy(self.monetary_policy).rate_write())
     self.loans[msg.sender] = Loan({initial_debt: debt, rate_mul: rate_mul})
     self._total_debt.initial_debt = self._total_debt.initial_debt * rate_mul / self._total_debt.rate_mul + debt
-    assert self._total_debt.initial_debt <= self.debt_ceiling, "Debt ceiling"
+    assert self._total_debt.initial_debt + debt <= self.debt_ceiling, "Debt ceiling"
     self._total_debt.rate_mul = rate_mul
 
     AMM(amm).deposit_range(msg.sender, collateral, n1, n2, False)
@@ -255,7 +255,7 @@ def _add_collateral_borrow(d_collateral: uint256, d_debt: uint256, _for: address
 
     if d_debt > 0:
         self._total_debt.initial_debt = self._total_debt.initial_debt * rate_mul / self._total_debt.rate_mul + d_debt
-        assert self._total_debt.initial_debt <= self.debt_ceiling, "Debt ceiling"
+        assert self._total_debt.initial_debt + d_debt <= self.debt_ceiling, "Debt ceiling"
         self._total_debt.rate_mul = rate_mul
 
     log Borrow(_for, d_collateral, d_debt)
