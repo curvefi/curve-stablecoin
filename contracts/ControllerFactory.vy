@@ -12,7 +12,6 @@ interface Controller:
         amm: address, debt_ceiling: uint256
     ): nonpayable
 
-
 interface PriceOracle:
     def price() -> uint256: view
 
@@ -21,7 +20,6 @@ interface AMM:
         _A: uint256, _base_price: uint256, _collateral_token: address, fee: uint256, admin_fee: uint256,
         _price_oracle_contract: address,
     ): nonpayable
-
 
 interface Stablecoin:
     def set_minter(_minter: address, _enabled: bool): nonpayable
