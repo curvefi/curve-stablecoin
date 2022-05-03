@@ -36,6 +36,28 @@ def monetary_policy(ConstantMonetaryPolicy, accounts):
     return policy
 
 
+@pytest.fixture(scope="module", autouse=False)
+def market(controller_factory, collateral_token, PriceOracle, monetary_policy, accounts):
+    if controller_factory.n_collaterals() == 0:
+        controller_factory.add_market(
+            collateral_token, 100, 10**16, 0,
+            PriceOracle,
+            monetary_policy, 5 * 10**16, 2 * 10**16,
+            10**8 * 10**18,
+            {'from': accounts[0]})
+    return controller_factory
+
+
+@pytest.fixture(scope="module", autouse=False)
+def market_amm(collateral_token, market, AMM):
+    return AMM.at(market.amms(collateral_token))
+
+
+@pytest.fixture(scope="module", autouse=False)
+def market_controller(collateral_token, market, Controller):
+    return Controller.at(market.controllers(collateral_token))
+
+
 @pytest.fixture(autouse=True)
 def isolate(fn_isolation):
     pass
