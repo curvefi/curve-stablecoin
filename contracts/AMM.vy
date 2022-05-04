@@ -56,7 +56,6 @@ struct DetailedTrade:
 
 BORROWED_TOKEN: immutable(address)    # x
 BORROWED_PRECISION: immutable(uint256)
-FACTORY: immutable(address)
 
 collateral_token: public(address)  # y
 collateral_precision: public(uint256)
@@ -83,10 +82,11 @@ bands_y: public(HashMap[int256, uint256])
 total_shares: HashMap[int256, uint256]
 user_shares: HashMap[address, UserTicks]
 
+admin: public(address)
+
 
 @external
-def __init__(factory: address, _borrowed_token: address):
-    FACTORY = factory
+def __init__(_borrowed_token: address):
     BORROWED_TOKEN = _borrowed_token
     BORROWED_PRECISION = 10 ** (18 - ERC20(_borrowed_token).decimals())
 
@@ -123,8 +123,10 @@ def initialize(
     fee: uint256,
     admin_fee: uint256,
     _price_oracle_contract: address,
+    _admin: address
     ):
     assert self.A == 0
+    assert _A > 0
 
     self.A = _A
     self.base_price = _base_price
@@ -139,11 +141,7 @@ def initialize(
     self.price_oracle_contract = _price_oracle_contract
     self.sqrt_band_ratio = self.sqrt_int(10**18 * _A / (_A - 1))
 
-
-@external
-@view
-def factory() -> address:
-    return FACTORY
+    self.admin = _admin
 
 
 @external
@@ -379,7 +377,7 @@ def _read_user_ticks(user: address, size: int256) -> uint256[MAX_TICKS]:
 @external
 @nonreentrant('lock')
 def deposit_range(user: address, amount: uint256, n1: int256, n2: int256, move_coins: bool):
-    assert msg.sender == FACTORY
+    assert msg.sender == self.admin
     collateral_precision: uint256 = self.collateral_precision
 
     n0: int256 = self.active_band
@@ -440,7 +438,7 @@ def deposit_range(user: address, amount: uint256, n1: int256, n2: int256, move_c
 @external
 @nonreentrant('lock')
 def withdraw(user: address, move_to: address) -> uint256[2]:
-    assert msg.sender == FACTORY
+    assert msg.sender == self.admin
 
     ns: int256[2] = self._read_user_tick_numbers(user)
     user_shares: uint256[MAX_TICKS] = self._read_user_ticks(user, ns[1] - ns[0] + 1)
@@ -499,7 +497,7 @@ def withdraw(user: address, move_to: address) -> uint256[2]:
 
 @external
 def rugpull(coin: address, _to: address, val: uint256):
-    assert msg.sender == FACTORY
+    assert msg.sender == self.admin
 
     if val > 0:
         assert ERC20(coin).transfer(_to, val)
@@ -857,7 +855,7 @@ def get_sum_xy(user: address) -> uint256[2]:
 
 @external
 def set_rate(rate: int256) -> uint256:
-    assert msg.sender == FACTORY
+    assert msg.sender == self.admin
     rate_mul: uint256 = self._rate_mul()
     self.rate_mul = rate_mul
     self.rate_time = block.timestamp
@@ -866,9 +864,10 @@ def set_rate(rate: int256) -> uint256:
     return rate_mul
 
 
+# XXX make so that factory can call this
 @external
 def set_fee(fee: uint256):
-    assert msg.sender == FACTORY
+    assert msg.sender == self.admin
     assert fee < 10**18, "Fee is too high"
     self.fee = fee
     log SetFee(fee)

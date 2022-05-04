@@ -18,7 +18,7 @@ interface PriceOracle:
 interface AMM:
     def initialize(
         _A: uint256, _base_price: uint256, _collateral_token: address, fee: uint256, admin_fee: uint256,
-        _price_oracle_contract: address,
+        _price_oracle_contract: address, _admin: address
     ): nonpayable
 
 interface Stablecoin:
@@ -71,7 +71,7 @@ def add_market(token: address, A: uint256, fee: uint256, admin_fee: uint256,
 
     amm: address = create_forwarder_to(self.amm_implementation)
     controller: address = create_forwarder_to(self.controller_implementation)
-    AMM(amm).initialize(A, p, token, fee, admin_fee, _price_oracle_contract)
+    AMM(amm).initialize(A, p, token, fee, admin_fee, _price_oracle_contract, controller)
     Controller(controller).initialize(token, monetary_policy, loan_discount, liquidation_discount, amm, debt_ceiling)
     Stablecoin(STABLECOIN).set_minter(controller, True)
 

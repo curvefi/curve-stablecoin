@@ -47,7 +47,7 @@ def test_add_market(controller_factory, collateral_token, PriceOracle, monetary_
     assert controller.loan_discount()  == 5 * 10**16
     assert controller.debt_ceiling() == 10**8 * 10**18
 
-    assert amm.factory() == controller_factory
+    assert amm.admin() == controller
     assert amm.A() == 100
     assert amm.price_oracle_contract() == PriceOracle
     assert amm.collateral_token() == collateral_token

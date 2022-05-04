@@ -17,8 +17,8 @@ def controller_impl(Controller, controller_prefactory, accounts):
 
 
 @pytest.fixture(scope="module", autouse=True)
-def amm_impl(AMM, controller_prefactory, stablecoin, accounts):
-    return AMM.deploy(controller_prefactory, stablecoin, {'from': accounts[0]})
+def amm_impl(AMM, stablecoin, accounts):
+    return AMM.deploy(stablecoin, {'from': accounts[0]})
 
 
 @pytest.fixture(scope="module", autouse=True)
@@ -43,7 +43,7 @@ def market(controller_factory, collateral_token, PriceOracle, monetary_policy, a
             collateral_token, 100, 10**16, 0,
             PriceOracle,
             monetary_policy, 5 * 10**16, 2 * 10**16,
-            10**8 * 10**18,
+            10**6 * 10**18,
             {'from': accounts[0]})
     return controller_factory
 
@@ -54,8 +54,11 @@ def market_amm(collateral_token, market, AMM):
 
 
 @pytest.fixture(scope="module", autouse=False)
-def market_controller(collateral_token, market, Controller):
-    return Controller.at(market.controllers(collateral_token))
+def market_controller(collateral_token, market, Controller, accounts):
+    controller = Controller.at(market.controllers(collateral_token))
+    for acc in accounts[:5]:
+        collateral_token.approve(controller, 2**256-1, {'from': acc})
+    return controller
 
 
 @pytest.fixture(autouse=True)

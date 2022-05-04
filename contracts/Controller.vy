@@ -133,6 +133,7 @@ def initialize(
     self.liquidation_discount = liquidation_discount
     self.loan_discount = loan_discount
     self.debt_ceiling = debt_ceiling
+    self._total_debt.rate_mul = 10**18
 
     self.amm = amm
     A: uint256 = AMM(amm).A()
