@@ -479,7 +479,3 @@ def collect_fees() -> uint256:
         return supply
     else:
         return 0
-
-
-# XXX feed back debt rate to AMM
-# XXX stabilizer
