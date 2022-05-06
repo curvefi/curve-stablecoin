@@ -193,8 +193,8 @@ def _calculate_debt_n1(collateral: uint256, debt: uint256, N: uint256) -> int256
     # - it will be sold if the price goes back down
     # But this needs to be tested?
 
-    collateral_val: uint256 = (collateral * p0 / 10**18 * (10**18 - self.loan_discount))
-    assert collateral_val >= debt, "Debt is too high"
+    collateral_val: uint256 = collateral * p0 / 10**18 * (10**18 - self.loan_discount)
+    assert collateral_val >= debt * 10**18, "Debt is too high"
     n1_precise: uint256 = self.log2(collateral_val / debt) * 10**18 / self.logAratio - 10**18 * N / 2
     assert n1_precise >= 10**18, "Debt is too high"
 
