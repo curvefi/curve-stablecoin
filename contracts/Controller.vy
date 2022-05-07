@@ -194,9 +194,9 @@ def _calculate_debt_n1(collateral: uint256, debt: uint256, N: uint256) -> int256
     # But this needs to be tested?
 
     collateral_val: uint256 = collateral * p0 / 10**18 * (10**18 - self.loan_discount)
-    assert collateral_val >= debt * 10**18, "Debt is too high"
+    assert collateral_val >= debt * 10**18, "Debt too high"
     n1_precise: uint256 = self.log2(collateral_val / debt) * 10**18 / self.logAratio - 10**18 * N / 2
-    assert n1_precise >= 10**18, "Debt is too high"
+    assert n1_precise >= 10**18, "Debt too high"
 
     return convert(n1_precise / 10**18, int256) + n0
 

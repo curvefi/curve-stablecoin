@@ -864,7 +864,6 @@ def set_rate(rate: int256) -> uint256:
     return rate_mul
 
 
-# XXX make so that factory can call this
 @external
 def set_fee(fee: uint256):
     assert msg.sender == self.admin
