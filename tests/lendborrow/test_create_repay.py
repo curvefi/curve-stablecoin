@@ -38,4 +38,8 @@ def test_create_loan(stablecoin, collateral_token, market_controller, market_amm
     p_lim = l_amount / c_amount / (1 - market_controller.loan_discount()/1e18)
     assert approx(p_lim, (p_down * p_up)**0.5 / 1e18, 2 / market_amm.A())
 
-    assert market_controller.health(user) == 0
+    h = market_controller.health(user) / 1e18 + 0.02
+    assert h >= 0.05 and h <= 0.06
+
+    h = market_controller.health(user, True) / 1e18 + 0.02
+    assert approx(h, c_amount * 3000 / l_amount - 1, 0.02)
