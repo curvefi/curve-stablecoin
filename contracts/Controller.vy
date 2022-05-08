@@ -14,10 +14,12 @@ interface AMM:
     def get_sum_xy(user: address) -> uint256[2]: view
     def withdraw(user: address, move_to: address) -> uint256[2]: nonpayable
     def get_x_down(user: address) -> uint256: view
+    def get_y_up(user: address) -> uint256: view
     def get_rate_mul() -> uint256: view
     def rugpull(coin: address, _to: address, val: uint256): nonpayable
     def set_rate(rate: int256) -> uint256: nonpayable
     def set_fee(fee: uint256): nonpayable
+    def price_oracle() -> uint256: view
 
 interface ERC20:
     def totalSupply() -> uint256: view
@@ -415,16 +417,28 @@ def self_liquidate(max_x: uint256):
 
 @view
 @external
-def health(user: address) -> int256:
+def health(user: address, full: bool = False) -> int256:
     """
     Returns position health normalized to 1e18 for the user.
     Liquidation starts when < 0, however devaluation of collateral doesn't cause liquidation
     """
     debt: int256 = convert(self._debt_ro(user), int256)
     assert debt > 0, "Loan doesn't exist"
-    xmax: int256 = convert(AMM(self.amm).get_x_down(user), int256)
+    amm: address = self.amm
+    xmax: int256 = convert(AMM(amm).get_x_down(user), int256)
     ld: int256 = convert(self.liquidation_discount, int256)
     non_discounted: int256 = xmax * 10**18 / debt - 10**18
+
+    if full:
+        active_band: int256 = AMM(amm).active_band()
+        ns: int256[2] = AMM(amm).read_user_tick_numbers(user) # ns[1] > ns[0]
+        if ns[0] > active_band:  # We are not in liquidation mode
+            p: int256 = convert(AMM(amm).price_oracle(), int256)
+            p_up: int256 = convert(AMM(amm).p_oracle_up(ns[0]), int256)
+            if p > p_up:
+                collateral: int256 = convert(AMM(amm).get_y_up(user), int256)
+                non_discounted += (p - p_up) * collateral / debt
+
     return non_discounted - xmax * ld / debt
 
 
