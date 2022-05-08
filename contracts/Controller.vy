@@ -1,4 +1,4 @@
-# @version 0.3.1
+# @version 0.3.3
 
 interface AMM:
     def A() -> uint256: view
@@ -201,6 +201,7 @@ def _calculate_debt_n1(collateral: uint256, debt: uint256, N: uint256) -> int256
     return convert(n1_precise / 10**18, int256) + n0
 
 
+# XXX do we need it at all?
 @external
 @view
 def calculate_debt_n1(collateral: uint256, debt: uint256, N: uint256) -> int256:
@@ -419,10 +420,12 @@ def health(user: address) -> int256:
     Returns position health normalized to 1e18 for the user.
     Liquidation starts when < 0, however devaluation of collateral doesn't cause liquidation
     """
-    debt: uint256 = self._debt_ro(user)
+    debt: int256 = convert(self._debt_ro(user), int256)
     assert debt > 0, "Loan doesn't exist"
-    xmax: uint256 = AMM(self.amm).get_x_down(user)
-    return convert(xmax * (10**18 - self.liquidation_discount) / 10**18, int256) - convert(debt, int256)
+    xmax: int256 = convert(AMM(self.amm).get_x_down(user), int256)
+    ld: int256 = convert(self.liquidation_discount, int256)
+    non_discounted: int256 = xmax * 10**18 / debt - 10**18
+    return non_discounted - xmax * ld / debt
 
 
 @view

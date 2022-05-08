@@ -1,4 +1,4 @@
-# @version 0.3.1
+# @version 0.3.3
 
 last_price: public(uint256)
 last_timestamp: uint256

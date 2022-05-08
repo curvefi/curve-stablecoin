@@ -32,7 +32,10 @@ def test_create_loan(stablecoin, collateral_token, market_controller, market_amm
     assert collateral_token.balanceOf(user) == initial_amount - c_amount
 
     assert market_controller.total_debt() == l_amount
+    assert market_controller.debt(user) == l_amount
 
     p_up, p_down = market_controller.user_prices(user)
     p_lim = l_amount / c_amount / (1 - market_controller.loan_discount()/1e18)
     assert approx(p_lim, (p_down * p_up)**0.5 / 1e18, 2 / market_amm.A())
+
+    assert market_controller.health(user) == 0
