@@ -424,19 +424,19 @@ def health(user: address, full: bool = False) -> int256:
     """
     debt: int256 = convert(self._debt_ro(user), int256)
     assert debt > 0, "Loan doesn't exist"
-    amm: address = self.amm
-    xmax: int256 = convert(AMM(amm).get_x_down(user), int256)
+    amm: AMM = AMM(self.amm)
+    xmax: int256 = convert(amm.get_x_down(user), int256)
     ld: int256 = convert(self.liquidation_discount, int256)
     non_discounted: int256 = xmax * 10**18 / debt - 10**18
 
     if full:
-        active_band: int256 = AMM(amm).active_band()
-        ns: int256[2] = AMM(amm).read_user_tick_numbers(user) # ns[1] > ns[0]
+        active_band: int256 = amm.active_band()
+        ns: int256[2] = amm.read_user_tick_numbers(user) # ns[1] > ns[0]
         if ns[0] > active_band:  # We are not in liquidation mode
-            p: int256 = convert(AMM(amm).price_oracle(), int256)
-            p_up: int256 = convert(AMM(amm).p_oracle_up(ns[0]), int256)
+            p: int256 = convert(amm.price_oracle(), int256)
+            p_up: int256 = convert(amm.p_oracle_up(ns[0]), int256)
             if p > p_up:
-                collateral: int256 = convert(AMM(amm).get_y_up(user), int256)
+                collateral: int256 = convert(amm.get_y_up(user), int256)
                 non_discounted += (p - p_up) * collateral / debt
 
     return non_discounted - xmax * ld / debt
