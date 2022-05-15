@@ -135,7 +135,553 @@ Overall schematic
 \end_layout
 
 \begin_layout Part*
-AMM for continuous liquidation/deliquidation
+AMM for continuous liquidation/deliquidation (LLAMMA)
+\end_layout
+
+\begin_layout Standard
+The core idea of the stablecoin design is Lenging-Liquidating AMM Algorithm.
+ The idea is that it converts between collateral (for example, ETH) and
+ the stablecoin (let's call it USD here).
+ If the price of collateral is high - a user has deposits all in ETH, but
+ as it goes lower, it converts to USD.
+ This is very different from traditional AMM designs where one has USD on
+ top and ETH on the bottom instead.
+\end_layout
+
+\begin_layout Standard
+The below description doesn't serve as a fully self-consistent rigurous
+ proofs.
+ A lot of that (especially the invariant) are obtained from dimensional
+ considerations.
+ More research might be requires to have a full mathematical description,
+ however the below is believed to be enough to implement in practice.
+\end_layout
+
+\begin_layout Standard
+This is only possible with an external price oracle.
+ In a nutshell, if one makes an typical AMM (for example with a bonding
+ curve being a piece of hyperbola) and ramps its 
+\begin_inset Quotes eld
+\end_inset
+
+center price
+\begin_inset Quotes erd
+\end_inset
+
+ from up to down, the tokens will adiabatically convert from one to another
+ while proving liquidity in both ways on the way.
+ It is somewhat similar to avoided crossing in quantum physics (though only
+ as an idea: mathematical description of the process could be very different).
+\end_layout
+
+\begin_layout Standard
+We start from a number of bands where, similarly to Uniswap3, hyperbolic
+ shape of the bonding curve is preserved by adding virtual balances.
+ Let say, the amount of USD is 
+\begin_inset Formula $x$
+\end_inset
+
+, and the amount of ETH is 
+\begin_inset Formula $y$
+\end_inset
+
+, therefore the 
+\begin_inset Quotes eld
+\end_inset
+
+amplified
+\begin_inset Quotes erd
+\end_inset
+
+ constant-product invariant would be:
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\begin{equation}
+I=\left(x+f\right)\left(y+g\right).\label{eq:inv}
+\end{equation}
+
+\end_inset
+
+We also can denote 
+\begin_inset Formula $x^{\prime}\equiv x+f$
+\end_inset
+
+ and 
+\begin_inset Formula $y^{\prime}\equiv y+g$
+\end_inset
+
+ so that the invariant can be written as a familiar 
+\begin_inset Formula $I=x^{\prime}y^{\prime}$
+\end_inset
+
+.
+\end_layout
+
+\begin_layout Standard
+However, 
+\begin_inset Formula $f$
+\end_inset
+
+ and 
+\begin_inset Formula $g$
+\end_inset
+
+ do not stay constant: they change with the external price oracle (and so
+ does the invariant 
+\begin_inset Formula $I$
+\end_inset
+
+, so it is only the invariant while the oracle price 
+\begin_inset Formula $p_{o}$
+\end_inset
+
+ is unchanged).
+ At a given 
+\begin_inset Formula $p_{o}$
+\end_inset
+
+, 
+\begin_inset Formula $f$
+\end_inset
+
+ and 
+\begin_inset Formula $g$
+\end_inset
+
+ are constant across the band.
+ Let's denote 
+\begin_inset Formula $p_{\uparrow}$
+\end_inset
+
+ as the top price of the band and 
+\begin_inset Formula $p_{\downarrow}$
+\end_inset
+
+as the bottom price of the band.
+ We define 
+\begin_inset Formula $A$
+\end_inset
+
+ in such a way that:
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\begin{equation}
+\frac{p_{\downarrow}}{p_{\uparrow}}=\frac{A-1}{A}.
+\end{equation}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+The property we are looking for is such that higher price 
+\begin_inset Formula $p_{o}$
+\end_inset
+
+should lead to even higher price at the same balances, so that the current
+ market price (which will converge to 
+\begin_inset Formula $p_{o}$
+\end_inset
+
+) is lower than that, and the band will trade towards being all in USD (and
+ the opposite is also true for the other direction).
+ As an example, this property is satisfied when:
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\begin{equation}
+f=\frac{p_{o}^{2}}{p_{\uparrow}}Ay_{0},\qquad g=\frac{p_{\uparrow}}{p_{o}}\left(A-1\right)y_{0},
+\end{equation}
+
+\end_inset
+
+where 
+\begin_inset Formula $y_{0}$
+\end_inset
+
+ is a 
+\begin_inset Formula $p_{0}$
+\end_inset
+
+-dependent measure of deposits in the current band, denominated in ETH,
+ defined in such a way that when current price 
+\begin_inset Formula $p$
+\end_inset
+
+, 
+\begin_inset Formula $p_{\uparrow}$
+\end_inset
+
+ and 
+\begin_inset Formula $p_{o}$
+\end_inset
+
+ are equal to each other, then 
+\begin_inset Formula $y=y_{0}$
+\end_inset
+
+ and (by definition of 
+\begin_inset Formula $p_{\uparrow}$
+\end_inset
+
+) 
+\begin_inset Formula $x=0$
+\end_inset
+
+.
+ Then if we substitute 
+\begin_inset Formula $y$
+\end_inset
+
+ at that moment:
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\begin{equation}
+I=p_{o}A^{2}y_{0}^{2}.
+\end{equation}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+Price is equal to 
+\begin_inset Formula $dx^{\prime}/dy^{\prime}$
+\end_inset
+
+ which then for a constant-product invariant is:
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\begin{equation}
+p=\frac{dx^{\prime}}{dy^{\prime}}=\frac{x^{\prime}}{y^{\prime}}=\frac{f+x}{g+y}.\label{eq:price}
+\end{equation}
+
+\end_inset
+
+One can substitute situations where 
+\begin_inset Formula $p_{o}=p_{\uparrow}$
+\end_inset
+
+ or 
+\begin_inset Formula $p_{o}=p_{\downarrow}$
+\end_inset
+
+ with 
+\begin_inset Formula $x=0$
+\end_inset
+
+ or 
+\begin_inset Formula $y=0$
+\end_inset
+
+ correspndingly to verify that the above formulas are self-consistent.
+\end_layout
+
+\begin_layout Standard
+Typically for a band, we know 
+\begin_inset Formula $p_{\uparrow}$
+\end_inset
+
+ and, hence, 
+\begin_inset Formula $p_{\downarrow}$
+\end_inset
+
+, 
+\begin_inset Formula $p_{o}$
+\end_inset
+
+, constant 
+\begin_inset Formula $A$
+\end_inset
+
+, and also 
+\begin_inset Formula $x$
+\end_inset
+
+ and 
+\begin_inset Formula $y$
+\end_inset
+
+ (current deposits in the band).
+ To calculate everything, we need to find 
+\begin_inset Formula $y_{o}$
+\end_inset
+
+.
+ It can be found by solving the equation for the invariant:
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\begin{equation}
+\left(\frac{p_{o}^{2}}{p_{\uparrow}}Ay_{0}+x\right)\left(\frac{p_{\uparrow}}{p_{o}}\left(A-1\right)y_{0}+y\right)=p_{o}A^{2}y_{0}^{2},
+\end{equation}
+
+\end_inset
+
+which turns into the quadratic equation against 
+\begin_inset Formula $y_{o}$
+\end_inset
+
+:
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\begin{equation}
+p_{o}Ay_{0}^{2}-y_{0}\left(\frac{p_{\uparrow}}{p_{o}}\left(A-1\right)x+\frac{p_{o}^{2}}{p_{\uparrow}}Ay\right)-xy=0.\label{eq:quad}
+\end{equation}
+
+\end_inset
+
+In the smart contract, we solve this equation in 
+\series bold
+get_y0
+\series default
+ function.
+\end_layout
+
+\begin_layout Standard
+While oracle price 
+\begin_inset Formula $p_{o}$
+\end_inset
+
+ stays constant, the AMM works in a normal way, e.g.
+ low ETH on the top / low USD on the bottom.
+ By simply substituting 
+\begin_inset Formula $x=0$
+\end_inset
+
+ for the 
+\begin_inset Quotes eld
+\end_inset
+
+current down
+\begin_inset Quotes erd
+\end_inset
+
+ price 
+\begin_inset Formula $p_{cd}$
+\end_inset
+
+or 
+\begin_inset Formula $y=0$
+\end_inset
+
+ for the 
+\begin_inset Quotes eld
+\end_inset
+
+current up
+\begin_inset Quotes erd
+\end_inset
+
+ price 
+\begin_inset Formula $p_{cu}$
+\end_inset
+
+ values into the equation of the invariant respectively, it is possible
+ to show that AMM prices at the current value of 
+\begin_inset Formula $p_{o}$
+\end_inset
+
+ and the current value of 
+\begin_inset Formula $p_{\uparrow}$
+\end_inset
+
+ are:
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\begin{equation}
+p_{cd}=\frac{p_{o}^{3}}{p_{\uparrow}^{2}},\qquad p_{cu}=\frac{p_{o}^{3}}{p_{\downarrow}^{2}}.\label{eq:current-price}
+\end{equation}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+Another practically important question is: if price changes up or down so
+ slowly that the oracle price 
+\begin_inset Formula $p_{o}$
+\end_inset
+
+ is fully capable to follow it 
+\shape italic
+adiabatically
+\shape default
+, what amount 
+\begin_inset Formula $y_{\uparrow}$
+\end_inset
+
+ of ETH (if the price goes up) or 
+\begin_inset Formula $x_{\downarrow}$
+\end_inset
+
+ of USD (if the price goes down) will the band end up with, given current
+ values 
+\begin_inset Formula $x$
+\end_inset
+
+ and 
+\begin_inset Formula $y$
+\end_inset
+
+ and that we start also at 
+\begin_inset Formula $p=p_{o}$
+\end_inset
+
+.
+ While it's not an immediately trivial mathematical problem to solve, numeric
+ computations showed a pretty simple answer:
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\begin{equation}
+y_{\uparrow}=y+\frac{x}{\sqrt{p_{\uparrow}p}},
+\end{equation}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\begin{equation}
+x_{\downarrow}=x+y\sqrt{p_{\downarrow}p}.
+\end{equation}
+
+\end_inset
+
+We will use these results when evaluating safety of the loan as well as
+ the potential losses of the AMM.
+\end_layout
+
+\begin_layout Standard
+Now we have a description of one band.
+ We split all the price space into bands which touch each other with prices
+ 
+\begin_inset Formula $p_{\downarrow}$
+\end_inset
+
+ and 
+\begin_inset Formula $p_{\uparrow}$
+\end_inset
+
+ so that if we set a base price 
+\begin_inset Formula $p_{base}$
+\end_inset
+
+ and have a band number 
+\begin_inset Formula $n$
+\end_inset
+
+:
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\begin{equation}
+p_{\uparrow}\left(n\right)=\left(\frac{A-1}{A}\right)^{n}p_{base},\qquad p_{\downarrow}\left(n\right)=\left(\frac{A-1}{A}\right)^{n+1}p_{base}.
+\end{equation}
+
+\end_inset
+
+It is possible to prove that the solution of Eq.
+ 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "eq:quad"
+plural "false"
+caps "false"
+noprefix "false"
+
+\end_inset
+
+ and Eq.
+ 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "eq:price"
+plural "false"
+caps "false"
+noprefix "false"
+
+\end_inset
+
+ for any band gives:
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\begin{equation}
+p\left(x=0,y>0,n\right)=p_{cd}\left(n\right)=p_{cu}\left(n-1\right),
+\end{equation}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\begin{equation}
+p\left(x>0,y=0,n\right)=p_{cu}\left(n\right)=p_{cd}\left(n+1\right),
+\end{equation}
+
+\end_inset
+
+which shows that there are no gaps between the bands.
+\end_layout
+
+\begin_layout Standard
+Trades occur while preserving the invariant from Eq.
+ 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "eq:inv"
+plural "false"
+caps "false"
+noprefix "false"
+
+\end_inset
+
+, however the current price inside the AMM shifts when the price 
+\begin_inset Formula $p_{o}$
+\end_inset
+
+: it goes up when 
+\begin_inset Formula $p_{o}$
+\end_inset
+
+ goes down and vice versa cubically, as can be seen from Eq.
+ 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "eq:current-price"
+plural "false"
+caps "false"
+noprefix "false"
+
+\end_inset
+
+.
 \end_layout
 
 \begin_layout Part*
