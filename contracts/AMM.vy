@@ -790,7 +790,7 @@ def get_xy_up(user: address, use_y: bool) -> uint256:
                 if x_o < f:  # Edge of the band
                     x_o = 0
                     y_o = Inv / f - g
-                    p_o_use = p_o_up
+                    # p_o_use = p_o_up but it is not used
                 else:
                     x_o -= f
                     # in-band: we can reach p_o
@@ -803,7 +803,7 @@ def get_xy_up(user: address, use_y: bool) -> uint256:
                 if y_o < g:  # Edge of band
                     y_o = 0
                     x_o = Inv / g - f
-                    p_o_use = p_o_up * (A - 1) / A
+                    # p_o_use = p_o_up * (A - 1) / A but it is not used
                 else:  # In-band
                     y_o -= g
             else:  # x_o == 0 -> y_o is on the edge of the band
