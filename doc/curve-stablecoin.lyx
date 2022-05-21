@@ -170,8 +170,9 @@ center price
 
  from up to down, the tokens will adiabatically convert from one to another
  while proving liquidity in both ways on the way.
- It is somewhat similar to avoided crossing in quantum physics (though only
- as an idea: mathematical description of the process could be very different).
+ It is somewhat similar to avoided crossing (also called Landau-Zener transition
+) in quantum physics (though only as an idea: mathematical description of
+ the process could be very different).
 \end_layout
 
 \begin_layout Standard
@@ -682,6 +683,108 @@ noprefix "false"
 \end_inset
 
 .
+\end_layout
+
+\begin_layout Part*
+LLAMMA vs Stablecoin
+\end_layout
+
+\begin_layout Standard
+Stablecoin is a CDP where one borrows stablecoin against a volatile collateral
+ (cryptocurrency, for example, against ETH).
+ The collateral is loaded into LLAMMA in such a price range (such bands)
+ that if price of collateral goes down relatively slowly, the ETH gets converted
+ into enough stablecoin to cover closing the CDP (which can happen via a
+ self-liquidation, or via an external liquidation if the coverage is too
+ close to dangerous limits, or not close at all while waiting for the price
+ bounce).
+\end_layout
+
+\begin_layout Standard
+When a user deposits collateral and borrows a stablecoin, the LLAMMA smart
+ contract calculates the bands where to locate the collateral.
+ When the price of the collateral changes, it starts getting converted to
+ the stablecoin.
+ When the system is 
+\begin_inset Quotes eld
+\end_inset
+
+underwater
+\begin_inset Quotes erd
+\end_inset
+
+, user 
+\shape italic
+already
+\shape default
+ has enough USD to cover the loan.
+ The amount of stablecoins which can be obtained can be calculated using
+ a public 
+\series bold
+get_x_down
+\series default
+ method.
+ If it gives values too close to the liquidation thresholds - an external
+ liquidator can be involved (typically shouldn't happen within a few days
+ or even weeks after the collateral price went down and sideways, or even
+ will not happen ever if collateral price never goes up or goes back up
+ relatively quickly).
+\end_layout
+
+\begin_layout Standard
+When a stablecoin charges interest, this should be reflected in the AMM,
+ too.
+ This is done by adjusting all the grid of prices.
+ So, when a stablecoin charges interest rate 
+\begin_inset Formula $r$
+\end_inset
+
+, all the grid of prices in the AMM shifts upwards with the same rate 
+\begin_inset Formula $r$
+\end_inset
+
+ which is done via a 
+\series bold
+base_price
+\series default
+ multiplier.
+ So, the multiplier goes up over time as long as the charged rate is positive.
+\end_layout
+
+\begin_layout Standard
+When we calculate 
+\series bold
+get_x_down
+\series default
+ or 
+\series bold
+get_y_up
+\series default
+, we are first looking for the amounts of stablecoin and collateral 
+\begin_inset Formula $x_{*}$
+\end_inset
+
+ and 
+\begin_inset Formula $y_{*}$
+\end_inset
+
+ if current price moves to the current price 
+\begin_inset Formula $p_{o}$
+\end_inset
+
+.
+ Then we look at how much stablecoin or collateral we get if 
+\begin_inset Formula $p_{o}$
+\end_inset
+
+ adiabatically changes to either the lowest price of the lowest band, or
+ the highest price of the highest band respectively.
+ This way, we can get a measure of how much stablecoin we will which is
+ not dependent on the current 
+\shape italic
+instantaneous
+\shape default
+ price, which is important for sandwich attack resistance.
 \end_layout
 
 \begin_layout Part*
