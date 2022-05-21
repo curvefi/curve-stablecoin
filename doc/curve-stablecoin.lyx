@@ -787,12 +787,241 @@ instantaneous
  price, which is important for sandwich attack resistance.
 \end_layout
 
-\begin_layout Part*
-Automatic Stabilizer
+\begin_layout Standard
+It is important to point out that the LLAMMA uses 
+\begin_inset Formula $p_{o}$
+\end_inset
+
+ defined as ETH/USD price as a price source, and our stablecoin could be
+ traded under the peg (
+\begin_inset Formula $p_{s}<1$
+\end_inset
+
+) or over peg (
+\begin_inset Formula $p_{s}>1$
+\end_inset
+
+).
+ If 
+\begin_inset Formula $p_{s}<1$
+\end_inset
+
+, then price in the LLAMMA is 
+\begin_inset Formula $p>p_{o}$
+\end_inset
+
+.
+\end_layout
+
+\begin_layout Standard
+In adiabatic approximation, 
+\begin_inset Formula $p=p_{o}/p_{s}$
+\end_inset
+
+, and all the collateral<>stablecoin conversion would happen at a higher
+ oracle price / as if oracle price was lower and equal to:
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\begin{equation}
+p_{o}^{\prime}=p_{o}\sqrt{\frac{p_{o}}{p}}=p_{o}\sqrt{p_{s}}.
+\end{equation}
+
+\end_inset
+
+At this price, the amount of stablecoins obtained at conversion is higher
+ by factor of 
+\begin_inset Formula $1/p_{s}$
+\end_inset
+
+ (if 
+\begin_inset Formula $p_{s}<1$
+\end_inset
+
+).
+\end_layout
+
+\begin_layout Standard
+It is less desirable to have 
+\begin_inset Formula $p_{s}>1$
+\end_inset
+
+ for prolonged times, and for that we will use the stabilizer (see next).
 \end_layout
 
 \begin_layout Part*
-Automatic Monetary Policy
+Automatic Stabilizer and Monetary Policy
+\end_layout
+
+\begin_layout Standard
+When 
+\begin_inset Formula $p_{s}>1$
+\end_inset
+
+ (for example, because of the increased demand for stablecoin), there is
+ peg-keeping reserve formed by an asymmetric deposit into a stableswap Curve
+ pool between the stablecoin and a redeemable reference coin or LP token.
+ Once 
+\begin_inset Formula $p_{s}>1$
+\end_inset
+
+, the PegKeeper contract is allowed to mint uncollateralized stablecoin
+ and (only!) deposit it to the stableswap pool single-sided in such a way
+ that the final price after this is still no less than 
+\begin_inset Formula $1$
+\end_inset
+
+.
+ When 
+\begin_inset Formula $p_{s}<1$
+\end_inset
+
+, the PegKeeper is allowed to withdraw (asymmetrically) and burn the stablecoin.
+\end_layout
+
+\begin_layout Standard
+These actions cause price 
+\begin_inset Formula $p_{s}$
+\end_inset
+
+ to quickly depreciate when it's higher than 
+\begin_inset Formula $1$
+\end_inset
+
+ and appreciate if lower than 
+\begin_inset Formula $1$
+\end_inset
+
+ because asymmetric deposits and withdrawals change the price.
+ Even though the mint is uncollateralized, the stablecoin appears to be
+ implicitly collateralized by liquidity in the stablecoin pool.
+ The whole mint/burn cycle appears, at the end, to be profitable while providing
+ stability.
+\end_layout
+
+\begin_layout Standard
+Let's denote the amount of stablecoin minted to the stabilizer (debt) as
+ 
+\begin_inset Formula $d_{st}$
+\end_inset
+
+ and the function which calculates necessary amount of redeemable USD to
+ buy the stablecoin in a stableswap AMM 
+\series bold
+get_dx
+\series default
+ as 
+\begin_inset Formula $f_{dx}()$
+\end_inset
+
+.
+ Then, in order to keep reserves not very large, we use the 
+\begin_inset Quotes eld
+\end_inset
+
+slow
+\begin_inset Quotes erd
+\end_inset
+
+ mechanism of stabilization via varying the borrow 
+\begin_inset Formula $r$
+\end_inset
+
+:
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\begin{equation}
+p_{s}=\frac{f_{dx}(d_{st})}{d_{st}},
+\end{equation}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\begin{equation}
+r=r_{0}\cdot2^{-\frac{p-1}{h}},
+\end{equation}
+
+\end_inset
+
+where 
+\begin_inset Formula $h$
+\end_inset
+
+ is the change in 
+\begin_inset Formula $p_{s}$
+\end_inset
+
+ at which the rate 
+\begin_inset Formula $r$
+\end_inset
+
+ changes by factor of 2 (higher 
+\begin_inset Formula $p_{s}$
+\end_inset
+
+ leads to lower 
+\begin_inset Formula $r$
+\end_inset
+
+).
+ The amount of stabilizer debt 
+\begin_inset Formula $d_{st}$
+\end_inset
+
+ will equilibrate at different value depending on the rate at 
+\begin_inset Formula $p_{s}=1$
+\end_inset
+
+ 
+\begin_inset Formula $r_{0}$
+\end_inset
+
+.
+ Therefore, we can (instead of setting manually) be reducing 
+\begin_inset Formula $r_{0}$
+\end_inset
+
+ while 
+\begin_inset Formula $d_{st}/supply$
+\end_inset
+
+ is larger than some target number (for example, 
+\begin_inset Formula $5\%$
+\end_inset
+
+) (thereby incentivizing borrowers to borrow-and-dump the stablecoin, decreasing
+ its price and forcing the system to burn the 
+\begin_inset Formula $d_{s}$
+\end_inset
+
+) or increasing if it's lower (thereby incentivizing borrowers to return
+ loans and pushing 
+\begin_inset Formula $p_{s}$
+\end_inset
+
+ up, forcing the system to increase the debt 
+\begin_inset Formula $d_{s}$
+\end_inset
+
+ and the stabilizer deposits).
+\end_layout
+
+\begin_layout Part*
+Conclusion
+\end_layout
+
+\begin_layout Standard
+The presented mechanisms can, hopefully, solve the riskiness of liquidations
+ for stablecoin-making and borrowing purposes.
+ In addition, stabilizer and automatic monetary policy mechanisms can help
+ with peg-keeping without the need of keeping overly big PSMs.
 \end_layout
 
 \end_body
