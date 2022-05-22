@@ -54,10 +54,10 @@ struct DetailedTrade:
     ticks_in: uint256[MAX_TICKS]
     last_tick_j: uint256
 
-BORROWED_TOKEN: immutable(address)    # x
+BORROWED_TOKEN: immutable(ERC20)    # x
 BORROWED_PRECISION: immutable(uint256)
 
-collateral_token: public(address)  # y
+collateral_token: public(ERC20)  # y
 collateral_precision: public(uint256)
 
 A: public(uint256)
@@ -72,7 +72,7 @@ active_band: public(int256)
 min_band: int256
 max_band: int256
 
-price_oracle_contract: public(address)
+price_oracle_contract: public(PriceOracle)
 
 p_base_mul: public(uint256)
 
@@ -87,7 +87,7 @@ admin: public(address)
 
 @external
 def __init__(_borrowed_token: address):
-    BORROWED_TOKEN = _borrowed_token
+    BORROWED_TOKEN = ERC20(_borrowed_token)
     BORROWED_PRECISION = 10 ** (18 - ERC20(_borrowed_token).decimals())
 
 
@@ -133,12 +133,12 @@ def initialize(
     self.rate_time = block.timestamp
     self.rate_mul = 10**18
     self.p_base_mul = 10**18
-    self.collateral_token = _collateral_token
+    self.collateral_token = ERC20(_collateral_token)
     self.collateral_precision = 10 ** (18 - ERC20(_collateral_token).decimals())
     self.fee = fee
     self.admin_fee = admin_fee
 
-    self.price_oracle_contract = _price_oracle_contract
+    self.price_oracle_contract = PriceOracle(_price_oracle_contract)
     self.sqrt_band_ratio = self.sqrt_int(10**18 * _A / (_A - 1))
 
     self.admin = _admin
@@ -147,7 +147,7 @@ def initialize(
 @external
 @view
 def price_oracle() -> uint256:
-    return PriceOracle(self.price_oracle_contract).price()
+    return self.price_oracle_contract.price()
 
 
 @internal
@@ -213,7 +213,7 @@ def _p_current_band(n: int256, is_up: bool) -> uint256:
     p_base: uint256 = self._p_oracle_band(n, is_up)
 
     # return self.p_oracle**3 / p_base**2
-    p_oracle: uint256 = PriceOracle(self.price_oracle_contract).price()
+    p_oracle: uint256 = self.price_oracle_contract.price()
     return p_oracle**2 / p_base * p_oracle / p_base
 
 
@@ -268,7 +268,7 @@ def _get_y0(x: uint256, y: uint256, p_o: uint256, p_o_up: uint256, A: uint256) -
 def get_y0(n: int256) -> uint256:
     x: uint256 = self.bands_x[n]
     y: uint256 = self.bands_y[n]
-    p_o: uint256 = PriceOracle(self.price_oracle_contract).price()
+    p_o: uint256 = self.price_oracle_contract.price()
     p_oracle_up: uint256 = 0
     if n == MAX_INT:
         p_oracle_up = self._base_price() * self.p_base_mul / 10**18
@@ -282,7 +282,7 @@ def get_y0(n: int256) -> uint256:
 @view
 def _get_p(n: int256, x: uint256, y: uint256) -> uint256:
     p_o_up: uint256 = self._p_oracle_band(n, False)
-    p_o: uint256 = PriceOracle(self.price_oracle_contract).price()
+    p_o: uint256 = self.price_oracle_contract.price()
     A: uint256 = self.A
 
     # Special cases
@@ -383,7 +383,7 @@ def deposit_range(user: address, amount: uint256, n1: int256, n2: int256, move_c
     n0: int256 = self.active_band
     assert n1 > n0 and n2 > n0, "Deposits should be below current band"
     if move_coins:
-        assert ERC20(self.collateral_token).transferFrom(user, self, amount)
+        assert self.collateral_token.transferFrom(user, self, amount)
 
     band: int256 = min(n1, n2)
     finish: int256 = max(n1, n2)
@@ -485,8 +485,8 @@ def withdraw(user: address, move_to: address) -> uint256[2]:
     total_x /= BORROWED_PRECISION
     total_y /= self.collateral_precision
     if move_to != ZERO_ADDRESS:
-        assert ERC20(BORROWED_TOKEN).transfer(move_to, total_x)
-        assert ERC20(self.collateral_token).transfer(move_to, total_y)
+        assert BORROWED_TOKEN.transfer(move_to, total_x)
+        assert self.collateral_token.transfer(move_to, total_y)
     log Withdraw(user, move_to, total_x, total_y)
 
     self.rate_mul = self._rate_mul()
@@ -619,7 +619,7 @@ def _get_dxdy(i: uint256, j: uint256, in_amount: uint256) -> DetailedTrade:
     if i == 0:
         in_precision = BORROWED_PRECISION
         out_precision = collateral_precision
-    out = self.calc_swap_out(i == 0, in_amount * in_precision, PriceOracle(self.price_oracle_contract).price())
+    out = self.calc_swap_out(i == 0, in_amount * in_precision, self.price_oracle_contract.price())
     out.in_amount /= in_precision
     out.out_amount /= out_precision
     return out
@@ -664,8 +664,8 @@ def exchange(i: uint256, j: uint256, in_amount: uint256, min_amount: uint256, _f
     if in_amount == 0:
         return 0
 
-    in_coin: address = BORROWED_TOKEN
-    out_coin: address = self.collateral_token
+    in_coin: ERC20 = BORROWED_TOKEN
+    out_coin: ERC20 = self.collateral_token
     in_precision: uint256 = BORROWED_PRECISION
     out_precision: uint256 = self.collateral_precision
     if i == 1:
@@ -674,15 +674,15 @@ def exchange(i: uint256, j: uint256, in_amount: uint256, min_amount: uint256, _f
         out_precision = BORROWED_PRECISION
         out_coin = BORROWED_TOKEN
 
-    out: DetailedTrade = self.calc_swap_out(i == 0, in_amount * in_precision, PriceOracle(self.price_oracle_contract).price_w())
+    out: DetailedTrade = self.calc_swap_out(i == 0, in_amount * in_precision, self.price_oracle_contract.price_w())
     in_amount_done: uint256 = out.in_amount / in_precision
     out_amount_done: uint256 = out.out_amount / out_precision
     assert out_amount_done >= min_amount, "Slippage"
     if out_amount_done == 0:
         return 0
 
-    ERC20(in_coin).transferFrom(msg.sender, self, in_amount_done)
-    ERC20(out_coin).transfer(_for, out_amount_done)
+    in_coin.transferFrom(msg.sender, self, in_amount_done)
+    out_coin.transfer(_for, out_amount_done)
 
     A: uint256 = self.A
     p_base_mul: uint256 = self.p_base_mul
@@ -729,7 +729,7 @@ def get_xy_up(user: address, use_y: bool) -> uint256:
     ticks: uint256[MAX_TICKS] = self._read_user_ticks(user, ns[1] - ns[0] + 1)
     if ticks[0] == 0:
         return 0
-    p_o: uint256 = PriceOracle(self.price_oracle_contract).price()
+    p_o: uint256 = self.price_oracle_contract.price()
 
     n: int256 = ns[0] - 1
     p_o_up: uint256 = self._p_oracle_band(n, False)
