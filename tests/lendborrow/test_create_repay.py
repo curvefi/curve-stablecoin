@@ -119,11 +119,11 @@ def test_add_collateral(stablecoin, collateral_token, market_controller, existin
 def test_borrow_more(stablecoin, collateral_token, market_controller, existing_loan, market_amm, accounts):
     user = accounts[1]
     debt = market_controller.debt(user)
-    more_debt = 0 # debt // 100
+    more_debt = debt // 10
     c_amount = int(2 * 1e6 * 1e18 * 1.5 / 3000)
 
     n_before_0, n_before_1 = market_amm.read_user_tick_numbers(user)
-    market_controller.borrow_more(0, debt + more_debt, {'from': user})
+    market_controller.borrow_more(0, more_debt, {'from': user})
     n_after_0, n_after_1 = market_amm.read_user_tick_numbers(user)
 
     assert n_before_1 - n_before_0 == 5

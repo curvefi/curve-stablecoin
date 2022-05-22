@@ -252,7 +252,7 @@ def _add_collateral_borrow(d_collateral: uint256, d_debt: uint256, _for: address
     assert xy[0] == 0, "Already in underwater mode"
     xy[1] += d_collateral
     n1: int256 = self._calculate_debt_n1(xy[1], debt, size)
-    assert n1 >= ns[0], "Not enough collateral"
+    assert n1 > amm.active_band(), "Not enough collateral"
     n2: int256 = n1 + ns[1] - ns[0]
 
     amm.deposit_range(_for, xy[1], n1, n2, False)
@@ -278,7 +278,8 @@ def add_collateral(collateral: uint256, _for: address):
 @nonreentrant('lock')
 def borrow_more(collateral: uint256, debt: uint256):
     self._add_collateral_borrow(collateral, debt, msg.sender)
-    self.collateral_token.transferFrom(msg.sender, self.amm.address, collateral)
+    if collateral > 0:
+        self.collateral_token.transferFrom(msg.sender, self.amm.address, collateral)
     STABLECOIN.mint(msg.sender, debt)
 
 
