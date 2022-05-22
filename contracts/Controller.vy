@@ -66,8 +66,8 @@ struct Loan:
     rate_mul: uint256
 
 
-FACTORY: immutable(address)
-STABLECOIN: immutable(address)
+FACTORY: immutable(Factory)
+STABLECOIN: immutable(ERC20)
 MIN_LIQUIDATION_DISCOUNT: constant(uint256) = 10**16 # Start liquidating when threshold reached
 MAX_TICKS: constant(int256) = 50
 MIN_TICKS: constant(int256) = 5
@@ -78,9 +78,9 @@ MIN_RATE: constant(int256) = -7075835584  # -20% APY
 loans: HashMap[address, Loan]
 _total_debt: Loan
 
-amm: public(address)
-collateral_token: public(address)
-monetary_policy: public(address)
+amm: public(AMM)
+collateral_token: public(ERC20)
+monetary_policy: public(MonetaryPolicy)
 liquidation_discount: public(uint256)
 loan_discount: public(uint256)
 debt_ceiling: public(uint256)
@@ -90,8 +90,8 @@ logAratio: public(uint256)  # log(A / (A - 1))  XXX remove pub
 
 @external
 def __init__(factory: address):
-    FACTORY = factory
-    STABLECOIN = Factory(factory).stablecoin()
+    FACTORY = Factory(factory)
+    STABLECOIN = ERC20(Factory(factory).stablecoin())
 
 
 @internal
@@ -125,10 +125,10 @@ def initialize(
     liquidation_discount: uint256,
     amm: address,
     debt_ceiling: uint256):
-    assert self.collateral_token == ZERO_ADDRESS
+    assert self.collateral_token == ERC20(ZERO_ADDRESS)
 
-    self.collateral_token = collateral_token
-    self.monetary_policy = monetary_policy
+    self.collateral_token = ERC20(collateral_token)
+    self.monetary_policy = MonetaryPolicy(monetary_policy)
 
     assert loan_discount > liquidation_discount
     assert liquidation_discount >= MIN_LIQUIDATION_DISCOUNT
@@ -137,25 +137,25 @@ def initialize(
     self.debt_ceiling = debt_ceiling
     self._total_debt.rate_mul = 10**18
 
-    self.amm = amm
+    self.amm = AMM(amm)
     A: uint256 = AMM(amm).A()
     self.logAratio = self.log2(A * 10**18 / (A - 1))
 
 
 @external
 @view
-def factory() -> address:
+def factory() -> Factory:
     return FACTORY
 
 
 @internal
 def _debt(user: address) -> (uint256, uint256):
-    rate: int256 = MonetaryPolicy(self.monetary_policy).rate_write()
+    rate: int256 = self.monetary_policy.rate_write()
     if rate > MAX_RATE:
         rate = MAX_RATE
     if rate < MIN_RATE:
         rate = MIN_RATE
-    rate_mul: uint256 = AMM(self.amm).set_rate(rate)
+    rate_mul: uint256 = self.amm.set_rate(rate)
     loan: Loan = self.loans[user]
     return (loan.initial_debt * rate_mul / loan.rate_mul, rate_mul)
 
@@ -163,7 +163,7 @@ def _debt(user: address) -> (uint256, uint256):
 @internal
 @view
 def _debt_ro(user: address) -> uint256:
-    rate_mul: uint256 = AMM(self.amm).get_rate_mul()
+    rate_mul: uint256 = self.amm.get_rate_mul()
     loan: Loan = self.loans[user]
     return loan.initial_debt * rate_mul / loan.rate_mul
 
@@ -177,7 +177,7 @@ def debt(user: address) -> uint256:
 @external
 @view
 def total_debt() -> uint256:
-    rate_mul: uint256 = AMM(self.amm).get_rate_mul()
+    rate_mul: uint256 = self.amm.get_rate_mul()
     loan: Loan = self._total_debt
     return loan.initial_debt * rate_mul / loan.rate_mul
 
@@ -188,9 +188,9 @@ def total_debt() -> uint256:
 @internal
 @view
 def _calculate_debt_n1(collateral: uint256, debt: uint256, N: uint256) -> int256:
-    amm: address = self.amm
-    n0: int256 = AMM(amm).active_band()
-    p0: uint256 = AMM(amm).p_current_down(n0)
+    amm: AMM = self.amm
+    n0: int256 = amm.active_band()
+    p0: uint256 = amm.p_current_down(n0)
     # TODO If someone pumped the AMM and deposited
     # - it will be sold if the price goes back down
     # But this needs to be tested?
@@ -217,20 +217,20 @@ def create_loan(collateral: uint256, debt: uint256, n: uint256):
     assert self.loans[msg.sender].initial_debt == 0, "Loan already created"
     assert n > MIN_TICKS-1, "Need more ticks"
     assert n < MAX_TICKS+1, "Need less ticks"
-    amm: address = self.amm
+    amm: AMM = self.amm
 
     n1: int256 = self._calculate_debt_n1(collateral, debt, n)
     n2: int256 = n1 + convert(n, int256)
 
-    rate_mul: uint256 = AMM(amm).set_rate(MonetaryPolicy(self.monetary_policy).rate_write())
+    rate_mul: uint256 = amm.set_rate(self.monetary_policy.rate_write())
     self.loans[msg.sender] = Loan({initial_debt: debt, rate_mul: rate_mul})
     self._total_debt.initial_debt = self._total_debt.initial_debt * rate_mul / self._total_debt.rate_mul + debt
     assert self._total_debt.initial_debt + debt <= self.debt_ceiling, "Debt ceiling"
     self._total_debt.rate_mul = rate_mul
 
-    AMM(amm).deposit_range(msg.sender, collateral, n1, n2, False)
-    ERC20(self.collateral_token).transferFrom(msg.sender, amm, collateral)
-    ERC20(STABLECOIN).mint(msg.sender, debt)
+    amm.deposit_range(msg.sender, collateral, n1, n2, False)
+    self.collateral_token.transferFrom(msg.sender, amm.address, collateral)
+    STABLECOIN.mint(msg.sender, debt)
 
     log UserState(msg.sender, collateral, debt, n1, n2)
     log Borrow(msg.sender, collateral, debt)
@@ -243,18 +243,18 @@ def _add_collateral_borrow(d_collateral: uint256, d_debt: uint256, _for: address
     debt, rate_mul = self._debt(_for)
     assert debt > 0, "Loan doesn't exist"
     debt += d_debt
-    amm: address = self.amm
-    ns: int256[2] = AMM(amm).read_user_tick_numbers(_for)
+    amm: AMM = self.amm
+    ns: int256[2] = amm.read_user_tick_numbers(_for)
     size: uint256 = convert(ns[1] - ns[0], uint256)
 
-    xy: uint256[2] = AMM(amm).withdraw(_for, ZERO_ADDRESS)
+    xy: uint256[2] = amm.withdraw(_for, ZERO_ADDRESS)
     assert xy[0] == 0, "Already in underwater mode"
     xy[1] += d_collateral
     n1: int256 = self._calculate_debt_n1(xy[1], debt, size)
     assert n1 >= ns[0], "Not enough collateral"
     n2: int256 = n1 + ns[1] - ns[0]
 
-    AMM(amm).deposit_range(_for, xy[1], n1, n2, False)
+    amm.deposit_range(_for, xy[1], n1, n2, False)
     self.loans[_for] = Loan({initial_debt: debt, rate_mul: rate_mul})
 
     if d_debt > 0:
@@ -270,15 +270,15 @@ def _add_collateral_borrow(d_collateral: uint256, d_debt: uint256, _for: address
 @nonreentrant('lock')
 def add_collateral(collateral: uint256, _for: address):
     self._add_collateral_borrow(collateral, 0, _for)
-    ERC20(self.collateral_token).transferFrom(msg.sender, self.amm, collateral)
+    self.collateral_token.transferFrom(msg.sender, self.amm.address, collateral)
 
 
 @external
 @nonreentrant('lock')
 def borrow_more(collateral: uint256, debt: uint256):
     self._add_collateral_borrow(collateral, debt, msg.sender)
-    ERC20(self.collateral_token).transferFrom(msg.sender, self.amm, collateral)
-    ERC20(STABLECOIN).mint(msg.sender, debt)
+    self.collateral_token.transferFrom(msg.sender, self.amm.address, collateral)
+    STABLECOIN.mint(msg.sender, debt)
 
 
 @external
@@ -293,26 +293,26 @@ def repay(_d_debt: uint256, _for: address):
     d_debt: uint256 = _d_debt
     if _d_debt > debt:
         d_debt = debt
-    ERC20(STABLECOIN).burnFrom(msg.sender, d_debt)
+    STABLECOIN.burnFrom(msg.sender, d_debt)
     debt -= d_debt
 
-    amm: address = self.amm
-    ns: int256[2] = AMM(amm).read_user_tick_numbers(_for)
+    amm: AMM = self.amm
+    ns: int256[2] = amm.read_user_tick_numbers(_for)
     size: uint256 = convert(ns[1] - ns[0], uint256)
 
     if debt == 0:
-        xy: uint256[2] = AMM(amm).withdraw(_for, _for)
+        xy: uint256[2] = amm.withdraw(_for, _for)
         assert xy[0] == 0, "Already in underwater mode"
         log UserState(_for, 0, 0, 0, 0)
         log Repay(_for, xy[1], 0)
 
     else:
-        xy: uint256[2] = AMM(amm).withdraw(_for, ZERO_ADDRESS)
+        xy: uint256[2] = amm.withdraw(_for, ZERO_ADDRESS)
         assert xy[0] == 0, "Already in underwater mode"
         n1: int256 = self._calculate_debt_n1(xy[1], debt, size)
         assert n1 >= ns[0], "Not enough collateral"
         n2: int256 = n1 + ns[1] - ns[0]
-        AMM(amm).deposit_range(_for, xy[1], n1, n2, False)
+        amm.deposit_range(_for, xy[1], n1, n2, False)
         log UserState(_for, xy[1], debt, n1, n2)
         log Repay(_for, 0, d_debt)
 
@@ -334,24 +334,24 @@ def liquidate(user: address, max_x: uint256):
     rate_mul: uint256 = 0
     debt, rate_mul = self._debt(user)
     assert debt > 0, "Loan doesn't exist"
-    amm: address = self.amm
-    xmax: uint256 = AMM(amm).get_x_down(user)
+    amm: AMM = self.amm
+    xmax: uint256 = amm.get_x_down(user)
     assert xmax * (10**18 - self.liquidation_discount) / 10**18 < debt, "Not enough rekt"
 
-    xy: uint256[2] = AMM(amm).withdraw(user, ZERO_ADDRESS)  # [stable, collateral]
+    xy: uint256[2] = amm.withdraw(user, ZERO_ADDRESS)  # [stable, collateral]
     assert xy[0] >= max_x, "Sandwich"
     if xy[0] < debt:
-        ERC20(STABLECOIN).burnFrom(amm, xy[0])
+        STABLECOIN.burnFrom(amm.address, xy[0])
         xy[0] = 0
     else:
-        ERC20(STABLECOIN).burnFrom(amm, debt)
+        STABLECOIN.burnFrom(amm.address, debt)
         xy[0] -= debt
 
     self.loans[user] = Loan({initial_debt: 0, rate_mul: rate_mul})
     if xy[0] > 0:
-        AMM(amm).rugpull(STABLECOIN, msg.sender, xy[0])
+        amm.rugpull(STABLECOIN.address, msg.sender, xy[0])
     if xy[1] > 0:
-        AMM(amm).rugpull(self.collateral_token, msg.sender, xy[1])
+        amm.rugpull(self.collateral_token.address, msg.sender, xy[1])
 
     log UserState(user, 0, 0, 0, 0)
     log Repay(user, xy[1], debt)
@@ -367,28 +367,28 @@ def self_liquidate(max_x: uint256):
     rate_mul: uint256 = 0
     debt, rate_mul = self._debt(msg.sender)
     assert debt > 0, "Loan doesn't exist"
-    amm: address = self.amm
-    xmax: uint256 = AMM(amm).get_x_down(msg.sender)
+    amm: AMM = self.amm
+    xmax: uint256 = amm.get_x_down(msg.sender)
     assert xmax * (10**18 - self.liquidation_discount) / 10**18 >= debt, "Too rekt"
 
     # Send all the sender's stablecoin and collateral to our contract
-    xy: uint256[2] = AMM(amm).withdraw(msg.sender, ZERO_ADDRESS)  # [stable, collateral]
+    xy: uint256[2] = amm.withdraw(msg.sender, ZERO_ADDRESS)  # [stable, collateral]
     assert xy[0] >= max_x, "Sandwich"
 
     if xy[0] < debt:
         # Partial liquidation:
         # Burn the part to liquidate and decrease the debt
         # Keep the rest of the debt but redeposit
-        ERC20(STABLECOIN).burnFrom(amm, xy[0])
+        STABLECOIN.burnFrom(amm.address, xy[0])
 
-        ns: int256[2] = AMM(amm).read_user_tick_numbers(msg.sender)
+        ns: int256[2] = amm.read_user_tick_numbers(msg.sender)
         size: uint256 = convert(ns[1] - ns[0], uint256)
         debt -= xy[0]
         n1: int256 = self._calculate_debt_n1(xy[1], debt, size)
-        assert n1 > AMM(amm).active_band(), "Not enough collateral"
+        assert n1 > amm.active_band(), "Not enough collateral"
         n2: int256 = n1 + ns[1] - ns[0]
 
-        AMM(amm).deposit_range(msg.sender, xy[1], n1, n2, False)
+        amm.deposit_range(msg.sender, xy[1], n1, n2, False)
         self.loans[msg.sender] = Loan({initial_debt: debt, rate_mul: rate_mul})
         log UserState(msg.sender, xy[1], debt, n1, n2)
         log Repay(msg.sender, 0, xy[0])
@@ -396,10 +396,10 @@ def self_liquidate(max_x: uint256):
     else:
         # Full liquidation
         # burn what has to be burned and returned the assets
-        ERC20(STABLECOIN).burnFrom(amm, debt)
+        STABLECOIN.burnFrom(amm.address, debt)
         if xy[0] > debt:
-            AMM(amm).rugpull(STABLECOIN, msg.sender, xy[0] - debt)
-        AMM(amm).rugpull(self.collateral_token, msg.sender, xy[1])
+            amm.rugpull(STABLECOIN.address, msg.sender, xy[0] - debt)
+        amm.rugpull(self.collateral_token.address, msg.sender, xy[1])
         self.loans[msg.sender] = Loan({initial_debt: 0, rate_mul: rate_mul})
         log UserState(msg.sender, 0, 0, 0, 0)
         log Repay(msg.sender, xy[1], debt)
@@ -424,7 +424,7 @@ def health(user: address, full: bool = False) -> int256:
     """
     debt: int256 = convert(self._debt_ro(user), int256)
     assert debt > 0, "Loan doesn't exist"
-    amm: AMM = AMM(self.amm)
+    amm: AMM = self.amm
     xmax: int256 = convert(amm.get_x_down(user), int256)
     ld: int256 = convert(self.liquidation_discount, int256)
     non_discounted: int256 = xmax * 10**18 / debt - 10**18
@@ -445,54 +445,54 @@ def health(user: address, full: bool = False) -> int256:
 @view
 @external
 def amm_price() -> uint256:
-    return AMM(self.amm).get_p()
+    return self.amm.get_p()
 
 
 @view
 @external
 def user_prices(user: address) -> uint256[2]:  # Upper, lower
-    amm: address = self.amm
-    ns: int256[2] = AMM(amm).read_user_tick_numbers(user) # ns[1] > ns[0]
-    return [AMM(amm).p_oracle_up(ns[0]), AMM(amm).p_oracle_down(ns[1])]
+    amm: AMM = self.amm
+    ns: int256[2] = amm.read_user_tick_numbers(user) # ns[1] > ns[0]
+    return [amm.p_oracle_up(ns[0]), amm.p_oracle_down(ns[1])]
 
 
 @view
 @external
 def user_state(user: address) -> uint256[3]:  # collateral, stablecoin, debt
-    xy: uint256[2] = AMM(self.amm).get_sum_xy(user)
+    xy: uint256[2] = self.amm.get_sum_xy(user)
     return [xy[1], xy[0], self._debt_ro(user)]
 
 
 @external
 def set_fee(fee: uint256):
-    assert msg.sender == Factory(FACTORY).admin()
-    AMM(self.amm).set_fee(fee)
+    assert msg.sender == FACTORY.admin()
+    self.amm.set_fee(fee)
 
 
 @external
 def set_monetary_policy(monetary_policy: address):
-    assert msg.sender == Factory(FACTORY).admin()
-    self.monetary_policy = monetary_policy
+    assert msg.sender == FACTORY.admin()
+    self.monetary_policy = MonetaryPolicy(monetary_policy)
     MonetaryPolicy(monetary_policy).rate_write()
 
 
 @external
 def set_debt_ceiling(_debt_ceiling: uint256):
-    assert msg.sender == Factory(FACTORY).admin()
+    assert msg.sender == FACTORY.admin()
     self.debt_ceiling = _debt_ceiling
 
 
 @external
 @nonreentrant('lock')
 def collect_fees() -> uint256:
-    supply: uint256 = ERC20(STABLECOIN).totalSupply()
-    rate_mul: uint256 = AMM(self.amm).get_rate_mul()
+    supply: uint256 = STABLECOIN.totalSupply()
+    rate_mul: uint256 = self.amm.get_rate_mul()
     loan: Loan = self._total_debt
     loan.initial_debt = loan.initial_debt * rate_mul / loan.rate_mul
     if loan.initial_debt > supply:
-        _to: address = Factory(FACTORY).fee_receiver()
+        _to: address = FACTORY.fee_receiver()
         supply = loan.initial_debt - supply
-        ERC20(STABLECOIN).mint(_to, supply)
+        STABLECOIN.mint(_to, supply)
         return supply
     else:
         return 0
