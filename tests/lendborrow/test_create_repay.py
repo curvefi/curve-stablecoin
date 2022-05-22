@@ -46,7 +46,7 @@ def test_create_loan(stablecoin, collateral_token, market_controller, market_amm
     assert approx(h, c_amount * 3000 / l_amount - 1, 0.02)
 
 
-@pytest.fixture(scope="module", autouse=False)
+@pytest.fixture(scope="function", autouse=False)
 def existing_loan(collateral_token, market_controller, accounts):
     user = accounts[1]
     c_amount = int(2 * 1e6 * 1e18 * 1.5 / 3000)
@@ -74,7 +74,6 @@ def test_repay_all(stablecoin, collateral_token, market_controller, existing_loa
 def test_repay_half(stablecoin, collateral_token, market_controller, existing_loan, market_amm, accounts):
     user = accounts[1]
     c_amount = int(2 * 1e6 * 1e18 * 1.5 / 3000)
-    amm = market_amm
     debt = market_controller.debt(user)
     to_repay = debt // 2
 
@@ -90,6 +89,50 @@ def test_repay_half(stablecoin, collateral_token, market_controller, existing_lo
     assert market_controller.debt(user) == debt - to_repay
     assert stablecoin.balanceOf(user) == debt - to_repay
     assert collateral_token.balanceOf(user) == 0
-    assert stablecoin.balanceOf(amm) == 0
-    assert collateral_token.balanceOf(amm) == c_amount
+    assert stablecoin.balanceOf(market_amm) == 0
+    assert collateral_token.balanceOf(market_amm) == c_amount
     assert market_controller.total_debt() == debt - to_repay
+
+
+def test_add_collateral(stablecoin, collateral_token, market_controller, existing_loan, market_amm, accounts):
+    user = accounts[1]
+    c_amount = int(2 * 1e6 * 1e18 * 1.5 / 3000)
+    debt = market_controller.debt(user)
+
+    n_before_0, n_before_1 = market_amm.read_user_tick_numbers(user)
+    collateral_token._mint_for_testing(user, c_amount, {'from': user})
+    market_controller.add_collateral(c_amount, user, {'from': user})
+    n_after_0, n_after_1 = market_amm.read_user_tick_numbers(user)
+
+    assert n_before_1 - n_before_0 == 5
+    assert n_after_1 - n_after_0 == 5
+    assert n_after_0 > n_before_0
+
+    assert market_controller.debt(user) == debt
+    assert stablecoin.balanceOf(user) == debt
+    assert collateral_token.balanceOf(user) == 0
+    assert stablecoin.balanceOf(market_amm) == 0
+    assert collateral_token.balanceOf(market_amm) == 2 * c_amount
+    assert market_controller.total_debt() == debt
+
+
+def test_borrow_more(stablecoin, collateral_token, market_controller, existing_loan, market_amm, accounts):
+    user = accounts[1]
+    debt = market_controller.debt(user)
+    more_debt = 0 # debt // 100
+    c_amount = int(2 * 1e6 * 1e18 * 1.5 / 3000)
+
+    n_before_0, n_before_1 = market_amm.read_user_tick_numbers(user)
+    market_controller.borrow_more(0, debt + more_debt, {'from': user})
+    n_after_0, n_after_1 = market_amm.read_user_tick_numbers(user)
+
+    assert n_before_1 - n_before_0 == 5
+    assert n_after_1 - n_after_0 == 5
+    assert n_after_0 < n_before_0
+
+    assert market_controller.debt(user) == debt + more_debt
+    assert stablecoin.balanceOf(user) == debt + more_debt
+    assert collateral_token.balanceOf(user) == 0
+    assert stablecoin.balanceOf(market_amm) == 0
+    assert collateral_token.balanceOf(market_amm) == c_amount
+    assert market_controller.total_debt() == debt + more_debt
