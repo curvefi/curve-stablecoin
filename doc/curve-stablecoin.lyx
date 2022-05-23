@@ -134,6 +134,51 @@ Overall schematic
 
 \end_layout
 
+\begin_layout Standard
+In this design, if someone borrows against collateral, even at liquidation
+ threshold, and the price of collateral dips and bounces - no significant
+ loss happen.
+ For example, according to simulations using historic data for ETH/USD since
+ Sep 2017, if one leaves the CDP unattended for 3 days and during this time
+ the price drop of 10% below the liquidation theshold happened - only 1%
+ of collateral gets lost.
+\end_layout
+
+\begin_layout Standard
+\begin_inset Float figure
+wide false
+sideways false
+status open
+
+\begin_layout Plain Layout
+\align center
+\begin_inset Graphics
+	filename dip-loss.pdf
+	width 8cm
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+\begin_inset Caption Standard
+
+\begin_layout Plain Layout
+Dependence of the loss on the price shift relative to the liquidation theshold.
+ Time window for the observation is 3 days
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
 \begin_layout Part*
 AMM for continuous liquidation/deliquidation (LLAMMA)
 \end_layout
