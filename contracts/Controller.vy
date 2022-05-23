@@ -485,6 +485,19 @@ def set_debt_ceiling(_debt_ceiling: uint256):
 
 
 @external
+@view
+def admin_fees() -> uint256:
+    supply: uint256 = STABLECOIN.totalSupply()
+    rate_mul: uint256 = self.amm.get_rate_mul()
+    loan: Loan = self._total_debt
+    loan.initial_debt = loan.initial_debt * rate_mul / loan.rate_mul
+    if loan.initial_debt > supply:
+        return loan.initial_debt - supply
+    else:
+        return 0
+
+
+@external
 @nonreentrant('lock')
 def collect_fees() -> uint256:
     supply: uint256 = STABLECOIN.totalSupply()
