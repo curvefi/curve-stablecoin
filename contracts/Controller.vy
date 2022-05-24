@@ -176,6 +176,12 @@ def debt(user: address) -> uint256:
 
 @external
 @view
+def loan_exists(user: address) -> bool:
+    return self.loans[user].initial_debt > 0
+
+
+@external
+@view
 def total_debt() -> uint256:
     rate_mul: uint256 = self.amm.get_rate_mul()
     loan: Loan = self._total_debt
@@ -203,12 +209,10 @@ def _calculate_debt_n1(collateral: uint256, debt: uint256, N: uint256) -> int256
     return convert(n1_precise / 10**18, int256) + n0
 
 
-# XXX do we need it at all?
 @external
 @view
 def calculate_debt_n1(collateral: uint256, debt: uint256, N: uint256) -> int256:
     return self._calculate_debt_n1(collateral, debt, N)
-
 
 
 @external
