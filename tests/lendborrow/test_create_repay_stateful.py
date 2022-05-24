@@ -53,19 +53,17 @@ class StatefulLendBorrow:
         try:
             self.controller.create_loan(c_amount, amount, n, {'from': user})
         except exceptions.VirtualMachineError as e:
-            if str(e) == 'revert: Amount too low':
+            if str(e).startswith('revert: Amount too low'):
                 assert c_amount < 10**6
-            else:
-                raise
 
-    def rule_repay(self, amount, user_id):
-        pass
+    # def rule_repay(self, amount, user_id):
+    #     pass
 
-    def rule_add_collateral(self, c_amount, user_id):
-        pass
+    # def rule_add_collateral(self, c_amount, user_id):
+    #     pass
 
-    def rule_borrow_more(self, c_amount, amount, user_id):
-        pass
+    # def rule_borrow_more(self, c_amount, amount, user_id):
+    #     pass
 
 
 def test_stateful_lendborrow(market_amm, market_controller, collateral_token, stablecoin, accounts, state_machine):
