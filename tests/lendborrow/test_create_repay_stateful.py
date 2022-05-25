@@ -19,9 +19,9 @@ class StatefulLendBorrow:
         self.stablecoin = borrowed_token
         self.accounts = accounts
         self.debt_ceiling = self.controller.debt_ceiling()
-        for i in range(1, 6):
-            collateral_token.approve(controller, 2**256-1, {'from': accounts[i]})
-            borrowed_token.approve(controller, 2**256-1, {'from': accounts[i]})
+        for u in accounts[1:6]:
+            collateral_token.approve(controller, 2**256-1, {'from': u})
+            borrowed_token.approve(controller, 2**256-1, {'from': u})
 
     def rule_create_loan(self, c_amount, amount, n, user_id):
         user = self.accounts[user_id]
@@ -106,6 +106,17 @@ class StatefulLendBorrow:
             return
 
         self.controller.borrow_more(c_amount, amount, {'from': user})
+
+    def invariant_debt_supply(self):
+        assert self.controller.total_debt() == self.stablecoin.totalSupply()
+
+    def invariant_sum_of_debts(self):
+        assert sum(self.controller.debt(u) for u in self.accounts[1:6]) == self.controller.total_debt()
+
+    def invariant_health(self):
+        for user in self.accounts[1:6]:
+            if self.controller.loan_exists(user):
+                assert self.controller.health(user) > 0
 
 
 def test_stateful_lendborrow(market_amm, market_controller, collateral_token, stablecoin, accounts, state_machine):

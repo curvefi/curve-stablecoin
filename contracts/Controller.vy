@@ -2,7 +2,8 @@
 
 interface AMM:
     def A() -> uint256: view
-    def base_price() -> uint256: view
+    def get_base_price() -> uint256: view
+    def p_base_mul() -> uint256: view
     def get_p() -> uint256: view
     def active_band() -> int256: view
     def p_current_up(n: int256) -> uint256: view
@@ -20,6 +21,7 @@ interface AMM:
     def set_rate(rate: int256) -> uint256: nonpayable
     def set_fee(fee: uint256): nonpayable
     def price_oracle() -> uint256: view
+    def sqrt_band_ratio() -> uint256: view
 
 interface ERC20:
     def totalSupply() -> uint256: view
@@ -70,6 +72,7 @@ FACTORY: immutable(Factory)
 STABLECOIN: immutable(ERC20)
 MIN_LIQUIDATION_DISCOUNT: constant(uint256) = 10**16 # Start liquidating when threshold reached
 MAX_TICKS: constant(int256) = 50
+MAX_TICKS_UINT: constant(uint256) = 50
 MIN_TICKS: constant(int256) = 5
 
 MAX_RATE: constant(int256) = 43959106799  # 400% APY
@@ -85,6 +88,7 @@ liquidation_discount: public(uint256)
 loan_discount: public(uint256)
 debt_ceiling: public(uint256)
 
+A: uint256
 logAratio: public(uint256)  # log(A / (A - 1))  XXX remove pub
 
 
@@ -139,6 +143,7 @@ def initialize(
 
     self.amm = AMM(amm)
     A: uint256 = AMM(amm).A()
+    self.A = A
     self.logAratio = self.log2(A * 10**18 / (A - 1))
 
 
@@ -194,25 +199,36 @@ def total_debt() -> uint256:
     return loan.initial_debt * rate_mul / loan.rate_mul
 
 
-# n1 = log((collateral * p_base * (1 - discount)) / debt) / log(A / (A - 1)) - N / 2
-# round that down
-# n2 = n1 + N
 @internal
 @view
 def _calculate_debt_n1(collateral: uint256, debt: uint256, N: uint256) -> int256:
     amm: AMM = self.amm
+    # p0: uint256 = amm.p_current_down(n0)
     n0: int256 = amm.active_band()
-    p0: uint256 = amm.p_current_down(n0)
-    # TODO If someone pumped the AMM and deposited
-    # - it will be sold if the price goes back down
-    # But this needs to be tested?
+    p_base: uint256 = amm.get_base_price() * amm.p_base_mul() / 10**18
+    loan_discount: uint256 = 10**18 - self.loan_discount
 
-    collateral_val: uint256 = collateral * p0 / 10**18 * (10**18 - self.loan_discount)
-    assert collateral_val >= debt * 10**18, "Debt too high"
-    n1_precise: uint256 = self.log2(collateral_val / debt) * 10**18 / self.logAratio - 10**18 * N / 2
-    assert n1_precise >= 10**18, "Debt too high"
+    # x_effective = y / N * p_oracle_up(n1) * sqrt((A - 1) / A) * sum_{0..N-1}(((A-1) / A)**k)
+    # === y_effective * p_oracle_up(n1)
+    A: uint256 = self.A
+    d_y_effective: uint256 = collateral * loan_discount / amm.sqrt_band_ratio() / N
+    y_effective: uint256 = d_y_effective
+    for i in range(1, MAX_TICKS_UINT):
+        if i == N:
+            break
+        # Doing unsafe things while in a cycle
+        # It's safe, I swear
+        d_y_effective = unsafe_div(unsafe_mul(d_y_effective, unsafe_sub(A, 1)), A)
+        y_effective = unsafe_add(y_effective, d_y_effective)
+    # p_oracle_up(n1) = base_price * ((A - 1) / A)**n1
 
-    return convert(n1_precise / 10**18, int256) + n0
+    y_effective = y_effective * p_base / debt  # Now it's a ratio
+    assert y_effective > 10**18, "Debt too high"
+    n1: int256 = convert(self.log2(y_effective) / self.logAratio, int256)
+    assert n1 > 0, "Debt too high"
+    assert collateral * loan_discount / 10**18 * amm.p_current_down(n0) / 10**18 >= debt, "Debt too high"
+
+    return n1 + n0
 
 
 @external
