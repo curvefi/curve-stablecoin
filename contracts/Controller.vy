@@ -269,8 +269,9 @@ def _add_collateral_borrow(d_collateral: uint256, d_debt: uint256, _for: address
     self.loans[_for] = Loan({initial_debt: debt, rate_mul: rate_mul})
 
     if d_debt > 0:
-        self._total_debt.initial_debt = self._total_debt.initial_debt * rate_mul / self._total_debt.rate_mul + d_debt
-        assert self._total_debt.initial_debt + d_debt <= self.debt_ceiling, "Debt ceiling"
+        total_debt: uint256 = self._total_debt.initial_debt * rate_mul / self._total_debt.rate_mul + d_debt
+        assert total_debt <= self.debt_ceiling, "Debt ceiling"
+        self._total_debt.initial_debt = total_debt
         self._total_debt.rate_mul = rate_mul
 
     log Borrow(_for, d_collateral, d_debt)

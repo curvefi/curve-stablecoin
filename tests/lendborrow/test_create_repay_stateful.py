@@ -75,8 +75,38 @@ class StatefulLendBorrow:
             return
         self.controller.add_collateral(c_amount, user, {'from': user})
 
-    # def rule_borrow_more(self, c_amount, amount, user_id):
-    #     pass
+    def rule_borrow_more(self, c_amount, amount, user_id):
+        user = self.accounts[user_id]
+        self.collateral._mint_for_testing(user, c_amount, {'from': user})
+        if not self.controller.loan_exists(user):
+            with brownie.reverts("Loan doesn't exist"):
+                self.controller.borrow_more(c_amount, amount, {'from': user})
+            return
+
+        final_debt = self.controller.debt(user) + amount
+        x, y = self.amm.get_sum_xy(user)
+        assert x == 0
+        final_collateral = y + c_amount
+        n1, n2 = self.amm.read_user_tick_numbers(user)
+        n = n2 - n1
+        # Debt too high, Debt ceiling, Not enough collateral
+
+        too_high = False
+        try:
+            self.controller.calculate_debt_n1(final_collateral, final_debt, n)
+        except Exception as e:
+            too_high = str(e) == 'revert: Debt too high'
+        if too_high:
+            with brownie.reverts('Debt too high'):
+                self.controller.borrow_more(c_amount, amount, {'from': user})
+            return
+
+        if self.controller.total_debt() + amount > self.debt_ceiling:
+            with brownie.reverts('Debt ceiling'):
+                self.controller.borrow_more(c_amount, amount, {'from': user})
+            return
+
+        self.controller.borrow_more(c_amount, amount, {'from': user})
 
 
 def test_stateful_lendborrow(market_amm, market_controller, collateral_token, stablecoin, accounts, state_machine):
