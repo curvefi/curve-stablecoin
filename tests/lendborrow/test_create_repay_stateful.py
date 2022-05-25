@@ -89,7 +89,6 @@ class StatefulLendBorrow:
         final_collateral = y + c_amount
         n1, n2 = self.amm.read_user_tick_numbers(user)
         n = n2 - n1
-        # Debt too high, Debt ceiling, Not enough collateral
 
         too_high = False
         try:
