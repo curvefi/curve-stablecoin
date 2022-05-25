@@ -66,8 +66,14 @@ class StatefulLendBorrow:
             return
         self.controller.repay(amount, user, {'from': user})
 
-    # def rule_add_collateral(self, c_amount, user_id):
-    #     pass
+    def rule_add_collateral(self, c_amount, user_id):
+        user = self.accounts[user_id]
+        self.collateral._mint_for_testing(user, c_amount, {'from': user})
+        if not self.controller.loan_exists(user):
+            with brownie.reverts("Loan doesn't exist"):
+                self.controller.add_collateral(c_amount, user, {'from': user})
+            return
+        self.controller.add_collateral(c_amount, user, {'from': user})
 
     # def rule_borrow_more(self, c_amount, amount, user_id):
     #     pass
