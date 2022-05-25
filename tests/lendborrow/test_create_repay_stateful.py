@@ -1,6 +1,5 @@
 """
 Stateful test to create and repay loans without moving the price oracle
-but with nonzero rate
 """
 import brownie
 from brownie import exceptions
@@ -11,7 +10,7 @@ class StatefulLendBorrow:
     n = strategy('int256', min_value=5, max_value=50)
     amount = strategy('uint256', max_value=2 * 10**6 * 10**18)
     c_amount = strategy('uint256', max_value=10**9 * 10**18 // 3000)
-    user_id = strategy('uint256', max_value=4)
+    user_id = strategy('uint256', min_value=1, max_value=5)
 
     def __init__(self, amm, controller, collateral_token, borrowed_token, accounts):
         self.amm = amm
@@ -20,6 +19,9 @@ class StatefulLendBorrow:
         self.stablecoin = borrowed_token
         self.accounts = accounts
         self.debt_ceiling = self.controller.debt_ceiling()
+        for i in range(1, 6):
+            collateral_token.approve(controller, 2**256-1, {'from': accounts[i]})
+            borrowed_token.approve(controller, 2**256-1, {'from': accounts[i]})
 
     def rule_create_loan(self, c_amount, amount, n, user_id):
         user = self.accounts[user_id]
@@ -56,8 +58,13 @@ class StatefulLendBorrow:
             if str(e).startswith('revert: Amount too low'):
                 assert c_amount < 10**6
 
-    # def rule_repay(self, amount, user_id):
-    #     pass
+    def rule_repay(self, amount, user_id):
+        user = self.accounts[user_id]
+        if not self.controller.loan_exists(user):
+            with brownie.reverts("Loan doesn't exist"):
+                self.controller.repay(amount, user, {'from': user})
+            return
+        self.controller.repay(amount, user, {'from': user})
 
     # def rule_add_collateral(self, c_amount, user_id):
     #     pass
@@ -67,4 +74,5 @@ class StatefulLendBorrow:
 
 
 def test_stateful_lendborrow(market_amm, market_controller, collateral_token, stablecoin, accounts, state_machine):
-    state_machine(StatefulLendBorrow, market_amm, market_controller, collateral_token, stablecoin, accounts)
+    state_machine(StatefulLendBorrow, market_amm, market_controller, collateral_token, stablecoin, accounts,
+                  settings={'max_examples': 50, 'stateful_step_count': 20})

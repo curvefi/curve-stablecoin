@@ -157,7 +157,10 @@ def _debt(user: address) -> (uint256, uint256):
         rate = MIN_RATE
     rate_mul: uint256 = self.amm.set_rate(rate)
     loan: Loan = self.loans[user]
-    return (loan.initial_debt * rate_mul / loan.rate_mul, rate_mul)
+    if loan.initial_debt == 0:
+        return (0, rate_mul)
+    else:
+        return (loan.initial_debt * rate_mul / loan.rate_mul, rate_mul)
 
 
 @internal
@@ -165,7 +168,10 @@ def _debt(user: address) -> (uint256, uint256):
 def _debt_ro(user: address) -> uint256:
     rate_mul: uint256 = self.amm.get_rate_mul()
     loan: Loan = self.loans[user]
-    return loan.initial_debt * rate_mul / loan.rate_mul
+    if loan.initial_debt == 0:
+        return 0
+    else:
+        return loan.initial_debt * rate_mul / loan.rate_mul
 
 
 @external
@@ -316,7 +322,7 @@ def repay(_d_debt: uint256, _for: address):
         xy: uint256[2] = amm.withdraw(_for, ZERO_ADDRESS)
         assert xy[0] == 0, "Already in underwater mode"
         n1: int256 = self._calculate_debt_n1(xy[1], debt, size)
-        assert n1 >= ns[0], "Not enough collateral"
+        assert n1 >= amm.active_band(), "Not enough collateral"
         n2: int256 = n1 + ns[1] - ns[0]
         amm.deposit_range(_for, xy[1], n1, n2, False)
         log UserState(_for, xy[1], debt, n1, n2)
