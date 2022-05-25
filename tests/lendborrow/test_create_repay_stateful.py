@@ -75,4 +75,4 @@ class StatefulLendBorrow:
 
 def test_stateful_lendborrow(market_amm, market_controller, collateral_token, stablecoin, accounts, state_machine):
     state_machine(StatefulLendBorrow, market_amm, market_controller, collateral_token, stablecoin, accounts,
-                  settings={'max_examples': 50, 'stateful_step_count': 20})
+                  settings={'max_examples': 100, 'stateful_step_count': 20})
