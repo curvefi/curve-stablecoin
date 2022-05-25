@@ -198,7 +198,7 @@ The below description doesn't serve as a fully self-consistent rigurous
  proofs.
  A lot of that (especially the invariant) are obtained from dimensional
  considerations.
- More research might be requires to have a full mathematical description,
+ More research might be required to have a full mathematical description,
  however the below is believed to be enough to implement in practice.
 \end_layout
 
