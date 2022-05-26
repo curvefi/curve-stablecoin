@@ -225,7 +225,7 @@ def _calculate_debt_n1(collateral: uint256, debt: uint256, N: uint256) -> int256
     y_effective = y_effective * p_base / debt  # Now it's a ratio
     assert y_effective > 10**18, "Debt too high"
     n1: int256 = convert(self.log2(y_effective) / self.logAratio, int256)
-    n1 = min(n1, 1001 - convert(N, int256))  # debt is too small but we still want to borrow
+    n1 = min(n1, 2501 - convert(N, int256))  # debt is too small but we still want to borrow
     assert n1 > 0, "Debt too high"
     assert collateral * loan_discount / 10**18 * amm.p_current_down(n0) / 10**18 >= debt, "Debt too high"
 

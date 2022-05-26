@@ -28,5 +28,5 @@ def test_n1(market_amm, market_controller, collateral, debt, n):
     n2 = n1 + n - 1
 
     assert discounted_collateral * market_amm.p_oracle_up(n1) / 1e18 >= debt
-    if n2 < 1000:
+    if n2 < 2500:
         assert discounted_collateral * market_amm.p_oracle_down(n2) / 1e18 <= debt
