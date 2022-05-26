@@ -46,7 +46,7 @@ class StatefulLendBorrow:
             return
 
         if amount == 0:
-            with brownie.reverts():
+            with brownie.reverts('No loan'):
                 self.controller.create_loan(c_amount, amount, n, {'from': user})
                 # It's actually division by zero which happens
             return

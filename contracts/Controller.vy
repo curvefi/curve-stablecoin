@@ -202,6 +202,7 @@ def total_debt() -> uint256:
 @internal
 @view
 def _calculate_debt_n1(collateral: uint256, debt: uint256, N: uint256) -> int256:
+    assert debt > 0, "No loan"
     amm: AMM = self.amm
     # p0: uint256 = amm.p_current_down(n0)
     n0: int256 = amm.active_band()
@@ -227,7 +228,7 @@ def _calculate_debt_n1(collateral: uint256, debt: uint256, N: uint256) -> int256
     n1: int256 = convert(self.log2(y_effective) / self.logAratio, int256)
     n1 = min(n1, 1024 - convert(N, int256))  # debt is too small but we still want to borrow
     assert n1 > 0, "Debt too high"
-    assert collateral * loan_discount / 10**18 * amm.p_current_down(n0) / 10**18 >= debt + 1, "Debt too high"
+    assert collateral * loan_discount / 10**18 * amm.p_current_down(n0) / 10**18 >= unsafe_add(debt, 1), "Debt too high"
 
     return n1 + n0
 
