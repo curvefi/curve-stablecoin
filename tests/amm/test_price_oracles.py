@@ -25,14 +25,14 @@ def test_p_current_updown(amm):
     p_oracle = amm.price_oracle()
     A = amm.A()
 
-    for i in range(-10, 10):
+    for i in range(-1023, 1023):
         mul = ((A - 1) / A) ** i
         p_base_up = p_base * mul
         p_base_down = p_base_up * (A - 1) / A
         p_current_up = p_oracle**3 / p_base_down**2
         p_current_down = p_oracle**3 / p_base_up**2
-        assert approx(amm.p_current_up(i), p_current_up, 1e-14)
-        assert approx(amm.p_current_down(i), p_current_down, 1e-14)
+        assert approx(amm.p_current_up(i), p_current_up, 1e-10)
+        assert approx(amm.p_current_down(i), p_current_down, 1e-10)
 
 
 def test_ema_wrapping(chain, ema_price_oracle, PriceOracle):
