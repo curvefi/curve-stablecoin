@@ -185,7 +185,7 @@ def _p_oracle_band(n: int256, is_down: bool) -> uint256:
     n_active: int256 = self.active_band
     p_base: uint256 = self._base_price() * self.p_base_mul / 10**18
     band_distance: uint256 = convert(abs(n - n_active), uint256)
-    assert band_distance < 2501, "Too deep"
+    assert band_distance < 1024, "Too deep"
     A: uint256 = self.A
 
     # k = (self.A - 1) / self.A  # equal to (p_up / p_down)
@@ -198,15 +198,15 @@ def _p_oracle_band(n: int256, is_down: bool) -> uint256:
         amul = 10**18 * A / (A - 1)
     for i in range(1, 12):
         if m > band_distance:
-            break
+            if is_down:
+                return p_base * (A - 1) / A
+            else:
+                return p_base
         if bitwise_and(band_distance, m) > 0:
             p_base = unsafe_div(p_base * amul, 10**18)
         m = unsafe_add(m, m)  # m *= 2
         amul = unsafe_div(amul * amul, 10**18)  # amul = amul**2
-    if is_down:
-        p_base = p_base * (A - 1) / A
-
-    return p_base
+    raise
 
 
 @internal
