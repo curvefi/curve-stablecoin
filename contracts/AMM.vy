@@ -134,12 +134,12 @@ def initialize(
     self.rate_mul = 10**18
     self.p_base_mul = 10**18
     self.collateral_token = ERC20(_collateral_token)
-    self.collateral_precision = 10 ** (18 - ERC20(_collateral_token).decimals())
+    self.collateral_precision = pow_mod256(10, 18 - ERC20(_collateral_token).decimals())
     self.fee = fee
     self.admin_fee = admin_fee
 
     self.price_oracle_contract = PriceOracle(_price_oracle_contract)
-    self.sqrt_band_ratio = self.sqrt_int(10**18 * _A / (_A - 1))
+    self.sqrt_band_ratio = self.sqrt_int(unsafe_mul(10**18, _A) / unsafe_sub(_A, 1))
 
     self.admin = _admin
 
@@ -183,7 +183,7 @@ def _p_oracle_band(n: int256, is_down: bool) -> uint256:
     # k = (self.A - 1) / self.A  # equal to (p_up / p_down)
     # return self.p_base * k ** n
     n_active: int256 = self.active_band
-    p_base: uint256 = self._base_price() * self.p_base_mul / 10**18
+    p_base: uint256 = unsafe_div(self._base_price() * self.p_base_mul, 10**18)
     band_distance: uint256 = convert(abs(n - n_active), uint256)
     assert band_distance < 1024, "Too deep"
     A: uint256 = self.A
@@ -193,13 +193,13 @@ def _p_oracle_band(n: int256, is_down: bool) -> uint256:
     m: uint256 = 1
     amul: uint256 = 0
     if n > n_active:
-        amul = 10**18 * (A - 1) / A
+        amul = unsafe_div(10**18 * unsafe_sub(A, 1), A)  # (A - 1) / A
     else:
-        amul = 10**18 * A / (A - 1)
+        amul = unsafe_mul(10**18, A) / unsafe_sub(A, 1)  # A / (A - 1)
     for i in range(1, 12):
         if m > band_distance:
             if is_down:
-                return p_base * (A - 1) / A
+                return unsafe_div(p_base * unsafe_sub(A, 1), A)  # p_base * (A - 1) / A
             else:
                 return p_base
         if bitwise_and(band_distance, m) > 0:
@@ -265,7 +265,7 @@ def p_oracle_down(n: int256) -> uint256:
 def _get_y0(x: uint256, y: uint256, p_o: uint256, p_o_up: uint256, A: uint256) -> uint256:
     # solve:
     # p_o * A * y0**2 - y0 * (p_oracle_up/p_o * (A-1) * x + p_o**2/p_oracle_up * A * y) - xy = 0
-    b: uint256 = p_o_up * (A - 1) * x / p_o + A * p_o**2 / p_o_up * y / 10**18
+    b: uint256 = p_o_up * unsafe_sub(A, 1) * x / p_o + A * p_o**2 / p_o_up * y / 10**18
     D: uint256 = b**2 + (4 * A) * p_o * y / 10**18 * x
     return (b + self.sqrt_int(D / 10**18)) * 10**18 / ((2 * A) * p_o)
 
@@ -294,19 +294,19 @@ def _get_p(n: int256, x: uint256, y: uint256) -> uint256:
 
     # Special cases
     if x == 0 and y == 0:
-        p_o_up = p_o_up * (A - 1) / A
+        p_o_up = unsafe_div(p_o_up * unsafe_sub(A, 1), A)
         return p_o**2 / p_o_up * p_o / p_o_up * 10**18 / self.sqrt_band_ratio
     if x == 0: # Lowest point of this band -> p_current_down
         return p_o**2 / p_o_up * p_o / p_o_up
     if y == 0: # Highest point of this band -> p_current_up
-        p_o_up = p_o_up * (A - 1) / A
+        p_o_up = unsafe_div(p_o_up * unsafe_sub(A, 1), A)
         return p_o**2 / p_o_up * p_o / p_o_up
 
     y0: uint256 = self._get_y0(x, y, p_o, p_o_up, A)
 
     # (f(y0) + x) / (g(y0) + y)
     f: uint256 = A * y0 * p_o / p_o_up * p_o
-    g: uint256 = (A - 1) * y0 * p_o_up / p_o
+    g: uint256 = unsafe_sub(A, 1) * y0 * p_o_up / p_o
     return (f + x * 10**18) / (g + y)
 
 
@@ -489,8 +489,8 @@ def withdraw(user: address, move_to: address) -> uint256[2]:
     if self.max_band <= ns[1]:
         self.max_band = max_band
 
-    total_x /= BORROWED_PRECISION
-    total_y /= self.collateral_precision
+    total_x = unsafe_div(total_x, BORROWED_PRECISION)
+    total_y = unsafe_div(total_y, self.collateral_precision)
     if move_to != ZERO_ADDRESS:
         assert BORROWED_TOKEN.transfer(move_to, total_x)
         assert self.collateral_token.transfer(move_to, total_y)
@@ -535,7 +535,7 @@ def calc_swap_out(pump: bool, in_amount: uint256, p_o: uint256) -> DetailedTrade
     for i in range(MAX_TICKS):
         y0: uint256 = self._get_y0(x, y, p_o, p_o_up, A)
         f: uint256 = A * y0 * p_o / p_o_up * p_o / 10**18
-        g: uint256 = (A - 1) * y0 * p_o_up / p_o
+        g: uint256 = unsafe_sub(A, 1) * y0 * p_o_up / p_o
         Inv: uint256 = (f + x) * (g + y)
 
         if pump:
@@ -546,7 +546,7 @@ def calc_swap_out(pump: bool, in_amount: uint256, p_o: uint256) -> DetailedTrade
                     out.last_tick_j = Inv / (f + (x + in_amount_left * 10**18 / fee)) - g  # Should be always >= 0
                     x += in_amount_left  # x is precise after this
                     # Round down the output
-                    out.out_amount += (y - out.last_tick_j) / collateral_precision * collateral_precision
+                    out.out_amount += unsafe_mul(unsafe_div(y - out.last_tick_j, collateral_precision), collateral_precision)
                     out.ticks_in[i] = x
                     out.in_amount = in_amount
                     return out
@@ -563,7 +563,7 @@ def calc_swap_out(pump: bool, in_amount: uint256, p_o: uint256) -> DetailedTrade
                 if out.n2 == max_band:
                     break
                 out.n2 += 1
-                p_o_up = p_o_up * (A - 1) / A
+                p_o_up = unsafe_div(p_o_up * unsafe_sub(A, 1), A)
                 x = 0
                 y = self.bands_y[out.n2]
 
@@ -574,7 +574,7 @@ def calc_swap_out(pump: bool, in_amount: uint256, p_o: uint256) -> DetailedTrade
                     # This is the last band
                     out.last_tick_j = Inv / (g + (y + in_amount_left * 10**18 / fee)) - f
                     y += in_amount_left
-                    out.out_amount += (x - out.last_tick_j) / BORROWED_PRECISION * BORROWED_PRECISION
+                    out.out_amount += unsafe_mul(unsafe_div(x - out.last_tick_j, BORROWED_PRECISION), BORROWED_PRECISION)
                     out.ticks_in[i] = y
                     out.in_amount = in_amount
                     return out
@@ -591,22 +591,22 @@ def calc_swap_out(pump: bool, in_amount: uint256, p_o: uint256) -> DetailedTrade
                 if out.n2 == min_band:
                     break
                 out.n2 -= 1
-                p_o_up = p_o_up * A / (A - 1)
+                p_o_up = p_o_up * A / unsafe_sub(A, 1)
                 x = self.bands_x[out.n2]
                 y = 0
 
     # Round up what goes in and down what goes out
     out.in_amount = in_amount_used + in_amount_afee
     if pump:
-        in_amount_used = in_amount_used / BORROWED_PRECISION * BORROWED_PRECISION
+        in_amount_used = unsafe_mul(unsafe_div(in_amount_used, BORROWED_PRECISION), BORROWED_PRECISION)
         if in_amount_used != out.in_amount:
             out.in_amount = in_amount_used + BORROWED_PRECISION
-        out.out_amount = out.out_amount / collateral_precision * collateral_precision
+        out.out_amount = unsafe_mul(unsafe_div(out.out_amount, collateral_precision), collateral_precision)
     else:
-        in_amount_used = in_amount_used / collateral_precision * collateral_precision
+        in_amount_used = unsafe_mul(unsafe_div(in_amount_used, collateral_precision), collateral_precision)
         if in_amount_used != out.in_amount:
             out.in_amount = in_amount_used + collateral_precision
-        out.out_amount = out.out_amount / BORROWED_PRECISION * BORROWED_PRECISION
+        out.out_amount = unsafe_mul(unsafe_div(out.out_amount, BORROWED_PRECISION), BORROWED_PRECISION)
     return out
 
 
@@ -627,8 +627,8 @@ def _get_dxdy(i: uint256, j: uint256, in_amount: uint256) -> DetailedTrade:
         in_precision = BORROWED_PRECISION
         out_precision = collateral_precision
     out = self.calc_swap_out(i == 0, in_amount * in_precision, self.price_oracle_contract.price())
-    out.in_amount /= in_precision
-    out.out_amount /= out_precision
+    out.in_amount = unsafe_div(out.in_amount, in_precision)
+    out.out_amount = unsafe_div(out.out_amount, out_precision)
     return out
 
 
@@ -682,8 +682,8 @@ def exchange(i: uint256, j: uint256, in_amount: uint256, min_amount: uint256, _f
         out_coin = BORROWED_TOKEN
 
     out: DetailedTrade = self.calc_swap_out(i == 0, in_amount * in_precision, self.price_oracle_contract.price_w())
-    in_amount_done: uint256 = out.in_amount / in_precision
-    out_amount_done: uint256 = out.out_amount / out_precision
+    in_amount_done: uint256 = unsafe_div(out.in_amount, in_precision)
+    out_amount_done: uint256 = unsafe_div(out.out_amount, out_precision)
     assert out_amount_done >= min_amount, "Slippage"
     if out_amount_done == 0:
         return 0
@@ -713,9 +713,9 @@ def exchange(i: uint256, j: uint256, in_amount: uint256, min_amount: uint256, _f
             self.bands_x[n] = 0
 
         if step == 1:
-            p_base_mul = p_base_mul * (A - 1) / A
+            p_base_mul = unsafe_div(p_base_mul * unsafe_sub(A, 1), A)
         else:
-            p_base_mul = p_base_mul * A / (A - 1)
+            p_base_mul = p_base_mul * A / unsafe_sub(A, 1)
         n += step
 
     self.active_band = n
@@ -748,7 +748,7 @@ def get_xy_up(user: address, use_y: bool) -> uint256:
         n += 1
         if n > ns[1]:
             break
-        p_o_up = p_o_up * (A - 1) / A
+        p_o_up = unsafe_div(p_o_up * unsafe_sub(A, 1), A)
         total_share: uint256 = self.total_shares[n]
         user_share: uint256 = ticks[i]
 
@@ -770,7 +770,7 @@ def get_xy_up(user: address, use_y: bool) -> uint256:
 
         y0: uint256 = self._get_y0(x, y, p_o, p_o_up, A)
         f: uint256 = A * y0 * p_o / p_o_up * p_o / 10**18
-        g: uint256 = (A - 1) * y0 * p_o_up / p_o
+        g: uint256 = unsafe_sub(A, 1) * y0 * p_o_up / p_o
         # (f + x)(g + y) = const = p_top * A**2 * y0**2 = I
         Inv: uint256 = (f + x) * (g + y)
         # p = (f + x) / (g + y) => p * (g + y)**2 = I or (f + x)**2 / p = I
@@ -803,7 +803,7 @@ def get_xy_up(user: address, use_y: bool) -> uint256:
                     # in-band: we can reach p_o
             else:  # y_o == 0 -> x_o is the edge of the band
                 x_o = Inv / g - f
-                p_o_use = p_o_up * (A - 1) / A
+                p_o_use = unsafe_div(p_o_up * unsafe_sub(A, 1), A)
         else:
             if x_o > 0:
                 y_o = Inv / (f + y_o)
@@ -829,9 +829,9 @@ def get_xy_up(user: address, use_y: bool) -> uint256:
                 XY += (x_o + y_o * self.sqrt_int(p_o_up * p_o_use / 10**18) / 10**18) * user_share / total_share
 
     if use_y:
-        return XY / self.collateral_precision
+        return unsafe_div(XY, self.collateral_precision)
     else:
-        return XY / BORROWED_PRECISION
+        return unsafe_div(XY, BORROWED_PRECISION)
 
 
 @external
@@ -860,7 +860,72 @@ def get_sum_xy(user: address) -> uint256[2]:
         if ns[0] == ns[1]:
             break
         ns[0] += 1
-    return [x / BORROWED_PRECISION, y / self.collateral_precision]
+    return [unsafe_div(x, BORROWED_PRECISION), unsafe_div(y, self.collateral_precision)]
+
+
+@external
+@view
+def get_amount_for_price(p: uint256) -> (uint256, bool):
+    """
+    Amount necessary to be exchange to have the AMM at the final price p
+    :returns: amount, is_pump
+    """
+    n: int256 = self.active_band
+    A: uint256 = self.A
+    Aneg1: uint256 = unsafe_sub(A, 1)
+    A2: uint256 = pow_mod256(A, 2)
+    Aneg12: uint256 = pow_mod256(Aneg1, 2)
+    x: uint256 = self.bands_x[n]
+    y: uint256 = self.bands_y[n]
+    p_up: uint256 = self._p_current_band(n, True)  # p_current_up
+    p_down: uint256 = unsafe_div(p_up * Aneg12, A2)     # p_current_down
+    p_o_up: uint256 = unsafe_div(self._base_price() * self.p_base_mul, 10**18)
+    p_o: uint256 = self.price_oracle_contract.price()
+    pump: bool = True
+    if p < self._get_p(n, x, y):
+        pump = False
+    amount: uint256 = 0
+
+    for i in range(100):
+        y0: uint256 = self._get_y0(x, y, p_o, p_o_up, A)
+        f: uint256 = unsafe_div(A * y0 * p_o / p_o_up * p_o, 10**18)
+        g: uint256 = unsafe_div(Aneg1 * y0 * p_o_up, p_o)
+        Inv: uint256 = (f + x) * (g + y)
+
+        if p <= p_up and p >= p_down:
+            if x > 0 and y > 0:
+                ynew: uint256 = unsafe_sub(max(self.sqrt_int(Inv / p_o), g), g)
+                xnew: uint256 = unsafe_sub(max(Inv / (g + y), f), f)
+                if pump:
+                    amount += xnew - x
+                else:
+                    amount += ynew - y
+            break
+
+        if pump:
+            amount += (Inv / g - f) - x
+            n += 1
+            p_down = p_up
+            p_up = unsafe_div(p_up * A2, Aneg12)
+            p_o_up = unsafe_div(p_o_up * Aneg1, A)
+
+        else:
+            amount += (Inv / f - g) - y
+            n -= 1
+            p_up = p_down
+            p_down = unsafe_div(p_down * Aneg12, A2)
+            p_o_up = unsafe_div(p_o_up * A, Aneg1)
+
+        x = self.bands_x[n]
+        y = self.bands_y[n]
+
+    amount = amount * 10**18 / unsafe_sub(10**18, self.fee)
+    if pump:
+        amount = unsafe_div(amount, BORROWED_PRECISION)
+    else:
+        amount = unsafe_div(amount, self.collateral_precision)
+
+    return amount, pump
 
 
 @external
