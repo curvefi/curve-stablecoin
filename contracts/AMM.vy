@@ -885,8 +885,8 @@ def get_amount_for_price(p: uint256) -> (uint256, bool):
 
         if p <= p_up and p >= p_down:
             if not_empty:
-                ynew: uint256 = unsafe_sub(max(self.sqrt_int(Inv / p_o), g), g)
-                xnew: uint256 = unsafe_sub(max(Inv / (g + y), f), f)
+                ynew: uint256 = unsafe_sub(max(self.sqrt_int(Inv / p), g), g)
+                xnew: uint256 = unsafe_sub(max(Inv / (g + ynew), f), f)
                 if pump:
                     amount += xnew - x
                 else:
@@ -913,10 +913,14 @@ def get_amount_for_price(p: uint256) -> (uint256, bool):
         y = self.bands_y[n]
 
     amount = amount * 10**18 / unsafe_sub(10**18, self.fee)
+    if amount == 0:
+        return 0, pump
+
+    # Precision and round up
     if pump:
-        amount = unsafe_div(amount, BORROWED_PRECISION)
+        amount = unsafe_add(unsafe_div(unsafe_sub(amount, 1), BORROWED_PRECISION), 1)
     else:
-        amount = unsafe_div(amount, self.collateral_precision)
+        amount = unsafe_add(unsafe_div(unsafe_sub(amount, 1), self.collateral_precision), 1)
 
     return amount, pump
 
