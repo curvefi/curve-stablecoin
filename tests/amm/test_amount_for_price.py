@@ -50,11 +50,12 @@ def test_amount_for_price(PriceOracle, amm, accounts, collateral_token, borrowed
     prec = max(1e-6, (amm.fee() / 1e18)**2)
     if amount > 0:
         if is_pump:
-            prec = max(dn / amount + dn / (1e12 * amount * 1e18 / p_max), prec)
+            prec = max(2 / amount + 2 / (1e12 * amount * 1e18 / p_max), prec)
         else:
-            prec = max(dn / amount + dn / (amount * p_max / 1e18 / 1e12), prec)
+            prec = max(2 / amount + 2 / (amount * p_max / 1e18 / 1e12), prec)
     else:
         return
 
     if p > p_min * (1 + prec) and p < p_max * (1 - prec) and abs(amm.active_band() - n0) < 50 - 1:
-        assert approx(p, p_final, prec)
+        if prec < 0.1:
+            assert approx(p, p_final, prec)
