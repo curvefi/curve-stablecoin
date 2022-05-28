@@ -870,15 +870,21 @@ def get_amount_for_price(p: uint256) -> (uint256, bool):
     if p < self._get_p(n, x, y):
         pump = False
     amount: uint256 = 0
+    y0: uint256 = 0
+    f: uint256 = 0
+    g: uint256 = 0
+    Inv: uint256 = 0
 
     for i in range(100):
-        y0: uint256 = self._get_y0(x, y, p_o, p_o_up, A)
-        f: uint256 = unsafe_div(A * y0 * p_o / p_o_up * p_o, 10**18)
-        g: uint256 = unsafe_div(Aneg1 * y0 * p_o_up, p_o)
-        Inv: uint256 = (f + x) * (g + y)
+        not_empty: bool = x > 0 or y > 0
+        if not_empty:
+            y0 = self._get_y0(x, y, p_o, p_o_up, A)
+            f = unsafe_div(A * y0 * p_o / p_o_up * p_o, 10**18)
+            g = unsafe_div(Aneg1 * y0 * p_o_up, p_o)
+            Inv = (f + x) * (g + y)
 
         if p <= p_up and p >= p_down:
-            if x > 0 and y > 0:
+            if not_empty:
                 ynew: uint256 = unsafe_sub(max(self.sqrt_int(Inv / p_o), g), g)
                 xnew: uint256 = unsafe_sub(max(Inv / (g + y), f), f)
                 if pump:
@@ -888,14 +894,16 @@ def get_amount_for_price(p: uint256) -> (uint256, bool):
             break
 
         if pump:
-            amount += (Inv / g - f) - x
+            if not_empty:
+                amount += (Inv / g - f) - x
             n += 1
             p_down = p_up
             p_up = unsafe_div(p_up * A2, Aneg12)
             p_o_up = unsafe_div(p_o_up * Aneg1, A)
 
         else:
-            amount += (Inv / f - g) - y
+            if not_empty:
+                amount += (Inv / f - g) - y
             n -= 1
             p_up = p_down
             p_down = unsafe_div(p_down * Aneg12, A2)
