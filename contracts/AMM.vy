@@ -779,40 +779,25 @@ def get_xy_up(user: address, use_y: bool) -> uint256:
         x_o: uint256 = 0
         y_o: uint256 = 0
         if use_y:
-            y_o = self.sqrt_int(Inv / p_o)
-            if y_o < g:
-                y_o = 0  # Everything is in x - need to recalc obtainable y
-            else:
-                y_o -= g  # Part or everything is in y
+            y_o = max(self.sqrt_int(Inv / p_o), g) - g
         else:
-            x_o = self.sqrt_int(Inv /10**18 * p_o / 10**18)
-            if x_o < f:
-                x_o = 0  # Everything is in y - need to recalc obtainable x
-            else:
-                x_o -= f  # Part or everything is (already) in x
+            x_o = max(self.sqrt_int(Inv /10**18 * p_o / 10**18), f) - f
         p_o_use: uint256 = p_o
         if use_y:
             if y_o > 0: # y_o > 0 - can be in-band or the edge of the band
-                x_o = Inv / (g + y_o)
-                if x_o < f:  # Edge of the band
-                    x_o = 0
+                x_o = max(Inv / (g + y_o), f) - f
+                if x_o == 0:  # Edge of the band
                     y_o = Inv / f - g
                     # p_o_use = p_o_up but it is not used
-                else:
-                    x_o -= f
-                    # in-band: we can reach p_o
             else:  # y_o == 0 -> x_o is the edge of the band
                 x_o = Inv / g - f
                 p_o_use = unsafe_div(p_o_up * unsafe_sub(A, 1), A)
         else:
             if x_o > 0:
-                y_o = Inv / (f + y_o)
-                if y_o < g:  # Edge of band
-                    y_o = 0
+                y_o = max(Inv / (f + y_o), g) - g
+                if y_o == 0:  # Edge of band
                     x_o = Inv / g - f
                     # p_o_use = p_o_up * (A - 1) / A but it is not used
-                else:  # In-band
-                    y_o -= g
             else:  # x_o == 0 -> y_o is on the edge of the band
                 y_o = Inv / f - g
                 p_o_use = p_o_up
