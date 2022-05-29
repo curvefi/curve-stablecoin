@@ -210,6 +210,7 @@ def total_debt() -> uint256:
 @view
 def _calculate_debt_n1(collateral: uint256, debt: uint256, N: uint256) -> int256:
     assert debt > 0, "No loan"
+    _debt: uint256 = unsafe_add(unsafe_mul(debt, STABLECOIN_PRECISION), 1)
     _collateral: uint256 = unsafe_mul(collateral, self.collateral_precision)
     amm: AMM = self.amm
     # p0: uint256 = amm.p_current_down(n0)
@@ -231,12 +232,12 @@ def _calculate_debt_n1(collateral: uint256, debt: uint256, N: uint256) -> int256
         y_effective = unsafe_add(y_effective, d_y_effective)
     # p_oracle_up(n1) = base_price * ((A - 1) / A)**n1
 
-    y_effective = y_effective * p_base / (debt + 1)  # Now it's a ratio
+    y_effective = y_effective * p_base / _debt  # Now it's a ratio
     assert y_effective > 10**18, "Debt too high"  # XXX not needed - automatically satisfied
     n1: int256 = convert(self.log2(y_effective) / self.logAratio, int256)
     n1 = min(n1, 1024 - convert(N, int256))  # debt is too small but we still want to borrow
     assert n1 > 0, "Debt too high"
-    assert _collateral * loan_discount / 10**18 * amm.p_current_down(n0) / 10**18 >= unsafe_add(debt, 1), "Debt too high"
+    assert _collateral * loan_discount / 10**18 * amm.p_current_down(n0) / 10**18 >= _debt, "Debt too high"
 
     return n1 + n0
 
