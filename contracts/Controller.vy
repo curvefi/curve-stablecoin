@@ -233,7 +233,6 @@ def _calculate_debt_n1(collateral: uint256, debt: uint256, N: uint256) -> int256
     # p_oracle_up(n1) = base_price * ((A - 1) / A)**n1
 
     y_effective = y_effective * p_base / _debt  # Now it's a ratio
-    assert y_effective > 10**18, "Debt too high"  # XXX not needed - automatically satisfied
     n1: int256 = convert(self.log2(y_effective) / self.logAratio, int256)
     n1 = min(n1, 1024 - convert(N, int256))  # debt is too small but we still want to borrow
     assert n1 > 0, "Debt too high"
