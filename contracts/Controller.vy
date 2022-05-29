@@ -244,7 +244,7 @@ def _calculate_debt_n1(collateral: uint256, debt: uint256, N: uint256) -> int256
 @external
 @view
 def max_borrowable(collateral: uint256, N: uint256) -> uint256:
-    _collateral: uint256 = unsafe_mul(collateral, self.collateral_precision)  # XXX test all other places for precision
+    _collateral: uint256 = unsafe_mul(collateral, self.collateral_precision)
     amm: AMM = self.amm
     n0: int256 = amm.active_band()
     p_base: uint256 = amm.get_base_price() * amm.p_base_mul() / 10**18

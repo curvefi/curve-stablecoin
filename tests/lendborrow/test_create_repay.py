@@ -1,5 +1,6 @@
 import brownie
 import pytest
+from brownie.test import given, strategy
 from ..conftest import approx
 
 
@@ -44,6 +45,17 @@ def test_create_loan(stablecoin, collateral_token, market_controller, market_amm
 
     h = market_controller.health(user, True) / 1e18 + 0.02
     assert approx(h, c_amount * 3000 / l_amount - 1, 0.02)
+
+
+@given(
+    collateral_amount=strategy('uint256', min_value=10**9, max_value=10**20),
+    n=strategy('uint256', min_value=5, max_value=50),
+)
+def test_max_borrowable(market_controller, accounts, collateral_amount, n):
+    max_borrowable = market_controller.max_borrowable(collateral_amount, n)
+    with brownie.reverts('Debt too high'):
+        market_controller.calculate_debt_n1(collateral_amount, int(max_borrowable * 1.001), n)
+    market_controller.calculate_debt_n1(collateral_amount, max_borrowable, n)
 
 
 @pytest.fixture(scope="function", autouse=False)
