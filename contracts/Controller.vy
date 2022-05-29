@@ -22,12 +22,14 @@ interface AMM:
     def set_fee(fee: uint256): nonpayable
     def price_oracle() -> uint256: view
     def sqrt_band_ratio() -> uint256: view
+    def collateral_precision() -> uint256: view
 
 interface ERC20:
     def totalSupply() -> uint256: view
     def mint(_to: address, _value: uint256) -> bool: nonpayable
     def burnFrom(_to: address, _value: uint256) -> bool: nonpayable
     def transferFrom(_from: address, _to: address, _value: uint256) -> bool: nonpayable
+    def decimals() -> uint256: view
 
 interface MonetaryPolicy:
     def rate_write() -> int256: nonpayable
@@ -70,6 +72,7 @@ struct Loan:
 
 FACTORY: immutable(Factory)
 STABLECOIN: immutable(ERC20)
+STABLECOIN_PRECISION: immutable(uint256)
 MIN_LIQUIDATION_DISCOUNT: constant(uint256) = 10**16 # Start liquidating when threshold reached
 MAX_TICKS: constant(int256) = 50
 MAX_TICKS_UINT: constant(uint256) = 50
@@ -83,6 +86,7 @@ _total_debt: Loan
 
 amm: public(AMM)
 collateral_token: public(ERC20)
+collateral_precision: uint256
 monetary_policy: public(MonetaryPolicy)
 liquidation_discount: public(uint256)
 loan_discount: public(uint256)
@@ -95,7 +99,9 @@ logAratio: public(uint256)  # log(A / (A - 1))  XXX remove pub
 @external
 def __init__(factory: address):
     FACTORY = Factory(factory)
-    STABLECOIN = ERC20(Factory(factory).stablecoin())
+    stablecoin: ERC20 = ERC20(Factory(factory).stablecoin())
+    STABLECOIN = stablecoin
+    STABLECOIN_PRECISION = 10 ** (18 - stablecoin.decimals())
 
 
 @internal
@@ -145,6 +151,7 @@ def initialize(
     A: uint256 = AMM(amm).A()
     self.A = A
     self.logAratio = self.log2(A * 10**18 / (A - 1))
+    self.collateral_precision = AMM(amm).collateral_precision()
 
 
 @external
@@ -203,6 +210,7 @@ def total_debt() -> uint256:
 @view
 def _calculate_debt_n1(collateral: uint256, debt: uint256, N: uint256) -> int256:
     assert debt > 0, "No loan"
+    _collateral: uint256 = unsafe_mul(collateral, self.collateral_precision)
     amm: AMM = self.amm
     # p0: uint256 = amm.p_current_down(n0)
     n0: int256 = amm.active_band()
@@ -212,7 +220,7 @@ def _calculate_debt_n1(collateral: uint256, debt: uint256, N: uint256) -> int256
     # x_effective = y / N * p_oracle_up(n1) * sqrt((A - 1) / A) * sum_{0..N-1}(((A-1) / A)**k)
     # === y_effective * p_oracle_up(n1)
     A: uint256 = self.A
-    d_y_effective: uint256 = collateral * loan_discount / amm.sqrt_band_ratio() / N
+    d_y_effective: uint256 = _collateral * loan_discount / amm.sqrt_band_ratio() / N
     y_effective: uint256 = d_y_effective
     for i in range(1, MAX_TICKS_UINT):
         if i == N:
@@ -224,13 +232,35 @@ def _calculate_debt_n1(collateral: uint256, debt: uint256, N: uint256) -> int256
     # p_oracle_up(n1) = base_price * ((A - 1) / A)**n1
 
     y_effective = y_effective * p_base / (debt + 1)  # Now it's a ratio
-    assert y_effective > 10**18, "Debt too high"
+    assert y_effective > 10**18, "Debt too high"  # XXX not needed - automatically satisfied
     n1: int256 = convert(self.log2(y_effective) / self.logAratio, int256)
     n1 = min(n1, 1024 - convert(N, int256))  # debt is too small but we still want to borrow
     assert n1 > 0, "Debt too high"
-    assert collateral * loan_discount / 10**18 * amm.p_current_down(n0) / 10**18 >= unsafe_add(debt, 1), "Debt too high"
+    assert _collateral * loan_discount / 10**18 * amm.p_current_down(n0) / 10**18 >= unsafe_add(debt, 1), "Debt too high"
 
     return n1 + n0
+
+
+@external
+@view
+def max_borrowable(collateral: uint256, N: uint256) -> uint256:
+    _collateral: uint256 = unsafe_mul(collateral, self.collateral_precision)  # XXX test all other places for precision
+    amm: AMM = self.amm
+    n0: int256 = amm.active_band()
+    p_base: uint256 = amm.get_base_price() * amm.p_base_mul() / 10**18
+    loan_discount: uint256 = 10**18 - self.loan_discount
+    A: uint256 = self.A
+
+    d_y_effective: uint256 = _collateral * loan_discount / amm.sqrt_band_ratio() / N
+    y_effective: uint256 = d_y_effective
+    for i in range(1, MAX_TICKS_UINT):
+        if i == N:
+            break
+        d_y_effective = unsafe_div(unsafe_mul(d_y_effective, unsafe_sub(A, 1)), A)
+        y_effective = unsafe_add(y_effective, d_y_effective)
+
+    x: uint256 = max(y_effective * p_base * unsafe_sub(A, 1) / unsafe_mul(A, 10**18), 1) - 1
+    return unsafe_div(x, STABLECOIN_PRECISION)
 
 
 @external
