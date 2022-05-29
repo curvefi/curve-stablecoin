@@ -260,6 +260,7 @@ def max_borrowable(collateral: uint256, N: uint256) -> uint256:
         y_effective = unsafe_add(y_effective, d_y_effective)
 
     x: uint256 = max(y_effective * p_base * unsafe_sub(A, 1) / unsafe_mul(A, 10**18), 1) - 1
+    x = unsafe_div(x * (10**18 - 10**14), 10**18)  # Make it a bit smaller
     return unsafe_div(x, STABLECOIN_PRECISION)
 
 
