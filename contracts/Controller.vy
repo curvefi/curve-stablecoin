@@ -93,7 +93,7 @@ loan_discount: public(uint256)
 debt_ceiling: public(uint256)
 
 A: uint256
-logAratio: public(uint256)  # log(A / (A - 1))  XXX remove pub
+logAratio: uint256  # log(A / (A - 1))
 
 
 @external
