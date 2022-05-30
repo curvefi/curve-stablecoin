@@ -21,7 +21,7 @@ def test_log2(optimized_math, x):
         y = 0
 
     assert y1 == y2
-    assert abs(y2 / 1e18 - y) <= max(1e-10, 1e-10 * y)
+    assert abs(y2 / 1e18 - y) <= max(1e-9, 1e-9 * y)
 
 
 @given(strategy('uint256'))
