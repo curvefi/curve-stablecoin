@@ -98,18 +98,18 @@ def sqrt_int(x: uint256) -> uint256:
     """
     Originating from: https://github.com/vyperlang/vyper/issues/1266
     """
-
+    assert x < MAX_UINT256 / 10**18 + 1
     if x == 0:
         return 0
 
-    z: uint256 = (x + 10**18) / 2
+    z: uint256 = shift(unsafe_add(x, 10**18), -1)
     y: uint256 = x
 
     for i in range(256):
         if z == y:
             return y
         y = z
-        z = (x * 10**18 / z + z) / 2
+        z = shift(unsafe_add(unsafe_div(unsafe_mul(x, 10**18), z), z), -1)
 
     raise "Did not converge"
 # End of low-level math
