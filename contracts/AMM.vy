@@ -265,9 +265,17 @@ def p_oracle_down(n: int256) -> uint256:
 def _get_y0(x: uint256, y: uint256, p_o: uint256, p_o_up: uint256, A: uint256) -> uint256:
     # solve:
     # p_o * A * y0**2 - y0 * (p_oracle_up/p_o * (A-1) * x + p_o**2/p_oracle_up * A * y) - xy = 0
-    b: uint256 = p_o_up * unsafe_sub(A, 1) * x / p_o + A * p_o**2 / p_o_up * y / 10**18
-    D: uint256 = b**2 + (4 * A) * p_o * y / 10**18 * x
-    return (b + self.sqrt_int(D / 10**18)) * 10**18 / ((2 * A) * p_o)
+    b: uint256 = 0
+    # p_o_up * unsafe_sub(A, 1) * x / p_o + A * p_o**2 / p_o_up * y / 10**18
+    if x > 0:
+        b += p_o_up * unsafe_sub(A, 1) * x / p_o
+    if y > 0:
+        b += A * p_o**2 / p_o_up * y / 10**18
+    if x > 0 and y > 0:
+        D: uint256 = b**2 + (4 * A) * p_o * y / 10**18 * x
+        return (b + self.sqrt_int(D / 10**18)) * 10**18 / ((2 * A) * p_o)
+    else:
+        return b * 10**18 / (A * p_o)
 
 
 @external
