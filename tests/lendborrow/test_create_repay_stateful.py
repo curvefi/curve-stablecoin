@@ -8,8 +8,8 @@ from brownie.test import strategy
 
 class StatefulLendBorrow:
     n = strategy('int256', min_value=5, max_value=50)
-    amount = strategy('uint256', max_value=2 * 10**6 * 10**18)
-    c_amount = strategy('uint256', max_value=10**9 * 10**18 // 3000)
+    amount = strategy('uint256')
+    c_amount = strategy('uint256')
     user = strategy('address')
 
     def __init__(self, amm, controller, collateral_token, borrowed_token, accounts):
@@ -117,4 +117,10 @@ class StatefulLendBorrow:
 
 def test_stateful_lendborrow(market_amm, market_controller, collateral_token, stablecoin, accounts, state_machine):
     state_machine(StatefulLendBorrow, market_amm, market_controller, collateral_token, stablecoin, accounts,
-                  settings={'max_examples': 100, 'stateful_step_count': 20})
+                  settings={'max_examples': 10, 'stateful_step_count': 20})
+
+
+def test_bad_health_underflow(market_amm, market_controller, collateral_token, stablecoin, accounts, state_machine):
+    state = StatefulLendBorrow(market_amm, market_controller, collateral_token, stablecoin, accounts)
+    state.rule_create_loan(amount=1, c_amount=21, n=6, user=accounts[0])
+    state.invariant_health()
