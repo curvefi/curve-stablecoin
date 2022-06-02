@@ -10,7 +10,7 @@ class StatefulLendBorrow:
     n = strategy('int256', min_value=5, max_value=50)
     amount = strategy('uint256', max_value=2 * 10**6 * 10**18)
     c_amount = strategy('uint256', max_value=10**9 * 10**18 // 3000)
-    user_id = strategy('uint256', min_value=1, max_value=5)
+    user = strategy('address')
 
     def __init__(self, amm, controller, collateral_token, borrowed_token, accounts):
         self.amm = amm
@@ -19,12 +19,11 @@ class StatefulLendBorrow:
         self.stablecoin = borrowed_token
         self.accounts = accounts
         self.debt_ceiling = self.controller.debt_ceiling()
-        for u in accounts[1:6]:
+        for u in accounts:
             collateral_token.approve(controller, 2**256-1, {'from': u})
             borrowed_token.approve(controller, 2**256-1, {'from': u})
 
-    def rule_create_loan(self, c_amount, amount, n, user_id):
-        user = self.accounts[user_id]
+    def rule_create_loan(self, c_amount, amount, n, user):
         if self.controller.loan_exists(user):
             with brownie.reverts('Loan already created'):
                 self.controller.create_loan(c_amount, amount, n, {'from': user})
@@ -58,16 +57,14 @@ class StatefulLendBorrow:
             if str(e).startswith('revert: Amount too low'):
                 assert c_amount < 10**6
 
-    def rule_repay(self, amount, user_id):
-        user = self.accounts[user_id]
+    def rule_repay(self, amount, user):
         if not self.controller.loan_exists(user):
             with brownie.reverts("Loan doesn't exist"):
                 self.controller.repay(amount, user, {'from': user})
             return
         self.controller.repay(amount, user, {'from': user})
 
-    def rule_add_collateral(self, c_amount, user_id):
-        user = self.accounts[user_id]
+    def rule_add_collateral(self, c_amount, user):
         self.collateral._mint_for_testing(user, c_amount, {'from': user})
         if not self.controller.loan_exists(user):
             with brownie.reverts("Loan doesn't exist"):
@@ -75,8 +72,7 @@ class StatefulLendBorrow:
             return
         self.controller.add_collateral(c_amount, user, {'from': user})
 
-    def rule_borrow_more(self, c_amount, amount, user_id):
-        user = self.accounts[user_id]
+    def rule_borrow_more(self, c_amount, amount, user):
         self.collateral._mint_for_testing(user, c_amount, {'from': user})
         if not self.controller.loan_exists(user):
             with brownie.reverts("Loan doesn't exist"):
@@ -111,10 +107,10 @@ class StatefulLendBorrow:
         assert self.controller.total_debt() == self.stablecoin.totalSupply()
 
     def invariant_sum_of_debts(self):
-        assert sum(self.controller.debt(u) for u in self.accounts[1:6]) == self.controller.total_debt()
+        assert sum(self.controller.debt(u) for u in self.accounts) == self.controller.total_debt()
 
     def invariant_health(self):
-        for user in self.accounts[1:6]:
+        for user in self.accounts:
             if self.controller.loan_exists(user):
                 assert self.controller.health(user) > 0
 
