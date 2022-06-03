@@ -280,7 +280,7 @@ def create_loan(collateral: uint256, debt: uint256, n: uint256):
     amm: AMM = self.amm
 
     n1: int256 = self._calculate_debt_n1(collateral, debt, n)
-    n2: int256 = n1 + convert(n, int256)
+    n2: int256 = n1 + convert(n - 1, int256)
 
     rate_mul: uint256 = amm.set_rate(self.monetary_policy.rate_write())
     self.loans[msg.sender] = Loan({initial_debt: debt, rate_mul: rate_mul})
