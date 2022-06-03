@@ -400,9 +400,10 @@ def deposit_range(user: address, amount: uint256, n1: int256, n2: int256, move_c
     if move_coins:
         assert self.collateral_token.transferFrom(user, self, amount)
 
-    band: int256 = min(n1, n2)
-    finish: int256 = max(n1, n2)
-    n_bands: uint256 = convert(finish - band, uint256) + 1
+    band: int256 = max(n1, n2)  # Fill from high N to low N
+    finish: int256 = min(n1, n2)
+    i: uint256 = convert(band - finish, uint256)
+    n_bands: uint256 = i + 1
 
     y: uint256 = amount * collateral_precision / n_bands
     assert y > 0, "Amount too low"
@@ -410,13 +411,13 @@ def deposit_range(user: address, amount: uint256, n1: int256, n2: int256, move_c
     save_n: bool = True
     if self.user_shares[user].ticks[0] != 0:  # Has liquidity
         ns: int256[2] = self._read_user_tick_numbers(user)
-        assert ns[0] == band and ns[1] == finish, "Wrong range"
+        assert ns[0] == finish and ns[1] == band, "Wrong range"
         save_n = False
 
     user_shares: uint256[MAX_TICKS] = empty(uint256[MAX_TICKS])
 
-    for i in range(MAX_TICKS):
-        if band == finish:
+    for j in range(MAX_TICKS):
+        if i == 0:
             # Take the dust in the last band
             # Maybe could give up on this though
             y = amount * collateral_precision - y * (n_bands - 1)
@@ -436,9 +437,10 @@ def deposit_range(user: address, amount: uint256, n1: int256, n2: int256, move_c
             s += ds
         self.total_shares[band] = s
         # End the cycle
-        band += 1
-        if band > finish:
+        band -= 1
+        if i == 0:
             break
+        i -= 1
 
     self.min_band = min(self.min_band, n1)
     self.max_band = max(self.max_band, n2)
