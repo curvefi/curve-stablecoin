@@ -94,8 +94,8 @@ def test_repay_half(stablecoin, collateral_token, market_controller, existing_lo
     market_controller.repay(to_repay, user, {'from': user})
     n_after_0, n_after_1 = market_amm.read_user_tick_numbers(user)
 
-    assert n_before_1 - n_before_0 == 5
-    assert n_after_1 - n_after_0 == 5
+    assert n_before_1 - n_before_0 + 1 == 5
+    assert n_after_1 - n_after_0 + 1 == 5
     assert n_after_0 > n_before_0
 
     assert market_controller.debt(user) == debt - to_repay
@@ -116,8 +116,8 @@ def test_add_collateral(stablecoin, collateral_token, market_controller, existin
     market_controller.add_collateral(c_amount, user, {'from': user})
     n_after_0, n_after_1 = market_amm.read_user_tick_numbers(user)
 
-    assert n_before_1 - n_before_0 == 5
-    assert n_after_1 - n_after_0 == 5
+    assert n_before_1 - n_before_0 + 1 == 5
+    assert n_after_1 - n_after_0 + 1 == 5
     assert n_after_0 > n_before_0
 
     assert market_controller.debt(user) == debt
@@ -138,8 +138,8 @@ def test_borrow_more(stablecoin, collateral_token, market_controller, existing_l
     market_controller.borrow_more(0, more_debt, {'from': user})
     n_after_0, n_after_1 = market_amm.read_user_tick_numbers(user)
 
-    assert n_before_1 - n_before_0 == 5
-    assert n_after_1 - n_after_0 == 5
+    assert n_before_1 - n_before_0 + 1 == 5
+    assert n_after_1 - n_after_0 + 1 == 5
     assert n_after_0 < n_before_0
 
     assert market_controller.debt(user) == debt + more_debt

@@ -40,8 +40,15 @@ class StatefulLendBorrow:
             return
 
         if self.controller.total_debt() + amount > self.debt_ceiling:
-            with brownie.reverts('Debt ceiling'):
-                self.controller.create_loan(c_amount, amount, n, {'from': user})
+            if (
+                    (self.controller.total_debt() + amount) * self.amm.rate_mul() > 2**256 - 1
+                    or c_amount * self.amm.get_p() > 2**256 - 1
+            ):
+                with brownie.reverts():
+                    self.controller.create_loan(c_amount, amount, n, {'from': user})
+            else:
+                with brownie.reverts('Debt ceiling'):
+                    self.controller.create_loan(c_amount, amount, n, {'from': user})
             return
 
         if amount == 0:
@@ -50,7 +57,11 @@ class StatefulLendBorrow:
                 # It's actually division by zero which happens
             return
 
-        self.collateral._mint_for_testing(user, c_amount, {'from': user})
+        try:
+            self.collateral._mint_for_testing(user, c_amount, {'from': user})
+        except Exception:
+            return  # Probably overflow
+
         try:
             self.controller.create_loan(c_amount, amount, n, {'from': user})
         except exceptions.VirtualMachineError as e:
@@ -65,7 +76,11 @@ class StatefulLendBorrow:
         self.controller.repay(amount, user, {'from': user})
 
     def rule_add_collateral(self, c_amount, user):
-        self.collateral._mint_for_testing(user, c_amount, {'from': user})
+        try:
+            self.collateral._mint_for_testing(user, c_amount, {'from': user})
+        except Exception:
+            return  # Probably overflow
+
         if not self.controller.loan_exists(user):
             with brownie.reverts("Loan doesn't exist"):
                 self.controller.add_collateral(c_amount, user, {'from': user})
@@ -73,7 +88,11 @@ class StatefulLendBorrow:
         self.controller.add_collateral(c_amount, user, {'from': user})
 
     def rule_borrow_more(self, c_amount, amount, user):
-        self.collateral._mint_for_testing(user, c_amount, {'from': user})
+        try:
+            self.collateral._mint_for_testing(user, c_amount, {'from': user})
+        except Exception:
+            return  # Probably overflow
+
         if not self.controller.loan_exists(user):
             with brownie.reverts("Loan doesn't exist"):
                 self.controller.borrow_more(c_amount, amount, {'from': user})
@@ -84,7 +103,7 @@ class StatefulLendBorrow:
         assert x == 0
         final_collateral = y + c_amount
         n1, n2 = self.amm.read_user_tick_numbers(user)
-        n = n2 - n1
+        n = n2 - n1 + 1
 
         too_high = False
         try:
@@ -97,8 +116,15 @@ class StatefulLendBorrow:
             return
 
         if self.controller.total_debt() + amount > self.debt_ceiling:
-            with brownie.reverts('Debt ceiling'):
-                self.controller.borrow_more(c_amount, amount, {'from': user})
+            if (
+                    (self.controller.total_debt() + amount) * self.amm.rate_mul() > 2**256 - 1
+                    or final_collateral * self.amm.get_p() > 2**256 - 1
+            ):
+                with brownie.reverts():
+                    self.controller.borrow_more(c_amount, amount, {'from': user})
+            else:
+                with brownie.reverts('Debt ceiling'):
+                    self.controller.borrow_more(c_amount, amount, {'from': user})
             return
 
         self.controller.borrow_more(c_amount, amount, {'from': user})
@@ -117,10 +143,17 @@ class StatefulLendBorrow:
 
 def test_stateful_lendborrow(market_amm, market_controller, collateral_token, stablecoin, accounts, state_machine):
     state_machine(StatefulLendBorrow, market_amm, market_controller, collateral_token, stablecoin, accounts,
-                  settings={'max_examples': 10, 'stateful_step_count': 20})
+                  settings={'max_examples': 30, 'stateful_step_count': 10})
 
 
 def test_bad_health_underflow(market_amm, market_controller, collateral_token, stablecoin, accounts, state_machine):
     state = StatefulLendBorrow(market_amm, market_controller, collateral_token, stablecoin, accounts)
     state.rule_create_loan(amount=1, c_amount=21, n=6, user=accounts[0])
     state.invariant_health()
+
+
+def test_overflow(market_amm, market_controller, collateral_token, stablecoin, accounts, state_machine):
+    state = StatefulLendBorrow(market_amm, market_controller, collateral_token, stablecoin, accounts)
+    state.rule_create_loan(
+        amount=407364794483206832621538773467837164307398905518629081113581615337081836,
+        c_amount=41658360764272065869638360137931952069431923873907374062, n=5, user=accounts[0])
