@@ -85,6 +85,12 @@ class StatefulLendBorrow:
             with brownie.reverts("Loan doesn't exist"):
                 self.controller.add_collateral(c_amount, user, {'from': user})
             return
+
+        if (c_amount + self.amm.get_sum_xy(user)[1]) * self.amm.get_p() > 2**256 - 1:
+            with brownie.reverts():
+                self.controller.add_collateral(c_amount, user, {'from': user})
+            return
+
         self.controller.add_collateral(c_amount, user, {'from': user})
 
     def rule_borrow_more(self, c_amount, amount, user):
@@ -116,15 +122,17 @@ class StatefulLendBorrow:
             return
 
         if self.controller.total_debt() + amount > self.debt_ceiling:
-            if (
-                    (self.controller.total_debt() + amount) * self.amm.rate_mul() > 2**256 - 1
-                    or final_collateral * self.amm.get_p() > 2**256 - 1
-            ):
+            if (self.controller.total_debt() + amount) * self.amm.rate_mul() > 2**256 - 1:
                 with brownie.reverts():
                     self.controller.borrow_more(c_amount, amount, {'from': user})
             else:
                 with brownie.reverts('Debt ceiling'):
                     self.controller.borrow_more(c_amount, amount, {'from': user})
+            return
+
+        if final_collateral * self.amm.get_p() > 2**256 - 1:
+            with brownie.reverts():
+                self.controller.borrow_more(c_amount, amount, {'from': user})
             return
 
         self.controller.borrow_more(c_amount, amount, {'from': user})
@@ -143,7 +151,7 @@ class StatefulLendBorrow:
 
 def test_stateful_lendborrow(market_amm, market_controller, collateral_token, stablecoin, accounts, state_machine):
     state_machine(StatefulLendBorrow, market_amm, market_controller, collateral_token, stablecoin, accounts,
-                  settings={'max_examples': 30, 'stateful_step_count': 10})
+                  settings={'max_examples': 50, 'stateful_step_count': 20})
 
 
 def test_bad_health_underflow(market_amm, market_controller, collateral_token, stablecoin, accounts, state_machine):
