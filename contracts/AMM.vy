@@ -65,7 +65,7 @@ sqrt_band_ratio: public(uint256)  # sqrt(A / (A - 1))
 base_price: uint256
 fee: public(uint256)
 admin_fee: public(uint256)
-rate: int256  # Rate can be negative, to support positive-rebase tokens
+rate: public(int256)  # Rate can be negative, to support positive-rebase tokens
 rate_time: uint256
 rate_mul: public(uint256)
 active_band: public(int256)
