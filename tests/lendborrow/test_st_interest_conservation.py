@@ -8,6 +8,7 @@ class StatefulLendBorrow:
     c_amount = strategy('uint256')
     user = strategy('address')
     t = strategy('uint256', max_value=86400 * 365)
+    rate = strategy('uint256', max_value=2**255 - 1)  # Negative is probably not good btw
 
     def __init__(self, chain, amm, controller, monetary_policy, collateral_token, borrowed_token, accounts):
         self.chain = chain
@@ -141,8 +142,11 @@ class StatefulLendBorrow:
     def rule_time_travel(self, t):
         self.chain.sleep(t)
 
+    def rule_change_rate(self, rate):
+        self.monetary_policy.set_rate(rate, {'from': self.accounts[0]})
+
     def invariant_sum_of_debts(self):
-        assert sum(self.controller.debt(u) for u in self.accounts) == self.controller.total_debt()
+        assert abs(sum(self.controller.debt(u) for u in self.accounts) - self.controller.total_debt()) <= len(self.accounts)
 
     def invariant_debt_payable(self):
         tx = self.controller.collect_fees({'from': self.accounts[0]})
@@ -152,4 +156,13 @@ class StatefulLendBorrow:
 
 def test_stateful_lendborrow(chain, market_amm, market_controller, monetary_policy, collateral_token, stablecoin, accounts, state_machine):
     state_machine(StatefulLendBorrow, chain, market_amm, market_controller, monetary_policy, collateral_token, stablecoin, accounts,
-                  settings={'max_examples': 100, 'stateful_step_count': 5})
+                  settings={'max_examples': 100, 'stateful_step_count': 10})
+
+
+def test_rate_too_high(chain, market_amm, market_controller, monetary_policy, collateral_token, stablecoin, accounts, state_machine):
+    state = StatefulLendBorrow(
+        chain, market_amm, market_controller, monetary_policy, collateral_token, stablecoin, accounts)
+    state.rule_change_rate(rate=19298681539552733520784193015473224553355594960504706685844695763378761203935)
+    state.rule_time_travel(100000)
+    # rate clipping
+    state.amm.get_rate_mul()

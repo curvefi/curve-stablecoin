@@ -162,13 +162,18 @@ def factory() -> Factory:
 
 
 @internal
-def _debt(user: address) -> (uint256, uint256):
+def _rate_mul_w(amm: AMM) -> uint256:
     rate: int256 = self.monetary_policy.rate_write()
-    if rate > MAX_RATE:
-        rate = MAX_RATE
     if rate < MIN_RATE:
         rate = MIN_RATE
-    rate_mul: uint256 = self.amm.set_rate(rate)
+    elif rate > MAX_RATE:
+        rate = MAX_RATE
+    return amm.set_rate(rate)
+
+
+@internal
+def _debt(user: address) -> (uint256, uint256):
+    rate_mul: uint256 = self._rate_mul_w(self.amm)
     loan: Loan = self.loans[user]
     if loan.initial_debt == 0:
         return (0, rate_mul)
@@ -282,7 +287,7 @@ def create_loan(collateral: uint256, debt: uint256, n: uint256):
     n1: int256 = self._calculate_debt_n1(collateral, debt, n)
     n2: int256 = n1 + convert(n - 1, int256)
 
-    rate_mul: uint256 = amm.set_rate(self.monetary_policy.rate_write())
+    rate_mul: uint256 = self._rate_mul_w(amm)
     self.loans[msg.sender] = Loan({initial_debt: debt, rate_mul: rate_mul})
     total_debt: uint256 = self._total_debt.initial_debt * rate_mul / self._total_debt.rate_mul + debt
     assert total_debt <= self.debt_ceiling, "Debt ceiling"
@@ -562,7 +567,7 @@ def admin_fees() -> uint256:
 @nonreentrant('lock')
 def collect_fees() -> uint256:
     supply: uint256 = STABLECOIN.totalSupply()
-    rate_mul: uint256 = self.amm.set_rate(self.monetary_policy.rate_write())
+    rate_mul: uint256 = self._rate_mul_w(self.amm)
     loan: Loan = self._total_debt
     loan.initial_debt = loan.initial_debt * rate_mul / loan.rate_mul
     if loan.initial_debt > supply:
