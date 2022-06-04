@@ -32,7 +32,8 @@ def controller_factory(controller_prefactory, amm_impl, controller_impl, stablec
 @pytest.fixture(scope="module", autouse=True)
 def monetary_policy(ConstantMonetaryPolicy, accounts):
     policy = ConstantMonetaryPolicy.deploy(accounts[0], {'from': accounts[0]})
-    policy.set_rate(int(1e18 * 0.04 / 365 / 86400), {'from': accounts[0]})  # 4%
+    # policy.set_rate(int(1e18 * 0.04 / 365 / 86400), {'from': accounts[0]})  # 4%
+    policy.set_rate(0, {'from': accounts[0]})  # 0%
     return policy
 
 

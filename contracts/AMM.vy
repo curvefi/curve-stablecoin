@@ -153,7 +153,7 @@ def price_oracle() -> uint256:
 @internal
 @view
 def _rate_mul() -> uint256:
-    return convert(convert(self.rate_mul, int256) + self.rate * convert(block.timestamp - self.rate_time, int256) / 10**18, uint256)
+    return convert(convert(self.rate_mul, int256) + self.rate * convert(block.timestamp - self.rate_time, int256), uint256)
 
 
 @external
