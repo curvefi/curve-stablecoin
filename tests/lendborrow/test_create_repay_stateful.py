@@ -61,6 +61,11 @@ class StatefulLendBorrow:
         except Exception:
             return  # Probably overflow
 
+        if c_amount**2 >= 2**128:
+            with brownie.reverts():
+                self.controller.create_loan(c_amount, amount, n, {'from': user})
+            return
+
         self.controller.create_loan(c_amount, amount, n, {'from': user})
 
     def rule_repay(self, amount, user):
@@ -160,3 +165,10 @@ def test_overflow(market_amm, market_controller, collateral_token, stablecoin, a
     state.rule_create_loan(
         amount=407364794483206832621538773467837164307398905518629081113581615337081836,
         c_amount=41658360764272065869638360137931952069431923873907374062, n=5, user=accounts[0])
+
+
+def test_health_overflow(market_amm, market_controller, collateral_token, stablecoin, accounts, state_machine):
+    state = StatefulLendBorrow(market_amm, market_controller, collateral_token, stablecoin, accounts)
+    with brownie.reverts():
+        state.rule_create_loan(amount=256, c_amount=2787635851270792912435800128182537894764544, n=5, user=accounts[0])
+    # state.invariant_health()

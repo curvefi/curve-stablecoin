@@ -428,6 +428,7 @@ def deposit_range(user: address, amount: uint256, n1: int256, n2: int256, move_c
         # Total / user share
         s: uint256 = self.total_shares[band]
         if s == 0:
+            assert y < 2**128
             s = y
             user_shares[i] = y
         else:
