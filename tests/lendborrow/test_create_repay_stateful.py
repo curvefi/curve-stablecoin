@@ -2,7 +2,6 @@
 Stateful test to create and repay loans without moving the price oracle
 """
 import brownie
-from brownie import exceptions
 from brownie.test import strategy
 
 
@@ -62,11 +61,7 @@ class StatefulLendBorrow:
         except Exception:
             return  # Probably overflow
 
-        try:
-            self.controller.create_loan(c_amount, amount, n, {'from': user})
-        except exceptions.VirtualMachineError as e:
-            if str(e).startswith('revert: Amount too low'):
-                assert c_amount < 10**6
+        self.controller.create_loan(c_amount, amount, n, {'from': user})
 
     def rule_repay(self, amount, user):
         if not self.controller.loan_exists(user):
