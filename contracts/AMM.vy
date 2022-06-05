@@ -750,6 +750,7 @@ def get_xy_up(user: address, use_y: bool) -> uint256:
     p_o: uint256 = self.price_oracle_contract.price()
 
     n: int256 = ns[0] - 1
+    n_active: int256 = self.active_band
     p_o_up: uint256 = self._p_oracle_band(n, False)
     XY: uint256 = 0
     A: uint256 = self.A
@@ -763,9 +764,13 @@ def get_xy_up(user: address, use_y: bool) -> uint256:
         total_share: uint256 = self.total_shares[n]
         user_share: uint256 = ticks[i]
 
-        x: uint256 = self.bands_x[n]
-        y: uint256 = self.bands_y[n]
-        # XXX can make one 0 when below or above active_band!
+        x: uint256 = 0
+        y: uint256 = 0
+        if n >= n_active:
+            y = self.bands_y[n]
+        if n <= n_active:
+            x = self.bands_x[n]
+
         if x == 0:
             if use_y:
                 XY += y * user_share / total_share
