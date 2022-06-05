@@ -171,3 +171,9 @@ def test_health_overflow(market_amm, market_controller, collateral_token, stable
     state = StatefulLendBorrow(market_amm, market_controller, collateral_token, stablecoin, accounts)
     state.rule_create_loan(amount=256, c_amount=2787635851270792912435800128182537894764544, n=5, user=accounts[0])
     state.invariant_health()
+
+
+def test_health_underflow_2(market_amm, market_controller, collateral_token, stablecoin, accounts, state_machine):
+    state = StatefulLendBorrow(market_amm, market_controller, collateral_token, stablecoin, accounts)
+    state.rule_create_loan(amount=1, c_amount=44, n=6, user=accounts[0])
+    state.invariant_health()
