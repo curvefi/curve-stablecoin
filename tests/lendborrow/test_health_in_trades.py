@@ -7,8 +7,12 @@ class AdiabaticTrader:
     amount_fraction = strategy('uint256', max_value=11 * 10**17)
     is_pump = strategy('bool')
     n = strategy('uint256', min_value=5, max_value=50)
+    t = strategy('uint256', max_value=86400)
+    rate = strategy('uint256', max_value=int(1e18 * 0.2 / 365 / 86400))
 
-    def __init__(self, amm, controller, collateral_token, borrowed_token, oracle, accounts):
+    def __init__(self, chain, amm, controller, monetary_policy, collateral_token, borrowed_token, oracle, accounts):
+        self.chain = chain
+        self.monetary_policy = monetary_policy
         self.amm = amm
         self.controller = controller
         self.collateral = collateral_token
@@ -18,6 +22,7 @@ class AdiabaticTrader:
         for u in accounts[0:2]:
             collateral_token.approve(controller, 2**256-1, {'from': u})
             borrowed_token.approve(controller, 2**256-1, {'from': u})
+        monetary_policy.set_rate(int(1e18 * 0.04 / 365 / 86400), {'from': accounts[0]})
 
     def initialize(self, collateral_amount, n):
         user = self.accounts[0]
@@ -31,6 +36,7 @@ class AdiabaticTrader:
 
     def trade_to_price(self, p):
         user = self.accounts[1]
+        self.controller.collect_fees({'from': user})
         amount, is_pump = self.amm.get_amount_for_price(p)
         if amount > 0:
             if is_pump:
@@ -55,10 +61,16 @@ class AdiabaticTrader:
             self.collateral._mint_for_testing(user, amount)
             self.amm.exchange(1, 0, amount, 0, {'from': user})
 
+    def rule_time_travel(self, t):
+        self.chain.sleep(t)
+
+    def rule_change_rate(self, rate):
+        self.monetary_policy.set_rate(rate, {'from': self.accounts[0]})
+
     def invariant_health(self):
         assert self.controller.health(self.accounts[0]) > 0
 
 
-def test_adiabatic_follow(market_amm, market_controller, collateral_token, stablecoin, PriceOracle, accounts, state_machine):
-    state_machine(AdiabaticTrader, market_amm, market_controller, collateral_token, stablecoin, PriceOracle, accounts,
-                  settings={'max_examples': 20, 'stateful_step_count': 100})
+def test_adiabatic_follow(chain, market_amm, market_controller, monetary_policy, collateral_token, stablecoin, PriceOracle, accounts, state_machine):
+    state_machine(AdiabaticTrader, chain, market_amm, market_controller, monetary_policy, collateral_token, stablecoin, PriceOracle, accounts,
+                  settings={'max_examples': 50, 'stateful_step_count': 50})
