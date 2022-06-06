@@ -431,7 +431,7 @@ def liquidate(user: address, max_x: uint256):
     assert self._health(amm, user, debt, True) < convert(self.liquidation_discount, int256), "Not enough rekt"
 
     xy: uint256[2] = amm.withdraw(user, ZERO_ADDRESS)  # [stable, collateral]
-    assert xy[0] >= max_x, "Sandwich"
+    assert xy[0] <= max_x, "Sandwich"
     if xy[0] < debt:
         STABLECOIN.burnFrom(amm.address, xy[0])
         xy[0] = 0
@@ -441,9 +441,9 @@ def liquidate(user: address, max_x: uint256):
 
     self.loans[user] = Loan({initial_debt: 0, rate_mul: rate_mul})
     if xy[0] > 0:
-        amm.rugpull(STABLECOIN.address, msg.sender, unsafe_div(xy[0], STABLECOIN_PRECISION))
+        amm.rugpull(STABLECOIN.address, msg.sender, xy[0])
     if xy[1] > 0:
-        amm.rugpull(self.collateral_token.address, msg.sender, unsafe_div(xy[1], self.collateral_precision))
+        amm.rugpull(self.collateral_token.address, msg.sender, xy[1])
 
     log UserState(user, 0, 0, 0, 0)
     log Repay(user, xy[1], debt)
@@ -459,50 +459,30 @@ def self_liquidate(max_x: uint256):
     rate_mul: uint256 = 0
     debt, rate_mul = self._debt(msg.sender)
     amm: AMM = self.amm
-    assert self._health(amm, msg.sender, debt, False) >= convert(self.liquidation_discount, int256), "Too rekt"
 
     # Send all the sender's stablecoin and collateral to our contract
     xy: uint256[2] = amm.withdraw(msg.sender, ZERO_ADDRESS)  # [stable, collateral]
-    assert xy[0] >= max_x, "Sandwich"
+    assert xy[0] <= max_x, "Sandwich"
 
-    if xy[0] < debt:
-        # Partial liquidation:
-        # Burn the part to liquidate and decrease the debt
-        # Keep the rest of the debt but redeposit
-        STABLECOIN.burnFrom(amm.address, xy[0])
-
-        ns: int256[2] = amm.read_user_tick_numbers(msg.sender)
-        size: uint256 = convert(ns[1] - ns[0], uint256)
-        debt -= xy[0]
-        n1: int256 = self._calculate_debt_n1(xy[1], debt, size)
-        assert n1 > amm.active_band(), "Not enough collateral"
-        n2: int256 = n1 + ns[1] - ns[0]
-
-        amm.deposit_range(msg.sender, xy[1], n1, n2, False)
-        self.loans[msg.sender] = Loan({initial_debt: debt, rate_mul: rate_mul})
-        log UserState(msg.sender, xy[1], debt, n1, n2)
-        log Repay(msg.sender, 0, xy[0])
-
-    else:
-        # Full liquidation
-        # burn what has to be burned and returned the assets
-        STABLECOIN.burnFrom(amm.address, debt)
-        if xy[0] > debt:
-            amm.rugpull(STABLECOIN.address, msg.sender, unsafe_div(xy[0] - debt, STABLECOIN_PRECISION))
-        amm.rugpull(self.collateral_token.address, msg.sender, unsafe_div(xy[1], self.collateral_precision))
-        self.loans[msg.sender] = Loan({initial_debt: 0, rate_mul: rate_mul})
-        log UserState(msg.sender, 0, 0, 0, 0)
-        log Repay(msg.sender, xy[1], debt)
-        xy[0] = debt
-
-    # Total debt reduced by xy[0]
     if xy[0] > 0:
-        d: uint256 = self._total_debt.initial_debt * rate_mul / self._total_debt.rate_mul
-        if d <= xy[0]:
-            self._total_debt.initial_debt = 0
-        else:
-            self._total_debt.initial_debt = d - xy[0]
-        self._total_debt.rate_mul = rate_mul
+        STABLECOIN.burnFrom(amm.address, min(xy[0], debt))
+
+    if debt > xy[0]:
+        # Request what's left from user
+        STABLECOIN.burnFrom(msg.sender, debt - xy[0])
+    else:
+        # Return what's left to user
+        amm.rugpull(STABLECOIN.address, msg.sender, xy[0] - debt)
+
+    amm.rugpull(self.collateral_token.address, msg.sender, xy[1])
+
+    self.loans[msg.sender] = Loan({initial_debt: 0, rate_mul: rate_mul})
+    log UserState(msg.sender, 0, 0, 0, 0)
+    log Repay(msg.sender, xy[1], debt)
+
+    d: uint256 = self._total_debt.initial_debt * rate_mul / self._total_debt.rate_mul
+    self._total_debt.initial_debt = max(d, debt) - debt
+    self._total_debt.rate_mul = rate_mul
 
 
 @view
