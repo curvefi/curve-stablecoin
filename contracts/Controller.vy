@@ -393,6 +393,32 @@ def repay(_d_debt: uint256, _for: address):
     self._total_debt.rate_mul = rate_mul
 
 
+@internal
+@view
+def _health(amm: AMM, user: address, debt: uint256, full: bool) -> int256:
+    """
+    Returns position health normalized to 1e18 for the user.
+    Liquidation starts when < 0, however devaluation of collateral doesn't cause liquidation
+    """
+    _debt: int256 = convert(debt, int256)
+    assert debt > 0, "Loan doesn't exist"
+    xmax: int256 = convert(amm.get_x_down(user), int256)
+    ld: int256 = convert(self.liquidation_discount, int256)
+    non_discounted: int256 = xmax * 10**18 / _debt - 10**18
+
+    if full:
+        active_band: int256 = amm.active_band()
+        ns: int256[2] = amm.read_user_tick_numbers(user) # ns[1] > ns[0]
+        if ns[0] > active_band:  # We are not in liquidation mode
+            p: int256 = convert(amm.price_oracle(), int256)
+            p_up: int256 = convert(amm.p_oracle_up(ns[0]), int256)
+            if p > p_up:
+                collateral: int256 = convert(amm.get_y_up(user), int256)
+                non_discounted += (p - p_up) * collateral / _debt
+
+    return non_discounted - xmax * ld / _debt
+
+
 @external
 @nonreentrant('lock')
 def liquidate(user: address, max_x: uint256):
@@ -401,13 +427,8 @@ def liquidate(user: address, max_x: uint256):
     debt: uint256 = 0
     rate_mul: uint256 = 0
     debt, rate_mul = self._debt(user)
-    assert debt > 0, "Loan doesn't exist"
     amm: AMM = self.amm
-    xmax: uint256 = amm.get_x_down(user)
-    assert xmax * (10**18 - self.liquidation_discount) / 10**18 < debt, "Not enough rekt"
-    # XXX maybe only allow to liquidate if
-    # * Current position is underwater with full calc
-    # * Or we are in AMM mode or below AND the currently measured health is too bad
+    assert self._health(amm, user, debt, True) < convert(self.liquidation_discount, int256), "Not enough rekt"
 
     xy: uint256[2] = amm.withdraw(user, ZERO_ADDRESS)  # [stable, collateral]
     assert xy[0] >= max_x, "Sandwich"
@@ -437,10 +458,8 @@ def self_liquidate(max_x: uint256):
     debt: uint256 = 0
     rate_mul: uint256 = 0
     debt, rate_mul = self._debt(msg.sender)
-    assert debt > 0, "Loan doesn't exist"
     amm: AMM = self.amm
-    xmax: uint256 = amm.get_x_down(msg.sender)
-    assert xmax * (10**18 - self.liquidation_discount) / 10**18 >= debt, "Too rekt"
+    assert self._health(amm, msg.sender, debt, False) >= convert(self.liquidation_discount, int256), "Too rekt"
 
     # Send all the sender's stablecoin and collateral to our contract
     xy: uint256[2] = amm.withdraw(msg.sender, ZERO_ADDRESS)  # [stable, collateral]
@@ -493,24 +512,7 @@ def health(user: address, full: bool = False) -> int256:
     Returns position health normalized to 1e18 for the user.
     Liquidation starts when < 0, however devaluation of collateral doesn't cause liquidation
     """
-    debt: int256 = convert(self._debt_ro(user), int256)
-    assert debt > 0, "Loan doesn't exist"
-    amm: AMM = self.amm
-    xmax: int256 = convert(amm.get_x_down(user), int256)
-    ld: int256 = convert(self.liquidation_discount, int256)
-    non_discounted: int256 = xmax * 10**18 / debt - 10**18
-
-    if full:
-        active_band: int256 = amm.active_band()
-        ns: int256[2] = amm.read_user_tick_numbers(user) # ns[1] > ns[0]
-        if ns[0] > active_band:  # We are not in liquidation mode
-            p: int256 = convert(amm.price_oracle(), int256)
-            p_up: int256 = convert(amm.p_oracle_up(ns[0]), int256)
-            if p > p_up:
-                collateral: int256 = convert(amm.get_y_up(user), int256)
-                non_discounted += (p - p_up) * collateral / debt
-
-    return non_discounted - xmax * ld / debt
+    return self._health(self.amm, user, self._debt_ro(user), full)
 
 
 @view
