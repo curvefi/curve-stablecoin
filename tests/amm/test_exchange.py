@@ -1,4 +1,5 @@
 from ..conftest import approx
+import brownie
 from brownie.test import given, strategy
 
 
@@ -50,7 +51,11 @@ def test_exchange_down_up(amm, amounts, accounts, ns, dns, amount,
     for user, amount, n1, dn in zip(accounts[1:6], amounts, ns, dns):
         n2 = n1 + dn
         collateral_token._mint_for_testing(user, amount)
-        amm.deposit_range(user, amount, n1, n2, True, {'from': admin})
+        if amount // (dn + 1) <= 100:
+            with brownie.reverts("Amount too low"):
+                amm.deposit_range(user, amount, n1, n2, True, {'from': admin})
+        else:
+            amm.deposit_range(user, amount, n1, n2, True, {'from': admin})
 
     dx, dy = amm.get_dxdy(0, 1, amount)
     assert dx <= amount

@@ -406,7 +406,7 @@ def deposit_range(user: address, amount: uint256, n1: int256, n2: int256, move_c
     n_bands: uint256 = i + 1
 
     y: uint256 = amount * collateral_precision / n_bands
-    assert y > 0, "Amount too low"
+    assert y > 100, "Amount too low"
 
     save_n: bool = True
     if self.user_shares[user].ticks[0] != 0:  # Has liquidity

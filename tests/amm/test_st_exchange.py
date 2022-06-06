@@ -24,7 +24,7 @@ class StatefulExchange:
                 self.amm.deposit_range(user, amount, n1, n2, True, {'from': self.admin})
             except Exception as e:
                 if 'Amount too low' in str(e):
-                    assert amount // (dn + 1) == 0
+                    assert amount // (dn + 1) <= 100
                 else:
                     raise
         self.total_deposited = sum(self.amm.bands_y(n) for n in range(42))
@@ -74,13 +74,3 @@ class StatefulExchange:
 
 def test_exchange(accounts, amm, collateral_token, borrowed_token, state_machine):
     state_machine(StatefulExchange, amm, collateral_token, borrowed_token, accounts)
-
-
-def test_y0_rounding_error(accounts, amm, collateral_token, borrowed_token):
-    # Was failing when x == 0 and y == 0 were not handled separately
-    state = StatefulExchange(amm, collateral_token, borrowed_token, accounts)
-    state.initialize(amounts=[0, 1, 2, 0, 0], ns=[1, 1, 1, 1, 1], dns=[0, 0, 1, 0, 0])
-    state.invariant_dy_back()
-    state.rule_exchange(amount=1, pump=True, user_id=0)
-    state.invariant_dy_back()
-    state.teardown()

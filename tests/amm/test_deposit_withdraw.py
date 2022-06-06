@@ -19,7 +19,7 @@ def test_deposit_withdraw(amm, amounts, accounts, ns, dns, collateral_token):
             with brownie.reverts('Deposits should be below current band'):
                 amm.deposit_range(user, amount, n1, n2, True, {'from': admin})
         else:
-            if amount // (dn + 1) == 0:
+            if amount // (dn + 1) <= 100:
                 with brownie.reverts('Amount too low'):
                     amm.deposit_range(user, amount, n1, n2, True, {'from': admin})
             else:
