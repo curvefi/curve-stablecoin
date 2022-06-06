@@ -441,9 +441,9 @@ def liquidate(user: address, max_x: uint256):
 
     self.loans[user] = Loan({initial_debt: 0, rate_mul: rate_mul})
     if xy[0] > 0:
-        amm.rugpull(STABLECOIN.address, msg.sender, xy[0])
+        amm.rugpull(STABLECOIN.address, msg.sender, unsafe_div(xy[0], STABLECOIN_PRECISION))
     if xy[1] > 0:
-        amm.rugpull(self.collateral_token.address, msg.sender, xy[1])
+        amm.rugpull(self.collateral_token.address, msg.sender, unsafe_div(xy[1], self.collateral_precision))
 
     log UserState(user, 0, 0, 0, 0)
     log Repay(user, xy[1], debt)
@@ -488,8 +488,8 @@ def self_liquidate(max_x: uint256):
         # burn what has to be burned and returned the assets
         STABLECOIN.burnFrom(amm.address, debt)
         if xy[0] > debt:
-            amm.rugpull(STABLECOIN.address, msg.sender, xy[0] - debt)
-        amm.rugpull(self.collateral_token.address, msg.sender, xy[1])
+            amm.rugpull(STABLECOIN.address, msg.sender, unsafe_div(xy[0] - debt, STABLECOIN_PRECISION))
+        amm.rugpull(self.collateral_token.address, msg.sender, unsafe_div(xy[1], self.collateral_precision))
         self.loans[msg.sender] = Loan({initial_debt: 0, rate_mul: rate_mul})
         log UserState(msg.sender, 0, 0, 0, 0)
         log Repay(msg.sender, xy[1], debt)
