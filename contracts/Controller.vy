@@ -420,7 +420,7 @@ def _health(amm: AMM, user: address, debt: uint256, full: bool) -> int256:
 
 
 @internal
-def _liquidate(user: address, max_x: uint256, health_limit: uint256):
+def _liquidate(user: address, min_x: uint256, health_limit: uint256):
     debt: uint256 = 0
     rate_mul: uint256 = 0
     debt, rate_mul = self._debt(user)
@@ -431,7 +431,10 @@ def _liquidate(user: address, max_x: uint256, health_limit: uint256):
 
     # Send all the sender's stablecoin and collateral to our contract
     xy: uint256[2] = amm.withdraw(user, ZERO_ADDRESS)  # [stable, collateral]
-    assert xy[0] <= max_x, "Sandwich"  # XXX is this correct?
+
+    # x increase in same block -> price up -> good
+    # x decrease in same block -> price down -> bad
+    assert xy[0] >= min_x, "Sandwich"
 
     if xy[0] > 0:
         STABLECOIN.burnFrom(amm.address, min(xy[0], debt))
@@ -457,14 +460,14 @@ def _liquidate(user: address, max_x: uint256, health_limit: uint256):
 
 @external
 @nonreentrant('lock')
-def liquidate(user: address, max_x: uint256):
-    self._liquidate(user, max_x, self.liquidation_discount)
+def liquidate(user: address, min_x: uint256):
+    self._liquidate(user, min_x, self.liquidation_discount)
 
 
 @external
 @nonreentrant('lock')
-def self_liquidate(max_x: uint256):
-    self._liquidate(msg.sender, max_x, 0)
+def self_liquidate(min_x: uint256):
+    self._liquidate(msg.sender, min_x, 0)
 
 
 @view
