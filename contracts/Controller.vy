@@ -405,6 +405,9 @@ def liquidate(user: address, max_x: uint256):
     amm: AMM = self.amm
     xmax: uint256 = amm.get_x_down(user)
     assert xmax * (10**18 - self.liquidation_discount) / 10**18 < debt, "Not enough rekt"
+    # XXX maybe only allow to liquidate if
+    # * Current position is underwater with full calc
+    # * Or we are in AMM mode or below AND the currently measured health is too bad
 
     xy: uint256[2] = amm.withdraw(user, ZERO_ADDRESS)  # [stable, collateral]
     assert xy[0] >= max_x, "Sandwich"
