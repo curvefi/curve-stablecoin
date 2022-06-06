@@ -419,50 +419,19 @@ def _health(amm: AMM, user: address, debt: uint256, full: bool) -> int256:
     return non_discounted - xmax * ld / _debt
 
 
-@external
-@nonreentrant('lock')
-def liquidate(user: address, max_x: uint256):
-    # Take all the fiat in the AMM, up to the debt size, and cancel the debt
-    # Return all funds to the liquidator
+@internal
+def _liquidate(user: address, max_x: uint256, health_limit: uint256):
     debt: uint256 = 0
     rate_mul: uint256 = 0
     debt, rate_mul = self._debt(user)
     amm: AMM = self.amm
-    assert self._health(amm, user, debt, True) < convert(self.liquidation_discount, int256), "Not enough rekt"
 
-    xy: uint256[2] = amm.withdraw(user, ZERO_ADDRESS)  # [stable, collateral]
-    assert xy[0] <= max_x, "Sandwich"
-    if xy[0] < debt:
-        STABLECOIN.burnFrom(amm.address, xy[0])
-        xy[0] = 0
-    else:
-        STABLECOIN.burnFrom(amm.address, debt)
-        xy[0] -= debt
-
-    self.loans[user] = Loan({initial_debt: 0, rate_mul: rate_mul})
-    if xy[0] > 0:
-        amm.rugpull(STABLECOIN.address, msg.sender, xy[0])
-    if xy[1] > 0:
-        amm.rugpull(self.collateral_token.address, msg.sender, xy[1])
-
-    log UserState(user, 0, 0, 0, 0)
-    log Repay(user, xy[1], debt)
-    log Liquidate(msg.sender, user, xy[1], xy[0], debt)
-
-
-@external
-@nonreentrant('lock')
-def self_liquidate(max_x: uint256):
-    # Take all the fiat in the AMM, up to the debt size, and cancel the debt
-    # Don't allow if underwater
-    debt: uint256 = 0
-    rate_mul: uint256 = 0
-    debt, rate_mul = self._debt(msg.sender)
-    amm: AMM = self.amm
+    if health_limit > 0:
+        assert self._health(amm, user, debt, True) < convert(health_limit, int256), "Not enough rekt"
 
     # Send all the sender's stablecoin and collateral to our contract
-    xy: uint256[2] = amm.withdraw(msg.sender, ZERO_ADDRESS)  # [stable, collateral]
-    assert xy[0] <= max_x, "Sandwich"
+    xy: uint256[2] = amm.withdraw(user, ZERO_ADDRESS)  # [stable, collateral]
+    assert xy[0] <= max_x, "Sandwich"  # XXX is this correct?
 
     if xy[0] > 0:
         STABLECOIN.burnFrom(amm.address, min(xy[0], debt))
@@ -476,13 +445,26 @@ def self_liquidate(max_x: uint256):
 
     amm.rugpull(self.collateral_token.address, msg.sender, xy[1])
 
-    self.loans[msg.sender] = Loan({initial_debt: 0, rate_mul: rate_mul})
-    log UserState(msg.sender, 0, 0, 0, 0)
-    log Repay(msg.sender, xy[1], debt)
+    self.loans[user] = Loan({initial_debt: 0, rate_mul: rate_mul})
+    log UserState(user, 0, 0, 0, 0)
+    log Repay(user, xy[1], debt)
+    log Liquidate(msg.sender, user, xy[1], xy[0], debt)
 
     d: uint256 = self._total_debt.initial_debt * rate_mul / self._total_debt.rate_mul
     self._total_debt.initial_debt = max(d, debt) - debt
     self._total_debt.rate_mul = rate_mul
+
+
+@external
+@nonreentrant('lock')
+def liquidate(user: address, max_x: uint256):
+    self._liquidate(user, max_x, self.liquidation_discount)
+
+
+@external
+@nonreentrant('lock')
+def self_liquidate(max_x: uint256):
+    self._liquidate(msg.sender, max_x, 0)
 
 
 @view
