@@ -7,3 +7,5 @@
 + Claim admin fee by DAO vs global solvency
 * Test that n1 shifts with oracle/active_band
 * Stabilizers
+* Simulate "USDT depeg"-like situation - PegKeeper to USDC and price oracle to
+  USDT, or vice versa, using data from real life
