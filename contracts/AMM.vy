@@ -268,7 +268,7 @@ def _get_y0(x: uint256, y: uint256, p_o: uint256, p_o_up: uint256, A: uint256) -
     b: uint256 = 0
     # p_o_up * unsafe_sub(A, 1) * x / p_o + A * p_o**2 / p_o_up * y / 10**18
     if x > 0:
-        b += p_o_up * unsafe_sub(A, 1) * x / p_o
+        b = p_o_up * unsafe_sub(A, 1) * x / p_o
     if y > 0:
         b += A * p_o**2 / p_o_up * y / 10**18
     if x > 0 and y > 0:
@@ -751,7 +751,7 @@ def get_xy_up(user: address, use_y: bool) -> uint256:
 
     n: int256 = ns[0] - 1
     n_active: int256 = self.active_band
-    p_o_up: uint256 = self._p_oracle_band(n, False)
+    p_o_down: uint256 = self._p_oracle_band(n, True)
     XY: uint256 = 0
     A: uint256 = self.A
     sqrt_band_ratio: uint256 = self.sqrt_band_ratio
@@ -760,7 +760,9 @@ def get_xy_up(user: address, use_y: bool) -> uint256:
         n += 1
         if n > ns[1]:
             break
-        p_o_up = unsafe_div(p_o_up * unsafe_sub(A, 1), A)
+        p_o_up: uint256 = p_o_down
+        p_o_down = unsafe_div(p_o_down * unsafe_sub(A, 1), A)
+        p_current_mid: uint256 = p_o**2 / p_o_down * p_o / p_o_down * unsafe_sub(A, 1) / A
         total_share: uint256 = self.total_shares[n]
         user_share: uint256 = ticks[i]
 
@@ -771,18 +773,37 @@ def get_xy_up(user: address, use_y: bool) -> uint256:
         if n <= n_active:
             x = self.bands_x[n]
 
-        if x == 0:
+        # if p_o > p_o_up - we "trade" everything to y and then convert to the result
+        # if p_o < p_o_down - "trade" to x, then convert to result
+        # otherwise we are in-band, so we do the more complex logic to trade
+        # to p_o rather than to the edge of the band
+        # trade to the edge of the band == getting to the band edge while p_o=const
+
+        # Cases when special conversion is not needed (to save on computations)
+        if p_o > p_o_up:
+            # all to y at constant p_o, then to target currency adiabatically
+            y_equiv: uint256 = y
+            if y == 0:
+                y_equiv = x * 10**18 / p_current_mid
             if use_y:
-                XY += y * user_share / total_share
+                XY += y_equiv * user_share / total_share
             else:
-                XY += y * p_o_up / sqrt_band_ratio * user_share / total_share
+                XY += y_equiv * p_o_up / sqrt_band_ratio * user_share / total_share
             continue
-        elif y == 0:
+
+        elif p_o < p_o_down:
+            # all to x at constant p_o, then to target currency adiabatically
+            x_equiv: uint256 = x
+            if x == 0:
+                x_equiv = y * p_current_mid / 10**18
             if use_y:
-                XY += x * sqrt_band_ratio / p_o_up * user_share / total_share
+                XY += x_equiv * sqrt_band_ratio / p_o_up * user_share / total_share
             else:
-                XY += x * user_share / total_share
+                XY += x_equiv * user_share / total_share
             continue
+
+        # If we are here - we need to "trade" to somewhere mid-band
+        # So we need more heavy math
 
         y0: uint256 = self._get_y0(x, y, p_o, p_o_up, A)
         f: uint256 = A * y0 * p_o / p_o_up * p_o / 10**18
