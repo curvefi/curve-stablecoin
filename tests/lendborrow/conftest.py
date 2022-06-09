@@ -57,7 +57,7 @@ def market_amm(collateral_token, market, AMM):
 @pytest.fixture(scope="module", autouse=False)
 def market_controller(collateral_token, market, Controller, accounts):
     controller = Controller.at(market.controllers(collateral_token))
-    for acc in accounts[:5]:
+    for acc in accounts:
         collateral_token.approve(controller, 2**256-1, {'from': acc})
     return controller
 
