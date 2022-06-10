@@ -9,3 +9,4 @@
 * Stabilizers
 * Simulate "USDT depeg"-like situation - PegKeeper to USDC and price oracle to
   USDT, or vice versa, using data from real life
+* Implement stoploss orders because they are already there
