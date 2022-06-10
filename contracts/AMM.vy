@@ -780,27 +780,29 @@ def get_xy_up(user: address, use_y: bool) -> uint256:
         # trade to the edge of the band == getting to the band edge while p_o=const
 
         # Cases when special conversion is not needed (to save on computations)
-        if p_o > p_o_up:
-            # all to y at constant p_o, then to target currency adiabatically
-            y_equiv: uint256 = y
-            if y == 0:
-                y_equiv = x * 10**18 / p_current_mid
-            if use_y:
-                XY += y_equiv * user_share / total_share
-            else:
-                XY += y_equiv * p_o_up / sqrt_band_ratio * user_share / total_share
-            continue
+        if x == 0 or y == 0:
 
-        elif p_o < p_o_down:
-            # all to x at constant p_o, then to target currency adiabatically
-            x_equiv: uint256 = x
-            if x == 0:
-                x_equiv = y * p_current_mid / 10**18
-            if use_y:
-                XY += x_equiv * sqrt_band_ratio / p_o_up * user_share / total_share
-            else:
-                XY += x_equiv * user_share / total_share
-            continue
+            if p_o > p_o_up:
+                # all to y at constant p_o, then to target currency adiabatically
+                y_equiv: uint256 = y
+                if y == 0:
+                    y_equiv = x * 10**18 / p_current_mid
+                if use_y:
+                    XY += y_equiv * user_share / total_share
+                else:
+                    XY += y_equiv * p_o_up / sqrt_band_ratio * user_share / total_share
+                continue
+
+            elif p_o < p_o_down:
+                # all to x at constant p_o, then to target currency adiabatically
+                x_equiv: uint256 = x
+                if x == 0:
+                    x_equiv = y * p_current_mid / 10**18
+                if use_y:
+                    XY += x_equiv * sqrt_band_ratio / p_o_up * user_share / total_share
+                else:
+                    XY += x_equiv * user_share / total_share
+                continue
 
         # If we are here - we need to "trade" to somewhere mid-band
         # So we need more heavy math
