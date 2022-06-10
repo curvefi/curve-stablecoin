@@ -782,6 +782,9 @@ def get_xy_up(user: address, use_y: bool) -> uint256:
         # Cases when special conversion is not needed (to save on computations)
         if x == 0 or y == 0:
 
+            if x == 0 and y == 0:
+                continue
+
             if p_o > p_o_up:
                 # all to y at constant p_o, then to target currency adiabatically
                 y_equiv: uint256 = y
