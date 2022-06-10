@@ -19,6 +19,7 @@ def test_immediate(amm, PriceOracle, collateral_token, borrowed_token, accounts,
                    n1, dn, deposit_amount, f_pump, f_trade, is_pump):
     admin = accounts[0]
     user = accounts[1]
+    amm.set_fee(0, {'from': admin})
     collateral_token._mint_for_testing(user, deposit_amount, {'from': user})
     amm.deposit_range(user, deposit_amount, n1, n1+dn, True, {'from': admin})
     pump_amount = 3000 * deposit_amount * f_pump // 10**18 // 10**12
@@ -39,7 +40,7 @@ def test_immediate(amm, PriceOracle, collateral_token, borrowed_token, accounts,
         i = 1
         j = 0
 
-    amm.exchange(i, j, pump_amount, 0, {'from': user})
+    amm.exchange(i, j, trade_amount, 0, {'from': user})
 
     x1 = amm.get_x_down(user)
     y1 = amm.get_y_up(user)
