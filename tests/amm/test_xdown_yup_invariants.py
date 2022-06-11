@@ -94,7 +94,7 @@ def test_immediate_in_band(amm, PriceOracle, collateral_token, borrowed_token, a
     x0 = amm.get_x_down(user)
     y0 = amm.get_y_up(user)
 
-    trade_amount = 181406004646580
+    trade_amount = 2690425910633510  # 181406004646580
     borrowed_token._mint_for_testing(user, trade_amount, {'from': user})
 
     amm.exchange(0, 1, trade_amount, 0, {'from': user})
