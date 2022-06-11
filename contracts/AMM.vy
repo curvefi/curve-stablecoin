@@ -811,6 +811,7 @@ def get_xy_up(user: address, use_y: bool) -> uint256:
         # So we need more heavy math
 
         y0: uint256 = self._get_y0(x, y, p_o, p_o_up, A)
+        # assert y0 > 870201316668619669099629  # XXX  <- true
         f: uint256 = A * y0 * p_o / p_o_up * p_o / 10**18
         g: uint256 = unsafe_sub(A, 1) * y0 * p_o_up / p_o
         # (f + x)(g + y) = const = p_top * A**2 * y0**2 = I
@@ -818,30 +819,34 @@ def get_xy_up(user: address, use_y: bool) -> uint256:
         # p = (f + x) / (g + y) => p * (g + y)**2 = I or (f + x)**2 / p = I
 
         # First, "trade" in this band to p_oracle
-        y_o: uint256 = max(self.sqrt_int(Inv / p_o), g) - g
-        x_o: uint256 = max(Inv / (g + y_o), f) - f
+        x_o: uint256 = 0
+        y_o: uint256 = 0
 
-        # Adiabatic conversion of edge bands
-        if x_o == 0:
+        if p_o > p_o_up:  # p_o < p_current_down, all to y
+            # x_o = 0
+            y_o = max(Inv / f, g) - g
             if use_y:
-                XY += y * user_share / total_share
+                XY += y_o * user_share / total_share
             else:
-                XY += y * p_o_up / sqrt_band_ratio * user_share / total_share
-            continue
+                XY += y_o * p_o_up / sqrt_band_ratio * user_share / total_share
 
-        if y_o == 0:
+        elif p_o < p_o_down:  # p_o > p_current_up, all to x
+            # y_o = 0
+            x_o = max(Inv / g, f) - f
             if use_y:
-                XY += x * sqrt_band_ratio / p_o_up * user_share / total_share
+                XY += x_o * sqrt_band_ratio / p_o_up * user_share / total_share
             else:
-                XY += x * user_share / total_share
-            continue
-
-        # Now adiabatic conversion from definitely in-band
-        if use_y:
-            XY += (y_o + x_o * 10**18 / self.sqrt_int(p_o_up * p_o / 10**18)) * user_share / total_share
+                XY += x_o * user_share / total_share
 
         else:
-            XY += (x_o + y_o * self.sqrt_int(p_o_down * p_o / 10**18) / 10**18) * user_share / total_share
+            y_o = max(self.sqrt_int(Inv / p_o), g) - g
+            x_o = max(Inv / (g + y_o), f) - f
+            # Now adiabatic conversion from definitely in-band
+            if use_y:
+                XY += (y_o + x_o * 10**18 / self.sqrt_int(p_o_up * p_o / 10**18)) * user_share / total_share
+
+            else:
+                XY += (x_o + y_o * self.sqrt_int(p_o_down * p_o / 10**18) / 10**18) * user_share / total_share
 
     if use_y:
         return unsafe_div(XY, self.collateral_precision)
