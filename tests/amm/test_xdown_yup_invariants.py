@@ -72,8 +72,8 @@ def test_immediate_above_p0(amm, PriceOracle, collateral_token, borrowed_token, 
     x1 = amm.get_x_down(user)
     y1 = amm.get_y_up(user)
 
-    assert approx(x0, x1, 1e-6)
-    assert approx(y0, y1, 1e-6)
+    assert approx(x0, x1, 1e-9)
+    assert approx(y0, y1, 1e-9)
 
 
 # def test_adiabatic(amm, PriceOracle, collateral_token, borrowed_token, accounts):
