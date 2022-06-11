@@ -45,8 +45,8 @@ def test_immediate(amm, PriceOracle, collateral_token, borrowed_token, accounts,
     x1 = amm.get_x_down(user)
     y1 = amm.get_y_up(user)
 
-    assert approx(x0, x1, 1e-9)
-    assert approx(y0, y1, 1e-9)
+    assert approx(x0, x1, 1e-5, 100)
+    assert approx(y0, y1, 1e-5, 100)
 
 
 def test_immediate_above_p0(amm, PriceOracle, collateral_token, borrowed_token, accounts):
@@ -75,8 +75,38 @@ def test_immediate_above_p0(amm, PriceOracle, collateral_token, borrowed_token, 
     assert x0 > 0
     assert x1 > 0
     assert approx(y0, deposit_amount, 1e-9)
-    assert approx(x0, x1, 1e-9)
-    assert approx(y0, y1, 1e-9)
+    assert approx(x0, x1, 1e-8)
+    assert approx(y0, y1, 1e-8)
+
+
+def test_immediate_in_band(amm, PriceOracle, collateral_token, borrowed_token, accounts):
+    deposit_amount = 835969548449222546344625
+
+    admin = accounts[0]
+    user = accounts[1]
+    amm.set_fee(0, {'from': admin})
+    collateral_token._mint_for_testing(user, deposit_amount, {'from': user})
+    amm.deposit_range(user, deposit_amount, 4, 4, True, {'from': admin})
+    pump_amount = 137
+    borrowed_token._mint_for_testing(user, pump_amount, {'from': user})
+    amm.exchange(0, 1, pump_amount, 0, {'from': user})
+
+    x0 = amm.get_x_down(user)
+    y0 = amm.get_y_up(user)
+
+    trade_amount = 181406004646580
+    borrowed_token._mint_for_testing(user, trade_amount, {'from': user})
+
+    amm.exchange(0, 1, trade_amount, 0, {'from': user})
+
+    x1 = amm.get_x_down(user)
+    y1 = amm.get_y_up(user)
+
+    assert x0 > 0
+    assert x1 > 0
+    assert approx(y0, deposit_amount, 1e-9)
+    assert approx(x0, x1, 1e-8)
+    assert approx(y0, y1, 1e-8)
 
 
 # def test_adiabatic(amm, PriceOracle, collateral_token, borrowed_token, accounts):
