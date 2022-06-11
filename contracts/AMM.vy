@@ -785,7 +785,7 @@ def get_xy_up(user: address, use_y: bool) -> uint256:
             if x == 0 and y == 0:
                 continue
 
-            if p_o > p_o_up:
+            if p_o > p_o_up:  # p_o < p_current_down
                 # all to y at constant p_o, then to target currency adiabatically
                 y_equiv: uint256 = y
                 if y == 0:
@@ -796,7 +796,7 @@ def get_xy_up(user: address, use_y: bool) -> uint256:
                     XY += y_equiv * p_o_up / sqrt_band_ratio * user_share / total_share
                 continue
 
-            elif p_o < p_o_down:
+            elif p_o < p_o_down:  # p_o > p_current_up
                 # all to x at constant p_o, then to target currency adiabatically
                 x_equiv: uint256 = x
                 if x == 0:
@@ -818,42 +818,30 @@ def get_xy_up(user: address, use_y: bool) -> uint256:
         # p = (f + x) / (g + y) => p * (g + y)**2 = I or (f + x)**2 / p = I
 
         # First, "trade" in this band to p_oracle
-        x_o: uint256 = 0
-        y_o: uint256 = 0
-        if use_y:
-            y_o = max(self.sqrt_int(Inv / p_o), g) - g
-        else:
-            x_o = max(self.sqrt_int(Inv /10**18 * p_o / 10**18), f) - f
-        p_o_use: uint256 = p_o
-        if use_y:
-            if y_o > 0: # y_o > 0 - can be in-band or the edge of the band
-                x_o = max(Inv / (g + y_o), f) - f
-                if x_o == 0:  # Edge of the band
-                    y_o = Inv / f - g
-                    # p_o_use = p_o_up but it is not used
-            else:  # y_o == 0 -> x_o is the edge of the band
-                x_o = Inv / g - f
-                p_o_use = unsafe_div(p_o_up * unsafe_sub(A, 1), A)
-        else:
-            if x_o > 0:
-                y_o = max(Inv / (f + y_o), g) - g
-                if y_o == 0:  # Edge of band
-                    x_o = Inv / g - f
-                    # p_o_use = p_o_up * (A - 1) / A but it is not used
-            else:  # x_o == 0 -> y_o is on the edge of the band
-                y_o = Inv / f - g
-                p_o_use = p_o_up
+        y_o: uint256 = max(self.sqrt_int(Inv / p_o), g) - g
+        x_o: uint256 = max(Inv / (g + y_o), f) - f
 
+        # Adiabatic conversion of edge bands
+        if x_o == 0:
+            if use_y:
+                XY += y * user_share / total_share
+            else:
+                XY += y * p_o_up / sqrt_band_ratio * user_share / total_share
+            continue
+
+        if y_o == 0:
+            if use_y:
+                XY += x * sqrt_band_ratio / p_o_up * user_share / total_share
+            else:
+                XY += x * user_share / total_share
+            continue
+
+        # Now adiabatic conversion from definitely in-band
         if use_y:
-            if x_o == 0:
-                XY += y_o * user_share / total_share
-            else:
-                XY += (y_o + x_o * 10**18 / self.sqrt_int(p_o_up * p_o_use / 10**18)) * user_share / total_share
+            XY += (y_o + x_o * 10**18 / self.sqrt_int(p_o_up * p_o / 10**18)) * user_share / total_share
+
         else:
-            if y_o == 0:
-                XY += x_o * user_share / total_share
-            else:
-                XY += (x_o + y_o * self.sqrt_int(p_o_up * p_o_use / 10**18) / 10**18) * user_share / total_share
+            XY += (x_o + y_o * self.sqrt_int(p_o_down * p_o / 10**18) / 10**18) * user_share / total_share
 
     if use_y:
         return unsafe_div(XY, self.collateral_precision)
