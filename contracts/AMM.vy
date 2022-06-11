@@ -376,7 +376,7 @@ def _read_user_ticks(user: address, size: int256) -> uint256[MAX_TICKS]:
     Unpacks and reads user ticks
     """
     ticks: uint256[MAX_TICKS] = empty(uint256[MAX_TICKS])
-    ptr: int256 = 0
+    ptr: int256 = 1
     for i in range(MAX_TICKS / 2):
         if ptr > size:
             break
@@ -387,6 +387,12 @@ def _read_user_ticks(user: address, size: int256) -> uint256[MAX_TICKS]:
             ticks[ptr] = shift(tick, -128)
         ptr += 1
     return ticks
+
+
+@external
+@view
+def read_user_ticks(user: address, size: int256) -> uint256[MAX_TICKS]:
+    return self._read_user_ticks(user, size)
 
 
 @external
