@@ -45,8 +45,8 @@ def test_immediate(amm, PriceOracle, collateral_token, borrowed_token, accounts,
     x1 = amm.get_x_down(user)
     y1 = amm.get_y_up(user)
 
-    assert approx(x0, x1, 1e-5, 100)
-    assert approx(y0, y1, 1e-5, 100)
+    assert approx(x0, x1, 1e-9, 100)
+    assert approx(y0, y1, 1e-9, 100)
 
 
 def test_immediate_above_p0(amm, PriceOracle, collateral_token, borrowed_token, accounts):
@@ -75,8 +75,8 @@ def test_immediate_above_p0(amm, PriceOracle, collateral_token, borrowed_token, 
     assert x0 > 0
     assert x1 > 0
     assert approx(y0, deposit_amount, 1e-9)
-    assert approx(x0, x1, 1e-8)
-    assert approx(y0, y1, 1e-8)
+    assert approx(x0, x1, 1e-9)
+    assert approx(y0, y1, 1e-9)
 
 
 def test_immediate_in_band(amm, PriceOracle, collateral_token, borrowed_token, accounts):
@@ -105,8 +105,8 @@ def test_immediate_in_band(amm, PriceOracle, collateral_token, borrowed_token, a
     assert x0 > 0
     assert x1 > 0
     assert approx(y0, deposit_amount, 1e-9)
-    assert approx(x0, x1, 1e-8)
-    assert approx(y0, y1, 1e-8)
+    assert approx(x0, x1, 1e-9)
+    assert approx(y0, y1, 1e-9)
 
 
 # def test_adiabatic(amm, PriceOracle, collateral_token, borrowed_token, accounts):
