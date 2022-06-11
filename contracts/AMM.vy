@@ -376,9 +376,9 @@ def _read_user_ticks(user: address, size: int256) -> uint256[MAX_TICKS]:
     Unpacks and reads user ticks
     """
     ticks: uint256[MAX_TICKS] = empty(uint256[MAX_TICKS])
-    ptr: int256 = 1
+    ptr: int256 = 0
     for i in range(MAX_TICKS / 2):
-        if ptr > size:
+        if ptr + 1 > size:
             break
         tick: uint256 = self.user_shares[user].ticks[i]
         ticks[ptr] = bitwise_and(tick, 2**128 - 1)
