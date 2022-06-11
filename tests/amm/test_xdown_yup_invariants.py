@@ -72,6 +72,9 @@ def test_immediate_above_p0(amm, PriceOracle, collateral_token, borrowed_token, 
     x1 = amm.get_x_down(user)
     y1 = amm.get_y_up(user)
 
+    assert x0 > 0
+    assert x1 > 0
+    assert approx(y0, deposit_amount, 1e-9)
     assert approx(x0, x1, 1e-9)
     assert approx(y0, y1, 1e-9)
 
