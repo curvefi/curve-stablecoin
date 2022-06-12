@@ -1,3 +1,4 @@
+from pytest import mark
 from ..conftest import approx
 from brownie.test import given, strategy
 """
@@ -10,7 +11,7 @@ Test that get_x_down and get_y_up don't change:
 @given(
     p_o=strategy('uint256', min_value=1000 * 10**18, max_value=10000 * 10**18),
     n1=strategy('uint256', min_value=1, max_value=30),
-    dn=strategy('uint256', max_value=0),  # XXX 30
+    dn=strategy('uint256', max_value=30),
     deposit_amount=strategy('uint256', min_value=10**9, max_value=10**25),
     f_pump=strategy('uint256', max_value=10**19),
     f_trade=strategy('uint256', max_value=10**19),
@@ -111,5 +112,17 @@ def test_immediate_in_band(amm, PriceOracle, collateral_token, borrowed_token, a
     assert approx(y0, y1, 1e-9)
 
 
-# def test_adiabatic(amm, PriceOracle, collateral_token, borrowed_token, accounts):
-#     pass
+@mark.skip
+@given(
+    p_o_1=strategy('uint256', min_value=1000 * 10**18, max_value=10000 * 10**18),
+    p_o_2=strategy('uint256', min_value=1000 * 10**18, max_value=10000 * 10**18),
+    n1=strategy('uint256', min_value=1, max_value=30),
+    dn=strategy('uint256', max_value=0),  # XXX 30
+    deposit_amount=strategy('uint256', min_value=10**9, max_value=10**25),
+    f_pump=strategy('uint256', max_value=10**19),
+    f_trade=strategy('uint256', max_value=10**19),
+    is_pump=strategy('bool')
+)
+def test_adiabatic(amm, PriceOracle, collateral_token, borrowed_token, accounts,
+                   p_o_1, p_o_2, n1, dn, deposit_amount, f_pump, f_trade, is_pump):
+    pass
