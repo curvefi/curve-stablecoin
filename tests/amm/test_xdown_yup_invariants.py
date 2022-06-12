@@ -8,6 +8,7 @@ Test that get_x_down and get_y_up don't change:
 
 
 @given(
+    p_o=strategy('uint256', min_value=1000 * 10**18, max_value=10000 * 10**18),
     n1=strategy('uint256', min_value=1, max_value=30),
     dn=strategy('uint256', max_value=0),  # XXX 30
     deposit_amount=strategy('uint256', min_value=10**9, max_value=10**25),
@@ -16,13 +17,14 @@ Test that get_x_down and get_y_up don't change:
     is_pump=strategy('bool')
 )
 def test_immediate(amm, PriceOracle, collateral_token, borrowed_token, accounts,
-                   n1, dn, deposit_amount, f_pump, f_trade, is_pump):
+                   p_o, n1, dn, deposit_amount, f_pump, f_trade, is_pump):
     admin = accounts[0]
     user = accounts[1]
+    PriceOracle.set_price(p_o)
     amm.set_fee(0, {'from': admin})
     collateral_token._mint_for_testing(user, deposit_amount, {'from': user})
     amm.deposit_range(user, deposit_amount, n1, n1+dn, True, {'from': admin})
-    pump_amount = 3000 * deposit_amount * f_pump // 10**18 // 10**12
+    pump_amount = p_o * deposit_amount // 10**18 * f_pump // 10**18 // 10**12
     borrowed_token._mint_for_testing(user, pump_amount, {'from': user})
     amm.exchange(0, 1, pump_amount, 0, {'from': user})
 
@@ -30,7 +32,7 @@ def test_immediate(amm, PriceOracle, collateral_token, borrowed_token, accounts,
     y0 = amm.get_y_up(user)
 
     if is_pump:
-        trade_amount = 3000 * deposit_amount * f_trade // 10**18 // 10**12
+        trade_amount = p_o * deposit_amount // 10**18 * f_trade // 10**18 // 10**12
         borrowed_token._mint_for_testing(user, trade_amount, {'from': user})
         i = 0
         j = 1
