@@ -1,5 +1,5 @@
-from pytest import mark
 from ..conftest import approx
+from hypothesis import settings
 from brownie.test import given, strategy
 """
 Test that get_x_down and get_y_up don't change:
@@ -112,17 +112,52 @@ def test_immediate_in_band(amm, PriceOracle, collateral_token, borrowed_token, a
     assert approx(y0, y1, 1e-9)
 
 
-@mark.skip
 @given(
-    p_o_1=strategy('uint256', min_value=1000 * 10**18, max_value=10000 * 10**18),
-    p_o_2=strategy('uint256', min_value=1000 * 10**18, max_value=10000 * 10**18),
+    p_o_1=strategy('uint256', min_value=2000 * 10**18, max_value=4000 * 10**18),
+    p_o_2=strategy('uint256', min_value=2000 * 10**18, max_value=4000 * 10**18),
     n1=strategy('uint256', min_value=1, max_value=30),
     dn=strategy('uint256', max_value=0),  # XXX 30
     deposit_amount=strategy('uint256', min_value=10**9, max_value=10**25),
-    f_pump=strategy('uint256', max_value=10**19),
-    f_trade=strategy('uint256', max_value=10**19),
-    is_pump=strategy('bool')
 )
+@settings(max_examples=10)
 def test_adiabatic(amm, PriceOracle, collateral_token, borrowed_token, accounts,
-                   p_o_1, p_o_2, n1, dn, deposit_amount, f_pump, f_trade, is_pump):
-    pass
+                   p_o_1, p_o_2, n1, dn, deposit_amount):
+    admin = accounts[0]
+    user = accounts[1]
+    amm.set_fee(0, {'from': admin})
+    collateral_token._mint_for_testing(user, deposit_amount, {'from': user})
+    amm.deposit_range(user, deposit_amount, n1, n1+dn, True, {'from': admin})
+
+    N_STEPS = 101
+    p_o = p_o_1
+    p_o_mul = (p_o_2 / p_o_1) ** (1 / (N_STEPS - 1))
+
+    x0 = 0
+    y0 = 0
+
+    for k in range(N_STEPS):
+        PriceOracle.set_price(p_o)
+
+        if k == 0:
+            x0 = amm.get_x_down(user)
+            y0 = amm.get_y_up(user)
+
+        amount, is_pump = amm.get_amount_for_price(p_o)
+        if is_pump:
+            i = 0
+            j = 1
+            borrowed_token._mint_for_testing(user, amount, {'from': user})
+        else:
+            i = 1
+            j = 0
+            collateral_token._mint_for_testing(user, amount, {'from': user})
+
+        amm.exchange(i, j, amount, 0, {'from': user})
+
+        x = amm.get_x_down(user)
+        y = amm.get_y_up(user)
+        assert approx(x, x0, 1e-4)
+        assert approx(y, y0, 1e-4)
+
+        if k != N_STEPS - 1:
+            p_o = int(p_o_1 * p_o_mul)
