@@ -358,10 +358,7 @@ def repay(_d_debt: uint256, _for: address):
     rate_mul: uint256 = 0
     debt, rate_mul = self._debt(_for)
     assert debt > 0, "Loan doesn't exist"
-    d_debt: uint256 = _d_debt
-    if _d_debt > debt:
-        d_debt = debt
-    STABLECOIN.burnFrom(msg.sender, d_debt)
+    d_debt: uint256 = min(debt, _d_debt)
     debt -= d_debt
 
     amm: AMM = self.amm
@@ -369,27 +366,33 @@ def repay(_d_debt: uint256, _for: address):
     size: uint256 = convert(ns[1] - ns[0], uint256)
 
     if debt == 0:
+        # Allow to withdraw all assets even when underwater
         xy: uint256[2] = amm.withdraw(_for, _for)
-        assert xy[0] == 0, "Already in underwater mode"
         log UserState(_for, 0, 0, 0, 0)
-        log Repay(_for, xy[1], 0)
+        log Repay(_for, xy[1], d_debt)
 
     else:
-        xy: uint256[2] = amm.withdraw(_for, ZERO_ADDRESS)
-        assert xy[0] == 0, "Already in underwater mode"
-        n1: int256 = self._calculate_debt_n1(xy[1], debt, size)
-        assert n1 > amm.active_band(), "Not enough collateral"
-        n2: int256 = n1 + ns[1] - ns[0]
-        amm.deposit_range(_for, xy[1], n1, n2, False)
-        log UserState(_for, xy[1], debt, n1, n2)
-        log Repay(_for, 0, d_debt)
+        active_band: int256 = amm.active_band()
+        if ns[0] > active_band:
+            # Not in liquidation - can move bands
+            xy: uint256[2] = amm.withdraw(_for, ZERO_ADDRESS)
+            n1: int256 = self._calculate_debt_n1(xy[1], debt, size)
+            assert n1 > active_band, "Not enough collateral"
+            n2: int256 = n1 + ns[1] - ns[0]
+            amm.deposit_range(_for, xy[1], n1, n2, False)
+            log UserState(_for, xy[1], debt, n1, n2)
+            log Repay(_for, 0, d_debt)
+        else:
+            # Underwater - cannot move band but can avoid a bad liquidation
+            log UserState(_for, MAX_UINT256, debt, ns[0], ns[1])
+            log Repay(_for, 0, d_debt)
+
+    # If we withdrew already - will burn less!
+    STABLECOIN.burnFrom(msg.sender, d_debt)
 
     self.loans[_for] = Loan({initial_debt: debt, rate_mul: rate_mul})
-    d: uint256 = self._total_debt.initial_debt * rate_mul / self._total_debt.rate_mul
-    if d <= d_debt:
-        self._total_debt.initial_debt = 0
-    else:
-        self._total_debt.initial_debt = d - d_debt
+    total_debt: uint256 = self._total_debt.initial_debt * rate_mul / self._total_debt.rate_mul
+    self._total_debt.initial_debt = max(total_debt, d_debt) - d_debt
     self._total_debt.rate_mul = rate_mul
 
 
