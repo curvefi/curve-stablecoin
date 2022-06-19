@@ -475,6 +475,13 @@ def self_liquidate(min_x: uint256):
 
 @view
 @external
+def tokens_to_liquidate(user: address) -> uint256:
+    xy: uint256[2] = self.amm.get_sum_xy(user)
+    return max(self._debt_ro(user), xy[0]) - xy[0]
+
+
+@view
+@external
 def health(user: address, full: bool = False) -> int256:
     """
     Returns position health normalized to 1e18 for the user.
