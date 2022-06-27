@@ -31,7 +31,7 @@ event Withdraw:
     amount_collateral: uint256
 
 event SetRate:
-    rate: int256
+    rate: uint256
     rate_mul: uint256
     time: uint256
 
@@ -65,7 +65,7 @@ sqrt_band_ratio: public(uint256)  # sqrt(A / (A - 1))
 base_price: uint256
 fee: public(uint256)
 admin_fee: public(uint256)
-rate: public(int256)  # Rate can be negative, to support positive-rebase tokens
+rate: public(uint256)
 rate_time: uint256
 rate_mul: public(uint256)
 active_band: public(int256)
@@ -153,7 +153,7 @@ def price_oracle() -> uint256:
 @internal
 @view
 def _rate_mul() -> uint256:
-    return convert(convert(self.rate_mul, int256) + self.rate * convert(block.timestamp - self.rate_time, int256), uint256)
+    return self.rate_mul + self.rate * (block.timestamp - self.rate_time)
 
 
 @external
@@ -961,7 +961,7 @@ def get_amount_for_price(p: uint256) -> (uint256, bool):
 
 
 @external
-def set_rate(rate: int256) -> uint256:
+def set_rate(rate: uint256) -> uint256:
     assert msg.sender == self.admin
     rate_mul: uint256 = self._rate_mul()
     self.rate_mul = rate_mul

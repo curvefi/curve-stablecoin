@@ -1,7 +1,7 @@
 # @version 0.3.3
 
 admin: public(address)
-rate: public(int256)
+rate: public(uint256)
 
 
 @external
@@ -16,11 +16,11 @@ def set_admin(admin: address):
 
 
 @external
-def rate_write() -> int256:
+def rate_write() -> uint256:
     return self.rate
 
 
 @external
-def set_rate(rate: int256):
+def set_rate(rate: uint256):
     assert msg.sender == self.admin
     self.rate = rate

@@ -18,7 +18,7 @@ interface AMM:
     def get_y_up(user: address) -> uint256: view
     def get_rate_mul() -> uint256: view
     def rugpull(coin: address, _to: address, val: uint256): nonpayable
-    def set_rate(rate: int256) -> uint256: nonpayable
+    def set_rate(rate: uint256) -> uint256: nonpayable
     def set_fee(fee: uint256): nonpayable
     def price_oracle() -> uint256: view
     def sqrt_band_ratio() -> uint256: view
@@ -32,7 +32,7 @@ interface ERC20:
     def decimals() -> uint256: view
 
 interface MonetaryPolicy:
-    def rate_write() -> int256: nonpayable
+    def rate_write() -> uint256: nonpayable
 
 interface Factory:
     def stablecoin() -> address: view
@@ -78,8 +78,7 @@ MAX_TICKS: constant(int256) = 50
 MAX_TICKS_UINT: constant(uint256) = 50
 MIN_TICKS: constant(int256) = 5
 
-MAX_RATE: constant(int256) = 43959106799  # 400% APY
-MIN_RATE: constant(int256) = -7075835584  # -20% APY
+MAX_RATE: constant(uint256) = 43959106799  # 400% APY
 
 loans: HashMap[address, Loan]
 _total_debt: Loan
@@ -163,11 +162,7 @@ def factory() -> Factory:
 
 @internal
 def _rate_mul_w(amm: AMM) -> uint256:
-    rate: int256 = self.monetary_policy.rate_write()
-    if rate < MIN_RATE:
-        rate = MIN_RATE
-    elif rate > MAX_RATE:
-        rate = MAX_RATE
+    rate: uint256 = min(self.monetary_policy.rate_write(), MAX_RATE)
     return amm.set_rate(rate)
 
 
