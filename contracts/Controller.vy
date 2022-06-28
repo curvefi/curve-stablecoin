@@ -72,7 +72,6 @@ struct Loan:
 
 FACTORY: immutable(Factory)
 STABLECOIN: immutable(ERC20)
-STABLECOIN_PRECISION: immutable(uint256)
 MIN_LIQUIDATION_DISCOUNT: constant(uint256) = 10**16 # Start liquidating when threshold reached
 MAX_TICKS: constant(int256) = 50
 MAX_TICKS_UINT: constant(uint256) = 50
@@ -100,7 +99,7 @@ def __init__(factory: address):
     FACTORY = Factory(factory)
     stablecoin: ERC20 = ERC20(Factory(factory).stablecoin())
     STABLECOIN = stablecoin
-    STABLECOIN_PRECISION = 10 ** (18 - stablecoin.decimals())
+    assert stablecoin.decimals() == 18
 
 
 @internal
@@ -211,7 +210,7 @@ def total_debt() -> uint256:
 @view
 def _calculate_debt_n1(collateral: uint256, debt: uint256, N: uint256) -> int256:
     assert debt > 0, "No loan"
-    _debt: uint256 = unsafe_add(unsafe_mul(debt, STABLECOIN_PRECISION), 1)
+    _debt: uint256 = debt + 1
     _collateral: uint256 = unsafe_mul(collateral, self.collateral_precision)
     amm: AMM = self.amm
     # p0: uint256 = amm.p_current_down(n0)
@@ -261,8 +260,7 @@ def max_borrowable(collateral: uint256, N: uint256) -> uint256:
         y_effective = unsafe_add(y_effective, d_y_effective)
 
     x: uint256 = max(y_effective * p_base * unsafe_sub(A, 1) / unsafe_mul(A, 10**18), 1) - 1
-    x = unsafe_div(x * (10**18 - 10**14), 10**18)  # Make it a bit smaller
-    return unsafe_div(x, STABLECOIN_PRECISION)
+    return unsafe_div(x * (10**18 - 10**14), 10**18)  # Make it a bit smaller
 
 
 @external
