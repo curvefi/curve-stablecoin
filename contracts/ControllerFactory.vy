@@ -43,6 +43,14 @@ amm_implementation: public(address)
 n_collaterals: public(uint256)
 collaterals: public(address[1000000])
 
+# Limits
+MIN_A: constant(uint256) = 1
+MAX_A: constant(uint256) = 10000
+MAX_FEE: constant(uint256) = 10**17  # 10%
+MAX_ADMIN_FEE: constant(uint256) = 10**18  # 100%
+MAX_LOAN_DISCOUNT: constant(uint256) = 5 * 10**17
+MIN_LIQUIDATION_DISCOUNT: constant(uint256) = 10**16
+
 
 @external
 def __init__(stablecoin: address,
@@ -66,6 +74,12 @@ def add_market(token: address, A: uint256, fee: uint256, admin_fee: uint256,
                debt_ceiling: uint256) -> address[2]:
     assert msg.sender == self.admin, "Only admin"
     assert self.controllers[token] == ZERO_ADDRESS and self.amms[token] == ZERO_ADDRESS, "Already exists"
+    assert A >= MIN_A and A <= MAX_A, "Wrong A"
+    assert fee <= MAX_FEE, "Fee too high"
+    assert admin_fee <= MAX_ADMIN_FEE, "Admin fee too high"
+    assert liquidation_discount >= MIN_LIQUIDATION_DISCOUNT, "Liquidation discount too low"
+    assert loan_discount <= MAX_LOAN_DISCOUNT, "Loan discount too high"
+    assert loan_discount > liquidation_discount, "need loan_discount>liquidation_discount"
 
     p: uint256 = PriceOracle(_price_oracle_contract).price()
 

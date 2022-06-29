@@ -139,8 +139,6 @@ def initialize(
     self.collateral_token = ERC20(collateral_token)
     self.monetary_policy = MonetaryPolicy(monetary_policy)
 
-    assert loan_discount > liquidation_discount
-    assert liquidation_discount >= MIN_LIQUIDATION_DISCOUNT
     self.liquidation_discount = liquidation_discount
     self.loan_discount = loan_discount
     self.debt_ceiling = debt_ceiling
@@ -550,3 +548,6 @@ def collect_fees() -> uint256:
         return supply
     else:
         return 0
+
+
+# XXX need setters for liquidation discount etc
