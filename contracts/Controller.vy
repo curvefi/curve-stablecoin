@@ -20,6 +20,7 @@ interface AMM:
     def rugpull(coin: address, _to: address, val: uint256): nonpayable
     def set_rate(rate: uint256) -> uint256: nonpayable
     def set_fee(fee: uint256): nonpayable
+    def set_admin_fee(fee: uint256): nonpayable
     def price_oracle() -> uint256: view
     def sqrt_band_ratio() -> uint256: view
     def collateral_precision() -> uint256: view
@@ -64,6 +65,16 @@ event Liquidate:
     stablecoin_received: uint256
     debt: uint256
 
+event SetMonetaryPolicy:
+    monetary_policy: address
+
+event SetDebtCeiling:
+    debt_ceiling: uint256
+
+event SetBorrowingDiscounts:
+    loan_discount: uint256
+    liquidation_discount: uint256
+
 
 struct Loan:
     initial_debt: uint256
@@ -72,6 +83,7 @@ struct Loan:
 
 FACTORY: immutable(Factory)
 STABLECOIN: immutable(ERC20)
+MAX_LOAN_DISCOUNT: constant(uint256) = 5 * 10**17
 MIN_LIQUIDATION_DISCOUNT: constant(uint256) = 10**16 # Start liquidating when threshold reached
 MAX_TICKS: constant(int256) = 50
 MAX_TICKS_UINT: constant(uint256) = 50
@@ -509,16 +521,35 @@ def set_amm_fee(fee: uint256):
 
 
 @external
+def set_amm_admin_fee(fee: uint256):
+    assert msg.sender == FACTORY.admin()
+    self.amm.set_admin_fee(fee)
+
+
+@external
 def set_monetary_policy(monetary_policy: address):
     assert msg.sender == FACTORY.admin()
     self.monetary_policy = MonetaryPolicy(monetary_policy)
     MonetaryPolicy(monetary_policy).rate_write()
+    log SetMonetaryPolicy(monetary_policy)
 
 
 @external
 def set_debt_ceiling(_debt_ceiling: uint256):
     assert msg.sender == FACTORY.admin()
     self.debt_ceiling = _debt_ceiling
+    log SetDebtCeiling(_debt_ceiling)
+
+
+@external
+def set_borrowing_discounts(loan_discount: uint256, liquidation_discount: uint256):
+    assert msg.sender == FACTORY.admin()
+    assert loan_discount > liquidation_discount
+    assert liquidation_discount >= MIN_LIQUIDATION_DISCOUNT
+    assert loan_discount <= MAX_LOAN_DISCOUNT
+    self.liquidation_discount = liquidation_discount
+    self.loan_discount = loan_discount
+    log SetBorrowingDiscounts(loan_discount, liquidation_discount)
 
 
 @external
@@ -548,6 +579,3 @@ def collect_fees() -> uint256:
         return supply
     else:
         return 0
-
-
-# XXX need setters for liquidation discount etc
