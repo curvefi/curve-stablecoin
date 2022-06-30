@@ -80,6 +80,14 @@ class StatefulLendBorrow:
             with brownie.reverts("Loan doesn't exist"):
                 self.controller.repay(amount, user, {'from': user})
             return
+
+        # When we have interest - need to have admin fees claimed to have enough in circulation
+        self.controller.collect_fees({'from': user})
+        # And we need to transfer them to us if necessary
+        diff = self.controller.debt(user) - self.stablecoin.balanceOf(user)
+        if diff > 0:
+            self.stablecoin.transfer(user, diff, {'from': self.accounts[1]})
+
         self.controller.repay(amount, user, {'from': user})
 
     def rule_add_collateral(self, c_amount, user):
@@ -171,3 +179,11 @@ def test_rate_too_high(chain, market_amm, market_controller, monetary_policy, co
     state.rule_time_travel(100000)
     # rate clipping
     state.amm.get_rate_mul()
+
+
+def test_unexpected_revert(chain, market_amm, market_controller, monetary_policy, collateral_token, stablecoin, accounts, state_machine):
+    state = StatefulLendBorrow(
+        chain, market_amm, market_controller, monetary_policy, collateral_token, stablecoin, accounts)
+    state.rule_create_loan(amount=28150, c_amount=5384530291638384907, n=8, user=accounts[1])
+    state.rule_time_travel(t=31488)
+    state.rule_repay(amount=39777, user=accounts[1])
