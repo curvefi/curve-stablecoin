@@ -503,7 +503,7 @@ def user_state(user: address) -> uint256[3]:  # collateral, stablecoin, debt
 
 
 @external
-def set_fee(fee: uint256):
+def set_amm_fee(fee: uint256):
     assert msg.sender == FACTORY.admin()
     self.amm.set_fee(fee)
 

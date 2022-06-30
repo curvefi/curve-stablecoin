@@ -11,7 +11,7 @@ def controller_for_liquidation(chain, stablecoin, collateral_token, market_contr
         user = accounts[0]
         fee_receiver = accounts[1]  # same as liquidator
         collateral_amount = 10**18
-        market_controller.set_fee(0, {'from': user})
+        market_controller.set_amm_fee(0, {'from': user})
         monetary_policy.set_rate(int(1e18 * 1.0 / 365 / 86400), {'from': user})  # 100% APY
         collateral_token._mint_for_testing(user, collateral_amount, {'from': user})
         stablecoin.approve(market_amm, 2**256-1, {'from': user})

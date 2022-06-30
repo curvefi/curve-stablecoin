@@ -38,6 +38,9 @@ event SetRate:
 event SetFee:
     fee: uint256
 
+event SetAdminFee:
+    fee: uint256
+
 
 MAX_INT: constant(int256) = 2**254 + (2**254 - 1)  # 2**255 - 1
 MAX_TICKS: constant(int256) = 50
@@ -56,6 +59,9 @@ struct DetailedTrade:
 
 BORROWED_TOKEN: immutable(ERC20)    # x
 BORROWED_PRECISION: immutable(uint256)
+
+MAX_FEE: constant(uint256) = 10**17  # 10%
+MAX_ADMIN_FEE: constant(uint256) = 10**18  # 100%
 
 collateral_token: public(ERC20)  # y
 collateral_precision: public(uint256)
@@ -974,6 +980,14 @@ def set_rate(rate: uint256) -> uint256:
 @external
 def set_fee(fee: uint256):
     assert msg.sender == self.admin
-    assert fee < 10**18, "Fee is too high"
+    assert fee < MAX_FEE, "High fee"
     self.fee = fee
     log SetFee(fee)
+
+
+@external
+def set_admin_fee(fee: uint256):
+    assert msg.sender == self.admin
+    assert fee < MAX_ADMIN_FEE, "High fee"
+    self.admin_fee = fee
+    log SetAdminFee(fee)
