@@ -131,6 +131,7 @@ def test_adiabatic(amm, PriceOracle, collateral_token, borrowed_token, accounts,
     N_STEPS = 101
     p_o = p_o_1
     p_o_mul = (p_o_2 / p_o_1) ** (1 / (N_STEPS - 1))
+    precision = max(abs(p_o_mul - 1), 1e-6)
 
     x0 = 0
     y0 = 0
@@ -156,8 +157,8 @@ def test_adiabatic(amm, PriceOracle, collateral_token, borrowed_token, accounts,
 
         x = amm.get_x_down(user)
         y = amm.get_y_up(user)
-        assert approx(x, x0, 1e-4)
-        assert approx(y, y0, 1e-4)
+        assert approx(x, x0, precision)
+        assert approx(y, y0, precision)
 
         if k != N_STEPS - 1:
             p_o = int(p_o_1 * p_o_mul)
