@@ -75,6 +75,10 @@ event SetBorrowingDiscounts:
     loan_discount: uint256
     liquidation_discount: uint256
 
+event CollectFees:
+    amount: uint256
+    new_supply: uint256
+
 
 struct Loan:
     initial_debt: uint256
@@ -576,6 +580,8 @@ def collect_fees() -> uint256:
         _to: address = FACTORY.fee_receiver()
         supply = loan.initial_debt - supply
         STABLECOIN.mint(_to, supply)
+        log CollectFees(supply, loan.initial_debt)
         return supply
     else:
+        log CollectFees(0, loan.initial_debt)
         return 0
