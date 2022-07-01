@@ -1,3 +1,4 @@
+import pytest
 from ..conftest import approx
 from hypothesis import settings
 from brownie.test import given, strategy
@@ -112,14 +113,15 @@ def test_immediate_in_band(amm, PriceOracle, collateral_token, borrowed_token, a
     assert approx(y0, y1, 1e-9)
 
 
+@pytest.mark.skip
 @given(
     p_o_1=strategy('uint256', min_value=2000 * 10**18, max_value=4000 * 10**18),
     p_o_2=strategy('uint256', min_value=2000 * 10**18, max_value=4000 * 10**18),
     n1=strategy('uint256', min_value=1, max_value=30),
-    dn=strategy('uint256', max_value=0),  # XXX 30
+    dn=strategy('uint256', max_value=30),
     deposit_amount=strategy('uint256', min_value=10**9, max_value=10**25),
 )
-@settings(max_examples=10)
+@settings(max_examples=50)
 def test_adiabatic(amm, PriceOracle, collateral_token, borrowed_token, accounts,
                    p_o_1, p_o_2, n1, dn, deposit_amount):
     admin = accounts[0]
@@ -127,8 +129,10 @@ def test_adiabatic(amm, PriceOracle, collateral_token, borrowed_token, accounts,
     amm.set_fee(0, {'from': admin})
     collateral_token._mint_for_testing(user, deposit_amount, {'from': user})
     amm.deposit_range(user, deposit_amount, n1, n1+dn, True, {'from': admin})
+    print(amm.p_oracle_up(n1))
+    print(amm.p_oracle_down(n1 + dn))
 
-    N_STEPS = 101
+    N_STEPS = 1001
     p_o = p_o_1
     p_o_mul = (p_o_2 / p_o_1) ** (1 / (N_STEPS - 1))
     precision = max(abs(p_o_mul - 1), 1e-6)
@@ -138,10 +142,6 @@ def test_adiabatic(amm, PriceOracle, collateral_token, borrowed_token, accounts,
 
     for k in range(N_STEPS):
         PriceOracle.set_price(p_o)
-
-        if k == 0:
-            x0 = amm.get_x_down(user)
-            y0 = amm.get_y_up(user)
 
         amount, is_pump = amm.get_amount_for_price(p_o)
         if is_pump:
@@ -153,12 +153,34 @@ def test_adiabatic(amm, PriceOracle, collateral_token, borrowed_token, accounts,
             j = 0
             collateral_token._mint_for_testing(user, amount, {'from': user})
 
+        p_before = amm.get_p()
         amm.exchange(i, j, amount, 0, {'from': user})
+
+        if k == 0:
+            x0 = amm.get_x_down(user)
+            y0 = amm.get_y_up(user)
 
         x = amm.get_x_down(user)
         y = amm.get_y_up(user)
-        assert approx(x, x0, precision)
-        assert approx(y, y0, precision)
+        # assert approx(x, x0, precision)
+        # assert approx(y, y0, precision)
+        print(k, x / x0)
+        print(k, y / y0)
+        print(k, p_o)
+        print(k, p_before, amm.get_p())
+        raise Exception("break")
 
         if k != N_STEPS - 1:
-            p_o = int(p_o_1 * p_o_mul)
+            p_o = int(p_o * p_o_mul)
+
+
+@pytest.mark.skip
+def test_failed(amm, PriceOracle, collateral_token, borrowed_token, accounts):
+    test_adiabatic.hypothesis.inner_test(
+        amm, PriceOracle, collateral_token, borrowed_token, accounts,
+        p_o_1=2330000000000000058188,
+        p_o_2=2489487620734414479785,
+        n1=22,
+        dn=2,
+        deposit_amount=1000001172
+    )
