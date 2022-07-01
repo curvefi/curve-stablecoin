@@ -1,4 +1,5 @@
 from ..conftest import approx
+from hypothesis import settings
 from brownie.test import given, strategy
 
 
@@ -10,10 +11,12 @@ from brownie.test import given, strategy
     init_trade_frac=strategy('uint256', max_value=10**18),
     p_frac=strategy('uint256', min_value=10**17, max_value=10**19)
 )
+@settings(max_examples=500)
 def test_amount_for_price(PriceOracle, amm, accounts, collateral_token, borrowed_token,
                           oracle_price, n1, dn, deposit_amount, init_trade_frac, p_frac):
     admin = accounts[0]
     user = accounts[1]
+    amm.set_fee(0, {'from': admin})
     PriceOracle.set_price(oracle_price, {'from': admin})
     n2 = n1 + dn
 
@@ -47,7 +50,7 @@ def test_amount_for_price(PriceOracle, amm, accounts, collateral_token, borrowed
 
     p = amm.get_p()
 
-    prec = max(1e-6, (amm.fee() / 1e18)**2)
+    prec = 1e-6
     if amount > 0:
         if is_pump:
             prec = max(2 / amount + 2 / (1e12 * amount * 1e18 / p_max), prec)
@@ -56,6 +59,23 @@ def test_amount_for_price(PriceOracle, amm, accounts, collateral_token, borrowed
     else:
         return
 
-    if p > p_min * (1 + prec) and p < p_max * (1 - prec) and abs(amm.active_band() - n0) < 50 - 1:
-        if prec < 0.1:
+    if abs(amm.active_band() - n0) < 50 - 1 and prec < 0.1:
+        if p_final > p_min * (1 + prec) and p_final < p_max * (1 - prec):
             assert approx(p, p_final, prec)
+
+        elif p_final >= p_max * (1 - prec):
+            assert approx(p, p_max, prec)
+
+        elif p_final <= p_min * (1 + prec):
+            assert approx(p, p_min, prec)
+
+
+def test_amount_for_price_fail(PriceOracle, amm, accounts, collateral_token, borrowed_token):
+    test_amount_for_price.hypothesis.inner_test(
+        PriceOracle, amm, accounts, collateral_token, borrowed_token,
+        oracle_price=2000000000000000000000,
+        n1=50,
+        dn=0,
+        deposit_amount=1000000000000,
+        init_trade_frac=0,
+        p_frac=2891564947520759727)
