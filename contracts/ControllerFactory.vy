@@ -44,7 +44,7 @@ n_collaterals: public(uint256)
 collaterals: public(address[1000000])
 
 # Limits
-MIN_A: constant(uint256) = 1
+MIN_A: constant(uint256) = 2
 MAX_A: constant(uint256) = 10000
 MAX_FEE: constant(uint256) = 10**17  # 10%
 MAX_ADMIN_FEE: constant(uint256) = 10**18  # 100%
