@@ -922,7 +922,7 @@ def get_amount_for_price(p: uint256) -> (uint256, bool):
     g: uint256 = 0
     Inv: uint256 = 0
 
-    for i in range(100):
+    for i in range(MAX_TICKS):
         not_empty: bool = x > 0 or y > 0
         if not_empty:
             y0 = self._get_y0(x, y, p_o, p_o_up, A)

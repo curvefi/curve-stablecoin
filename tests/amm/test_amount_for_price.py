@@ -59,18 +59,22 @@ def test_amount_for_price(PriceOracle, amm, accounts, collateral_token, borrowed
     else:
         return
 
-    if abs(amm.active_band() - n0) < 50 - 1 and prec < 0.1:
+    n_final = amm.active_band()
+
+    if abs(n_final - n0) < 50 - 1 and prec < 0.1:
         if p_final > p_min * (1 + prec) and p_final < p_max * (1 - prec):
             assert approx(p, p_final, prec)
 
         elif p_final >= p_max * (1 - prec):
-            assert approx(p, p_max, prec)
+            if not approx(p, p_max, prec):
+                assert n_final > n2
 
         elif p_final <= p_min * (1 + prec):
-            assert approx(p, p_min, prec)
+            if not approx(p, p_min, prec):
+                assert n_final < n1
 
 
-def test_amount_for_price_fail(PriceOracle, amm, accounts, collateral_token, borrowed_token):
+def test_amount_for_price_ticks_too_far(PriceOracle, amm, accounts, collateral_token, borrowed_token):
     test_amount_for_price.hypothesis.inner_test(
         PriceOracle, amm, accounts, collateral_token, borrowed_token,
         oracle_price=2000000000000000000000,
