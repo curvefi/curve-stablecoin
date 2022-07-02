@@ -61,6 +61,9 @@ def test_amount_for_price(PriceOracle, amm, accounts, collateral_token, borrowed
 
     n_final = amm.active_band()
 
+    assert approx(p_max, amm.p_current_up(n2), 1e-8)
+    assert approx(p_min, amm.p_current_down(n1), 1e-8)
+
     if abs(n_final - n0) < 50 - 1 and prec < 0.1:
         if p_final > p_min * (1 + prec) and p_final < p_max * (1 - prec):
             assert approx(p, p_final, prec)
