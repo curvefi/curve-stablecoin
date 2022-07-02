@@ -44,6 +44,7 @@ event SetAdminFee:
 
 MAX_INT: constant(int256) = 2**254 + (2**254 - 1)  # 2**255 - 1
 MAX_TICKS: constant(int256) = 50
+MAX_TICKS_UINT: constant(uint256) = 50
 MAX_SKIP_TICKS: constant(int256) = 1024
 
 struct UserTicks:
@@ -57,6 +58,7 @@ struct DetailedTrade:
     n2: int256
     ticks_in: uint256[MAX_TICKS]
     last_tick_j: uint256
+    base_mul: uint256
 
 BORROWED_TOKEN: immutable(ERC20)    # x
 BORROWED_PRECISION: immutable(uint256)
@@ -308,10 +310,11 @@ def _get_p(n: int256, x: uint256, y: uint256) -> uint256:
     A: uint256 = self.A
 
     # Special cases
-    if x == 0 and y == 0:
-        p_o_up = unsafe_div(p_o_up * unsafe_sub(A, 1), A)
-        return p_o**2 / p_o_up * p_o / p_o_up * 10**18 / self.sqrt_band_ratio
-    if x == 0: # Lowest point of this band -> p_current_down
+    if x == 0:
+        if y == 0:  # x and y are 0
+            p_o_up = unsafe_div(p_o_up * unsafe_sub(A, 1), A)
+            return p_o**2 / p_o_up * p_o / p_o_up * 10**18 / self.sqrt_band_ratio
+        # if x == 0: # Lowest point of this band -> p_current_down
         return p_o**2 / p_o_up * p_o / p_o_up
     if y == 0: # Highest point of this band -> p_current_up
         p_o_up = unsafe_div(p_o_up * unsafe_sub(A, 1), A)
@@ -403,12 +406,12 @@ def deposit_range(user: address, amount: uint256, n1: int256, n2: int256, move_c
     collateral_precision: uint256 = self.collateral_precision
 
     n0: int256 = self.active_band
-    assert n1 > n0 and n2 > n0, "Deposit below current band"
+    band: int256 = max(n1, n2)  # Fill from high N to low N
+    finish: int256 = min(n1, n2)
+    assert finish > n0, "Deposit below current band"
     if move_coins:
         assert self.collateral_token.transferFrom(user, self, amount)
 
-    band: int256 = max(n1, n2)  # Fill from high N to low N
-    finish: int256 = min(n1, n2)
     i: uint256 = convert(unsafe_sub(band, finish), uint256)
     n_bands: uint256 = unsafe_add(i, 1)
 
@@ -486,8 +489,10 @@ def withdraw(user: address, move_to: address) -> uint256[2]:
         self.total_shares[ns[0]] = s - ds
         x -= dx
         y -= dy
-        if ns[0] == min_band and x == 0 and y == 0:
-            min_band += 1
+        if ns[0] == min_band:
+            if x == 0:
+                if y == 0:
+                    min_band += 1
         if x > 0 or y > 0:
             max_band = ns[0]
         self.bands_x[ns[0]] = x
@@ -536,26 +541,14 @@ def calc_swap_out(pump: bool, in_amount: uint256, p_o: uint256) -> DetailedTrade
     min_band: int256 = self.min_band
     max_band: int256 = self.max_band
     out: DetailedTrade = empty(DetailedTrade)
-    out.n1 = self.active_band
-    # Prepare x,y and skip empty ticks
-    x: uint256 = 0
-    y: uint256 = 0
-    for i in range(MAX_SKIP_TICKS):
-        x = self.bands_x[out.n1]
-        y = self.bands_y[out.n1]
-        if x > 0 or y > 0 or i == MAX_SKIP_TICKS-1:
-            break
-        if pump:
-            if out.n1 == max_band:
-                break
-            out.n1 += 1
-        else:
-            if out.n1 == min_band:
-                break
-            out.n1 -= 1
-    out.n2 = out.n1
+    out.n2 = self.active_band
+    A: uint256 = self.A
+    Aneg1: uint256 = unsafe_sub(A, 1)
+    out.base_mul = self.p_base_mul
+    base_price: uint256 = self._base_price()
+    x: uint256 = self.bands_x[out.n2]
+    y: uint256 = self.bands_y[out.n2]
 
-    p_o_up: uint256 = unsafe_div(self._base_price() * self.p_base_mul, 10**18)
     fee: uint256 = self.fee
     admin_fee: uint256 = self.admin_fee
     in_amount_afee: uint256 = unsafe_div(unsafe_div(in_amount * fee, 10**18) * admin_fee, 10**18)
@@ -563,76 +556,89 @@ def calc_swap_out(pump: bool, in_amount: uint256, p_o: uint256) -> DetailedTrade
     in_amount_used: uint256 = 0
     fee = (10**18)**2 / unsafe_sub(10**18, fee)
     collateral_precision: uint256 = self.collateral_precision
-    A: uint256 = self.A
+    j: uint256 = MAX_TICKS_UINT
 
-    for i in range(MAX_TICKS):
+    for i in range(MAX_TICKS + MAX_SKIP_TICKS):
         y0: uint256 = 0
         f: uint256 = 0
         g: uint256 = 0
         Inv: uint256 = 0
+        p_o_up: uint256 = unsafe_div(base_price * out.base_mul, 10**18)
 
         if x > 0 or y > 0:
+            if j == MAX_TICKS_UINT:
+                out.n1 = out.n2
+                j = 0
             y0 = self._get_y0(x, y, p_o, p_o_up, A)
             f = unsafe_div(A * y0 * p_o / p_o_up * p_o, 10**18)
-            g = unsafe_sub(A, 1) * y0 * p_o_up / p_o
+            g = Aneg1 * y0 * p_o_up / p_o
             Inv = (f + x) * (g + y)
 
         if pump:
-            if y > 0 and g > 0:
-                x_dest: uint256 = Inv / g - f
-                if unsafe_div((x_dest - x) * fee, 10**18) >= in_amount_left:
-                    # This is the last band
-                    out.last_tick_j = Inv / (f + (x + in_amount_left * 10**18 / fee)) - g  # Should be always >= 0
-                    x += in_amount_left  # x is precise after this
-                    # Round down the output
-                    out.out_amount += unsafe_mul(unsafe_div(y - out.last_tick_j, collateral_precision), collateral_precision)
-                    out.ticks_in[i] = x
-                    out.in_amount = in_amount
-                    return out
+            if y > 0:
+                if g > 0:
+                    x_dest: uint256 = Inv / g - f
+                    if unsafe_div((x_dest - x) * fee, 10**18) >= in_amount_left:
+                        # This is the last band
+                        out.last_tick_j = Inv / (f + (x + in_amount_left * 10**18 / fee)) - g  # Should be always >= 0
+                        x += in_amount_left  # x is precise after this
+                        # Round down the output
+                        out.out_amount += unsafe_mul(unsafe_div(y - out.last_tick_j, collateral_precision), collateral_precision)
+                        out.ticks_in[j] = x
+                        out.in_amount = in_amount
+                        return out
 
-                else:
-                    # We go into the next band
-                    dx: uint256 = unsafe_div((x_dest - x) * fee, 10**18)
-                    in_amount_left -= dx
-                    out.ticks_in[i] = x + dx
-                    in_amount_used += dx
-                    out.out_amount += y
+                    else:
+                        # We go into the next band
+                        dx: uint256 = unsafe_div((x_dest - x) * fee, 10**18)
+                        in_amount_left -= dx
+                        out.ticks_in[j] = x + dx
+                        in_amount_used += dx
+                        out.out_amount += y
 
-            if i != MAX_TICKS - 1:
+            if i != MAX_TICKS + MAX_SKIP_TICKS - 1:
                 if out.n2 == max_band:
                     break
+                if j == MAX_TICKS_UINT - 1:
+                    break
                 out.n2 += 1
-                p_o_up = unsafe_div(p_o_up * unsafe_sub(A, 1), A)
+                out.base_mul = unsafe_div(out.base_mul * Aneg1, A)
                 x = 0
                 y = self.bands_y[out.n2]
 
         else:  # dump
-            if x > 0 and f > 0:
-                y_dest: uint256 = Inv / f - g
-                if unsafe_div((y_dest - y) * fee, 10**18) >= in_amount_left:
-                    # This is the last band
-                    out.last_tick_j = Inv / (g + (y + in_amount_left * 10**18 / fee)) - f
-                    y += in_amount_left
-                    out.out_amount += unsafe_mul(unsafe_div(x - out.last_tick_j, BORROWED_PRECISION), BORROWED_PRECISION)
-                    out.ticks_in[i] = y
-                    out.in_amount = in_amount
-                    return out
+            if x > 0:
+                if f > 0:
+                    y_dest: uint256 = Inv / f - g
+                    if unsafe_div((y_dest - y) * fee, 10**18) >= in_amount_left:
+                        # This is the last band
+                        out.last_tick_j = Inv / (g + (y + in_amount_left * 10**18 / fee)) - f
+                        y += in_amount_left
+                        out.out_amount += unsafe_mul(unsafe_div(x - out.last_tick_j, BORROWED_PRECISION), BORROWED_PRECISION)
+                        out.ticks_in[j] = y
+                        out.in_amount = in_amount
+                        return out
 
-                else:
-                    # We go into the next band
-                    dy: uint256 = unsafe_div((y_dest - y) * fee, 10**18)
-                    in_amount_left -= dy
-                    out.ticks_in[i] = y + dy
-                    in_amount_used += dy
-                    out.out_amount += x
+                    else:
+                        # We go into the next band
+                        dy: uint256 = unsafe_div((y_dest - y) * fee, 10**18)
+                        in_amount_left -= dy
+                        out.ticks_in[j] = y + dy
+                        in_amount_used += dy
+                        out.out_amount += x
 
-            if i != MAX_TICKS - 1:
+            if i != MAX_TICKS + MAX_SKIP_TICKS - 1:
                 if out.n2 == min_band:
                     break
+                if j == MAX_TICKS_UINT - 1:
+                    break
                 out.n2 -= 1
-                p_o_up = p_o_up * A / unsafe_sub(A, 1)
+                out.base_mul = unsafe_div(out.base_mul * A, Aneg1)
                 x = self.bands_x[out.n2]
                 y = 0
+
+        if j != MAX_TICKS_UINT:
+            j = unsafe_add(j, 1)
 
     # Round up what goes in and down what goes out
     out.in_amount = in_amount_used + in_amount_afee
@@ -731,7 +737,6 @@ def exchange(i: uint256, j: uint256, in_amount: uint256, min_amount: uint256, _f
     out_coin.transfer(_for, out_amount_done)
 
     A: uint256 = self.A
-    p_base_mul: uint256 = self.p_base_mul
     n: int256 = out.n1
     step: int256 = 1
     if out.n2 < out.n1:
@@ -751,14 +756,10 @@ def exchange(i: uint256, j: uint256, in_amount: uint256, min_amount: uint256, _f
                 break
             self.bands_x[n] = 0
 
-        if step == 1:
-            p_base_mul = unsafe_div(p_base_mul * unsafe_sub(A, 1), A)
-        else:
-            p_base_mul = p_base_mul * A / unsafe_sub(A, 1)
         n += step
 
     self.active_band = n
-    self.p_base_mul = p_base_mul
+    self.p_base_mul = out.base_mul
 
     log TokenExchange(_for, i, in_amount_done, j, out_amount_done)
 
@@ -796,12 +797,15 @@ def get_xy_up(user: address, use_y: bool) -> uint256:
             x = self.bands_x[n]
         p_o_up: uint256 = p_o_down
         p_o_down = unsafe_div(p_o_down * unsafe_sub(A, 1), A)
-        if x == 0 and y == 0:
-            continue
+        if x == 0:
+            if y == 0:
+                continue
 
         total_share: uint256 = self.total_shares[n]
         user_share: uint256 = ticks[i]
-        if total_share == 0 or user_share == 0:
+        if total_share == 0:
+            continue
+        if user_share == 0:
             continue
 
         p_current_mid: uint256 = unsafe_div(p_o**2 / p_o_down * p_o / p_o_down * unsafe_sub(A, 1), A)
@@ -921,22 +925,6 @@ def get_amount_for_price(p: uint256) -> (uint256, bool):
     min_band: int256 = self.min_band
     max_band: int256 = self.max_band
     n: int256 = self.active_band
-    x: uint256 = self.bands_x[n]
-    y: uint256 = self.bands_y[n]
-    pump: bool = True
-    if p < self._get_p(n, x, y):
-        pump = False
-    for i in range(MAX_SKIP_TICKS-1):
-        if x > 0 or y > 0:
-            break
-        if pump:
-            n += 1
-            x = 0
-            y = self.bands_y[n]
-        else:
-            n -= 1
-            y = 0
-            x = self.bands_x[n]
     A: uint256 = self.A
     Aneg1: uint256 = unsafe_sub(A, 1)
     A2: uint256 = pow_mod256(A, 2)
@@ -950,29 +938,41 @@ def get_amount_for_price(p: uint256) -> (uint256, bool):
     f: uint256 = 0
     g: uint256 = 0
     Inv: uint256 = 0
+    j: uint256 = MAX_TICKS_UINT
+    pump: bool = True
 
-    for i in range(MAX_TICKS):
+    for i in range(MAX_TICKS + MAX_SKIP_TICKS):
+        x: uint256 = self.bands_x[n]
+        y: uint256 = self.bands_y[n]
+        if i == 0:
+            if p < self._get_p(n, x, y):
+                pump = False
         not_empty: bool = x > 0 or y > 0
         if not_empty:
             y0 = self._get_y0(x, y, p_o, p_o_up, A)
             f = unsafe_div(A * y0 * p_o / p_o_up * p_o, 10**18)
             g = unsafe_div(Aneg1 * y0 * p_o_up, p_o)
             Inv = (f + x) * (g + y)
+            if j == MAX_TICKS_UINT:
+                j = 0
 
-        if p <= p_up and p >= p_down:
-            if not_empty:
-                ynew: uint256 = unsafe_sub(max(self.sqrt_int(Inv / p), g), g)
-                xnew: uint256 = unsafe_sub(max(Inv / (g + ynew), f), f)
-                if pump:
-                    amount += xnew - x
-                else:
-                    amount += ynew - y
-            break
+        if p <= p_up:
+            if p >= p_down:
+                if not_empty:
+                    ynew: uint256 = unsafe_sub(max(self.sqrt_int(Inv / p), g), g)
+                    xnew: uint256 = unsafe_sub(max(Inv / (g + ynew), f), f)
+                    if pump:
+                        amount += xnew - x
+                    else:
+                        amount += ynew - y
+                break
 
         if pump:
             if not_empty:
                 amount += (Inv / g - f) - x
             if n == max_band:
+                break
+            if j == MAX_TICKS_UINT - 1:
                 break
             n += 1
             p_down = p_up
@@ -984,13 +984,15 @@ def get_amount_for_price(p: uint256) -> (uint256, bool):
                 amount += (Inv / f - g) - y
             if n == min_band:
                 break
+            if j == MAX_TICKS_UINT - 1:
+                break
             n -= 1
             p_up = p_down
             p_down = unsafe_div(p_down * Aneg12, A2)
             p_o_up = unsafe_div(p_o_up * A, Aneg1)
 
-        x = self.bands_x[n]
-        y = self.bands_y[n]
+        if j != MAX_TICKS_UINT:
+            j = unsafe_add(j, 1)
 
     amount = amount * 10**18 / unsafe_sub(10**18, self.fee)
     if amount == 0:
