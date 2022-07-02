@@ -116,8 +116,8 @@ def test_immediate_in_band(amm, PriceOracle, collateral_token, borrowed_token, a
     p_o_1=strategy('uint256', min_value=2000 * 10**18, max_value=4000 * 10**18),
     p_o_2=strategy('uint256', min_value=2000 * 10**18, max_value=4000 * 10**18),
     n1=strategy('uint256', min_value=1, max_value=30),
-    dn=strategy('uint256', max_value=0),  # XXX 30
-    deposit_amount=strategy('uint256', min_value=10**9, max_value=10**25),
+    dn=strategy('uint256', max_value=30),
+    deposit_amount=strategy('uint256', min_value=10**18, max_value=10**25),
 )
 @settings(max_examples=10)
 def test_adiabatic(amm, PriceOracle, collateral_token, borrowed_token, accounts,
@@ -131,17 +131,13 @@ def test_adiabatic(amm, PriceOracle, collateral_token, borrowed_token, accounts,
     N_STEPS = 101
     p_o = p_o_1
     p_o_mul = (p_o_2 / p_o_1) ** (1 / (N_STEPS - 1))
-    precision = max(abs(p_o_mul - 1), 1e-6)
+    precision = max(abs(p_o_mul - 1) * (dn + 1) * 1.5, 1e-6)  # Approx 1. 1.5 is an "overkill"
 
     x0 = 0
     y0 = 0
 
     for k in range(N_STEPS):
         PriceOracle.set_price(p_o)
-
-        if k == 0:
-            x0 = amm.get_x_down(user)
-            y0 = amm.get_y_up(user)
 
         amount, is_pump = amm.get_amount_for_price(p_o)
         if is_pump:
@@ -155,10 +151,14 @@ def test_adiabatic(amm, PriceOracle, collateral_token, borrowed_token, accounts,
 
         amm.exchange(i, j, amount, 0, {'from': user})
 
+        if k == 0:
+            x0 = amm.get_x_down(user)
+            y0 = amm.get_y_up(user)
+
         x = amm.get_x_down(user)
         y = amm.get_y_up(user)
         assert approx(x, x0, precision)
         assert approx(y, y0, precision)
 
         if k != N_STEPS - 1:
-            p_o = int(p_o_1 * p_o_mul)
+            p_o = int(p_o * p_o_mul)
