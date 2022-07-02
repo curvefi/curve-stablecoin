@@ -131,7 +131,7 @@ def test_adiabatic(amm, PriceOracle, collateral_token, borrowed_token, accounts,
     N_STEPS = 101
     p_o = p_o_1
     p_o_mul = (p_o_2 / p_o_1) ** (1 / (N_STEPS - 1))
-    precision = max(abs(p_o_mul - 1) * (dn + 1) * 1.5, 1e-6)  # Approx 1. 1.5 is an "overkill"
+    precision = max(abs(p_o_mul - 1) * (dn + 1) * (max(p_o_2, p_o_1) / min(p_o_2, p_o_1)), 1e-6)  # Approx 1. 1.5 is an "overkill"
 
     x0 = 0
     y0 = 0
