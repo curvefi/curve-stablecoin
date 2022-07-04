@@ -777,6 +777,7 @@ def get_xy_up(user: address, use_y: bool) -> uint256:
     if ticks[0] == 0:
         return 0
     p_o: uint256 = self.price_oracle_contract.price()
+    assert p_o != 0
 
     n: int256 = ns[0] - 1
     n_active: int256 = self.active_band
@@ -808,7 +809,8 @@ def get_xy_up(user: address, use_y: bool) -> uint256:
         if user_share == 0:
             continue
 
-        p_current_mid: uint256 = unsafe_div(p_o**2 / p_o_down * p_o / p_o_down * unsafe_sub(A, 1), A)
+        # Also this will revert if p_o_down is 0, and p_o_down is 0 if p_o_up is 0
+        p_current_mid: uint256 = unsafe_div(unsafe_div(p_o**2 / p_o_down * p_o, p_o_down) * unsafe_sub(A, 1), A)
 
         # if p_o > p_o_up - we "trade" everything to y and then convert to the result
         # if p_o < p_o_down - "trade" to x, then convert to result
@@ -835,7 +837,7 @@ def get_xy_up(user: address, use_y: bool) -> uint256:
                 if x == 0:
                     x_equiv = unsafe_div(y * p_current_mid, 10**18)
                 if use_y:
-                    XY += unsafe_div(x_equiv * sqrt_band_ratio / p_o_up * user_share, total_share)
+                    XY += unsafe_div(unsafe_div(x_equiv * sqrt_band_ratio, p_o_up) * user_share, total_share)
                 else:
                     XY += unsafe_div(x_equiv * user_share, total_share)
                 continue
@@ -844,8 +846,8 @@ def get_xy_up(user: address, use_y: bool) -> uint256:
         # So we need more heavy math
 
         y0: uint256 = self._get_y0(x, y, p_o, p_o_up, A)
-        f: uint256 = unsafe_div(A * y0 * p_o / p_o_up * p_o, 10**18)
-        g: uint256 = unsafe_sub(A, 1) * y0 * p_o_up / p_o
+        f: uint256 = unsafe_div(unsafe_div(A * y0 * p_o, p_o_up) * p_o, 10**18)
+        g: uint256 = unsafe_div(unsafe_sub(A, 1) * y0 * p_o_up, p_o)
         # (f + x)(g + y) = const = p_top * A**2 * y0**2 = I
         Inv: uint256 = (f + x) * (g + y)
         # p = (f + x) / (g + y) => p * (g + y)**2 = I or (f + x)**2 / p = I
@@ -866,12 +868,12 @@ def get_xy_up(user: address, use_y: bool) -> uint256:
             # y_o = 0
             x_o = unsafe_sub(max(Inv / g, f), f)
             if use_y:
-                XY += unsafe_div(x_o * sqrt_band_ratio / p_o_up * user_share, total_share)
+                XY += unsafe_div(unsafe_div(x_o * sqrt_band_ratio, p_o_up) * user_share, total_share)
             else:
                 XY += unsafe_div(x_o * user_share, total_share)
 
         else:
-            y_o = unsafe_sub(max(self.sqrt_int(Inv / p_o), g), g)
+            y_o = unsafe_sub(max(self.sqrt_int(unsafe_div(Inv, p_o)), g), g)
             x_o = unsafe_sub(max(Inv / (g + y_o), f), f)
             # Now adiabatic conversion from definitely in-band
             if use_y:
