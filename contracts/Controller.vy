@@ -330,7 +330,7 @@ def _add_collateral_borrow(d_collateral: uint256, d_debt: uint256, _for: address
     amm.deposit_range(_for, xy[1], n1, n2, False)
     self.loans[_for] = Loan({initial_debt: debt, rate_mul: rate_mul})
 
-    if d_debt > 0:
+    if d_debt != 0:
         total_debt: uint256 = self._total_debt.initial_debt * rate_mul / self._total_debt.rate_mul + d_debt
         assert total_debt <= self.debt_ceiling, "Debt ceiling"
         self._total_debt.initial_debt = total_debt
@@ -351,7 +351,7 @@ def add_collateral(collateral: uint256, _for: address):
 @nonreentrant('lock')
 def borrow_more(collateral: uint256, debt: uint256):
     self._add_collateral_borrow(collateral, debt, msg.sender)
-    if collateral > 0:
+    if collateral != 0:
         self.collateral_token.transferFrom(msg.sender, self.amm.address, collateral)
     STABLECOIN.mint(msg.sender, debt)
 
@@ -436,7 +436,7 @@ def _liquidate(user: address, min_x: uint256, health_limit: uint256):
     debt, rate_mul = self._debt(user)
     amm: AMM = self.amm
 
-    if health_limit > 0:
+    if health_limit != 0:
         assert self._health(amm, user, debt, True) < convert(health_limit, int256), "Not enough rekt"
 
     # Send all the sender's stablecoin and collateral to our contract
@@ -446,8 +446,9 @@ def _liquidate(user: address, min_x: uint256, health_limit: uint256):
     # x decrease in same block -> price down -> bad
     assert xy[0] >= min_x, "Sandwich"
 
-    if xy[0] > 0:
-        STABLECOIN.burnFrom(amm.address, min(xy[0], debt))
+    min_amm_burn: uint256 = min(xy[0], debt)
+    if min_amm_burn != 0:
+        STABLECOIN.burnFrom(amm.address, min_amm_burn)
 
     if debt > xy[0]:
         # Request what's left from user

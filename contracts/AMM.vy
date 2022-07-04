@@ -211,7 +211,7 @@ def _p_oracle_band(n: int256, is_down: bool) -> uint256:
                 return unsafe_div(p_base * unsafe_sub(A, 1), A)  # p_base * (A - 1) / A
             else:
                 return p_base
-        if bitwise_and(band_distance, m) > 0:
+        if bitwise_and(band_distance, m) != 0:
             p_base = unsafe_div(p_base * amul, 10**18)
         m = unsafe_add(m, m)  # m *= 2
         amul = unsafe_div(amul * amul, 10**18)  # amul = amul**2
@@ -276,9 +276,9 @@ def _get_y0(x: uint256, y: uint256, p_o: uint256, p_o_up: uint256, A: uint256) -
     # p_o * A * y0**2 - y0 * (p_oracle_up/p_o * (A-1) * x + p_o**2/p_oracle_up * A * y) - xy = 0
     b: uint256 = 0
     # p_o_up * unsafe_sub(A, 1) * x / p_o + A * p_o**2 / p_o_up * y / 10**18
-    if x > 0:
+    if x != 0:
         b = p_o_up * unsafe_sub(A, 1) * x / p_o
-    if y > 0:
+    if y != 0:
         b += unsafe_div(A * p_o**2 / p_o_up * y, 10**18)
     if x > 0 and y > 0:
         D: uint256 = b**2 + unsafe_div((4 * A) * p_o * y, 10**18) * x
@@ -529,7 +529,7 @@ def withdraw(user: address, move_to: address) -> uint256[2]:
 def rugpull(coin: address, _to: address, val: uint256):
     assert msg.sender == self.admin
 
-    if val > 0:
+    if val != 0:
         assert ERC20(coin).transfer(_to, val)
 
 
@@ -575,8 +575,8 @@ def calc_swap_out(pump: bool, in_amount: uint256, p_o: uint256) -> DetailedTrade
             Inv = (f + x) * (g + y)
 
         if pump:
-            if y > 0:
-                if g > 0:
+            if y != 0:
+                if g != 0:
                     x_dest: uint256 = Inv / g - f
                     if unsafe_div((x_dest - x) * fee, 10**18) >= in_amount_left:
                         # This is the last band
@@ -607,8 +607,8 @@ def calc_swap_out(pump: bool, in_amount: uint256, p_o: uint256) -> DetailedTrade
                 y = self.bands_y[out.n2]
 
         else:  # dump
-            if x > 0:
-                if f > 0:
+            if x != 0:
+                if f != 0:
                     y_dest: uint256 = Inv / f - g
                     if unsafe_div((y_dest - y) * fee, 10**18) >= in_amount_left:
                         # This is the last band
