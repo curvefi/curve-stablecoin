@@ -917,6 +917,30 @@ def get_sum_xy(user: address) -> uint256[2]:
     return [unsafe_div(x, BORROWED_PRECISION), unsafe_div(y, self.collateral_precision)]
 
 
+@internal
+@view
+def _can_skip_bands(n_end: int256) -> bool:
+    n: int256 = self.active_band
+    for i in range(MAX_SKIP_TICKS):
+        if n_end > n:
+            if self.bands_y[n] != 0:
+                return False
+            n += 1
+        else:
+            if self.bands_x[n] != 0:
+                return False
+            n -= 1
+        if n == n_end:  # not including n_end
+            break
+    return True
+
+
+@external
+@view
+def can_skip_bands(n_end: int256) -> bool:
+    return self._can_skip_bands(n_end)
+
+
 @external
 @view
 def get_amount_for_price(p: uint256) -> (uint256, bool):
