@@ -399,6 +399,35 @@ def _read_user_ticks(user: address, size: int256) -> uint256[MAX_TICKS]:
     return ticks
 
 
+@internal
+@view
+def _can_skip_bands(n_end: int256) -> bool:
+    n: int256 = self.active_band
+    for i in range(MAX_SKIP_TICKS):
+        if n_end > n:
+            if self.bands_y[n] != 0:
+                return False
+            n += 1
+        else:
+            if self.bands_x[n] != 0:
+                return False
+            n -= 1
+        if n == n_end:  # not including n_end
+            break
+    return True
+
+
+@external
+@view
+def can_skip_bands(n_end: int256) -> bool:
+    return self._can_skip_bands(n_end)
+    # Actually skipping bands:
+    # * change self.active_band to the new n
+    # * change self.p_base_mul
+    # to do n2-n1 times (if n2 > n1):
+    # out.base_mul = unsafe_div(out.base_mul * Aneg1, A)
+
+
 @external
 @nonreentrant('lock')
 def deposit_range(user: address, amount: uint256, n1: int256, n2: int256, move_coins: bool):
@@ -408,7 +437,21 @@ def deposit_range(user: address, amount: uint256, n1: int256, n2: int256, move_c
     n0: int256 = self.active_band
     band: int256 = max(n1, n2)  # Fill from high N to low N
     finish: int256 = min(n1, n2)
-    assert finish > n0, "Deposit below current band"
+
+    A: uint256 = self.A
+    base_mul: uint256 = self.p_base_mul
+
+    # Autoskip bands if we can
+    for i in range(MAX_SKIP_TICKS + 1):
+        if finish > n0:
+            if i != 0:
+                self.p_base_mul = base_mul
+                self.active_band = n0
+            break
+        assert self.bands_x[n0] == 0 and i < MAX_SKIP_TICKS, "Deposit below current band"
+        n0 -= 1
+        base_mul = unsafe_div(base_mul * A, unsafe_sub(A, 1))
+
     if move_coins:
         assert self.collateral_token.transferFrom(user, self, amount)
 
@@ -915,30 +958,6 @@ def get_sum_xy(user: address) -> uint256[2]:
             break
         ns[0] += 1
     return [unsafe_div(x, BORROWED_PRECISION), unsafe_div(y, self.collateral_precision)]
-
-
-@internal
-@view
-def _can_skip_bands(n_end: int256) -> bool:
-    n: int256 = self.active_band
-    for i in range(MAX_SKIP_TICKS):
-        if n_end > n:
-            if self.bands_y[n] != 0:
-                return False
-            n += 1
-        else:
-            if self.bands_x[n] != 0:
-                return False
-            n -= 1
-        if n == n_end:  # not including n_end
-            break
-    return True
-
-
-@external
-@view
-def can_skip_bands(n_end: int256) -> bool:
-    return self._can_skip_bands(n_end)
 
 
 @external
