@@ -48,7 +48,7 @@ MAX_TICKS_UINT: constant(uint256) = 50
 MAX_SKIP_TICKS: constant(int256) = 1024
 
 struct UserTicks:
-    ns: bytes32  # packs n1 and n2, each is int128
+    ns: int256  # packs n1 and n2, each is int128
     ticks: uint256[MAX_TICKS/2]  # Share fractions packed 2 per slot
 
 struct DetailedTrade:
@@ -230,7 +230,7 @@ def _p_current_band(n: int256, is_up: bool) -> uint256:
 
     # return self.p_oracle**3 / p_base**2
     p_oracle: uint256 = self.price_oracle_contract.price()
-    return p_oracle**2 / p_base * p_oracle / p_base
+    return unsafe_div(p_oracle**2 / p_base * p_oracle, p_base)
 
 
 @external
@@ -272,19 +272,20 @@ def p_oracle_down(n: int256) -> uint256:
 @internal
 @view
 def _get_y0(x: uint256, y: uint256, p_o: uint256, p_o_up: uint256, A: uint256) -> uint256:
+    assert p_o != 0
     # solve:
     # p_o * A * y0**2 - y0 * (p_oracle_up/p_o * (A-1) * x + p_o**2/p_oracle_up * A * y) - xy = 0
     b: uint256 = 0
     # p_o_up * unsafe_sub(A, 1) * x / p_o + A * p_o**2 / p_o_up * y / 10**18
     if x != 0:
-        b = p_o_up * unsafe_sub(A, 1) * x / p_o
+        b = unsafe_div(p_o_up * unsafe_sub(A, 1) * x, p_o)
     if y != 0:
         b += unsafe_div(A * p_o**2 / p_o_up * y, 10**18)
     if x > 0 and y > 0:
         D: uint256 = b**2 + unsafe_div((4 * A) * p_o * y, 10**18) * x
-        return (b + self.sqrt_int(unsafe_div(D, 10**18))) * 10**18 / ((2 * A) * p_o)
+        return unsafe_div((b + self.sqrt_int(unsafe_div(D, 10**18))) * 10**18, (2 * A) * p_o)
     else:
-        return b * 10**18 / (A * p_o)
+        return unsafe_div(b * 10**18, A * p_o)
 
 
 @external
@@ -313,12 +314,12 @@ def _get_p(n: int256, x: uint256, y: uint256) -> uint256:
     if x == 0:
         if y == 0:  # x and y are 0
             p_o_up = unsafe_div(p_o_up * unsafe_sub(A, 1), A)
-            return p_o**2 / p_o_up * p_o / p_o_up * 10**18 / self.sqrt_band_ratio
+            return unsafe_div(p_o**2 / p_o_up * p_o, p_o_up) * 10**18 / self.sqrt_band_ratio
         # if x == 0: # Lowest point of this band -> p_current_down
-        return p_o**2 / p_o_up * p_o / p_o_up
+        return unsafe_div(p_o**2 / p_o_up * p_o, p_o_up)
     if y == 0: # Highest point of this band -> p_current_up
         p_o_up = unsafe_div(p_o_up * unsafe_sub(A, 1), A)
-        return p_o**2 / p_o_up * p_o / p_o_up
+        return unsafe_div(p_o**2 / p_o_up * p_o, p_o_up)
 
     y0: uint256 = self._get_y0(x, y, p_o, p_o_up, A)
 
@@ -341,12 +342,8 @@ def save_user_ticks(user: address, n1: int256, n2: int256, ticks: uint256[MAX_TI
     Packs and saves user ticks
     """
     if save_n:
-        n1p: uint256 = convert(convert(convert(n1, int128), bytes32), uint256)
-        n2p: uint256 = convert(convert(convert(n2, int128), bytes32), uint256)
-        if n1 > n2:
-            self.user_shares[user].ns = convert(bitwise_or(n2p, shift(n1p, 128)), bytes32)
-        else:
-            self.user_shares[user].ns = convert(bitwise_or(n1p, shift(n2p, 128)), bytes32)
+        # check bounds XXX
+        self.user_shares[user].ns = min(n1, n2) + max(n1, n2) * 2**128
 
     dist: uint256 = convert(abs(n1 - n2), uint256) + 1
     ptr: uint256 = 0
@@ -367,9 +364,12 @@ def _read_user_tick_numbers(user: address) -> int256[2]:
     """
     Unpacks and reads user tick numbers
     """
-    ns: uint256 = convert(self.user_shares[user].ns, uint256)
-    n1: int256 = convert(convert(convert(bitwise_and(ns, 2**128 - 1), bytes32), int128), int256)
-    n2: int256 = convert(convert(convert(shift(ns, -128), bytes32), int128), int256)
+    ns: int256 = self.user_shares[user].ns
+    n2: int256 = ns / 2**128
+    n1: int256 = ns % 2**128
+    if n1 >= 2**127:
+        n1 -= 2**128
+        n2 += 1
     return [n1, n2]
 
 
