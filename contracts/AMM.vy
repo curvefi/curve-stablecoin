@@ -337,28 +337,6 @@ def get_p() -> uint256:
 
 
 @internal
-def save_user_ticks(user: address, n1: int256, n2: int256, ticks: uint256[MAX_TICKS], save_n: bool):
-    """
-    Packs and saves user ticks
-    """
-    if save_n:
-        # check bounds XXX
-        self.user_shares[user].ns = min(n1, n2) + max(n1, n2) * 2**128
-
-    dist: uint256 = convert(abs(n1 - n2), uint256) + 1
-    ptr: uint256 = 0
-    for i in range(MAX_TICKS / 2):
-        if ptr >= dist:
-            break
-        tick: uint256 = ticks[ptr]
-        ptr += 1
-        if dist != ptr:
-            tick = bitwise_or(tick, shift(ticks[ptr], 128))
-        ptr += 1
-        self.user_shares[user].ticks[i] = tick
-
-
-@internal
 @view
 def _read_user_tick_numbers(user: address) -> int256[2]:
     """
@@ -436,14 +414,15 @@ def deposit_range(user: address, amount: uint256, n1: int256, n2: int256, move_c
 
     n0: int256 = self.active_band
     band: int256 = max(n1, n2)  # Fill from high N to low N
-    finish: int256 = min(n1, n2)
+    upper: int256 = band
+    lower: int256 = min(n1, n2)
 
     A: uint256 = self.A
     base_mul: uint256 = self.p_base_mul
 
     # Autoskip bands if we can
     for i in range(MAX_SKIP_TICKS + 1):
-        if finish > n0:
+        if lower > n0:
             if i != 0:
                 self.p_base_mul = base_mul
                 self.active_band = n0
@@ -455,7 +434,7 @@ def deposit_range(user: address, amount: uint256, n1: int256, n2: int256, move_c
     if move_coins:
         assert self.collateral_token.transferFrom(user, self, amount)
 
-    i: uint256 = convert(unsafe_sub(band, finish), uint256)
+    i: uint256 = convert(unsafe_sub(band, lower), uint256)
     n_bands: uint256 = unsafe_add(i, 1)
 
     y: uint256 = unsafe_div(amount * collateral_precision, n_bands)
@@ -464,7 +443,7 @@ def deposit_range(user: address, amount: uint256, n1: int256, n2: int256, move_c
     save_n: bool = True
     if self.user_shares[user].ticks[0] != 0:  # Has liquidity
         ns: int256[2] = self._read_user_tick_numbers(user)
-        assert ns[0] == finish and ns[1] == band, "Wrong range"
+        assert ns[0] == lower and ns[1] == band, "Wrong range"
         save_n = False
 
     user_shares: uint256[MAX_TICKS] = empty(uint256[MAX_TICKS])
@@ -496,9 +475,23 @@ def deposit_range(user: address, amount: uint256, n1: int256, n2: int256, move_c
             break
         i -= 1
 
-    self.min_band = min(self.min_band, n1)
-    self.max_band = max(self.max_band, n2)
-    self.save_user_ticks(user, n1, n2, user_shares, save_n)
+    self.min_band = min(self.min_band, lower)
+    self.max_band = max(self.max_band, upper)
+
+    if save_n:
+        self.user_shares[user].ns = lower + upper * 2**128
+
+    dist: uint256 = convert(upper - lower, uint256) + 1
+    ptr: uint256 = 0
+    for j in range(MAX_TICKS_UINT / 2):
+        if ptr >= dist:
+            break
+        tick: uint256 = user_shares[ptr]
+        ptr += 1
+        if dist != ptr:
+            tick = bitwise_or(tick, shift(user_shares[ptr], 128))
+        ptr += 1
+        self.user_shares[user].ticks[j] = tick
 
     self.rate_mul = self._rate_mul()
     self.rate_time = block.timestamp
@@ -527,7 +520,7 @@ def withdraw(user: address, move_to: address) -> uint256[2]:
         ds: uint256 = user_shares[i]
         s: uint256 = self.total_shares[ns[0]]
         dx: uint256 = x * ds / s
-        dy: uint256 = y * ds / s
+        dy: uint256 = unsafe_div(y * ds, s)
 
         self.total_shares[ns[0]] = s - ds
         x -= dx
@@ -953,7 +946,7 @@ def get_sum_xy(user: address) -> uint256[2]:
     for i in range(MAX_TICKS):
         total_shares: uint256 = self.total_shares[ns[0]]
         x += self.bands_x[ns[0]] * ticks[i] / total_shares
-        y += self.bands_y[ns[0]] * ticks[i] / total_shares
+        y += unsafe_div(self.bands_y[ns[0]] * ticks[i], total_shares)
         if ns[0] == ns[1]:
             break
         ns[0] += 1
