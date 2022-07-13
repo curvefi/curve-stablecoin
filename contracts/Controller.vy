@@ -291,28 +291,27 @@ def max_borrowable(collateral: uint256, N: uint256) -> uint256:
     # When n1 -= 1:
     # p_oracle_up *= A / (A - 1)
 
-    _collateral: uint256 = unsafe_mul(collateral, self.collateral_precision)
+    _collateral: uint256 = collateral * self.collateral_precision
     amm: AMM = self.amm
-    loan_discount: uint256 = 10**18 - self.loan_discount
     A: uint256 = self.A
     Aneg1: uint256 = unsafe_sub(A, 1)
-    p_base: uint256 = amm.get_base_price() * amm.p_base_mul() / 10**18
-    n0: int256 = amm.active_band()
+    n1: int256 = amm.active_band() + 1
+    p_base: uint256 = amm.get_base_price() * amm.p_base_mul() * Aneg1 / unsafe_mul(10**18, A)
+    p_oracle: uint256 = amm.price_oracle() * Aneg1 / A
 
-    d_y_effective: uint256 = _collateral * loan_discount / amm.sqrt_band_ratio() / N
-    y_effective: uint256 = d_y_effective
+    y_effective: uint256 = self.get_y_effective(amm, collateral, N)
+
     for i in range(MAX_SKIP_TICKS):
-        if amm.bands_x(n0) != 0:
+        n1 -= 1
+        if amm.bands_x(n1) != 0:
             break
-        n0 -= 1
         p_base = unsafe_div(p_base * A, Aneg1)
-    for i in range(1, MAX_TICKS_UINT):
-        if i == N:
+        if p_base > p_oracle:
             break
-        d_y_effective = unsafe_div(d_y_effective * Aneg1, A)
-        y_effective = y_effective + d_y_effective
 
-    x: uint256 = max(y_effective * p_base * Aneg1 / unsafe_mul(A, 10**18), 1) - 1
+    p_base = min(p_base, p_oracle)
+
+    x: uint256 = max(y_effective * p_base / 10**18, 1) - 1
     return unsafe_div(x * (10**18 - 10**14), 10**18)  # Make it a bit smaller
 
 
