@@ -225,28 +225,40 @@ def total_debt() -> uint256:
 
 @internal
 @view
-def _calculate_debt_n1(collateral: uint256, debt: uint256, N: uint256) -> int256:
-    assert debt > 0, "No loan"
-    _debt: uint256 = debt + 1
-    _collateral: uint256 = unsafe_mul(collateral, self.collateral_precision)
-    amm: AMM = self.amm
-    # p0: uint256 = amm.p_current_down(n0)
-    n0: int256 = amm.active_band()
-    p_base: uint256 = amm.get_base_price() * amm.p_base_mul() / 10**18
+def get_y_effective(amm: AMM, collateral: uint256, N: uint256) -> uint256:
     loan_discount: uint256 = 10**18 - self.loan_discount
-
-    # x_effective = y / N * p_oracle_up(n1) * sqrt((A - 1) / A) * sum_{0..N-1}(((A-1) / A)**k)
-    # === y_effective * p_oracle_up(n1) * sum(...)
-    # y_effective = y / N / sqrt(A / (A - 1))
     A: uint256 = self.A
-    d_y_effective: uint256 = _collateral * loan_discount / amm.sqrt_band_ratio() / N
+    d_y_effective: uint256 = collateral * loan_discount / amm.sqrt_band_ratio() / N
     y_effective: uint256 = d_y_effective
     for i in range(1, MAX_TICKS_UINT):
         if i == N:
             break
         d_y_effective = unsafe_div(d_y_effective * unsafe_sub(A, 1), A)
         y_effective = unsafe_add(y_effective, d_y_effective)
+    return y_effective
+
+
+@internal
+@view
+def _calculate_debt_n1(collateral: uint256, debt: uint256, N: uint256) -> int256:
+    assert debt > 0, "No loan"
+    _debt: uint256 = debt + 1
+    amm: AMM = self.amm
+    # p0: uint256 = amm.p_current_down(n0)
+    n0: int256 = amm.active_band()
+    p_base: uint256 = amm.get_base_price() * amm.p_base_mul() / 10**18
+
+    # x_effective = y / N * p_oracle_up(n1) * sqrt((A - 1) / A) * sum_{0..N-1}(((A-1) / A)**k)
+    # === d_y_effective * p_oracle_up(n1) * sum(...) === y_effective * p_oracle_up(n1)
+    # d_y_effective = y / N / sqrt(A / (A - 1))
+    y_effective: uint256 = self.get_y_effective(amm, collateral * self.collateral_precision, N)
     # p_oracle_up(n1) = base_price * ((A - 1) / A)**n1
+
+    # We borrow up until min band touches p_oracle,
+    # or it touches non-empty bands which cannot be skipped.
+    # We calculate required n1 for given (collateral, debt),
+    # and if n1 corresponds to price_oracle being too high, or unreachable band
+    # - we revert.
 
     # n1 is band number based on adiabatic trading, e.g. when p_oracle ~ p
     y_effective = y_effective * p_base / _debt  # Now it's a ratio
@@ -265,6 +277,20 @@ def _calculate_debt_n1(collateral: uint256, debt: uint256, N: uint256) -> int256
 @external
 @view
 def max_borrowable(collateral: uint256, N: uint256) -> uint256:
+    # Calculation of maximum which can be borrowed.
+    # It corresponds to a minimum between the amount corresponding to price_oracle
+    # and the one given by the min reachable band.
+    #
+    # Given by p_oracle (perhaps needs to be multiplied by (A - 1) / A to account for mid-band effects)
+    # x_max ~= y_effective * p_oracle
+    #
+    # Given by band number:
+    # if n1 is the lowest empty band in the AMM
+    # xmax ~= y_effective * amm.p_oracle_up(n1)
+    #
+    # When n1 -= 1:
+    # p_oracle_up *= A / (A - 1)
+
     _collateral: uint256 = unsafe_mul(collateral, self.collateral_precision)
     amm: AMM = self.amm
     loan_discount: uint256 = 10**18 - self.loan_discount
