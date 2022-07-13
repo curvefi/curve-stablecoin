@@ -24,6 +24,7 @@ interface AMM:
     def price_oracle() -> uint256: view
     def sqrt_band_ratio() -> uint256: view
     def collateral_precision() -> uint256: view
+    def can_skip_bands(n_end: int256) -> bool: view
 
 interface ERC20:
     def totalSupply() -> uint256: view
@@ -248,11 +249,12 @@ def _calculate_debt_n1(collateral: uint256, debt: uint256, N: uint256) -> int256
 
     y_effective = y_effective * p_base / _debt  # Now it's a ratio
     n1: int256 = convert(self.log2(y_effective) / self.logAratio, int256)
-    n1 = min(n1, 1024 - convert(N, int256))  # debt is too small but we still want to borrow
-    assert n1 > 0, "Debt too high"
+    n1 = min(n1, 1024 - convert(N, int256)) + n0
+    if n1 <= n0:
+        assert amm.can_skip_bands(n1 - 1), "Debt too high"
     assert _collateral * loan_discount / 10**18 * amm.p_current_down(n0) / 10**18 >= _debt, "Debt too high"
 
-    return n1 + n0
+    return n1
 
 
 @external
