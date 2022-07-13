@@ -25,6 +25,7 @@ interface AMM:
     def sqrt_band_ratio() -> uint256: view
     def collateral_precision() -> uint256: view
     def can_skip_bands(n_end: int256) -> bool: view
+    def bands_x(n: int256) -> uint256: view
 
 interface ERC20:
     def totalSupply() -> uint256: view
@@ -93,6 +94,7 @@ MIN_LIQUIDATION_DISCOUNT: constant(uint256) = 10**16 # Start liquidating when th
 MAX_TICKS: constant(int256) = 50
 MAX_TICKS_UINT: constant(uint256) = 50
 MIN_TICKS: constant(int256) = 5
+MAX_SKIP_TICKS: constant(uint256) = 1024
 
 MAX_RATE: constant(uint256) = 43959106799  # 400% APY
 
@@ -234,25 +236,28 @@ def _calculate_debt_n1(collateral: uint256, debt: uint256, N: uint256) -> int256
     loan_discount: uint256 = 10**18 - self.loan_discount
 
     # x_effective = y / N * p_oracle_up(n1) * sqrt((A - 1) / A) * sum_{0..N-1}(((A-1) / A)**k)
-    # === y_effective * p_oracle_up(n1)
+    # === y_effective * p_oracle_up(n1) * sum(...)
+    # y_effective = y / N / sqrt(A / (A - 1))
     A: uint256 = self.A
     d_y_effective: uint256 = _collateral * loan_discount / amm.sqrt_band_ratio() / N
     y_effective: uint256 = d_y_effective
     for i in range(1, MAX_TICKS_UINT):
         if i == N:
             break
-        # Doing unsafe things while in a cycle
-        # It's safe, I swear
-        d_y_effective = unsafe_div(unsafe_mul(d_y_effective, unsafe_sub(A, 1)), A)
+        d_y_effective = unsafe_div(d_y_effective * unsafe_sub(A, 1), A)
         y_effective = unsafe_add(y_effective, d_y_effective)
     # p_oracle_up(n1) = base_price * ((A - 1) / A)**n1
 
+    # n1 is band number based on adiabatic trading, e.g. when p_oracle ~ p
     y_effective = y_effective * p_base / _debt  # Now it's a ratio
     n1: int256 = convert(self.log2(y_effective) / self.logAratio, int256)
     n1 = min(n1, 1024 - convert(N, int256)) + n0
     if n1 <= n0:
         assert amm.can_skip_bands(n1 - 1), "Debt too high"
-    assert _collateral * loan_discount / 10**18 * amm.p_current_down(n0) / 10**18 >= _debt, "Debt too high"
+
+    # Let's not rely on active_band corresponding to price_oracle:
+    # this will be not correct if we are in the area of empty bands
+    assert amm.p_oracle_up(n1) < amm.price_oracle(), "Debt too high"
 
     return n1
 
@@ -262,20 +267,26 @@ def _calculate_debt_n1(collateral: uint256, debt: uint256, N: uint256) -> int256
 def max_borrowable(collateral: uint256, N: uint256) -> uint256:
     _collateral: uint256 = unsafe_mul(collateral, self.collateral_precision)
     amm: AMM = self.amm
-    n0: int256 = amm.active_band()
-    p_base: uint256 = amm.get_base_price() * amm.p_base_mul() / 10**18
     loan_discount: uint256 = 10**18 - self.loan_discount
     A: uint256 = self.A
+    Aneg1: uint256 = unsafe_sub(A, 1)
+    p_base: uint256 = amm.get_base_price() * amm.p_base_mul() / 10**18
+    n0: int256 = amm.active_band()
 
     d_y_effective: uint256 = _collateral * loan_discount / amm.sqrt_band_ratio() / N
     y_effective: uint256 = d_y_effective
+    for i in range(MAX_SKIP_TICKS):
+        if amm.bands_x(n0) != 0:
+            break
+        n0 -= 1
+        p_base = unsafe_div(p_base * A, Aneg1)
     for i in range(1, MAX_TICKS_UINT):
         if i == N:
             break
-        d_y_effective = unsafe_div(unsafe_mul(d_y_effective, unsafe_sub(A, 1)), A)
-        y_effective = unsafe_add(y_effective, d_y_effective)
+        d_y_effective = unsafe_div(d_y_effective * Aneg1, A)
+        y_effective = y_effective + d_y_effective
 
-    x: uint256 = max(y_effective * p_base * unsafe_sub(A, 1) / unsafe_mul(A, 10**18), 1) - 1
+    x: uint256 = max(y_effective * p_base * Aneg1 / unsafe_mul(A, 10**18), 1) - 1
     return unsafe_div(x * (10**18 - 10**14), 10**18)  # Make it a bit smaller
 
 
