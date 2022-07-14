@@ -226,6 +226,9 @@ def total_debt() -> uint256:
 @internal
 @view
 def get_y_effective(amm: AMM, collateral: uint256, N: uint256) -> uint256:
+    # x_effective = y / N * p_oracle_up(n1) * sqrt((A - 1) / A) * sum_{0..N-1}(((A-1) / A)**k)
+    # === d_y_effective * p_oracle_up(n1) * sum(...) === y_effective * p_oracle_up(n1)
+    # d_y_effective = y / N / sqrt(A / (A - 1))
     loan_discount: uint256 = 10**18 - self.loan_discount
     A: uint256 = self.A
     d_y_effective: uint256 = collateral * loan_discount / amm.sqrt_band_ratio() / N
