@@ -6,8 +6,6 @@ interface AMM:
     def p_base_mul() -> uint256: view
     def get_p() -> uint256: view
     def active_band() -> int256: view
-    def p_current_up(n: int256) -> uint256: view
-    def p_current_down(n: int256) -> uint256: view
     def p_oracle_up(n: int256) -> uint256: view
     def p_oracle_down(n: int256) -> uint256: view
     def deposit_range(user: address, amount: uint256, n1: int256, n2: int256, move_coins: bool): nonpayable
@@ -111,6 +109,7 @@ debt_ceiling: public(uint256)
 
 A: uint256
 logAratio: uint256  # log(A / (A - 1))
+sqrt_band_ratio: uint256
 
 
 @external
@@ -167,6 +166,7 @@ def initialize(
     A: uint256 = AMM(amm).A()
     self.A = A
     self.logAratio = self.log2(A * 10**18 / (A - 1))
+    self.sqrt_band_ratio = AMM(amm).sqrt_band_ratio()
     self.collateral_precision = AMM(amm).collateral_precision()
 
 
@@ -231,7 +231,7 @@ def get_y_effective(amm: AMM, collateral: uint256, N: uint256) -> uint256:
     # d_y_effective = y / N / sqrt(A / (A - 1))
     loan_discount: uint256 = 10**18 - self.loan_discount
     A: uint256 = self.A
-    d_y_effective: uint256 = collateral * loan_discount / amm.sqrt_band_ratio() / N
+    d_y_effective: uint256 = collateral * loan_discount / self.sqrt_band_ratio / N
     y_effective: uint256 = d_y_effective
     for i in range(1, MAX_TICKS_UINT):
         if i == N:
