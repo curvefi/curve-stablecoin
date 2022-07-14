@@ -59,8 +59,8 @@ event Repay:
     loan_decrease: uint256
 
 event Liquidate:
-    liquidator: address
-    user: address
+    liquidator: indexed(address)
+    user: indexed(address)
     collateral_received: uint256
     stablecoin_received: uint256
     debt: uint256
