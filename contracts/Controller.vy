@@ -304,7 +304,7 @@ def max_borrowable(collateral: uint256, N: uint256) -> uint256:
 
     y_effective: uint256 = self.get_y_effective(amm, collateral, N)
 
-    for i in range(MAX_SKIP_TICKS):
+    for i in range(MAX_SKIP_TICKS + 1):
         n1 -= 1
         if amm.bands_x(n1) != 0:
             break
@@ -421,11 +421,15 @@ def repay(_d_debt: uint256, _for: address):
 
     else:
         active_band: int256 = amm.active_band()
+        for i in range(MAX_SKIP_TICKS):
+            if amm.bands_x(active_band) != 0:
+                break
+            active_band -= 1
+
         if ns[0] > active_band:
             # Not in liquidation - can move bands
             xy: uint256[2] = amm.withdraw(_for, ZERO_ADDRESS)
             n1: int256 = self._calculate_debt_n1(xy[1], debt, size)
-            assert n1 > active_band, "Not enough collateral"
             n2: int256 = n1 + ns[1] - ns[0]
             amm.deposit_range(_for, xy[1], n1, n2, False)
             log UserState(_for, xy[1], debt, n1, n2)
