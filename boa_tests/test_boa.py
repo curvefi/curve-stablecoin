@@ -5,6 +5,8 @@ import pytest
 from eth.vm.forks.spurious_dragon import computation
 computation.EIP170_CODE_SIZE_LIMIT = 640000  # 640 KB will be enough for everyone
 
+from boa.contract import VyperContract
+
 
 PRICE = 3000
 
@@ -85,6 +87,27 @@ def market(controller_factory, collateral_token, monetary_policy, price_oracle, 
         return controller_factory
 
 
-def test_stablecoin(stablecoin, collateral_token, market, amm_impl):
+@pytest.fixture(scope="module", autouse=True)
+def market_amm(market, collateral_token, stablecoin, amm_impl):
+    return VyperContract(
+        amm_impl.compiler_data, stablecoin.address,
+        override_address=bytes.fromhex(market.amms(collateral_token.address)[2:])
+    )
+
+
+@pytest.fixture(scope="module", autouse=True)
+def market_controller(market, collateral_token, controller_impl, controller_factory, accounts):
+    controller = VyperContract(
+        controller_impl.compiler_data,
+        controller_factory.address,
+        override_address=bytes.fromhex(market.controllers(collateral_token.address)[2:])
+    )
+    for acc in accounts:
+        with boa.env.prank(acc):
+            collateral_token.approve(controller.address, 2**256-1)
+    return controller
+
+
+def test_stablecoin(stablecoin, market_amm, market_controller):
     assert stablecoin.decimals() == 18
     assert False
