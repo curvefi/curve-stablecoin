@@ -1,4 +1,4 @@
-# @version 0.3.3
+# @version 0.3.4
 
 interface ERC20:
     def mint(_to: address, _value: uint256) -> bool: nonpayable
