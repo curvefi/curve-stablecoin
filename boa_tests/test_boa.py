@@ -1,6 +1,10 @@
 import boa
 import pytest
 
+# Patch EIP170 size limit because spurious dragon does the wrong code size
+from eth.vm.forks.spurious_dragon import computation
+computation.EIP170_CODE_SIZE_LIMIT = 640000  # 640 KB will be enough for everyone
+
 
 @pytest.fixture(scope="module", autouse=True)
 def accounts():
