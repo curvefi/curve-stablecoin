@@ -3,31 +3,31 @@ import pytest
 from boa.contract import VyperContract
 
 
-@pytest.fixture(scope="session", autouse=True)
+@pytest.fixture(scope="session")
 def stablecoin(admin):
     with boa.env.prank(admin):
         return boa.load('contracts/Stablecoin.vy', 'Curve USD', 'crvUSD')
 
 
-@pytest.fixture(scope="session", autouse=True)
+@pytest.fixture(scope="session")
 def controller_prefactory(stablecoin, admin, accounts):
     with boa.env.prank(admin):
         return boa.load('contracts/ControllerFactory.vy', stablecoin.address, admin, accounts[0])
 
 
-@pytest.fixture(scope="session", autouse=True)
+@pytest.fixture(scope="session")
 def controller_impl(controller_prefactory, admin):
     with boa.env.prank(admin):
         return boa.load('contracts/Controller.vy', controller_prefactory.address)
 
 
-@pytest.fixture(scope="session", autouse=True)
+@pytest.fixture(scope="session")
 def amm_impl(stablecoin, admin):
     with boa.env.prank(admin):
         return boa.load('contracts/AMM.vy', stablecoin.address)
 
 
-@pytest.fixture(scope="session", autouse=True)
+@pytest.fixture(scope="session")
 def controller_factory(controller_prefactory, amm_impl, controller_impl, stablecoin, admin):
     with boa.env.prank(admin):
         controller_prefactory.set_implementations(controller_impl.address, amm_impl.address)
@@ -36,7 +36,7 @@ def controller_factory(controller_prefactory, amm_impl, controller_impl, stablec
     return controller_prefactory
 
 
-@pytest.fixture(scope="session", autouse=True)
+@pytest.fixture(scope="session")
 def monetary_policy(admin):
     with boa.env.prank(admin):
         policy = boa.load('contracts/mpolicies/ConstantMonetaryPolicy.vy', admin)
@@ -44,7 +44,7 @@ def monetary_policy(admin):
         return policy
 
 
-@pytest.fixture(scope="session", autouse=True)
+@pytest.fixture(scope="session")
 def market(controller_factory, collateral_token, monetary_policy, price_oracle, admin):
     with boa.env.prank(admin):
         if controller_factory.n_collaterals() == 0:
@@ -56,7 +56,7 @@ def market(controller_factory, collateral_token, monetary_policy, price_oracle, 
         return controller_factory
 
 
-@pytest.fixture(scope="session", autouse=True)
+@pytest.fixture(scope="session")
 def market_amm(market, collateral_token, stablecoin, amm_impl):
     return VyperContract(
         amm_impl.compiler_data, stablecoin.address,
@@ -64,7 +64,7 @@ def market_amm(market, collateral_token, stablecoin, amm_impl):
     )
 
 
-@pytest.fixture(scope="session", autouse=True)
+@pytest.fixture(scope="session")
 def market_controller(market, collateral_token, controller_impl, controller_factory, accounts):
     controller = VyperContract(
         controller_impl.compiler_data,
