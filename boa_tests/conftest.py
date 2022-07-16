@@ -1,5 +1,6 @@
 import boa
 import pytest
+from math import log
 
 # Patch EIP170 size limit because spurious dragon does the wrong code size
 from eth.vm.forks.spurious_dragon import computation
@@ -7,6 +8,17 @@ computation.EIP170_CODE_SIZE_LIMIT = 640000  # 640 KB will be enough for everyon
 
 
 PRICE = 3000
+
+
+def approx(x1, x2, precision, abs_precision=None):
+    result = False
+    if abs_precision is not None:
+        result = abs(x2 - x1) <= abs_precision
+    if x2 == 0:
+        return x1 == 0
+    elif x1 == 0:
+        return x2 == 0
+    return result or (abs(log(x1 / x2)) <= precision)
 
 
 @pytest.fixture(scope="session")
