@@ -100,7 +100,7 @@ def market_controller(market, collateral_token, controller_impl, controller_fact
     controller = VyperContract(
         controller_impl.compiler_data,
         controller_factory.address,
-        override_address=bytes.fromhex(market.controllers(collateral_token.address)[2:])
+        override_address=collateral_token.address
     )
     for acc in accounts:
         with boa.env.prank(acc):
