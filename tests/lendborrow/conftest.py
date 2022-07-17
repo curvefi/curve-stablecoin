@@ -50,15 +50,20 @@ def market(controller_factory, collateral_token, PriceOracle, monetary_policy, a
 
 
 @pytest.fixture(scope="module", autouse=False)
-def market_amm(collateral_token, market, AMM):
-    return AMM.at(market.amms(collateral_token))
+def market_amm(collateral_token, stablecoin, market, AMM, accounts):
+    amm = AMM.at(market.amms(collateral_token))
+    for acc in accounts:
+        collateral_token.approve(amm, 2**256-1, {'from': acc})
+        stablecoin.approve(amm, 2**256-1, {'from': acc})
+    return amm
 
 
 @pytest.fixture(scope="module", autouse=False)
-def market_controller(collateral_token, market, Controller, accounts):
+def market_controller(stablecoin, collateral_token, market, Controller, accounts):
     controller = Controller.at(market.controllers(collateral_token))
     for acc in accounts:
         collateral_token.approve(controller, 2**256-1, {'from': acc})
+        stablecoin.approve(controller, 2**256-1, {'from': acc})
     return controller
 
 
