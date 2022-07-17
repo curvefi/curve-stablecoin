@@ -14,7 +14,7 @@ from ..conftest import approx
 @settings(max_examples=100, deadline=timedelta(seconds=1000))
 def test_adiabatic(amm, price_oracle, collateral_token, borrowed_token, accounts, admin,
                    p_o_1, p_o_2, n1, dn, deposit_amount):
-    N_STEPS = 1001
+    N_STEPS = 101
     user = accounts[0]
 
     with boa.env.anchor():
