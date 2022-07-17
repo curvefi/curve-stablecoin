@@ -27,8 +27,8 @@ class AdiabaticTrader:
     def initialize(self, collateral_amount, n):
         user = self.accounts[0]
         self.collateral._mint_for_testing(user, collateral_amount)
-        A = self.amm.A()
-        loan_amount = int(((A - 1) / A)**0.5 * 0.94 * 3000 * collateral_amount / 1e12)
+        # XXX we need to test max_borrowable separately
+        loan_amount = self.controller.max_borrowable(collateral_amount, n)
         self.controller.create_loan(collateral_amount, loan_amount, n, {'from': user})
         self.stablecoin.transfer(self.accounts[1], loan_amount, {'from': user})
         self.loan_amount = loan_amount
