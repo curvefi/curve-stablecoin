@@ -107,14 +107,14 @@ def calculate_rate() -> uint256:
 @view
 @external
 def rate() -> uint256:
-    return convert(self.calculate_rate(), uint256)
+    return self.calculate_rate()
 
 
 @external
 def rate_write() -> uint256:
     # Not needed here but useful for more authomated policies
     # which change rate0
-    return convert(self.calculate_rate(), uint256)
+    return self.calculate_rate()
 
 
 @external
