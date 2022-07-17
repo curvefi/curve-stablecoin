@@ -60,7 +60,7 @@ def market(controller_factory, collateral_token, monetary_policy, price_oracle, 
 def market_amm(market, collateral_token, stablecoin, amm_impl):
     return VyperContract(
         amm_impl.compiler_data, stablecoin.address,
-        override_address=bytes.fromhex(market.amms(collateral_token.address)[2:])
+        override_address=market.amms(collateral_token.address)
     )
 
 
@@ -69,7 +69,7 @@ def market_controller(market, collateral_token, controller_impl, controller_fact
     controller = VyperContract(
         controller_impl.compiler_data,
         controller_factory.address,
-        override_address=collateral_token.address
+        override_address=market.controllers(collateral_token.address)
     )
     for acc in accounts:
         with boa.env.prank(acc):
