@@ -1,7 +1,10 @@
+import pytest
 import boa
+from boa.contract import BoaError
 from hypothesis import settings
 from hypothesis import strategies as st
 from hypothesis.stateful import RuleBasedStateMachine, run_state_machine_as_test, rule
+from datetime import timedelta
 
 
 class BigFuzz(RuleBasedStateMachine):
@@ -17,17 +20,20 @@ class BigFuzz(RuleBasedStateMachine):
         self.anchor.__enter__()
         self.A = self.market_amm.A()
 
-    # @initialize(n=n, y=collateral_amount)
-
     @rule(y=collateral_amount, n=n, uid=user_id, ratio=loan_frac)
     def deposit(self, y, n, ratio, uid):
         user = self.accounts[uid]
-        if not self.market_controller.loan_exists(user):
-            debt = int(((self.A - 1) / self.A)**0.5 * ratio * 3000 * y)
-            if debt > 0:
-                with boa.env.prank(user):
+        debt = int(ratio * 3000 * y)
+        with boa.env.prank(user):
+            self.collateral_token._mint_for_testing(user, y)
+            if (self.market_controller.max_borrowable(y, n) < debt or y // n <= 100
+                    or debt == 0 or self.market_controller.loan_exists(user)):
+                with pytest.raises(BoaError):
                     self.market_controller.create_loan(y, debt, n)
-                    self.stablecoin.transfer(self.accounts[0], debt)
+                return
+            else:
+                self.market_controller.create_loan(y, debt, n)
+            self.stablecoin.transfer(self.accounts[0], debt)
 
     def teardown(self):
         self.anchor.__exit__(None, None, None)
@@ -35,7 +41,7 @@ class BigFuzz(RuleBasedStateMachine):
 
 def test_big_fuzz(
         market_amm, market_controller, monetary_policy, collateral_token, stablecoin, price_oracle, accounts, admin):
-    BigFuzz.TestCase.settings = settings(max_examples=10, stateful_step_count=10)
+    BigFuzz.TestCase.settings = settings(max_examples=10, stateful_step_count=10, deadline=timedelta(seconds=1000))
     for k, v in locals().items():
         setattr(BigFuzz, k, v)
     run_state_machine_as_test(BigFuzz)
