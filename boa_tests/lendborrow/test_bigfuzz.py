@@ -80,6 +80,35 @@ class BigFuzz(RuleBasedStateMachine):
                 with pytest.raises(BoaError):
                     self.market_controller.add_collateral(y, user)
 
+    @rule(y=collateral_amount, uid=user_id, ratio=ratio)
+    def rule_borrow_more(self, y, ratio, uid):
+        user = self.accounts[uid]
+        self.collateral_token._mint_for_testing(user, y)
+
+        with boa.env.prank(user):
+            if not self.market_controller.loan_exists(user):
+                with pytest.raises(BoaError):
+                    self.market_controller.borrow_more(y, 1)
+
+            else:
+                sx, sy = self.market_amm.get_sum_xy(user)
+                n1, n2 = self.market_amm.read_user_tick_numbers(user)
+                n = n2 - n1 + 1
+                amount = int(self.market_amm.p_oracle_up(n1) * (sy + y) / 1e18 * ratio)
+                final_debt = self.market_controller.debt(user) + amount
+
+                if sx == 0:
+                    max_debt = self.market_controller.max_borrowable(sy + y, n)
+                    if final_debt > max_debt:
+                        with pytest.raises(BoaError):
+                            self.market_controller.borrow_more(y, amount)
+                    else:
+                        self.market_controller.borrow_more(y, amount)
+
+                else:
+                    with pytest.raises(BoaError):
+                        self.market_controller.borrow_more(y, amount)
+
     @rule(dt=time_shift)
     def time_travel(self, dt):
         boa.env.vm.patch.timestamp += dt
