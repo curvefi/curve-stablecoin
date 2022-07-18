@@ -12,7 +12,7 @@ class BigFuzz(RuleBasedStateMachine):
     loan_amount = st.integers(min_value=0, max_value=10**18 * 10**6 // 3000)
     n = st.integers(min_value=5, max_value=50)
     user_id = st.integers(min_value=0, max_value=9)
-    loan_frac = st.floats(min_value=0, max_value=2)
+    ratio = st.floats(min_value=0, max_value=2)
     time_shift = st.integers(min_value=1, max_value=30 * 86400)
 
     def __init__(self):
@@ -20,8 +20,9 @@ class BigFuzz(RuleBasedStateMachine):
         self.anchor = boa.env.anchor()
         self.anchor.__enter__()
         self.A = self.market_amm.A()
+        # Check debt ceiling?
 
-    @rule(y=collateral_amount, n=n, uid=user_id, ratio=loan_frac)
+    @rule(y=collateral_amount, n=n, uid=user_id, ratio=ratio)
     def deposit(self, y, n, ratio, uid):
         user = self.accounts[uid]
         debt = int(ratio * 3000 * y)
@@ -36,6 +37,35 @@ class BigFuzz(RuleBasedStateMachine):
                 self.market_controller.create_loan(y, debt, n)
             self.stablecoin.transfer(self.accounts[0], debt)
 
+    def get_stablecoins(self, user):
+        with boa.env.prank(self.accounts[0]):
+            self.market_controller.collect_fees()
+            if user != self.accounts[0]:
+                amount = self.stablecoin.balanceOf(self.accounts[0])
+                if amount > 0:
+                    self.stablecoin.transfer(user, amount)
+
+    def remove_stablecoins(self, user):
+        if user != self.accounts[0]:
+            with boa.env.prank(user):
+                amount = self.stablecoin.balanceOf(user)
+                if amount > 0:
+                    self.stablecoin.transfer(self.accounts[0], amount)
+
+    @rule(ratio=ratio, uid=user_id)
+    def repay(self, ratio, uid):
+        user = self.accounts[uid]
+        debt = self.market_controller.debt(user)
+        amount = int(ratio * debt)
+        self.get_stablecoins(user)
+        with boa.env.prank(user):
+            if debt == 0:
+                with pytest.raises(BoaError):
+                    self.market_controller.repay(amount, user)
+            else:
+                self.market_controller.repay(amount, user)
+        self.remove_stablecoins(user)
+
     @rule(dt=time_shift)
     def time_travel(self, dt):
         boa.env.vm.patch.timestamp += dt
@@ -47,7 +77,7 @@ class BigFuzz(RuleBasedStateMachine):
 
 def test_big_fuzz(
         market_amm, market_controller, monetary_policy, collateral_token, stablecoin, price_oracle, accounts, admin):
-    BigFuzz.TestCase.settings = settings(max_examples=10, stateful_step_count=10, deadline=timedelta(seconds=1000))
+    BigFuzz.TestCase.settings = settings(max_examples=500, stateful_step_count=10, deadline=timedelta(seconds=1000))
     for k, v in locals().items():
         setattr(BigFuzz, k, v)
     run_state_machine_as_test(BigFuzz)

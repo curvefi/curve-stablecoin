@@ -57,15 +57,20 @@ def market(controller_factory, collateral_token, monetary_policy, price_oracle, 
 
 
 @pytest.fixture(scope="session")
-def market_amm(market, collateral_token, stablecoin, amm_impl):
-    return VyperContract(
+def market_amm(market, collateral_token, stablecoin, amm_impl, accounts):
+    amm = VyperContract(
         amm_impl.compiler_data, stablecoin.address,
         override_address=market.amms(collateral_token.address)
     )
+    for acc in accounts:
+        with boa.env.prank(acc):
+            collateral_token.approve(amm.address, 2**256-1)
+            stablecoin.approve(amm.address, 2**256-1)
+    return amm
 
 
 @pytest.fixture(scope="session")
-def market_controller(market, collateral_token, controller_impl, controller_factory, accounts):
+def market_controller(market, stablecoin, collateral_token, controller_impl, controller_factory, accounts):
     controller = VyperContract(
         controller_impl.compiler_data,
         controller_factory.address,
@@ -74,4 +79,5 @@ def market_controller(market, collateral_token, controller_impl, controller_fact
     for acc in accounts:
         with boa.env.prank(acc):
             collateral_token.approve(controller.address, 2**256-1)
+            stablecoin.approve(controller.address, 2**256-1)
     return controller
