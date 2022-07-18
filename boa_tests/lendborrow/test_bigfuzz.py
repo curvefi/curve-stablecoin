@@ -22,21 +22,7 @@ class BigFuzz(RuleBasedStateMachine):
         self.A = self.market_amm.A()
         # Check debt ceiling?
 
-    @rule(y=collateral_amount, n=n, uid=user_id, ratio=ratio)
-    def deposit(self, y, n, ratio, uid):
-        user = self.accounts[uid]
-        debt = int(ratio * 3000 * y)
-        with boa.env.prank(user):
-            self.collateral_token._mint_for_testing(user, y)
-            if (self.market_controller.max_borrowable(y, n) < debt or y // n <= 100
-                    or debt == 0 or self.market_controller.loan_exists(user)):
-                with pytest.raises(BoaError):
-                    self.market_controller.create_loan(y, debt, n)
-                return
-            else:
-                self.market_controller.create_loan(y, debt, n)
-            self.stablecoin.transfer(self.accounts[0], debt)
-
+    # Auxiliary methods #
     def get_stablecoins(self, user):
         with boa.env.prank(self.accounts[0]):
             self.market_controller.collect_fees()
@@ -52,6 +38,22 @@ class BigFuzz(RuleBasedStateMachine):
                 if amount > 0:
                     self.stablecoin.transfer(self.accounts[0], amount)
 
+    # Borrowing and returning #
+    @rule(y=collateral_amount, n=n, uid=user_id, ratio=ratio)
+    def deposit(self, y, n, ratio, uid):
+        user = self.accounts[uid]
+        debt = int(ratio * 3000 * y)
+        with boa.env.prank(user):
+            self.collateral_token._mint_for_testing(user, y)
+            if (self.market_controller.max_borrowable(y, n) < debt or y // n <= 100
+                    or debt == 0 or self.market_controller.loan_exists(user)):
+                with pytest.raises(BoaError):
+                    self.market_controller.create_loan(y, debt, n)
+                return
+            else:
+                self.market_controller.create_loan(y, debt, n)
+            self.stablecoin.transfer(self.accounts[0], debt)
+
     @rule(ratio=ratio, uid=user_id)
     def repay(self, ratio, uid):
         user = self.accounts[uid]
@@ -65,6 +67,18 @@ class BigFuzz(RuleBasedStateMachine):
             else:
                 self.market_controller.repay(amount, user)
         self.remove_stablecoins(user)
+
+    @rule(y=collateral_amount, uid=user_id)
+    def add_collateral(self, y, uid):
+        user = self.accounts[uid]
+        self.collateral_token._mint_for_testing(user, y)
+
+        with boa.env.prank(user):
+            if self.market_controller.loan_exists(user):
+                self.market_controller.add_collateral(y, user)
+            else:
+                with pytest.raises(BoaError):
+                    self.market_controller.add_collateral(y, user)
 
     @rule(dt=time_shift)
     def time_travel(self, dt):
