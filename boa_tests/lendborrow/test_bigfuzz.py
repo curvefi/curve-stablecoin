@@ -13,6 +13,7 @@ class BigFuzz(RuleBasedStateMachine):
     n = st.integers(min_value=5, max_value=50)
     user_id = st.integers(min_value=0, max_value=9)
     loan_frac = st.floats(min_value=0, max_value=2)
+    time_shift = st.integers(min_value=1, max_value=30 * 86400)
 
     def __init__(self):
         super().__init__()
@@ -34,6 +35,11 @@ class BigFuzz(RuleBasedStateMachine):
             else:
                 self.market_controller.create_loan(y, debt, n)
             self.stablecoin.transfer(self.accounts[0], debt)
+
+    @rule(dt=time_shift)
+    def time_travel(self, dt):
+        boa.env.vm.patch.timestamp += dt
+        boa.env.vm.patch.block_number += dt // 13 + 1
 
     def teardown(self):
         self.anchor.__exit__(None, None, None)
