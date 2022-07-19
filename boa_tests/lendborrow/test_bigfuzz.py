@@ -114,6 +114,28 @@ class BigFuzz(RuleBasedStateMachine):
                     with pytest.raises(BoaError):
                         self.market_controller.borrow_more(y, amount)
 
+    def trade_to_price(self, p):
+        user = self.accounts[0]
+        with boa.env.prank(user):
+            self.market_controller.collect_fees()
+            amount, is_pump = self.market_amm.get_amount_for_price(p)
+            if amount > 0:
+                if is_pump:
+                    self.market_amm.exchange(0, 1, amount, 0)
+                else:
+                    self.collateral._mint_for_testing(user, amount)
+                    self.market_amm.exchange(1, 0, amount, 0)
+
+    @rule(dp=oracle_step)
+    def shift_oracle(self, dp):
+        if dp != 0:
+            p0 = self.price_oracle.price()
+            self.trade_to_price(p0)
+            p = int(p0 * (1 + dp))
+            with boa.env.prank(self.admin):
+                self.price_oracle.set_price(p)
+            self.trade_to_price(p)
+
     @rule(dt=time_shift)
     def time_travel(self, dt):
         boa.env.vm.patch.timestamp += dt
