@@ -50,7 +50,7 @@ class BigFuzz(RuleBasedStateMachine):
         debt = int(ratio * 3000 * y)
         with boa.env.prank(user):
             self.collateral_token._mint_for_testing(user, y)
-            if (self.market_controller.max_borrowable(y, n) < debt or y // n <= 100
+            if (debt > self.market_controller.max_borrowable(y, n) or y // n <= 100
                     or debt == 0 or self.market_controller.loan_exists(user)):
                 with pytest.raises(BoaError):
                     self.market_controller.create_loan(y, debt, n)
@@ -160,3 +160,17 @@ def test_big_fuzz(
     for k, v in locals().items():
         setattr(BigFuzz, k, v)
     run_state_machine_as_test(BigFuzz)
+
+
+def test_noraise(
+        market_amm, market_controller, monetary_policy, collateral_token, stablecoin, price_oracle, accounts, admin):
+    for k, v in locals().items():
+        setattr(BigFuzz, k, v)
+    state = BigFuzz()
+    state.debt_supply()
+    state.add_collateral(uid=0, y=0)
+    state.debt_supply()
+    state.shift_oracle(dp=0.0078125)
+    state.debt_supply()
+    state.deposit(n=5, ratio=1.0, uid=0, y=505)
+    state.teardown()
