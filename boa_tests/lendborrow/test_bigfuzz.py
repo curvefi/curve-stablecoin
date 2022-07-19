@@ -11,8 +11,13 @@ class BigFuzz(RuleBasedStateMachine):
     collateral_amount = st.integers(min_value=0, max_value=10**18 * 10**6 // 3000)
     loan_amount = st.integers(min_value=0, max_value=10**18 * 10**6 // 3000)
     n = st.integers(min_value=5, max_value=50)
-    user_id = st.integers(min_value=0, max_value=9)
     ratio = st.floats(min_value=0, max_value=2)
+
+    is_pump = st.booleans()
+    rate = st.integers(min_value=0, max_value=int(1e18 * 0.2 / 365 / 86400))
+    oracle_step = st.floats(min_value=-0.01, max_value=0.01)
+
+    user_id = st.integers(min_value=0, max_value=9)
     time_shift = st.integers(min_value=1, max_value=30 * 86400)
 
     def __init__(self):
