@@ -3,7 +3,7 @@ import boa
 from boa.contract import BoaError
 from hypothesis import settings
 from hypothesis import strategies as st
-from hypothesis.stateful import RuleBasedStateMachine, run_state_machine_as_test, rule
+from hypothesis.stateful import RuleBasedStateMachine, run_state_machine_as_test, rule, invariant
 from datetime import timedelta
 
 
@@ -113,6 +113,15 @@ class BigFuzz(RuleBasedStateMachine):
     def time_travel(self, dt):
         boa.env.vm.patch.timestamp += dt
         boa.env.vm.patch.block_number += dt // 13 + 1
+
+    @invariant()
+    def debt_supply(self):
+        self.market_controller.collect_fees()
+        total_debt = self.market_controller.total_debt()
+        assert total_debt == self.stablecoin.totalSupply()
+        assert sum(self.market_controller.debt(u) for u in self.accounts) == total_debt
+
+    # XXX health should be checked only after liquidations
 
     def teardown(self):
         self.anchor.__exit__(None, None, None)
