@@ -128,6 +128,7 @@ class BigFuzz(RuleBasedStateMachine):
 
     @rule(dp=oracle_step)
     def shift_oracle(self, dp):
+        # Oracle shift is done via adiabatic trading which shouldn't decrease health
         if dp != 0:
             p0 = self.price_oracle.price()
             self.trade_to_price(p0)
@@ -147,8 +148,6 @@ class BigFuzz(RuleBasedStateMachine):
         total_debt = self.market_controller.total_debt()
         assert total_debt == self.stablecoin.totalSupply()
         assert sum(self.market_controller.debt(u) for u in self.accounts) == total_debt
-
-    # XXX health should be checked only after liquidations
 
     def teardown(self):
         self.anchor.__exit__(None, None, None)
@@ -173,4 +172,22 @@ def test_noraise(
     state.shift_oracle(dp=0.0078125)
     state.debt_supply()
     state.deposit(n=5, ratio=1.0, uid=0, y=505)
+    state.teardown()
+
+
+def test_noraise_2(
+        market_amm, market_controller, monetary_policy, collateral_token, stablecoin, price_oracle, accounts, admin):
+    for k, v in locals().items():
+        setattr(BigFuzz, k, v)
+    state = BigFuzz()
+    state.debt_supply()
+    state.deposit(n=5, ratio=0.0, uid=0, y=0)
+    state.debt_supply()
+    state.shift_oracle(dp=2.3841130314394837e-09)
+    state.debt_supply()
+    state.shift_oracle(dp=-5e-324)
+    state.debt_supply()
+    state.rule_borrow_more(ratio=2.0, uid=0, y=0)
+    state.debt_supply()
+    state.deposit(n=5, ratio=0.9340958492675753, uid=0, y=4063)
     state.teardown()
