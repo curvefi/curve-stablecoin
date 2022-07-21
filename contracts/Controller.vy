@@ -247,13 +247,6 @@ def get_y_effective(amm: AMM, collateral: uint256, N: uint256) -> uint256:
     return y_effective
 
 
-# XXX debug only, remove
-@external
-@view
-def get_y_effective_(collateral: uint256, N: uint256) -> uint256:
-    return self.get_y_effective(self.amm, collateral, N)
-
-
 @internal
 @view
 def _calculate_debt_n1(collateral: uint256, debt: uint256, N: uint256) -> int256:
