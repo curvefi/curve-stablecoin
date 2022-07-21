@@ -25,11 +25,14 @@ def original_log2(_x: uint256) -> uint256:
 
 @external
 @view
-def optimized_log2(_x: uint256) -> uint256:
+def optimized_log2(_x: uint256) -> int256:
     # adapted from: https://medium.com/coinmonks/9aef8515136e
     # and vyper log implementation
+    inverse: bool = _x < 10**18
     res: uint256 = 0
     x: uint256 = _x
+    if inverse:
+        x = 10**36 / x
     t: uint256 = 2**7
     for i in range(8):
         p: uint256 = pow_mod256(2, t)
@@ -44,7 +47,10 @@ def optimized_log2(_x: uint256) -> uint256:
             x = shift(x, -1)  # x /= 2
         x = unsafe_div(unsafe_mul(x, x), 10**18)
         d = shift(d, -1)  # d /= 2
-    return res
+    if inverse:
+        return -convert(res, int256)
+    else:
+        return convert(res, int256)
 
 
 @external
