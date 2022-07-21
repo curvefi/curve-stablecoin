@@ -108,7 +108,7 @@ loan_discount: public(uint256)
 debt_ceiling: public(uint256)
 
 A: uint256
-logAratio: uint256  # log(A / (A - 1))
+logAratio: int256  # log(A / (A - 1))
 sqrt_band_ratio: uint256
 
 
@@ -122,11 +122,14 @@ def __init__(factory: address):
 
 @internal
 @pure
-def log2(_x: uint256) -> uint256:
+def log2(_x: uint256) -> int256:
     # adapted from: https://medium.com/coinmonks/9aef8515136e
     # and vyper log implementation
+    inverse: bool = _x < 10**18
     res: uint256 = 0
     x: uint256 = _x
+    if inverse:
+        x = 10**36 / x
     t: uint256 = 2**7
     for i in range(8):
         p: uint256 = pow_mod256(2, t)
@@ -141,7 +144,10 @@ def log2(_x: uint256) -> uint256:
             x = shift(x, -1)  # x /= 2
         x = unsafe_div(unsafe_mul(x, x), 10**18)
         d = shift(d, -1)  # d /= 2
-    return res
+    if inverse:
+        return -convert(res, int256)
+    else:
+        return convert(res, int256)
 
 
 @external
@@ -241,11 +247,17 @@ def get_y_effective(amm: AMM, collateral: uint256, N: uint256) -> uint256:
     return y_effective
 
 
+# XXX debug only, remove
+@external
+@view
+def get_y_effective_(collateral: uint256, N: uint256) -> uint256:
+    return self.get_y_effective(self.amm, collateral, N)
+
+
 @internal
 @view
 def _calculate_debt_n1(collateral: uint256, debt: uint256, N: uint256) -> int256:
     assert debt > 0, "No loan"
-    _debt: uint256 = debt + 1
     amm: AMM = self.amm
     # p0: uint256 = amm.p_current_down(n0)
     n0: int256 = amm.active_band()
@@ -264,8 +276,8 @@ def _calculate_debt_n1(collateral: uint256, debt: uint256, N: uint256) -> int256
     # - we revert.
 
     # n1 is band number based on adiabatic trading, e.g. when p_oracle ~ p
-    y_effective = y_effective * p_base / _debt  # Now it's a ratio
-    n1: int256 = convert(self.log2(y_effective) / self.logAratio, int256)
+    y_effective = y_effective * p_base / (debt + 1)  # Now it's a ratio
+    n1: int256 = self.log2(y_effective) / self.logAratio
     n1 = min(n1, 1024 - convert(N, int256)) + n0
     if n1 <= n0:
         assert amm.can_skip_bands(n1 - 1), "Debt too high"
@@ -294,7 +306,6 @@ def max_borrowable(collateral: uint256, N: uint256) -> uint256:
     # When n1 -= 1:
     # p_oracle_up *= A / (A - 1)
 
-    _collateral: uint256 = collateral * self.collateral_precision
     amm: AMM = self.amm
     A: uint256 = self.A
     Aneg1: uint256 = unsafe_sub(A, 1)
@@ -302,7 +313,7 @@ def max_borrowable(collateral: uint256, N: uint256) -> uint256:
     p_base: uint256 = amm.get_base_price() * amm.p_base_mul() * Aneg1 / unsafe_mul(10**18, A)
     p_oracle: uint256 = amm.price_oracle() * Aneg1 / A
 
-    y_effective: uint256 = self.get_y_effective(amm, collateral, N)
+    y_effective: uint256 = self.get_y_effective(amm, collateral * self.collateral_precision, N)
 
     for i in range(MAX_SKIP_TICKS + 1):
         n1 -= 1
