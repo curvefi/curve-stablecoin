@@ -52,7 +52,7 @@ class BigFuzz(RuleBasedStateMachine):
             self.collateral_token._mint_for_testing(user, y)
             if (debt > self.market_controller.max_borrowable(y, n) or y // n <= 100
                     or debt == 0 or self.market_controller.loan_exists(user)):
-                with pytest.raises(BoaError):
+                with pytest.raises(Exception):
                     self.market_controller.create_loan(y, debt, n)
                 return
             else:
