@@ -276,7 +276,15 @@ def _calculate_debt_n1(collateral: uint256, debt: uint256, N: uint256) -> int256
 
     # n1 is band number based on adiabatic trading, e.g. when p_oracle ~ p
     y_effective = y_effective * p_base / (debt + 1)  # Now it's a ratio
-    n1: int256 = self.log2(y_effective) / self.logAratio
+
+    # n1 = floor(log2(y_effective) / self.logAratio)
+    # EVM semantics is not doing floor unlike Python, so we do this
+    n1: int256 = self.log2(y_effective)
+    logAratio: int256 = self.logAratio
+    if n1 < 0:
+        n1 -= logAratio - 1
+    n1 /= logAratio
+
     n1 = min(n1, 1024 - convert(N, int256)) + n0
     if n1 <= n0:
         assert amm.can_skip_bands(n1 - 1), "Debt too high"
