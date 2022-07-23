@@ -127,6 +127,7 @@ class BigFuzz(RuleBasedStateMachine):
                     with pytest.raises(BoaError):
                         self.market_controller.borrow_more(y, amount)
 
+    # Trading
     def trade_to_price(self, p):
         user = self.accounts[0]
         with boa.env.prank(user):
@@ -136,9 +137,32 @@ class BigFuzz(RuleBasedStateMachine):
                 if is_pump:
                     self.market_amm.exchange(0, 1, amount, 0)
                 else:
-                    self.collateral._mint_for_testing(user, amount)
+                    self.collateral_token._mint_for_testing(user, amount)
                     self.market_amm.exchange(1, 0, amount, 0)
 
+    @rule(r=ratio, is_pump=is_pump, uid=user_id)
+    def trade(self, r, is_pump, uid):
+        user = self.accounts[uid]
+        self.get_stablecoins(user)
+        with boa.env.prank(user):
+            if is_pump:
+                amount = int(r * self.stablecoin.balanceOf(user))
+                if r <= 1:
+                    self.market_amm.exchange(0, 1, amount, 0)
+                else:
+                    try:
+                        self.market_amm.exchange(0, 1, amount, 0)
+                    except BoaError:
+                        # We may have not enough coins, but no exception if
+                        # we are maxed out with the swap size
+                        pass
+            else:
+                amount = int(r * self.collateral_token.totalSupply())
+                self.collateral_token._mint_for_testing(user, amount)
+                self.market_amm.exchange(1, 0, amount, 0)
+        self.remove_stablecoins(user)
+
+    # Other
     @rule(dp=oracle_step)
     def shift_oracle(self, dp):
         # Oracle shift is done via adiabatic trading which shouldn't decrease health
@@ -167,11 +191,12 @@ class BigFuzz(RuleBasedStateMachine):
         assert total_debt == self.stablecoin.totalSupply()
         assert abs(sum(self.market_controller.debt(u) for u in self.accounts) - total_debt) <= 1
 
-    @invariant()
-    def health(self):
-        for acc in self.accounts:
-            if self.market_controller.loan_exists(acc):
-                assert self.market_controller.health(acc) > 0
+    # Should be used with liquidations enabled
+    # @invariant()
+    # def health(self):
+    #     for acc in self.accounts:
+    #         if self.market_controller.loan_exists(acc):
+    #             assert self.market_controller.health(acc) > 0
 
     def teardown(self):
         self.anchor.__exit__(None, None, None)
