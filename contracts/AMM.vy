@@ -211,7 +211,7 @@ def _p_oracle_band(n: int256, is_down: bool) -> uint256:
                 return unsafe_div(p_base * unsafe_sub(A, 1), A)  # p_base * (A - 1) / A
             else:
                 return p_base
-        if bitwise_and(band_distance, m) != 0:
+        if (band_distance & m) != 0:
             p_base = unsafe_div(p_base * amul, 10**18)
         m = unsafe_add(m, m)  # m *= 2
         amul = unsafe_div(amul * amul, 10**18)  # amul = amul**2
@@ -369,7 +369,7 @@ def _read_user_ticks(user: address, size: int256) -> uint256[MAX_TICKS]:
         if ptr + 1 > size:
             break
         tick: uint256 = self.user_shares[user].ticks[i]
-        ticks[ptr] = bitwise_and(tick, 2**128 - 1)
+        ticks[ptr] = tick & (2**128 - 1)
         ptr += 1
         if ptr != size:
             ticks[ptr] = shift(tick, -128)
@@ -491,7 +491,7 @@ def deposit_range(user: address, amount: uint256, n1: int256, n2: int256, move_c
         tick: uint256 = user_shares[ptr]
         ptr += 1
         if dist != ptr:
-            tick = bitwise_or(tick, shift(user_shares[ptr], 128))
+            tick = tick | shift(user_shares[ptr], 128)
         ptr += 1
         self.user_shares[user].ticks[j] = tick
 

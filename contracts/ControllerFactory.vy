@@ -83,8 +83,8 @@ def add_market(token: address, A: uint256, fee: uint256, admin_fee: uint256,
 
     p: uint256 = PriceOracle(_price_oracle_contract).price()
 
-    amm: address = create_forwarder_to(self.amm_implementation)
-    controller: address = create_forwarder_to(self.controller_implementation)
+    amm: address = create_minimal_proxy_to(self.amm_implementation)
+    controller: address = create_minimal_proxy_to(self.controller_implementation)
     AMM(amm).initialize(A, p, token, fee, admin_fee, _price_oracle_contract, controller)
     Controller(controller).initialize(token, monetary_policy, loan_discount, liquidation_discount, amm, debt_ceiling)
     Stablecoin(STABLECOIN).set_minter(controller, True)
