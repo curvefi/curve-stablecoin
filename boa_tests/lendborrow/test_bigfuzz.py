@@ -150,6 +150,11 @@ class BigFuzz(RuleBasedStateMachine):
                 self.price_oracle.set_price(p)
             self.trade_to_price(p)
 
+    @rule(rate=rate)
+    def rule_change_rate(self, rate):
+        with boa.env.prank(self.admin):
+            self.monetary_policy.set_rate(rate)
+
     @rule(dt=time_shift)
     def time_travel(self, dt):
         boa.env.vm.patch.timestamp += dt
@@ -160,7 +165,7 @@ class BigFuzz(RuleBasedStateMachine):
         self.market_controller.collect_fees()
         total_debt = self.market_controller.total_debt()
         assert total_debt == self.stablecoin.totalSupply()
-        assert sum(self.market_controller.debt(u) for u in self.accounts) == total_debt
+        assert abs(sum(self.market_controller.debt(u) for u in self.accounts) - total_debt) <= 1
 
     @invariant()
     def health(self):
