@@ -3,3 +3,4 @@ hypothesis
 pytest
 pdbpp
 jedi
+pytest-xdist
