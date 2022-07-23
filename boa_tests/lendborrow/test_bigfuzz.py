@@ -7,6 +7,18 @@ from hypothesis.stateful import RuleBasedStateMachine, run_state_machine_as_test
 from datetime import timedelta
 
 
+# Variables and methods to check
+# * A
+
+# * liquidate
+# * self_liquidate
+# * set_amm_fee
+# * set_amm_admin_fee
+# * set_debt_ceiling
+# * set_borrowing_discounts <- XXX can be used to rug borrowers??
+# * collect AMM fees
+
+
 class BigFuzz(RuleBasedStateMachine):
     collateral_amount = st.integers(min_value=0, max_value=10**18 * 10**6 // 3000)
     loan_amount = st.integers(min_value=0, max_value=10**18 * 10**6 // 3000)
