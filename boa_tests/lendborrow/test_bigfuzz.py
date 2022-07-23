@@ -73,7 +73,7 @@ class BigFuzz(RuleBasedStateMachine):
         amount = int(ratio * debt)
         self.get_stablecoins(user)
         with boa.env.prank(user):
-            if debt == 0:
+            if debt == 0 and amount > 0:
                 with pytest.raises(BoaError):
                     self.market_controller.repay(amount, user)
             else:
@@ -86,7 +86,7 @@ class BigFuzz(RuleBasedStateMachine):
         self.collateral_token._mint_for_testing(user, y)
 
         with boa.env.prank(user):
-            if self.market_controller.loan_exists(user):
+            if self.market_controller.loan_exists(user) or y == 0:
                 self.market_controller.add_collateral(y, user)
             else:
                 with pytest.raises(BoaError):
@@ -109,9 +109,9 @@ class BigFuzz(RuleBasedStateMachine):
                 amount = int(self.market_amm.price_oracle() * (sy + y) / 1e18 * ratio)
                 final_debt = self.market_controller.debt(user) + amount
 
-                if sx == 0:
+                if sx == 0 or amount == 0:
                     max_debt = self.market_controller.max_borrowable(sy + y, n)
-                    if final_debt > max_debt:
+                    if final_debt > max_debt and amount > 0:
                         if final_debt < max_debt / 0.9999:
                             try:
                                 self.market_controller.borrow_more(y, amount)

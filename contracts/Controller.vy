@@ -396,6 +396,8 @@ def _add_collateral_borrow(d_collateral: uint256, d_debt: uint256, _for: address
 @external
 @nonreentrant('lock')
 def add_collateral(collateral: uint256, _for: address):
+    if collateral == 0:
+        return
     self._add_collateral_borrow(collateral, 0, _for)
     self.collateral_token.transferFrom(msg.sender, self.amm.address, collateral)
 
@@ -403,6 +405,8 @@ def add_collateral(collateral: uint256, _for: address):
 @external
 @nonreentrant('lock')
 def borrow_more(collateral: uint256, debt: uint256):
+    if debt == 0:
+        return
     self._add_collateral_borrow(collateral, debt, msg.sender)
     if collateral != 0:
         self.collateral_token.transferFrom(msg.sender, self.amm.address, collateral)
@@ -412,6 +416,8 @@ def borrow_more(collateral: uint256, debt: uint256):
 @external
 @nonreentrant('lock')
 def repay(_d_debt: uint256, _for: address):
+    if _d_debt == 0:
+        return
     # Or repay all for MAX_UINT256
     # Withdraw if debt become 0
     debt: uint256 = 0
