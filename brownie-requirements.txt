@@ -1,3 +1,3 @@
-eth-brownie
+git+https://github.com/eth-brownie/brownie/
 jedi
 git+https://github.com/vyperlang/vyper
