@@ -83,10 +83,14 @@ class BigFuzz(RuleBasedStateMachine):
     @rule(y=collateral_amount, uid=user_id)
     def add_collateral(self, y, uid):
         user = self.accounts[uid]
+        exists = self.market_controller.loan_exists(user)
+        if exists:
+            n1, n2 = self.market_amm.read_user_tick_numbers(user)
+            n0 = self.market_amm.active_band()
         self.collateral_token._mint_for_testing(user, y)
 
         with boa.env.prank(user):
-            if self.market_controller.loan_exists(user) or y == 0:
+            if (exists and n1 > n0) or y == 0:
                 self.market_controller.add_collateral(y, user)
             else:
                 with pytest.raises(BoaError):
@@ -146,8 +150,10 @@ class BigFuzz(RuleBasedStateMachine):
         self.get_stablecoins(user)
         with boa.env.prank(user):
             if is_pump:
-                amount = int(r * self.stablecoin.balanceOf(user))
+                b = self.stablecoin.balanceOf(user)
+                amount = int(r * b)
                 if r <= 1:
+                    amount = min(amount, b)  # For floating point errors
                     self.market_amm.exchange(0, 1, amount, 0)
                 else:
                     try:
@@ -232,4 +238,25 @@ def test_noraise_2(
     state = BigFuzz()
     state.shift_oracle(dp=2.3841130314394837e-09)
     state.deposit(n=5, ratio=0.9340958492675753, uid=0, y=4063)
+    state.teardown()
+
+
+def test_exchange_fails(
+        market_amm, market_controller, monetary_policy, collateral_token, stablecoin, price_oracle, accounts, admin):
+    # This is due to evmdiv working not like floor div (fixed)
+    for k, v in locals().items():
+        setattr(BigFuzz, k, v)
+    state = BigFuzz()
+    state.debt_supply()
+    state.add_collateral(uid=0, y=0)
+    state.debt_supply()
+    state.shift_oracle(dp=0.0)
+    state.debt_supply()
+    state.time_travel(dt=6)
+    state.debt_supply()
+    state.deposit(n=5, ratio=6.103515625e-05, uid=1, y=14085)
+    state.debt_supply()
+    state.deposit(n=5, ratio=1.199379084937393e-07, uid=0, y=26373080523014146049)
+    state.debt_supply()
+    state.trade(is_pump=True, r=1.0, uid=0)
     state.teardown()
