@@ -1,0 +1,3 @@
+eth-brownie
+jedi
+git+https://github.com/vyperlang/vyper
