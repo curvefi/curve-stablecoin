@@ -50,10 +50,17 @@ class BigFuzz(RuleBasedStateMachine):
         debt = int(ratio * 3000 * y)
         with boa.env.prank(user):
             self.collateral_token._mint_for_testing(user, y)
-            if (debt > self.market_controller.max_borrowable(y, n) or y // n <= 100
-                    or debt == 0 or self.market_controller.loan_exists(user)):
-                with pytest.raises(Exception):
-                    self.market_controller.create_loan(y, debt, n)
+            max_debt = self.market_controller.max_borrowable(y, n)
+            if (debt > max_debt or y // n <= 100 or debt == 0
+                    or self.market_controller.loan_exists(user)):
+                if debt < max_debt / 0.9999:
+                    try:
+                        self.market_controller.create_loan(y, debt, n)
+                    except Exception:
+                        pass
+                else:
+                    with pytest.raises(Exception):
+                        self.market_controller.create_loan(y, debt, n)
                 return
             else:
                 self.market_controller.create_loan(y, debt, n)
@@ -99,14 +106,20 @@ class BigFuzz(RuleBasedStateMachine):
                 sx, sy = self.market_amm.get_sum_xy(user)
                 n1, n2 = self.market_amm.read_user_tick_numbers(user)
                 n = n2 - n1 + 1
-                amount = int(self.market_amm.p_oracle_up(n1) * (sy + y) / 1e18 * ratio)
+                amount = int(self.market_amm.price_oracle() * (sy + y) / 1e18 * ratio)
                 final_debt = self.market_controller.debt(user) + amount
 
                 if sx == 0:
                     max_debt = self.market_controller.max_borrowable(sy + y, n)
                     if final_debt > max_debt:
-                        with pytest.raises(BoaError):
-                            self.market_controller.borrow_more(y, amount)
+                        if final_debt < max_debt / 0.9999:
+                            try:
+                                self.market_controller.borrow_more(y, amount)
+                            except Exception:
+                                pass
+                        else:
+                            with pytest.raises(BoaError):
+                                self.market_controller.borrow_more(y, amount)
                     else:
                         self.market_controller.borrow_more(y, amount)
 
@@ -155,7 +168,7 @@ class BigFuzz(RuleBasedStateMachine):
 
 def test_big_fuzz(
         market_amm, market_controller, monetary_policy, collateral_token, stablecoin, price_oracle, accounts, admin):
-    BigFuzz.TestCase.settings = settings(max_examples=500, stateful_step_count=10, deadline=timedelta(seconds=1000))
+    BigFuzz.TestCase.settings = settings(max_examples=5000, stateful_step_count=10, deadline=timedelta(seconds=1000))
     for k, v in locals().items():
         setattr(BigFuzz, k, v)
     run_state_machine_as_test(BigFuzz)
@@ -177,6 +190,7 @@ def test_noraise(
 
 def test_noraise_2(
         market_amm, market_controller, monetary_policy, collateral_token, stablecoin, price_oracle, accounts, admin):
+    # This is due to evmdiv working not like floor div (fixed)
     for k, v in locals().items():
         setattr(BigFuzz, k, v)
     state = BigFuzz()
