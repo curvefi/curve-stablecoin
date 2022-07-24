@@ -89,10 +89,7 @@ class BigFuzz(RuleBasedStateMachine):
                 with pytest.raises(BoaError):
                     self.market_controller.repay(amount, user)
             else:
-                x = 0
-                if debt > 0:
-                    x = self.market_amm.get_sum_xy(user)[0]
-                if amount > 0 and debt > self.stablecoin.balanceOf(user) + x:
+                if amount > 0 and amount < debt and amount > self.stablecoin.balanceOf(user):
                     with pytest.raises(BoaError):
                         self.market_controller.repay(amount, user)
                 else:
@@ -321,29 +318,12 @@ def test_not_enough_collateral(
     for k, v in locals().items():
         setattr(BigFuzz, k, v)
     state = BigFuzz()
-    state.debt_supply()
-    state.self_liquidate_and_health()
-    state.debt_supply()
-    state.self_liquidate_and_health()
-    state.debt_supply()
-    state.self_liquidate_and_health()
-    state.debt_supply()
-    state.self_liquidate_and_health()
-    state.debt_supply()
-    state.self_liquidate_and_health()
-    state.debt_supply()
     state.rule_borrow_more(ratio=0.0, uid=0, y=13840970168756334397)
-    state.debt_supply()
     state.trade(is_pump=False, r=2.220446049250313e-16, uid=0)
-    state.debt_supply()
     state.rule_borrow_more(ratio=0.0, uid=7, y=173)
-    state.debt_supply()
     state.deposit(n=6, ratio=6.103515625e-05, uid=6, y=3526)
-    state.debt_supply()
     state.trade(is_pump=True, r=1.0, uid=0)
-    state.debt_supply()
     state.trade(is_pump=False, r=1.0, uid=0)
-    state.debt_supply()
     state.rule_borrow_more(ratio=0.5, uid=6, y=0)
     state.teardown()
 
