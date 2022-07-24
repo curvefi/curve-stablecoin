@@ -89,7 +89,10 @@ class BigFuzz(RuleBasedStateMachine):
                 with pytest.raises(BoaError):
                     self.market_controller.repay(amount, user)
             else:
-                if amount > 0 and debt > self.stablecoin.balanceOf(user) and self.market_amm.get_sum_xy(user)[0] > 0:
+                x = 0
+                if debt > 0:
+                    x = self.market_amm.get_sum_xy(user)[0]
+                if amount > 0 and debt > self.stablecoin.balanceOf(user) + x:
                     with pytest.raises(BoaError):
                         self.market_controller.repay(amount, user)
                 else:
@@ -350,10 +353,7 @@ def test_noraise_4(
     for k, v in locals().items():
         setattr(BigFuzz, k, v)
     state = BigFuzz()
-    state.debt_supply()
     state.deposit(n=5, ratio=0.5, uid=0, y=505)
-    state.debt_supply()
     state.trade(is_pump=True, r=1.0, uid=0)
-    state.debt_supply()
     state.repay(ratio=1.0, uid=0)
     state.teardown()
