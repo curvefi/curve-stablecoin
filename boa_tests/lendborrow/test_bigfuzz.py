@@ -65,7 +65,7 @@ class BigFuzz(RuleBasedStateMachine):
             max_debt = self.market_controller.max_borrowable(y, n)
             if (debt > max_debt or y // n <= 100 or debt == 0
                     or self.market_controller.loan_exists(user)):
-                if debt < max_debt / 0.9999:
+                if debt < max_debt / (0.9999 - 20/(y + 40)):
                     try:
                         self.market_controller.create_loan(y, debt, n)
                     except Exception:
@@ -128,7 +128,7 @@ class BigFuzz(RuleBasedStateMachine):
                 if sx == 0 or amount == 0:
                     max_debt = self.market_controller.max_borrowable(sy + y, n)
                     if final_debt > max_debt and amount > 0:
-                        if final_debt < max_debt / 0.9999:
+                        if final_debt < max_debt / (0.9999 - 20/(y + 40)):
                             try:
                                 self.market_controller.borrow_more(y, amount)
                             except Exception:
@@ -284,4 +284,14 @@ def test_exchange_fails(
     state.deposit(n=5, ratio=1.199379084937393e-07, uid=0, y=26373080523014146049)
     state.debt_supply()
     state.trade(is_pump=True, r=1.0, uid=0)
+    state.teardown()
+
+
+def test_noraise_3(
+        market_amm, market_controller, monetary_policy, collateral_token, stablecoin, price_oracle, accounts, admin):
+    for k, v in locals().items():
+        setattr(BigFuzz, k, v)
+    state = BigFuzz()
+    state.shift_oracle(dp=0.00040075302124023446)
+    state.deposit(n=45, ratio=0.7373046875, uid=0, y=18945)
     state.teardown()
