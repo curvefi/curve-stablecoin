@@ -180,6 +180,19 @@ class BigFuzz(RuleBasedStateMachine):
                 self.market_amm.exchange(1, 0, amount, 0)
         self.remove_stablecoins(user)
 
+    # Liquidations
+    @rule()
+    def self_liquidate_and_health(self):
+        for user in self.accounts:
+            if self.market_controller.loan_exists(user) and self.market_controller.health(user) <= 0:
+                self.get_stablecoins(user)
+                with boa.env.prank(user):
+                    self.market_controller.self_liquidate(0)
+                self.remove_stablecoins(user)
+                assert not self.market_controller.loan_exists(user)
+                with pytest.raises(BoaError):
+                    self.market_controller.health(user)
+
     # Other
     @rule(dp=oracle_step)
     def shift_oracle(self, dp):
