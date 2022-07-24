@@ -228,6 +228,8 @@ class BigFuzz(RuleBasedStateMachine):
                         self.market_controller.liquidate(user, 0)
                 else:
                     self.market_controller.liquidate(user, 0)
+                    with pytest.raises(BoaError):
+                        self.market_controller.health(user)
         self.remove_stablecoins(liquidator)
 
     # Other
@@ -259,13 +261,6 @@ class BigFuzz(RuleBasedStateMachine):
         assert total_debt == self.stablecoin.totalSupply()
         assert abs(sum(self.market_controller.debt(u) for u in self.accounts) - total_debt) <= 10
         # 10 accounts = 10 wei error?
-
-    # Should be used with liquidations enabled
-    # @invariant()
-    # def health(self):
-    #     for acc in self.accounts:
-    #         if self.market_controller.loan_exists(acc):
-    #             assert self.market_controller.health(acc) > 0
 
     def teardown(self):
         self.anchor.__exit__(None, None, None)
