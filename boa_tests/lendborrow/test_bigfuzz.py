@@ -30,6 +30,7 @@ class BigFuzz(RuleBasedStateMachine):
     oracle_step = st.floats(min_value=-0.01, max_value=0.01)
 
     user_id = st.integers(min_value=0, max_value=9)
+    liquidator_id = st.integers(min_value=0, max_value=9)
     time_shift = st.integers(min_value=1, max_value=30 * 86400)
 
     def __init__(self):
@@ -208,6 +209,26 @@ class BigFuzz(RuleBasedStateMachine):
                 assert not self.market_controller.loan_exists(user)
                 with pytest.raises(BoaError):
                     self.market_controller.health(user)
+
+    @rule(uid=user_id, luid=liquidator_id)
+    def liquidate(self, uid, luid):
+        user = self.accounts[uid]
+        liquidator = self.accounts[luid]
+        self.get_stablecoins(liquidator)
+        if not self.market_controller.loan_exists(user):
+            with boa.env.prank(liquidator):
+                with pytest.raises(BoaError):
+                    self.market_controller.liquidate(user, 0)
+        else:
+            health_limit = self.market_controller.liquidation_discount()
+            health = self.market_controller.health(user, True)
+            with boa.env.prank(liquidator):
+                if health >= health_limit:
+                    with pytest.raises(BoaError):
+                        self.market_controller.liquidate(user, 0)
+                else:
+                    self.market_controller.liquidate(user, 0)
+        self.remove_stablecoins(liquidator)
 
     # Other
     @rule(dp=oracle_step)
