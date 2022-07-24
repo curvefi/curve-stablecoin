@@ -89,7 +89,11 @@ class BigFuzz(RuleBasedStateMachine):
                 with pytest.raises(BoaError):
                     self.market_controller.repay(amount, user)
             else:
-                self.market_controller.repay(amount, user)
+                if amount > 0 and debt > self.stablecoin.balanceOf(user) and self.market_amm.get_sum_xy(user)[0] > 0:
+                    with pytest.raises(BoaError):
+                        self.market_controller.repay(amount, user)
+                else:
+                    self.market_controller.repay(amount, user)
         self.remove_stablecoins(user)
 
     @rule(y=collateral_amount, uid=user_id)
@@ -220,7 +224,8 @@ class BigFuzz(RuleBasedStateMachine):
         self.market_controller.collect_fees()
         total_debt = self.market_controller.total_debt()
         assert total_debt == self.stablecoin.totalSupply()
-        assert abs(sum(self.market_controller.debt(u) for u in self.accounts) - total_debt) <= 1
+        assert abs(sum(self.market_controller.debt(u) for u in self.accounts) - total_debt) <= 10
+        # 10 accounts = 10 wei error?
 
     # Should be used with liquidations enabled
     # @invariant()
@@ -294,4 +299,61 @@ def test_noraise_3(
     state = BigFuzz()
     state.shift_oracle(dp=0.00040075302124023446)
     state.deposit(n=45, ratio=0.7373046875, uid=0, y=18945)
+    state.teardown()
+
+
+def test_repay_error_1(
+        market_amm, market_controller, monetary_policy, collateral_token, stablecoin, price_oracle, accounts, admin):
+    for k, v in locals().items():
+        setattr(BigFuzz, k, v)
+    state = BigFuzz()
+    state.deposit(n=5, ratio=0.5, uid=0, y=505)
+    state.trade(is_pump=True, r=1.0, uid=0)
+    state.repay(ratio=0.5, uid=0)
+    state.teardown()
+
+
+def test_not_enough_collateral(
+        market_amm, market_controller, monetary_policy, collateral_token, stablecoin, price_oracle, accounts, admin):
+    for k, v in locals().items():
+        setattr(BigFuzz, k, v)
+    state = BigFuzz()
+    state.debt_supply()
+    state.self_liquidate_and_health()
+    state.debt_supply()
+    state.self_liquidate_and_health()
+    state.debt_supply()
+    state.self_liquidate_and_health()
+    state.debt_supply()
+    state.self_liquidate_and_health()
+    state.debt_supply()
+    state.self_liquidate_and_health()
+    state.debt_supply()
+    state.rule_borrow_more(ratio=0.0, uid=0, y=13840970168756334397)
+    state.debt_supply()
+    state.trade(is_pump=False, r=2.220446049250313e-16, uid=0)
+    state.debt_supply()
+    state.rule_borrow_more(ratio=0.0, uid=7, y=173)
+    state.debt_supply()
+    state.deposit(n=6, ratio=6.103515625e-05, uid=6, y=3526)
+    state.debt_supply()
+    state.trade(is_pump=True, r=1.0, uid=0)
+    state.debt_supply()
+    state.trade(is_pump=False, r=1.0, uid=0)
+    state.debt_supply()
+    state.rule_borrow_more(ratio=0.5, uid=6, y=0)
+    state.teardown()
+
+
+def test_noraise_4(
+        market_amm, market_controller, monetary_policy, collateral_token, stablecoin, price_oracle, accounts, admin):
+    for k, v in locals().items():
+        setattr(BigFuzz, k, v)
+    state = BigFuzz()
+    state.debt_supply()
+    state.deposit(n=5, ratio=0.5, uid=0, y=505)
+    state.debt_supply()
+    state.trade(is_pump=True, r=1.0, uid=0)
+    state.debt_supply()
+    state.repay(ratio=1.0, uid=0)
     state.teardown()
