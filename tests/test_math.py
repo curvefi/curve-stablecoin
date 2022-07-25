@@ -14,14 +14,22 @@ def optimized_math(OptimizeMath, accounts):
 @settings(max_examples=500)
 def test_log2(optimized_math, x):
     y1 = optimized_math.original_log2(x)
-    y2 = optimized_math.optimized_log2(x)
-    if x >= 10**18:
+    if x > 0:
+        y2 = optimized_math.optimized_log2(x)
+    else:
+        with pytest.raises(Exception):
+            optimized_math.optimized_log2(x)
+        y2 = 0
+    if x > 0:
         y = log2(x / 1e18)
     else:
         y = 0
 
-    assert y1 == y2
-    assert abs(y2 / 1e18 - y) <= max(1e-9, 1e-9 * y)
+    if x >= 10**18:
+        assert y1 == y2
+    else:
+        assert y1 == 0
+    assert abs(y2 / 1e18 - y) <= max(1e-9, 1e-9 * (abs(y) + 1))
 
 
 @given(strategy('uint256'))

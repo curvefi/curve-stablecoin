@@ -1,3 +1,4 @@
+from math import log2
 from brownie.test import given, strategy
 
 
@@ -13,14 +14,19 @@ def test_n1(market_amm, market_controller, collateral, debt, n):
     discounted_collateral = collateral * (10**18 - market_controller.loan_discount()) // 10**18
 
     too_high = False
+    too_deep = False
     try:
         n1 = market_controller.calculate_debt_n1(collateral, debt, n)
     except Exception as e:
         too_high = str(e) == 'revert: Debt too high'
-        if not too_high:
+        too_deep = str(e) == 'revert: Too deep'
+        if not too_high and not too_deep:
             raise
     if too_high:
         assert discounted_collateral * p0 * ((A - 1) / A)**n <= debt
+        return
+    if too_deep:
+        assert abs(log2(debt / discounted_collateral * p0)) > log2(500)
         return
 
     assert discounted_collateral * p0 >= debt
