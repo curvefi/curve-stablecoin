@@ -273,6 +273,7 @@ def _calculate_debt_n1(collateral: uint256, debt: uint256, N: uint256) -> int256
 
     # n1 = floor(log2(y_effective) / self.logAratio)
     # EVM semantics is not doing floor unlike Python, so we do this
+    assert y_effective > 0, "Amount too low"
     n1: int256 = self.log2(y_effective)
     logAratio: int256 = self.logAratio
     if n1 < 0:

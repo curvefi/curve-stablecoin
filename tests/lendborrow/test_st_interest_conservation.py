@@ -48,7 +48,7 @@ class StatefulLendBorrow:
                 with brownie.reverts():
                     self.controller.create_loan(c_amount, amount, n, {'from': user})
             else:
-                with brownie.reverts('Debt ceiling'):
+                with brownie.reverts():
                     self.controller.create_loan(c_amount, amount, n, {'from': user})
             return
 
@@ -76,6 +76,10 @@ class StatefulLendBorrow:
         self.controller.create_loan(c_amount, amount, n, {'from': user})
 
     def rule_repay(self, amount, user):
+        if amount == 0:
+            self.controller.repay(amount, user, {'from': user})
+            return
+
         if not self.controller.loan_exists(user):
             with brownie.reverts("Loan doesn't exist"):
                 self.controller.repay(amount, user, {'from': user})
@@ -96,6 +100,10 @@ class StatefulLendBorrow:
         except Exception:
             return  # Probably overflow
 
+        if c_amount == 0:
+            self.controller.add_collateral(c_amount, user, {'from': user})
+            return
+
         if not self.controller.loan_exists(user):
             with brownie.reverts("Loan doesn't exist"):
                 self.controller.add_collateral(c_amount, user, {'from': user})
@@ -109,6 +117,10 @@ class StatefulLendBorrow:
         self.controller.add_collateral(c_amount, user, {'from': user})
 
     def rule_borrow_more(self, c_amount, amount, user):
+        if amount == 0:
+            self.controller.borrow_more(c_amount, amount, {'from': user})
+            return
+
         try:
             self.collateral._mint_for_testing(user, c_amount, {'from': user})
         except Exception:
@@ -141,7 +153,7 @@ class StatefulLendBorrow:
                 with brownie.reverts():
                     self.controller.borrow_more(c_amount, amount, {'from': user})
             else:
-                with brownie.reverts('Debt ceiling'):
+                with brownie.reverts():
                     self.controller.borrow_more(c_amount, amount, {'from': user})
             return
 
@@ -187,3 +199,17 @@ def test_unexpected_revert(chain, market_amm, market_controller, monetary_policy
     state.rule_create_loan(amount=28150, c_amount=5384530291638384907, n=8, user=accounts[1])
     state.rule_time_travel(t=31488)
     state.rule_repay(amount=39777, user=accounts[1])
+
+
+def test_no_revert_reason(chain, market_amm, market_controller, monetary_policy, collateral_token, stablecoin, accounts, state_machine):
+    state = StatefulLendBorrow(
+        chain, market_amm, market_controller, monetary_policy, collateral_token, stablecoin, accounts)
+    state.rule_create_loan(amount=1, c_amount=1, n=5, user=accounts[0])
+
+
+def test_too_deep(chain, market_amm, market_controller, monetary_policy, collateral_token, stablecoin, accounts, state_machine):
+    state = StatefulLendBorrow(
+        chain, market_amm, market_controller, monetary_policy, collateral_token, stablecoin, accounts)
+    state.rule_create_loan(amount=13119, c_amount=48, n=43, user=accounts[0])
+    state.rule_create_loan(amount=34049, c_amount=48388, n=18, user=accounts[1])
+    state.rule_create_loan(amount=10161325728155098164, c_amount=4156800770, n=50, user=accounts[2])
