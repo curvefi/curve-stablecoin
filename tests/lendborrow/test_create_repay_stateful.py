@@ -2,6 +2,7 @@
 Stateful test to create and repay loans without moving the price oracle
 """
 import brownie
+from datetime import timedelta
 from brownie.test import strategy
 
 
@@ -46,7 +47,7 @@ class StatefulLendBorrow:
                 with brownie.reverts():
                     self.controller.create_loan(c_amount, amount, n, {'from': user})
             else:
-                with brownie.reverts('Debt ceiling'):
+                with brownie.reverts():  # Dept ceiling or too deep
                     self.controller.create_loan(c_amount, amount, n, {'from': user})
             return
 
@@ -67,13 +68,21 @@ class StatefulLendBorrow:
             return
 
         if c_amount // n <= 100:
-            with brownie.reverts("Amount too low"):
+            with brownie.reverts():
+                # Amount too low or too deep
                 self.controller.create_loan(c_amount, amount, n, {'from': user})
             return
 
-        self.controller.create_loan(c_amount, amount, n, {'from': user})
+        try:
+            self.controller.create_loan(c_amount, amount, n, {'from': user})
+        except Exception as e:
+            if 'Too deep' not in str(e):
+                raise
 
     def rule_repay(self, amount, user):
+        if amount == 0:
+            self.controller.repay(amount, user, {'from': user})
+            return
         if not self.controller.loan_exists(user):
             with brownie.reverts("Loan doesn't exist"):
                 self.controller.repay(amount, user, {'from': user})
@@ -81,6 +90,10 @@ class StatefulLendBorrow:
         self.controller.repay(amount, user, {'from': user})
 
     def rule_add_collateral(self, c_amount, user):
+        if c_amount == 0:
+            self.controller.add_collateral(c_amount, user, {'from': user})
+            return
+
         try:
             self.collateral._mint_for_testing(user, c_amount, {'from': user})
         except Exception:
@@ -103,6 +116,10 @@ class StatefulLendBorrow:
             self.collateral._mint_for_testing(user, c_amount, {'from': user})
         except Exception:
             return  # Probably overflow
+
+        if amount == 0:
+            self.controller.borrow_more(c_amount, amount, {'from': user})
+            return
 
         if not self.controller.loan_exists(user):
             with brownie.reverts("Loan doesn't exist"):
@@ -156,7 +173,7 @@ class StatefulLendBorrow:
 
 def test_stateful_lendborrow(market_amm, market_controller, collateral_token, stablecoin, accounts, state_machine):
     state_machine(StatefulLendBorrow, market_amm, market_controller, collateral_token, stablecoin, accounts,
-                  settings={'max_examples': 50, 'stateful_step_count': 20})
+                  settings={'max_examples': 50, 'stateful_step_count': 20, 'deadline': timedelta(seconds=1000)})
 
 
 def test_bad_health_underflow(market_amm, market_controller, collateral_token, stablecoin, accounts, state_machine):

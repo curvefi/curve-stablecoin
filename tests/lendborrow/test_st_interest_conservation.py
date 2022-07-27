@@ -69,11 +69,21 @@ class StatefulLendBorrow:
             return
 
         if c_amount // n <= 100:
-            with brownie.reverts("Amount too low"):
+            try:
                 self.controller.create_loan(c_amount, amount, n, {'from': user})
-            return
+            except Exception as e:
+                if ('Too deep' in str(e) and c_amount * 3000 / amount < 1e-3) or 'Amount too low' in str(e):
+                    return
+                else:
+                    raise
 
-        self.controller.create_loan(c_amount, amount, n, {'from': user})
+        try:
+            self.controller.create_loan(c_amount, amount, n, {'from': user})
+        except Exception as e:
+            if 'Too deep' in str(e) and c_amount * 3000 / amount < 1e-3:
+                pass
+            else:
+                raise
 
     def rule_repay(self, amount, user):
         if amount == 0:
