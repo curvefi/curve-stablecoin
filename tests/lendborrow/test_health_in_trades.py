@@ -19,16 +19,13 @@ class AdiabaticTrader:
         self.stablecoin = borrowed_token
         self.accounts = accounts
         self.oracle = oracle
-        for u in accounts[0:2]:
-            collateral_token.approve(controller, 2**256-1, {'from': u})
-            borrowed_token.approve(controller, 2**256-1, {'from': u})
         monetary_policy.set_rate(int(1e18 * 0.04 / 365 / 86400), {'from': accounts[0]})
 
     def initialize(self, collateral_amount, n):
         user = self.accounts[0]
         self.collateral._mint_for_testing(user, collateral_amount)
-        A = self.amm.A()
-        loan_amount = int(((A - 1) / A)**0.5 * 0.94 * 3000 * collateral_amount / 1e12)  # XXX 1e12??
+        # XXX we need to test max_borrowable separately
+        loan_amount = self.controller.max_borrowable(collateral_amount, n)
         self.controller.create_loan(collateral_amount, loan_amount, n, {'from': user})
         self.stablecoin.transfer(self.accounts[1], loan_amount, {'from': user})
         self.loan_amount = loan_amount
@@ -74,3 +71,22 @@ class AdiabaticTrader:
 def test_adiabatic_follow(chain, market_amm, market_controller, monetary_policy, collateral_token, stablecoin, PriceOracle, accounts, state_machine):
     state_machine(AdiabaticTrader, chain, market_amm, market_controller, monetary_policy, collateral_token, stablecoin, PriceOracle, accounts,
                   settings={'max_examples': 50, 'stateful_step_count': 50})
+
+
+def test_approval_worked(chain, market_amm, market_controller, monetary_policy, collateral_token, stablecoin, PriceOracle, accounts, state_machine):
+    state = AdiabaticTrader(chain, market_amm, market_controller, monetary_policy, collateral_token, stablecoin, PriceOracle, accounts)
+    state.initialize(collateral_amount=10000000000, n=7)
+    state.rule_shift_oracle(oracle_step=-5581384867293334)
+    state.rule_shift_oracle(oracle_step=-6965451302984162)
+
+
+def test_shift_oracle_fail(chain, market_amm, market_controller, monetary_policy, collateral_token, stablecoin, PriceOracle, accounts, state_machine):
+    # Fail which was due to rounding eror in get_amount_for_price
+    state = AdiabaticTrader(chain, market_amm, market_controller, monetary_policy, collateral_token, stablecoin, PriceOracle, accounts)
+    state.initialize(collateral_amount=10000000257, n=5)
+    state.rule_change_rate(rate=1)
+    state.rule_change_rate(rate=0)
+    state.rule_change_rate(rate=0)
+    state.rule_shift_oracle(oracle_step=-7545700784685381)
+    state.rule_shift_oracle(oracle_step=-9113745346295811)
+    state.rule_shift_oracle(oracle_step=0)
