@@ -42,7 +42,6 @@ event SetAdminFee:
     fee: uint256
 
 
-MAX_INT: constant(int256) = 2**254 + (2**254 - 1)  # 2**255 - 1
 MAX_TICKS: constant(int256) = 50
 MAX_TICKS_UINT: constant(uint256) = 50
 MAX_SKIP_TICKS: constant(int256) = 1024
@@ -295,7 +294,7 @@ def get_y0(n: int256) -> uint256:
     y: uint256 = self.bands_y[n]
     p_o: uint256 = self.price_oracle_contract.price()
     p_oracle_up: uint256 = 0
-    if n == MAX_INT:
+    if n == max_value(int256):
         p_oracle_up = unsafe_div(self._base_price() * self.p_base_mul, 10**18)
     else:
         p_oracle_up = self._p_oracle_band(n, False)
