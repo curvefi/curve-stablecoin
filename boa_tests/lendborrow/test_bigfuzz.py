@@ -79,8 +79,12 @@ class BigFuzz(RuleBasedStateMachine):
                     except Exception:
                         pass
                 else:
-                    with pytest.raises(Exception):
+                    try:
                         self.market_controller.create_loan(y, debt, n)
+                        assert debt < max_debt * (self.A / (self.A - 1))**0.4
+                    except Exception:
+                        # XXX check carefully here
+                        pass
                 return
             else:
                 self.market_controller.create_loan(y, debt, n)
@@ -226,7 +230,10 @@ class BigFuzz(RuleBasedStateMachine):
                     self.market_controller.liquidate(user, 0)
         else:
             health_limit = self.market_controller.liquidation_discount()
-            health = self.market_controller.health(user, True)
+            try:
+                health = self.market_controller.health(user, True)
+            except Exception as e:
+                assert 'Too deep' in str(e)
             with boa.env.prank(liquidator):
                 if health >= health_limit:
                     with pytest.raises(BoaError):

@@ -1,3 +1,4 @@
+vyper
 git+https://github.com/vyperlang/titanoboa
 hypothesis
 pytest
