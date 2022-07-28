@@ -1002,9 +1002,9 @@ def get_amount_for_price(p: uint256) -> (uint256, bool):
                     ynew: uint256 = unsafe_sub(max(self.sqrt_int(Inv / p), g), g)
                     xnew: uint256 = unsafe_sub(max(Inv / (g + ynew), f), f)
                     if pump:
-                        amount += xnew - x
+                        amount += unsafe_sub(max(xnew, x), x)
                     else:
-                        amount += ynew - y
+                        amount += unsafe_sub(max(ynew, y), y)
                 break
 
         if pump:
