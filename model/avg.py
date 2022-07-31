@@ -8,7 +8,7 @@ def calc_price(D, p, sigma=0.001):
     p_pre = (D * p).sum() / D.sum()
     e = (p - p_pre)**2 / sigma**2
     e -= e.min()
-    w = D * np.exp(-e)
+    w = D * 2**(-e)
     return (w * p).sum() / w.sum()
 
 
