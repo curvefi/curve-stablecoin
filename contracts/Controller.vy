@@ -134,16 +134,16 @@ def log2(_x: uint256) -> int256:
     for i in range(8):
         p: uint256 = pow_mod256(2, t)
         if x >= unsafe_mul(p, 10**18):
-            x = unsafe_div(x, p)  # negative shift
+            x = unsafe_div(x, p)
             res = unsafe_add(unsafe_mul(t, 10**18), res)
         t = unsafe_div(t, 2)
     d: uint256 = 10**18
     for i in range(34):  # 10 decimals: math.log(10**10, 2) == 33.2. Need more?
         if (x >= 2 * 10**18):
             res = unsafe_add(res, d)
-            x = shift(x, -1)  # x /= 2
+            x = unsafe_div(x, 2)
         x = unsafe_div(unsafe_mul(x, x), 10**18)
-        d = shift(d, -1)  # d /= 2
+        d = unsafe_div(d, 2)
     if inverse:
         return -convert(res, int256)
     else:

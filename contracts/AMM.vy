@@ -110,14 +110,14 @@ def sqrt_int(x: uint256) -> uint256:
     if x == 0:
         return 0
 
-    z: uint256 = shift(unsafe_add(x, 10**18), -1)
+    z: uint256 = unsafe_div(unsafe_add(x, 10**18), 2)
     y: uint256 = x
 
     for i in range(256):
         if z == y:
             return y
         y = z
-        z = shift(unsafe_add(unsafe_div(unsafe_mul(x, 10**18), z), z), -1)
+        z = unsafe_div(unsafe_add(unsafe_div(unsafe_mul(x, 10**18), z), z), 2)
 
     raise "Did not converge"
 # End of low-level math

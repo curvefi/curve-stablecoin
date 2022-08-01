@@ -1,5 +1,8 @@
 # @version 0.3.4
 
+EXP_PRECISION: constant(uint256) = 10**10
+
+
 @external
 @view
 def original_log2(_x: uint256) -> uint256:
@@ -37,16 +40,16 @@ def optimized_log2(_x: uint256) -> int256:
     for i in range(8):
         p: uint256 = pow_mod256(2, t)
         if x >= unsafe_mul(p, 10**18):
-            x = unsafe_div(x, p)  # negative shift
+            x = unsafe_div(x, p)
             res = unsafe_add(unsafe_mul(t, 10**18), res)
         t = unsafe_div(t, 2)
     d: uint256 = 10**18
     for i in range(34):  # 10 decimals: math.log(10**10, 2) == 33.2. Need more?
         if (x >= 2 * 10**18):
             res = unsafe_add(res, d)
-            x = shift(x, -1)  # x /= 2
+            x = unsafe_div(x, 2)
         x = unsafe_div(unsafe_mul(x, x), 10**18)
-        d = shift(d, -1)  # d /= 2
+        d = unsafe_div(d, 2)
     if inverse:
         return -convert(res, int256)
     else:
@@ -85,13 +88,44 @@ def optimized_sqrt(x: uint256) -> uint256:
     if x == 0:
         return 0
 
-    z: uint256 = shift(unsafe_add(x, 10**18), -1)
+    z: uint256 = unsafe_div(unsafe_add(x, 10**18), 2)
     y: uint256 = x
 
     for i in range(256):
         if z == y:
             return y
         y = z
-        z = shift(unsafe_add(unsafe_div(unsafe_mul(x, 10**18), z), z), -1)
+        z = unsafe_div(unsafe_add(unsafe_div(unsafe_mul(x, 10**18), z), z), 2)
+
+    raise "Did not converge"
+
+
+@external
+@view
+def halfpow(power: uint256) -> uint256:
+    """
+    1e18 * 0.5 ** (power/1e18)
+
+    Inspired by: https://github.com/balancer-labs/balancer-core/blob/master/contracts/BNum.sol#L128
+    """
+    intpow: uint256 = unsafe_div(power, 10**18)
+    if intpow > 59:
+        return 0
+    otherpow: uint256 = unsafe_sub(power, unsafe_mul(intpow, 10**18))  # < 10**18
+    result: uint256 = unsafe_div(10**18, pow_mod256(2, intpow))
+    if otherpow == 0:
+        return result
+
+    term: uint256 = 10**18
+    S: uint256 = 10**18
+    c: uint256 = otherpow
+
+    for i in range(1, 256):
+        K: uint256 = unsafe_mul(i, 10**18)  # <= 255 * 10**18; >= 10**18
+        term = unsafe_div(unsafe_mul(term, unsafe_div(c, 2)), K)
+        S = unsafe_sub(S, term)
+        if term < EXP_PRECISION:
+            return unsafe_div(unsafe_mul(result, S), 10**18)
+        c = unsafe_sub(K, otherpow)
 
     raise "Did not converge"
