@@ -47,6 +47,7 @@ event UserState:
     debt: uint256
     n1: int256
     n2: int256
+    liquidation_discount: uint256
 
 event Borrow:
     user: indexed(address)
@@ -97,6 +98,7 @@ MAX_SKIP_TICKS: constant(uint256) = 1024
 MAX_RATE: constant(uint256) = 43959106799  # 400% APY
 
 loans: HashMap[address, Loan]
+liquidation_discounts: public(HashMap[address, uint256])
 _total_debt: Loan
 
 amm: public(AMM)
@@ -350,6 +352,8 @@ def create_loan(collateral: uint256, debt: uint256, n: uint256):
 
     rate_mul: uint256 = self._rate_mul_w(amm)
     self.loans[msg.sender] = Loan({initial_debt: debt, rate_mul: rate_mul})
+    liquidation_discount: uint256 = self.liquidation_discount
+    self.liquidation_discounts[msg.sender] = liquidation_discount
     total_debt: uint256 = self._total_debt.initial_debt * rate_mul / self._total_debt.rate_mul + debt
     assert total_debt <= self.debt_ceiling, "Debt ceiling"
     self._total_debt.initial_debt = total_debt
@@ -359,7 +363,7 @@ def create_loan(collateral: uint256, debt: uint256, n: uint256):
     self.collateral_token.transferFrom(msg.sender, amm.address, collateral)
     STABLECOIN.mint(msg.sender, debt)
 
-    log UserState(msg.sender, collateral, debt, n1, n2)
+    log UserState(msg.sender, collateral, debt, n1, n2, liquidation_discount)
     log Borrow(msg.sender, collateral, debt)
 
 
@@ -382,6 +386,8 @@ def _add_collateral_borrow(d_collateral: uint256, d_debt: uint256, _for: address
 
     amm.deposit_range(_for, xy[1], n1, n2, False)
     self.loans[_for] = Loan({initial_debt: debt, rate_mul: rate_mul})
+    liquidation_discount: uint256 = self.liquidation_discount
+    self.liquidation_discounts[_for] = liquidation_discount
 
     if d_debt != 0:
         total_debt: uint256 = self._total_debt.initial_debt * rate_mul / self._total_debt.rate_mul + d_debt
@@ -390,7 +396,7 @@ def _add_collateral_borrow(d_collateral: uint256, d_debt: uint256, _for: address
         self._total_debt.rate_mul = rate_mul
 
     log Borrow(_for, d_collateral, d_debt)
-    log UserState(_for, xy[1], debt, n1, n2)
+    log UserState(_for, xy[1], debt, n1, n2, liquidation_discount)
 
 
 @external
@@ -434,7 +440,7 @@ def repay(_d_debt: uint256, _for: address):
     if debt == 0:
         # Allow to withdraw all assets even when underwater
         xy: uint256[2] = amm.withdraw(_for, _for)
-        log UserState(_for, 0, 0, 0, 0)
+        log UserState(_for, 0, 0, 0, 0, 0)
         log Repay(_for, xy[1], d_debt)
 
     else:
@@ -450,11 +456,13 @@ def repay(_d_debt: uint256, _for: address):
             n1: int256 = self._calculate_debt_n1(xy[1], debt, size)
             n2: int256 = n1 + ns[1] - ns[0]
             amm.deposit_range(_for, xy[1], n1, n2, False)
-            log UserState(_for, xy[1], debt, n1, n2)
+            liquidation_discount: uint256 = self.liquidation_discount
+            self.liquidation_discounts[_for] = liquidation_discount
+            log UserState(_for, xy[1], debt, n1, n2, liquidation_discount)
             log Repay(_for, 0, d_debt)
         else:
             # Underwater - cannot move band but can avoid a bad liquidation
-            log UserState(_for, MAX_UINT256, debt, ns[0], ns[1])
+            log UserState(_for, MAX_UINT256, debt, ns[0], ns[1], self.liquidation_discounts[_for])
             log Repay(_for, 0, d_debt)
 
     # If we withdrew already - will burn less!
@@ -476,7 +484,7 @@ def _health(amm: AMM, user: address, debt: uint256, full: bool) -> int256:
     _debt: int256 = convert(debt, int256)
     assert debt > 0, "Loan doesn't exist"
     xmax: int256 = convert(amm.get_x_down(user), int256)
-    ld: int256 = convert(self.liquidation_discount, int256)
+    ld: int256 = convert(self.liquidation_discounts[user], int256)
     non_discounted: int256 = xmax * 10**18 / _debt - 10**18
 
     if full:
@@ -523,7 +531,7 @@ def _liquidate(user: address, min_x: uint256, health_limit: uint256):
     amm.rugpull(self.collateral_token.address, msg.sender, xy[1])
 
     self.loans[user] = Loan({initial_debt: 0, rate_mul: rate_mul})
-    log UserState(user, 0, 0, 0, 0)
+    log UserState(user, 0, 0, 0, 0, 0)
     log Repay(user, xy[1], debt)
     log Liquidate(msg.sender, user, xy[1], xy[0], debt)
 
