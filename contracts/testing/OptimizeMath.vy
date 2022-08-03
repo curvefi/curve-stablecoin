@@ -84,7 +84,7 @@ def optimized_sqrt(x: uint256) -> uint256:
     """
     Originating from: https://github.com/vyperlang/vyper/issues/1266
     """
-    assert x < MAX_UINT256 / 10**18 + 1
+    assert x < max_value(uint256) / 10**18 + 1
     if x == 0:
         return 0
 
@@ -114,15 +114,44 @@ def optimized_sqrt_initial(x: uint256, y0: uint256) -> uint256:
     y: uint256 = 0
     if z == 0:
         z = unsafe_div(unsafe_add(x, 10**18), 2)
-        y = x
 
     for i in range(256):
+        z = unsafe_div(unsafe_add(unsafe_div(_x, z), z), 2)
         if z == y:
             return y
         y = z
-        z = unsafe_div(unsafe_add(unsafe_div(_x, z), z), 2)
 
     raise "Did not converge"
+
+@external
+@view
+def optimized_sqrt_solmate(x: uint256) -> uint256:
+    # https://github.com/transmissions11/solmate/blob/v7/src/utils/FixedPointMathLib.sol#L288
+    _x: uint256 = x * 10**18
+    y: uint256 = _x
+    z: uint256 = 181
+    if y >= 2**(128 + 8):
+        y = unsafe_div(y, 2**128)
+        z = unsafe_mul(z, 2**64)
+    if y >= 2**(64 + 8):
+        y = unsafe_div(y, 2**64)
+        z = unsafe_mul(z, 2**32)
+    if y >= 2**(32 + 8):
+        y = unsafe_div(y, 2**32)
+        z = unsafe_mul(z, 2**16)
+    if y >= 2**(16 + 8):
+        y = unsafe_div(y, 2**16)
+        z = unsafe_mul(z, 2**8)
+
+    z = unsafe_div(unsafe_mul(z, unsafe_add(y, 65536)), 2**18)
+
+    z = unsafe_div(unsafe_add(unsafe_div(_x, z), z), 2)
+    z = unsafe_div(unsafe_add(unsafe_div(_x, z), z), 2)
+    z = unsafe_div(unsafe_add(unsafe_div(_x, z), z), 2)
+    z = unsafe_div(unsafe_add(unsafe_div(_x, z), z), 2)
+    z = unsafe_div(unsafe_add(unsafe_div(_x, z), z), 2)
+    z = unsafe_div(unsafe_add(unsafe_div(_x, z), z), 2)
+    return unsafe_div(unsafe_add(unsafe_div(_x, z), z), 2)
 
 
 @external
