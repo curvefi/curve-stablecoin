@@ -102,6 +102,31 @@ def optimized_sqrt(x: uint256) -> uint256:
 
 @external
 @view
+def optimized_sqrt_initial(x: uint256, y0: uint256) -> uint256:
+    """
+    Originating from: https://github.com/vyperlang/vyper/issues/1266
+    """
+    if x == 0:
+        return 0
+    _x: uint256 = x * 10**18
+
+    z: uint256 = y0
+    y: uint256 = 0
+    if z == 0:
+        z = unsafe_div(unsafe_add(x, 10**18), 2)
+        y = x
+
+    for i in range(256):
+        if z == y:
+            return y
+        y = z
+        z = unsafe_div(unsafe_add(unsafe_div(_x, z), z), 2)
+
+    raise "Did not converge"
+
+
+@external
+@view
 def halfpow(power: uint256) -> uint256:
     """
     1e18 * 0.5 ** (power/1e18)
