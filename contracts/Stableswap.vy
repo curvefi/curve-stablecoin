@@ -389,6 +389,15 @@ def get_D_mem(_rates: uint256[N_COINS], _balances: uint256[N_COINS], _amp: uint2
 
 
 @view
+@internal
+def _get_p(xp: uint256[N_COINS], amp: uint256, D: uint256) -> uint256:
+    # dx_0 / dx_1
+    ANN: uint256 = amp * N_COINS
+    Dr: uint256 = D**2 / (N_COINS**N_COINS) / xp[0] * D / xp[1]
+    return 10**18 * (ANN * xp[0] + Dr * xp[0] / xp[1]) / (ANN * xp[0] + Dr)
+
+
+@view
 @external
 def get_virtual_price() -> uint256:
     """
