@@ -91,6 +91,8 @@ PERMIT_TYPEHASH: constant(bytes32) = keccak256("Permit(address owner,address spe
 ERC1271_MAGIC_VAL: constant(bytes32) = 0x1626ba7e00000000000000000000000000000000000000000000000000000000
 VERSION: constant(String[8]) = "v6.0.0"
 
+EXP_PRECISION: constant(uint256) = 10**10
+
 
 factory: address
 
@@ -114,6 +116,10 @@ totalSupply: public(uint256)
 
 DOMAIN_SEPARATOR: public(bytes32)
 nonces: public(HashMap[address, uint256])
+
+ma_price: uint256
+ma_half_time: public(uint256)
+ma_last_time: public(uint256)
 
 
 @external
@@ -155,6 +161,9 @@ def initialize(
     self.future_A = A
     self.fee = _fee
     self.factory = msg.sender
+    self.ma_half_time = 600  # XXX
+    self.ma_price = 10**18
+    self.ma_last_time = block.timestamp
 
     name: String[64] = concat("Curve.fi Factory Plain Pool: ", _name)
     self.name = name
@@ -388,13 +397,83 @@ def get_D_mem(_rates: uint256[N_COINS], _balances: uint256[N_COINS], _amp: uint2
     return self.get_D(xp, _amp)
 
 
-@view
 @internal
+@view
 def _get_p(xp: uint256[N_COINS], amp: uint256, D: uint256) -> uint256:
     # dx_0 / dx_1
+    # Only works for N_COINS = 2
     ANN: uint256 = amp * N_COINS
     Dr: uint256 = D**2 / (N_COINS**N_COINS) / xp[0] * D / xp[1]
     return 10**18 * (ANN * xp[0] + Dr * xp[0] / xp[1]) / (ANN * xp[0] + Dr)
+
+
+@external
+@view
+def get_p() -> uint256:
+    amp: uint256 = self._A()
+    xp: uint256[N_COINS] = self._xp_mem(self.rate_multipliers, self.balances)
+    D: uint256 = self.get_D(xp, amp)
+    return self._get_p(xp, amp, D)
+
+
+@internal
+@view
+def halfpow(power: uint256) -> uint256:
+    """
+    1e18 * 0.5 ** (power/1e18)
+
+    Inspired by: https://github.com/balancer-labs/balancer-core/blob/master/contracts/BNum.sol#L128
+
+    Better result can by achived with:
+    https://github.com/transmissions11/solmate/blob/v7/src/utils/FixedPointMathLib.sol#L34
+    """
+    intpow: uint256 = unsafe_div(power, 10**18)
+    if intpow > 59:
+        return 0
+    otherpow: uint256 = unsafe_sub(power, unsafe_mul(intpow, 10**18))  # < 10**18
+    result: uint256 = unsafe_div(10**18, pow_mod256(2, intpow))
+    if otherpow == 0:
+        return result
+
+    term: uint256 = 10**18
+    S: uint256 = 10**18
+    c: uint256 = otherpow
+
+    for i in range(1, 256):
+        K: uint256 = unsafe_mul(i, 10**18)  # <= 255 * 10**18; >= 10**18
+        term = unsafe_div(unsafe_mul(term, unsafe_div(c, 2)), K)
+        S = unsafe_sub(S, term)
+        if term < EXP_PRECISION:
+            return unsafe_div(unsafe_mul(result, S), 10**18)
+        c = unsafe_sub(K, otherpow)
+
+    raise "Did not converge"
+
+
+@internal
+@view
+def _ma_price(xp: uint256[N_COINS], amp: uint256, D: uint256) -> uint256:
+    p: uint256 = self._get_p(xp, amp, D)
+    ema_mul: uint256 = self.halfpow((block.timestamp - self.ma_last_time) * 10**18 / self.ma_half_time)
+    return (self.ma_price * ema_mul + p * (10**18 - ema_mul)) / 10**18
+
+
+@external
+@view
+def price_oracle() -> uint256:
+    amp: uint256 = self._A()
+    xp: uint256[N_COINS] = self._xp_mem(self.rate_multipliers, self.balances)
+    D: uint256 = self.get_D(xp, amp)
+    return self._ma_price(xp, amp, D)
+
+
+@internal
+def save_p(xp: uint256[N_COINS], amp: uint256, D: uint256):
+    """
+    Saves current price and its EMA
+    """
+    self.ma_price = self._ma_price(xp, amp, D)
+    self.ma_last_time = block.timestamp
 
 
 @view
@@ -494,6 +573,7 @@ def add_liquidity(
     # to calculate fair user's share
     fees: uint256[N_COINS] = empty(uint256[N_COINS])
     mint_amount: uint256 = 0
+
     if total_supply > 0:
         # Only account for fees if we are not the first to deposit
         base_fee: uint256 = self.fee * N_COINS / (4 * (N_COINS - 1))
@@ -508,8 +588,11 @@ def add_liquidity(
             fees[i] = base_fee * difference / FEE_DENOMINATOR
             self.balances[i] = new_balance - (fees[i] * ADMIN_FEE / FEE_DENOMINATOR)
             new_balances[i] -= fees[i]
-        D2: uint256 = self.get_D_mem(rates, new_balances, amp)
+        xp: uint256[N_COINS] = self._xp_mem(rates, new_balances)
+        D2: uint256 = self.get_D(xp, amp)
         mint_amount = total_supply * (D2 - D0) / D0
+        self.save_p(xp, amp, D2)
+
     else:
         self.balances = new_balances
         mint_amount = D1  # Take the dust if there was any
@@ -529,7 +612,7 @@ def add_liquidity(
 
 @view
 @internal
-def get_y(i: int128, j: int128, x: uint256, xp: uint256[N_COINS]) -> uint256:
+def get_y(i: int128, j: int128, x: uint256, xp: uint256[N_COINS], _amp: uint256, _D: uint256) -> uint256:
     """
     Calculate x[j] if one makes x[i] = x
 
@@ -549,8 +632,11 @@ def get_y(i: int128, j: int128, x: uint256, xp: uint256[N_COINS]) -> uint256:
     assert i >= 0
     assert i < N_COINS_128
 
-    amp: uint256 = self._A()
-    D: uint256 = self.get_D(xp, amp)
+    amp: uint256 = _amp
+    D: uint256 = _D
+    if _D == 0:
+        amp = self._A()
+        D = self.get_D(xp, amp)
     S_: uint256 = 0
     _x: uint256 = 0
     y_prev: uint256 = 0
@@ -599,7 +685,7 @@ def get_dy(i: int128, j: int128, dx: uint256) -> uint256:
     xp: uint256[N_COINS] = self._xp_mem(rates, self.balances)
 
     x: uint256 = xp[i] + (dx * rates[i] / PRECISION)
-    y: uint256 = self.get_y(i, j, x, xp)
+    y: uint256 = self.get_y(i, j, x, xp, 0, 0)
     dy: uint256 = xp[j] - y - 1
     fee: uint256 = self.fee * dy / FEE_DENOMINATOR
     return (dy - fee) * PRECISION / rates[j]
@@ -628,7 +714,10 @@ def exchange(
     xp: uint256[N_COINS] = self._xp_mem(rates, old_balances)
 
     x: uint256 = xp[i] + _dx * rates[i] / PRECISION
-    y: uint256 = self.get_y(i, j, x, xp)
+
+    amp: uint256 = self._A()
+    D: uint256 = self.get_D(xp, amp)
+    y: uint256 = self.get_y(i, j, x, xp, amp, D)
 
     dy: uint256 = xp[j] - y - 1  # -1 just in case there were some rounding errors
     dy_fee: uint256 = dy * self.fee / FEE_DENOMINATOR
@@ -636,6 +725,12 @@ def exchange(
     # Convert all to real units
     dy = (dy - dy_fee) * PRECISION / rates[j]
     assert dy >= _min_dy, "Exchange resulted in fewer coins than expected"
+
+    # xp is not used anymore, so we reuse it for price calc
+    xp[i] = x
+    xp[j] = y
+    # D is not changed because we did not apply a fee
+    self.save_p(xp, amp, D)
 
     dy_admin_fee: uint256 = dy_fee * ADMIN_FEE / FEE_DENOMINATOR
     dy_admin_fee = dy_admin_fee * PRECISION / rates[j]
@@ -772,7 +867,10 @@ def remove_liquidity_imbalance(
         fees[i] = base_fee * difference / FEE_DENOMINATOR
         self.balances[i] = new_balance - (fees[i] * ADMIN_FEE / FEE_DENOMINATOR)
         new_balances[i] -= fees[i]
-    D2: uint256 = self.get_D_mem(rates, new_balances, amp)
+    new_balances = self._xp_mem(rates, new_balances)
+    D2: uint256 = self.get_D(new_balances, amp)
+
+    self.save_p(new_balances, amp, D2)
 
     total_supply: uint256 = self.totalSupply
     burn_amount: uint256 = ((D0 - D2) * total_supply / D0) + 1
@@ -838,7 +936,7 @@ def get_y_D(A: uint256, i: int128, xp: uint256[N_COINS], D: uint256) -> uint256:
 
 @view
 @internal
-def _calc_withdraw_one_coin(_burn_amount: uint256, i: int128) -> uint256[2]:
+def _calc_withdraw_one_coin(_burn_amount: uint256, i: int128) -> uint256[3]:
     # First, need to calculate
     # * Get current D
     # * Solve Eqn against y_i for D - _token_amount
@@ -867,7 +965,10 @@ def _calc_withdraw_one_coin(_burn_amount: uint256, i: int128) -> uint256[2]:
     dy_0: uint256 = (xp[i] - new_y) * PRECISION / rates[i]  # w/o fees
     dy = (dy - 1) * PRECISION / rates[i]  # Withdraw less to account for rounding errors
 
-    return [dy, dy_0 - dy]
+    xp[i] = new_y
+    ma_p: uint256 = self._ma_price(xp, amp, D1)
+
+    return [dy, dy_0 - dy, ma_p]
 
 
 @view
@@ -898,7 +999,7 @@ def remove_liquidity_one_coin(
     @param _receiver Address that receives the withdrawn coins
     @return Amount of coin received
     """
-    dy: uint256[2] = self._calc_withdraw_one_coin(_burn_amount, i)
+    dy: uint256[3] = self._calc_withdraw_one_coin(_burn_amount, i)
     assert dy[0] >= _min_received, "Not enough coins removed"
 
     self.balances[i] -= (dy[0] + dy[1] * ADMIN_FEE / FEE_DENOMINATOR)
@@ -920,6 +1021,9 @@ def remove_liquidity_one_coin(
         assert convert(response, bool)
 
     log RemoveLiquidityOne(msg.sender, _burn_amount, dy[0], total_supply)
+
+    self.ma_price = dy[2]
+    self.ma_last_time = block.timestamp
 
     return dy[0]
 

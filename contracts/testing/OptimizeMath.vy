@@ -161,6 +161,9 @@ def halfpow(power: uint256) -> uint256:
     1e18 * 0.5 ** (power/1e18)
 
     Inspired by: https://github.com/balancer-labs/balancer-core/blob/master/contracts/BNum.sol#L128
+
+    Better result can by achived with:
+    https://github.com/transmissions11/solmate/blob/v7/src/utils/FixedPointMathLib.sol#L34
     """
     intpow: uint256 = unsafe_div(power, 10**18)
     if intpow > 59:
