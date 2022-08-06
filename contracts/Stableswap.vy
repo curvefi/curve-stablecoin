@@ -161,7 +161,7 @@ def initialize(
     self.future_A = A
     self.fee = _fee
     self.factory = msg.sender
-    self.ma_half_time = 600  # XXX
+    self.ma_half_time = 600
     self.ma_price = 10**18
     self.ma_last_time = block.timestamp
 
@@ -1064,6 +1064,9 @@ def stop_ramp_A():
     # now (block.timestamp < t1) is always False, so we return saved A
 
     log StopRampA(current_A, block.timestamp)
+
+
+# XXX Need methods to set fee and ma_time
 
 
 @view
