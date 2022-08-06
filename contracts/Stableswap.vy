@@ -400,10 +400,11 @@ def get_D_mem(_rates: uint256[N_COINS], _balances: uint256[N_COINS], _amp: uint2
 @internal
 @view
 def _get_p(xp: uint256[N_COINS], amp: uint256, D: uint256) -> uint256:
-    # dx_0 / dx_1
-    # Only works for N_COINS = 2
+    # dx_0 / dx_1 only, however can have any number of coins in pool
     ANN: uint256 = amp * N_COINS
-    Dr: uint256 = D**2 / (N_COINS**N_COINS) / xp[0] * D / xp[1]
+    Dr: uint256 = D / (N_COINS**N_COINS)
+    for i in range(N_COINS):
+        Dr = Dr * D / xp[i]
     return 10**18 * (ANN * xp[0] + Dr * xp[0] / xp[1]) / (ANN * xp[0] + Dr)
 
 
