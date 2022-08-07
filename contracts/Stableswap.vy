@@ -967,7 +967,9 @@ def _calc_withdraw_one_coin(_burn_amount: uint256, i: int128) -> uint256[3]:
     dy = (dy - 1) * PRECISION / rates[i]  # Withdraw less to account for rounding errors
 
     xp[i] = new_y
-    ma_p: uint256 = self._ma_price(xp, amp, D1)
+    ma_p: uint256 = 0
+    if new_y > 0:
+        ma_p = self._ma_price(xp, amp, D1)
 
     return [dy, dy_0 - dy, ma_p]
 
