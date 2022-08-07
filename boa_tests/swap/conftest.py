@@ -36,7 +36,23 @@ def swap(swap_deployer, swap_impl, redeemable_coin, volatile_coin, admin):
         n = swap_deployer.n()
         swap_deployer.deploy(redeemable_coin, volatile_coin)
         addr = swap_deployer.pools(n)
-        return VyperContract(
+        swap = VyperContract(
             swap_impl.compiler_data,
             override_address=addr
         )
+        return swap
+
+
+@pytest.fixture(scope="module")
+def swap_w_d(swap, redeemable_coin, volatile_coin, accounts, admin):
+    with boa.env.prank(admin):
+        redeemable_coin._mint_for_testing(admin, 10**6 * 10**6)
+        volatile_coin._mint_for_testing(admin, 10**6 * 10**18)
+        redeemable_coin.approve(swap.address, 2**256 - 1)
+        volatile_coin.approve(swap.address, 2**256 - 1)
+        swap.add_liquidity([10**6 * 10**6, 10**6 * 10**18], 0)
+    for acc in accounts:
+        with boa.env.prank(acc):
+            redeemable_coin.approve(swap.address, 2**256 - 1)
+            volatile_coin.approve(swap.address, 2**256 - 1)
+    return swap

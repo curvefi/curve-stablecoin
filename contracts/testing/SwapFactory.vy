@@ -33,7 +33,7 @@ def deploy(coin_a: ERC20, coin_b: ERC20) -> address:
     pool.initialize(
         'TestName', 'TST',
         [coin_a.address, coin_b.address, empty(address), empty(address)],
-        [10**(18-coin_a.decimals()), 10**(18-coin_b.decimals()), 0, 0],
+        [10**(18-coin_a.decimals()) * 10**18, 10**(18-coin_b.decimals()) * 10**18, 0, 0],
         100,
         4 * 10**6)
     self.pools[self.n] = pool.address

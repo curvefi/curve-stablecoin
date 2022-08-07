@@ -405,7 +405,7 @@ def _get_p(xp: uint256[N_COINS], amp: uint256, D: uint256) -> uint256:
     Dr: uint256 = D / (N_COINS**N_COINS)
     for i in range(N_COINS):
         Dr = Dr * D / xp[i]
-    return 10**18 * (ANN * xp[0] + Dr * xp[0] / xp[1]) / (ANN * xp[0] + Dr)
+    return 10**18 * (ANN * xp[0] / A_PRECISION + Dr * xp[0] / xp[1]) / (ANN * xp[0] / A_PRECISION + Dr)
 
 
 @external
