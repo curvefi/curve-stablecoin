@@ -125,7 +125,7 @@ ma_last_time: public(uint256)
 @external
 def __init__():
     # we do this to prevent the implementation contract from being used as a pool
-    self.fee = 31337
+    self.factory = 0x0000000000000000000000000000000000000001
 
 
 @external
@@ -1066,9 +1066,6 @@ def stop_ramp_A():
     # now (block.timestamp < t1) is always False, so we return saved A
 
     log StopRampA(current_A, block.timestamp)
-
-
-# XXX Need methods to set fee and ma_time
 
 
 @view
