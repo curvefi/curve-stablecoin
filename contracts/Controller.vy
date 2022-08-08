@@ -24,6 +24,7 @@ interface AMM:
     def collateral_precision() -> uint256: view
     def can_skip_bands(n_end: int256) -> bool: view
     def bands_x(n: int256) -> uint256: view
+    def set_price_oracle(price_oracle: address): nonpayable
 
 interface ERC20:
     def totalSupply() -> uint256: view
@@ -600,6 +601,12 @@ def set_amm_fee(fee: uint256):
 def set_amm_admin_fee(fee: uint256):
     assert msg.sender == FACTORY.admin()
     self.amm.set_admin_fee(fee)
+
+
+@external
+def set_amm_price_oracle(price_oracle: address):
+    assert msg.sender == FACTORY.admin()
+    self.amm.set_price_oracle(price_oracle)
 
 
 @external

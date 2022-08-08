@@ -41,6 +41,9 @@ event SetFee:
 event SetAdminFee:
     fee: uint256
 
+event SetPriceOracle:
+    price_oracle: address
+
 
 MAX_TICKS: constant(int256) = 50
 MAX_TICKS_UINT: constant(uint256) = 50
@@ -1071,3 +1074,11 @@ def set_admin_fee(fee: uint256):
     assert fee < MAX_ADMIN_FEE, "High fee"
     self.admin_fee = fee
     log SetAdminFee(fee)
+
+@external
+def set_price_oracle(price_oracle: address):
+    assert msg.sender == self.admin
+    assert PriceOracle(price_oracle).price_w() > 0
+    assert PriceOracle(price_oracle).price() > 0
+    self.price_oracle_contract = PriceOracle(price_oracle)
+    log SetPriceOracle(price_oracle)
