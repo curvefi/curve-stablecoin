@@ -15,7 +15,7 @@ from datetime import timedelta
 # * set_amm_fee
 # * set_amm_admin_fee
 # * set_debt_ceiling
-# * set_borrowing_discounts <- XXX can be used to rug borrowers??
+# * set_borrowing_discounts
 # * collect AMM fees
 
 
@@ -38,7 +38,7 @@ class BigFuzz(RuleBasedStateMachine):
         self.anchor = boa.env.anchor()
         self.anchor.__enter__()
         self.A = self.market_amm.A()
-        self.debt_ceiling = self.market_controller.debt_ceiling()
+        self.debt_ceiling = self.controller_factory.debt_ceiling(self.market_controller.address)
 
     # Auxiliary methods #
     def get_stablecoins(self, user):
@@ -279,7 +279,7 @@ class BigFuzz(RuleBasedStateMachine):
 
 
 def test_big_fuzz(
-        market_amm, market_controller, monetary_policy, collateral_token, stablecoin, price_oracle, accounts, admin):
+        controller_factory, market_amm, market_controller, monetary_policy, collateral_token, stablecoin, price_oracle, accounts, admin):
     BigFuzz.TestCase.settings = settings(max_examples=2500, stateful_step_count=20, deadline=timedelta(seconds=1000))
     for k, v in locals().items():
         setattr(BigFuzz, k, v)
@@ -287,7 +287,7 @@ def test_big_fuzz(
 
 
 def test_noraise(
-        market_amm, market_controller, monetary_policy, collateral_token, stablecoin, price_oracle, accounts, admin):
+        controller_factory, market_amm, market_controller, monetary_policy, collateral_token, stablecoin, price_oracle, accounts, admin):
     for k, v in locals().items():
         setattr(BigFuzz, k, v)
     state = BigFuzz()
@@ -301,7 +301,7 @@ def test_noraise(
 
 
 def test_noraise_2(
-        market_amm, market_controller, monetary_policy, collateral_token, stablecoin, price_oracle, accounts, admin):
+        controller_factory, market_amm, market_controller, monetary_policy, collateral_token, stablecoin, price_oracle, accounts, admin):
     # This is due to evmdiv working not like floor div (fixed)
     for k, v in locals().items():
         setattr(BigFuzz, k, v)
@@ -312,7 +312,7 @@ def test_noraise_2(
 
 
 def test_exchange_fails(
-        market_amm, market_controller, monetary_policy, collateral_token, stablecoin, price_oracle, accounts, admin):
+        controller_factory, market_amm, market_controller, monetary_policy, collateral_token, stablecoin, price_oracle, accounts, admin):
     # This is due to evmdiv working not like floor div (fixed)
     for k, v in locals().items():
         setattr(BigFuzz, k, v)
@@ -333,7 +333,7 @@ def test_exchange_fails(
 
 
 def test_noraise_3(
-        market_amm, market_controller, monetary_policy, collateral_token, stablecoin, price_oracle, accounts, admin):
+        controller_factory, market_amm, market_controller, monetary_policy, collateral_token, stablecoin, price_oracle, accounts, admin):
     for k, v in locals().items():
         setattr(BigFuzz, k, v)
     state = BigFuzz()
@@ -343,7 +343,7 @@ def test_noraise_3(
 
 
 def test_repay_error_1(
-        market_amm, market_controller, monetary_policy, collateral_token, stablecoin, price_oracle, accounts, admin):
+        controller_factory, market_amm, market_controller, monetary_policy, collateral_token, stablecoin, price_oracle, accounts, admin):
     for k, v in locals().items():
         setattr(BigFuzz, k, v)
     state = BigFuzz()
@@ -354,7 +354,7 @@ def test_repay_error_1(
 
 
 def test_not_enough_collateral(
-        market_amm, market_controller, monetary_policy, collateral_token, stablecoin, price_oracle, accounts, admin):
+        controller_factory, market_amm, market_controller, monetary_policy, collateral_token, stablecoin, price_oracle, accounts, admin):
     for k, v in locals().items():
         setattr(BigFuzz, k, v)
     state = BigFuzz()
@@ -369,7 +369,7 @@ def test_not_enough_collateral(
 
 
 def test_noraise_4(
-        market_amm, market_controller, monetary_policy, collateral_token, stablecoin, price_oracle, accounts, admin):
+        controller_factory, market_amm, market_controller, monetary_policy, collateral_token, stablecoin, price_oracle, accounts, admin):
     for k, v in locals().items():
         setattr(BigFuzz, k, v)
     state = BigFuzz()
