@@ -6,6 +6,8 @@ from math import log
 from eth.vm.forks.spurious_dragon import computation
 computation.EIP170_CODE_SIZE_LIMIT = 640000  # 640 KB will be enough for everyone
 
+boa.interpret.set_cache_dir()
+
 
 PRICE = 3000
 

@@ -1,7 +1,7 @@
-vyper
 git+https://github.com/vyperlang/titanoboa
 hypothesis
 pytest
 pdbpp
 jedi
 pytest-xdist
+vyper==0.3.4
