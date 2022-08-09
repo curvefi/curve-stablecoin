@@ -28,10 +28,10 @@ interface AMM:
 
 interface ERC20:
     def totalSupply() -> uint256: view
-    def mint(_to: address, _value: uint256) -> bool: nonpayable
-    def burnFrom(_to: address, _value: uint256) -> bool: nonpayable
     def transferFrom(_from: address, _to: address, _value: uint256) -> bool: nonpayable
+    def transfer(_to: address, _value: uint256) -> bool: nonpayable
     def decimals() -> uint256: view
+    def approve(_spender: address, _value: uint256) -> bool: nonpayable
 
 interface MonetaryPolicy:
     def rate_write() -> uint256: nonpayable
@@ -70,9 +70,6 @@ event Liquidate:
 event SetMonetaryPolicy:
     monetary_policy: address
 
-event SetDebtCeiling:
-    debt_ceiling: uint256
-
 event SetBorrowingDiscounts:
     loan_discount: uint256
     liquidation_discount: uint256
@@ -108,7 +105,6 @@ collateral_precision: uint256
 monetary_policy: public(MonetaryPolicy)
 liquidation_discount: public(uint256)
 loan_discount: public(uint256)
-debt_ceiling: public(uint256)
 
 A: uint256
 logAratio: int256  # log(A / (A - 1))
@@ -159,8 +155,7 @@ def initialize(
     monetary_policy: address,
     loan_discount: uint256,
     liquidation_discount: uint256,
-    amm: address,
-    debt_ceiling: uint256):
+    amm: address):
     assert self.collateral_token == ERC20(ZERO_ADDRESS)
 
     self.collateral_token = ERC20(collateral_token)
@@ -168,7 +163,6 @@ def initialize(
 
     self.liquidation_discount = liquidation_discount
     self.loan_discount = loan_discount
-    self.debt_ceiling = debt_ceiling
     self._total_debt.rate_mul = 10**18
 
     self.amm = AMM(amm)
@@ -177,6 +171,8 @@ def initialize(
     self.logAratio = self.log2(A * 10**18 / (A - 1))
     self.sqrt_band_ratio = AMM(amm).sqrt_band_ratio()
     self.collateral_precision = AMM(amm).collateral_precision()
+
+    STABLECOIN.approve(FACTORY.address, max_value(uint256))
 
 
 @external
@@ -356,13 +352,12 @@ def create_loan(collateral: uint256, debt: uint256, n: uint256):
     liquidation_discount: uint256 = self.liquidation_discount
     self.liquidation_discounts[msg.sender] = liquidation_discount
     total_debt: uint256 = self._total_debt.initial_debt * rate_mul / self._total_debt.rate_mul + debt
-    assert total_debt <= self.debt_ceiling, "Debt ceiling"
     self._total_debt.initial_debt = total_debt
     self._total_debt.rate_mul = rate_mul
 
     amm.deposit_range(msg.sender, collateral, n1, n2, False)
     self.collateral_token.transferFrom(msg.sender, amm.address, collateral)
-    STABLECOIN.mint(msg.sender, debt)
+    STABLECOIN.transfer(msg.sender, debt)
 
     log UserState(msg.sender, collateral, debt, n1, n2, liquidation_discount)
     log Borrow(msg.sender, collateral, debt)
@@ -392,7 +387,6 @@ def _add_collateral_borrow(d_collateral: uint256, d_debt: uint256, _for: address
 
     if d_debt != 0:
         total_debt: uint256 = self._total_debt.initial_debt * rate_mul / self._total_debt.rate_mul + d_debt
-        assert total_debt <= self.debt_ceiling, "Debt ceiling"
         self._total_debt.initial_debt = total_debt
         self._total_debt.rate_mul = rate_mul
 
@@ -417,7 +411,7 @@ def borrow_more(collateral: uint256, debt: uint256):
     self._add_collateral_borrow(collateral, debt, msg.sender)
     if collateral != 0:
         self.collateral_token.transferFrom(msg.sender, self.amm.address, collateral)
-    STABLECOIN.mint(msg.sender, debt)
+    STABLECOIN.transfer(msg.sender, debt)
 
 
 @external
@@ -467,7 +461,7 @@ def repay(_d_debt: uint256, _for: address):
             log Repay(_for, 0, d_debt)
 
     # If we withdrew already - will burn less!
-    STABLECOIN.burnFrom(msg.sender, d_debt)
+    STABLECOIN.transferFrom(msg.sender, self, d_debt)
 
     self.loans[_for] = Loan({initial_debt: debt, rate_mul: rate_mul})
     total_debt: uint256 = self._total_debt.initial_debt * rate_mul / self._total_debt.rate_mul
@@ -520,11 +514,11 @@ def _liquidate(user: address, min_x: uint256, health_limit: uint256):
 
     min_amm_burn: uint256 = min(xy[0], debt)
     if min_amm_burn != 0:
-        STABLECOIN.burnFrom(amm.address, min_amm_burn)
+        STABLECOIN.transferFrom(amm.address, self, min_amm_burn)
 
     if debt > xy[0]:
         # Request what's left from user
-        STABLECOIN.burnFrom(msg.sender, debt - xy[0])
+        STABLECOIN.transferFrom(msg.sender, self, debt - xy[0])
     else:
         # Return what's left to user
         amm.rugpull(STABLECOIN.address, msg.sender, xy[0] - debt)
@@ -618,13 +612,6 @@ def set_monetary_policy(monetary_policy: address):
 
 
 @external
-def set_debt_ceiling(_debt_ceiling: uint256):
-    assert msg.sender == FACTORY.admin()
-    self.debt_ceiling = _debt_ceiling
-    log SetDebtCeiling(_debt_ceiling)
-
-
-@external
 def set_borrowing_discounts(loan_discount: uint256, liquidation_discount: uint256):
     assert msg.sender == FACTORY.admin()
     assert loan_discount > liquidation_discount
@@ -658,7 +645,7 @@ def collect_fees() -> uint256:
     if loan.initial_debt > supply:
         _to: address = FACTORY.fee_receiver()
         supply = loan.initial_debt - supply
-        STABLECOIN.mint(_to, supply)
+        STABLECOIN.transfer(_to, supply)
         log CollectFees(supply, loan.initial_debt)
         return supply
     else:
