@@ -155,5 +155,4 @@ def set_debt_ceiling(_to: address, debt_ceiling: uint256):
 @external
 @nonreentrant('lock')
 def rug_debt_ceiling(_to: address, debt_ceiling: uint256):
-    assert msg.sender == self.admin
     self._set_debt_ceiling(_to, self.debt_ceiling[_to], False)
