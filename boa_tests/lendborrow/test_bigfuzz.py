@@ -270,7 +270,9 @@ class BigFuzz(RuleBasedStateMachine):
     def debt_supply(self):
         self.market_controller.collect_fees()
         total_debt = self.market_controller.total_debt()
-        assert total_debt == self.stablecoin.totalSupply()
+        assert abs(
+                total_debt - (self.stablecoin.totalSupply() - self.stablecoin.balanceOf(self.market_controller.address))
+            ) <= 10  # XXX
         assert abs(sum(self.market_controller.debt(u) for u in self.accounts) - total_debt) <= 10
         # 10 accounts = 10 wei error?
 
@@ -376,4 +378,16 @@ def test_noraise_4(
     state.deposit(n=5, ratio=0.5, uid=0, y=505)
     state.trade(is_pump=True, r=1.0, uid=0)
     state.repay(ratio=1.0, uid=0)
+    state.teardown()
+
+
+def test_debt_nonequal(
+        controller_factory, market_amm, market_controller, monetary_policy, collateral_token, stablecoin, price_oracle, accounts, admin):
+    for k, v in locals().items():
+        setattr(BigFuzz, k, v)
+    state = BigFuzz()
+    state.rule_change_rate(rate=183)
+    state.deposit(n=5, ratio=0.5, uid=0, y=40072859744991)
+    state.time_travel(dt=1)
+    state.debt_supply()
     state.teardown()

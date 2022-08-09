@@ -1,4 +1,4 @@
-# @version 0.3.4
+# @version 0.3.6
 price: public(uint256)
 ADMIN: immutable(address)
 

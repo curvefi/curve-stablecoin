@@ -4,4 +4,4 @@ pytest
 pdbpp
 jedi
 pytest-xdist
-vyper==0.3.4
+vyper==0.3.6

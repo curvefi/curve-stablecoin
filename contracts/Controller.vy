@@ -1,4 +1,4 @@
-# @version 0.3.4
+# @version 0.3.6
 
 interface AMM:
     def A() -> uint256: view
