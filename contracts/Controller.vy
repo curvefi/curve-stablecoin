@@ -99,6 +99,9 @@ loans: HashMap[address, Loan]
 liquidation_discounts: public(HashMap[address, uint256])
 _total_debt: Loan
 
+minted: uint256
+redeemed: uint256
+
 amm: public(AMM)
 collateral_token: public(ERC20)
 collateral_precision: uint256
@@ -357,7 +360,9 @@ def create_loan(collateral: uint256, debt: uint256, n: uint256):
 
     amm.deposit_range(msg.sender, collateral, n1, n2, False)
     self.collateral_token.transferFrom(msg.sender, amm.address, collateral)
+
     STABLECOIN.transfer(msg.sender, debt)
+    self.minted += debt
 
     log UserState(msg.sender, collateral, debt, n1, n2, liquidation_discount)
     log Borrow(msg.sender, collateral, debt)
@@ -412,6 +417,7 @@ def borrow_more(collateral: uint256, debt: uint256):
     if collateral != 0:
         self.collateral_token.transferFrom(msg.sender, self.amm.address, collateral)
     STABLECOIN.transfer(msg.sender, debt)
+    self.minted += debt
 
 
 @external
@@ -462,6 +468,7 @@ def repay(_d_debt: uint256, _for: address):
 
     # If we withdrew already - will burn less!
     STABLECOIN.transferFrom(msg.sender, self, d_debt)
+    self.redeemed += d_debt
 
     self.loans[_for] = Loan({initial_debt: debt, rate_mul: rate_mul})
     total_debt: uint256 = self._total_debt.initial_debt * rate_mul / self._total_debt.rate_mul
@@ -515,13 +522,18 @@ def _liquidate(user: address, min_x: uint256, health_limit: uint256):
     min_amm_burn: uint256 = min(xy[0], debt)
     if min_amm_burn != 0:
         STABLECOIN.transferFrom(amm.address, self, min_amm_burn)
+        self.redeemed += min_amm_burn
 
     if debt > xy[0]:
         # Request what's left from user
-        STABLECOIN.transferFrom(msg.sender, self, debt - xy[0])
+        to_transfer: uint256 = debt - xy[0]
+        STABLECOIN.transferFrom(msg.sender, self, to_transfer)
+        self.redeemed += to_transfer
     else:
         # Return what's left to user
-        amm.rugpull(STABLECOIN.address, msg.sender, xy[0] - debt)
+        to_transfer: uint256 = xy[0] - debt
+        amm.rugpull(STABLECOIN.address, msg.sender, to_transfer)
+        self.redeemed += to_transfer
 
     amm.rugpull(self.collateral_token.address, msg.sender, xy[1])
 
@@ -625,12 +637,13 @@ def set_borrowing_discounts(loan_discount: uint256, liquidation_discount: uint25
 @external
 @view
 def admin_fees() -> uint256:
-    supply: uint256 = STABLECOIN.totalSupply()
     rate_mul: uint256 = self.amm.get_rate_mul()
     loan: Loan = self._total_debt
     loan.initial_debt = loan.initial_debt * rate_mul / loan.rate_mul
-    if loan.initial_debt > supply:
-        return loan.initial_debt - supply
+    loan.initial_debt += self.redeemed
+    minted: uint256 = self.minted
+    if loan.initial_debt > minted:
+        return loan.initial_debt - minted
     else:
         return 0
 
@@ -638,16 +651,18 @@ def admin_fees() -> uint256:
 @external
 @nonreentrant('lock')
 def collect_fees() -> uint256:
-    supply: uint256 = STABLECOIN.totalSupply()
     rate_mul: uint256 = self._rate_mul_w(self.amm)
     loan: Loan = self._total_debt
     loan.initial_debt = loan.initial_debt * rate_mul / loan.rate_mul
-    if loan.initial_debt > supply:
+    redeemed: uint256 = loan.initial_debt + self.redeemed
+    minted: uint256 = self.minted
+    if redeemed > minted:
         _to: address = FACTORY.fee_receiver()
-        supply = loan.initial_debt - supply
-        STABLECOIN.transfer(_to, supply)
-        log CollectFees(supply, loan.initial_debt)
-        return supply
+        redeemed -= minted
+        STABLECOIN.transfer(_to, redeemed)
+        self.minted += redeemed
+        log CollectFees(redeemed, loan.initial_debt)
+        return redeemed
     else:
         log CollectFees(0, loan.initial_debt)
         return 0

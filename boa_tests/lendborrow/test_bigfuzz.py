@@ -39,11 +39,18 @@ class BigFuzz(RuleBasedStateMachine):
         self.anchor.__enter__()
         self.A = self.market_amm.A()
         self.debt_ceiling = self.controller_factory.debt_ceiling(self.market_controller.address)
+        self.fees = 0
 
     # Auxiliary methods #
+    def collect_fees(self):
+        fees = self.stablecoin.balanceOf(self.accounts[0])
+        self.market_controller.collect_fees()
+        fees = self.stablecoin.balanceOf(self.accounts[0]) - fees
+        self.fees += fees
+
     def get_stablecoins(self, user):
         with boa.env.prank(self.accounts[0]):
-            self.market_controller.collect_fees()
+            self.collect_fees()
             if user != self.accounts[0]:
                 amount = self.stablecoin.balanceOf(self.accounts[0])
                 if amount > 0:
@@ -168,7 +175,7 @@ class BigFuzz(RuleBasedStateMachine):
     def trade_to_price(self, p):
         user = self.accounts[0]
         with boa.env.prank(user):
-            self.market_controller.collect_fees()
+            self.collect_fees()
             amount, is_pump = self.market_amm.get_amount_for_price(p)
             if amount > 0:
                 if is_pump:
@@ -268,11 +275,9 @@ class BigFuzz(RuleBasedStateMachine):
 
     @invariant()
     def debt_supply(self):
-        self.market_controller.collect_fees()
+        self.collect_fees()
         total_debt = self.market_controller.total_debt()
-        assert abs(
-                total_debt - (self.stablecoin.totalSupply() - self.stablecoin.balanceOf(self.market_controller.address))
-            ) <= 10  # XXX
+        assert total_debt == self.stablecoin.totalSupply() - self.stablecoin.balanceOf(self.market_controller.address)
         assert abs(sum(self.market_controller.debt(u) for u in self.accounts) - total_debt) <= 10
         # 10 accounts = 10 wei error?
 
