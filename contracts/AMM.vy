@@ -5,6 +5,7 @@ interface ERC20:
     def transferFrom(_from: address, _to: address, _value: uint256) -> bool: nonpayable
     def decimals() -> uint256: view
     def balanceOf(_user: address) -> uint256: view
+    def approve(_spender: address, _value: uint256) -> bool: nonpayable
 
 interface PriceOracle:
     def price() -> uint256: view
@@ -153,6 +154,7 @@ def initialize(
     self.sqrt_band_ratio = self.sqrt_int(unsafe_mul(10**18, _A) / unsafe_sub(_A, 1))
 
     self.admin = _admin
+    BORROWED_TOKEN.approve(_admin, max_value(uint256))
 
 
 @external
