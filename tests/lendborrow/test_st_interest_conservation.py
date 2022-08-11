@@ -10,7 +10,7 @@ class StatefulLendBorrow:
     t = strategy('uint256', max_value=86400 * 365)
     rate = strategy('uint256', max_value=2**255 - 1)  # Negative is probably not good btw
 
-    def __init__(self, chain, amm, controller, monetary_policy, collateral_token, borrowed_token, accounts):
+    def __init__(self, controller_factory, chain, amm, controller, monetary_policy, collateral_token, borrowed_token, accounts):
         self.chain = chain
         self.monetary_policy = monetary_policy
         self.amm = amm
@@ -18,7 +18,7 @@ class StatefulLendBorrow:
         self.collateral = collateral_token
         self.stablecoin = borrowed_token
         self.accounts = accounts
-        self.debt_ceiling = self.controller.debt_ceiling()
+        self.debt_ceiling = controller_factory.debt_ceiling(controller)
         for u in accounts:
             collateral_token.approve(controller, 2**256-1, {'from': u})
             borrowed_token.approve(controller, 2**256-1, {'from': u})
@@ -186,40 +186,42 @@ class StatefulLendBorrow:
     def invariant_debt_payable(self):
         tx = self.controller.collect_fees({'from': self.accounts[0]})
         supply = self.stablecoin.totalSupply(block_identifier=tx.block_number)
-        assert supply == self.controller.total_debt(block_identifier=tx.block_number)
+        b = self.stablecoin.balanceOf(self.controller, block_identifier=tx.block_number)
+        debt = self.controller.total_debt(block_identifier=tx.block_number)
+        assert debt == supply - b
 
 
-def test_stateful_lendborrow(chain, market_amm, market_controller, monetary_policy, collateral_token, stablecoin, accounts, state_machine):
-    state_machine(StatefulLendBorrow, chain, market_amm, market_controller, monetary_policy, collateral_token, stablecoin, accounts,
+def test_stateful_lendborrow(controller_factory, chain, market_amm, market_controller, monetary_policy, collateral_token, stablecoin, accounts, state_machine):
+    state_machine(StatefulLendBorrow, controller_factory, chain, market_amm, market_controller, monetary_policy, collateral_token, stablecoin, accounts,
                   settings={'max_examples': 100, 'stateful_step_count': 10})
 
 
-def test_rate_too_high(chain, market_amm, market_controller, monetary_policy, collateral_token, stablecoin, accounts, state_machine):
+def test_rate_too_high(controller_factory, chain, market_amm, market_controller, monetary_policy, collateral_token, stablecoin, accounts, state_machine):
     state = StatefulLendBorrow(
-        chain, market_amm, market_controller, monetary_policy, collateral_token, stablecoin, accounts)
+        controller_factory, chain, market_amm, market_controller, monetary_policy, collateral_token, stablecoin, accounts)
     state.rule_change_rate(rate=19298681539552733520784193015473224553355594960504706685844695763378761203935)
     state.rule_time_travel(100000)
     # rate clipping
     state.amm.get_rate_mul()
 
 
-def test_unexpected_revert(chain, market_amm, market_controller, monetary_policy, collateral_token, stablecoin, accounts, state_machine):
+def test_unexpected_revert(controller_factory, chain, market_amm, market_controller, monetary_policy, collateral_token, stablecoin, accounts, state_machine):
     state = StatefulLendBorrow(
-        chain, market_amm, market_controller, monetary_policy, collateral_token, stablecoin, accounts)
+        controller_factory, chain, market_amm, market_controller, monetary_policy, collateral_token, stablecoin, accounts)
     state.rule_create_loan(amount=28150, c_amount=5384530291638384907, n=8, user=accounts[1])
     state.rule_time_travel(t=31488)
     state.rule_repay(amount=39777, user=accounts[1])
 
 
-def test_no_revert_reason(chain, market_amm, market_controller, monetary_policy, collateral_token, stablecoin, accounts, state_machine):
+def test_no_revert_reason(controller_factory, chain, market_amm, market_controller, monetary_policy, collateral_token, stablecoin, accounts, state_machine):
     state = StatefulLendBorrow(
-        chain, market_amm, market_controller, monetary_policy, collateral_token, stablecoin, accounts)
+        controller_factory, chain, market_amm, market_controller, monetary_policy, collateral_token, stablecoin, accounts)
     state.rule_create_loan(amount=1, c_amount=1, n=5, user=accounts[0])
 
 
-def test_too_deep(chain, market_amm, market_controller, monetary_policy, collateral_token, stablecoin, accounts, state_machine):
+def test_too_deep(controller_factory, chain, market_amm, market_controller, monetary_policy, collateral_token, stablecoin, accounts, state_machine):
     state = StatefulLendBorrow(
-        chain, market_amm, market_controller, monetary_policy, collateral_token, stablecoin, accounts)
+        controller_factory, chain, market_amm, market_controller, monetary_policy, collateral_token, stablecoin, accounts)
     state.rule_create_loan(amount=13119, c_amount=48, n=43, user=accounts[0])
     state.rule_create_loan(amount=34049, c_amount=48388, n=18, user=accounts[1])
     state.rule_create_loan(amount=10161325728155098164, c_amount=4156800770, n=50, user=accounts[2])

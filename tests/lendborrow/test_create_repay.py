@@ -4,14 +4,14 @@ from brownie.test import given, strategy
 from ..conftest import approx
 
 
-def test_create_loan(stablecoin, collateral_token, market_controller, market_amm, monetary_policy, accounts):
+def test_create_loan(controller_factory, stablecoin, collateral_token, market_controller, market_amm, monetary_policy, accounts):
     user = accounts[1]
     initial_amount = 10**25
     collateral_token._mint_for_testing(user, initial_amount, {'from': accounts[0]})
     c_amount = int(2 * 1e6 * 1e18 * 1.5 / 3000)
 
     l_amount = 2 * 10**6 * 10**18
-    with brownie.reverts('Debt ceiling'):
+    with brownie.reverts():
         market_controller.create_loan(c_amount, l_amount, 5, {'from': user})
 
     l_amount = 5 * 10**5 * 10**18
@@ -30,7 +30,7 @@ def test_create_loan(stablecoin, collateral_token, market_controller, market_amm
         market_controller.create_loan(c_amount, 1, 5, {'from': user})
 
     assert stablecoin.balanceOf(user) == l_amount
-    assert stablecoin.totalSupply() == l_amount
+    assert l_amount == stablecoin.totalSupply() - stablecoin.balanceOf(market_controller)
     assert collateral_token.balanceOf(user) == initial_amount - c_amount
 
     assert market_controller.total_debt() == l_amount

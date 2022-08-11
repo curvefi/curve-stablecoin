@@ -12,13 +12,13 @@ class StatefulLendBorrow:
     c_amount = strategy('uint256')
     user = strategy('address')
 
-    def __init__(self, amm, controller, collateral_token, borrowed_token, accounts):
+    def __init__(self, controller_factory, amm, controller, collateral_token, borrowed_token, accounts):
         self.amm = amm
         self.controller = controller
         self.collateral = collateral_token
         self.stablecoin = borrowed_token
         self.accounts = accounts
-        self.debt_ceiling = self.controller.debt_ceiling()
+        self.debt_ceiling = controller_factory.debt_ceiling(controller)
         for u in accounts:
             collateral_token.approve(controller, 2**256-1, {'from': u})
             borrowed_token.approve(controller, 2**256-1, {'from': u})
@@ -148,7 +148,7 @@ class StatefulLendBorrow:
                 with brownie.reverts():
                     self.controller.borrow_more(c_amount, amount, {'from': user})
             else:
-                with brownie.reverts('Debt ceiling'):
+                with brownie.reverts():
                     self.controller.borrow_more(c_amount, amount, {'from': user})
             return
 
@@ -160,7 +160,7 @@ class StatefulLendBorrow:
         self.controller.borrow_more(c_amount, amount, {'from': user})
 
     def invariant_debt_supply(self):
-        assert self.controller.total_debt() == self.stablecoin.totalSupply()
+        assert self.controller.total_debt() == self.stablecoin.totalSupply() - self.stablecoin.balanceOf(self.controller)
 
     def invariant_sum_of_debts(self):
         assert sum(self.controller.debt(u) for u in self.accounts) == self.controller.total_debt()
@@ -171,31 +171,31 @@ class StatefulLendBorrow:
                 assert self.controller.health(user) > 0
 
 
-def test_stateful_lendborrow(market_amm, market_controller, collateral_token, stablecoin, accounts, state_machine):
-    state_machine(StatefulLendBorrow, market_amm, market_controller, collateral_token, stablecoin, accounts,
+def test_stateful_lendborrow(controller_factory, market_amm, market_controller, collateral_token, stablecoin, accounts, state_machine):
+    state_machine(StatefulLendBorrow, controller_factory, market_amm, market_controller, collateral_token, stablecoin, accounts,
                   settings={'max_examples': 50, 'stateful_step_count': 20, 'deadline': timedelta(seconds=1000)})
 
 
-def test_bad_health_underflow(market_amm, market_controller, collateral_token, stablecoin, accounts, state_machine):
-    state = StatefulLendBorrow(market_amm, market_controller, collateral_token, stablecoin, accounts)
+def test_bad_health_underflow(controller_factory, market_amm, market_controller, collateral_token, stablecoin, accounts, state_machine):
+    state = StatefulLendBorrow(controller_factory, market_amm, market_controller, collateral_token, stablecoin, accounts)
     state.rule_create_loan(amount=1, c_amount=21, n=6, user=accounts[0])
     state.invariant_health()
 
 
-def test_overflow(market_amm, market_controller, collateral_token, stablecoin, accounts, state_machine):
-    state = StatefulLendBorrow(market_amm, market_controller, collateral_token, stablecoin, accounts)
+def test_overflow(controller_factory, market_amm, market_controller, collateral_token, stablecoin, accounts, state_machine):
+    state = StatefulLendBorrow(controller_factory, market_amm, market_controller, collateral_token, stablecoin, accounts)
     state.rule_create_loan(
         amount=407364794483206832621538773467837164307398905518629081113581615337081836,
         c_amount=41658360764272065869638360137931952069431923873907374062, n=5, user=accounts[0])
 
 
-def test_health_overflow(market_amm, market_controller, collateral_token, stablecoin, accounts, state_machine):
-    state = StatefulLendBorrow(market_amm, market_controller, collateral_token, stablecoin, accounts)
+def test_health_overflow(controller_factory, market_amm, market_controller, collateral_token, stablecoin, accounts, state_machine):
+    state = StatefulLendBorrow(controller_factory, market_amm, market_controller, collateral_token, stablecoin, accounts)
     state.rule_create_loan(amount=256, c_amount=2787635851270792912435800128182537894764544, n=5, user=accounts[0])
     state.invariant_health()
 
 
-def test_health_underflow_2(market_amm, market_controller, collateral_token, stablecoin, accounts, state_machine):
-    state = StatefulLendBorrow(market_amm, market_controller, collateral_token, stablecoin, accounts)
+def test_health_underflow_2(controller_factory, market_amm, market_controller, collateral_token, stablecoin, accounts, state_machine):
+    state = StatefulLendBorrow(controller_factory, market_amm, market_controller, collateral_token, stablecoin, accounts)
     state.rule_create_loan(amount=1, c_amount=44, n=6, user=accounts[0])
     state.invariant_health()
