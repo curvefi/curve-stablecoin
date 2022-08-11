@@ -155,6 +155,7 @@ def initialize(
 
     self.admin = _admin
     BORROWED_TOKEN.approve(_admin, max_value(uint256))
+    ERC20(_collateral_token).approve(_admin, max_value(uint256))
 
 
 @external
@@ -565,14 +566,6 @@ def withdraw(user: address, move_to: address) -> uint256[2]:
     self.rate_time = block.timestamp
 
     return [total_x, total_y]
-
-
-@external
-def rugpull(coin: address, _to: address, val: uint256):
-    assert msg.sender == self.admin
-
-    if val != 0:
-        assert ERC20(coin).transfer(_to, val)
 
 
 @internal

@@ -15,7 +15,6 @@ interface AMM:
     def get_x_down(user: address) -> uint256: view
     def get_y_up(user: address) -> uint256: view
     def get_rate_mul() -> uint256: view
-    def rugpull(coin: address, _to: address, val: uint256): nonpayable
     def set_rate(rate: uint256) -> uint256: nonpayable
     def set_fee(fee: uint256): nonpayable
     def set_admin_fee(fee: uint256): nonpayable
@@ -532,10 +531,10 @@ def _liquidate(user: address, min_x: uint256, health_limit: uint256):
     else:
         # Return what's left to user
         to_transfer: uint256 = xy[0] - debt
-        amm.rugpull(STABLECOIN.address, msg.sender, to_transfer)
+        STABLECOIN.transferFrom(amm.address, msg.sender, to_transfer)
         self.redeemed += to_transfer
 
-    amm.rugpull(self.collateral_token.address, msg.sender, xy[1])
+    self.collateral_token.transferFrom(amm.address, msg.sender, xy[1])
 
     self.loans[user] = Loan({initial_debt: 0, rate_mul: rate_mul})
     log UserState(user, 0, 0, 0, 0, 0)
