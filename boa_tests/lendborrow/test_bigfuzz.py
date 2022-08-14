@@ -1,4 +1,3 @@
-import pytest
 import boa
 from boa.contract import BoaError
 from hypothesis import settings
@@ -75,7 +74,7 @@ class BigFuzz(RuleBasedStateMachine):
             self.collateral_token._mint_for_testing(user, y)
             max_debt = self.market_controller.max_borrowable(y, n)
             if not self.check_debt_ceiling(debt):
-                with pytest.raises(BoaError):
+                with boa.reverts():
                     self.market_controller.create_loan(y, debt, n)
                 return
             if (debt > max_debt or y // n <= 100 or debt == 0
@@ -105,11 +104,11 @@ class BigFuzz(RuleBasedStateMachine):
         self.get_stablecoins(user)
         with boa.env.prank(user):
             if debt == 0 and amount > 0:
-                with pytest.raises(BoaError):
+                with boa.reverts():
                     self.market_controller.repay(amount, user)
             else:
                 if amount > 0 and amount < debt and amount > self.stablecoin.balanceOf(user):
-                    with pytest.raises(BoaError):
+                    with boa.reverts():
                         self.market_controller.repay(amount, user)
                 else:
                     self.market_controller.repay(amount, user)
@@ -128,7 +127,7 @@ class BigFuzz(RuleBasedStateMachine):
             if (exists and n1 > n0) or y == 0:
                 self.market_controller.add_collateral(y, user)
             else:
-                with pytest.raises(BoaError):
+                with boa.reverts():
                     self.market_controller.add_collateral(y, user)
 
     @rule(y=collateral_amount, uid=user_id, ratio=ratio)
@@ -138,7 +137,7 @@ class BigFuzz(RuleBasedStateMachine):
 
         with boa.env.prank(user):
             if not self.market_controller.loan_exists(user):
-                with pytest.raises(BoaError):
+                with boa.reverts():
                     self.market_controller.borrow_more(y, 1)
 
             else:
@@ -149,7 +148,7 @@ class BigFuzz(RuleBasedStateMachine):
                 final_debt = self.market_controller.debt(user) + amount
 
                 if not self.check_debt_ceiling(amount):
-                    with pytest.raises(BoaError):
+                    with boa.reverts():
                         self.market_controller.borrow_more(y, amount)
                     return
 
@@ -162,13 +161,13 @@ class BigFuzz(RuleBasedStateMachine):
                             except Exception:
                                 pass
                         else:
-                            with pytest.raises(BoaError):
+                            with boa.reverts():
                                 self.market_controller.borrow_more(y, amount)
                     else:
                         self.market_controller.borrow_more(y, amount)
 
                 else:
-                    with pytest.raises(BoaError):
+                    with boa.reverts():
                         self.market_controller.borrow_more(y, amount)
 
     # Trading
@@ -223,7 +222,7 @@ class BigFuzz(RuleBasedStateMachine):
                     self.market_controller.self_liquidate(0)
                 self.remove_stablecoins(user)
                 assert not self.market_controller.loan_exists(user)
-                with pytest.raises(BoaError):
+                with boa.reverts():
                     self.market_controller.health(user)
 
     @rule(uid=user_id, luid=liquidator_id)
@@ -233,7 +232,7 @@ class BigFuzz(RuleBasedStateMachine):
         self.get_stablecoins(liquidator)
         if not self.market_controller.loan_exists(user):
             with boa.env.prank(liquidator):
-                with pytest.raises(BoaError):
+                with boa.reverts():
                     self.market_controller.liquidate(user, 0)
         else:
             health_limit = self.market_controller.liquidation_discount()
@@ -243,11 +242,11 @@ class BigFuzz(RuleBasedStateMachine):
                 assert 'Too deep' in str(e)
             with boa.env.prank(liquidator):
                 if health >= health_limit:
-                    with pytest.raises(BoaError):
+                    with boa.reverts():
                         self.market_controller.liquidate(user, 0)
                 else:
                     self.market_controller.liquidate(user, 0)
-                    with pytest.raises(BoaError):
+                    with boa.reverts():
                         self.market_controller.health(user)
         self.remove_stablecoins(liquidator)
 

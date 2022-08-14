@@ -3,7 +3,6 @@ import boa
 from math import log2, sqrt
 from hypothesis import given, settings
 from hypothesis import strategies as st
-from boa.contract import BoaError
 from datetime import timedelta
 
 SETTINGS = dict(max_examples=2000, deadline=timedelta(seconds=1000))
@@ -40,10 +39,10 @@ def test_log2(optimized_math, x):
 @given(st.integers(min_value=0, max_value=2**256-1))
 @settings(**SETTINGS)
 def test_sqrt(optimized_math, x):
-    if x > (2**256 - 1) / 10**18:
-        with pytest.raises(BoaError):
+    if x > (2**256 - 1) // 10**18:
+        with boa.reverts():
             optimized_math.original_sqrt(x)
-        with pytest.raises(BoaError):
+        with boa.reverts():
             optimized_math.optimized_sqrt(x)
         return
 

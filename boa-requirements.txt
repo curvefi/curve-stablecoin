@@ -5,3 +5,4 @@ pdbpp
 jedi
 pytest-xdist
 vyper==0.3.6
+ipython
