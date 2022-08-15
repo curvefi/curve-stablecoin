@@ -466,7 +466,7 @@ def repay(_d_debt: uint256, _for: address):
             log Repay(_for, 0, d_debt)
 
     # If we withdrew already - will burn less!
-    STABLECOIN.transferFrom(msg.sender, self, d_debt)
+    STABLECOIN.transferFrom(msg.sender, self, d_debt)  # fail: insufficient funds
     self.redeemed += d_debt
 
     self.loans[_for] = Loan({initial_debt: debt, rate_mul: rate_mul})
