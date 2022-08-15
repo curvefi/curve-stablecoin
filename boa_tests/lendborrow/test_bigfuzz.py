@@ -104,11 +104,11 @@ class BigFuzz(RuleBasedStateMachine):
         self.get_stablecoins(user)
         with boa.env.prank(user):
             if debt == 0 and amount > 0:
-                with boa.reverts():
+                with boa.reverts(fail="insufficient funds"):
                     self.market_controller.repay(amount, user)
             else:
                 if amount > 0 and amount < debt and amount > self.stablecoin.balanceOf(user):
-                    with boa.reverts():
+                    with boa.reverts(fail="insufficient funds"):
                         self.market_controller.repay(amount, user)
                 else:
                     self.market_controller.repay(amount, user)
