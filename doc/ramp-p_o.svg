@@ -2,15 +2,16 @@
 <!-- Created with Inkscape (http://www.inkscape.org/) -->
 
 <svg
-   width="190.27444mm"
+   width="249.48572mm"
    height="110.1248mm"
-   viewBox="0 0 190.27445 110.1248"
+   viewBox="0 0 249.48573 110.1248"
    version="1.1"
    id="svg5"
    inkscape:version="1.2 (dc2aedaf03, 2022-05-15)"
    sodipodi:docname="ramp-p_o.svg"
    xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
    xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns:xlink="http://www.w3.org/1999/xlink"
    xmlns="http://www.w3.org/2000/svg"
    xmlns:svg="http://www.w3.org/2000/svg">
   <sodipodi:namedview
@@ -25,8 +26,8 @@
      inkscape:document-units="mm"
      showgrid="true"
      inkscape:zoom="1.829812"
-     inkscape:cx="269.15333"
-     inkscape:cy="196.46827"
+     inkscape:cx="674.65947"
+     inkscape:cy="63.667743"
      inkscape:window-width="3383"
      inkscape:window-height="1383"
      inkscape:window-x="0"
@@ -36,11 +37,52 @@
     <inkscape:grid
        type="xygrid"
        id="grid687"
-       originx="-3.2831752"
+       originx="-3.2831754"
        originy="-13.049077" />
   </sodipodi:namedview>
   <defs
-     id="defs2" />
+     id="defs2">
+    <linearGradient
+       inkscape:collect="always"
+       id="linearGradient4545">
+      <stop
+         style="stop-color:#000000;stop-opacity:0.21727405;"
+         offset="0"
+         id="stop4541" />
+      <stop
+         style="stop-color:#e6e6e6;stop-opacity:0;"
+         offset="1"
+         id="stop4543" />
+    </linearGradient>
+    <marker
+       style="overflow:visible"
+       id="Arrow2"
+       refX="0"
+       refY="0"
+       orient="auto-start-reverse"
+       inkscape:stockid="Arrow2"
+       markerWidth="7.6999998"
+       markerHeight="5.5999999"
+       viewBox="0 0 7.7 5.6"
+       inkscape:isstock="true"
+       inkscape:collect="always"
+       preserveAspectRatio="xMidYMid">
+      <path
+         transform="scale(0.7)"
+         d="M -2,-4 9,0 -2,4 c 2,-2.33 2,-5.66 0,-8 z"
+         style="fill:context-stroke;fill-rule:evenodd;stroke:none"
+         id="arrow2L" />
+    </marker>
+    <linearGradient
+       inkscape:collect="always"
+       xlink:href="#linearGradient4545"
+       id="linearGradient4547"
+       x1="162.58646"
+       y1="40.928066"
+       x2="209.36479"
+       y2="40.928066"
+       gradientUnits="userSpaceOnUse" />
+  </defs>
   <g
      inkscape:label="Layer 1"
      inkscape:groupmode="layer"
@@ -132,13 +174,14 @@
     <text
        xml:space="preserve"
        style="font-style:italic;font-size:9.87778px;line-height:1.25;font-family:'Liberation Serif';-inkscape-font-specification:'Liberation Serif Italic';stroke-width:0.264583"
-       x="172.55794"
-       y="24.498075"
-       id="text2467-1"><tspan
+       x="142.82178"
+       y="99.079941"
+       id="text2467-1"
+       transform="rotate(-26.92268)"><tspan
          sodipodi:role="line"
          id="tspan2465-2"
-         x="172.55794"
-         y="24.498075"
+         x="142.82178"
+         y="99.079941"
          style="font-size:9.87778px;stroke-width:0.264583">p<tspan
    style="font-size:65%;baseline-shift:sub"
    id="tspan19195">center</tspan></tspan></text>
@@ -174,7 +217,7 @@
        d="M 13.229166,88.635415 71.437499,60.854165 H 115.09375 L 169.33333,34.395833"
        id="path10987" />
     <path
-       style="fill:none;stroke:#000000;stroke-width:0.2;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;stroke-dasharray:0.2,0.2;stroke-dashoffset:0"
+       style="fill:none;stroke:#000000;stroke-width:0.2;stroke-linecap:butt;stroke-linejoin:miter;stroke-dasharray:0.2, 0.2;stroke-dashoffset:0;stroke-opacity:1"
        d="M 71.437499,111.125 V 17.197917"
        id="path23170" />
     <path
@@ -203,5 +246,105 @@
          x="123.67539"
          y="93.878853"
          style="font-style:normal;stroke-width:0.264583">AMM is all in ETH</tspan></text>
+    <path
+       style="fill:none;stroke:#000000;stroke-width:0.4;stroke-linecap:butt;stroke-linejoin:miter;stroke-dasharray:1.6, 0.8, 0.4, 0.8;stroke-dashoffset:0;stroke-opacity:1"
+       d="m 162.71875,14.552083 v 27.78125"
+       id="path877"
+       sodipodi:nodetypes="cc" />
+    <path
+       style="fill:url(#linearGradient4547);fill-opacity:1;stroke:#000000;stroke-width:0.264583px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;marker-start:url(#Arrow2);marker-end:url(#Arrow2)"
+       d="m 207.69791,25.135417 c 0,0 -44.97916,29.104165 -44.97916,17.197915 0,14.552085 44.97917,14.552085 44.97917,14.552085"
+       id="path1708" />
+    <path
+       style="fill:none;stroke:#000000;stroke-width:0.264583px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+       d="m 211.66667,21.166667 1e-5,36.909375"
+       id="path2832"
+       sodipodi:nodetypes="cc" />
+    <path
+       style="fill:none;stroke:#000000;stroke-width:0.264583px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+       d="m 210.34376,56.753125 42.33332,0.132292"
+       id="path2834"
+       sodipodi:nodetypes="cc" />
+    <text
+       xml:space="preserve"
+       style="font-size:4.9389px;line-height:1.25;font-family:'Liberation Serif';-inkscape-font-specification:'Liberation Serif';stroke-width:0.264583"
+       x="224.10219"
+       y="60.854168"
+       id="text3628"><tspan
+         sodipodi:role="line"
+         id="tspan3626"
+         x="224.10219"
+         y="60.854168"
+         style="font-style:italic;font-variant:normal;font-weight:normal;font-stretch:normal;font-family:'Liberation Serif';-inkscape-font-specification:'Liberation Serif Italic';stroke-width:0.264583">x <tspan
+   style="font-style:normal"
+   id="tspan5597">(USD)</tspan></tspan></text>
+    <text
+       xml:space="preserve"
+       style="font-size:4.9389px;line-height:1.25;font-family:'Liberation Serif';-inkscape-font-specification:'Liberation Serif';stroke-width:0.264583"
+       x="-50.495491"
+       y="209.80185"
+       id="text3628-3"
+       transform="rotate(-90)"><tspan
+         sodipodi:role="line"
+         id="tspan3626-6"
+         x="-50.495491"
+         y="209.80185"
+         style="font-style:italic;font-variant:normal;font-weight:normal;font-stretch:normal;font-family:'Liberation Serif';-inkscape-font-specification:'Liberation Serif Italic';stroke-width:0.264583">y <tspan
+   style="font-style:normal"
+   id="tspan5599">(ETH)</tspan></tspan></text>
+    <path
+       style="fill:none;stroke:#000000;stroke-width:0.35;stroke-linecap:butt;stroke-linejoin:miter;stroke-dasharray:none;stroke-opacity:1"
+       d="m 211.66668,25.003127 c 6.61458,15.874998 17.19792,25.135415 37.04167,31.749998"
+       id="path3675"
+       sodipodi:nodetypes="cc" />
+    <circle
+       style="fill:#000000;stroke:#000000;stroke-width:0.349999;stroke-dasharray:none;stroke-dashoffset:0"
+       id="path5653"
+       cx="211.63438"
+       cy="24.870834"
+       r="0.39687499" />
+    <circle
+       style="fill:#000000;stroke:#000000;stroke-width:0.349999;stroke-dasharray:none;stroke-dashoffset:0"
+       id="path5653-7"
+       cx="248.84062"
+       cy="56.885418"
+       r="0.39687499" />
+    <text
+       xml:space="preserve"
+       style="font-size:4.9389px;line-height:1.25;font-family:'Liberation Serif';-inkscape-font-specification:'Liberation Serif';stroke-width:0.264583"
+       x="213.27898"
+       y="24.816751"
+       id="text5747"><tspan
+         sodipodi:role="line"
+         id="tspan5745"
+         x="213.27898"
+         y="24.816751"
+         style="font-style:italic;stroke-width:0.264583">p<tspan
+   style="font-size:65%;baseline-shift:sub"
+   id="tspan5749">cd</tspan></tspan></text>
+    <text
+       xml:space="preserve"
+       style="font-size:4.9389px;line-height:1.25;font-family:'Liberation Serif';-inkscape-font-specification:'Liberation Serif';stroke-width:0.264583"
+       x="247.38542"
+       y="54.239582"
+       id="text5747-6"><tspan
+         sodipodi:role="line"
+         id="tspan5745-2"
+         x="247.38542"
+         y="54.239582"
+         style="font-style:italic;stroke-width:0.264583">p<tspan
+   style="font-size:65%;baseline-shift:sub"
+   id="tspan5749-9">cu</tspan></tspan></text>
+    <text
+       xml:space="preserve"
+       style="font-size:3.52778px;line-height:1.25;font-family:'Liberation Serif';-inkscape-font-specification:'Liberation Serif';stroke-width:0.264583"
+       x="209.54709"
+       y="60.09679"
+       id="text5806"><tspan
+         sodipodi:role="line"
+         id="tspan5804"
+         x="209.54709"
+         y="60.09679"
+         style="font-style:italic;font-size:3.52778px;stroke-width:0.264583">0</tspan></text>
   </g>
 </svg>

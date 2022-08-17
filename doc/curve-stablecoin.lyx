@@ -203,7 +203,7 @@ status open
 \align center
 \begin_inset Graphics
 	filename ramp-p_o.pdf
-	width 8cm
+	width 100text%
 
 \end_inset
 
@@ -214,6 +214,12 @@ status open
 \begin_inset Caption Standard
 
 \begin_layout Plain Layout
+\begin_inset CommandInset label
+LatexCommand label
+name "fig:p_o"
+
+\end_inset
+
 Behavior of an 
 \begin_inset Quotes eld
 \end_inset
@@ -223,14 +229,58 @@ AMM with an external price source
 \end_inset
 
 .
+ External price 
+\begin_inset Formula $p_{center}$
+\end_inset
+
+ determines a price around which liquidity is formed.
+ AMM supports liquidity concentrated from prices 
+\begin_inset Formula $p_{cd}$
+\end_inset
+
+ to 
+\begin_inset Formula $p_{cu}$
+\end_inset
+
+, 
+\begin_inset Formula $p_{cd}<p_{center}<p_{cu}$
+\end_inset
+
+.
+ When current price 
+\begin_inset Formula $p$
+\end_inset
+
+ is out of range between 
+\begin_inset Formula $p_{cd}$
+\end_inset
+
+ and 
+\begin_inset Formula $p_{cu}$
+\end_inset
+
+, AMM is either fully in stablecoin (when at 
+\begin_inset Formula $p_{cu}$
+\end_inset
+
+) or fully in collateral (when at 
+\begin_inset Formula $p_{cd}$
+\end_inset
+
+).
+ When 
+\begin_inset Formula $p_{cd}\le p\le p_{cu}$
+\end_inset
+
+, AMM price is equal to the current price 
+\begin_inset Formula $p$
+\end_inset
+
+.
 \end_layout
 
 \end_inset
 
-
-\end_layout
-
-\begin_layout Plain Layout
 
 \end_layout
 
@@ -249,7 +299,7 @@ status open
 \align center
 \begin_inset Graphics
 	filename ramp-cubic.pdf
-	width 8cm
+	width 9cm
 
 \end_inset
 
@@ -260,6 +310,12 @@ status open
 \begin_inset Caption Standard
 
 \begin_layout Plain Layout
+\begin_inset CommandInset label
+LatexCommand label
+name "fig:cubic"
+
+\end_inset
+
 AMM which we search for
 \end_layout
 
@@ -294,7 +350,18 @@ center price
 \end_inset
 
  from up to down, the tokens will adiabatically convert from one to another
- while proving liquidity in both ways on the way.
+ while proving liquidity in both ways on the way (Fig.
+ 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "fig:p_o"
+plural "false"
+caps "false"
+noprefix "false"
+
+\end_inset
+
+).
  It is somewhat similar to avoided crossing (also called Landau-Zener transition
 ) in quantum physics (though only as an idea: mathematical description of
  the process could be very different).
