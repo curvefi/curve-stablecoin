@@ -316,7 +316,26 @@ name "fig:cubic"
 
 \end_inset
 
-AMM which we search for
+AMM which we search for.
+ We seek to construct an AMM where 
+\begin_inset Formula $p_{cd}$
+\end_inset
+
+ and 
+\begin_inset Formula $p_{cu}$
+\end_inset
+
+ are such functions of 
+\begin_inset Formula $p_{o}$
+\end_inset
+
+ that when 
+\begin_inset Formula $p_{o}$
+\end_inset
+
+ grows, they grow even faster.
+ In this case, this AMM will be all in ETH when ETH is expensive, and all
+ in USD when ETH is cheap.
 \end_layout
 
 \end_inset
@@ -349,8 +368,9 @@ center price
 \begin_inset Quotes erd
 \end_inset
 
- from up to down, the tokens will adiabatically convert from one to another
- while proving liquidity in both ways on the way (Fig.
+ from (for example) down to up, the tokens will adiabatically convert from
+ (for example) USD to ETH while proving liquidity in both ways on the way
+ (Fig.
  
 \begin_inset CommandInset ref
 LatexCommand ref
@@ -365,6 +385,74 @@ noprefix "false"
  It is somewhat similar to avoided crossing (also called Landau-Zener transition
 ) in quantum physics (though only as an idea: mathematical description of
  the process could be very different).
+ The range where the liquidity is concentrated is called 
+\shape italic
+band
+\shape default
+ here, at the constant 
+\begin_inset Formula $p_{o}$
+\end_inset
+
+ band has liquidity from 
+\begin_inset Formula $p_{cd}$
+\end_inset
+
+ to 
+\begin_inset Formula $p_{cu}$
+\end_inset
+
+.
+ We seek for 
+\begin_inset Formula $p_{cd}(p_{o})$
+\end_inset
+
+ and 
+\begin_inset Formula $p_{cu}(p_{o})$
+\end_inset
+
+ being functions of 
+\begin_inset Formula $p_{o}$
+\end_inset
+
+ only, functions being more steep than linear and, hence, growing faster
+ than 
+\begin_inset Formula $p_{o}$
+\end_inset
+
+(Fig.
+ 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "fig:cubic"
+plural "false"
+caps "false"
+noprefix "false"
+
+\end_inset
+
+).
+ In addition, let's define prices 
+\begin_inset Formula $p_{\downarrow}$
+\end_inset
+
+and 
+\begin_inset Formula $p_{\uparrow}$
+\end_inset
+
+ being prices where 
+\begin_inset Formula $p_{\downarrow}(p_{o})=p_{o}$
+\end_inset
+
+, and 
+\begin_inset Formula $p_{\uparrow}(p_{o})=p_{o}$
+\end_inset
+
+, definining ends of bands in adiabatic limit (e.g.
+ 
+\begin_inset Formula $p=p_{o}$
+\end_inset
+
+).
 \end_layout
 
 \begin_layout Standard
@@ -444,7 +532,7 @@ However,
 \end_inset
 
  are constant across the band.
- Let's denote 
+ As mentioned before, we denote 
 \begin_inset Formula $p_{\uparrow}$
 \end_inset
 
@@ -457,7 +545,7 @@ as the bottom price of the band.
 \begin_inset Formula $A$
 \end_inset
 
- in such a way that:
+ (a measure of concentration of liquidity) in such a way that:
 \end_layout
 
 \begin_layout Standard
@@ -477,13 +565,13 @@ The property we are looking for is such that higher price
 \end_inset
 
 should lead to even higher price at the same balances, so that the current
- market price (which will converge to 
+ market price (which will, on average, follow 
 \begin_inset Formula $p_{o}$
 \end_inset
 
 ) is lower than that, and the band will trade towards being all in USD (and
  the opposite is also true for the other direction).
- As an example, this property is satisfied when:
+ It is possible to find many ways to satisfy that but we need one:
 \end_layout
 
 \begin_layout Standard
@@ -519,15 +607,26 @@ where
 \begin_inset Formula $y=y_{0}$
 \end_inset
 
- and (by definition of 
-\begin_inset Formula $p_{\uparrow}$
-\end_inset
-
-) 
+ and 
 \begin_inset Formula $x=0$
 \end_inset
 
-.
+ (see the point at 
+\begin_inset Formula $p_{o}=p_{\uparrow}$
+\end_inset
+
+ on Fig.
+ 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "fig:cubic"
+plural "false"
+caps "false"
+noprefix "false"
+
+\end_inset
+
+).
  Then if we substitute 
 \begin_inset Formula $y$
 \end_inset
@@ -612,7 +711,7 @@ Typically for a band, we know
 \end_inset
 
 .
- It can be found by solving the equation for the invariant:
+ It can be found by solving the quadratic equation for the invariant:
 \end_layout
 
 \begin_layout Standard
@@ -638,7 +737,7 @@ p_{o}Ay_{0}^{2}-y_{0}\left(\frac{p_{\uparrow}}{p_{o}}\left(A-1\right)x+\frac{p_{
 
 \end_inset
 
-In the smart contract, we solve this equation in 
+In the smart contract, we solve this quadratic equation in 
 \series bold
 get_y0
 \series default
@@ -651,7 +750,7 @@ While oracle price
 \end_inset
 
  stays constant, the AMM works in a normal way, e.g.
- low ETH on the top / low USD on the bottom.
+ sells ETH when going up / buys ETH when going down.
  By simply substituting 
 \begin_inset Formula $x=0$
 \end_inset
