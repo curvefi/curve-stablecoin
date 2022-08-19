@@ -1020,6 +1020,24 @@ get_x_down
  or even weeks after the collateral price went down and sideways, or even
  will not happen ever if collateral price never goes up or goes back up
  relatively quickly).
+ A 
+\series bold
+health
+\series default
+ method returns a ratio of 
+\series bold
+get_x_down
+\series default
+ to debt plus the value increase in collateral when the price is well above
+ 
+\begin_inset Quotes eld
+\end_inset
+
+liquidation
+\begin_inset Quotes erd
+\end_inset
+
+.
 \end_layout
 
 \begin_layout Standard
