@@ -13,8 +13,9 @@ def borrowed_token(admin):
 @pytest.fixture(scope="session")
 def amm(collateral_token, borrowed_token, price_oracle, admin, accounts):
     with boa.env.prank(admin):
-        amm = boa.load('contracts/AMM.vy', borrowed_token.address)
-        amm.initialize(100, PRICE * 10**18, collateral_token.address, 10**16, 0,
+        amm = boa.load('contracts/AMM.vy',
+                       borrowed_token.address, collateral_token.address,
+                       100, PRICE * 10**18, 10**16, 0,
                        price_oracle.address, admin)
     for acct in accounts:
         with boa.env.prank(acct):
