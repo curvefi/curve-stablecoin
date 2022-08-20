@@ -1,6 +1,6 @@
 import pytest
 import boa
-from math import log2, sqrt
+from math import log2, sqrt, exp
 from hypothesis import given, settings
 from hypothesis import strategies as st
 from datetime import timedelta
@@ -54,9 +54,21 @@ def test_sqrt(optimized_math, x):
     assert abs(y2 / 1e18 - y) <= max(1e-15, 1e-15 * y)
 
 
-@given(st.integers(min_value=0, max_value=2**256-1),)
+@given(st.integers(min_value=0, max_value=2**256-1))
 @settings(**SETTINGS)
-def test_exp(optimized_math, power):
+def test_halfpow(optimized_math, power):
     pow_int = optimized_math.halfpow(power) / 1e18
     pow_ideal = 0.5 ** (power / 1e18)
     assert abs(pow_int - pow_ideal) < max(5 * 1e10 / 1e18, 5e-16)
+
+
+@given(st.integers(min_value=0, max_value=2**255-1))
+@settings(**SETTINGS)
+def test_exp(optimized_math, power):
+    if power >= 135305999368893231589:
+        with boa.reverts("exp overflow"):
+            optimized_math.optimized_exp(power)
+    else:
+        pow_int = optimized_math.optimized_exp(power)
+        pow_ideal = int(exp(power / 1e18) * 1e18)
+        assert abs(pow_int - pow_ideal) < max(1e8, pow_ideal * 1e-10)
