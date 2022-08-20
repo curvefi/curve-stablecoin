@@ -564,12 +564,12 @@ The property we are looking for is such that higher price
 \begin_inset Formula $p_{o}$
 \end_inset
 
-should lead to even higher price at the same balances, so that the current
+ should lead to even higher price at the same balances, so that the current
  market price (which will, on average, follow 
 \begin_inset Formula $p_{o}$
 \end_inset
 
-) is lower than that, and the band will trade towards being all in USD (and
+) is lower than that, and the band will trade towards being all in ETH (and
  the opposite is also true for the other direction).
  It is possible to find many ways to satisfy that but we need one:
 \end_layout
