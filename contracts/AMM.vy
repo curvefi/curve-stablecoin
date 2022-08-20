@@ -112,6 +112,7 @@ def __init__(
         _admin: address
     ):
     assert _A > 0
+    assert _A < 10**6
 
     BORROWED_TOKEN = ERC20(_borrowed_token)
     BORROWED_PRECISION = 10 ** (18 - ERC20(_borrowed_token).decimals())
@@ -133,7 +134,7 @@ def __init__(
 
     ADMIN = _admin
 
-    SQRT_BAND_RATIO = self.sqrt_int(unsafe_mul(10**18, _A) / unsafe_sub(_A, 1))
+    SQRT_BAND_RATIO = self.sqrt_int(10**18 * _A / (_A - 1))
     # Insert log here XXX
 
     ERC20(_borrowed_token).approve(_admin, max_value(uint256))
@@ -276,9 +277,9 @@ def _p_oracle_band(n: int256, is_down: bool) -> uint256:
     m: uint256 = 1
     amul: uint256 = 0
     if n > n_active:
-        amul = unsafe_div(10**18 * Aminus1, A)  # (A - 1) / A
+        amul = unsafe_div(unsafe_mul(10**18, Aminus1), A)  # (A - 1) / A
     else:
-        amul = unsafe_mul(10**18, A) / Aminus1  # A / (A - 1)
+        amul = unsafe_div(unsafe_mul(10**18, A), Aminus1)  # A / (A - 1)
     for i in range(1, 12):
         if m > band_distance:
             if is_down:
@@ -416,11 +417,11 @@ def _read_user_tick_numbers(user: address) -> int256[2]:
     Unpacks and reads user tick numbers
     """
     ns: int256 = self.user_shares[user].ns
-    n2: int256 = ns / 2**128
+    n2: int256 = unsafe_div(ns, 2**128)
     n1: int256 = ns % 2**128
     if n1 >= 2**127:
-        n1 -= 2**128
-        n2 += 1
+        n1 = unsafe_sub(n1, 2**128)
+        n2 = unsafe_add(n2, 1)
     return [n1, n2]
 
 
