@@ -107,23 +107,32 @@ def __init__(_borrowed_token: address):
 @internal
 @pure
 def sqrt_int(x: uint256) -> uint256:
-    """
-    Originating from: https://github.com/vyperlang/vyper/issues/1266
-    """
-    assert x < MAX_UINT256 / 10**18 + 1
-    if x == 0:
-        return 0
+    # https://github.com/transmissions11/solmate/blob/v7/src/utils/FixedPointMathLib.sol#L288
+    _x: uint256 = x * 10**18
+    y: uint256 = _x
+    z: uint256 = 181
+    if y >= 2**(128 + 8):
+        y = unsafe_div(y, 2**128)
+        z = unsafe_mul(z, 2**64)
+    if y >= 2**(64 + 8):
+        y = unsafe_div(y, 2**64)
+        z = unsafe_mul(z, 2**32)
+    if y >= 2**(32 + 8):
+        y = unsafe_div(y, 2**32)
+        z = unsafe_mul(z, 2**16)
+    if y >= 2**(16 + 8):
+        y = unsafe_div(y, 2**16)
+        z = unsafe_mul(z, 2**8)
 
-    z: uint256 = unsafe_div(unsafe_add(x, 10**18), 2)
-    y: uint256 = x
+    z = unsafe_div(unsafe_mul(z, unsafe_add(y, 65536)), 2**18)
 
-    for i in range(256):
-        if z == y:
-            return y
-        y = z
-        z = unsafe_div(unsafe_add(unsafe_div(unsafe_mul(x, 10**18), z), z), 2)
-
-    raise "Did not converge"
+    z = unsafe_div(unsafe_add(unsafe_div(_x, z), z), 2)
+    z = unsafe_div(unsafe_add(unsafe_div(_x, z), z), 2)
+    z = unsafe_div(unsafe_add(unsafe_div(_x, z), z), 2)
+    z = unsafe_div(unsafe_add(unsafe_div(_x, z), z), 2)
+    z = unsafe_div(unsafe_add(unsafe_div(_x, z), z), 2)
+    z = unsafe_div(unsafe_add(unsafe_div(_x, z), z), 2)
+    return unsafe_div(unsafe_add(unsafe_div(_x, z), z), 2)
 # End of low-level math
 
 
@@ -197,7 +206,7 @@ def _p_oracle_band(n: int256, is_down: bool) -> uint256:
     # k = (self.A - 1) / self.A  # equal to (p_up / p_down)
     # return self.p_base * k ** n
     n_active: int256 = self.active_band
-    p_base: uint256 = unsafe_div(self._base_price() * self.p_base_mul, 10**18)
+    p_base: uint256 = unsafe_div(self._base_price() * self.p_base_mul, 10**18)  # XXX
     band_distance: uint256 = convert(abs(n - n_active), uint256)
     assert band_distance < 1024, "Too deep"
     A: uint256 = self.A
@@ -301,7 +310,7 @@ def get_y0(n: int256) -> uint256:
     p_o: uint256 = self.price_oracle_contract.price()
     p_oracle_up: uint256 = 0
     if n == max_value(int256):
-        p_oracle_up = unsafe_div(self._base_price() * self.p_base_mul, 10**18)
+        p_oracle_up = unsafe_div(self._base_price() * self.p_base_mul, 10**18)  # XXX
     else:
         p_oracle_up = self._p_oracle_band(n, False)
 
@@ -425,7 +434,7 @@ def deposit_range(user: address, amount: uint256, n1: int256, n2: int256, move_c
     assert lower >= -2**127
 
     A: uint256 = self.A
-    base_mul: uint256 = self.p_base_mul
+    base_mul: uint256 = self.p_base_mul  # XXX
 
     # Autoskip bands if we can
     for i in range(MAX_SKIP_TICKS + 1):
@@ -579,7 +588,7 @@ def calc_swap_out(pump: bool, in_amount: uint256, p_o: uint256) -> DetailedTrade
     out.n2 = self.active_band
     A: uint256 = self.A
     Aneg1: uint256 = unsafe_sub(A, 1)
-    out.base_mul = self.p_base_mul
+    out.base_mul = self.p_base_mul  # XXX
     base_price: uint256 = self._base_price()
     x: uint256 = self.bands_x[out.n2]
     y: uint256 = self.bands_y[out.n2]
@@ -598,7 +607,7 @@ def calc_swap_out(pump: bool, in_amount: uint256, p_o: uint256) -> DetailedTrade
         f: uint256 = 0
         g: uint256 = 0
         Inv: uint256 = 0
-        p_o_up: uint256 = unsafe_div(base_price * out.base_mul, 10**18)
+        p_o_up: uint256 = unsafe_div(base_price * out.base_mul, 10**18)  # XXX
 
         if x > 0 or y > 0:
             if j == MAX_TICKS_UINT:
@@ -637,7 +646,7 @@ def calc_swap_out(pump: bool, in_amount: uint256, p_o: uint256) -> DetailedTrade
                 if j == MAX_TICKS_UINT - 1:
                     break
                 out.n2 += 1
-                out.base_mul = unsafe_div(out.base_mul * Aneg1, A)
+                out.base_mul = unsafe_div(out.base_mul * Aneg1, A)  # XXX
                 x = 0
                 y = self.bands_y[out.n2]
 
@@ -668,7 +677,7 @@ def calc_swap_out(pump: bool, in_amount: uint256, p_o: uint256) -> DetailedTrade
                 if j == MAX_TICKS_UINT - 1:
                     break
                 out.n2 -= 1
-                out.base_mul = unsafe_div(out.base_mul * A, Aneg1)
+                out.base_mul = unsafe_div(out.base_mul * A, Aneg1)  # XXX
                 x = self.bands_x[out.n2]
                 y = 0
 
@@ -794,7 +803,7 @@ def exchange(i: uint256, j: uint256, in_amount: uint256, min_amount: uint256, _f
         n += step
 
     self.active_band = n
-    self.p_base_mul = out.base_mul
+    self.p_base_mul = out.base_mul  # XXX
 
     log TokenExchange(_for, i, in_amount_done, j, out_amount_done)
 
@@ -968,7 +977,7 @@ def get_amount_for_price(p: uint256) -> (uint256, bool):
     Aneg12: uint256 = pow_mod256(Aneg1, 2)
     p_up: uint256 = self._p_current_band(n, True)  # p_current_up
     p_down: uint256 = unsafe_div(p_up * Aneg12, A2)     # p_current_down
-    p_o_up: uint256 = unsafe_div(self._base_price() * self.p_base_mul, 10**18)
+    p_o_up: uint256 = unsafe_div(self._base_price() * self.p_base_mul, 10**18)  # XXX
     p_o: uint256 = self.price_oracle_contract.price()
     amount: uint256 = 0
     y0: uint256 = 0
