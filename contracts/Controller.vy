@@ -397,7 +397,7 @@ def _add_collateral_borrow(d_collateral: uint256, d_debt: uint256, _for: address
     ns: int256[2] = AMM.read_user_tick_numbers(_for)
     size: uint256 = convert(ns[1] - ns[0], uint256)
 
-    xy: uint256[2] = AMM.withdraw(_for, ZERO_ADDRESS)
+    xy: uint256[2] = AMM.withdraw(_for, empty(address))
     assert xy[0] == 0, "Already in underwater mode"
     xy[1] += d_collateral
     n1: int256 = self._calculate_debt_n1(xy[1], debt, size)
@@ -470,7 +470,7 @@ def repay(_d_debt: uint256, _for: address):
 
         if ns[0] > active_band:
             # Not in liquidation - can move bands
-            xy: uint256[2] = AMM.withdraw(_for, ZERO_ADDRESS)
+            xy: uint256[2] = AMM.withdraw(_for, empty(address))
             n1: int256 = self._calculate_debt_n1(xy[1], debt, size)
             n2: int256 = n1 + ns[1] - ns[0]
             AMM.deposit_range(_for, xy[1], n1, n2, False)
@@ -480,7 +480,7 @@ def repay(_d_debt: uint256, _for: address):
             log Repay(_for, 0, d_debt)
         else:
             # Underwater - cannot move band but can avoid a bad liquidation
-            log UserState(_for, MAX_UINT256, debt, ns[0], ns[1], self.liquidation_discounts[_for])
+            log UserState(_for, max_value(uint256), debt, ns[0], ns[1], self.liquidation_discounts[_for])
             log Repay(_for, 0, d_debt)
 
     # If we withdrew already - will burn less!
@@ -529,7 +529,7 @@ def _liquidate(user: address, min_x: uint256, health_limit: uint256):
         assert self._health(user, debt, True) < convert(health_limit, int256), "Not enough rekt"
 
     # Send all the sender's stablecoin and collateral to our contract
-    xy: uint256[2] = AMM.withdraw(user, ZERO_ADDRESS)  # [stable, collateral]
+    xy: uint256[2] = AMM.withdraw(user, empty(address))  # [stable, collateral]
 
     # x increase in same block -> price up -> good
     # x decrease in same block -> price down -> bad
