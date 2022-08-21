@@ -5,6 +5,7 @@ interface ERC20:
     def burnFrom(_to: address, _value: uint256) -> bool: nonpayable
     def transferFrom(_from: address, _to: address, _value: uint256) -> bool: nonpayable
     def balanceOf(_user: address) -> uint256: view
+    def decimals() -> uint256: view
 
 interface Controller:
     def initialize(
@@ -17,10 +18,7 @@ interface PriceOracle:
     def price() -> uint256: view
 
 interface AMM:
-    def initialize(
-        _A: uint256, _base_price: uint256, _collateral_token: address, fee: uint256, admin_fee: uint256,
-        _price_oracle_contract: address, _admin: address
-    ): nonpayable
+    def set_admin(_admin: address): nonpayable
 
 
 event AddMarket:
@@ -66,6 +64,66 @@ def __init__(stablecoin: ERC20,
     self.fee_receiver = fee_receiver
 
 
+# Low-level math
+@internal
+@pure
+def sqrt_int(x: uint256) -> uint256:
+    # https://github.com/transmissions11/solmate/blob/v7/src/utils/FixedPointMathLib.sol#L288
+    _x: uint256 = x * 10**18
+    y: uint256 = _x
+    z: uint256 = 181
+    if y >= 2**(128 + 8):
+        y = unsafe_div(y, 2**128)
+        z = unsafe_mul(z, 2**64)
+    if y >= 2**(64 + 8):
+        y = unsafe_div(y, 2**64)
+        z = unsafe_mul(z, 2**32)
+    if y >= 2**(32 + 8):
+        y = unsafe_div(y, 2**32)
+        z = unsafe_mul(z, 2**16)
+    if y >= 2**(16 + 8):
+        y = unsafe_div(y, 2**16)
+        z = unsafe_mul(z, 2**8)
+
+    z = unsafe_div(unsafe_mul(z, unsafe_add(y, 65536)), 2**18)
+
+    z = unsafe_div(unsafe_add(unsafe_div(_x, z), z), 2)
+    z = unsafe_div(unsafe_add(unsafe_div(_x, z), z), 2)
+    z = unsafe_div(unsafe_add(unsafe_div(_x, z), z), 2)
+    z = unsafe_div(unsafe_add(unsafe_div(_x, z), z), 2)
+    z = unsafe_div(unsafe_add(unsafe_div(_x, z), z), 2)
+    z = unsafe_div(unsafe_add(unsafe_div(_x, z), z), 2)
+    return unsafe_div(unsafe_add(unsafe_div(_x, z), z), 2)
+
+
+@internal
+@pure
+def ln_int(_x: uint256) -> int256:
+    # Calculate log(A / (A - 1))
+    # adapted from: https://medium.com/coinmonks/9aef8515136e
+    # and vyper log implementation
+    # This can be much more optimal but that's not important here
+    x: uint256 = _x
+    res: uint256 = 0
+    for i in range(8):
+        t: uint256 = 2**(7 - i)
+        p: uint256 = 2**t
+        if x >= p * 10**18:
+            x /= p
+            res += t * 10**18
+    d: uint256 = 10**18
+    for i in range(59):  # 18 decimals: math.log2(10**10) == 59.7
+        if (x >= 2 * 10**18):
+            res += d
+            x /= 2
+        x = x * x / 10**18
+        d /= 2
+    # Now res = log2(x)
+    # ln(x) = log2(x) / log2(e)
+    return convert(res * 10**18 / 1442695040888963328, int256)
+## End of low-level math
+
+
 @external
 @view
 def stablecoin() -> ERC20:
@@ -106,11 +164,20 @@ def add_market(token: address, A: uint256, fee: uint256, admin_fee: uint256,
     assert loan_discount > liquidation_discount, "need loan_discount>liquidation_discount"
 
     p: uint256 = PriceOracle(_price_oracle_contract).price()
+    A_ratio: uint256 = 10**18 * A / (A - 1)
 
-    amm: address = create_minimal_proxy_to(self.amm_implementation)
-    controller: address = create_minimal_proxy_to(self.controller_implementation)
-    AMM(amm).initialize(A, p, token, fee, admin_fee, _price_oracle_contract, controller)
-    Controller(controller).initialize(token, monetary_policy, loan_discount, liquidation_discount, amm)
+    amm: address = create_from_blueprint(
+        self.amm_implementation,
+        STABLECOIN.address, 10**(18 - STABLECOIN.decimals()),
+        token, 10**(18 - ERC20(token).decimals()),
+        A, self.sqrt_int(A_ratio), self.ln_int(A_ratio),
+        p, fee, admin_fee, _price_oracle_contract,
+        code_offset=3)
+    controller: address = create_from_blueprint(
+        self.controller_implementation,
+        token, monetary_policy, loan_discount, liquidation_discount, amm,
+        code_offset=3)
+    AMM(amm).set_admin(controller)
     self._set_debt_ceiling(controller, debt_ceiling, True)
 
     N: uint256 = self.n_collaterals
