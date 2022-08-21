@@ -113,9 +113,6 @@ def __init__(
         _price_oracle_contract: address,
         _admin: address
     ):
-    assert _A > 0
-    assert _A < 10**6
-
     BORROWED_TOKEN = ERC20(_borrowed_token)
     BORROWED_PRECISION = _borrowed_precision
     COLLATERAL_TOKEN = ERC20(_collateral_token)
