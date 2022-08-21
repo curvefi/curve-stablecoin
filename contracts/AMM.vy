@@ -546,7 +546,7 @@ def deposit_range(user: address, amount: uint256, n1: int256, n2: int256, move_c
     if save_n:
         self.user_shares[user].ns = lower + upper * 2**128
 
-    dist: uint256 = convert(upper - lower, uint256) + 1
+    dist: uint256 = convert(unsafe_sub(upper, lower), uint256) + 1
     ptr: uint256 = 0
     for j in range(MAX_TICKS_UINT / 2):
         if ptr >= dist:
@@ -658,15 +658,15 @@ def calc_swap_out(pump: bool, in_amount: uint256, p_o: uint256) -> DetailedTrade
             if j == MAX_TICKS_UINT:
                 out.n1 = out.n2
                 j = 0
-            y0 = self._get_y0(x, y, p_o, p_o_up)
+            y0 = self._get_y0(x, y, p_o, p_o_up)  # <- also checks p_o
             f = unsafe_div(A * y0 * p_o / p_o_up * p_o, 10**18)
-            g = Aminus1 * y0 * p_o_up / p_o
+            g = unsafe_div(Aminus1 * y0 * p_o_up, p_o)
             Inv = (f + x) * (g + y)
 
         if pump:
             if y != 0:
                 if g != 0:
-                    x_dest: uint256 = Inv / g - f
+                    x_dest: uint256 = unsafe_div(Inv, g) - f
                     if unsafe_div((x_dest - x) * fee, 10**18) >= in_amount_left:
                         # This is the last band
                         out.last_tick_j = Inv / (f + (x + in_amount_left * 10**18 / fee)) - g  # Should be always >= 0
@@ -698,7 +698,7 @@ def calc_swap_out(pump: bool, in_amount: uint256, p_o: uint256) -> DetailedTrade
         else:  # dump
             if x != 0:
                 if f != 0:
-                    y_dest: uint256 = Inv / f - g
+                    y_dest: uint256 = unsafe_div(Inv, f) - g
                     if unsafe_div((y_dest - y) * fee, 10**18) >= in_amount_left:
                         # This is the last band
                         out.last_tick_j = Inv / (g + (y + in_amount_left * 10**18 / fee)) - f
