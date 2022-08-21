@@ -67,7 +67,7 @@ BORROWED_PRECISION: immutable(uint256)
 COLLATERAL_TOKEN: immutable(ERC20)  # y
 COLLATERAL_PRECISION: immutable(uint256)
 BASE_PRICE: immutable(uint256)
-admin: public(address)
+ADMIN: immutable(address)
 
 A: immutable(uint256)
 Aminus1: immutable(uint256)
@@ -109,6 +109,7 @@ def __init__(
         _log_A_ratio: int256,
         _base_price: uint256,
         fee: uint256,
+        admin: address,
         admin_fee: uint256,
         _price_oracle_contract: address,
     ):
@@ -134,13 +135,9 @@ def __init__(
     # log(A / (A - 1)) - needs to be pre-calculated externally
     LOG_A_RATIO = _log_A_ratio
 
-
-@external
-def set_admin(_admin: address):
-    assert self.admin == empty(address)
-    self.admin = _admin
-    BORROWED_TOKEN.approve(_admin, max_value(uint256))
-    COLLATERAL_TOKEN.approve(_admin, max_value(uint256))
+    ADMIN = admin
+    BORROWED_TOKEN.approve(ADMIN, max_value(uint256))
+    COLLATERAL_TOKEN.approve(ADMIN, max_value(uint256))
 
 
 # Low-level math
@@ -453,7 +450,7 @@ def can_skip_bands(n_end: int256) -> bool:
 @external
 @nonreentrant('lock')
 def deposit_range(user: address, amount: uint256, n1: int256, n2: int256, move_coins: bool):
-    assert msg.sender == self.admin
+    assert msg.sender == ADMIN
 
     n0: int256 = self.active_band
     band: int256 = max(n1, n2)  # Fill from high N to low N
@@ -542,7 +539,7 @@ def deposit_range(user: address, amount: uint256, n1: int256, n2: int256, move_c
 @external
 @nonreentrant('lock')
 def withdraw(user: address, move_to: address) -> uint256[2]:
-    assert msg.sender == self.admin
+    assert msg.sender == ADMIN
 
     ns: int256[2] = self._read_user_tick_numbers(user)
     user_shares: uint256[MAX_TICKS] = self._read_user_ticks(user, ns[1] - ns[0] + 1)
@@ -1066,7 +1063,7 @@ def get_amount_for_price(p: uint256) -> (uint256, bool):
 
 @external
 def set_rate(rate: uint256) -> uint256:
-    assert msg.sender == self.admin
+    assert msg.sender == ADMIN
     rate_mul: uint256 = self._rate_mul()
     self.rate_mul = rate_mul
     self.rate_time = block.timestamp
@@ -1077,7 +1074,7 @@ def set_rate(rate: uint256) -> uint256:
 
 @external
 def set_fee(fee: uint256):
-    assert msg.sender == self.admin
+    assert msg.sender == ADMIN
     assert fee < MAX_FEE, "High fee"
     self.fee = fee
     log SetFee(fee)
@@ -1085,14 +1082,14 @@ def set_fee(fee: uint256):
 
 @external
 def set_admin_fee(fee: uint256):
-    assert msg.sender == self.admin
+    assert msg.sender == ADMIN
     assert fee < MAX_ADMIN_FEE, "High fee"
     self.admin_fee = fee
     log SetAdminFee(fee)
 
 @external
 def set_price_oracle(price_oracle: address):
-    assert msg.sender == self.admin
+    assert msg.sender == ADMIN
     assert PriceOracle(price_oracle).price_w() > 0
     assert PriceOracle(price_oracle).price() > 0
     self.price_oracle_contract = PriceOracle(price_oracle)

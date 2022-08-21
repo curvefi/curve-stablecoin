@@ -145,8 +145,10 @@ def _set_debt_ceiling(addr: address, debt_ceiling: uint256, update: bool):
 @nonreentrant('lock')
 def add_market(token: address, A: uint256, fee: uint256, admin_fee: uint256,
                _price_oracle_contract: address,
-               monetary_policy: address, loan_discount: uint256, liquidation_discount: uint256,
-               debt_ceiling: uint256) -> address[2]:
+               monetary_policy: address, loan_discount: uint256,
+               liquidation_discount: uint256, debt_ceiling: uint256,
+               calculated_amm_address: address, calculated_controller_address: address,
+               ) -> address[2]:
     assert msg.sender == self.admin, "Only admin"
     assert self.controllers[token] == empty(address) and self.amms[token] == empty(address), "Already exists"
     assert A >= MIN_A and A <= MAX_A, "Wrong A"
@@ -164,13 +166,18 @@ def add_market(token: address, A: uint256, fee: uint256, admin_fee: uint256,
         STABLECOIN.address, 10**(18 - STABLECOIN.decimals()),
         token, 10**(18 - ERC20(token).decimals()),
         A, self.sqrt_int(A_ratio), self.ln_int(A_ratio),
-        p, fee, admin_fee, _price_oracle_contract,
+        p, fee, calculated_controller_address, admin_fee, _price_oracle_contract,
         code_offset=3)
+
+    assert amm == calculated_amm_address  # debug: amm create fail
+
     controller: address = create_from_blueprint(
         self.controller_implementation,
         token, monetary_policy, loan_discount, liquidation_discount, amm,
         code_offset=3)
-    AMM(amm).set_admin(controller)
+
+    assert controller == calculated_controller_address  # debug: controller create fail
+
     self._set_debt_ceiling(controller, debt_ceiling, True)
 
     N: uint256 = self.n_collaterals
