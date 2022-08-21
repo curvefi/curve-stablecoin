@@ -101,8 +101,12 @@ user_shares: HashMap[address, UserTicks]
 @external
 def __init__(
         _borrowed_token: address,
+        _borrowed_precision: uint256,
         _collateral_token: address,
+        _collateral_precision: uint256,
         _A: uint256,
+        _sqrt_band_ratio: uint256,
+        _log_A_ratio: int256,
         _base_price: uint256,
         fee: uint256,
         admin_fee: uint256,
@@ -113,15 +117,15 @@ def __init__(
     assert _A < 10**6
 
     BORROWED_TOKEN = ERC20(_borrowed_token)
-    BORROWED_PRECISION = 10 ** (18 - ERC20(_borrowed_token).decimals())
+    BORROWED_PRECISION = _borrowed_precision
     COLLATERAL_TOKEN = ERC20(_collateral_token)
-    COLLATERAL_PRECISION = 10 ** (18 - ERC20(_collateral_token).decimals())
+    COLLATERAL_PRECISION = _collateral_precision
     A = _A
     BASE_PRICE = _base_price
 
-    Aminus1 = A - 1
-    A2 = A**2
-    Aminus12 = (A - 1)**2
+    Aminus1 = unsafe_sub(A, 1)
+    A2 = pow_mod256(A, 2)
+    Aminus12 = pow_mod256(unsafe_sub(A, 1), 2)
 
     self.fee = fee
     self.admin_fee = admin_fee
@@ -131,29 +135,10 @@ def __init__(
 
     ADMIN = _admin
 
-    Aratio: uint256 = 10**18 * _A / (_A - 1)
-    SQRT_BAND_RATIO = self.sqrt_int(Aratio)
-    # Calculate log(A / (A - 1))
-    # adapted from: https://medium.com/coinmonks/9aef8515136e
-    # and vyper log implementation
-    res: uint256 = 0
-    x: uint256 = Aratio
-    for i in range(8):
-        t: uint256 = 2**(7 - i)
-        p: uint256 = 2**t
-        if x >= p * 10**18:
-            x /= p
-            res += t * 10**18
-    d: uint256 = 10**18
-    for i in range(59):  # 18 decimals: math.log2(10**10) == 59.7
-        if (x >= 2 * 10**18):
-            res += d
-            x /= 2
-        x = x * x / 10**18
-        d /= 2
-    # Now res = log2(Aratio)
-    # ln(Aratio) = log2(Aratio) / log2(e)
-    LOG_A_RATIO = convert(res * 10**18 / 1442695040888963328, int256)
+    # sqrt(A / (A - 1)) - needs to be pre-calculated externally
+    SQRT_BAND_RATIO = _sqrt_band_ratio
+    # log(A / (A - 1)) - needs to be pre-calculated externally
+    LOG_A_RATIO = _log_A_ratio
 
     ERC20(_borrowed_token).approve(_admin, max_value(uint256))
     ERC20(_collateral_token).approve(_admin, max_value(uint256))
@@ -189,43 +174,6 @@ def sqrt_int(x: uint256) -> uint256:
     z = unsafe_div(unsafe_add(unsafe_div(_x, z), z), 2)
     z = unsafe_div(unsafe_add(unsafe_div(_x, z), z), 2)
     return unsafe_div(unsafe_add(unsafe_div(_x, z), z), 2)
-
-
-@internal
-@view
-def exp_int(power: int256) -> uint256:
-    # Implementation based on solmate's
-    if power <= -42139678854452767551:
-        return 0
-
-    if power >= 135305999368893231589:
-        raise "exp overflow"
-
-    x: int256 = unsafe_div(unsafe_mul(power, 2**96), 10**18)
-
-    k: int256 = unsafe_div(
-        unsafe_add(
-            unsafe_div(unsafe_mul(x, 2**96), 54916777467707473351141471128),
-            2**95),
-        2**96)
-    x = unsafe_sub(x, unsafe_mul(k, 54916777467707473351141471128))
-
-    y: int256 = unsafe_add(x, 1346386616545796478920950773328)
-    y = unsafe_add(unsafe_div(unsafe_mul(y, x), 2**96), 57155421227552351082224309758442)
-    p: int256 = unsafe_sub(unsafe_add(y, x), 94201549194550492254356042504812)
-    p = unsafe_add(unsafe_div(unsafe_mul(p, y), 2**96), 28719021644029726153956944680412240)
-    p = unsafe_add(unsafe_mul(p, x), (4385272521454847904659076985693276 * 2**96))
-
-    q: int256 = x - 2855989394907223263936484059900
-    q = unsafe_add(unsafe_div(unsafe_mul(q, x), 2**96), 50020603652535783019961831881945)
-    q = unsafe_sub(unsafe_div(unsafe_mul(q, x), 2**96), 533845033583426703283633433725380)
-    q = unsafe_add(unsafe_div(unsafe_mul(q, x), 2**96), 3604857256930695427073651918091429)
-    q = unsafe_sub(unsafe_div(unsafe_mul(q, x), 2**96), 14423608567350463180887372962807573)
-    q = unsafe_add(unsafe_div(unsafe_mul(q, x), 2**96), 26449188498355588339934803723976023)
-
-    return shift(
-        unsafe_mul(convert(unsafe_div(p, q), uint256), 3822833074963236453042738258902158003155416615667),
-        unsafe_sub(k, 195))
 ## End of low-level math
 
 
@@ -285,7 +233,41 @@ def get_base_price() -> uint256:
 def _p_oracle_up(n: int256) -> uint256:
     # p_oracle_up(n) = p_base * ((A - 1) / A) ** n
     # p_oracle_down(n) = p_base * ((A - 1) / A) ** (n + 1) = p_oracle_up(n+1)
-    return unsafe_div(self._base_price() * self.exp_int(-n * LOG_A_RATIO), 10**18)
+    # return unsafe_div(self._base_price() * self.exp_int(-n * LOG_A_RATIO), 10**18)
+
+    power: int256 = -n * LOG_A_RATIO
+    # exp(-n * LOG_A_RATIO)
+    ## Exp implementation based on solmate's
+    assert power > -42139678854452767551
+    assert power < 135305999368893231589
+
+    x: int256 = unsafe_div(unsafe_mul(power, 2**96), 10**18)
+
+    k: int256 = unsafe_div(
+        unsafe_add(
+            unsafe_div(unsafe_mul(x, 2**96), 54916777467707473351141471128),
+            2**95),
+        2**96)
+    x = unsafe_sub(x, unsafe_mul(k, 54916777467707473351141471128))
+
+    y: int256 = unsafe_add(x, 1346386616545796478920950773328)
+    y = unsafe_add(unsafe_div(unsafe_mul(y, x), 2**96), 57155421227552351082224309758442)
+    p: int256 = unsafe_sub(unsafe_add(y, x), 94201549194550492254356042504812)
+    p = unsafe_add(unsafe_div(unsafe_mul(p, y), 2**96), 28719021644029726153956944680412240)
+    p = unsafe_add(unsafe_mul(p, x), (4385272521454847904659076985693276 * 2**96))
+
+    q: int256 = x - 2855989394907223263936484059900
+    q = unsafe_add(unsafe_div(unsafe_mul(q, x), 2**96), 50020603652535783019961831881945)
+    q = unsafe_sub(unsafe_div(unsafe_mul(q, x), 2**96), 533845033583426703283633433725380)
+    q = unsafe_add(unsafe_div(unsafe_mul(q, x), 2**96), 3604857256930695427073651918091429)
+    q = unsafe_sub(unsafe_div(unsafe_mul(q, x), 2**96), 14423608567350463180887372962807573)
+    q = unsafe_add(unsafe_div(unsafe_mul(q, x), 2**96), 26449188498355588339934803723976023)
+
+    exp_result: uint256 = shift(
+        unsafe_mul(convert(unsafe_div(p, q), uint256), 3822833074963236453042738258902158003155416615667),
+        unsafe_sub(k, 195))
+    ## End exp
+    return unsafe_div(self._base_price() * exp_result, 10**18)
 
 
 @internal
