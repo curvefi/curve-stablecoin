@@ -67,7 +67,7 @@ BORROWED_PRECISION: immutable(uint256)
 COLLATERAL_TOKEN: immutable(ERC20)  # y
 COLLATERAL_PRECISION: immutable(uint256)
 BASE_PRICE: immutable(uint256)
-ADMIN: immutable(address)
+admin: public(address)
 
 A: immutable(uint256)
 Aminus1: immutable(uint256)
@@ -111,7 +111,6 @@ def __init__(
         fee: uint256,
         admin_fee: uint256,
         _price_oracle_contract: address,
-        _admin: address
     ):
     BORROWED_TOKEN = ERC20(_borrowed_token)
     BORROWED_PRECISION = _borrowed_precision
@@ -130,15 +129,18 @@ def __init__(
 
     self.rate_mul = 10**18
 
-    ADMIN = _admin
-
     # sqrt(A / (A - 1)) - needs to be pre-calculated externally
     SQRT_BAND_RATIO = _sqrt_band_ratio
     # log(A / (A - 1)) - needs to be pre-calculated externally
     LOG_A_RATIO = _log_A_ratio
 
-    ERC20(_borrowed_token).approve(_admin, max_value(uint256))
-    ERC20(_collateral_token).approve(_admin, max_value(uint256))
+
+@external
+def set_admin(_admin: address):
+    assert self.admin == empty(address)
+    self.admin = _admin
+    BORROWED_TOKEN.approve(_admin, max_value(uint256))
+    COLLATERAL_TOKEN.approve(_admin, max_value(uint256))
 
 
 # Low-level math
@@ -184,12 +186,6 @@ def collateral_token() -> address:
 @view
 def A() -> uint256:
     return A
-
-
-@external
-@view
-def admin() -> address:
-    return ADMIN
 
 
 @external
@@ -457,7 +453,7 @@ def can_skip_bands(n_end: int256) -> bool:
 @external
 @nonreentrant('lock')
 def deposit_range(user: address, amount: uint256, n1: int256, n2: int256, move_coins: bool):
-    assert msg.sender == ADMIN
+    assert msg.sender == self.admin
 
     n0: int256 = self.active_band
     band: int256 = max(n1, n2)  # Fill from high N to low N
@@ -546,7 +542,7 @@ def deposit_range(user: address, amount: uint256, n1: int256, n2: int256, move_c
 @external
 @nonreentrant('lock')
 def withdraw(user: address, move_to: address) -> uint256[2]:
-    assert msg.sender == ADMIN
+    assert msg.sender == self.admin
 
     ns: int256[2] = self._read_user_tick_numbers(user)
     user_shares: uint256[MAX_TICKS] = self._read_user_ticks(user, ns[1] - ns[0] + 1)
@@ -1070,7 +1066,7 @@ def get_amount_for_price(p: uint256) -> (uint256, bool):
 
 @external
 def set_rate(rate: uint256) -> uint256:
-    assert msg.sender == ADMIN
+    assert msg.sender == self.admin
     rate_mul: uint256 = self._rate_mul()
     self.rate_mul = rate_mul
     self.rate_time = block.timestamp
@@ -1081,7 +1077,7 @@ def set_rate(rate: uint256) -> uint256:
 
 @external
 def set_fee(fee: uint256):
-    assert msg.sender == ADMIN
+    assert msg.sender == self.admin
     assert fee < MAX_FEE, "High fee"
     self.fee = fee
     log SetFee(fee)
@@ -1089,14 +1085,14 @@ def set_fee(fee: uint256):
 
 @external
 def set_admin_fee(fee: uint256):
-    assert msg.sender == ADMIN
+    assert msg.sender == self.admin
     assert fee < MAX_ADMIN_FEE, "High fee"
     self.admin_fee = fee
     log SetAdminFee(fee)
 
 @external
 def set_price_oracle(price_oracle: address):
-    assert msg.sender == ADMIN
+    assert msg.sender == self.admin
     assert PriceOracle(price_oracle).price_w() > 0
     assert PriceOracle(price_oracle).price() > 0
     self.price_oracle_contract = PriceOracle(price_oracle)

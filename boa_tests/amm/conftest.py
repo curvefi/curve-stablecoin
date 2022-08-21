@@ -19,7 +19,8 @@ def amm(collateral_token, borrowed_token, price_oracle, admin, accounts):
                        collateral_token.address, 10**(18 - collateral_token.decimals()),
                        100, int(sqrt(100/99) * 1e18), int(log(100/99) * 1e18),
                        PRICE * 10**18, 10**16, 0,
-                       price_oracle.address, admin)
+                       price_oracle.address)
+        amm.set_admin(admin)
     for acct in accounts:
         with boa.env.prank(acct):
             collateral_token.approve(amm.address, 2**256-1)
