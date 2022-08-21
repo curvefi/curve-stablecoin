@@ -61,13 +61,11 @@ struct DetailedTrade:
     n2: int256
     ticks_in: uint256[MAX_TICKS]
     last_tick_j: uint256
-    base_mul: uint256
 
 BORROWED_TOKEN: immutable(ERC20)    # x
 BORROWED_PRECISION: immutable(uint256)
 COLLATERAL_TOKEN: immutable(ERC20)  # y
 COLLATERAL_PRECISION: immutable(uint256)
-SQRT_BAND_RATIO: immutable(uint256)  # sqrt(A / (A - 1))
 BASE_PRICE: immutable(uint256)
 ADMIN: immutable(address)
 
@@ -75,6 +73,8 @@ A: immutable(uint256)
 Aminus1: immutable(uint256)
 A2: immutable(uint256)
 Aminus12: immutable(uint256)
+SQRT_BAND_RATIO: immutable(uint256)  # sqrt(A / (A - 1))
+LOG_A_RATIO: immutable(int256)  # ln(A / (A - 1))
 
 MAX_FEE: constant(uint256) = 10**17  # 10%
 MAX_ADMIN_FEE: constant(uint256) = 10**18  # 100%
@@ -90,8 +90,6 @@ min_band: int256
 max_band: int256
 
 price_oracle_contract: public(PriceOracle)
-
-p_base_mul: public(uint256)  # XXX
 
 bands_x: public(HashMap[int256, uint256])
 bands_y: public(HashMap[int256, uint256])
@@ -130,12 +128,32 @@ def __init__(
     self.price_oracle_contract = PriceOracle(_price_oracle_contract)
 
     self.rate_mul = 10**18
-    self.p_base_mul = 10**18  # XXX to remove
 
     ADMIN = _admin
 
-    SQRT_BAND_RATIO = self.sqrt_int(10**18 * _A / (_A - 1))
-    # Insert log here XXX
+    Aratio: uint256 = 10**18 * _A / (_A - 1)
+    SQRT_BAND_RATIO = self.sqrt_int(Aratio)
+    # Calculate log(A / (A - 1))
+    # adapted from: https://medium.com/coinmonks/9aef8515136e
+    # and vyper log implementation
+    res: uint256 = 0
+    x: uint256 = Aratio
+    for i in range(8):
+        t: uint256 = 2**(7 - i)
+        p: uint256 = 2**t
+        if x >= p * 10**18:
+            x /= p
+            res += t * 10**18
+    d: uint256 = 10**18
+    for i in range(59):  # 18 decimals: math.log2(10**10) == 59.7
+        if (x >= 2 * 10**18):
+            res += d
+            x /= 2
+        x = x * x / 10**18
+        d /= 2
+    # Now res = log2(Aratio)
+    # ln(Aratio) = log2(Aratio) / log2(e)
+    LOG_A_RATIO = convert(res * 10**18 / 1442695040888963328, int256)
 
     ERC20(_borrowed_token).approve(_admin, max_value(uint256))
     ERC20(_collateral_token).approve(_admin, max_value(uint256))
@@ -173,41 +191,41 @@ def sqrt_int(x: uint256) -> uint256:
     return unsafe_div(unsafe_add(unsafe_div(_x, z), z), 2)
 
 
-#@internal
-#@view
-#def exp_int(power: int256) -> uint256:
-#    # Implementation based on solmate's
-#    if power <= -42139678854452767551:
-#        return 0
-#
-#    if power >= 135305999368893231589:
-#        raise "exp overflow"
-#
-#    x: int256 = unsafe_div(unsafe_mul(power, 2**96), 10**18)
-#
-#    k: int256 = unsafe_div(
-#        unsafe_add(
-#            unsafe_div(unsafe_mul(x, 2**96), 54916777467707473351141471128),
-#            2**95),
-#        2**96)
-#    x = unsafe_sub(x, unsafe_mul(k, 54916777467707473351141471128))
-#
-#    y: int256 = unsafe_add(x, 1346386616545796478920950773328)
-#    y = unsafe_add(unsafe_div(unsafe_mul(y, x), 2**96), 57155421227552351082224309758442)
-#    p: int256 = unsafe_sub(unsafe_add(y, x), 94201549194550492254356042504812)
-#    p = unsafe_add(unsafe_div(unsafe_mul(p, y), 2**96), 28719021644029726153956944680412240)
-#    p = unsafe_add(unsafe_mul(p, x), (4385272521454847904659076985693276 * 2**96))
-#
-#    q: int256 = x - 2855989394907223263936484059900
-#    q = unsafe_add(unsafe_div(unsafe_mul(q, x), 2**96), 50020603652535783019961831881945)
-#    q = unsafe_sub(unsafe_div(unsafe_mul(q, x), 2**96), 533845033583426703283633433725380)
-#    q = unsafe_add(unsafe_div(unsafe_mul(q, x), 2**96), 3604857256930695427073651918091429)
-#    q = unsafe_sub(unsafe_div(unsafe_mul(q, x), 2**96), 14423608567350463180887372962807573)
-#    q = unsafe_add(unsafe_div(unsafe_mul(q, x), 2**96), 26449188498355588339934803723976023)
-#
-#    return shift(
-#        unsafe_mul(convert(unsafe_div(p, q), uint256), 3822833074963236453042738258902158003155416615667),
-#        unsafe_sub(k, 195))
+@internal
+@view
+def exp_int(power: int256) -> uint256:
+    # Implementation based on solmate's
+    if power <= -42139678854452767551:
+        return 0
+
+    if power >= 135305999368893231589:
+        raise "exp overflow"
+
+    x: int256 = unsafe_div(unsafe_mul(power, 2**96), 10**18)
+
+    k: int256 = unsafe_div(
+        unsafe_add(
+            unsafe_div(unsafe_mul(x, 2**96), 54916777467707473351141471128),
+            2**95),
+        2**96)
+    x = unsafe_sub(x, unsafe_mul(k, 54916777467707473351141471128))
+
+    y: int256 = unsafe_add(x, 1346386616545796478920950773328)
+    y = unsafe_add(unsafe_div(unsafe_mul(y, x), 2**96), 57155421227552351082224309758442)
+    p: int256 = unsafe_sub(unsafe_add(y, x), 94201549194550492254356042504812)
+    p = unsafe_add(unsafe_div(unsafe_mul(p, y), 2**96), 28719021644029726153956944680412240)
+    p = unsafe_add(unsafe_mul(p, x), (4385272521454847904659076985693276 * 2**96))
+
+    q: int256 = x - 2855989394907223263936484059900
+    q = unsafe_add(unsafe_div(unsafe_mul(q, x), 2**96), 50020603652535783019961831881945)
+    q = unsafe_sub(unsafe_div(unsafe_mul(q, x), 2**96), 533845033583426703283633433725380)
+    q = unsafe_add(unsafe_div(unsafe_mul(q, x), 2**96), 3604857256930695427073651918091429)
+    q = unsafe_sub(unsafe_div(unsafe_mul(q, x), 2**96), 14423608567350463180887372962807573)
+    q = unsafe_add(unsafe_div(unsafe_mul(q, x), 2**96), 26449188498355588339934803723976023)
+
+    return shift(
+        unsafe_mul(convert(unsafe_div(p, q), uint256), 3822833074963236453042738258902158003155416615667),
+        unsafe_sub(k, 195))
 ## End of low-level math
 
 
@@ -264,44 +282,21 @@ def get_base_price() -> uint256:
 
 @internal
 @view
-def _p_oracle_band(n: int256, is_down: bool) -> uint256:
-    # k = (self.A - 1) / self.A  # equal to (p_up / p_down)
-    # return self.p_base * k ** n
-    n_active: int256 = self.active_band
-    p_base: uint256 = unsafe_div(self._base_price() * self.p_base_mul, 10**18)  # XXX
-    band_distance: uint256 = convert(abs(n - n_active), uint256)
-    assert band_distance < 1024, "Too deep"
-
-    # k = (self.A - 1) / self.A  # equal to (p_up / p_down)
-    # p_base = self.p_base * k ** (n_band + 1)
-    m: uint256 = 1
-    amul: uint256 = 0
-    if n > n_active:
-        amul = unsafe_div(unsafe_mul(10**18, Aminus1), A)  # (A - 1) / A
-    else:
-        amul = unsafe_div(unsafe_mul(10**18, A), Aminus1)  # A / (A - 1)
-    for i in range(1, 12):
-        if m > band_distance:
-            if is_down:
-                return unsafe_div(p_base * Aminus1, A)  # p_base * (A - 1) / A
-            else:
-                return p_base
-        if (band_distance & m) != 0:
-            p_base = unsafe_div(p_base * amul, 10**18)
-        m = unsafe_add(m, m)  # m *= 2
-        amul = unsafe_div(amul * amul, 10**18)  # amul = amul**2
-    raise
+def _p_oracle_up(n: int256) -> uint256:
+    # p_oracle_up(n) = p_base * ((A - 1) / A) ** n
+    # p_oracle_down(n) = p_base * ((A - 1) / A) ** (n + 1) = p_oracle_up(n+1)
+    return unsafe_div(self._base_price() * self.exp_int(-n * LOG_A_RATIO), 10**18)
 
 
 @internal
 @view
-def _p_current_band(n: int256, is_up: bool) -> uint256:
+def _p_current_band(n: int256) -> uint256:
     """
     Upper or lower price of the band `n` at current `p_oracle`
     """
     # k = (self.A - 1) / self.A  # equal to (p_up / p_down)
     # p_base = self.p_base * k ** (n_band + 1)
-    p_base: uint256 = self._p_oracle_band(n, is_up)
+    p_base: uint256 = self._p_oracle_up(n)
 
     # return self.p_oracle**3 / p_base**2
     p_oracle: uint256 = self.price_oracle_contract.price()
@@ -314,7 +309,7 @@ def p_current_up(n: int256) -> uint256:
     """
     Upper price of the band `n` at current `p_oracle`
     """
-    return self._p_current_band(n, True)
+    return self._p_current_band(n + 1)
 
 
 @external
@@ -323,7 +318,7 @@ def p_current_down(n: int256) -> uint256:
     """
     Lower price of the band `n` at current `p_oracle`
     """
-    return self._p_current_band(n, False)
+    return self._p_current_band(n)
 
 
 @external
@@ -332,7 +327,7 @@ def p_oracle_up(n: int256) -> uint256:
     """
     Upper price of the band `n` when `p_oracle` == `p`
     """
-    return self._p_oracle_band(n, False)
+    return self._p_oracle_up(n)
 
 
 @external
@@ -341,7 +336,7 @@ def p_oracle_down(n: int256) -> uint256:
     """
     Lower price of the band `n` when `p_oracle` == `p`
     """
-    return self._p_oracle_band(n, True)
+    return self._p_oracle_up(n + 1)
 
 
 @internal
@@ -357,38 +352,37 @@ def _get_y0(x: uint256, y: uint256, p_o: uint256, p_o_up: uint256) -> uint256:
     if y != 0:
         b += unsafe_div(A * p_o**2 / p_o_up * y, 10**18)
     if x > 0 and y > 0:
-        D: uint256 = b**2 + unsafe_div((4 * A) * p_o * y, 10**18) * x
-        return unsafe_div((b + self.sqrt_int(unsafe_div(D, 10**18))) * 10**18, (2 * A) * p_o)
+        D: uint256 = b**2 + unsafe_div(((4 * A) * p_o) * y, 10**18) * x
+        return unsafe_div((b + self.sqrt_int(unsafe_div(D, 10**18))) * 10**18, unsafe_mul(2 * A, p_o))
     else:
         return unsafe_div(b * 10**18, A * p_o)
 
 
 @external
 @view
-def get_y0(n: int256) -> uint256:
-    x: uint256 = self.bands_x[n]
-    y: uint256 = self.bands_y[n]
-    p_o: uint256 = self.price_oracle_contract.price()
-    p_oracle_up: uint256 = 0
-    if n == max_value(int256):
-        p_oracle_up = unsafe_div(self._base_price() * self.p_base_mul, 10**18)  # XXX
-    else:
-        p_oracle_up = self._p_oracle_band(n, False)
-
-    return self._get_y0(x, y, p_o, p_oracle_up)
+def get_y0(_n: int256) -> uint256:
+    n: int256 = _n
+    if _n == max_value(int256):
+        n = self.active_band
+    return self._get_y0(
+        self.bands_x[n],
+        self.bands_y[n],
+        self.price_oracle_contract.price(),
+        self._p_oracle_up(n)
+    )
 
 
 @internal
 @view
 def _get_p(n: int256, x: uint256, y: uint256) -> uint256:
-    p_o_up: uint256 = self._p_oracle_band(n, False)
+    p_o_up: uint256 = self._p_oracle_up(n)
     p_o: uint256 = self.price_oracle_contract.price()
 
     # Special cases
     if x == 0:
         if y == 0:  # x and y are 0
             p_o_up = unsafe_div(p_o_up * Aminus1, A)
-            return unsafe_div(p_o**2 / p_o_up * p_o, p_o_up) * 10**18 / SQRT_BAND_RATIO
+            return unsafe_div(unsafe_div(p_o**2 / p_o_up * p_o, p_o_up) * 10**18, SQRT_BAND_RATIO)
         # if x == 0: # Lowest point of this band -> p_current_down
         return unsafe_div(p_o**2 / p_o_up * p_o, p_o_up)
     if y == 0: # Highest point of this band -> p_current_up
@@ -396,10 +390,11 @@ def _get_p(n: int256, x: uint256, y: uint256) -> uint256:
         return unsafe_div(p_o**2 / p_o_up * p_o, p_o_up)
 
     y0: uint256 = self._get_y0(x, y, p_o, p_o_up)
+    # ^ that call also checks that p_o != 0
 
     # (f(y0) + x) / (g(y0) + y)
     f: uint256 = A * y0 * p_o / p_o_up * p_o
-    g: uint256 = Aminus1 * y0 * p_o_up / p_o
+    g: uint256 = unsafe_div(Aminus1 * y0 * p_o_up, p_o)
     return (f + x * 10**18) / (g + y)
 
 
@@ -440,7 +435,7 @@ def _read_user_ticks(user: address, size: int256) -> uint256[MAX_TICKS]:
     ticks: uint256[MAX_TICKS] = empty(uint256[MAX_TICKS])
     ptr: int256 = 0
     for i in range(MAX_TICKS / 2):
-        if ptr + 1 > size:
+        if unsafe_add(ptr, 1) > size:
             break
         tick: uint256 = self.user_shares[user].ticks[i]
         ticks[ptr] = tick & (2**128 - 1)
@@ -459,11 +454,11 @@ def _can_skip_bands(n_end: int256) -> bool:
         if n_end > n:
             if self.bands_y[n] != 0:
                 return False
-            n += 1
+            n = unsafe_add(n, 1)
         else:
             if self.bands_x[n] != 0:
                 return False
-            n -= 1
+            n = unsafe_sub(n, 1)
         if n == n_end:  # not including n_end
             break
     return True
@@ -492,18 +487,14 @@ def deposit_range(user: address, amount: uint256, n1: int256, n2: int256, move_c
     assert upper < 2**127
     assert lower >= -2**127
 
-    base_mul: uint256 = self.p_base_mul  # XXX
-
     # Autoskip bands if we can
     for i in range(MAX_SKIP_TICKS + 1):
         if lower > n0:
             if i != 0:
-                self.p_base_mul = base_mul
                 self.active_band = n0
             break
         assert self.bands_x[n0] == 0 and i < MAX_SKIP_TICKS, "Deposit below current band"
         n0 -= 1
-        base_mul = unsafe_div(base_mul * A, Aminus1)
 
     if move_coins:
         assert COLLATERAL_TOKEN.transferFrom(user, self, amount)
@@ -644,7 +635,7 @@ def calc_swap_out(pump: bool, in_amount: uint256, p_o: uint256) -> DetailedTrade
     max_band: int256 = self.max_band
     out: DetailedTrade = empty(DetailedTrade)
     out.n2 = self.active_band
-    out.base_mul = self.p_base_mul  # XXX
+    p_o_up: uint256 = self._p_oracle_up(out.n2)
     base_price: uint256 = self._base_price()
     x: uint256 = self.bands_x[out.n2]
     y: uint256 = self.bands_y[out.n2]
@@ -662,7 +653,6 @@ def calc_swap_out(pump: bool, in_amount: uint256, p_o: uint256) -> DetailedTrade
         f: uint256 = 0
         g: uint256 = 0
         Inv: uint256 = 0
-        p_o_up: uint256 = unsafe_div(base_price * out.base_mul, 10**18)  # XXX
 
         if x > 0 or y > 0:
             if j == MAX_TICKS_UINT:
@@ -701,7 +691,7 @@ def calc_swap_out(pump: bool, in_amount: uint256, p_o: uint256) -> DetailedTrade
                 if j == MAX_TICKS_UINT - 1:
                     break
                 out.n2 += 1
-                out.base_mul = unsafe_div(out.base_mul * Aminus1, A)  # XXX
+                p_o_up = unsafe_div(p_o_up * Aminus1, A)
                 x = 0
                 y = self.bands_y[out.n2]
 
@@ -732,7 +722,7 @@ def calc_swap_out(pump: bool, in_amount: uint256, p_o: uint256) -> DetailedTrade
                 if j == MAX_TICKS_UINT - 1:
                     break
                 out.n2 -= 1
-                out.base_mul = unsafe_div(out.base_mul * A, Aminus1)  # XXX
+                p_o_up = unsafe_div(p_o_up * A, Aminus1)
                 x = self.bands_x[out.n2]
                 y = 0
 
@@ -856,7 +846,6 @@ def exchange(i: uint256, j: uint256, in_amount: uint256, min_amount: uint256, _f
         n += step
 
     self.active_band = n
-    self.p_base_mul = out.base_mul  # XXX
 
     log TokenExchange(_for, i, in_amount_done, j, out_amount_done)
 
@@ -878,7 +867,7 @@ def get_xy_up(user: address, use_y: bool) -> uint256:
 
     n: int256 = ns[0] - 1
     n_active: int256 = self.active_band
-    p_o_down: uint256 = self._p_oracle_band(n, True)
+    p_o_down: uint256 = self._p_oracle_up(n + 1)
     XY: uint256 = 0
 
     for i in range(MAX_TICKS):
@@ -1022,10 +1011,10 @@ def get_amount_for_price(p: uint256) -> (uint256, bool):
     min_band: int256 = self.min_band
     max_band: int256 = self.max_band
     n: int256 = self.active_band
-    p_up: uint256 = self._p_current_band(n, True)  # p_current_up
-    p_down: uint256 = unsafe_div(p_up * Aminus12, A2)     # p_current_down
-    p_o_up: uint256 = unsafe_div(self._base_price() * self.p_base_mul, 10**18)  # XXX
     p_o: uint256 = self.price_oracle_contract.price()
+    p_o_up: uint256 = self._p_oracle_up(n)
+    p_down: uint256 = unsafe_div(p_o**2 / p_o_up * p_o, p_o_up)  # p_current_down
+    p_up: uint256 = unsafe_div(p_down * A2, Aminus12)  # p_crurrent_up
     amount: uint256 = 0
     y0: uint256 = 0
     f: uint256 = 0
