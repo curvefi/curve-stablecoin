@@ -7,13 +7,6 @@ interface ERC20:
     def balanceOf(_user: address) -> uint256: view
     def decimals() -> uint256: view
 
-interface Controller:
-    def initialize(
-        collateral_token: address, monetary_policy: address,
-        loan_discount: uint256, liquidation_discount: uint256,
-        amm: address
-    ): nonpayable
-
 interface PriceOracle:
     def price() -> uint256: view
 
