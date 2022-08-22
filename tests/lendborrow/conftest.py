@@ -2,7 +2,7 @@ import pytest
 
 
 def deploy_blueprint(contract, account, txparams={}):
-    bytecode = bytes.fromhex(contract.bytecode[2:])
+    bytecode = b"\xFE\x71\x00" + bytes.fromhex(contract.bytecode[2:])
     bytecode = b"\x61" + len(bytecode).to_bytes(2, "big") + b"\x3d\x81\x60\x0a\x3d\x39\xf3" + bytecode
     tx = account.transfer(data=bytecode, **txparams)
     return tx.contract_address
