@@ -10,7 +10,7 @@ def test_p_oracle_updown(amm):
     p_base = amm.get_base_price()
     A = amm.A()
     assert amm.p_oracle_up(0) == p_base
-    assert amm.p_oracle_down(0) == p_base * (A - 1) // A
+    assert approx(amm.p_oracle_down(0), p_base * (A - 1) // A, 1e-14)
 
     for i in range(-10, 10):
         mul = ((A - 1) / A) ** i

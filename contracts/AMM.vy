@@ -146,9 +146,8 @@ def set_admin(_admin: address):
 # Low-level math
 @internal
 @pure
-def sqrt_int(x: uint256) -> uint256:
+def sqrt_int(_x: uint256) -> uint256:
     # https://github.com/transmissions11/solmate/blob/v7/src/utils/FixedPointMathLib.sol#L288
-    _x: uint256 = x * 10**18
     y: uint256 = _x
     z: uint256 = 181
     if y >= 2**(128 + 8):
@@ -328,7 +327,7 @@ def _get_y0(x: uint256, y: uint256, p_o: uint256, p_o_up: uint256) -> uint256:
         b += unsafe_div(A * p_o**2 / p_o_up * y, 10**18)
     if x > 0 and y > 0:
         D: uint256 = b**2 + unsafe_div(((4 * A) * p_o) * y, 10**18) * x
-        return unsafe_div((b + self.sqrt_int(unsafe_div(D, 10**18))) * 10**18, unsafe_mul(2 * A, p_o))
+        return unsafe_div((b + self.sqrt_int(D)) * 10**18, unsafe_mul(2 * A, p_o))
     else:
         return unsafe_div(b * 10**18, A * p_o)
 
@@ -842,7 +841,7 @@ def get_xy_up(user: address, use_y: bool) -> uint256:
 
     n: int256 = ns[0] - 1
     n_active: int256 = self.active_band
-    p_o_down: uint256 = self._p_oracle_up(n + 1)
+    p_o_down: uint256 = self._p_oracle_up(ns[0])
     XY: uint256 = 0
 
     for i in range(MAX_TICKS):
@@ -855,7 +854,9 @@ def get_xy_up(user: address, use_y: bool) -> uint256:
             y = self.bands_y[n]
         if n <= n_active:
             x = self.bands_x[n]
+        # p_o_up: uint256 = self._p_oracle_up(n)
         p_o_up: uint256 = p_o_down
+        # p_o_down = self._p_oracle_up(n + 1)
         p_o_down = unsafe_div(p_o_down * Aminus1, A)
         if x == 0:
             if y == 0:
@@ -932,14 +933,14 @@ def get_xy_up(user: address, use_y: bool) -> uint256:
                 XY += unsafe_div(x_o * user_share, total_share)
 
         else:
-            y_o = unsafe_sub(max(self.sqrt_int(unsafe_div(Inv, p_o)), g), g)
+            y_o = unsafe_sub(max(self.sqrt_int(unsafe_div(Inv * 10**18, p_o)), g), g)
             x_o = unsafe_sub(max(Inv / (g + y_o), f), f)
             # Now adiabatic conversion from definitely in-band
             if use_y:
-                XY += unsafe_div((y_o + x_o * 10**18 / self.sqrt_int(unsafe_div(p_o_up * p_o, 10**18))) * user_share, total_share)
+                XY += unsafe_div((y_o + x_o * 10**18 / self.sqrt_int(p_o_up * p_o)) * user_share, total_share)
 
             else:
-                XY += unsafe_div((x_o + unsafe_div(y_o * self.sqrt_int(unsafe_div(p_o_down * p_o, 10**18)), 10**18)) * user_share, total_share)
+                XY += unsafe_div((x_o + unsafe_div(y_o * self.sqrt_int(p_o_down * p_o), 10**18)) * user_share, total_share)
 
     if use_y:
         return unsafe_div(XY, COLLATERAL_PRECISION)
@@ -1016,7 +1017,7 @@ def get_amount_for_price(p: uint256) -> (uint256, bool):
         if p <= p_up:
             if p >= p_down:
                 if not_empty:
-                    ynew: uint256 = unsafe_sub(max(self.sqrt_int(Inv / p), g), g)
+                    ynew: uint256 = unsafe_sub(max(self.sqrt_int(Inv * 10**18 / p), g), g)
                     xnew: uint256 = unsafe_sub(max(Inv / (g + ynew), f), f)
                     if pump:
                         amount += unsafe_sub(max(xnew, x), x)

@@ -38,3 +38,7 @@ def test_deposit_withdraw(amm, amounts, accounts, ns, dns, collateral_token):
         else:
             with brownie.reverts("No deposits"):
                 amm.withdraw(user, user, {'from': admin})
+
+
+def test_deposit_withdraw_1(amm, accounts, collateral_token):
+    test_deposit_withdraw.hypothesis.inner_test(amm, [10**6]+[0]*4, accounts, [0]*5, [0]*5, collateral_token)
