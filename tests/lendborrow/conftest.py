@@ -1,6 +1,13 @@
 import pytest
 
 
+def deploy_blueprint(contract, account, txparams={}):
+    bytecode = bytes.fromhex(contract.bytecode[2:])
+    bytecode = b"\x61" + len(bytecode).to_bytes(2, "big") + b"\x3d\x81\x60\x0a\x3d\x39\xf3" + bytecode
+    tx = account.transfer(data=bytecode, **txparams)
+    return tx.contract_address
+
+
 @pytest.fixture(scope="module", autouse=True)
 def stablecoin(Stablecoin, accounts):
     return Stablecoin.deploy('Curve USD', 'crvUSD', {'from': accounts[0]})
@@ -13,12 +20,12 @@ def controller_prefactory(ControllerFactory, stablecoin, accounts):
 
 @pytest.fixture(scope="module", autouse=True)
 def controller_impl(Controller, controller_prefactory, accounts):
-    return Controller.deploy(controller_prefactory, {'from': accounts[0]})
+    return deploy_blueprint(Controller, accounts[0])
 
 
 @pytest.fixture(scope="module", autouse=True)
 def amm_impl(AMM, stablecoin, accounts):
-    return AMM.deploy(stablecoin, {'from': accounts[0]})
+    return deploy_blueprint(AMM, accounts[0])
 
 
 @pytest.fixture(scope="module", autouse=True)
