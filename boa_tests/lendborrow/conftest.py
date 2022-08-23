@@ -1,5 +1,8 @@
 import boa
 import pytest
+from eth_hash.auto import keccak
+from eth_utils import to_canonical_address
+import rlp
 
 
 @pytest.fixture(scope="session")
@@ -53,15 +56,34 @@ def monetary_policy(admin):
         return policy
 
 
+def calculate_create_address(deployer, nonce=None):
+    deployer_address = to_canonical_address(deployer.address)
+    if nonce is None:
+        nonce = get_nonce(deployer) + 1
+    preimage = rlp.encode([deployer_address, nonce])
+    return keccak(preimage)[12:].rjust(20, b"\x00")
+
+
+def get_nonce(contract):
+    return contract.env.vm.state.get_nonce(to_canonical_address(contract.address))
+
+
 @pytest.fixture(scope="session")
 def market(controller_factory, collateral_token, monetary_policy, price_oracle, admin):
     with boa.env.prank(admin):
+
         if controller_factory.n_collaterals() == 0:
+            nonce = get_nonce(controller_factory)
+            amm_address = calculate_create_address(controller_factory, nonce)
+            controller_address = calculate_create_address(controller_factory, nonce + 1)
+
             controller_factory.add_market(
                 collateral_token.address, 100, 10**16, 0,
                 price_oracle.address,
                 monetary_policy.address, 5 * 10**16, 2 * 10**16,
-                10**6 * 10**18)
+                10**6 * 10**18,
+                amm_address, controller_address)
+
         return controller_factory
 
 
