@@ -45,7 +45,7 @@ def controller_factory(controller_prefactory, amm_impl, controller_impl, stablec
     return controller_prefactory
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="module")
 def monetary_policy(admin):
     with boa.env.prank(admin):
         policy = boa.load('contracts/mpolicies/ConstantMonetaryPolicy.vy', admin)
@@ -53,7 +53,7 @@ def monetary_policy(admin):
         return policy
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="module")
 def market(controller_factory, collateral_token, monetary_policy, price_oracle, admin):
     with boa.env.prank(admin):
         if controller_factory.n_collaterals() == 0:
@@ -65,7 +65,7 @@ def market(controller_factory, collateral_token, monetary_policy, price_oracle, 
         return controller_factory
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="module")
 def market_amm(market, collateral_token, stablecoin, amm_impl, amm_interface, accounts):
     amm = amm_interface.at(market.amms(collateral_token.address))
     for acc in accounts:
@@ -75,7 +75,7 @@ def market_amm(market, collateral_token, stablecoin, amm_impl, amm_interface, ac
     return amm
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="module")
 def market_controller(market, stablecoin, collateral_token, controller_impl, controller_interface, controller_factory, accounts):
     controller = controller_interface.at(market.controllers(collateral_token.address))
     for acc in accounts:
