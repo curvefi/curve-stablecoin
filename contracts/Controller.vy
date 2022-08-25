@@ -419,7 +419,7 @@ def _add_collateral_borrow(d_collateral: uint256, d_debt: uint256, _for: address
 
 @external
 @nonreentrant('lock')
-def add_collateral(collateral: uint256, _for: address):
+def add_collateral(collateral: uint256, _for: address = msg.sender):
     if collateral == 0:
         return
     self._add_collateral_borrow(collateral, 0, _for)
