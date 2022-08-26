@@ -21,16 +21,41 @@ struct PricePair:
     is_inverse: bool
 
 
+event AddPricePair:
+    n: uint256
+    pool: Stableswap
+    is_inverse: bool
+
+event RemovePricePair:
+    n: uint256
+
+event MovePricePair:
+    n_from: uint256
+    n_to: uint256
+
+
 STABLECOIN: immutable(address)
+SIGMA: immutable(uint256)
 price_pairs: public(PricePair[20])
 n_price_pairs: uint256
-sigma: public(uint256)
 
 
 @external
 def __init__(stablecoin: address, sigma: uint256):
     STABLECOIN = stablecoin
-    self.sigma = sigma  # XXX make a setter
+    SIGMA = sigma  # The change is so rare that we can change the whole thing altogether
+
+
+@external
+@view
+def sigma() -> uint256:
+    return SIGMA
+
+
+@external
+@view
+def stablecoin() -> address:
+    return STABLECOIN
 
 
 @external
@@ -45,7 +70,7 @@ def add_price_pair(_pool: Stableswap):
     n: uint256 = self.n_price_pairs
     self.price_pairs[n] = price_pair
     self.n_price_pairs = n + 1
-    # XXX log
+    log AddPricePair(n, _pool, price_pair.is_inverse)
 
 
 @external
@@ -53,8 +78,9 @@ def remove_price_pair(n: uint256):
     n_max: uint256 = self.n_price_pairs - 1
     if n < n_max:
         self.price_pairs[n] = self.price_pairs[n_max]
+        log MovePricePair(n_max, n)
     self.n_price_pairs = n_max
-    # XXX log
+    log RemovePricePair(n)
 
 
 @internal
@@ -115,12 +141,11 @@ def price() -> uint256:
     p_avg: uint256 = DPsum / Dsum
     e: uint256[20] = empty(uint256[20])
     e_min: uint256 = max_value(uint256)
-    sigma: uint256 = self.sigma
     for i in range(20):
         if i == n:
             break
         p: uint256 = prices[i]
-        e[i] = (max(p, p_avg) - min(p, p_avg))**2 / sigma * 10**18 / sigma
+        e[i] = (max(p, p_avg) - min(p, p_avg))**2 / SIGMA * 10**18 / SIGMA
         e_min = min(e[i], e_min)
     wp_sum: uint256 = 0
     w_sum: uint256 = 0
