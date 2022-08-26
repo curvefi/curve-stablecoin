@@ -417,6 +417,7 @@ def get_p() -> uint256:
     return self._get_p(xp, amp, D)
 
 
+# XXX do exp
 @internal
 @view
 def halfpow(power: uint256) -> uint256:
