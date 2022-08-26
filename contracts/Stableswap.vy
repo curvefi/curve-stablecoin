@@ -161,7 +161,7 @@ def initialize(
     self.future_A = A
     self.fee = _fee
     self.factory = msg.sender
-    self.ma_half_time = 600
+    self.ma_half_time = 866  # = 600 / ln(2)
     self.ma_price = 10**18
     self.ma_last_time = block.timestamp
 
@@ -417,46 +417,47 @@ def get_p() -> uint256:
     return self._get_p(xp, amp, D)
 
 
-# XXX do exp
 @internal
 @view
-def halfpow(power: uint256) -> uint256:
-    """
-    1e18 * 0.5 ** (power/1e18)
-
-    Inspired by: https://github.com/balancer-labs/balancer-core/blob/master/contracts/BNum.sol#L128
-
-    Better result can by achived with:
-    https://github.com/transmissions11/solmate/blob/v7/src/utils/FixedPointMathLib.sol#L34
-    """
-    intpow: uint256 = unsafe_div(power, 10**18)
-    if intpow > 59:
+def exp(power: int256) -> uint256:
+    if power <= -42139678854452767551:
         return 0
-    otherpow: uint256 = unsafe_sub(power, unsafe_mul(intpow, 10**18))  # < 10**18
-    result: uint256 = unsafe_div(10**18, pow_mod256(2, intpow))
-    if otherpow == 0:
-        return result
 
-    term: uint256 = 10**18
-    S: uint256 = 10**18
-    c: uint256 = otherpow
+    if power >= 135305999368893231589:
+        raise "exp overflow"
 
-    for i in range(1, 256):
-        K: uint256 = unsafe_mul(i, 10**18)  # <= 255 * 10**18; >= 10**18
-        term = unsafe_div(unsafe_mul(term, unsafe_div(c, 2)), K)
-        S = unsafe_sub(S, term)
-        if term < EXP_PRECISION:
-            return unsafe_div(unsafe_mul(result, S), 10**18)
-        c = unsafe_sub(K, otherpow)
+    x: int256 = unsafe_div(unsafe_mul(power, 2**96), 10**18)
 
-    raise "Did not converge"
+    k: int256 = unsafe_div(
+        unsafe_add(
+            unsafe_div(unsafe_mul(x, 2**96), 54916777467707473351141471128),
+            2**95),
+        2**96)
+    x = unsafe_sub(x, unsafe_mul(k, 54916777467707473351141471128))
+
+    y: int256 = unsafe_add(x, 1346386616545796478920950773328)
+    y = unsafe_add(unsafe_div(unsafe_mul(y, x), 2**96), 57155421227552351082224309758442)
+    p: int256 = unsafe_sub(unsafe_add(y, x), 94201549194550492254356042504812)
+    p = unsafe_add(unsafe_div(unsafe_mul(p, y), 2**96), 28719021644029726153956944680412240)
+    p = unsafe_add(unsafe_mul(p, x), (4385272521454847904659076985693276 * 2**96))
+
+    q: int256 = x - 2855989394907223263936484059900
+    q = unsafe_add(unsafe_div(unsafe_mul(q, x), 2**96), 50020603652535783019961831881945)
+    q = unsafe_sub(unsafe_div(unsafe_mul(q, x), 2**96), 533845033583426703283633433725380)
+    q = unsafe_add(unsafe_div(unsafe_mul(q, x), 2**96), 3604857256930695427073651918091429)
+    q = unsafe_sub(unsafe_div(unsafe_mul(q, x), 2**96), 14423608567350463180887372962807573)
+    q = unsafe_add(unsafe_div(unsafe_mul(q, x), 2**96), 26449188498355588339934803723976023)
+
+    return shift(
+        unsafe_mul(convert(unsafe_div(p, q), uint256), 3822833074963236453042738258902158003155416615667),
+        unsafe_sub(k, 195))
 
 
 @internal
 @view
 def _ma_price(xp: uint256[N_COINS], amp: uint256, D: uint256) -> uint256:
     p: uint256 = self._get_p(xp, amp, D)
-    ema_mul: uint256 = self.halfpow((block.timestamp - self.ma_last_time) * 10**18 / self.ma_half_time)
+    ema_mul: uint256 = self.exp(-convert((block.timestamp - self.ma_last_time) * 10**18 / self.ma_half_time, int256))
     return (self.ma_price * ema_mul + p * (10**18 - ema_mul)) / 10**18
 
 
