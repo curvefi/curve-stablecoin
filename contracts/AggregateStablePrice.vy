@@ -120,6 +120,7 @@ def exp(power: int256) -> uint256:
 
 
 @external
+@view
 def price() -> uint256:
     n: uint256 = self.n_price_pairs
     prices: uint256[20] = empty(uint256[20])
@@ -137,7 +138,7 @@ def price() -> uint256:
         _D: uint256 = price_pair.pool.get_virtual_price() * price_pair.pool.totalSupply() / 10**18
         D[i] = _D
         Dsum += _D
-        DPsum = _D * p
+        DPsum += _D * p
     p_avg: uint256 = DPsum / Dsum
     e: uint256[20] = empty(uint256[20])
     e_min: uint256 = max_value(uint256)

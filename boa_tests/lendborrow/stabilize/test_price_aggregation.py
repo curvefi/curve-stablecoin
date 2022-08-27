@@ -20,5 +20,27 @@ def agg(stablecoin, stablecoin_a, stablecoin_b, stableswap_a, stableswap_b, pric
         yield price_aggregator
 
 
-def test_price_aggregator(stablecoin_a, agg):
+def test_price_aggregator(stableswap_a, stableswap_b, stablecoin_a, agg, admin):
+    amount = 300_000 * 10**6
+    dt = 86400
+
     assert approx(agg.price(), 10**18, 1e-6)
+    assert agg.price_pairs(0)[0] == stableswap_a.address
+    assert agg.price_pairs(1)[0] == stableswap_b.address
+
+    with boa.env.anchor():
+        with boa.env.prank(admin):
+            stablecoin_a._mint_for_testing(admin, amount)
+            stableswap_a.exchange(0, 1, amount, 0)
+            p = stableswap_a.get_p()
+            assert p > 10**18 * 1.01
+
+            # Time travel
+            boa.env.vm.patch.timestamp += dt
+            boa.env.vm.patch.block_number += dt // 13 + 1
+
+            p_o = stableswap_a.price_oracle()
+            assert approx(p_o, p, 1e-4)
+
+            # Two coins => agg price is average of the two
+            assert approx(agg.price(), (p_o + 10**18) / 2, 1e-3)
