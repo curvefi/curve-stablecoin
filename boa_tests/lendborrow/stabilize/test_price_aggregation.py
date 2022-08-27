@@ -24,7 +24,7 @@ def test_price_aggregator(stableswap_a, stableswap_b, stablecoin_a, agg, admin):
     amount = 300_000 * 10**6
     dt = 86400
 
-    # assert approx(agg.price(), 10**18, 1e-6)
+    assert approx(agg.price(), 10**18, 1e-6)
     assert agg.price_pairs(0)[0] == stableswap_a.address
     assert agg.price_pairs(1)[0] == stableswap_b.address
 
