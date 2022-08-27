@@ -146,14 +146,14 @@ def price() -> uint256:
         if i == n:
             break
         p: uint256 = prices[i]
-        e[i] = (max(p, p_avg) - min(p, p_avg))**2 / SIGMA * 10**18 / SIGMA
+        e[i] = (max(p, p_avg) - min(p, p_avg))**2 / (SIGMA**2 / 10**18)
         e_min = min(e[i], e_min)
     wp_sum: uint256 = 0
     w_sum: uint256 = 0
     for i in range(20):
         if i == n:
             break
-        w: uint256 = D[i] * self.exp(-convert(e[i] - e_min, int256))
+        w: uint256 = D[i] * self.exp(-convert(e[i] - e_min, int256)) / 10**18
         w_sum += w
         wp_sum += w * prices[i]
     return wp_sum / w_sum
