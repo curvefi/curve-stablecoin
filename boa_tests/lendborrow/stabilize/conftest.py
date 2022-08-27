@@ -28,11 +28,13 @@ def swap_deployer(swap_impl, admin):
         return deployer
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="module")
 def unsafe_factory(controller_factory, stablecoin, admin, accounts):
-    with boa.env.prank(admin):
-        # Give admin ability to mint coins for testing (don't do that at home!)
-        controller_factory.set_debt_ceiling(admin, 10**6 * 10**18)
+    with boa.env.anchor():
+        with boa.env.prank(admin):
+            # Give admin ability to mint coins for testing (don't do that at home!)
+            controller_factory.set_debt_ceiling(admin, 10**6 * 10**18)
+        yield controller_factory
 
 
 @pytest.fixture(scope="module")
