@@ -967,6 +967,8 @@ def get_sum_xy(user: address) -> uint256[2]:
     y: uint256 = 0
     ns: int256[2] = self._read_user_tick_numbers(user)
     ticks: uint256[MAX_TICKS] = self._read_user_ticks(user, ns[1] - ns[0] + 1)
+    if ticks[0] == 0:
+        return [0, 0]
     for i in range(MAX_TICKS):
         total_shares: uint256 = self.total_shares[ns[0]]
         x += self.bands_x[ns[0]] * ticks[i] / total_shares
