@@ -1,4 +1,6 @@
 # @version 0.3.6
+# Returns price of stablecoin in "dollars" based on multiple redeemable stablecoins
+# Recommended to use 3+ price sources
 
 interface ERC20:
     def transfer(_to: address, _value: uint256) -> bool: nonpayable
