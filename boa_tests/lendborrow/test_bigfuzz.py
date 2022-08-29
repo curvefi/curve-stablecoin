@@ -155,7 +155,7 @@ class BigFuzz(RuleBasedStateMachine):
                 if sx == 0 or amount == 0:
                     max_debt = self.market_controller.max_borrowable(sy + y, n)
                     if final_debt > max_debt and amount > 0:
-                        if final_debt < max_debt / (0.9999 - 20/(y + 40)):
+                        if final_debt < max_debt / (0.9999 - 20/(y + 40) - 1e-9):
                             try:
                                 self.market_controller.borrow_more(y, amount)
                             except Exception:
@@ -394,4 +394,21 @@ def test_debt_nonequal(
     state.deposit(n=5, ratio=0.5, uid=0, y=40072859744991)
     state.time_travel(dt=1)
     state.debt_supply()
+    state.teardown()
+
+
+def test_noraise_5(
+        controller_factory, market_amm, market_controller, monetary_policy, collateral_token, stablecoin, price_oracle, accounts, admin):
+    for k, v in locals().items():
+        setattr(BigFuzz, k, v)
+    state = BigFuzz()
+    state = BigFuzz()
+    state.debt_supply()
+    state.self_liquidate_and_health()
+    state.debt_supply()
+    state.self_liquidate_and_health()
+    state.debt_supply()
+    state.deposit(n=9, ratio=0.5, uid=1, y=5131452002964343839)
+    state.debt_supply()
+    state.borrow_more(ratio=0.8847036853778303, uid=1, y=171681017142554251259)
     state.teardown()
