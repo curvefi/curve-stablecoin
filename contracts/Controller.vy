@@ -361,13 +361,13 @@ def calculate_debt_n1(collateral: uint256, debt: uint256, N: uint256) -> int256:
 
 @external
 @nonreentrant('lock')
-def create_loan(collateral: uint256, debt: uint256, n: uint256):
+def create_loan(collateral: uint256, debt: uint256, N: uint256):
     assert self.loans[msg.sender].initial_debt == 0, "Loan already created"
-    assert n > MIN_TICKS-1, "Need more ticks"
-    assert n < MAX_TICKS+1, "Need less ticks"
+    assert N > MIN_TICKS-1, "Need more ticks"
+    assert N < MAX_TICKS+1, "Need less ticks"
 
-    n1: int256 = self._calculate_debt_n1(collateral, debt, n)
-    n2: int256 = n1 + convert(n - 1, int256)
+    n1: int256 = self._calculate_debt_n1(collateral, debt, N)
+    n2: int256 = n1 + convert(N - 1, int256)
 
     rate_mul: uint256 = self._rate_mul_w()
     self.loans[msg.sender] = Loan({initial_debt: debt, rate_mul: rate_mul})
