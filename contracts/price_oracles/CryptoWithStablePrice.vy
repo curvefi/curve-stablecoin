@@ -19,7 +19,7 @@ STABLESWAP_AGGREGATOR: immutable(StableAggregator)
 STABLESWAP: immutable(Stableswap)
 STABLECOIN: immutable(address)
 REDEEMABLE: immutable(address)
-IS_INVERSE: immutable(uint256)
+IS_INVERSE: immutable(bool)
 MA_EXP_TIME: immutable(uint256)
 
 last_price: public(uint256)
@@ -28,30 +28,29 @@ last_timestamp: uint256
 
 @external
 def __init__(
-        tricrypto: Tricrypto, ix: uint256, stable_aggregator: StableAggregator, stableswap: Stableswap,
+        tricrypto: Tricrypto, ix: uint256, stableswap: Stableswap, stable_aggregator: StableAggregator,
         ma_exp_time: uint256
     ):
     TRICRYPTO = tricrypto
     TRICRYPTO_IX = ix
     STABLESWAP_AGGREGATOR = stable_aggregator
     STABLESWAP = stableswap
-    _stablecoin: address = stableswap.stablecoin()
+    _stablecoin: address = stable_aggregator.stablecoin()
     _redeemable: address = empty(address)
     STABLECOIN = _stablecoin
     coins: address[2] = [stableswap.coins(0), stableswap.coins(1)]
+    is_inverse: bool = False
     if coins[0] == _stablecoin:
         _redeemable = coins[1]
-        IS_INVERSE = True
+        is_inverse = True
     else:
         _redeemable = coins[0]
-        IS_INVERSE = False
         assert coins[1] == _stablecoin
+    IS_INVERSE = is_inverse
     REDEEMABLE = _redeemable
     assert tricrypto.coins(0) == _redeemable
     assert stable_aggregator.stablecoin() == _stablecoin
     MA_EXP_TIME = ma_exp_time
-
-    self.last_price = self._raw_price()
 
 
 @internal
@@ -138,7 +137,7 @@ def _raw_price() -> uint256:
 @external
 @view
 def raw_price() -> uint256:
-    return raw_price
+    return self._raw_price()
 
 
 @internal
@@ -147,8 +146,10 @@ def ema_price() -> uint256:
     last_timestamp: uint256 = self.last_timestamp
 
     if last_timestamp < block.timestamp:
-        last_price: uint256 = self.last_price
         current_price: uint256 = self._raw_price()
+        if last_timestamp == 0:
+            return current_price
+        last_price: uint256 = self.last_price
         alpha: uint256 = self.exp(- convert((block.timestamp - last_timestamp) * 10**18 / MA_EXP_TIME, int256))
         return (last_price * (10**18 - alpha) + current_price * alpha) / 10**18
 

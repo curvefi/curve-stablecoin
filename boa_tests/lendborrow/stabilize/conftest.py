@@ -70,3 +70,15 @@ def price_aggregator(stablecoin, stableswap_a, stableswap_b, admin):
         agg.add_price_pair(stableswap_a.address)
         agg.add_price_pair(stableswap_b.address)
         return agg
+
+
+@pytest.fixture(scope="module")
+def dummy_tricrypto(stablecoin_a, admin):
+    with boa.env.prank(admin):
+        pool = boa.load('contracts/testing/TricryptoMock.vy',
+                        [stablecoin_a.address,
+                         "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2",
+                         "0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599"])
+        pool.set_price(0, 3000 * 10**18)
+        pool.set_price(1, 20000 * 10**18)
+        return pool

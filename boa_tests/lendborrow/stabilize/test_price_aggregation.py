@@ -20,6 +20,17 @@ def agg(stablecoin, stablecoin_a, stablecoin_b, stableswap_a, stableswap_b, pric
         yield price_aggregator
 
 
+@pytest.fixture(scope="module")
+def crypto_agg(dummy_tricrypto, agg, stableswap_a, admin):
+    with boa.env.prank(admin):
+        crypto_agg = boa.load(
+                'contracts/price_oracles/CryptoWithStablePrice.vy',
+                dummy_tricrypto.address, 0,
+                stableswap_a, agg, 5000)
+        crypto_agg.price_w()
+        return crypto_agg
+
+
 def test_price_aggregator(stableswap_a, stableswap_b, stablecoin_a, agg, admin):
     amount = 300_000 * 10**6
     dt = 86400
@@ -44,3 +55,7 @@ def test_price_aggregator(stableswap_a, stableswap_b, stablecoin_a, agg, admin):
 
             # Two coins => agg price is average of the two
             assert approx(agg.price(), (p_o + 10**18) / 2, 1e-3)
+
+
+def test_crypto_agg(crypto_agg):
+    assert crypto_agg.price() == 3000 * 10**18
