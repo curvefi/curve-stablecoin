@@ -29,7 +29,7 @@ def admin():
     return boa.env.generate_address()
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="module")
 def collateral_token(admin):
     with boa.env.prank(admin):
         return boa.load('contracts/testing/ERC20Mock.vy', "Colalteral", "ETH", 18)

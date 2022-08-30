@@ -2,41 +2,41 @@ import boa
 import pytest
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="module")
 def stablecoin(admin):
     with boa.env.prank(admin):
         return boa.load('contracts/Stablecoin.vy', 'Curve USD', 'crvUSD')
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="module")
 def controller_prefactory(stablecoin, admin, accounts):
     with boa.env.prank(admin):
         return boa.load('contracts/ControllerFactory.vy', stablecoin.address, admin, accounts[0])
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="module")
 def controller_interface():
     return boa.load_partial('contracts/Controller.vy')
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="module")
 def controller_impl(controller_prefactory, controller_interface, admin):
     with boa.env.prank(admin):
         return controller_interface.deploy_as_blueprint()
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="module")
 def amm_interface():
     return boa.load_partial('contracts/AMM.vy')
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="module")
 def amm_impl(stablecoin, amm_interface, admin):
     with boa.env.prank(admin):
         return amm_interface.deploy_as_blueprint()
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="module")
 def controller_factory(controller_prefactory, amm_impl, controller_impl, stablecoin, admin):
     with boa.env.prank(admin):
         controller_prefactory.set_implementations(controller_impl.address, amm_impl.address)
