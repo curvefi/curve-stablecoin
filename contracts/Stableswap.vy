@@ -551,20 +551,8 @@ def add_liquidity(
     for i in range(N_COINS):
         amount: uint256 = _amounts[i]
         if amount > 0:
-            response: Bytes[32] = raw_call(
-                self.coins[i],
-                concat(
-                    method_id("transferFrom(address,address,uint256)"),
-                    convert(msg.sender, bytes32),
-                    convert(self, bytes32),
-                    convert(amount, bytes32),
-                ),
-                max_outsize=32,
-            )
-            if len(response) > 0:
-                assert convert(response, bool)  # dev: failed transfer
+            assert ERC20(self.coins[i]).transferFrom(msg.sender, self, amount, default_return_value=True)  # dev: failed transfer
             new_balances[i] += amount
-            # end "safeTransferFrom"
         else:
             assert total_supply != 0  # dev: initial deposit requires all coins
 
