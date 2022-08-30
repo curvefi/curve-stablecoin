@@ -5,13 +5,13 @@ from math import sqrt, log
 PRICE = 3000
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="module")
 def borrowed_token(admin):
     with boa.env.prank(admin):
         return boa.load('contracts/testing/ERC20Mock.vy', "Rugworks USD", "rUSD", 6)
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="module")
 def amm(collateral_token, borrowed_token, price_oracle, admin, accounts):
     with boa.env.prank(admin):
         amm = boa.load('contracts/AMM.vy',
