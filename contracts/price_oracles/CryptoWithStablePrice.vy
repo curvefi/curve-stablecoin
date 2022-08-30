@@ -23,7 +23,7 @@ IS_INVERSE: immutable(bool)
 MA_EXP_TIME: immutable(uint256)
 
 last_price: public(uint256)
-last_timestamp: uint256
+last_timestamp: public(uint256)
 
 
 @external
@@ -151,7 +151,7 @@ def ema_price() -> uint256:
             return current_price
         last_price: uint256 = self.last_price
         alpha: uint256 = self.exp(- convert((block.timestamp - last_timestamp) * 10**18 / MA_EXP_TIME, int256))
-        return (last_price * (10**18 - alpha) + current_price * alpha) / 10**18
+        return (current_price * (10**18 - alpha) + last_price * alpha) / 10**18
 
     else:
         return self.last_price
