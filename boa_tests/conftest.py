@@ -3,6 +3,7 @@ import pytest
 from math import log
 
 boa.interpret.set_cache_dir()
+boa.reset_env()
 
 
 PRICE = 3000
