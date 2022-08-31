@@ -135,7 +135,7 @@ def price() -> uint256:
         price_pair: PricePair = self.price_pairs[i]
         p: uint256 = price_pair.pool.price_oracle()
         if price_pair.is_inverse:
-            p = 10**18 / p
+            p = 10**36 / p
         prices[i] = p
         _D: uint256 = price_pair.pool.get_virtual_price() * price_pair.pool.totalSupply() / 10**18
         D[i] = _D

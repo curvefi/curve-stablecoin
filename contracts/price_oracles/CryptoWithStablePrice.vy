@@ -131,6 +131,8 @@ def _raw_price() -> uint256:
     p_crypto_r: uint256 = TRICRYPTO.price_oracle(TRICRYPTO_IX)  # d_usdt/d_eth
     p_stable_r: uint256 = STABLESWAP.price_oracle()             # d_usdt/d_st
     p_stable_agg: uint256 = STABLESWAP_AGGREGATOR.price()       # d_usd/d_st
+    if IS_INVERSE:
+        p_stable_r = 10**36 / p_stable_r
     return p_crypto_r * 10**18 / p_stable_r * p_stable_agg / 10**18
 
 
