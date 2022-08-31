@@ -6,6 +6,9 @@
 @notice Peg Keeper for pool with equal decimals of coins
 """
 
+interface StableAggregator:
+    def price() -> uint256: view
+    def stablecoin() -> address: view
 
 interface CurvePool:
     def balances(i_coin: uint256) -> uint256: view
@@ -16,11 +19,10 @@ interface CurvePool:
     def get_virtual_price() -> uint256: view
     def balanceOf(arg0: address) -> uint256: view
     def transfer(_to : address, _value : uint256) -> bool: nonpayable
+    def get_p() -> uint256: view
 
-interface ERC20Pegged:
+interface ERC20:
     def approve(_spender: address, _amount: uint256): nonpayable
-    def mint(_to: address, _amount: uint256): nonpayable
-    def burn(_amount: uint256): nonpayable
     def balanceOf(arg0: address) -> uint256: view
 
 
@@ -44,9 +46,12 @@ PRECISION: constant(uint256) = 10 ** 18
 # Calculation error for profit
 PROFIT_THRESHOLD: constant(uint256) = 10 ** 18
 
-POOL: immutable(address)
+POOL: immutable(CurvePool)
 I: immutable(uint256)  # index of pegged in pool
 PEGGED: immutable(address)
+IS_INVERSE: immutable(bool)
+
+AGGREGATOR: immutable(StableAggregator)
 
 last_change: public(uint256)
 debt: public(uint256)
@@ -67,7 +72,7 @@ FACTORY: immutable(address)
 
 
 @external
-def __init__(_pool: address, _index: uint256, _receiver: address, _caller_share: uint256, _factory: address):
+def __init__(_pool: CurvePool, _index: uint256, _receiver: address, _caller_share: uint256, _factory: address, _aggregator: StableAggregator):
     """
     @notice Contract constructor
     @param _pool Contract pool address
@@ -75,13 +80,15 @@ def __init__(_pool: address, _index: uint256, _receiver: address, _caller_share:
     @param _receiver Receiver of the profit
     @param _caller_share Caller's share of profit
     @param _factory Factory which should be able to take coins away
+    @param _aggregator Price aggregator which shows the price of pegged in real "dollars"
     """
+    assert _index < 2
     POOL = _pool
     I = _index
-    pegged: address = CurvePool(_pool).coins(_index)
+    pegged: address = _pool.coins(_index)
     PEGGED = pegged
-    ERC20Pegged(pegged).approve(_pool, max_value(uint256))
-    ERC20Pegged(pegged).approve(_factory, max_value(uint256))
+    ERC20(pegged).approve(_pool.address, max_value(uint256))
+    ERC20(pegged).approve(_factory, max_value(uint256))
 
     self.admin = msg.sender
     self.receiver = _receiver
@@ -89,6 +96,8 @@ def __init__(_pool: address, _index: uint256, _receiver: address, _caller_share:
     self.caller_share = _caller_share
 
     FACTORY = _factory
+    AGGREGATOR = _aggregator
+    IS_INVERSE = (_index == 0)
 
 
 @pure
@@ -105,18 +114,24 @@ def pegged() -> address:
 
 @pure
 @external
-def pool() -> address:
+def pool() -> CurvePool:
     return POOL
+
+
+@pure
+@external
+def aggregator() -> StableAggregator:
+    return AGGREGATOR
 
 
 @internal
 def _provide(_amount: uint256):
     # We already have all reserves here
-    # ERC20Pegged(PEGGED).mint(self, _amount)
+    # ERC20(PEGGED).mint(self, _amount)
 
     amounts: uint256[2] = empty(uint256[2])
     amounts[I] = _amount
-    CurvePool(POOL).add_liquidity(amounts, 0)
+    POOL.add_liquidity(amounts, 0)
 
     self.last_change = block.timestamp
     self.debt += _amount
@@ -132,7 +147,7 @@ def _withdraw(_amount: uint256):
 
     amounts: uint256[2] = empty(uint256[2])
     amounts[I] = amount
-    CurvePool(POOL).remove_liquidity_imbalance(amounts, max_value(uint256))
+    POOL.remove_liquidity_imbalance(amounts, max_value(uint256))
 
     self.last_change = block.timestamp
     self.debt -= amount
@@ -143,15 +158,25 @@ def _withdraw(_amount: uint256):
 @internal
 @view
 def _calc_profit() -> uint256:
-    lp_balance: uint256 = CurvePool(POOL).balanceOf(self)
+    lp_balance: uint256 = POOL.balanceOf(self)
 
-    virtual_price: uint256 = CurvePool(POOL).get_virtual_price()
+    virtual_price: uint256 = POOL.get_virtual_price()
     lp_debt: uint256 = self.debt * PRECISION / virtual_price
 
     if lp_balance <= lp_debt + PROFIT_THRESHOLD:
         return 0
     else:
         return lp_balance - lp_debt - PROFIT_THRESHOLD
+
+
+@internal
+@view
+def _pool_price() -> uint256:
+    p: uint256 = POOL.get_p()
+    if IS_INVERSE:
+        return 10**36 / p
+    else:
+        return p
 
 
 @external
@@ -175,22 +200,28 @@ def update(_beneficiary: address = msg.sender) -> uint256:
     if self.last_change + ACTION_DELAY > block.timestamp:
         return 0
 
-    balance_pegged: uint256 = CurvePool(POOL).balances(I)
-    balance_peg: uint256 = CurvePool(POOL).balances(1 - I)
+    balance_pegged: uint256 = POOL.balances(I)
+    balance_peg: uint256 = POOL.balances(1 - I)
 
     initial_profit: uint256 = self._calc_profit()
 
+    p_agg: uint256 = AGGREGATOR.price()  # Current USD per stablecoin
+    p0: uint256 = self._pool_price()  # USDT per stablecoin
+
     if balance_peg > balance_pegged:
         self._provide((balance_peg - balance_pegged) / 5)
+        assert self._pool_price() >= p0 * 10**18 / p_agg
+
     else:
         self._withdraw((balance_pegged - balance_peg) / 5)
+        assert self._pool_price() <= p0 * 10**18 / p_agg
 
     # Send generated profit
     new_profit: uint256 = self._calc_profit()
     assert new_profit >= initial_profit  # dev: peg was unprofitable
     lp_amount: uint256 = new_profit - initial_profit
     caller_profit: uint256 = lp_amount * self.caller_share / SHARE_PRECISION
-    CurvePool(POOL).transfer(_beneficiary, caller_profit)
+    POOL.transfer(_beneficiary, caller_profit)
 
     return caller_profit
 
@@ -216,7 +247,7 @@ def withdraw_profit() -> uint256:
     @return Amount of LP Token received
     """
     lp_amount: uint256 = self._calc_profit()
-    CurvePool(POOL).transfer(self.receiver, lp_amount)
+    POOL.transfer(self.receiver, lp_amount)
 
     log Profit(lp_amount)
 
