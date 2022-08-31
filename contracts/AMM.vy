@@ -610,7 +610,6 @@ def calc_swap_out(pump: bool, in_amount: uint256, p_o: uint256) -> DetailedTrade
     out: DetailedTrade = empty(DetailedTrade)
     out.n2 = self.active_band
     p_o_up: uint256 = self._p_oracle_up(out.n2)
-    base_price: uint256 = self._base_price()
     x: uint256 = self.bands_x[out.n2]
     y: uint256 = self.bands_y[out.n2]
 
