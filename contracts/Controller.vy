@@ -96,8 +96,8 @@ loans: HashMap[address, Loan]
 liquidation_discounts: public(HashMap[address, uint256])
 _total_debt: Loan
 
-minted: uint256
-redeemed: uint256
+minted: public(uint256)
+redeemed: public(uint256)
 
 monetary_policy: public(MonetaryPolicy)
 liquidation_discount: public(uint256)
