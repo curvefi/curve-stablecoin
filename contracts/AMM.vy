@@ -571,9 +571,10 @@ def withdraw(user: address, move_to: address) -> uint256[2]:
         total_x += dx
         total_y += dy
 
-        ns[0] += 1
-        if ns[0] > ns[1]:
+        if ns[0] == ns[1]:
             break
+        else:
+            ns[0] = unsafe_add(ns[0], 1)
 
     # Empty the ticks
     self.user_shares[user].ticks[0] = 0
@@ -610,11 +611,10 @@ def calc_swap_out(pump: bool, in_amount: uint256, p_o: uint256) -> DetailedTrade
     y: uint256 = self.bands_y[out.n2]
 
     fee: uint256 = self.fee
-    admin_fee: uint256 = self.admin_fee
-    in_amount_afee: uint256 = unsafe_div(unsafe_div(in_amount * fee, 10**18) * admin_fee, 10**18)
+    in_amount_afee: uint256 = unsafe_div(unsafe_div(in_amount * fee, 10**18) * self.admin_fee, 10**18)
     in_amount_left: uint256 = unsafe_sub(in_amount, in_amount_afee)
     in_amount_used: uint256 = 0
-    fee = (10**18)**2 / unsafe_sub(10**18, fee)
+    fee = unsafe_div((10**18)**2, unsafe_sub(10**18, fee))
     j: uint256 = MAX_TICKS_UINT
 
     for i in range(MAX_TICKS + MAX_SKIP_TICKS):
@@ -638,7 +638,7 @@ def calc_swap_out(pump: bool, in_amount: uint256, p_o: uint256) -> DetailedTrade
                     x_dest: uint256 = unsafe_div(Inv, g) - f
                     if unsafe_div((x_dest - x) * fee, 10**18) >= in_amount_left:
                         # This is the last band
-                        out.last_tick_j = Inv / (f + (x + in_amount_left * 10**18 / fee)) - g  # Should be always >= 0
+                        out.last_tick_j = Inv / (f + (x + unsafe_div(in_amount_left * 10**18, fee))) - g  # Should be always >= 0
                         x += in_amount_left  # x is precise after this
                         # Round down the output
                         out.out_amount += unsafe_mul(unsafe_div(y - out.last_tick_j, COLLATERAL_PRECISION), COLLATERAL_PRECISION)
@@ -670,7 +670,7 @@ def calc_swap_out(pump: bool, in_amount: uint256, p_o: uint256) -> DetailedTrade
                     y_dest: uint256 = unsafe_div(Inv, f) - g
                     if unsafe_div((y_dest - y) * fee, 10**18) >= in_amount_left:
                         # This is the last band
-                        out.last_tick_j = Inv / (g + (y + in_amount_left * 10**18 / fee)) - f
+                        out.last_tick_j = Inv / (g + (y + unsafe_div(in_amount_left * 10**18, fee))) - f
                         y += in_amount_left
                         out.out_amount += unsafe_mul(unsafe_div(x - out.last_tick_j, BORROWED_PRECISION), BORROWED_PRECISION)
                         out.ticks_in[j] = y
