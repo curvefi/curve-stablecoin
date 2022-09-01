@@ -84,10 +84,10 @@ fee: public(uint256)
 admin_fee: public(uint256)
 rate: public(uint256)
 rate_time: uint256
-rate_mul: public(uint256)
+rate_mul: uint256
 active_band: public(int256)
-min_band: int256
-max_band: int256
+min_band: public(int256)
+max_band: public(int256)
 
 price_oracle_contract: public(PriceOracle)
 

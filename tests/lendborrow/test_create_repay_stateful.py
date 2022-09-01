@@ -41,7 +41,7 @@ class StatefulLendBorrow:
 
         if self.controller.total_debt() + amount > self.debt_ceiling:
             if (
-                    (self.controller.total_debt() + amount) * self.amm.rate_mul() > 2**256 - 1
+                    (self.controller.total_debt() + amount) * self.amm.get_rate_mul() > 2**256 - 1
                     or c_amount * self.amm.get_p() > 2**256 - 1
             ):
                 with brownie.reverts():
@@ -144,7 +144,7 @@ class StatefulLendBorrow:
             return
 
         if self.controller.total_debt() + amount > self.debt_ceiling:
-            if (self.controller.total_debt() + amount) * self.amm.rate_mul() > 2**256 - 1:
+            if (self.controller.total_debt() + amount) * self.amm.get_rate_mul() > 2**256 - 1:
                 with brownie.reverts():
                     self.controller.borrow_more(c_amount, amount, {'from': user})
             else:
