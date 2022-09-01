@@ -986,7 +986,7 @@ def get_amount_for_price(p: uint256) -> (uint256, bool):
     n: int256 = self.active_band
     p_o: uint256 = self.price_oracle_contract.price()
     p_o_up: uint256 = self._p_oracle_up(n)
-    p_down: uint256 = unsafe_div(p_o**2 / p_o_up * p_o, p_o_up)  # p_current_down
+    p_down: uint256 = unsafe_div(unsafe_div(p_o**2, p_o_up) * p_o, p_o_up)  # p_current_down
     p_up: uint256 = unsafe_div(p_down * A2, Aminus12)  # p_crurrent_up
     amount: uint256 = 0
     y0: uint256 = 0
@@ -997,6 +997,7 @@ def get_amount_for_price(p: uint256) -> (uint256, bool):
     pump: bool = True
 
     for i in range(MAX_TICKS + MAX_SKIP_TICKS):
+        assert p_o_up > 0
         x: uint256 = self.bands_x[n]
         y: uint256 = self.bands_y[n]
         if i == 0:
@@ -1005,7 +1006,7 @@ def get_amount_for_price(p: uint256) -> (uint256, bool):
         not_empty: bool = x > 0 or y > 0
         if not_empty:
             y0 = self._get_y0(x, y, p_o, p_o_up)
-            f = unsafe_div(A * y0 * p_o / p_o_up * p_o, 10**18)
+            f = unsafe_div(unsafe_div(A * y0 * p_o, p_o_up) * p_o, 10**18)
             g = unsafe_div(Aminus1 * y0 * p_o_up, p_o)
             Inv = (f + x) * (g + y)
             if j == MAX_TICKS_UINT:
