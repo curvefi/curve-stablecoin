@@ -409,10 +409,10 @@ def _read_user_ticks(user: address, size: int256) -> uint256[MAX_TICKS]:
             break
         tick: uint256 = self.user_shares[user].ticks[i]
         ticks[ptr] = tick & (2**128 - 1)
-        ptr += 1
+        ptr = unsafe_add(ptr, 1)
         if ptr != size:
             ticks[ptr] = shift(tick, -128)
-        ptr += 1
+        ptr = unsafe_add(ptr, 1)
     return ticks
 
 
@@ -505,10 +505,10 @@ def deposit_range(user: address, amount: uint256, n1: int256, n2: int256, move_c
             s += ds
         self.total_shares[band] = s
         # End the cycle
-        band -= 1
+        band = unsafe_sub(band, 1)
         if i == 0:
             break
-        i -= 1
+        i = unsafe_sub(i, 1)
 
     self.min_band = min(self.min_band, lower)
     self.max_band = max(self.max_band, upper)
@@ -522,10 +522,10 @@ def deposit_range(user: address, amount: uint256, n1: int256, n2: int256, move_c
         if ptr >= dist:
             break
         tick: uint256 = user_shares[ptr]
-        ptr += 1
+        ptr = unsafe_add(ptr, 1)
         if dist != ptr:
             tick = tick | shift(user_shares[ptr], 128)
-        ptr += 1
+        ptr = unsafe_add(ptr, 1)
         self.user_shares[user].ticks[j] = tick
 
     self.rate_mul = self._rate_mul()
