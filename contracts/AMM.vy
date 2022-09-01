@@ -794,9 +794,7 @@ def exchange(i: uint256, j: uint256, in_amount: uint256, min_amount: uint256, _f
     out_coin.transfer(_for, out_amount_done)
 
     n: int256 = out.n1
-    step: int256 = 1
-    if out.n2 < out.n1:
-        step = -1
+
     for k in range(MAX_TICKS):
         if i == 0:
             self.bands_x[n] = out.ticks_in[k]
@@ -812,7 +810,10 @@ def exchange(i: uint256, j: uint256, in_amount: uint256, min_amount: uint256, _f
                 break
             self.bands_x[n] = 0
 
-        n += step
+        if out.n2 < out.n1:
+            n = unsafe_sub(n, 1)
+        else:
+            n = unsafe_add(n, 1)
 
     self.active_band = n
 
