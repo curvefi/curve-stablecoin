@@ -61,6 +61,7 @@ struct DetailedTrade:
     n2: int256
     ticks_in: uint256[MAX_TICKS]
     last_tick_j: uint256
+    admin_fee: uint256
 
 BORROWED_TOKEN: immutable(ERC20)    # x
 BORROWED_PRECISION: immutable(uint256)
@@ -613,9 +614,8 @@ def calc_swap_out(pump: bool, in_amount: uint256, p_o: uint256) -> DetailedTrade
     y: uint256 = self.bands_y[out.n2]
 
     fee: uint256 = self.fee
-    in_amount_afee: uint256 = unsafe_div(unsafe_div(in_amount * fee, 10**18) * self.admin_fee, 10**18)
-    in_amount_left: uint256 = unsafe_sub(in_amount, in_amount_afee)
-    in_amount_used: uint256 = 0
+    admin_fee: uint256 = self.admin_fee
+    in_amount_left: uint256 = in_amount
     fee = unsafe_div((10**18)**2, unsafe_sub(10**18, fee))
     j: uint256 = MAX_TICKS_UINT
 
@@ -637,24 +637,29 @@ def calc_swap_out(pump: bool, in_amount: uint256, p_o: uint256) -> DetailedTrade
         if pump:
             if y != 0:
                 if g != 0:
-                    x_dest: uint256 = unsafe_div(Inv, g) - f
-                    if unsafe_div((x_dest - x) * fee, 10**18) >= in_amount_left:
+                    x_dest: uint256 = (unsafe_div(Inv, g) - f) - x
+                    dx: uint256 = unsafe_div(x_dest * fee, 10**18)
+                    if dx >= in_amount_left:
                         # This is the last band
-                        out.last_tick_j = Inv / (f + (x + unsafe_div(in_amount_left * 10**18, fee))) - g  # Should be always >= 0
+                        x_dest = unsafe_div(in_amount_left * 10**18, fee)  # LESS than in_amount_left
+                        out.last_tick_j = Inv / (f + (x + x_dest)) - g  # Should be always >= 0
+                        x_dest = unsafe_div(unsafe_sub(in_amount_left, x_dest) * admin_fee, 10**18)  # abs admin fee now
                         x += in_amount_left  # x is precise after this
                         # Round down the output
-                        out.out_amount += unsafe_mul(unsafe_div(y - out.last_tick_j, COLLATERAL_PRECISION), COLLATERAL_PRECISION)
-                        out.ticks_in[j] = x
+                        out.out_amount += y - out.last_tick_j
+                        out.ticks_in[j] = x - x_dest
                         out.in_amount = in_amount
-                        return out
+                        out.admin_fee = unsafe_add(out.admin_fee, x_dest)
+                        break
 
                     else:
                         # We go into the next band
-                        dx: uint256 = unsafe_div((x_dest - x) * fee, 10**18)
+                        x_dest = unsafe_div(unsafe_sub(dx, x_dest) * admin_fee, 10**18)  # abs admin fee now
                         in_amount_left -= dx
-                        out.ticks_in[j] = x + dx
-                        in_amount_used += dx
+                        out.ticks_in[j] = x + dx - x_dest
+                        out.in_amount += dx
                         out.out_amount += y
+                        out.admin_fee = unsafe_add(out.admin_fee, x_dest)
 
             if i != MAX_TICKS + MAX_SKIP_TICKS - 1:
                 if out.n2 == max_band:
@@ -669,23 +674,28 @@ def calc_swap_out(pump: bool, in_amount: uint256, p_o: uint256) -> DetailedTrade
         else:  # dump
             if x != 0:
                 if f != 0:
-                    y_dest: uint256 = unsafe_div(Inv, f) - g
-                    if unsafe_div((y_dest - y) * fee, 10**18) >= in_amount_left:
+                    y_dest: uint256 = (unsafe_div(Inv, f) - g) - y
+                    dy: uint256 = unsafe_div(y_dest * fee, 10**18)
+                    if dy >= in_amount_left:
                         # This is the last band
-                        out.last_tick_j = Inv / (g + (y + unsafe_div(in_amount_left * 10**18, fee))) - f
+                        y_dest = unsafe_div(in_amount_left * 10**18, fee)
+                        out.last_tick_j = Inv / (g + (y + y_dest)) - f
+                        y_dest = unsafe_div(unsafe_sub(in_amount_left, y_dest) * admin_fee, 10**18)  # abs admin fee now
                         y += in_amount_left
-                        out.out_amount += unsafe_mul(unsafe_div(x - out.last_tick_j, BORROWED_PRECISION), BORROWED_PRECISION)
-                        out.ticks_in[j] = y
+                        out.out_amount += x - out.last_tick_j
+                        out.ticks_in[j] = y - y_dest
                         out.in_amount = in_amount
-                        return out
+                        out.admin_fee = unsafe_add(out.admin_fee, y_dest)
+                        break
 
                     else:
                         # We go into the next band
-                        dy: uint256 = unsafe_div((y_dest - y) * fee, 10**18)
+                        y_dest = unsafe_div(unsafe_sub(dy, y_dest) * admin_fee, 10**18)  # abs admin fee now
                         in_amount_left -= dy
-                        out.ticks_in[j] = y + dy
-                        in_amount_used += dy
+                        out.ticks_in[j] = y + dy - y_dest
+                        out.in_amount += dy
                         out.out_amount += x
+                        out.admin_fee = unsafe_add(out.admin_fee, y_dest)
 
             if i != MAX_TICKS + MAX_SKIP_TICKS - 1:
                 if out.n2 == min_band:
@@ -701,17 +711,14 @@ def calc_swap_out(pump: bool, in_amount: uint256, p_o: uint256) -> DetailedTrade
             j = unsafe_add(j, 1)
 
     # Round up what goes in and down what goes out
-    out.in_amount = in_amount_used + in_amount_afee
+    in_precision: uint256 = COLLATERAL_PRECISION
+    out_precision: uint256 = BORROWED_PRECISION
     if pump:
-        in_amount_used = unsafe_mul(unsafe_div(in_amount_used, BORROWED_PRECISION), BORROWED_PRECISION)
-        if in_amount_used != out.in_amount:
-            out.in_amount = in_amount_used + BORROWED_PRECISION
-        out.out_amount = unsafe_mul(unsafe_div(out.out_amount, COLLATERAL_PRECISION), COLLATERAL_PRECISION)
-    else:
-        in_amount_used = unsafe_mul(unsafe_div(in_amount_used, COLLATERAL_PRECISION), COLLATERAL_PRECISION)
-        if in_amount_used != out.in_amount:
-            out.in_amount = in_amount_used + COLLATERAL_PRECISION
-        out.out_amount = unsafe_mul(unsafe_div(out.out_amount, BORROWED_PRECISION), BORROWED_PRECISION)
+        in_precision = BORROWED_PRECISION
+        out_precision = COLLATERAL_PRECISION
+    # ceil(in_amount_used/BORROWED_PRECISION) * BORROWED_PRECISION
+    out.in_amount = unsafe_mul(unsafe_add(unsafe_div(unsafe_sub(max(out.in_amount, 1), 1), in_precision), 1), in_precision)
+    out.out_amount = unsafe_mul(unsafe_div(out.out_amount, out_precision), out_precision)
     return out
 
 
