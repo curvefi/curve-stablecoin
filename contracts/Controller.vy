@@ -21,7 +21,7 @@ interface LLAMMA:
     def price_oracle() -> uint256: view
     def can_skip_bands(n_end: int256) -> bool: view
     def bands_x(n: int256) -> uint256: view
-    def set_price_oracle(price_oracle: address): nonpayable
+    def set_price_oracle(price_oracle: PriceOracle): nonpayable
 
 interface ERC20:
     def totalSupply() -> uint256: view
@@ -37,6 +37,10 @@ interface Factory:
     def stablecoin() -> address: view
     def admin() -> address: view
     def fee_receiver() -> address: view
+
+interface PriceOracle:
+    def price() -> uint256: view
+    def price_w() -> uint256: nonpayable
 
 
 event UserState:
@@ -625,8 +629,10 @@ def set_amm_admin_fee(fee: uint256):
 
 
 @external
-def set_amm_price_oracle(price_oracle: address):
+def set_amm_price_oracle(price_oracle: PriceOracle):
     assert msg.sender == FACTORY.admin()
+    assert price_oracle.price_w() > 0
+    assert price_oracle.price() > 0
     AMM.set_price_oracle(price_oracle)
 
 

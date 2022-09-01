@@ -1093,9 +1093,7 @@ def set_admin_fee(fee: uint256):
     log SetAdminFee(fee)
 
 @external
-def set_price_oracle(price_oracle: address):
+def set_price_oracle(price_oracle: PriceOracle):
     assert msg.sender == self.admin
-    assert PriceOracle(price_oracle).price_w() > 0
-    assert PriceOracle(price_oracle).price() > 0
-    self.price_oracle_contract = PriceOracle(price_oracle)
-    log SetPriceOracle(price_oracle)
+    self.price_oracle_contract = price_oracle
+    log SetPriceOracle(price_oracle.address)
