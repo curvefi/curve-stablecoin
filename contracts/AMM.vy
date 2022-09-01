@@ -76,10 +76,6 @@ Aminus12: immutable(uint256)
 SQRT_BAND_RATIO: immutable(uint256)  # sqrt(A / (A - 1))
 LOG_A_RATIO: immutable(int256)  # ln(A / (A - 1))
 
-MAX_FEE: constant(uint256) = 10**17  # 10%
-MAX_ADMIN_FEE: constant(uint256) = 10**18  # 100%
-
-
 fee: public(uint256)
 admin_fee: public(uint256)
 rate: public(uint256)
@@ -1080,7 +1076,6 @@ def set_rate(rate: uint256) -> uint256:
 @external
 def set_fee(fee: uint256):
     assert msg.sender == self.admin
-    assert fee < MAX_FEE, "High fee"
     self.fee = fee
     log SetFee(fee)
 
@@ -1088,7 +1083,6 @@ def set_fee(fee: uint256):
 @external
 def set_admin_fee(fee: uint256):
     assert msg.sender == self.admin
-    assert fee < MAX_ADMIN_FEE, "High fee"
     self.admin_fee = fee
     log SetAdminFee(fee)
 

@@ -116,6 +116,9 @@ Aminus1: immutable(uint256)
 LOG2_A_RATIO: immutable(int256)  # log(A / (A - 1))
 SQRT_BAND_RATIO: immutable(uint256)
 
+MAX_ADMIN_FEE: constant(uint256) = 10**18  # 100%
+MAX_FEE: constant(uint256) = 10**17  # 10%
+
 
 @external
 def __init__(
@@ -619,12 +622,14 @@ def user_state(user: address) -> uint256[3]:  # collateral, stablecoin, debt
 @external
 def set_amm_fee(fee: uint256):
     assert msg.sender == FACTORY.admin()
+    assert fee < MAX_FEE, "High fee"
     AMM.set_fee(fee)
 
 
 @external
 def set_amm_admin_fee(fee: uint256):
     assert msg.sender == FACTORY.admin()
+    assert fee < MAX_ADMIN_FEE, "High fee"
     AMM.set_admin_fee(fee)
 
 
