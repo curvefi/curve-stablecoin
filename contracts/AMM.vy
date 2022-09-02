@@ -86,6 +86,9 @@ active_band: public(int256)
 min_band: public(int256)
 max_band: public(int256)
 
+admin_fees_x: public(uint256)
+admin_fees_y: public(uint256)
+
 price_oracle_contract: public(PriceOracle)
 
 bands_x: public(HashMap[int256, uint256])
@@ -791,6 +794,11 @@ def exchange(i: uint256, j: uint256, in_amount: uint256, min_amount: uint256, _f
         out_coin = BORROWED_TOKEN
 
     out: DetailedTrade = self.calc_swap_out(i == 0, in_amount * in_precision, self.price_oracle_contract.price_w())
+    out.admin_fee = unsafe_div(out.admin_fee, in_precision)
+    if i == 0:
+        self.admin_fees_x += out.admin_fee
+    else:
+        self.admin_fees_y += out.admin_fee
     in_amount_done: uint256 = unsafe_div(out.in_amount, in_precision)
     out_amount_done: uint256 = unsafe_div(out.out_amount, out_precision)
     assert out_amount_done >= min_amount, "Slippage"
@@ -1094,6 +1102,14 @@ def set_admin_fee(fee: uint256):
     assert msg.sender == self.admin
     self.admin_fee = fee
     log SetAdminFee(fee)
+
+
+@external
+def reset_admin_fees():
+    assert msg.sender == self.admin
+    self.admin_fees_x = 0
+    self.admin_fees_y = 0
+
 
 @external
 def set_price_oracle(price_oracle: PriceOracle):

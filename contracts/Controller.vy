@@ -22,6 +22,9 @@ interface LLAMMA:
     def can_skip_bands(n_end: int256) -> bool: view
     def bands_x(n: int256) -> uint256: view
     def set_price_oracle(price_oracle: PriceOracle): nonpayable
+    def admin_fees_x() -> uint256: view
+    def admin_fees_y() -> uint256: view
+    def reset_admin_fees(): nonpayable
 
 interface ERC20:
     def totalSupply() -> uint256: view
@@ -677,13 +680,22 @@ def admin_fees() -> uint256:
 @external
 @nonreentrant('lock')
 def collect_fees() -> uint256:
+    _to: address = FACTORY.fee_receiver()
+    # AMM-based fees
+    borrowed_fees: uint256 = AMM.admin_fees_x()
+    collateral_fees: uint256 = AMM.admin_fees_y()
+    if borrowed_fees > 0:
+        STABLECOIN.transferFrom(AMM.address, _to, borrowed_fees)
+    if collateral_fees > 0:
+        COLLATERAL_TOKEN.transferFrom(AMM.address, _to, collateral_fees)
+    AMM.reset_admin_fees()
+    # Borrowing-based fees
     rate_mul: uint256 = self._rate_mul_w()
     loan: Loan = self._total_debt
     loan.initial_debt = loan.initial_debt * rate_mul / loan.rate_mul
     redeemed: uint256 = loan.initial_debt + self.redeemed
     minted: uint256 = self.minted
     if redeemed > minted:
-        _to: address = FACTORY.fee_receiver()
         redeemed -= minted
         STABLECOIN.transfer(_to, redeemed)
         self.minted += redeemed
