@@ -405,7 +405,7 @@ def _add_collateral_borrow(d_collateral: uint256, d_debt: uint256, _for: address
     assert debt > 0, "Loan doesn't exist"
     debt += d_debt
     ns: int256[2] = AMM.read_user_tick_numbers(_for)
-    size: uint256 = convert(ns[1] - ns[0], uint256)
+    size: uint256 = convert(ns[1] - ns[0] + 1, uint256)
 
     xy: uint256[2] = AMM.withdraw(_for, empty(address))
     assert xy[0] == 0, "Already in underwater mode"
