@@ -27,14 +27,16 @@ def test_dxdy_limits(amm, amounts, accounts, ns, dns, collateral_token):
     assert dx == 10**2
     assert approx(dy, dx * 10**(18 - 6) / 3000, 4e-2 + 2 * min(ns) / amm.A())
     dx, dy = amm.get_dxdy(1, 0, 10**16)  # No liquidity
-    assert dx == dy == 0
+    assert dx == 1  # Rounded up
+    assert dy == 0  # Rounded down
 
     # Huge swap
     dx, dy = amm.get_dxdy(0, 1, 10**12 * 10**6)
     assert dx < 10**12 * 10**6               # Less than all is spent
     assert abs(dy - sum(amounts)) <= 1000    # but everything is bought
     dx, dy = amm.get_dxdy(1, 0, 10**12 * 10**18)
-    assert dx == dy == 0
+    assert dx == 1  # Rounded up
+    assert dy == 0  # Rounded down
 
 
 @given(
