@@ -347,26 +347,24 @@ def get_y0(_n: int256) -> uint256:
 @view
 def _get_p(n: int256, x: uint256, y: uint256) -> uint256:
     p_o_up: uint256 = self._p_oracle_up(n)
-    assert p_o_up != 0
     p_o: uint256 = self.price_oracle_contract.price()
-    p_o_2__div__p_o_up: uint256 = unsafe_div(p_o**2, p_o_up)
 
     # Special cases
     if x == 0:
         if y == 0:  # x and y are 0
             p_o_up = unsafe_div(p_o_up * Aminus1, A)
-            return unsafe_div(unsafe_div(p_o_2__div__p_o_up * p_o, p_o_up) * 10**18, SQRT_BAND_RATIO)
+            return unsafe_div(unsafe_div(p_o**2 / p_o_up * p_o, p_o_up) * 10**18, SQRT_BAND_RATIO)
         # if x == 0: # Lowest point of this band -> p_current_down
-        return unsafe_div(p_o_2__div__p_o_up * p_o, p_o_up)
+        return unsafe_div(p_o**2 / p_o_up * p_o, p_o_up)
     if y == 0: # Highest point of this band -> p_current_up
         p_o_up = unsafe_div(p_o_up * Aminus1, A)
-        return unsafe_div(p_o_2__div__p_o_up * p_o, p_o_up)
+        return unsafe_div(p_o**2 / p_o_up * p_o, p_o_up)
 
     y0: uint256 = self._get_y0(x, y, p_o, p_o_up)
     # ^ that call also checks that p_o != 0
 
     # (f(y0) + x) / (g(y0) + y)
-    f: uint256 = unsafe_div(A * y0 * p_o, p_o_up) * p_o
+    f: uint256 = A * y0 * p_o / p_o_up * p_o
     g: uint256 = unsafe_div(Aminus1 * y0 * p_o_up, p_o)
     return (f + x * 10**18) / (g + y)
 
