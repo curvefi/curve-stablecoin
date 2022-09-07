@@ -130,6 +130,27 @@ class BigFuzz(RuleBasedStateMachine):
                 with boa.reverts():
                     self.market_controller.add_collateral(y, user)
 
+    @rule(y=collateral_amount, uid=user_id)
+    def remove_collateral(self, y, uid):
+        user = self.accounts[uid]
+        exists = self.market_controller.loan_exists(user)
+        if exists:
+            n1, n2 = self.market_amm.read_user_tick_numbers(user)
+            n0 = self.market_amm.active_band()
+
+        with boa.env.prank(user):
+            if (exists and n1 > n0) or y == 0:
+                before = self.collateral_token.balanceOf(user)
+                try:
+                    self.market_controller.remove_collateral(y)
+                except Exception:
+                    return  # Need to handle this better - check when we can remove and cannot
+                after = self.collateral_token.balanceOf(user)
+                assert after - before == y
+            else:
+                with boa.reverts():
+                    self.market_controller.remove_collateral(y)
+
     @rule(y=collateral_amount, uid=user_id, ratio=ratio)
     def borrow_more(self, y, ratio, uid):
         user = self.accounts[uid]
