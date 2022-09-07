@@ -64,6 +64,10 @@ event Repay:
     collateral_decrease: uint256
     loan_decrease: uint256
 
+event RemoveCollateral:
+    user: indexed(address)
+    collateral_decrease: uint256
+
 event Liquidate:
     liquidator: indexed(address)
     user: indexed(address)
@@ -398,7 +402,7 @@ def create_loan(collateral: uint256, debt: uint256, N: uint256):
 
 
 @internal
-def _add_collateral_borrow(d_collateral: uint256, d_debt: uint256, _for: address):
+def _add_collateral_borrow(d_collateral: uint256, d_debt: uint256, _for: address, remove_collateral: bool):
     debt: uint256 = 0
     rate_mul: uint256 = 0
     debt, rate_mul = self._debt(_for)
@@ -409,7 +413,10 @@ def _add_collateral_borrow(d_collateral: uint256, d_debt: uint256, _for: address
 
     xy: uint256[2] = AMM.withdraw(_for, empty(address))
     assert xy[0] == 0, "Already in underwater mode"
-    xy[1] += d_collateral
+    if remove_collateral:
+        xy[1] -= d_collateral
+    else:
+        xy[1] += d_collateral
     n1: int256 = self._calculate_debt_n1(xy[1], debt, size)
     n2: int256 = n1 + ns[1] - ns[0]
 
@@ -423,7 +430,10 @@ def _add_collateral_borrow(d_collateral: uint256, d_debt: uint256, _for: address
         self._total_debt.initial_debt = total_debt
         self._total_debt.rate_mul = rate_mul
 
-    log Borrow(_for, d_collateral, d_debt)
+    if remove_collateral:
+        log RemoveCollateral(_for, d_collateral)
+    else:
+        log Borrow(_for, d_collateral, d_debt)
     log UserState(_for, xy[1], debt, n1, n2, liquidation_discount)
 
 
@@ -432,8 +442,17 @@ def _add_collateral_borrow(d_collateral: uint256, d_debt: uint256, _for: address
 def add_collateral(collateral: uint256, _for: address = msg.sender):
     if collateral == 0:
         return
-    self._add_collateral_borrow(collateral, 0, _for)
+    self._add_collateral_borrow(collateral, 0, _for, False)
     COLLATERAL_TOKEN.transferFrom(msg.sender, AMM.address, collateral)
+
+
+@external
+@nonreentrant('lock')
+def remove_collateral(collateral: uint256):
+    if collateral == 0:
+        return
+    self._add_collateral_borrow(collateral, 0, msg.sender, True)
+    COLLATERAL_TOKEN.transferFrom(AMM.address, msg.sender, collateral)
 
 
 @external
@@ -441,7 +460,7 @@ def add_collateral(collateral: uint256, _for: address = msg.sender):
 def borrow_more(collateral: uint256, debt: uint256):
     if debt == 0:
         return
-    self._add_collateral_borrow(collateral, debt, msg.sender)
+    self._add_collateral_borrow(collateral, debt, msg.sender, False)
     if collateral != 0:
         COLLATERAL_TOKEN.transferFrom(msg.sender, AMM.address, collateral)
     STABLECOIN.transfer(msg.sender, debt)
