@@ -369,6 +369,13 @@ def max_borrowable(collateral: uint256, N: uint256) -> uint256:
 
 @external
 @view
+def min_collateral(debt: uint256, N: uint256) -> uint256:
+    p_base: uint256 = AMM.p_oracle_up(AMM.active_band() + 1)
+    return debt * 10**18 / p_base * 10**18 / self.get_y_effective(10**18, N) / COLLATERAL_PRECISION * 10**18 / (10**18 - 10**14)
+
+
+@external
+@view
 def calculate_debt_n1(collateral: uint256, debt: uint256, N: uint256) -> int256:
     return self._calculate_debt_n1(collateral, debt, N)
 
