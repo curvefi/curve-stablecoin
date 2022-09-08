@@ -718,7 +718,7 @@ def calc_swap_out(pump: bool, in_amount: uint256, p_o: uint256) -> DetailedTrade
         in_precision = BORROWED_PRECISION
         out_precision = COLLATERAL_PRECISION
     # ceil(in_amount_used/BORROWED_PRECISION) * BORROWED_PRECISION
-    out.in_amount = unsafe_mul(unsafe_add(unsafe_div(unsafe_sub(max(out.in_amount, 1), 1), in_precision), 1), in_precision)
+    out.in_amount = unsafe_mul(unsafe_div(unsafe_add(out.in_amount, unsafe_sub(in_precision, 1)), in_precision), in_precision)
     out.out_amount = unsafe_mul(unsafe_div(out.out_amount, out_precision), out_precision)
     return out
 
