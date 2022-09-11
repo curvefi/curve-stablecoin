@@ -330,6 +330,25 @@ def _calculate_debt_n1(collateral: uint256, debt: uint256, N: uint256) -> int256
     return n1
 
 
+@internal
+@view
+def max_p_base() -> uint256:
+    # Calculate max base price including skipping bands
+    n1: int256 = AMM.active_band() + 1
+    p_base: uint256 = AMM.p_oracle_up(n1)
+    p_oracle: uint256 = AMM.price_oracle() * Aminus1 / A
+
+    for i in range(MAX_SKIP_TICKS + 1):
+        n1 -= 1
+        if AMM.bands_x(n1) != 0:
+            break
+        p_base = unsafe_div(p_base * A, Aminus1)
+        if p_base > p_oracle:
+            break
+
+    return min(p_base, p_oracle)
+
+
 @external
 @view
 def max_borrowable(collateral: uint256, N: uint256) -> uint256:
@@ -347,31 +366,16 @@ def max_borrowable(collateral: uint256, N: uint256) -> uint256:
     # When n1 -= 1:
     # p_oracle_up *= A / (A - 1)
 
-    n1: int256 = AMM.active_band() + 1
-    p_base: uint256 = AMM.p_oracle_up(n1)
-    p_oracle: uint256 = AMM.price_oracle() * Aminus1 / A
-
     y_effective: uint256 = self.get_y_effective(collateral * COLLATERAL_PRECISION, N)
 
-    for i in range(MAX_SKIP_TICKS + 1):
-        n1 -= 1
-        if AMM.bands_x(n1) != 0:
-            break
-        p_base = unsafe_div(p_base * A, Aminus1)
-        if p_base > p_oracle:
-            break
-
-    p_base = min(p_base, p_oracle)
-
-    x: uint256 = max(y_effective * p_base / 10**18, 1) - 1
+    x: uint256 = max(y_effective * self.max_p_base() / 10**18, 1) - 1
     return unsafe_div(x * (10**18 - 10**14), 10**18)  # Make it a bit smaller
 
 
 @external
 @view
 def min_collateral(debt: uint256, N: uint256) -> uint256:
-    p_base: uint256 = AMM.p_oracle_up(AMM.active_band() + 1)
-    return debt * 10**18 / p_base * 10**18 / self.get_y_effective(10**18, N) / COLLATERAL_PRECISION * 10**18 / (10**18 - 10**14)
+    return debt * 10**18 / self.max_p_base() * 10**18 / self.get_y_effective(10**18, N) / COLLATERAL_PRECISION * 10**18 / (10**18 - 10**14)
 
 
 @external
