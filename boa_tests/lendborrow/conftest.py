@@ -67,7 +67,7 @@ def market(controller_factory, collateral_token, monetary_policy, price_oracle, 
 
 @pytest.fixture(scope="module")
 def market_amm(market, collateral_token, stablecoin, amm_impl, amm_interface, accounts):
-    amm = amm_interface.at(market.amms(collateral_token.address))
+    amm = amm_interface.at(market.get_amm(collateral_token.address))
     for acc in accounts:
         with boa.env.prank(acc):
             collateral_token.approve(amm.address, 2**256-1)
@@ -77,7 +77,7 @@ def market_amm(market, collateral_token, stablecoin, amm_impl, amm_interface, ac
 
 @pytest.fixture(scope="module")
 def market_controller(market, stablecoin, collateral_token, controller_impl, controller_interface, controller_factory, accounts):
-    controller = controller_interface.at(market.controllers(collateral_token.address))
+    controller = controller_interface.at(market.get_controller(collateral_token.address))
     for acc in accounts:
         with boa.env.prank(acc):
             collateral_token.approve(controller.address, 2**256-1)

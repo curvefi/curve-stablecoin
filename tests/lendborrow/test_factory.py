@@ -36,8 +36,8 @@ def test_add_market(controller_factory, collateral_token, PriceOracle, monetary_
     assert controller_factory.n_collaterals() == 1
     assert controller_factory.collaterals(0) == collateral_token
 
-    controller = Controller.at(controller_factory.controllers(collateral_token))
-    amm = AMM.at(controller_factory.amms(collateral_token))
+    controller = Controller.at(controller_factory.get_controller(collateral_token))
+    amm = AMM.at(controller_factory.get_amm(collateral_token))
 
     assert controller.factory() == controller_factory
     assert controller.collateral_token() == collateral_token

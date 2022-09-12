@@ -22,6 +22,7 @@ event AddMarket:
     controller: address
     amm: address
     monetary_policy: address
+    ix: uint256
 
 event SetDebtCeiling:
     addr: address
@@ -29,8 +30,8 @@ event SetDebtCeiling:
 
 
 STABLECOIN: immutable(ERC20)
-controllers: public(HashMap[address, address])  # XXX TODO: multiple controllers for 1 token
-amms: public(HashMap[address, address])
+controllers: public(address[1000000])
+amms: public(address[1000000])
 admin: public(address)
 fee_receiver: public(address)
 controller_implementation: public(address)
@@ -38,6 +39,7 @@ amm_implementation: public(address)
 
 n_collaterals: public(uint256)
 collaterals: public(address[1000000])
+collaterals_index: public(HashMap[address, uint256[1000]])
 
 debt_ceiling: public(HashMap[address, uint256])
 debt_ceiling_residual: public(HashMap[address, uint256])
@@ -151,7 +153,6 @@ def add_market(token: address, A: uint256, fee: uint256, admin_fee: uint256,
                monetary_policy: address, loan_discount: uint256, liquidation_discount: uint256,
                debt_ceiling: uint256) -> address[2]:
     assert msg.sender == self.admin, "Only admin"
-    assert self.controllers[token] == empty(address) and self.amms[token] == empty(address), "Already exists"
     assert A >= MIN_A and A <= MAX_A, "Wrong A"
     assert fee < MAX_FEE, "Fee too high"
     assert admin_fee < MAX_ADMIN_FEE, "Admin fee too high"
@@ -178,11 +179,15 @@ def add_market(token: address, A: uint256, fee: uint256, admin_fee: uint256,
 
     N: uint256 = self.n_collaterals
     self.collaterals[N] = token
-    self.controllers[token] = controller
-    self.amms[token] = amm
+    for i in range(1000):
+        if self.collaterals_index[token][i] == 0:
+            self.collaterals_index[token][i] = 2**128 + N
+            break
+    self.controllers[N] = controller
+    self.amms[N] = amm
     self.n_collaterals = N + 1
 
-    log AddMarket(token, controller, amm, monetary_policy)
+    log AddMarket(token, controller, amm, monetary_policy, N)
     return [controller, amm]
 
 
@@ -194,8 +199,20 @@ def total_debt() -> uint256:
     for i in range(1000):
         if i == n_collaterals:
             break
-        total += Controller(self.controllers[self.collaterals[i]]).total_debt()
+        total += Controller(self.controllers[i]).total_debt()
     return total
+
+
+@external
+@view
+def get_controller(collateral: address, i: uint256 = 0) -> address:
+    return self.controllers[self.collaterals_index[collateral][i] - 2**128]
+
+
+@external
+@view
+def get_amm(collateral: address, i: uint256 = 0) -> address:
+    return self.amms[self.collaterals_index[collateral][i] - 2**128]
 
 
 @external
