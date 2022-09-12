@@ -13,6 +13,9 @@ interface PriceOracle:
 interface AMM:
     def set_admin(_admin: address): nonpayable
 
+interface Controller:
+    def total_debt() -> uint256: view
+
 
 event AddMarket:
     collateral: address
@@ -26,7 +29,7 @@ event SetDebtCeiling:
 
 
 STABLECOIN: immutable(ERC20)
-controllers: public(HashMap[address, address])
+controllers: public(HashMap[address, address])  # XXX TODO: multiple controllers for 1 token
 amms: public(HashMap[address, address])
 admin: public(address)
 fee_receiver: public(address)
@@ -181,6 +184,18 @@ def add_market(token: address, A: uint256, fee: uint256, admin_fee: uint256,
 
     log AddMarket(token, controller, amm, monetary_policy)
     return [controller, amm]
+
+
+@external
+@view
+def total_debt() -> uint256:
+    total: uint256 = 0
+    n_collaterals: uint256 = self.n_collaterals
+    for i in range(1000):
+        if i == n_collaterals:
+            break
+        total += Controller(self.controllers[self.collaterals[i]]).total_debt()
+    return total
 
 
 @external
