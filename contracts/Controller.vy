@@ -647,9 +647,10 @@ def user_prices(user: address) -> uint256[2]:  # Upper, lower
 
 @view
 @external
-def user_state(user: address) -> uint256[3]:  # collateral, stablecoin, debt
+def user_state(user: address) -> uint256[4]:  # collateral, stablecoin, debt, N
     xy: uint256[2] = AMM.get_sum_xy(user)
-    return [xy[1], xy[0], self._debt_ro(user)]
+    ns: int256[2] = AMM.read_user_tick_numbers(user) # ns[1] > ns[0]
+    return [xy[1], xy[0], self._debt_ro(user), convert(ns[1] - ns[0] + 1, uint256)]
 
 
 @external

@@ -132,7 +132,7 @@ class BigFuzz(RuleBasedStateMachine):
     @rule(y=collateral_amount, uid=user_id)
     def remove_collateral(self, y, uid):
         user = self.accounts[uid]
-        user_collateral, user_stablecoin, debt = self.market_controller.user_state(user)
+        user_collateral, user_stablecoin, debt, N = self.market_controller.user_state(user)
         if debt > 0:
             n1, n2 = self.market_amm.read_user_tick_numbers(user)
             n0 = self.market_amm.active_band()
@@ -140,8 +140,6 @@ class BigFuzz(RuleBasedStateMachine):
         with boa.env.prank(user):
             if (debt > 0 and n1 > n0) or y == 0:
                 before = self.collateral_token.balanceOf(user)
-                N1, N2 = self.market_amm.read_user_tick_numbers(user)
-                N = N2 - N1 + 1
                 min_collateral = self.market_controller.min_collateral(debt, N)
                 try:
                     self.market_controller.remove_collateral(y)
