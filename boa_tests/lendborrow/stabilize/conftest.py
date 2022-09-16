@@ -129,13 +129,44 @@ def peg_keepers(stablecoin_a, stablecoin_b, stableswap_a, stableswap_b, controll
 
 
 @pytest.fixture(scope="module")
-def agg_monetary_policy(peg_keepers, crypto_agg, controller_factory, admin):
+def agg_monetary_policy(peg_keepers, agg, controller_factory, admin):
     with boa.env.prank(admin):
         return boa.load(
                 'contracts/mpolicies/AggMonetaryPolicy.vy',
                 admin,
-                crypto_agg.address,
+                agg.address,
                 controller_factory.address,
                 [p.address for p in peg_keepers] + [ZERO_ADDRESS] * 3,
                 2 * 10**16,  # Sigma 2%
                 5 * 10**16)  # Target debt fraction 5%
+
+
+@pytest.fixture(scope="module")
+def market_agg(controller_factory, collateral_token, agg_monetary_policy, crypto_agg, admin):
+    with boa.env.prank(admin):
+        controller_factory.add_market(
+            collateral_token.address, 100, 10**16, 0,
+            crypto_agg.address,
+            agg_monetary_policy.address, 5 * 10**16, 2 * 10**16,
+            10**6 * 10**18)
+        return controller_factory
+
+
+@pytest.fixture(scope="module")
+def market_amm_agg(market, collateral_token, stablecoin, amm_impl, amm_interface, accounts):
+    amm = amm_interface.at(market.get_amm(collateral_token.address))
+    for acc in accounts:
+        with boa.env.prank(acc):
+            collateral_token.approve(amm.address, 2**256-1)
+            stablecoin.approve(amm.address, 2**256-1)
+    return amm
+
+
+@pytest.fixture(scope="module")
+def market_controller_agg(market_agg, stablecoin, collateral_token, controller_impl, controller_interface, controller_factory, accounts):
+    controller = controller_interface.at(market_agg.get_controller(collateral_token.address))
+    for acc in accounts:
+        with boa.env.prank(acc):
+            collateral_token.approve(controller.address, 2**256-1)
+            stablecoin.approve(controller.address, 2**256-1)
+    return controller
