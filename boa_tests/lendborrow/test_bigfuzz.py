@@ -428,7 +428,6 @@ def test_noraise_5(
     for k, v in locals().items():
         setattr(BigFuzz, k, v)
     state = BigFuzz()
-    state = BigFuzz()
     state.debt_supply()
     state.self_liquidate_and_health()
     state.debt_supply()
