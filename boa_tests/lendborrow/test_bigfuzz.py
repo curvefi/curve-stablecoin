@@ -123,7 +123,7 @@ class BigFuzz(RuleBasedStateMachine):
         self.collateral_token._mint_for_testing(user, y)
 
         with boa.env.prank(user):
-            if (exists and n1 > n0) or y == 0:
+            if (exists and n1 > n0 and self.market_amm.p_oracle_up(n1) < self.market_amm.price_oracle()) or y == 0:
                 self.market_controller.add_collateral(y, user)
             else:
                 with boa.reverts():
@@ -436,4 +436,28 @@ def test_noraise_5(
     state.deposit(n=9, ratio=0.5, uid=1, y=5131452002964343839)
     state.debt_supply()
     state.borrow_more(ratio=0.8847036853778303, uid=1, y=171681017142554251259)
+    state.teardown()
+
+
+def test_add_collateral_fail(
+        controller_factory, market_amm, market_controller, monetary_policy, collateral_token, stablecoin, price_oracle, accounts, admin):
+    for k, v in locals().items():
+        setattr(BigFuzz, k, v)
+    state = BigFuzz()
+    state.debt_supply()
+    state.rule_change_rate(rate=5430516289)
+    state.debt_supply()
+    state.time_travel(dt=1)
+    state.debt_supply()
+    state.time_travel(dt=1)
+    state.debt_supply()
+    state.deposit(n=21, ratio=0.8125, uid=3, y=2444)
+    state.debt_supply()
+    state.time_travel(dt=1860044)
+    state.debt_supply()
+    state.rule_change_rate(rate=0)
+    state.debt_supply()
+    state.rule_change_rate(rate=0)
+    state.debt_supply()
+    state.add_collateral(uid=3, y=1)
     state.teardown()
