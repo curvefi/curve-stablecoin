@@ -403,7 +403,7 @@ def create_loan(collateral: uint256, debt: uint256, N: uint256):
     self._total_debt.rate_mul = rate_mul
 
     AMM.deposit_range(msg.sender, collateral, n1, n2, False)
-    COLLATERAL_TOKEN.transferFrom(msg.sender, AMM.address, collateral)
+    assert COLLATERAL_TOKEN.transferFrom(msg.sender, AMM.address, collateral, default_return_value=True)
 
     STABLECOIN.transfer(msg.sender, debt)
     self.minted += debt
@@ -454,7 +454,7 @@ def add_collateral(collateral: uint256, _for: address = msg.sender):
     if collateral == 0:
         return
     self._add_collateral_borrow(collateral, 0, _for, False)
-    COLLATERAL_TOKEN.transferFrom(msg.sender, AMM.address, collateral)
+    assert COLLATERAL_TOKEN.transferFrom(msg.sender, AMM.address, collateral, default_return_value=True)
 
 
 @external
@@ -463,7 +463,7 @@ def remove_collateral(collateral: uint256):
     if collateral == 0:
         return
     self._add_collateral_borrow(collateral, 0, msg.sender, True)
-    COLLATERAL_TOKEN.transferFrom(AMM.address, msg.sender, collateral)
+    assert COLLATERAL_TOKEN.transferFrom(AMM.address, msg.sender, collateral, default_return_value=True)
 
 
 @external
@@ -473,7 +473,7 @@ def borrow_more(collateral: uint256, debt: uint256):
         return
     self._add_collateral_borrow(collateral, debt, msg.sender, False)
     if collateral != 0:
-        COLLATERAL_TOKEN.transferFrom(msg.sender, AMM.address, collateral)
+        assert COLLATERAL_TOKEN.transferFrom(msg.sender, AMM.address, collateral, default_return_value=True)
     STABLECOIN.transfer(msg.sender, debt)
     self.minted += debt
 
@@ -591,7 +591,7 @@ def _liquidate(user: address, min_x: uint256, health_limit: uint256):
         STABLECOIN.transferFrom(AMM.address, msg.sender, to_transfer)
         self.redeemed += to_transfer
 
-    COLLATERAL_TOKEN.transferFrom(AMM.address, msg.sender, xy[1])
+    assert COLLATERAL_TOKEN.transferFrom(AMM.address, msg.sender, xy[1], default_return_value=True)
 
     self.loans[user] = Loan({initial_debt: 0, rate_mul: rate_mul})
     log UserState(user, 0, 0, 0, 0, 0)
@@ -718,7 +718,7 @@ def collect_fees() -> uint256:
     if borrowed_fees > 0:
         STABLECOIN.transferFrom(AMM.address, _to, borrowed_fees)
     if collateral_fees > 0:
-        COLLATERAL_TOKEN.transferFrom(AMM.address, _to, collateral_fees)
+        assert COLLATERAL_TOKEN.transferFrom(AMM.address, _to, collateral_fees, default_return_value=True)
     AMM.reset_admin_fees()
     # Borrowing-based fees
     rate_mul: uint256 = self._rate_mul_w()

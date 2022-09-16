@@ -139,8 +139,8 @@ def __init__(
 def set_admin(_admin: address):
     assert self.admin == empty(address)
     self.admin = _admin
-    BORROWED_TOKEN.approve(_admin, max_value(uint256))
-    COLLATERAL_TOKEN.approve(_admin, max_value(uint256))
+    assert BORROWED_TOKEN.approve(_admin, max_value(uint256), default_return_value=True)
+    assert COLLATERAL_TOKEN.approve(_admin, max_value(uint256), default_return_value=True)
 
 
 # Low-level math
@@ -471,7 +471,7 @@ def deposit_range(user: address, amount: uint256, n1: int256, n2: int256, move_c
         n0 -= 1
 
     if move_coins:
-        assert COLLATERAL_TOKEN.transferFrom(user, self, amount)
+        assert COLLATERAL_TOKEN.transferFrom(user, self, amount, default_return_value=True)
 
     i: uint256 = convert(unsafe_sub(band, lower), uint256)
     n_bands: uint256 = unsafe_add(i, 1)
@@ -591,8 +591,8 @@ def withdraw(user: address, move_to: address) -> uint256[2]:
     total_x = unsafe_div(total_x, BORROWED_PRECISION)
     total_y = unsafe_div(total_y, COLLATERAL_PRECISION)
     if move_to != empty(address):
-        assert BORROWED_TOKEN.transfer(move_to, total_x)
-        assert COLLATERAL_TOKEN.transfer(move_to, total_y)
+        assert BORROWED_TOKEN.transfer(move_to, total_x, default_return_value=True)
+        assert COLLATERAL_TOKEN.transfer(move_to, total_y, default_return_value=True)
     log Withdraw(user, move_to, total_x, total_y)
 
     self.rate_mul = self._rate_mul()
@@ -805,8 +805,8 @@ def exchange(i: uint256, j: uint256, in_amount: uint256, min_amount: uint256, _f
     if out_amount_done == 0:
         return 0
 
-    in_coin.transferFrom(msg.sender, self, in_amount_done)
-    out_coin.transfer(_for, out_amount_done)
+    assert in_coin.transferFrom(msg.sender, self, in_amount_done, default_return_value=True)
+    assert out_coin.transfer(_for, out_amount_done, default_return_value=True)
 
     n: int256 = out.n1
 
