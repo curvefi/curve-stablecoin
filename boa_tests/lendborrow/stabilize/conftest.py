@@ -2,6 +2,8 @@ import boa
 import pytest
 from boa.contract import VyperContract
 
+ZERO_ADDRESS = "0x0000000000000000000000000000000000000000"
+
 
 @pytest.fixture(scope="module")
 def stablecoin_a(admin):
@@ -124,3 +126,16 @@ def peg_keepers(stablecoin_a, stablecoin_b, stableswap_a, stableswap_b, controll
                         controller_factory.address, agg.address)
             )
     return pks
+
+
+@pytest.fixture(scope="module")
+def agg_monetary_policy(peg_keepers, crypto_agg, controller_factory, admin):
+    with boa.env.prank(admin):
+        return boa.load(
+                'contracts/mpolicies/AggMonetaryPolicy.vy',
+                admin,
+                crypto_agg.address,
+                controller_factory.address,
+                [p.address for p in peg_keepers] + [ZERO_ADDRESS] * 3,
+                2 * 10**16,  # Sigma 2%
+                5 * 10**16)  # Target debt fraction 5%
