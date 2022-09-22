@@ -68,7 +68,7 @@ def stableswap_b(unsafe_factory, swap_deployer, swap_impl, stablecoin, stablecoi
 @pytest.fixture(scope="module")
 def price_aggregator(stablecoin, stableswap_a, stableswap_b, admin):
     with boa.env.prank(admin):
-        agg = boa.load('contracts/price_oracles/AggregateStablePrice.vy', stablecoin.address, 10**15)
+        agg = boa.load('contracts/price_oracles/AggregateStablePrice.vy', stablecoin.address, 10**15, admin)
         agg.add_price_pair(stableswap_a.address)
         agg.add_price_pair(stableswap_b.address)
         return agg

@@ -40,12 +40,20 @@ STABLECOIN: immutable(address)
 SIGMA: immutable(uint256)
 price_pairs: public(PricePair[20])
 n_price_pairs: uint256
+ADMIN: immutable(address)
 
 
 @external
-def __init__(stablecoin: address, sigma: uint256):
+def __init__(stablecoin: address, sigma: uint256, admin: address):
     STABLECOIN = stablecoin
     SIGMA = sigma  # The change is so rare that we can change the whole thing altogether
+    ADMIN = admin
+
+
+@external
+@view
+def admin() -> address:
+    return ADMIN
 
 
 @external
@@ -62,6 +70,7 @@ def stablecoin() -> address:
 
 @external
 def add_price_pair(_pool: Stableswap):
+    assert msg.sender == ADMIN
     price_pair: PricePair = empty(PricePair)
     price_pair.pool = _pool
     coins: address[2] = [_pool.coins(0), _pool.coins(1)]
@@ -77,6 +86,7 @@ def add_price_pair(_pool: Stableswap):
 
 @external
 def remove_price_pair(n: uint256):
+    assert msg.sender == ADMIN
     n_max: uint256 = self.n_price_pairs - 1
     if n < n_max:
         self.price_pairs[n] = self.price_pairs[n_max]
