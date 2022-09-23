@@ -35,10 +35,11 @@ event MovePricePair:
     n_from: uint256
     n_to: uint256
 
+MAX_PAIRS: constant(uint256) = 20
 
 STABLECOIN: immutable(address)
 SIGMA: immutable(uint256)
-price_pairs: public(PricePair[20])
+price_pairs: public(PricePair[MAX_PAIRS])
 n_price_pairs: uint256
 ADMIN: immutable(address)
 
@@ -79,7 +80,7 @@ def add_price_pair(_pool: Stableswap):
     else:
         assert coins[1] == STABLECOIN
     n: uint256 = self.n_price_pairs
-    self.price_pairs[n] = price_pair
+    self.price_pairs[n] = price_pair  # Should revert if too many pairs
     self.n_price_pairs = n + 1
     log AddPricePair(n, _pool, price_pair.is_inverse)
 
@@ -135,11 +136,11 @@ def exp(power: int256) -> uint256:
 @view
 def price() -> uint256:
     n: uint256 = self.n_price_pairs
-    prices: uint256[20] = empty(uint256[20])
-    D: uint256[20] = empty(uint256[20])
+    prices: uint256[MAX_PAIRS] = empty(uint256[MAX_PAIRS])
+    D: uint256[MAX_PAIRS] = empty(uint256[MAX_PAIRS])
     Dsum: uint256 = 0
     DPsum: uint256 = 0
-    for i in range(20):
+    for i in range(MAX_PAIRS):
         if i == n:
             break
         price_pair: PricePair = self.price_pairs[i]
@@ -152,9 +153,9 @@ def price() -> uint256:
         Dsum += _D
         DPsum += _D * p
     p_avg: uint256 = DPsum / Dsum
-    e: uint256[20] = empty(uint256[20])
+    e: uint256[MAX_PAIRS] = empty(uint256[MAX_PAIRS])
     e_min: uint256 = max_value(uint256)
-    for i in range(20):
+    for i in range(MAX_PAIRS):
         if i == n:
             break
         p: uint256 = prices[i]
@@ -162,7 +163,7 @@ def price() -> uint256:
         e_min = min(e[i], e_min)
     wp_sum: uint256 = 0
     w_sum: uint256 = 0
-    for i in range(20):
+    for i in range(MAX_PAIRS):
         if i == n:
             break
         w: uint256 = D[i] * self.exp(-convert(e[i] - e_min, int256)) / 10**18
