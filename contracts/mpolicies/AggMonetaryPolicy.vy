@@ -41,7 +41,7 @@ rate0: public(uint256)
 sigma: public(int256)  # 2 * 10**16 for example
 target_debt_fraction: public(uint256)
 
-peg_keepers: public(PegKeeper[1000])
+peg_keepers: public(PegKeeper[1001])
 PRICE_ORACLE: immutable(PriceOracle)
 CONTROLLER_FACTORY: immutable(ControllerFactory)
 
@@ -88,7 +88,7 @@ def add_peg_keeper(pk: PegKeeper):
 def remove_peg_keeper(pk: PegKeeper):
     assert msg.sender == self.admin
     replaced_peg_keeper: uint256 = 10000
-    for i in range(1000):
+    for i in range(1001):  # 1001th element is always 0x0
         _pk: PegKeeper = self.peg_keepers[i]
         if _pk == pk:
             replaced_peg_keeper = i
