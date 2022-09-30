@@ -1,4 +1,4 @@
-# @version 0.3.6
+# @version 0.3.7
 
 interface ERC20:
     def transfer(_to: address, _value: uint256) -> bool: nonpayable

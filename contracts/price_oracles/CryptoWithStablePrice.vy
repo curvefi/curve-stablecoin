@@ -1,4 +1,4 @@
-# @version 0.3.6
+# @version 0.3.7
 
 interface Tricrypto:
     def price_oracle(k: uint256) -> uint256: view

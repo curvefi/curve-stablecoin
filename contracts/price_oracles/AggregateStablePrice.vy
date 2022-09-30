@@ -1,4 +1,4 @@
-# @version 0.3.6
+# @version 0.3.7
 # Returns price of stablecoin in "dollars" based on multiple redeemable stablecoins
 # Recommended to use 3+ price sources
 
