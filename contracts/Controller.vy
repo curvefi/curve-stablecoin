@@ -3,7 +3,6 @@
 interface LLAMMA:
     def A() -> uint256: view
     def get_base_price() -> uint256: view
-    def p_base_mul() -> uint256: view
     def get_p() -> uint256: view
     def active_band() -> int256: view
     def p_oracle_up(n: int256) -> uint256: view
