@@ -62,38 +62,6 @@ def __init__(stablecoin: ERC20,
     self.fee_receiver = fee_receiver
 
 
-# Low-level math
-@internal
-@pure
-def sqrt_int(x: uint256) -> uint256:
-    # https://github.com/transmissions11/solmate/blob/v7/src/utils/FixedPointMathLib.sol#L288
-    _x: uint256 = x * 10**18
-    y: uint256 = _x
-    z: uint256 = 181
-    if y >= 2**(128 + 8):
-        y = unsafe_div(y, 2**128)
-        z = unsafe_mul(z, 2**64)
-    if y >= 2**(64 + 8):
-        y = unsafe_div(y, 2**64)
-        z = unsafe_mul(z, 2**32)
-    if y >= 2**(32 + 8):
-        y = unsafe_div(y, 2**32)
-        z = unsafe_mul(z, 2**16)
-    if y >= 2**(16 + 8):
-        y = unsafe_div(y, 2**16)
-        z = unsafe_mul(z, 2**8)
-
-    z = unsafe_div(unsafe_mul(z, unsafe_add(y, 65536)), 2**18)
-
-    z = unsafe_div(unsafe_add(unsafe_div(_x, z), z), 2)
-    z = unsafe_div(unsafe_add(unsafe_div(_x, z), z), 2)
-    z = unsafe_div(unsafe_add(unsafe_div(_x, z), z), 2)
-    z = unsafe_div(unsafe_add(unsafe_div(_x, z), z), 2)
-    z = unsafe_div(unsafe_add(unsafe_div(_x, z), z), 2)
-    z = unsafe_div(unsafe_add(unsafe_div(_x, z), z), 2)
-    return unsafe_div(unsafe_add(unsafe_div(_x, z), z), 2)
-
-
 @internal
 @pure
 def ln_int(_x: uint256) -> int256:
@@ -167,7 +135,7 @@ def add_market(token: address, A: uint256, fee: uint256, admin_fee: uint256,
         self.amm_implementation,
         STABLECOIN.address, 10**(18 - STABLECOIN.decimals()),
         token, 10**(18 - ERC20(token).decimals()),
-        A, self.sqrt_int(A_ratio), self.ln_int(A_ratio),
+        A, isqrt(A_ratio * 10**18), self.ln_int(A_ratio),
         p, fee, admin_fee, _price_oracle_contract,
         code_offset=3)
     controller: address = create_from_blueprint(

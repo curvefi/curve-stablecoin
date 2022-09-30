@@ -143,36 +143,11 @@ def set_admin(_admin: address):
     assert COLLATERAL_TOKEN.approve(_admin, max_value(uint256), default_return_value=True)
 
 
-# Low-level math
 @internal
 @pure
 def sqrt_int(_x: uint256) -> uint256:
-    # https://github.com/transmissions11/solmate/blob/v7/src/utils/FixedPointMathLib.sol#L288
-    y: uint256 = _x
-    z: uint256 = 181
-    if y >= 2**(128 + 8):
-        y = unsafe_div(y, 2**128)
-        z = unsafe_mul(z, 2**64)
-    if y >= 2**(64 + 8):
-        y = unsafe_div(y, 2**64)
-        z = unsafe_mul(z, 2**32)
-    if y >= 2**(32 + 8):
-        y = unsafe_div(y, 2**32)
-        z = unsafe_mul(z, 2**16)
-    if y >= 2**(16 + 8):
-        y = unsafe_div(y, 2**16)
-        z = unsafe_mul(z, 2**8)
-
-    z = unsafe_div(unsafe_mul(z, unsafe_add(y, 65536)), 2**18)
-
-    z = unsafe_div(unsafe_add(unsafe_div(_x, z), z), 2)
-    z = unsafe_div(unsafe_add(unsafe_div(_x, z), z), 2)
-    z = unsafe_div(unsafe_add(unsafe_div(_x, z), z), 2)
-    z = unsafe_div(unsafe_add(unsafe_div(_x, z), z), 2)
-    z = unsafe_div(unsafe_add(unsafe_div(_x, z), z), 2)
-    z = unsafe_div(unsafe_add(unsafe_div(_x, z), z), 2)
-    return unsafe_div(unsafe_add(unsafe_div(_x, z), z), 2)
-## End of low-level math
+    # Make sqrt a function to not repeat isqrt's bytecode
+    return isqrt(_x)
 
 
 @external
