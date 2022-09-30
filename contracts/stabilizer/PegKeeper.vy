@@ -210,11 +210,13 @@ def update(_beneficiary: address = msg.sender) -> uint256:
 
     if balance_peg > balance_pegged:
         self._provide((balance_peg - balance_pegged) / 5)
-        assert self._pool_price() >= p0 * 10**18 / p_agg
+        # self._pool_price() >= p0 * 10**18 / p_agg
+        assert self._pool_price() * p_agg >= p0 * 10**18
 
     else:
         self._withdraw((balance_pegged - balance_peg) / 5)
-        assert self._pool_price() <= p0 * 10**18 / p_agg
+        # self._pool_price() <= p0 * 10**18 / p_agg
+        assert self._pool_price() * p_agg <= p0 * 10**18
 
     # Send generated profit
     new_profit: uint256 = self._calc_profit()
