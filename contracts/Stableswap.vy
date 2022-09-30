@@ -126,6 +126,7 @@ ma_last_time: public(uint256)
 def __init__():
     # we do this to prevent the implementation contract from being used as a pool
     self.factory = 0x0000000000000000000000000000000000000001
+    assert N_COINS == 2
 
 
 @external
@@ -375,7 +376,7 @@ def get_D(_xp: uint256[N_COINS], _amp: uint256) -> uint256:
     D: uint256 = S
     Ann: uint256 = _amp * N_COINS
     for i in range(255):
-        D_P: uint256 = D * D / _xp[0] * D / _xp[1] / (N_COINS)**2
+        D_P: uint256 = D * D / _xp[0] * D / _xp[1] / N_COINS**N_COINS
         Dprev: uint256 = D
         D = (Ann * S / A_PRECISION + D_P * N_COINS) * D / ((Ann - A_PRECISION) * D / A_PRECISION + (N_COINS + 1) * D_P)
         # Equality with the precision of 1
