@@ -89,6 +89,8 @@ def add_price_pair(_pool: Stableswap):
 def remove_price_pair(n: uint256):
     assert msg.sender == ADMIN
     n_max: uint256 = self.n_price_pairs - 1
+    assert n <= n_max
+
     if n < n_max:
         self.price_pairs[n] = self.price_pairs[n_max]
         log MovePricePair(n_max, n)
