@@ -493,7 +493,7 @@ def repay(_d_debt: uint256, _for: address):
     debt -= d_debt
 
     ns: int256[2] = AMM.read_user_tick_numbers(_for)
-    size: uint256 = convert(ns[1] - ns[0], uint256)
+    size: uint256 = convert(ns[1] - ns[0] + 1, uint256)
 
     if debt == 0:
         # Allow to withdraw all assets even when underwater
