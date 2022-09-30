@@ -181,11 +181,11 @@ def initialize(
 
 @view
 @external
-def decimals() -> uint256:
+def decimals() -> uint8:
     """
     @notice Get the number of decimals for this token
     @dev Implemented as a view method to reduce gas costs
-    @return uint256 decimal places
+    @return uint8 decimal places
     """
     return 18
 
