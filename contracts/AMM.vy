@@ -395,9 +395,9 @@ def _read_user_ticks(user: address, size: int256) -> uint256[MAX_TICKS]:
     return ticks
 
 
-@internal
+@external
 @view
-def _can_skip_bands(n_end: int256) -> bool:
+def can_skip_bands(n_end: int256) -> bool:
     n: int256 = self.active_band
     for i in range(MAX_SKIP_TICKS):
         if n_end > n:
@@ -411,12 +411,6 @@ def _can_skip_bands(n_end: int256) -> bool:
         if n == n_end:  # not including n_end
             break
     return True
-
-
-@external
-@view
-def can_skip_bands(n_end: int256) -> bool:
-    return self._can_skip_bands(n_end)
     # Actually skipping bands:
     # * change self.active_band to the new n
     # * change self.p_base_mul
