@@ -330,12 +330,12 @@ def _get_p(n: int256, x: uint256, y: uint256) -> uint256:
     # Special cases
     if x == 0:
         if y == 0:  # x and y are 0
-            p_o_up = unsafe_div(p_o_up * Aminus1, A)
-            return unsafe_div(unsafe_div(p_o**2 / p_o_up * p_o, p_o_up) * 10**18, SQRT_BAND_RATIO)
+            # Return mid-band
+            return unsafe_div((unsafe_div(p_o**2 / p_o_up * p_o, p_o_up) * A), Aminus1)
         # if x == 0: # Lowest point of this band -> p_current_down
         return unsafe_div(p_o**2 / p_o_up * p_o, p_o_up)
     if y == 0: # Highest point of this band -> p_current_up
-        p_o_up = unsafe_div(p_o_up * Aminus1, A)
+        p_o_up = unsafe_div(p_o_up * Aminus1, A)  # now this is _actually_ p_o_down
         return unsafe_div(p_o**2 / p_o_up * p_o, p_o_up)
 
     y0: uint256 = self._get_y0(x, y, p_o, p_o_up)
