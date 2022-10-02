@@ -444,6 +444,7 @@ def deposit_range(user: address, amount: uint256, n1: int256, n2: int256, move_c
 
     i: uint256 = convert(unsafe_sub(band, lower), uint256)
     n_bands: uint256 = unsafe_add(i, 1)
+    assert n_bands <= MAX_TICKS_UINT
 
     y: uint256 = unsafe_div(amount * COLLATERAL_PRECISION, n_bands)
     assert y > 100, "Amount too low"
