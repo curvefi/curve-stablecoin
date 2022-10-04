@@ -584,10 +584,9 @@ def calc_swap_out(pump: bool, in_amount: uint256, p_o: uint256) -> DetailedTrade
     x: uint256 = self.bands_x[out.n2]
     y: uint256 = self.bands_y[out.n2]
 
-    fee: uint256 = self.fee
-    admin_fee: uint256 = self.admin_fee
     in_amount_left: uint256 = in_amount
-    fee = unsafe_div((10**18)**2, unsafe_sub(10**18, fee))
+    antifee: uint256 = unsafe_div((10**18)**2, unsafe_sub(10**18, self.fee))
+    admin_fee: uint256 = self.admin_fee
     j: uint256 = MAX_TICKS_UINT
 
     for i in range(MAX_TICKS + MAX_SKIP_TICKS):
@@ -609,10 +608,10 @@ def calc_swap_out(pump: bool, in_amount: uint256, p_o: uint256) -> DetailedTrade
             if y != 0:
                 if g != 0:
                     x_dest: uint256 = (unsafe_div(Inv, g) - f) - x
-                    dx: uint256 = unsafe_div(x_dest * fee, 10**18)
+                    dx: uint256 = unsafe_div(x_dest * antifee, 10**18)
                     if dx >= in_amount_left:
                         # This is the last band
-                        x_dest = unsafe_div(in_amount_left * 10**18, fee)  # LESS than in_amount_left
+                        x_dest = unsafe_div(in_amount_left * 10**18, antifee)  # LESS than in_amount_left
                         out.last_tick_j = Inv / (f + (x + x_dest)) - g  # Should be always >= 0
                         x_dest = unsafe_div(unsafe_sub(in_amount_left, x_dest) * admin_fee, 10**18)  # abs admin fee now
                         x += in_amount_left  # x is precise after this
@@ -646,10 +645,10 @@ def calc_swap_out(pump: bool, in_amount: uint256, p_o: uint256) -> DetailedTrade
             if x != 0:
                 if f != 0:
                     y_dest: uint256 = (unsafe_div(Inv, f) - g) - y
-                    dy: uint256 = unsafe_div(y_dest * fee, 10**18)
+                    dy: uint256 = unsafe_div(y_dest * antifee, 10**18)
                     if dy >= in_amount_left:
                         # This is the last band
-                        y_dest = unsafe_div(in_amount_left * 10**18, fee)
+                        y_dest = unsafe_div(in_amount_left * 10**18, antifee)
                         out.last_tick_j = Inv / (g + (y + y_dest)) - f
                         y_dest = unsafe_div(unsafe_sub(in_amount_left, y_dest) * admin_fee, 10**18)  # abs admin fee now
                         y += in_amount_left
