@@ -49,7 +49,6 @@ def __init__(
     IS_INVERSE = is_inverse
     REDEEMABLE = _redeemable
     assert tricrypto.coins(0) == _redeemable
-    assert stable_aggregator.stablecoin() == _stablecoin
     MA_EXP_TIME = ma_exp_time
 
 
