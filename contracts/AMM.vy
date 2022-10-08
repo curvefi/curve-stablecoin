@@ -243,7 +243,7 @@ def _p_current_band(n: int256) -> uint256:
     """
     Lower price of the band `n` at current `p_oracle`
     """
-    # k = (self.A - 1) / self.A  # equal to (p_up / p_down)
+    # k = (self.A - 1) / self.A  # equal to (p_down / p_up)
     # p_base = self.p_base * k ** n = p_oracle_up(n)
     p_base: uint256 = self._p_oracle_up(n)
 
