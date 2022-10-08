@@ -184,7 +184,7 @@ AMM for continuous liquidation/deliquidation (LLAMMA)
 \end_layout
 
 \begin_layout Standard
-The core idea of the stablecoin design is Lenging-Liquidating AMM Algorithm.
+The core idea of the stablecoin design is Lending-Liquidating AMM Algorithm.
  The idea is that it converts between collateral (for example, ETH) and
  the stablecoin (let's call it USD here).
  If the price of collateral is high - a user has deposits all in ETH, but
@@ -359,8 +359,8 @@ The below description doesn't serve as a fully self-consistent rigurous
 
 \begin_layout Standard
 This is only possible with an external price oracle.
- In a nutshell, if one makes an typical AMM (for example with a bonding
- curve being a piece of hyperbola) and ramps its 
+ In a nutshell, if one makes a typical AMM (for example with a bonding curve
+ being a piece of hyperbola) and ramps its 
 \begin_inset Quotes eld
 \end_inset
 
@@ -1307,7 +1307,7 @@ where
 
 ) (thereby incentivizing borrowers to borrow-and-dump the stablecoin, decreasing
  its price and forcing the system to burn the 
-\begin_inset Formula $d_{s}$
+\begin_inset Formula $d_{st}$
 \end_inset
 
 ) or increasing if it's lower (thereby incentivizing borrowers to return
@@ -1316,7 +1316,7 @@ where
 \end_inset
 
  up, forcing the system to increase the debt 
-\begin_inset Formula $d_{s}$
+\begin_inset Formula $d_{st}$
 \end_inset
 
  and the stabilizer deposits).
