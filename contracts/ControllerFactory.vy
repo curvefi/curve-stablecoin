@@ -29,16 +29,17 @@ event SetDebtCeiling:
     debt_ceiling: uint256
 
 
+MAX_CONTROLLERS: constant(uint256) = 50000
 STABLECOIN: immutable(ERC20)
-controllers: public(address[1000000])
-amms: public(address[1000000])
+controllers: public(address[MAX_CONTROLLERS])
+amms: public(address[MAX_CONTROLLERS])
 admin: public(address)
 fee_receiver: public(address)
 controller_implementation: public(address)
 amm_implementation: public(address)
 
 n_collaterals: public(uint256)
-collaterals: public(address[1000000])
+collaterals: public(address[MAX_CONTROLLERS])
 collaterals_index: public(HashMap[address, uint256[1000]])
 
 debt_ceiling: public(HashMap[address, uint256])
@@ -164,7 +165,7 @@ def add_market(token: address, A: uint256, fee: uint256, admin_fee: uint256,
 def total_debt() -> uint256:
     total: uint256 = 0
     n_collaterals: uint256 = self.n_collaterals
-    for i in range(1000):
+    for i in range(MAX_CONTROLLERS):
         if i == n_collaterals:
             break
         total += Controller(self.controllers[i]).total_debt()
