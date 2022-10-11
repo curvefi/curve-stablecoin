@@ -606,7 +606,7 @@ def _liquidate(user: address, min_x: uint256, health_limit: uint256):
 @external
 @nonreentrant('lock')
 def liquidate(user: address, min_x: uint256):
-    self._liquidate(user, min_x, self.liquidation_discount)
+    self._liquidate(user, min_x, self.liquidation_discounts[user])
 
 
 @external
