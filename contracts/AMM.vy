@@ -419,6 +419,12 @@ def can_skip_bands(n_end: int256) -> bool:
 
 
 @external
+@view
+def has_liquidity(user: address) -> bool:
+    return self.user_shares[user].ticks[0] != 0
+
+
+@external
 @nonreentrant('lock')
 def deposit_range(user: address, amount: uint256, n1: int256, n2: int256, move_coins: bool):
     assert msg.sender == self.admin

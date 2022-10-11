@@ -24,6 +24,7 @@ interface LLAMMA:
     def admin_fees_x() -> uint256: view
     def admin_fees_y() -> uint256: view
     def reset_admin_fees(): nonpayable
+    def has_liquidity(user: address) -> bool: view
 
 interface ERC20:
     def totalSupply() -> uint256: view
@@ -640,6 +641,7 @@ def amm_price() -> uint256:
 @view
 @external
 def user_prices(user: address) -> uint256[2]:  # Upper, lower
+    assert AMM.has_liquidity(user)
     ns: int256[2] = AMM.read_user_tick_numbers(user) # ns[1] > ns[0]
     return [AMM.p_oracle_up(ns[0]), AMM.p_oracle_down(ns[1])]
 
