@@ -106,7 +106,7 @@ class BigFuzz(RuleBasedStateMachine):
                 with boa.reverts(fail="insufficient funds"):
                     self.market_controller.repay(amount, user)
             else:
-                if amount > 0 and amount < debt and amount > self.stablecoin.balanceOf(user):
+                if amount > 0 and min(amount, debt) > self.stablecoin.balanceOf(user):
                     with boa.reverts(fail="insufficient funds"):
                         self.market_controller.repay(amount, user)
                 else:
@@ -460,4 +460,25 @@ def test_add_collateral_fail(
     state.rule_change_rate(rate=0)
     state.debt_supply()
     state.add_collateral(uid=3, y=1)
+    state.teardown()
+
+
+def test_debt_eq_repay_no_coins(
+        controller_factory, market_amm, market_controller, monetary_policy, collateral_token, stablecoin, price_oracle, accounts, admin):
+    for k, v in locals().items():
+        setattr(BigFuzz, k, v)
+    state = BigFuzz()
+    state = BigFuzz()
+    state.debt_supply()
+    state.trade(is_pump=False, r=0.0, uid=0)
+    state.debt_supply()
+    state.repay(ratio=0.0, uid=0)
+    state.debt_supply()
+    state.deposit(n=5, ratio=0.5, uid=0, y=505)
+    state.debt_supply()
+    state.deposit(n=5, ratio=0.5009765625, uid=1, y=519)
+    state.debt_supply()
+    state.trade(is_pump=True, r=1.0, uid=0)
+    state.debt_supply()
+    state.repay(ratio=1.0, uid=1)
     state.teardown()
