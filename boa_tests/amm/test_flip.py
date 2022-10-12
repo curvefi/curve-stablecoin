@@ -7,7 +7,7 @@ from pytest import mark  # noqa
 # 4. check flip down when at final price
 # 5. repeat in other way
 AMOUNT_D = 5 * 10**18
-STEP = 0.1
+STEP = 0.01
 
 
 def test_flip(amm, price_oracle, collateral_token, borrowed_token, accounts, admin):
@@ -25,7 +25,7 @@ def test_flip(amm, price_oracle, collateral_token, borrowed_token, accounts, adm
         initial_y = sum(amm.bands_y(n) for n in range(1, 6))
 
         # Buy until we have 0 coins left
-        for i in range(int(2 / STEP)):
+        while True:
             p = p * 995 // 1000
             with boa.env.prank(admin):
                 price_oracle.set_price(p)
@@ -56,10 +56,10 @@ def test_flip(amm, price_oracle, collateral_token, borrowed_token, accounts, adm
                 break
 
         converted_x = sum(amm.bands_x(n) for n in range(1, 6)) // 10**(18 - 6)
-        assert converted_x >= 5 * 0.95**0.5 * 3000 * 1e6
+        assert converted_x >= 5 * 0.95**0.5 * amm.p_oracle_down(1)/1e18 * 1e6
 
         # Sell until we have 0 coins left
-        for i in range(int(2 / STEP)):
+        while True:
             dy = int(STEP * AMOUNT_D)
             is_empty = False
             while amm.get_p() > p:
