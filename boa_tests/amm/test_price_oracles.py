@@ -6,8 +6,7 @@ from ..conftest import PRICE, approx
 @pytest.fixture(scope="module")
 def ema_price_oracle(price_oracle, admin):
     with boa.env.prank(admin):
-        price_oracle.price()
-        signature = price_oracle.price._signature_cache[0][0]  # ugh, I hope not
+        signature = price_oracle.price.args_abi_type(0)[0]
         signature = b'\x00' * (32 - len(signature)) + signature
         return boa.load('contracts/price_oracles/EmaPriceOracle.vy', 10000, price_oracle.address, signature)
 
