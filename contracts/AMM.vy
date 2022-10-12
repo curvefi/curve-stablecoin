@@ -434,7 +434,7 @@ def deposit_range(user: address, amount: uint256, n1: int256, n2: int256, move_c
     upper: int256 = band
     lower: int256 = min(n1, n2)
     assert upper < 2**127
-    assert lower >= -2**127
+    assert lower > -2**127
 
     # Autoskip bands if we can
     for i in range(MAX_SKIP_TICKS + 1):
