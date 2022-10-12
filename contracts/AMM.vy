@@ -1,5 +1,34 @@
 # @version 0.3.7
 
+# Glossary of variables and terms
+# =======================
+# * ticks, bands - price ranges where liquiditity is deposited
+# * x - coin which is being borrowed, typically stablecoin
+# * y - collateral coin (for example, wETH)
+# * A - amplification, the measure of how concentrated the tick is
+# * rate - interest rate
+# * rate_mul - rate multiplier, 1 + integral(rate * dt)
+# * active_band - current band. Other bands are either in one or other coin, but not both
+# * min_band - bands below this are definitely empty
+# * min_band - bands above this are definitely empty
+# * bands_x[n], bands_y[n] - amounts of coin x or y deposited in band n
+# * user_shares[user,n] / total_shares[n] - fraction of n'th band owned by a user
+# * p_oracle - external oracle price (can be from another AMM)
+# * p (as in get_p) - current price of AMM. It depends not only on the balances (x,y) in the band and active_band, but
+# also on p_oracle
+# * p_current_up, p_current_down - the value of p at constant p_oracle when y=0 or x=0 respectively for the band n
+# * p_oracle_up, p_oracle_down - edges of the band when p=p_oracle (steady state), happen when x=0 or y=0 respectively,
+# for band n.
+# * Grid of bands is set for p_oracle values such as:
+#   * p_oracle_up(n) = base_price * ((A - 1) / A)**n
+#   * p_oracle_down(n) = p_oracle_up(n) * (A - 1) / A = p_oracle_up(n+1)
+# * p_current_up and p_oracle_up change in opposite directions with n
+# * When intereste is accrued - all the grid moves by change of base_price
+#
+# Bonding curve reads as:
+# (f + x) * (g + y) = Inv = p_oracle * A**2 * y0**2
+# =======================
+
 interface ERC20:
     def transfer(_to: address, _value: uint256) -> bool: nonpayable
     def transferFrom(_from: address, _to: address, _value: uint256) -> bool: nonpayable
