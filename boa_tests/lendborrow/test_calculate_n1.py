@@ -1,12 +1,15 @@
 from math import log2
-from brownie.test import given, strategy
+from hypothesis import given, settings
+from hypothesis import strategies as st
+from datetime import timedelta
 
 
 @given(
-    n=strategy('int256', min_value=5, max_value=50),
-    debt=strategy('uint256', min_value=10**6, max_value=2 * 10**6 * 10**18),
-    collateral=strategy('uint256', min_value=10**6, max_value=10**9 * 10**18 // 3000),
+    n=st.integers(min_value=5, max_value=50),
+    debt=st.integers(min_value=10**6, max_value=2 * 10**6 * 10**18),
+    collateral=st.integers(min_value=10**6, max_value=10**9 * 10**18 // 3000),
 )
+@settings(deadline=timedelta(seconds=1000))
 def test_n1(market_amm, market_controller, collateral, debt, n):
     n0 = market_amm.active_band()
     A = market_amm.A()
@@ -18,8 +21,8 @@ def test_n1(market_amm, market_controller, collateral, debt, n):
     try:
         n1 = market_controller.calculate_debt_n1(collateral, debt, n)
     except Exception as e:
-        too_high = str(e) == 'revert: Debt too high'
-        too_deep = str(e) == 'revert: Too deep'
+        too_high = 'Debt too high' in str(e)
+        too_deep = 'Too deep' in str(e)
         if not too_high and not too_deep:
             raise
     if too_high:
