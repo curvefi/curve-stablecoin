@@ -148,6 +148,8 @@ class BigFuzz(RuleBasedStateMachine):
                 except Exception:
                     if user_stablecoin > 0:
                         return
+                    if (user_collateral - y) // N <= 100:
+                        return
                     if user_collateral - y > min_collateral:
                         raise
                     else:
