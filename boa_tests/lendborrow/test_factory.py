@@ -44,7 +44,7 @@ def test_add_market(controller_factory, collateral_token, price_oracle, monetary
 
             assert controller.factory().lower() == controller_factory.address.lower()
             assert controller.collateral_token().lower() == collateral_token.address.lower()
-            assert controller.amm().lower() == amm.address.lower()  # <- boa fails without lower here?!? XXX
+            assert controller.amm().lower() == amm.address.lower()
             assert controller.monetary_policy().lower() == monetary_policy.address.lower()
             assert controller.liquidation_discount() == 2 * 10**16
             assert controller.loan_discount()  == 5 * 10**16
