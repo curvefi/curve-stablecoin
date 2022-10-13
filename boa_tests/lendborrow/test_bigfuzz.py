@@ -470,7 +470,6 @@ def test_debt_eq_repay_no_coins(
     for k, v in locals().items():
         setattr(BigFuzz, k, v)
     state = BigFuzz()
-    state = BigFuzz()
     state.debt_supply()
     state.trade(is_pump=False, r=0.0, uid=0)
     state.debt_supply()
@@ -483,4 +482,17 @@ def test_debt_eq_repay_no_coins(
     state.trade(is_pump=True, r=1.0, uid=0)
     state.debt_supply()
     state.repay(ratio=1.0, uid=1)
+    state.teardown()
+
+
+def test_amount_not_too_low(
+        controller_factory, market_amm, market_controller, monetary_policy, collateral_token, stablecoin, price_oracle, accounts, admin):
+    for k, v in locals().items():
+        setattr(BigFuzz, k, v)
+    state = BigFuzz()
+    state = BigFuzz()
+    state.debt_supply()
+    state.deposit(n=5, ratio=0.0004882816574536263, uid=0, y=505)
+    state.debt_supply()
+    state.remove_collateral(uid=0, y=3)
     state.teardown()
