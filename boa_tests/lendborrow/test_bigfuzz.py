@@ -490,7 +490,6 @@ def test_amount_not_too_low(
     for k, v in locals().items():
         setattr(BigFuzz, k, v)
     state = BigFuzz()
-    state = BigFuzz()
     state.debt_supply()
     state.deposit(n=5, ratio=0.0004882816574536263, uid=0, y=505)
     state.debt_supply()
