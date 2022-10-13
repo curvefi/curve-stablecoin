@@ -183,3 +183,9 @@ def test_adiabatic(amm, price_oracle, collateral_token, borrowed_token, accounts
 
             if k != N_STEPS - 1:
                 p_o = int(p_o * p_o_mul)
+
+
+def test_adiabatic_fail_1(amm, price_oracle, collateral_token, borrowed_token, accounts, admin):
+    test_adiabatic.hypothesis.inner_test(
+        amm, price_oracle, collateral_token, borrowed_token, accounts, admin,
+        p_o_1=2296376199582847058288, p_o_2=2880636282130384399567, n1=19, dn=0, deposit_amount=1000000000000000000)
