@@ -497,3 +497,15 @@ def test_amount_not_too_low(
     state.debt_supply()
     state.remove_collateral(uid=0, y=3)
     state.teardown()
+
+
+def test_debt_too_high(
+        controller_factory, market_amm, market_controller, monetary_policy, collateral_token, stablecoin, price_oracle, accounts, admin):
+    for k, v in locals().items():
+        setattr(BigFuzz, k, v)
+    state = BigFuzz()
+    state.debt_supply()
+    state.deposit(n=24, ratio=0.8201103210449219, uid=0, y=18138)
+    state.debt_supply()
+    state.remove_collateral(uid=0, y=187)
+    state.teardown()
