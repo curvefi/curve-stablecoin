@@ -1,5 +1,10 @@
+import boa
 import pytest
 from math import log
+
+boa.interpret.set_cache_dir()
+boa.reset_env()
+
 
 PRICE = 3000
 
@@ -15,26 +20,24 @@ def approx(x1, x2, precision, abs_precision=None):
     return result or (abs(log(x1 / x2)) <= precision)
 
 
-@pytest.fixture(scope="module", autouse=True)
-def PriceOracle(DummyPriceOracle, accounts):
-    return DummyPriceOracle.deploy(accounts[0], PRICE * 10**18, {'from': accounts[0]})
+@pytest.fixture(scope="session")
+def accounts():
+    return [boa.env.generate_address() for i in range(10)]
 
 
-@pytest.fixture(scope="module", autouse=True)
-def ema_price_oracle(PriceOracle, EmaPriceOracle, accounts):
-    return EmaPriceOracle.deploy(10000, PriceOracle, PriceOracle.price.signature, {'from': accounts[0]})
+@pytest.fixture(scope="session")
+def admin():
+    return boa.env.generate_address()
 
 
-@pytest.fixture(scope="module", autouse=True)
-def collateral_token(ERC20Mock, accounts):
-    return ERC20Mock.deploy("Colalteral", "ETH", 18, {'from': accounts[0]})
+@pytest.fixture(scope="module")
+def collateral_token(admin):
+    with boa.env.prank(admin):
+        return boa.load('contracts/testing/ERC20Mock.vy', "Colalteral", "ETH", 18)
 
 
-@pytest.fixture(scope="module", autouse=True)
-def borrowed_token(ERC20Mock, accounts):
-    return ERC20Mock.deploy("Brrr", "USD", 6, {'from': accounts[0]})
-
-
-@pytest.fixture(autouse=True)
-def isolate(fn_isolation):
-    pass
+@pytest.fixture(scope="session")
+def price_oracle(admin):
+    with boa.env.prank(admin):
+        oracle = boa.load('contracts/testing/DummyPriceOracle.vy', admin, PRICE * 10**18)
+        return oracle
