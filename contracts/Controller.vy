@@ -154,18 +154,7 @@ def __init__(
     COLLATERAL_TOKEN = ERC20(collateral_token)
     COLLATERAL_PRECISION = 10 ** (18 - ERC20(collateral_token).decimals())
 
-    # >> SQRT_BAND_RATIO calculated in-place to not store sqrt bytecode
-    x: uint256 = 10**18 * _A / (_A - 1)
-    z: uint256 = (x + 10**18) / 2
-    y: uint256 = x
-
-    for i in range(256):
-        if z == y:
-            break
-        y = z
-        z = (x * 10**18 / z + z) / 2
-    SQRT_BAND_RATIO = y
-    # << SQRT_BAND_RATIO
+    SQRT_BAND_RATIO = isqrt(10**36 * _A / (_A - 1))
 
     stablecoin.approve(msg.sender, max_value(uint256))
 
@@ -268,7 +257,7 @@ def total_debt() -> uint256:
 
 @internal
 @view
-def get_y_effective(collateral: uint256, N: uint256) -> uint256:
+def get_y_effective(N: uint256) -> uint256:
     """
     Intermediary method which calculates y_effective defined as x_effective * p_base,
     however discounted by loan_discount
@@ -278,8 +267,9 @@ def get_y_effective(collateral: uint256, N: uint256) -> uint256:
     # = y / N * p_oracle_up(n1) * sqrt((A - 1) / A) * sum_{0..N-1}(((A-1) / A)**k)
     # === d_y_effective * p_oracle_up(n1) * sum(...) === y_effective * p_oracle_up(n1)
     # d_y_effective = y / N / sqrt(A / (A - 1))
+    # This function calculates y_effective for 10**18 of collateral
     loan_discount: uint256 = 10**18 - self.loan_discount
-    d_y_effective: uint256 = collateral * loan_discount / (SQRT_BAND_RATIO * N)
+    d_y_effective: uint256 = 10**18 * loan_discount / (SQRT_BAND_RATIO * N)
     y_effective: uint256 = d_y_effective
     for i in range(1, MAX_TICKS_UINT):
         if i == N:
@@ -299,7 +289,7 @@ def _calculate_debt_n1(collateral: uint256, debt: uint256, N: uint256) -> int256
     # x_effective = y / N * p_oracle_up(n1) * sqrt((A - 1) / A) * sum_{0..N-1}(((A-1) / A)**k)
     # === d_y_effective * p_oracle_up(n1) * sum(...) === y_effective * p_oracle_up(n1)
     # d_y_effective = y / N / sqrt(A / (A - 1))
-    y_effective: uint256 = self.get_y_effective(collateral * COLLATERAL_PRECISION, N)
+    y_effective: uint256 = unsafe_div(self.get_y_effective(N) * collateral * COLLATERAL_PRECISION, 10**18)
     # p_oracle_up(n1) = base_price * ((A - 1) / A)**n1
 
     # We borrow up until min band touches p_oracle,
@@ -336,17 +326,18 @@ def max_p_base() -> uint256:
     # Calculate max base price including skipping bands
     n1: int256 = AMM.active_band() + 1
     p_base: uint256 = AMM.p_oracle_up(n1)
-    p_oracle: uint256 = AMM.price_oracle() * Aminus1 / A
+    p_oracle: uint256 = unsafe_div(AMM.price_oracle() * Aminus1, A)
 
     for i in range(MAX_SKIP_TICKS + 1):
         n1 -= 1
         if AMM.bands_x(n1) != 0:
             break
+        p_base_prev: uint256 = p_base
         p_base = unsafe_div(p_base * A, Aminus1)
         if p_base > p_oracle:
-            break
+            return p_base_prev
 
-    return min(p_base, p_oracle)
+    return p_base
 
 
 @external
@@ -366,7 +357,7 @@ def max_borrowable(collateral: uint256, N: uint256) -> uint256:
     # When n1 -= 1:
     # p_oracle_up *= A / (A - 1)
 
-    y_effective: uint256 = self.get_y_effective(collateral * COLLATERAL_PRECISION, N)
+    y_effective: uint256 = self.get_y_effective(N) * collateral * COLLATERAL_PRECISION / 10**18
 
     x: uint256 = max(y_effective * self.max_p_base() / 10**18, 1) - 1
     return unsafe_div(x * (10**18 - 10**14), 10**18)  # Make it a bit smaller
@@ -375,7 +366,7 @@ def max_borrowable(collateral: uint256, N: uint256) -> uint256:
 @external
 @view
 def min_collateral(debt: uint256, N: uint256) -> uint256:
-    return debt * 10**18 / self.max_p_base() * 10**18 / self.get_y_effective(10**18, N) / COLLATERAL_PRECISION * 10**18 / (10**18 - 10**14)
+    return debt * 10**18 / self.max_p_base() * 10**18 / self.get_y_effective(N) / COLLATERAL_PRECISION * 10**18 / (10**18 - 10**14)
 
 
 @external
