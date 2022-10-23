@@ -543,26 +543,54 @@ def _health(user: address, debt: uint256, full: bool) -> int256:
             p: uint256 = AMM.price_oracle()
             p_up: uint256 = AMM.p_oracle_up(ns[0])
             if p > p_up:
-                health += convert((p - p_up) * AMM.get_y_up(user) / debt, int256)
+                health += convert((p - p_up) * AMM.get_sum_xy(user)[1] * COLLATERAL_PRECISION / debt, int256)
 
     return health
 
 
 @external
 @view
-def health_calculator(user: address, collateral: uint256, debt: uint256, N: uint256, n0: int256, full: bool) -> int256:
-    p0: uint256 = AMM.p_oracle_up(n0)
-    y_eff: uint256 = self.get_y_effective(collateral, N, 0)
+def health_calculator(user: address, d_collateral: int256, d_debt: int256, full: bool) -> int256:
+    xy: uint256[2] = AMM.get_sum_xy(user)
+    xy[1] *= COLLATERAL_PRECISION
+    ns: int256[2] = AMM.read_user_tick_numbers(user)
+    N: uint256 = convert(ns[1] - ns[0] + 1, uint256)
+
+    n1: int256 = 0
+    collateral: int256 = 0
+    x_eff: int256 = 0
+    debt: int256 = convert(self._debt_ro(user), int256) + d_debt
+    if debt == 0:
+        return max_value(int256)
+    assert debt > 0
+
+    active_band: int256 = AMM.active_band()
+    for i in range(MAX_SKIP_TICKS):
+        if AMM.bands_x(active_band) != 0:
+            break
+        active_band -= 1
+
+    if ns[0] > active_band:  # re-deposit
+        collateral = convert(xy[1], int256) + d_collateral
+        n1 = self._calculate_debt_n1(xy[1], convert(debt, uint256), N)
+
+    else:
+        n1 = ns[0]
+        x_eff = convert(AMM.get_x_down(user) * 10**18, int256)
+
+    p0: int256 = convert(AMM.p_oracle_up(n1), int256)
+    if ns[0] > active_band:
+        x_eff = convert(self.get_y_effective(convert(collateral, uint256), N, 0), int256) * p0
     ld: int256 = convert(self.liquidation_discounts[user], int256)
-    health: int256 = convert(y_eff * p0 / debt, int256)
+
+    health: int256 = x_eff / debt
     health = health - health * ld / 10**18 - 10**18
 
     if full:
-        active_band: int256 = AMM.active_band()
-        if n0 > active_band:  # We are not in liquidation mode
-            p_diff: uint256 = max(p0, AMM.price_oracle()) - p0
+        if n1 > active_band:  # We are not in liquidation mode
+            p_diff: int256 = max(p0, convert(AMM.price_oracle(), int256)) - p0
             if p_diff > 0:
-                health += convert(p_diff * collateral / debt, int256)
+                health += p_diff * collateral / debt
 
     return health
 
