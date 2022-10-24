@@ -560,9 +560,8 @@ def health_calculator(user: address, d_collateral: int256, d_debt: int256, full:
     collateral: int256 = 0
     x_eff: int256 = 0
     debt: int256 = convert(self._debt_ro(user), int256) + d_debt
-    if debt == 0:
+    if debt <= 0:
         return max_value(int256)
-    assert debt > 0
 
     active_band: int256 = AMM.active_band()
     for i in range(MAX_SKIP_TICKS):
