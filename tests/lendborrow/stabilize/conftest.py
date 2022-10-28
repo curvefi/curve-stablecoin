@@ -131,7 +131,7 @@ def peg_keepers(stablecoin_a, stablecoin_b, stableswap_a, stableswap_b, controll
 @pytest.fixture(scope="module")
 def agg_monetary_policy(peg_keepers, agg, controller_factory, admin):
     with boa.env.prank(admin):
-        return boa.load(
+        mp = boa.load(
                 'contracts/mpolicies/AggMonetaryPolicy.vy',
                 admin,
                 agg.address,
@@ -139,6 +139,8 @@ def agg_monetary_policy(peg_keepers, agg, controller_factory, admin):
                 [p.address for p in peg_keepers] + [ZERO_ADDRESS] * 3,
                 2 * 10**16,  # Sigma 2%
                 5 * 10**16)  # Target debt fraction 5%
+        mp.rate()
+        return mp
 
 
 @pytest.fixture(scope="module")
