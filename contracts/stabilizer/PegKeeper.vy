@@ -66,7 +66,8 @@ future_admin: public(address)
 receiver: public(address)
 future_receiver: public(address)
 
-admin_actions_deadline: public(uint256)
+new_admin_deadline: public(uint256)
+new_receiver_deadline: public(uint256)
 
 FACTORY: immutable(address)
 
@@ -264,10 +265,10 @@ def commit_new_admin(_new_admin: address):
     @param _new_admin Address of the new admin
     """
     assert msg.sender == self.admin  # dev: only admin
-    assert self.admin_actions_deadline == 0 # dev: active action
+    assert self.new_admin_deadline == 0 # dev: active action
 
     deadline: uint256 = block.timestamp + ADMIN_ACTIONS_DELAY
-    self.admin_actions_deadline = deadline
+    self.new_admin_deadline = deadline
     self.future_admin = _new_admin
 
 
@@ -279,11 +280,11 @@ def apply_new_admin():
     @dev Should be executed from new admin
     """
     assert msg.sender == self.future_admin  # dev: only new admin
-    assert block.timestamp >= self.admin_actions_deadline  # dev: insufficient time
-    assert self.admin_actions_deadline != 0  # dev: no active action
+    assert block.timestamp >= self.new_admin_deadline  # dev: insufficient time
+    assert self.new_admin_deadline != 0  # dev: no active action
 
     self.admin = self.future_admin
-    self.admin_actions_deadline = 0
+    self.new_admin_deadline = 0
 
 
 @external
@@ -294,10 +295,10 @@ def commit_new_receiver(_new_receiver: address):
     @param _new_receiver Address of the new receiver
     """
     assert msg.sender == self.admin  # dev: only admin
-    assert self.admin_actions_deadline == 0 # dev: active action
+    assert self.new_receiver_deadline == 0 # dev: active action
 
     deadline: uint256 = block.timestamp + ADMIN_ACTIONS_DELAY
-    self.admin_actions_deadline = deadline
+    self.new_receiver_deadline = deadline
     self.future_receiver = _new_receiver
 
 
@@ -307,20 +308,21 @@ def apply_new_receiver():
     """
     @notice Apply new receiver of profit
     """
-    assert block.timestamp >= self.admin_actions_deadline  # dev: insufficient time
-    assert self.admin_actions_deadline != 0  # dev: no active action
+    assert block.timestamp >= self.new_receiver_deadline  # dev: insufficient time
+    assert self.new_receiver_deadline != 0  # dev: no active action
 
     self.receiver = self.future_receiver
-    self.admin_actions_deadline = 0
+    self.new_receiver_deadline = 0
 
 
 @external
 @nonpayable
-def revert_new_staff():
+def revert_new_options():
     """
-    @notice Revert new admin of the Peg Keeper
+    @notice Revert new admin of the Peg Keeper or new receiver
     @dev Should be executed from admin
     """
     assert msg.sender == self.admin  # dev: only admin
 
-    self.admin_actions_deadline = 0
+    self.new_admin_deadline = 0
+    self.new_receiver_deadline = 0
