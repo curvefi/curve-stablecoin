@@ -151,7 +151,9 @@ def calculate_rate() -> uint256:
         pk_debt += pk.debt()
 
     power: int256 = (10**18 - p) * 10**18 / sigma  # high price -> negative pow -> low rate
-    power -= convert(pk_debt * 10**18 / CONTROLLER_FACTORY.total_debt() * 10**18 / target_debt_fraction, int256)
+    total_debt: uint256 = CONTROLLER_FACTORY.total_debt()
+    if total_debt > 0:
+        power -= convert(pk_debt * 10**18 / total_debt * 10**18 / target_debt_fraction, int256)
 
     return self.rate0 * self.exp(power) / 10**18
 
