@@ -16,6 +16,9 @@ interface AMM:
 interface Controller:
     def total_debt() -> uint256: view
 
+interface MonetaryPolicy:
+    def rate_write() -> uint256: nonpayable
+
 
 event AddMarket:
     collateral: address
@@ -128,14 +131,15 @@ def add_market(token: address, A: uint256, fee: uint256, admin_fee: uint256,
     assert liquidation_discount >= MIN_LIQUIDATION_DISCOUNT, "Liquidation discount too low"
     assert loan_discount <= MAX_LOAN_DISCOUNT, "Loan discount too high"
     assert loan_discount > liquidation_discount, "need loan_discount>liquidation_discount"
+    MonetaryPolicy(monetary_policy).rate_write()  # Test that MonetaryPolicy has correct ABI
 
-    p: uint256 = PriceOracle(_price_oracle_contract).price()
+    p: uint256 = PriceOracle(_price_oracle_contract).price()  # This also valudates price oracle ABI
     A_ratio: uint256 = 10**18 * A / (A - 1)
 
     amm: address = create_from_blueprint(
         self.amm_implementation,
         STABLECOIN.address, 10**(18 - STABLECOIN.decimals()),
-        token, 10**(18 - ERC20(token).decimals()),
+        token, 10**(18 - ERC20(token).decimals()),  # <- This validates ERC20 ABI
         A, isqrt(A_ratio * 10**18), self.ln_int(A_ratio),
         p, fee, admin_fee, _price_oracle_contract,
         code_offset=3)
@@ -188,6 +192,8 @@ def get_amm(collateral: address, i: uint256 = 0) -> address:
 @nonreentrant('lock')
 def set_implementations(controller: address, amm: address):
     assert msg.sender == self.admin
+    assert controller != empty(address)
+    assert amm != empty(address)
     self.controller_implementation = controller
     self.amm_implementation = amm
 
@@ -203,6 +209,7 @@ def set_admin(admin: address):
 @nonreentrant('lock')
 def set_fee_receiver(fee_receiver: address):
     assert msg.sender == self.admin
+    assert fee_receiver != empty(address)
     self.fee_receiver = fee_receiver
 
 
