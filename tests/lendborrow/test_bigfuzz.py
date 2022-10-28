@@ -87,9 +87,9 @@ class BigFuzz(RuleBasedStateMachine):
                 else:
                     try:
                         self.market_controller.create_loan(y, debt, n)
-                        assert debt < max_debt * (self.A / (self.A - 1))**0.4  # XXX move down
                     except Exception:
-                        pass
+                        return
+                    assert debt < max_debt * (self.A / (self.A - 1))**0.4
                 return
             else:
                 self.market_controller.create_loan(y, debt, n)
