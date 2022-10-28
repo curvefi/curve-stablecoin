@@ -509,3 +509,19 @@ def test_debt_too_high(
     state.debt_supply()
     state.remove_collateral(uid=0, y=187)
     state.teardown()
+
+
+def test_debt_too_high_2(
+        controller_factory, market_amm, market_controller, monetary_policy, collateral_token, stablecoin, price_oracle, accounts, admin):
+    for k, v in locals().items():
+        setattr(BigFuzz, k, v)
+    state = BigFuzz()
+    state.debt_supply()
+    state.shift_oracle(dp=0.0)
+    state.debt_supply()
+    state.shift_oracle(dp=-0.00877380371093752)
+    state.debt_supply()
+    state.shift_oracle(dp=-0.00390625)
+    state.debt_supply()
+    state.deposit(n=29, ratio=0.796142578125, uid=0, y=15877)
+    state.teardown()
