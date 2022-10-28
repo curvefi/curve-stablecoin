@@ -1,4 +1,3 @@
-import pytest
 from ...conftest import approx
 import boa
 
@@ -13,8 +12,8 @@ def test_price_aggregator(stableswap_a, stableswap_b, stablecoin_a, agg, admin):
     dt = 86400
 
     assert approx(agg.price(), 10**18, 1e-6)
-    assert agg.price_pairs(0)[0] == stableswap_a.address
-    assert agg.price_pairs(1)[0] == stableswap_b.address
+    assert agg.price_pairs(0)[0].lower() == stableswap_a.address.lower()
+    assert agg.price_pairs(1)[0].lower() == stableswap_b.address.lower()
 
     with boa.env.anchor():
         with boa.env.prank(admin):
