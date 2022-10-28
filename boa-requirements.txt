@@ -4,5 +4,6 @@ pytest
 pdbpp
 jedi
 pytest-xdist
+pytest-forked
 vyper==0.3.7
 ipython
