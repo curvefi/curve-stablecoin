@@ -322,9 +322,9 @@ def _calculate_debt_n1(collateral: uint256, debt: uint256, N: uint256) -> int256
 @view
 def max_p_base() -> uint256:
     # Calculate max base price including skipping bands
-    n1: int256 = AMM.active_band() + 1
+    n1: int256 = AMM.active_band() + 5  # Should be correct unless price changes suddenly by 5+ bands
     p_base: uint256 = AMM.p_oracle_up(n1)
-    p_oracle: uint256 = unsafe_div(AMM.price_oracle() * Aminus1, A)
+    p_oracle: uint256 = AMM.price_oracle()
 
     for i in range(MAX_SKIP_TICKS + 1):
         n1 -= 1
