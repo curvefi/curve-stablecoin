@@ -3,7 +3,6 @@
 interface ERC20:
     def mint(_to: address, _value: uint256) -> bool: nonpayable
     def burnFrom(_to: address, _value: uint256) -> bool: nonpayable
-    def transferFrom(_from: address, _to: address, _value: uint256) -> bool: nonpayable
     def balanceOf(_user: address) -> uint256: view
     def decimals() -> uint256: view
 

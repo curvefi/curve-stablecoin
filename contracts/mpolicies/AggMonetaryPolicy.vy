@@ -168,7 +168,7 @@ def rate() -> uint256:
 
 @external
 def rate_write() -> uint256:
-    # Not needed here but useful for more authomated policies
+    # Not needed here but useful for more automated policies
     # which change rate0 - for example rate0 targeting some fraction pl_debt/total_debt
     return self.calculate_rate()
 

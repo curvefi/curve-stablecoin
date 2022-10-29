@@ -2,18 +2,9 @@
 # Returns price of stablecoin in "dollars" based on multiple redeemable stablecoins
 # Recommended to use 3+ price sources
 
-interface ERC20:
-    def transfer(_to: address, _value: uint256) -> bool: nonpayable
-    def transferFrom(_from: address, _to: address, _value: uint256) -> bool: nonpayable
-    def decimals() -> uint256: view
-    def balanceOf(_user: address) -> uint256: view
-    def approve(_spender: address, _value: uint256) -> bool: nonpayable
-
-
 interface Stableswap:
     def price_oracle() -> uint256: view
     def coins(i: uint256) -> address: view
-    def balances(i: uint256) -> uint256: view
     def get_virtual_price() -> uint256: view
     def totalSupply() -> uint256: view
 

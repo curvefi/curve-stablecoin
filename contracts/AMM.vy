@@ -32,8 +32,6 @@
 interface ERC20:
     def transfer(_to: address, _value: uint256) -> bool: nonpayable
     def transferFrom(_from: address, _to: address, _value: uint256) -> bool: nonpayable
-    def decimals() -> uint256: view
-    def balanceOf(_user: address) -> uint256: view
     def approve(_spender: address, _value: uint256) -> bool: nonpayable
 
 interface PriceOracle:

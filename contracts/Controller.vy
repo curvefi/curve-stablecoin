@@ -2,7 +2,6 @@
 
 interface LLAMMA:
     def A() -> uint256: view
-    def get_base_price() -> uint256: view
     def get_p() -> uint256: view
     def active_band() -> int256: view
     def p_oracle_up(n: int256) -> uint256: view
@@ -27,7 +26,6 @@ interface LLAMMA:
     def has_liquidity(user: address) -> bool: view
 
 interface ERC20:
-    def totalSupply() -> uint256: view
     def transferFrom(_from: address, _to: address, _value: uint256) -> bool: nonpayable
     def transfer(_to: address, _value: uint256) -> bool: nonpayable
     def decimals() -> uint256: view

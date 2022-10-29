@@ -8,12 +8,10 @@
 
 interface StableAggregator:
     def price() -> uint256: view
-    def stablecoin() -> address: view
 
 interface CurvePool:
     def balances(i_coin: uint256) -> uint256: view
     def coins(i: uint256) -> address: view
-    def lp_token() -> address: view
     def add_liquidity(_amounts: uint256[2], _min_mint_amount: uint256) -> uint256: nonpayable
     def remove_liquidity_imbalance(_amounts: uint256[2], _max_burn_amount: uint256) -> uint256: nonpayable
     def get_virtual_price() -> uint256: view
@@ -23,7 +21,6 @@ interface CurvePool:
 
 interface ERC20:
     def approve(_spender: address, _amount: uint256): nonpayable
-    def balanceOf(arg0: address) -> uint256: view
 
 
 event Provide:

@@ -10,7 +10,6 @@
 from vyper.interfaces import ERC20
 
 interface Factory:
-    def convert_fees() -> bool: nonpayable
     def get_fee_receiver(_pool: address) -> address: view
     def admin() -> address: view
 
