@@ -31,6 +31,16 @@ event SetDebtCeiling:
     addr: address
     debt_ceiling: uint256
 
+event SetImplementations:
+    amm: address
+    controller: address
+
+event SetAdmin:
+    admin: address
+
+event SetFeeReceiver:
+    fee_receiver: address
+
 
 MAX_CONTROLLERS: constant(uint256) = 50000
 STABLECOIN: immutable(ERC20)
@@ -196,6 +206,7 @@ def set_implementations(controller: address, amm: address):
     assert amm != empty(address)
     self.controller_implementation = controller
     self.amm_implementation = amm
+    log SetImplementations(amm, controller)
 
 
 @external
@@ -203,6 +214,7 @@ def set_implementations(controller: address, amm: address):
 def set_admin(admin: address):
     assert msg.sender == self.admin
     self.admin = admin
+    log SetAdmin(admin)
 
 
 @external
@@ -211,6 +223,7 @@ def set_fee_receiver(fee_receiver: address):
     assert msg.sender == self.admin
     assert fee_receiver != empty(address)
     self.fee_receiver = fee_receiver
+    log SetFeeReceiver(fee_receiver)
 
 
 @external
