@@ -3,14 +3,12 @@ import boa
 
 def test_stablecoin_admin(controller_factory, stablecoin, accounts):
     with boa.env.anchor():
-        assert stablecoin.minters(controller_factory)
-        assert not stablecoin.minters(accounts[0])
+        assert stablecoin.minter().lower() == controller_factory.address.lower()
         with boa.reverts():
             with boa.env.prank(accounts[0]):
-                assert stablecoin.set_minter(accounts[1], True)
+                stablecoin.set_minter(accounts[1])
         with boa.env.prank(controller_factory.address):
-            stablecoin.set_minter(accounts[1], True)
-            stablecoin.set_minter(accounts[1], False)
+            stablecoin.set_minter(accounts[1])
 
 
 def test_stablecoin(controller_factory, stablecoin):

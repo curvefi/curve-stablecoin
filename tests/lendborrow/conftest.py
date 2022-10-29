@@ -40,8 +40,7 @@ def amm_impl(stablecoin, amm_interface, admin):
 def controller_factory(controller_prefactory, amm_impl, controller_impl, stablecoin, admin):
     with boa.env.prank(admin):
         controller_prefactory.set_implementations(controller_impl.address, amm_impl.address)
-        stablecoin.set_minter(controller_prefactory.address, True)
-        stablecoin.set_minter(admin, False)
+        stablecoin.set_minter(controller_prefactory.address)
     return controller_prefactory
 
 
