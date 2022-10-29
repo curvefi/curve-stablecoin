@@ -29,13 +29,26 @@ interface ERC20:
 event Provide:
     amount: uint256
 
-
 event Withdraw:
     amount: uint256
 
-
 event Profit:
     lp_amount: uint256
+
+event CommitNewReceiver:
+    receiver: address
+
+event ApplyNewReceiver:
+    receiver: address
+
+event CommitNewAdmin:
+    admin: address
+
+event ApplyNewAdmin:
+    admin: address
+
+event SetNewCallerShare:
+    caller_share: uint256
 
 
 # Time between providing/withdrawing coins
@@ -93,8 +106,11 @@ def __init__(_pool: CurvePool, _index: uint256, _receiver: address, _caller_shar
 
     self.admin = msg.sender
     self.receiver = _receiver
+    log ApplyNewAdmin(msg.sender)
+    log ApplyNewReceiver(_receiver)
 
     self.caller_share = _caller_share
+    log SetNewCallerShare(_caller_share)
 
     FACTORY = _factory
     AGGREGATOR = _aggregator
@@ -241,6 +257,8 @@ def set_new_caller_share(_new_caller_share: uint256):
 
     self.caller_share = _new_caller_share
 
+    log SetNewCallerShare(_new_caller_share)
+
 
 @external
 @nonpayable
@@ -271,6 +289,8 @@ def commit_new_admin(_new_admin: address):
     self.new_admin_deadline = deadline
     self.future_admin = _new_admin
 
+    log CommitNewAdmin(_new_admin)
+
 
 @external
 @nonpayable
@@ -279,12 +299,15 @@ def apply_new_admin():
     @notice Apply new admin of the Peg Keeper
     @dev Should be executed from new admin
     """
-    assert msg.sender == self.future_admin  # dev: only new admin
+    new_admin: address = self.future_admin
+    assert msg.sender == new_admin  # dev: only new admin
     assert block.timestamp >= self.new_admin_deadline  # dev: insufficient time
     assert self.new_admin_deadline != 0  # dev: no active action
 
-    self.admin = self.future_admin
+    self.admin = new_admin
     self.new_admin_deadline = 0
+
+    log ApplyNewAdmin(new_admin)
 
 
 @external
@@ -301,6 +324,8 @@ def commit_new_receiver(_new_receiver: address):
     self.new_receiver_deadline = deadline
     self.future_receiver = _new_receiver
 
+    log CommitNewReceiver(_new_receiver)
+
 
 @external
 @nonpayable
@@ -311,8 +336,11 @@ def apply_new_receiver():
     assert block.timestamp >= self.new_receiver_deadline  # dev: insufficient time
     assert self.new_receiver_deadline != 0  # dev: no active action
 
-    self.receiver = self.future_receiver
+    new_receiver: address = self.future_receiver
+    self.receiver = new_receiver
     self.new_receiver_deadline = 0
+
+    log ApplyNewReceiver(new_receiver)
 
 
 @external
@@ -326,3 +354,6 @@ def revert_new_options():
 
     self.new_admin_deadline = 0
     self.new_receiver_deadline = 0
+
+    log ApplyNewAdmin(self.admin)
+    log ApplyNewReceiver(self.receiver)
