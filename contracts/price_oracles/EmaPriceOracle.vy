@@ -7,10 +7,15 @@ MA_HALF_TIME: immutable(uint256)
 SIG_ADDRESS: immutable(address)
 SIG_METHOD: immutable(Bytes[4])
 
+MIN_MA_HALF_TIME: constant(uint256) = 30
+MAX_MA_HALF_TIME: constant(uint256) = 365 * 86400
+
 
 @external
 def __init__(ma_half_time: uint256,
              _price_oracle_contract:address, _price_oracle_sig: bytes32):
+    assert ma_half_time >= MIN_MA_HALF_TIME
+    assert ma_half_time <= MAX_MA_HALF_TIME
     MA_HALF_TIME = ma_half_time
     SIG_ADDRESS = _price_oracle_contract
     sig: Bytes[4] = slice(_price_oracle_sig, 28, 4)

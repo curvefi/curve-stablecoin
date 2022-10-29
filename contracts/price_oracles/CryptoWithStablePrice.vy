@@ -22,6 +22,9 @@ REDEEMABLE: immutable(address)
 IS_INVERSE: immutable(bool)
 MA_EXP_TIME: immutable(uint256)
 
+MIN_MA_EXP_TIME: constant(uint256) = 30
+MAX_MA_EXP_TIME: constant(uint256) = 365 * 86400
+
 last_price: public(uint256)
 last_timestamp: public(uint256)
 
@@ -49,6 +52,9 @@ def __init__(
     IS_INVERSE = is_inverse
     REDEEMABLE = _redeemable
     assert tricrypto.coins(0) == _redeemable
+
+    assert ma_exp_time <= MAX_MA_EXP_TIME
+    assert ma_exp_time >= MIN_MA_EXP_TIME
     MA_EXP_TIME = ma_exp_time
 
 

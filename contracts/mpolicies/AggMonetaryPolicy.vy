@@ -45,6 +45,10 @@ peg_keepers: public(PegKeeper[1001])
 PRICE_ORACLE: immutable(PriceOracle)
 CONTROLLER_FACTORY: immutable(ControllerFactory)
 
+MAX_TARGET_DEBT_FRACTION: constant(uint256) = 10**18
+MAX_SIGMA: constant(uint256) = 10**18
+MIN_SIGMA: constant(uint256) = 10**14
+
 
 @external
 def __init__(admin: address,
@@ -60,6 +64,10 @@ def __init__(admin: address,
         if peg_keepers[i].address == empty(address):
             break
         self.peg_keepers[i] = peg_keepers[i]
+
+    assert sigma >= MIN_SIGMA
+    assert sigma <= MAX_SIGMA
+    assert target_debt_fraction <= MAX_TARGET_DEBT_FRACTION
     self.sigma = convert(sigma, int256)
     self.target_debt_fraction = target_debt_fraction
 
@@ -181,6 +189,9 @@ def set_rate(rate: uint256):
 @external
 def set_sigma(sigma: uint256):
     assert msg.sender == self.admin
+    assert sigma >= MIN_SIGMA
+    assert sigma <= MAX_SIGMA
+
     self.sigma = convert(sigma, int256)
     log SetSigma(sigma)
 
@@ -188,5 +199,7 @@ def set_sigma(sigma: uint256):
 @external
 def set_target_debt_fraction(target_debt_fraction: uint256):
     assert msg.sender == self.admin
+    assert target_debt_fraction <= MAX_TARGET_DEBT_FRACTION
+
     self.target_debt_fraction = target_debt_fraction
     log SetTargetDebtFraction(target_debt_fraction)
