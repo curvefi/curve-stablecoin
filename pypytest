@@ -1,3 +1,4 @@
 #!/bin/bash
 
-pypy3 --jit enable_opts=all,threshold=50,vec=1,vec_all=1 -m pytest $@ --durations=0 -vv --disable-pytest-warnings
+pypy3 -m pytest $@ --durations=0 -vv --disable-pytest-warnings
+# pypy3 --jit enable_opts=all,threshold=50,vec=1,vec_all=1 -m pytest $@ --durations=0 -vv --disable-pytest-warnings
