@@ -99,7 +99,7 @@ COLLATERAL_PRECISION: immutable(uint256)
 BASE_PRICE: immutable(uint256)
 admin: public(address)
 
-A: immutable(uint256)
+A: public(immutable(uint256))
 Aminus1: immutable(uint256)
 A2: immutable(uint256)
 Aminus12: immutable(uint256)
@@ -183,12 +183,6 @@ def sqrt_int(_x: uint256) -> uint256:
 @view
 def collateral_token() -> address:
     return COLLATERAL_TOKEN.address
-
-
-@external
-@view
-def A() -> uint256:
-    return A
 
 
 @external
