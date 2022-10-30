@@ -969,7 +969,11 @@ def exchange(i: uint256, j: uint256, in_amount: uint256, min_amount: uint256, _f
 @view
 def get_xy_up(user: address, use_y: bool) -> uint256:
     """
-    Measure the amount of y in the band n if we adiabatically trade near p_oracle on the way up
+    @notice Measure the amount of y (collateral) in the band n if we adiabatically trade near p_oracle on the way up,
+            or the amount of x (stablecoin) if we trade adiabatically down
+    @param user User the amount is calculated for
+    @param use_y Calculate amount of collateral if True and of stablecoin if False
+    @return Amount of coins
     """
     ns: int256[2] = self._read_user_tick_numbers(user)
     ticks: uint256[MAX_TICKS] = self._read_user_ticks(user, ns[1] - ns[0] + 1)
@@ -1090,18 +1094,33 @@ def get_xy_up(user: address, use_y: bool) -> uint256:
 @external
 @view
 def get_y_up(user: address) -> uint256:
+    """
+    @notice Measure the amount of y (collateral) in the band n if we adiabatically trade near p_oracle on the way up
+    @param user User the amount is calculated for
+    @return Amount of coins
+    """
     return self.get_xy_up(user, True)
 
 
 @external
 @view
 def get_x_down(user: address) -> uint256:
+    """
+    @notice Measure the amount of x (stablecoin) if we trade adiabatically down
+    @param user User the amount is calculated for
+    @return Amount of coins
+    """
     return self.get_xy_up(user, False)
 
 
 @external
 @view
 def get_sum_xy(user: address) -> uint256[2]:
+    """
+    @notice A low-gas function to measure amounts of stablecoins and collateral which user currently owns
+    @param user User address
+    @return Amounts of (stablecoin, collateral) in a tuple
+    """
     x: uint256 = 0
     y: uint256 = 0
     ns: int256[2] = self._read_user_tick_numbers(user)
@@ -1122,8 +1141,8 @@ def get_sum_xy(user: address) -> uint256[2]:
 @view
 def get_amount_for_price(p: uint256) -> (uint256, bool):
     """
-    Amount necessary to be exchange to have the AMM at the final price p
-    :returns: amount, is_pump
+    @notice Amount necessary to be exchanged to have the AMM at the final price `p`
+    @return (amount, is_pump)
     """
     min_band: int256 = self.min_band
     max_band: int256 = self.max_band
@@ -1209,6 +1228,11 @@ def get_amount_for_price(p: uint256) -> (uint256, bool):
 
 @external
 def set_rate(rate: uint256) -> uint256:
+    """
+    @notice Set interest rate. That affects the dependence of AMM base price over time
+    @param rate New rate in units of int(fraction * 1e18) per second
+    @return rate_mul multiplier (e.g. 1.0 + integral(rate, dt))
+    """
     assert msg.sender == self.admin
     rate_mul: uint256 = self._rate_mul()
     self.rate_mul = rate_mul
@@ -1220,6 +1244,10 @@ def set_rate(rate: uint256) -> uint256:
 
 @external
 def set_fee(fee: uint256):
+    """
+    @notice Set AMM fee
+    @param fee Fee where 1e18 == 100%
+    """
     assert msg.sender == self.admin
     self.fee = fee
     log SetFee(fee)
@@ -1227,6 +1255,10 @@ def set_fee(fee: uint256):
 
 @external
 def set_admin_fee(fee: uint256):
+    """
+    @notice Set admin fee - fraction of the AMM fee to go to admin
+    @param fee Admin fee where 1e18 == 100%
+    """
     assert msg.sender == self.admin
     self.admin_fee = fee
     log SetAdminFee(fee)
@@ -1234,6 +1266,9 @@ def set_admin_fee(fee: uint256):
 
 @external
 def reset_admin_fees():
+    """
+    @notice Zero out AMM fees collected
+    """
     assert msg.sender == self.admin
     self.admin_fees_x = 0
     self.admin_fees_y = 0
@@ -1241,6 +1276,10 @@ def reset_admin_fees():
 
 @external
 def set_price_oracle(price_oracle: PriceOracle):
+    """
+    @notice Set a new price oracle contract
+    @param price_oracle Address of the new price oracle contract
+    """
     assert msg.sender == self.admin
     self.price_oracle_contract = price_oracle
     log SetPriceOracle(price_oracle.address)
