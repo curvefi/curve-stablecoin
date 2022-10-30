@@ -139,6 +139,20 @@ def __init__(
         admin_fee: uint256,
         _price_oracle_contract: address,
     ):
+    """
+    @notice LLAMMA constructor
+    @param _borrowed_token Token which is being borrowed
+    @param _collateral_token Token used as collateral
+    @param _collateral_precision Precision of collateral: we pass it because we want the blueprint to fit into bytecode
+    @param _A "Amplification coefficient" which also defines density of liquidity and band size. Relative band size is 1/_A
+    @param _sqrt_band_ratio Precomputed int(sqrt(A / (A - 1)) * 1e18)
+    @param _log_A_ratio Precomputed int(ln(A / (A - 1)) * 1e18)
+    @param _base_price Typically the initial crypto price at which AMM is deployed. Will correspond to band 0
+    @param fee Relative fee of the AMM: int(fee * 1e18)
+    @param admin_fee Admin fee: how much of fee goes to admin. 50% === int(0.5 * 1e18)
+    @param _price_oracle_contract External price oracle which has price() and price_w() methods
+           which both return current price of collateral multiplied by 1e18
+    """
     BORROWED_TOKEN = ERC20(_borrowed_token)
     BORROWED_PRECISION = _borrowed_precision
     COLLATERAL_TOKEN = ERC20(_collateral_token)
@@ -164,6 +178,10 @@ def __init__(
 
 @external
 def set_admin(_admin: address):
+    """
+    @notice Set admin of the AMM. Typically it's a controller (unless it's tests)
+    @param _admin Admin address
+    """
     assert self.admin == empty(address)
     self.admin = _admin
     assert BORROWED_TOKEN.approve(_admin, max_value(uint256), default_return_value=True)
@@ -173,31 +191,48 @@ def set_admin(_admin: address):
 @internal
 @pure
 def sqrt_int(_x: uint256) -> uint256:
-    # Make sqrt a function to not repeat isqrt's bytecode
+    """
+    @notice Wrapping isqrt builtin because otherwise it will be repeated every time instead of calling
+    @param _x Square root's input in "normal" units, e.g. sqrt_int(1) == 1
+    """
     return isqrt(_x)
 
 
 @external
 @view
 def collateral_token() -> address:
+    """
+    @notice Collateral token address
+    """
     return COLLATERAL_TOKEN.address
 
 
 @external
 @view
 def price_oracle() -> uint256:
+    """
+    @notice Value returned by the external price oracle contract
+    """
     return self.price_oracle_contract.price()
 
 
 @internal
 @view
 def _rate_mul() -> uint256:
+    """
+    @notice Rate multiplier which is 1.0 + integral(rate, dt)
+    @return Rate multiplier in units where 1.0 == 1e18
+    """
     return self.rate_mul + self.rate * (block.timestamp - self.rate_time)
 
 
 @external
 @view
 def get_rate_mul() -> uint256:
+    """
+    @notice Rate multiplier which is 1.0 + integral(rate, dt)
+    @return Rate multiplier in units where 1.0 == 1e18
+    """
     return self._rate_mul()
 
 
@@ -205,7 +240,8 @@ def get_rate_mul() -> uint256:
 @view
 def _base_price() -> uint256:
     """
-    Base price grows with time to account for interest rate (which is 0 by default)
+    @notice Price which corresponds to band 0.
+            Base price grows with time to account for interest rate (which is 0 by default)
     """
     return unsafe_div(BASE_PRICE * self._rate_mul(), 10**18)
 
@@ -213,12 +249,21 @@ def _base_price() -> uint256:
 @external
 @view
 def get_base_price() -> uint256:
+    """
+    @notice Price which corresponds to band 0.
+            Base price grows with time to account for interest rate (which is 0 by default)
+    """
     return self._base_price()
 
 
 @internal
 @view
 def _p_oracle_up(n: int256) -> uint256:
+    """
+    @notice Upper oracle price for the band to have liquidity when p = p_oracle
+    @param n Band number (can be negative)
+    @return Price at 1e18 base
+    """
     # p_oracle_up(n) = p_base * ((A - 1) / A) ** n
     # p_oracle_down(n) = p_base * ((A - 1) / A) ** (n + 1) = p_oracle_up(n+1)
     # return unsafe_div(self._base_price() * self.exp_int(-n * LOG_A_RATIO), 10**18)
@@ -262,7 +307,9 @@ def _p_oracle_up(n: int256) -> uint256:
 @view
 def _p_current_band(n: int256) -> uint256:
     """
-    Lower price of the band `n` at current `p_oracle`
+    @notice Lowest possible price of the band at current oracle price
+    @param n Band number (can be negative)
+    @return Price at 1e18 base
     """
     # k = (self.A - 1) / self.A  # equal to (p_down / p_up)
     # p_base = self.p_base * k ** n = p_oracle_up(n)
@@ -277,7 +324,9 @@ def _p_current_band(n: int256) -> uint256:
 @view
 def p_current_up(n: int256) -> uint256:
     """
-    Upper price of the band `n` at current `p_oracle`
+    @notice Highest possible price of the band at current oracle price
+    @param n Band number (can be negative)
+    @return Price at 1e18 base
     """
     return self._p_current_band(n + 1)
 
@@ -286,7 +335,9 @@ def p_current_up(n: int256) -> uint256:
 @view
 def p_current_down(n: int256) -> uint256:
     """
-    Lower price of the band `n` at current `p_oracle`
+    @notice Lowest possible price of the band at current oracle price
+    @param n Band number (can be negative)
+    @return Price at 1e18 base
     """
     return self._p_current_band(n)
 
@@ -295,7 +346,9 @@ def p_current_down(n: int256) -> uint256:
 @view
 def p_oracle_up(n: int256) -> uint256:
     """
-    Upper price of the band `n` when `p_oracle` == `p`
+    @notice Highest oracle price for the band to have liquidity when p = p_oracle
+    @param n Band number (can be negative)
+    @return Price at 1e18 base
     """
     return self._p_oracle_up(n)
 
@@ -304,7 +357,9 @@ def p_oracle_up(n: int256) -> uint256:
 @view
 def p_oracle_down(n: int256) -> uint256:
     """
-    Lower price of the band `n` when `p_oracle` == `p`
+    @notice Lowest oracle price for the band to have liquidity when p = p_oracle
+    @param n Band number (can be negative)
+    @return Price at 1e18 base
     """
     return self._p_oracle_up(n + 1)
 
@@ -312,6 +367,16 @@ def p_oracle_down(n: int256) -> uint256:
 @internal
 @view
 def _get_y0(x: uint256, y: uint256, p_o: uint256, p_o_up: uint256) -> uint256:
+    """
+    @notice Calculate y0 for the invariant based on current liquidity in band.
+            The value of y0 has a meaning of amount of collateral when band has no stablecoin
+            but current price is equal to both oracle price and upper band price.
+    @param x Amount of stablecoin in band
+    @param y Amount of collateral in band
+    @param p_o External oracle price
+    @param p_o_up Upper boundary of the band
+    @return y0
+    """
     assert p_o != 0
     # solve:
     # p_o * A * y0**2 - y0 * (p_oracle_up/p_o * (A-1) * x + p_o**2/p_oracle_up * A * y) - xy = 0
@@ -331,6 +396,12 @@ def _get_y0(x: uint256, y: uint256, p_o: uint256, p_o_up: uint256) -> uint256:
 @external
 @view
 def get_y0(_n: int256) -> uint256:
+    """
+    @notice Calculate y0 for the invariant based on current liquidity in band.
+            Unlike the internal method, this one reads most of the inputs from the state
+    @param _n Band number
+    @return y0
+    """
     n: int256 = _n
     if _n == max_value(int256):
         n = self.active_band
@@ -345,6 +416,13 @@ def get_y0(_n: int256) -> uint256:
 @internal
 @view
 def _get_p(n: int256, x: uint256, y: uint256) -> uint256:
+    """
+    @notice Get current AMM price in band
+    @param n Band number
+    @param x Amount of stablecoin in band
+    @param y Amount of collateral in band
+    @return Current price at 1e18 base
+    """
     p_o_up: uint256 = self._p_oracle_up(n)
     p_o: uint256 = self.price_oracle_contract.price()
 
@@ -371,6 +449,10 @@ def _get_p(n: int256, x: uint256, y: uint256) -> uint256:
 @external
 @view
 def get_p() -> uint256:
+    """
+    @notice Get current AMM price in active_band
+    @return Current price at 1e18 base
+    """
     n: int256 = self.active_band
     return self._get_p(n, self.bands_x[n], self.bands_y[n])
 
@@ -379,7 +461,9 @@ def get_p() -> uint256:
 @view
 def _read_user_tick_numbers(user: address) -> int256[2]:
     """
-    Unpacks and reads user tick numbers
+    @notice Unpacks and reads user tick numbers
+    @param user User address
+    @return Lowest and highest band the user deposited into
     """
     ns: int256 = self.user_shares[user].ns
     n2: int256 = unsafe_div(ns, 2**128)
@@ -393,6 +477,11 @@ def _read_user_tick_numbers(user: address) -> int256[2]:
 @external
 @view
 def read_user_tick_numbers(user: address) -> int256[2]:
+    """
+    @notice Unpacks and reads user tick numbers
+    @param user User address
+    @return Lowest and highest band the user deposited into
+    """
     return self._read_user_tick_numbers(user)
 
 
@@ -400,7 +489,10 @@ def read_user_tick_numbers(user: address) -> int256[2]:
 @view
 def _read_user_ticks(user: address, size: int256) -> uint256[MAX_TICKS]:
     """
-    Unpacks and reads user ticks
+    @notice Unpacks and reads user ticks (shares) for all the ticks user deposited into
+    @param user User address
+    @param size Number of ticks the user deposited into
+    @return Array of shares the user has
     """
     ticks: uint256[MAX_TICKS] = empty(uint256[MAX_TICKS])
     ptr: int256 = 0
@@ -419,6 +511,9 @@ def _read_user_ticks(user: address, size: int256) -> uint256[MAX_TICKS]:
 @external
 @view
 def can_skip_bands(n_end: int256) -> bool:
+    """
+    @notice Check that we have no liquidity between active_band and `n_end`
+    """
     n: int256 = self.active_band
     for i in range(MAX_SKIP_TICKS):
         if n_end > n:
@@ -442,12 +537,23 @@ def can_skip_bands(n_end: int256) -> bool:
 @external
 @view
 def has_liquidity(user: address) -> bool:
+    """
+    @notice Check if `user` has any liquidity in the AMM
+    """
     return self.user_shares[user].ticks[0] != 0
 
 
 @external
 @nonreentrant('lock')
 def deposit_range(user: address, amount: uint256, n1: int256, n2: int256, move_coins: bool):
+    """
+    @notice Deposit for a user in a range of bands. Only admin contract (Controller) can do it
+    @param user User address
+    @param amount Amount of collateral to deposit
+    @param n1 Lower band in the deposit range
+    @param n2 Upper band in the deposit range
+    @param move_coins Should we actually execute transferFrom, or should we not do anything (because the Controller will do)
+    """
     assert msg.sender == self.admin
 
     n0: int256 = self.active_band
@@ -538,6 +644,12 @@ def deposit_range(user: address, amount: uint256, n1: int256, n2: int256, move_c
 @external
 @nonreentrant('lock')
 def withdraw(user: address, move_to: address) -> uint256[2]:
+    """
+    @notice Withdraw all liquidity for the user. Only admin contract can do it
+    @param user User who owns liquidity
+    @param move_to Withdraw to address. If 0x0 - don't move coins but change the numbers (Controller will move coins instead)
+    @return Amount of [stablecoins, collateral] withdrawn
+    """
     assert msg.sender == self.admin
 
     ns: int256[2] = self._read_user_tick_numbers(user)
@@ -601,6 +713,18 @@ def withdraw(user: address, move_to: address) -> uint256[2]:
 @internal
 @view
 def calc_swap_out(pump: bool, in_amount: uint256, p_o: uint256) -> DetailedTrade:
+    """
+    @notice Calculate the amount which can be obtained as a result of exchange.
+            If couldn't exchange all - will also update the amount which was actually used.
+            Also returns other parameters related to state after swap.
+            This function is core to the AMM functionality.
+    @param pump Indicates whether the trade buys or sells collateral
+    @param in_amount Amount of token going in
+    @param p_o Current oracle price
+    @return Amounts spent and given out, initial and final bands of the AMM, new
+            amounts of coins in bands in the AMM, as well as admin fee charged,
+            all in one data structure
+    """
     # pump = True: borrowable (USD) in, collateral (ETH) out; going up
     # pump = False: collateral (ETH) in, borrowable (USD) out; going down
     min_band: int256 = self.min_band
@@ -723,7 +847,11 @@ def calc_swap_out(pump: bool, in_amount: uint256, p_o: uint256) -> DetailedTrade
 @view
 def _get_dxdy(i: uint256, j: uint256, in_amount: uint256) -> DetailedTrade:
     """
-    Method to be used to figure if we have some in_amount left or not
+    @notice Method to use to calculate out amount and spent in amount
+    @param i Input coin index
+    @param j Output coin index
+    @param in_amount Amount of input coin to swap
+    @return DetailedTrade with all swap results
     """
     assert (i == 0 and j == 1) or (i == 1 and j == 0), "Wrong index"
     out: DetailedTrade = empty(DetailedTrade)
@@ -743,6 +871,13 @@ def _get_dxdy(i: uint256, j: uint256, in_amount: uint256) -> DetailedTrade:
 @external
 @view
 def get_dy(i: uint256, j: uint256, in_amount: uint256) -> uint256:
+    """
+    @notice Method to use to calculate out amount
+    @param i Input coin index
+    @param j Output coin index
+    @param in_amount Amount of input coin to swap
+    @return Amount of coin j to give out
+    """
     return self._get_dxdy(i, j, in_amount).out_amount
 
 
@@ -750,31 +885,28 @@ def get_dy(i: uint256, j: uint256, in_amount: uint256) -> uint256:
 @view
 def get_dxdy(i: uint256, j: uint256, in_amount: uint256) -> (uint256, uint256):
     """
-    Method to be used to figure if we have some in_amount left or not
+    @notice Method to use to calculate out amount and spent in amount
+    @param i Input coin index
+    @param j Output coin index
+    @param in_amount Amount of input coin to swap
+    @return A tuple with in_amount used and out_amount returned
     """
     out: DetailedTrade = self._get_dxdy(i, j, in_amount)
     return (out.in_amount, out.out_amount)
 
 
-# Unused
-# @external
-# @view
-# def get_end_price(i: uint256, j: uint256, in_amount: uint256) -> uint256:
-#     out: DetailedTrade = self._get_dxdy(i, j, in_amount)
-#     x: uint256 = 0
-#     y: uint256 = 0
-#     if i == 0:  # pump
-#         x = out.ticks_in[abs(out.n2 - out.n1)]
-#         y = out.last_tick_j
-#     else:  # dump
-#         x = out.last_tick_j
-#         y = out.ticks_in[abs(out.n2 - out.n1)]
-#     return self._get_p(out.n2, x, y)
-
-
 @external
 @nonreentrant('lock')
 def exchange(i: uint256, j: uint256, in_amount: uint256, min_amount: uint256, _for: address = msg.sender) -> uint256:
+    """
+    @notice Exchanges two coins, callable by anyone
+    @param i Input coin index
+    @param j Output coin index
+    @param in_amount Amount of input coin to swap
+    @param min_amount Minimal amount to get as output (revert if less)
+    @param _for Address to send coins to
+    @return Amount of coins given out
+    """
     assert (i == 0 and j == 1) or (i == 1 and j == 0), "Wrong index"
     if in_amount == 0:
         return 0
