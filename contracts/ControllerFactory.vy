@@ -192,6 +192,7 @@ def add_market(token: address, A: uint256, fee: uint256, admin_fee: uint256,
         if self.collaterals_index[token][i] == 0:
             self.collaterals_index[token][i] = 2**128 + N
             break
+        assert i != 999, "Too many controllers for same collateral"
     self.controllers[N] = controller
     self.amms[N] = amm
     self.n_collaterals = N + 1
@@ -223,7 +224,6 @@ def get_controller(collateral: address, i: uint256 = 0) -> address:
     @param collateral Address of collateral token
     @param i Iterate over several controllers for collateral if needed
     """
-    # XXX double-check the logic with 2**128 thingy
     return self.controllers[self.collaterals_index[collateral][i] - 2**128]
 
 
