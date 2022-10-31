@@ -206,7 +206,6 @@ def total_debt() -> uint256:
     """
     @notice Sum of all debts across controllers
     """
-    # XXX this is not working with PegKeeper - need to include it also!
     total: uint256 = 0
     n_collaterals: uint256 = self.n_collaterals
     for i in range(MAX_CONTROLLERS):

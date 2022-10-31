@@ -42,6 +42,7 @@ CONTROLLER_FACTORY: immutable(ControllerFactory)
 MAX_TARGET_DEBT_FRACTION: constant(uint256) = 10**18
 MAX_SIGMA: constant(uint256) = 10**18
 MIN_SIGMA: constant(uint256) = 10**14
+MAX_EXP: constant(uint256) = 1000 * 10**18
 
 
 @external
@@ -110,7 +111,8 @@ def exp(power: int256) -> uint256:
         return 0
 
     if power >= 135305999368893231589:
-        raise "exp overflow"
+        # Return MAX_EXP when we are in overflow mode
+        return MAX_EXP
 
     x: int256 = unsafe_div(unsafe_mul(power, 2**96), 10**18)
 
@@ -153,11 +155,14 @@ def calculate_rate() -> uint256:
         pk_debt += pk.debt()
 
     power: int256 = (10**18 - p) * 10**18 / sigma  # high price -> negative pow -> low rate
-    total_debt: uint256 = CONTROLLER_FACTORY.total_debt()
-    if total_debt > 0:
-        power -= convert(pk_debt * 10**18 / total_debt * 10**18 / target_debt_fraction, int256)
+    if pk_debt > 0:
+        total_debt: uint256 = CONTROLLER_FACTORY.total_debt()
+        if total_debt == 0:
+            return 0
+        else:
+            power -= convert(pk_debt * 10**18 / total_debt * 10**18 / target_debt_fraction, int256)
 
-    return self.rate0 * self.exp(power) / 10**18
+    return self.rate0 * min(self.exp(power), MAX_EXP) / 10**18
 
 
 @view
