@@ -70,6 +70,12 @@ MIN_LIQUIDATION_DISCOUNT: constant(uint256) = 10**16
 def __init__(stablecoin: ERC20,
              admin: address,
              fee_receiver: address):
+    """
+    @notice Factory which creates both controllers and AMMs from blueprints
+    @param stablecoin Stablecoin address
+    @param admin Admin of the factory (ideally DAO)
+    @param fee_receiver Receiver of interest and admin fees
+    """
     STABLECOIN = stablecoin
     self.admin = admin
     self.fee_receiver = fee_receiver
@@ -78,7 +84,9 @@ def __init__(stablecoin: ERC20,
 @internal
 @pure
 def ln_int(_x: uint256) -> int256:
-    # Calculate log(A / (A - 1))
+    """
+    @notice Logarithm ln() function based on log2. Not very gas-efficient but brief
+    """
     # adapted from: https://medium.com/coinmonks/9aef8515136e
     # and vyper log implementation
     # This can be much more optimal but that's not important here
@@ -111,6 +119,12 @@ def stablecoin() -> ERC20:
 
 @internal
 def _set_debt_ceiling(addr: address, debt_ceiling: uint256, update: bool):
+    """
+    @notice Set debt ceiling for a market
+    @param addr Controller address
+    @param debt_ceiling Value for stablecoin debt ceiling
+    @param update Whether to actually update the debt ceiling (False is used for burning the residuals)
+    """
     old_debt_residual: uint256 = self.debt_ceiling_residual[addr]
 
     if debt_ceiling > old_debt_residual:
@@ -133,6 +147,19 @@ def add_market(token: address, A: uint256, fee: uint256, admin_fee: uint256,
                _price_oracle_contract: address,
                monetary_policy: address, loan_discount: uint256, liquidation_discount: uint256,
                debt_ceiling: uint256) -> address[2]:
+    """
+    @notice Add a new market, creating an AMM and a Controller from a blueprint
+    @param token Collateral token address
+    @param A Amplification coefficient; one band size is 1/A
+    @param fee AMM fee in the market's AMM
+    @param admin_fee AMM admin fee
+    @param _price_oracle_contract Address of price oracle contract for this market
+    @param monetary_policy Monetary policy for this market
+    @param loan_discount Loan discount: allowed to borrow only up to x_down * (1 - loan_discount)
+    @param liquidation_discount Discount which defines a bad liquidation threshold
+    @param debt_ceiling Debt ceiling for this market
+    @return (Controller, AMM)
+    """
     assert msg.sender == self.admin, "Only admin"
     assert A >= MIN_A and A <= MAX_A, "Wrong A"
     assert fee < MAX_FEE, "Fee too high"
@@ -176,6 +203,10 @@ def add_market(token: address, A: uint256, fee: uint256, admin_fee: uint256,
 @external
 @view
 def total_debt() -> uint256:
+    """
+    @notice Sum of all debts across controllers
+    """
+    # XXX this is not working with PegKeeper - need to include it also!
     total: uint256 = 0
     n_collaterals: uint256 = self.n_collaterals
     for i in range(MAX_CONTROLLERS):
@@ -188,18 +219,34 @@ def total_debt() -> uint256:
 @external
 @view
 def get_controller(collateral: address, i: uint256 = 0) -> address:
+    """
+    @notice Get controller address for collateral
+    @param collateral Address of collateral token
+    @param i Iterate over several controllers for collateral if needed
+    """
+    # XXX double-check the logic with 2**128 thingy
     return self.controllers[self.collaterals_index[collateral][i] - 2**128]
 
 
 @external
 @view
 def get_amm(collateral: address, i: uint256 = 0) -> address:
+    """
+    @notice Get AMM address for collateral
+    @param collateral Address of collateral token
+    @param i Iterate over several amms for collateral if needed
+    """
     return self.amms[self.collaterals_index[collateral][i] - 2**128]
 
 
 @external
 @nonreentrant('lock')
 def set_implementations(controller: address, amm: address):
+    """
+    @notice Set new implementations (blueprints) for controller and amm. Doesn't change existing ones
+    @param controller Address of the controller blueprint
+    @param amm Address of the AMM blueprint
+    """
     assert msg.sender == self.admin
     assert controller != empty(address)
     assert amm != empty(address)
@@ -211,6 +258,10 @@ def set_implementations(controller: address, amm: address):
 @external
 @nonreentrant('lock')
 def set_admin(admin: address):
+    """
+    @notice Set admin of the factory (should end up with DAO)
+    @param admin Address of the admin
+    """
     assert msg.sender == self.admin
     self.admin = admin
     log SetAdmin(admin)
@@ -219,6 +270,10 @@ def set_admin(admin: address):
 @external
 @nonreentrant('lock')
 def set_fee_receiver(fee_receiver: address):
+    """
+    @notice Set fee receiver who earns interest (DAO)
+    @param fee_receiver Address of the receiver
+    """
     assert msg.sender == self.admin
     assert fee_receiver != empty(address)
     self.fee_receiver = fee_receiver
@@ -228,6 +283,11 @@ def set_fee_receiver(fee_receiver: address):
 @external
 @nonreentrant('lock')
 def set_debt_ceiling(_to: address, debt_ceiling: uint256):
+    """
+    @notice Set debt ceiling of the address - mint the token amount given for it
+    @param _to Address to allow borrowing for
+    @param debt_ceiling Maximum allowed to be allowed to mint for it
+    """
     assert msg.sender == self.admin
     self._set_debt_ceiling(_to, debt_ceiling, True)
 
@@ -235,4 +295,8 @@ def set_debt_ceiling(_to: address, debt_ceiling: uint256):
 @external
 @nonreentrant('lock')
 def rug_debt_ceiling(_to: address):
+    """
+    @notice Remove stablecoins above the debt ceiling from the address and burn them
+    @param _to Address to remove stablecoins from
+    """
     self._set_debt_ceiling(_to, self.debt_ceiling[_to], False)
