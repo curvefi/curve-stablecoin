@@ -132,6 +132,15 @@ def __init__(
         loan_discount: uint256,
         liquidation_discount: uint256,
         amm: address):
+    """
+    @notice Controller constructor deployed by the factory from blueprint
+    @param collateral_token Token to use for collateral
+    @param monetary_policy Address of monetary policy
+    @param loan_discount Discount of the maximum loan size compare to get_x_down() value
+    @param liquidation_discount Discount of the maximum loan size compare to
+           get_x_down() for "bad liquidation" purposes
+    @param amm AMM address (Already deployed from blueprint)
+    """
     FACTORY = Factory(msg.sender)
     stablecoin: ERC20 = ERC20(Factory(msg.sender).stablecoin())
     STABLECOIN = stablecoin
@@ -160,6 +169,9 @@ def __init__(
 @internal
 @pure
 def log2(_x: uint256) -> int256:
+    """
+    @notice int(1e18 * log2(_x / 1e18))
+    """
     # adapted from: https://medium.com/coinmonks/9aef8515136e
     # and vyper log implementation
     # Might use more optimal solmate's log
@@ -191,29 +203,46 @@ def log2(_x: uint256) -> int256:
 @external
 @view
 def factory() -> Factory:
+    """
+    @notice Address of the factory
+    """
     return FACTORY
 
 
 @external
 @view
 def amm() -> LLAMMA:
+    """
+    @notice Address of the AMM
+    """
     return AMM
 
 
 @external
 @view
 def collateral_token() -> ERC20:
+    """
+    @notice Address of the collateral token
+    """
     return COLLATERAL_TOKEN
 
 
 @internal
 def _rate_mul_w() -> uint256:
+    """
+    @notice Getter for rate_mul (the one which is 1.0+) from the AMM
+    """
     rate: uint256 = min(self.monetary_policy.rate_write(), MAX_RATE)
     return AMM.set_rate(rate)
 
 
 @internal
 def _debt(user: address) -> (uint256, uint256):
+    """
+    @notice Get the value of debt and rate_mul and update the rate_mul counter
+    @param user User address
+    @return (debt, rate_mul)
+    """
     rate_mul: uint256 = self._rate_mul_w()
     loan: Loan = self.loans[user]
     if loan.initial_debt == 0:
@@ -225,6 +254,11 @@ def _debt(user: address) -> (uint256, uint256):
 @internal
 @view
 def _debt_ro(user: address) -> uint256:
+    """
+    @notice Get the value of debt without changing the state
+    @param user User address
+    @return Value of debt
+    """
     rate_mul: uint256 = AMM.get_rate_mul()
     loan: Loan = self.loans[user]
     if loan.initial_debt == 0:
@@ -236,18 +270,29 @@ def _debt_ro(user: address) -> uint256:
 @external
 @view
 def debt(user: address) -> uint256:
+    """
+    @notice Get the value of debt without changing the state
+    @param user User address
+    @return Value of debt
+    """
     return self._debt_ro(user)
 
 
 @external
 @view
 def loan_exists(user: address) -> bool:
+    """
+    @notice Check whether there is a loan of `user` in existence
+    """
     return self.loans[user].initial_debt > 0
 
 
 @external
 @view
 def total_debt() -> uint256:
+    """
+    @notice Total debt of this controller
+    """
     rate_mul: uint256 = AMM.get_rate_mul()
     loan: Loan = self._total_debt
     return loan.initial_debt * rate_mul / loan.rate_mul
@@ -257,9 +302,13 @@ def total_debt() -> uint256:
 @view
 def get_y_effective(collateral: uint256, N: uint256, discount: uint256) -> uint256:
     """
-    Intermediary method which calculates y_effective defined as x_effective * p_base,
-    however discounted by loan_discount
-    x_effective is an amount which can be obtained from collateral when liquidating
+    @notice Intermediary method which calculates y_effective defined as x_effective * p_base,
+            however discounted by loan_discount.
+            x_effective is an amount which can be obtained from collateral when liquidating
+    @param collateral Amount of collateral to get the value for
+    @param N Number of bands the deposit is made into
+    @param discount Loan discount at 1e18 base (e.g. 1e18 == 100%)
+    @return y_effective
     """
     # x_effective = sum_{i=0..N-1}(y / N * p(n_{n1+i})) =
     # = y / N * p_oracle_up(n1) * sqrt((A - 1) / A) * sum_{0..N-1}(((A-1) / A)**k)
@@ -278,6 +327,14 @@ def get_y_effective(collateral: uint256, N: uint256, discount: uint256) -> uint2
 @internal
 @view
 def _calculate_debt_n1(collateral: uint256, debt: uint256, N: uint256) -> int256:
+    """
+    @notice Calculate the upper band number for the deposit to sit in to support
+            the given debt. Reverts if requested debt is too high.
+    @param collateral Amount of collateral (at its native precision)
+    @param debt Amount of requested debt
+    @param N Number of bands to deposit into
+    @return Upper band n1 (n1 <= n2) to deposit into. Signed integer
+    """
     assert debt > 0, "No loan"
     n0: int256 = AMM.active_band()
     p_base: uint256 = AMM.p_oracle_up(n0)
@@ -319,7 +376,9 @@ def _calculate_debt_n1(collateral: uint256, debt: uint256, N: uint256) -> int256
 @internal
 @view
 def max_p_base() -> uint256:
-    # Calculate max base price including skipping bands
+    """
+    @notice Calculate max base price including skipping bands
+    """
     n1: int256 = AMM.active_band() + 5  # Should be correct unless price changes suddenly by 5+ bands
     p_base: uint256 = AMM.p_oracle_up(n1)
     p_oracle: uint256 = AMM.price_oracle()
@@ -339,6 +398,12 @@ def max_p_base() -> uint256:
 @external
 @view
 def max_borrowable(collateral: uint256, N: uint256) -> uint256:
+    """
+    @notice Calculation of maximum which can be borrowed (details in comments)
+    @param collateral Collateral amount against which to borrow
+    @param N number of bands to have the deposit into
+    @return Maximum amount of stablecoin to borrow
+    """
     # Calculation of maximum which can be borrowed.
     # It corresponds to a minimum between the amount corresponding to price_oracle
     # and the one given by the min reachable band.
@@ -362,6 +427,12 @@ def max_borrowable(collateral: uint256, N: uint256) -> uint256:
 @external
 @view
 def min_collateral(debt: uint256, N: uint256) -> uint256:
+    """
+    @notice Minimal amount of collateral required to support debt
+    @param debt The debt to support
+    @param N Number of bands to deposit into
+    @return Minimal collateral required
+    """
     # Add N**2 to account for precision loss in multiple bands, e.g. N * 1 / (y/N) = N**2 / y
     return (debt * 10**18 / self.max_p_base() * 10**18 / self.get_y_effective(10**18, N, self.loan_discount) + N**2) / COLLATERAL_PRECISION * 10**18 / (10**18 - 10**14)
 
@@ -369,12 +440,27 @@ def min_collateral(debt: uint256, N: uint256) -> uint256:
 @external
 @view
 def calculate_debt_n1(collateral: uint256, debt: uint256, N: uint256) -> int256:
+    """
+    @notice Calculate the upper band number for the deposit to sit in to support
+            the given debt. Reverts if requested debt is too high.
+    @param collateral Amount of collateral (at its native precision)
+    @param debt Amount of requested debt
+    @param N Number of bands to deposit into
+    @return Upper band n1 (n1 <= n2) to deposit into. Signed integer
+    """
     return self._calculate_debt_n1(collateral, debt, N)
 
 
 @external
 @nonreentrant('lock')
 def create_loan(collateral: uint256, debt: uint256, N: uint256):
+    """
+    @notice Create loan
+    @param collateral Amount of collateral to use
+    @param debt Stablecoin debt to take
+    @param N Number of bands to deposit into (to do autoliquidation-deliquidation),
+           can be from MIN_TICKS to MAX_TICKS
+    """
     assert self.loans[msg.sender].initial_debt == 0, "Loan already created"
     assert N > MIN_TICKS-1, "Need more ticks"
     assert N < MAX_TICKS+1, "Need less ticks"
@@ -402,6 +488,13 @@ def create_loan(collateral: uint256, debt: uint256, N: uint256):
 
 @internal
 def _add_collateral_borrow(d_collateral: uint256, d_debt: uint256, _for: address, remove_collateral: bool):
+    """
+    @notice Internal method to borrow and add or remove collateral
+    @param d_collateral Amount of collateral to add
+    @param d_debt Amount of debt increase
+    @param _for Address to transfer tokens to
+    @param remove_collateral Remove collateral instead of adding
+    """
     debt: uint256 = 0
     rate_mul: uint256 = 0
     debt, rate_mul = self._debt(_for)
@@ -439,6 +532,11 @@ def _add_collateral_borrow(d_collateral: uint256, d_debt: uint256, _for: address
 @external
 @nonreentrant('lock')
 def add_collateral(collateral: uint256, _for: address = msg.sender):
+    """
+    @notice Add extra collateral to avoid bad liqidations
+    @param collateral Amount of collateral to add
+    @param _for Address to add collateral for
+    """
     if collateral == 0:
         return
     self._add_collateral_borrow(collateral, 0, _for, False)
@@ -448,6 +546,10 @@ def add_collateral(collateral: uint256, _for: address = msg.sender):
 @external
 @nonreentrant('lock')
 def remove_collateral(collateral: uint256):
+    """
+    @notice Remove some collateral without repaying the debt
+    @param collateral Amount of collateral to remove
+    """
     if collateral == 0:
         return
     self._add_collateral_borrow(collateral, 0, msg.sender, True)
@@ -457,6 +559,11 @@ def remove_collateral(collateral: uint256):
 @external
 @nonreentrant('lock')
 def borrow_more(collateral: uint256, debt: uint256):
+    """
+    @notice Borrow more stablecoins while adding more collateral (not necessary)
+    @param collateral Amount of collateral to add
+    @param debt Amount of stablecoin debt to take
+    """
     if debt == 0:
         return
     self._add_collateral_borrow(collateral, debt, msg.sender, False)
@@ -469,6 +576,11 @@ def borrow_more(collateral: uint256, debt: uint256):
 @external
 @nonreentrant('lock')
 def repay(_d_debt: uint256, _for: address):
+    """
+    @notice Repay debt (partially or fully)
+    @param _d_debt The amount of debt to repay. If higher than the current debt - will do full repayment
+    @param _for The user to repay the debt for
+    """
     if _d_debt == 0:
         return
     # Or repay all for MAX_UINT256
@@ -525,12 +637,17 @@ def repay(_d_debt: uint256, _for: address):
 @view
 def _health(user: address, debt: uint256, full: bool) -> int256:
     """
-    Returns position health normalized to 1e18 for the user.
-    Liquidation starts when < 0, however devaluation of collateral doesn't cause liquidation
+    @notice Returns position health normalized to 1e18 for the user.
+            Liquidation starts when < 0, however devaluation of collateral doesn't cause liquidation
+    @param user User address to calculate health for
+    @param debt The amount of debt to calculate health for
+    @param full Whether to take into account the price difference above the highest user's band
+    @return Health: > 0 = good.
     """
     _debt: int256 = convert(debt, int256)
     assert debt > 0, "Loan doesn't exist"
     xmax: int256 = convert(AMM.get_x_down(user), int256)
+    # XXX Check this! We could be double-counting the health limit here
     ld: int256 = convert(self.liquidation_discounts[user], int256)
     health: int256 = xmax * (10**18 - ld) / _debt - 10**18
 
@@ -549,6 +666,14 @@ def _health(user: address, debt: uint256, full: bool) -> int256:
 @external
 @view
 def health_calculator(user: address, d_collateral: int256, d_debt: int256, full: bool) -> int256:
+    """
+    @notice Health predictor in case user changes the debt or collateral
+    @param user Address of the user
+    @param d_collateral Change in collateral amount (signed)
+    @param d_debt Change in debt amount (signed)
+    @param full Whether it's a 'full' health or not
+    @return Signed health value
+    """
     xy: uint256[2] = AMM.get_sum_xy(user)
     xy[1] *= COLLATERAL_PRECISION
     ns: int256[2] = AMM.read_user_tick_numbers(user)
@@ -594,11 +719,18 @@ def health_calculator(user: address, d_collateral: int256, d_debt: int256, full:
 
 @internal
 def _liquidate(user: address, min_x: uint256, health_limit: uint256):
+    """
+    @notice Perform a bad liquidation of user if the health is too bad
+    @param user Address of the user
+    @param min_x Minimal amount of stablecoin to receive (to avoid liquidators being sandwiched)
+    @param health_limit Minimal health to liquidate at
+    """
     debt: uint256 = 0
     rate_mul: uint256 = 0
     debt, rate_mul = self._debt(user)
 
     if health_limit != 0:
+        # XXX Check this! We could be double-counting the health limit here
         assert self._health(user, debt, True) < convert(health_limit, int256), "Not enough rekt"
 
     # Send all the sender's stablecoin and collateral to our contract
@@ -639,18 +771,31 @@ def _liquidate(user: address, min_x: uint256, health_limit: uint256):
 @external
 @nonreentrant('lock')
 def liquidate(user: address, min_x: uint256):
+    """
+    @notice Peform a bad liquidation of user if health is not good
+    @param min_x Minimal amount of stablecoin to receive (to avoid liquidators being sandwiched)
+    """
     self._liquidate(user, min_x, self.liquidation_discounts[user])
 
 
 @external
 @nonreentrant('lock')
 def self_liquidate(min_x: uint256):
+    """
+    @notice Peform a self-liquidation to avoid a bad liquidation
+    @param min_x Minimal amount of stablecoin to receive (to avoid liquidators being sandwiched)
+    """
     self._liquidate(msg.sender, min_x, 0)
 
 
 @view
 @external
 def tokens_to_liquidate(user: address) -> uint256:
+    """
+    @notice Calculate the amount of stablecoins to have in liquidator's wallet to liquidate a user
+    @param user Address of the user to liquidate
+    @return The amount of stablecoins needed
+    """
     xy: uint256[2] = AMM.get_sum_xy(user)
     return max(self._debt_ro(user), xy[0]) - xy[0]
 
@@ -659,8 +804,8 @@ def tokens_to_liquidate(user: address) -> uint256:
 @external
 def health(user: address, full: bool = False) -> int256:
     """
-    Returns position health normalized to 1e18 for the user.
-    Liquidation starts when < 0, however devaluation of collateral doesn't cause liquidation
+    @notice Returns position health normalized to 1e18 for the user.
+             Liquidation starts when < 0, however devaluation of collateral doesn't cause liquidation
     """
     return self._health(user, self._debt_ro(user), full)
 
@@ -668,12 +813,20 @@ def health(user: address, full: bool = False) -> int256:
 @view
 @external
 def amm_price() -> uint256:
+    """
+    @notice Current price from the AMM
+    """
     return AMM.get_p()
 
 
 @view
 @external
 def user_prices(user: address) -> uint256[2]:  # Upper, lower
+    """
+    @notice Lowest price of the lower band and highest price of the upper band the user has deposit in the AMM
+    @param user User address
+    @return (upper_price, lower_price)
+    """
     assert AMM.has_liquidity(user)
     ns: int256[2] = AMM.read_user_tick_numbers(user) # ns[1] > ns[0]
     return [AMM.p_oracle_up(ns[0]), AMM.p_oracle_down(ns[1])]
@@ -681,7 +834,12 @@ def user_prices(user: address) -> uint256[2]:  # Upper, lower
 
 @view
 @external
-def user_state(user: address) -> uint256[4]:  # collateral, stablecoin, debt, N
+def user_state(user: address) -> uint256[4]:
+    """
+    @notice Return the user state in one call
+    @param user User to return the state for
+    @return (collateral, stablecoin, debt, N)
+    """
     xy: uint256[2] = AMM.get_sum_xy(user)
     ns: int256[2] = AMM.read_user_tick_numbers(user) # ns[1] > ns[0]
     return [xy[1], xy[0], self._debt_ro(user), convert(ns[1] - ns[0] + 1, uint256)]
@@ -689,20 +847,32 @@ def user_state(user: address) -> uint256[4]:  # collateral, stablecoin, debt, N
 
 @external
 def set_amm_fee(fee: uint256):
+    """
+    @notice Set the AMM fee (factory admin only)
+    @param fee The fee which should be no higher than MAX_FEE
+    """
     assert msg.sender == FACTORY.admin()
-    assert fee < MAX_FEE, "High fee"
+    assert fee <= MAX_FEE, "High fee"
     AMM.set_fee(fee)
 
 
 @external
 def set_amm_admin_fee(fee: uint256):
+    """
+    @notice Set AMM's admin fee
+    @param fee New admin fee (not higher than MAX_ADMIN_FEE)
+    """
     assert msg.sender == FACTORY.admin()
-    assert fee < MAX_ADMIN_FEE, "High fee"
+    assert fee <= MAX_ADMIN_FEE, "High fee"
     AMM.set_admin_fee(fee)
 
 
 @external
 def set_amm_price_oracle(price_oracle: PriceOracle):
+    """
+    @notice Set AMM's external price oracle contract
+    @param price_oracle Address of the price oracle contract
+    """
     assert msg.sender == FACTORY.admin()
     assert price_oracle.price_w() > 0
     assert price_oracle.price() > 0
@@ -711,6 +881,10 @@ def set_amm_price_oracle(price_oracle: PriceOracle):
 
 @external
 def set_monetary_policy(monetary_policy: address):
+    """
+    @notice Set monetary policy contract
+    @param monetary_policy Address of the monetary policy contract
+    """
     assert msg.sender == FACTORY.admin()
     self.monetary_policy = MonetaryPolicy(monetary_policy)
     MonetaryPolicy(monetary_policy).rate_write()
@@ -719,6 +893,11 @@ def set_monetary_policy(monetary_policy: address):
 
 @external
 def set_borrowing_discounts(loan_discount: uint256, liquidation_discount: uint256):
+    """
+    @notice Set discounts at which we can borrow (defines max LTV) and where bad liquidation starts
+    @param loan_discount Discount which defines LTV
+    @param liquidation_discount Discount where bad liquidation starts
+    """
     assert msg.sender == FACTORY.admin()
     assert loan_discount > liquidation_discount
     assert liquidation_discount >= MIN_LIQUIDATION_DISCOUNT
@@ -731,6 +910,9 @@ def set_borrowing_discounts(loan_discount: uint256, liquidation_discount: uint25
 @external
 @view
 def admin_fees() -> uint256:
+    """
+    @notice Calculate the amount of fees obtained from the interest
+    """
     rate_mul: uint256 = AMM.get_rate_mul()
     loan: Loan = self._total_debt
     loan.initial_debt = loan.initial_debt * rate_mul / loan.rate_mul
@@ -745,6 +927,9 @@ def admin_fees() -> uint256:
 @external
 @nonreentrant('lock')
 def collect_fees() -> uint256:
+    """
+    @notice Collect the fees charged as interest
+    """
     _to: address = FACTORY.fee_receiver()
     # AMM-based fees
     borrowed_fees: uint256 = AMM.admin_fees_x()
