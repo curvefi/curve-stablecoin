@@ -635,21 +635,23 @@ def repay(_d_debt: uint256, _for: address):
 
 @internal
 @view
-def _health(user: address, debt: uint256, full: bool) -> int256:
+def _health(user: address, debt: uint256, full: bool, liquidation_discount: uint256) -> int256:
     """
     @notice Returns position health normalized to 1e18 for the user.
             Liquidation starts when < 0, however devaluation of collateral doesn't cause liquidation
     @param user User address to calculate health for
     @param debt The amount of debt to calculate health for
     @param full Whether to take into account the price difference above the highest user's band
+    @param liquidation_discount Liquidation discount to use (can be 0)
     @return Health: > 0 = good.
     """
     _debt: int256 = convert(debt, int256)
     assert debt > 0, "Loan doesn't exist"
     xmax: int256 = convert(AMM.get_x_down(user), int256)
-    # XXX Check this! We could be double-counting the health limit here
-    ld: int256 = convert(self.liquidation_discounts[user], int256)
-    health: int256 = xmax * (10**18 - ld) / _debt - 10**18
+    health: int256 = 10**18
+    if liquidation_discount > 0:
+        health -= convert(liquidation_discount, int256)
+    health = xmax * health / _debt - 10**18
 
     if full:
         active_band: int256 = AMM.active_band()
@@ -730,8 +732,7 @@ def _liquidate(user: address, min_x: uint256, health_limit: uint256):
     debt, rate_mul = self._debt(user)
 
     if health_limit != 0:
-        # XXX Check this! We could be double-counting the health limit here
-        assert self._health(user, debt, True) < convert(health_limit, int256), "Not enough rekt"
+        assert self._health(user, debt, True, health_limit) < 0, "Not enough rekt"
 
     # Send all the sender's stablecoin and collateral to our contract
     xy: uint256[2] = AMM.withdraw(user, empty(address))  # [stable, collateral]
@@ -807,7 +808,7 @@ def health(user: address, full: bool = False) -> int256:
     @notice Returns position health normalized to 1e18 for the user.
              Liquidation starts when < 0, however devaluation of collateral doesn't cause liquidation
     """
-    return self._health(user, self._debt_ro(user), full)
+    return self._health(user, self._debt_ro(user), full, self.liquidation_discounts[user])
 
 
 @view

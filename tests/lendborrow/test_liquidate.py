@@ -42,7 +42,8 @@ def controller_for_liquidation(stablecoin, collateral_token, market_controller, 
         health_2 = market_controller.health(user)
         # Still healthy but liquidation threshold satisfied
         assert health_2 < discount
-        assert health_2 > 0
+        if discount > 0:
+            assert health_2 > 0
 
         with boa.env.prank(admin):
             # Stop charging fees to have enough coins to liquidate in existence a block before
@@ -62,7 +63,7 @@ def test_liquidate(accounts, admin, controller_for_liquidation, market_amm):
     fee_receiver = accounts[0]
 
     with boa.env.anchor():
-        controller = controller_for_liquidation(sleep_time=40 * 86400, discount=10**16)
+        controller = controller_for_liquidation(sleep_time=80 * 86400, discount=0)
         x = market_amm.get_sum_xy(user)[0]
 
         with boa.env.prank(fee_receiver):
@@ -76,7 +77,7 @@ def test_self_liquidate(accounts, admin, controller_for_liquidation, market_amm,
     fee_receiver = accounts[0]
 
     with boa.env.anchor():
-        controller = controller_for_liquidation(sleep_time=35 * 86400, discount=3 * 10**16)
+        controller = controller_for_liquidation(sleep_time=35 * 86400, discount=2.5 * 10**16)
 
         x = market_amm.get_sum_xy(user)[0]
         with boa.env.prank(fee_receiver):
