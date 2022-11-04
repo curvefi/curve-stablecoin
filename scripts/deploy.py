@@ -30,8 +30,7 @@ def main():
     amm_impl = deploy_blueprint(AMM, accounts[0], txparams)
 
     factory.set_implementations(controller_impl, amm_impl, txparams)
-    stablecoin.set_minter(factory, True, txparams)
-    stablecoin.set_minter(accounts[0], False, txparams)
+    stablecoin.set_minter(factory, txparams)
 
     if not mainnet:
         policy = ConstantMonetaryPolicy.deploy(admin, txparams)
