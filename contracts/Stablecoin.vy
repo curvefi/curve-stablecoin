@@ -64,7 +64,7 @@ def __init__(_name: String[64], _symbol: String[32]):
         _abi_encode(
             EIP712_TYPEHASH,
             keccak256(_name),
-            NAME_HASH,
+            VERSION_HASH,
             chain.id,
             self,
             block.prevhash,
