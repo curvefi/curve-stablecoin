@@ -119,6 +119,15 @@ def _domain_separator() -> bytes32:
 
 @external
 def transferFrom(_from: address, _to: address, _value: uint256) -> bool:
+    """
+    @notice Transfer tokens from one account to another.
+    @dev The caller needs to have an allowance from account `_from` greater than or
+        equal to the value being transferred. An allowance equal to the uint256 type's
+        maximum, is considered infinite and does not decrease.
+    @param _from The account which tokens will be spent from.
+    @param _to The account which tokens will be sent to.
+    @param _value The amount of tokens to be transferred.
+    """
     allowance: uint256 = self.allowance[_from][msg.sender]
     if allowance != max_value(uint256):
         self._approve(_from, msg.sender, allowance - _value)
