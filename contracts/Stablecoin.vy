@@ -18,6 +18,9 @@ event Transfer:
     receiver: indexed(address)
     value: uint256
 
+event SetMinter:
+    minter: indexed(address)
+
 
 decimals: public(constant(uint8)) = 18
 version: public(constant(String[8])) = "1"
@@ -46,6 +49,8 @@ totalSupply: public(uint256)
 
 nonces: public(HashMap[address, uint256])
 
+minter: public(address)
+
 
 @external
 def __init__(_name: String[64], _symbol: String[32]):
@@ -66,6 +71,9 @@ def __init__(_name: String[64], _symbol: String[32]):
         )
     )
 
+    self.minter = msg.sender
+    log SetMinter(msg.sender)
+
 
 @internal
 def _approve(_owner: address, _spender: address, _value: uint256):
@@ -80,16 +88,6 @@ def _burn(_from: address, _value: uint256):
     self.totalSupply -= _value
 
     log Transfer(_from, empty(address), _value)
-
-
-@internal
-def _mint(_to: address, _value: uint256):
-    assert _to not in [self, empty(address)]
-    
-    self.balanceOf[_to] += _value
-    self.totalSupply += _value
-
-    log Transfer(empty(address), _to, _value)
 
 
 @internal
@@ -212,6 +210,26 @@ def burnFrom(_from: address, _value: uint256) -> bool:
 def burn(_value: uint256) -> bool:
     self._burn(msg.sender, _value)
     return True
+
+
+@external
+def mint(_to: address, _value: uint256) -> bool:
+    assert msg.sender == self.minter
+    assert _to not in [self, empty(address)]
+
+    self.balanceOf[_to] += _value
+    self.totalSupply += _value
+
+    log Transfer(empty(address), _to, _value)
+    return True
+
+
+@external
+def set_minter(_new_minter: address):
+    assert msg.sender == self.minter
+
+    self.minter = _new_minter
+    log SetMinter(_new_minter)
 
 
 @view
