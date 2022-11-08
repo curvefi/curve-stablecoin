@@ -43,6 +43,14 @@ def _approve(_owner: address, _spender: address, _value: uint256):
 
 
 @internal
+def _burn(_from: address, _value: uint256):
+    self.balanceOf[_from] -= _value
+    self.totalSupply -= _value
+
+    log Transfer(_from, empty(address), _value)
+
+
+@internal
 def _transfer(_from: address, _to: address, _value: uint256):
     assert _to not in [self, empty(address)]
 
