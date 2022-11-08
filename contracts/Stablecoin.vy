@@ -149,6 +149,14 @@ def transfer(_to: address, _value: uint256) -> bool:
 
 @external
 def approve(_spender: address, _value: uint256) -> bool:
+    """
+    @notice Allow `_spender` to transfer up to `_value` amount of tokens from the caller's account.
+    @dev Non-zero to non-zero approvals are allowed, but should be used cautiously. The methods
+        increaseAllowance + decreaseAllowance are available to prevent any front-running that
+        may occur.
+    @param _spender The account permitted to spend up to `_value` amount of caller's funds.
+    @param _value The amount of tokens `_spender` is allowed to spend.
+    """
     self._approve(msg.sender, _spender, _value)
     return True
 
