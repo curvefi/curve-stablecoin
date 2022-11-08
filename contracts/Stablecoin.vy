@@ -202,12 +202,20 @@ def permit(
 
 @external
 def increaseAllowance(_spender: address, _add_value: uint256) -> bool:
+    """
+    @notice Increase the allowance granted to `_spender`.
+    @dev This function will never overflow, and instead will bound
+        allowance to MAX_UINT256. This has the potential to grant an
+        infinite approval.
+    @param _spender The account to increase the allowance of.
+    @param _add_value The amount to increase the allowance by.
+    """
     cached_allowance: uint256 = self.allowance[msg.sender][_spender]
     allowance: uint256 = unsafe_add(cached_allowance, _add_value)
 
     # check for an overflow
     if allowance < cached_allowance:
-        allowance = max_value(uint256)
+        allowance = max_value(uint256) - 1
     
     if allowance != cached_allowance:
         self._approve(msg.sender, _spender, allowance)
@@ -217,6 +225,13 @@ def increaseAllowance(_spender: address, _add_value: uint256) -> bool:
 
 @external
 def decreaseAllowance(_spender: address, _sub_value: uint256) -> bool:
+    """
+    @notice Decrease the allowance granted to `_spender`.
+    @dev This function will never underflow, and instead will bound
+        allowance to 0.
+    @param _spender The account to decrease the allowance of.
+    @param _sub_value The amount to decrease the allowance by.
+    """
     cached_allowance: uint256 = self.allowance[msg.sender][_spender]
     allowance: uint256 = unsafe_sub(cached_allowance, _sub_value)
 
