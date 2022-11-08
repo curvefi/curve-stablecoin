@@ -3,6 +3,9 @@
 @title Curve USD Stablecoin
 @author CurveFi
 """
+from vyper.interfaces import ERC20
+
+implements: ERC20
 
 
 event Approval:
