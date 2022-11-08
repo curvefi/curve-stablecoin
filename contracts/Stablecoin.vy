@@ -25,6 +25,9 @@ version: public(constant(String[8])) = "1"
 EIP712_TYPEHASH: constant(bytes32) = keccak256(
     "EIP712Domain(string name,string version,uint256 chainId,address verifyingContract,bytes32 salt)"
 )
+EIP2612_TYPEHASH: constant(bytes32) = keccak256(
+    "Permit(address owner,address spender,uint256 value,uint256 nonce,uint256 deadline)"
+)
 VERSION_HASH: constant(bytes32) = keccak256(version)
 
 
@@ -40,6 +43,8 @@ CACHED_DOMAIN_SEPARATOR: immutable(bytes32)
 allowance: public(HashMap[address, HashMap[address, uint256]])
 balanceOf: public(HashMap[address, uint256])
 totalSupply: public(uint256)
+
+nonces: public(HashMap[address, uint256])
 
 
 @external
@@ -133,6 +138,33 @@ def transfer(_to: address, _value: uint256) -> bool:
 @external
 def approve(_spender: address, _value: uint256) -> bool:
     self._approve(msg.sender, _spender, _value)
+    return True
+
+
+@external
+def permit(
+    _owner: address,
+    _spender: address,
+    _value: uint256,
+    _deadline: uint256,
+    _v: uint8,
+    _r: bytes32,
+    _s: bytes32,
+) -> bool:
+    assert _owner != empty(address) and block.timestamp <= _deadline
+
+    nonce: uint256 = self.nonces[_owner]
+    digest: bytes32 = keccak256(
+        concat(
+            b"\x19\x01",
+            self._domain_separator(),
+            keccak256(_abi_encode(EIP2612_TYPEHASH, _owner, _spender, _value, nonce, _deadline)),
+        )
+    )
+    assert ecrecover(digest, _v, _r, _s) == _owner
+
+    self.nonces[_owner] = nonce + 1
+    self._approve(_owner, _spender, _value)
     return True
 
 
