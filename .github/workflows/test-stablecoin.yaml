@@ -1,4 +1,4 @@
-name: factory
+name: stablecoin-tests
 
 on:
   pull_request:
@@ -40,9 +40,10 @@ jobs:
       uses: actions/setup-python@v2
       with:
         python-version: 3.8
+        cache: 'pip'
 
     - name: Install Requirements
       run: pip install -r brownie-requirements.txt -r boa-requirements.txt
 
     - name: Run Tests
-      run: brownie test -x tests/stablecoin
+      run: brownie test tests/stablecoin
