@@ -34,6 +34,7 @@ symbol: public(immutable(String[32]))
 NAME_HASH: immutable(bytes32)
 CACHED_CHAIN_ID: immutable(uint256)
 salt: public(immutable(bytes32))
+CACHED_DOMAIN_SEPARATOR: immutable(bytes32)
 
 
 allowance: public(HashMap[address, HashMap[address, uint256]])
@@ -43,12 +44,22 @@ totalSupply: public(uint256)
 
 @external
 def __init__(_name: String[64], _symbol: String[32]):
-    NAME = _name
-    SYMBOL = _symbol
+    name = _name
+    symbol = _symbol
 
     NAME_HASH = keccak256(_name)
     CACHED_CHAIN_ID = chain.id
     salt = block.prevhash
+    CACHED_DOMAIN_SEPARATOR = keccak256(
+        _abi_encode(
+            EIP712_TYPEHASH,
+            keccak256(_name),
+            NAME_HASH,
+            chain.id,
+            self,
+            block.prevhash,
+        )
+    )
 
 
 @internal
