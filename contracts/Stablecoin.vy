@@ -21,6 +21,7 @@ event Transfer:
 
 name: public(immutable(String[64]))
 symbol: public(immutable(String[32]))
+decimals: public(constant(uint8)) = 18
 
 
 allowance: public(HashMap[address, HashMap[address, uint256]])
