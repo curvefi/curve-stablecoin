@@ -171,6 +171,18 @@ def permit(
     _r: bytes32,
     _s: bytes32,
 ) -> bool:
+    """
+    @notice Permit `_spender` to spend up to `_value` amount of `_owner`'s tokens via a signature.
+    @dev In the event of a chain fork, replay attacks are prevented as domain separator is recalculated.
+        However, this is only if the resulting chains update their chainId.
+    @param _owner The account which generated the signature and is granting an allowance.
+    @param _spender The account which will be granted an allowance.
+    @param _value The approval amount.
+    @param _deadline The deadline by which the signature must be submitted.
+    @param _v The last byte of the ECDSA signature.
+    @param _r The first 32 bytes of the ECDSA signature.
+    @param _s The second 32 bytes of the ECDSA signature.
+    """
     assert _owner != empty(address) and block.timestamp <= _deadline
 
     nonce: uint256 = self.nonces[_owner]
