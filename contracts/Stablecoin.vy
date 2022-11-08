@@ -247,6 +247,12 @@ def decreaseAllowance(_spender: address, _sub_value: uint256) -> bool:
 
 @external
 def burnFrom(_from: address, _value: uint256) -> bool:
+    """
+    @notice Burn `_value` amount of tokens from `_from`.
+    @dev The caller must have previously been given an allowance by `_from`.
+    @param _from The account to burn the tokens from.
+    @param _value The amount of tokens to burn.
+    """
     allowance: uint256 = self.allowance[_from][msg.sender]
     if allowance != max_value(uint256):
         self._approve(_from, msg.sender, allowance - _value)
@@ -257,6 +263,10 @@ def burnFrom(_from: address, _value: uint256) -> bool:
 
 @external
 def burn(_value: uint256) -> bool:
+    """
+    @notice Burn `_value` amount of tokens.
+    @param _value The amount of tokens to burn.
+    """
     self._burn(msg.sender, _value)
     return True
 
