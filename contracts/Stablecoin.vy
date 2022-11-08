@@ -78,6 +78,16 @@ def _burn(_from: address, _value: uint256):
 
 
 @internal
+def _mint(_to: address, _value: uint256):
+    assert _to not in [self, empty(address)]
+    
+    self.balanceOf[_to] += _value
+    self.totalSupply += _value
+
+    log Transfer(empty(address), _to, _value)
+
+
+@internal
 def _transfer(_from: address, _to: address, _value: uint256):
     assert _to not in [self, empty(address)]
 
