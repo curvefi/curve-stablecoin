@@ -180,3 +180,9 @@ def burnFrom(_from: address, _value: uint256) -> bool:
 def burn(_value: uint256) -> bool:
     self._burn(msg.sender, _value)
     return True
+
+
+@view
+@external
+def DOMAIN_SEPARATOR() -> bytes32:
+    return self._domain_separator()
