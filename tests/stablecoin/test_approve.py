@@ -1,5 +1,6 @@
 from brownie import ZERO_ADDRESS, accounts
 import brownie
+import boa
 
 from eth_account._utils.structured_data.hashing import hash_domain, hash_message
 from copy import deepcopy
@@ -136,3 +137,12 @@ def test_permit_reverts_deadline_is_invalid(bob, chain, stablecoin):
 def test_permit_reverts_signature_is_invalid(bob, chain, stablecoin):
     with brownie.reverts():
         stablecoin.permit(bob, bob, 2**256 - 1, chain.time() + 600, 27, b"\x00" * 32, b"\x00" * 32, {"from": bob})
+
+
+def test_domain_separator_updates_when_chain_id_updates():
+    stablecoin = boa.load("contracts/Stablecoin.vy", "CurveFi USD Stablecoin", "crvUSD")
+
+    domain_separator = stablecoin.DOMAIN_SEPARATOR()
+    with boa.env.anchor():
+        boa.env.vm.patch.chain_id = 42
+        assert domain_separator != stablecoin.DOMAIN_SEPARATOR()
