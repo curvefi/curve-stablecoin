@@ -273,6 +273,12 @@ def burn(_value: uint256) -> bool:
 
 @external
 def mint(_to: address, _value: uint256) -> bool:
+    """
+    @notice Mint `_value` amount of tokens to `_to`.
+    @dev Only callable by the minter.
+    @param _to The account newly minted tokens are credited to.
+    @param _value The amount of tokens to mint.
+    """
     assert msg.sender == self.minter
     assert _to not in [self, empty(address)]
 
@@ -285,6 +291,11 @@ def mint(_to: address, _value: uint256) -> bool:
 
 @external
 def set_minter(_new_minter: address):
+    """
+    @notice Set `_new_minter` as the minter.
+    @dev Only callable by the current minter.
+    @param _new_minter The account to set as the minter.
+    """
     assert msg.sender == self.minter
 
     self.minter = _new_minter
@@ -294,4 +305,7 @@ def set_minter(_new_minter: address):
 @view
 @external
 def DOMAIN_SEPARATOR() -> bytes32:
+    """
+    @notice EIP712 domain separator.
+    """
     return self._domain_separator()
