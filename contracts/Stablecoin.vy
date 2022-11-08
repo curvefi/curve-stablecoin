@@ -72,3 +72,33 @@ def transfer(_to: address, _value: uint256) -> bool:
 def approve(_spender: address, _value: uint256) -> bool:
     self._approve(msg.sender, _spender, _value)
     return True
+
+
+@external
+def increaseAllowance(_spender: address, _add_value: uint256) -> bool:
+    cached_allowance: uint256 = self.allowance[msg.sender][_spender]
+    allowance: uint256 = unsafe_add(cached_allowance, _add_value)
+
+    # check for an overflow
+    if allowance < cached_allowance:
+        allowance = max_value(uint256)
+    
+    if allowance != cached_allowance:
+        self._approve(msg.sender, _spender, allowance)
+
+    return True
+
+
+@external
+def decreaseAllowance(_spender: address, _sub_value: uint256) -> bool:
+    cached_allowance: uint256 = self.allowance[msg.sender][_spender]
+    allowance: uint256 = unsafe_sub(cached_allowance, _sub_value)
+
+    # check for an underflow
+    if cached_allowance < allowance:
+        allowance = 0
+
+    if allowance != cached_allowance:
+        self._approve(msg.sender, _spender, allowance)
+
+    return True
