@@ -60,6 +60,13 @@ def test_transferFrom_with_infinite_allowance(alice, bob, stablecoin):
     assert "Approval" not in tx.events
     assert tx.return_value is True
 
+@pytest.mark.parametrize("idx", [0, 1])
+def test_transferFrom_reverts_invalid_receipient(alice, bob, stablecoin, idx):
+    receiver = [ZERO_ADDRESS, stablecoin][idx]
+    stablecoin.approve(bob, 2**256 - 1, {"from": alice})
+    
+    with brownie.reverts():
+        stablecoin.transferFrom(alice, receiver, AMOUNT, {"from": bob})
 
 def test_transferFrom_reverts_insufficient_allowance(alice, bob, stablecoin):
     with brownie.reverts():
