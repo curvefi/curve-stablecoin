@@ -46,3 +46,25 @@ def _transfer(_from: address, _to: address, _value: uint256):
     self.balanceOf[_to] += _value
 
     log Transfer(_from, _to, _value)
+
+
+@external
+def transferFrom(_from: address, _to: address, _value: uint256) -> bool:
+    allowance: uint256 = self.allowance[_from][msg.sender]
+    if allowance != max_value(uint256):
+        self._approve(_from, msg.sender, allowance - _value)
+
+    self._transfer(_from, _to, _value)
+    return True
+
+
+@external
+def transfer(_to: address, _value: uint256) -> bool:
+    self._transfer(msg.sender, _to, _value)
+    return True
+
+
+@external
+def approve(_spender: address, _value: uint256) -> bool:
+    self._approve(msg.sender, _spender, _value)
+    return True
