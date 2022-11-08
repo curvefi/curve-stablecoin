@@ -22,9 +22,16 @@ event Transfer:
 decimals: public(constant(uint8)) = 18
 version: public(constant(String[8])) = "1"
 
+EIP712_TYPEHASH: constant(bytes32) = keccak256(
+    "EIP712Domain(string name,string version,uint256 chainId,address verifyingContract,bytes32 salt)"
+)
+VERSION_HASH: constant(bytes32) = keccak256(version)
+
 
 name: public(immutable(String[64]))
 symbol: public(immutable(String[32]))
+
+NAME_HASH: immutable(bytes32)
 
 
 allowance: public(HashMap[address, HashMap[address, uint256]])
@@ -36,6 +43,8 @@ totalSupply: public(uint256)
 def __init__(_name: String[64], _symbol: String[32]):
     NAME = _name
     SYMBOL = _symbol
+
+    NAME_HASH = keccak256(_name)
 
 
 @internal
