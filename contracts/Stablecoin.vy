@@ -138,6 +138,11 @@ def transferFrom(_from: address, _to: address, _value: uint256) -> bool:
 
 @external
 def transfer(_to: address, _value: uint256) -> bool:
+    """
+    @notice Transfer tokens to `_to`.
+    @param _to The account to transfer tokens to.
+    @param _value The amount of tokens to transfer.
+    """
     self._transfer(msg.sender, _to, _value)
     return True
 
