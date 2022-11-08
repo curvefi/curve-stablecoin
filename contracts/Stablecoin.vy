@@ -19,8 +19,8 @@ event Transfer:
     value: uint256
 
 
-NAME: public(immutable(String[64]))
-SYMBOL: public(immutable(String[32]))
+name: public(immutable(String[64]))
+symbol: public(immutable(String[32]))
 
 
 allowance: public(HashMap[address, HashMap[address, uint256]])
