@@ -1,0 +1,48 @@
+name: factory
+
+on:
+  pull_request:
+    paths:
+    - 'tests/stablecoin/**/*.py'
+    - 'contracts/Stablecoin.vy'
+  push:
+    paths:
+    - 'tests/stablecoin/**/*.py'
+    - 'contracts/Stablecoin.vy'
+
+env:
+  ETHERSCAN_TOKEN: 9MKURTHE8FNA9NRUUJBHMUEVY6IQ5K1EGY
+  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  WEB3_INFURA_PROJECT_ID: 4b7217c6901c42f2bd9e8509baa0699d
+  NODE_OPTIONS: --max_old_space_size=4096
+
+jobs:
+  unitary:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: Cache Compiler Installations
+      uses: actions/cache@v2
+      with:
+        path: |
+          ~/.solcx
+          ~/.vvm
+          ~/.brownie
+        key: compiler-cache
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v1
+
+    - name: Install Ganache
+      run: npm install -g ganache-cli
+
+    - name: Setup Python 3.8
+      uses: actions/setup-python@v2
+      with:
+        python-version: 3.8
+
+    - name: Install Requirements
+      run: pip install -r brownie-requirements.txt -r boa-requirements.txt
+
+    - name: Run Tests
+      run: brownie test -x tests/stablecoin
