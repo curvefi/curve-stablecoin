@@ -215,7 +215,7 @@ def increaseAllowance(_spender: address, _add_value: uint256) -> bool:
 
     # check for an overflow
     if allowance < cached_allowance:
-        allowance = max_value(uint256) - 1
+        allowance = max_value(uint256)
     
     if allowance != cached_allowance:
         self._approve(msg.sender, _spender, allowance)
