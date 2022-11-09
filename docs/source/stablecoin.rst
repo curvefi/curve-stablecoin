@@ -19,6 +19,8 @@ Functions
     :reverts: If the caller has an insufficient allowance granted by the originating account.
     :reverts: If the receiving account is either the zero address, or the token contract itself.
     :reverts: If the originating account has an insufficient balance.
+    :log: :class:`Approval` - iff the caller's allowance is less than ``MAX_UINT256``.
+    :log: :class:`Transfer`
 
 .. function:: transfer(_to: address, _value: uint256) -> bool
 
@@ -30,6 +32,7 @@ Functions
     :rtype: bool
     :reverts: If the receiving account is either the zero address, or the token contract itself.
     :reverts: If the caller has an insufficient balance.
+    :log: :class:`Transfer`
 
 .. function:: approve(_spender: address, _value: uint256) -> bool
 
@@ -39,6 +42,7 @@ Functions
     :param uint256 _value: The total allowance amount.
     :returns: ``True`` iff the function is successful.
     :rtype: bool
+    :log: :class:`Approval`
 
 .. function:: permit(_owner: address, _spender: address, _value: uint256, _deadline: uint256, _v: uint8, _r: bytes32, _s: bytes32) -> bool
 
