@@ -46,6 +46,8 @@ Functions
 
 .. function:: permit(_owner: address, _spender: address, _value: uint256, _deadline: uint256, _v: uint8, _r: bytes32, _s: bytes32) -> bool
 
+    Allow an account to transfer up to ``_value`` amount of ``_owner``'s funds via a signature.
+
     :param address _owner: The account granting an approval and which generated the signature provided.
     :param address _spender: The account the allowance is granted to.
     :param uint256 _value: The total allowance amount.
@@ -62,7 +64,23 @@ Functions
 
 .. function:: increaseAllowance(_spender: address, _add_value: uint256) -> bool
 
+    Increase the allowance granted to ``_spender`` by the caller.
+
+    :param address _spender: The account to increase the allowance of.
+    :param uint256 _add_value: The amount to increase the allowance by.
+    :returns: ``True`` iff the function is successful.
+    :rtype: bool
+    :log: :class:`Approval`
+
 .. function:: decreaseAllowance(_spender: address, _sub_value: uint256) -> bool
+
+    Decrease the allowance granted to ``_spender`` by the caller.
+
+    :param address _spender: The account to decrease the allowance of.
+    :param uint256 _sub_value: The amount to decrease the allowance by.
+    :returns: ``True`` iff the function is successful.
+    :rtype: bool
+    :log: :class:`Approval`
 
 .. function:: burnFrom(_from: address, _value: uint256) -> bool
 
