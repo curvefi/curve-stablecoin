@@ -46,6 +46,20 @@ Functions
 
 .. function:: permit(_owner: address, _spender: address, _value: uint256, _deadline: uint256, _v: uint8, _r: bytes32, _s: bytes32) -> bool
 
+    :param address _owner: The account granting an approval and which generated the signature provided.
+    :param address _spender: The account the allowance is granted to.
+    :param uint256 _value: The total allowance amount.
+    :param uint256 _deadline: The timestamp after which the signature is considered invalid.
+    :param uint8 _v: The last byte of the generated signature. 
+    :param bytes32 _r: The first 32 byte chunk of the generated signature.
+    :param bytes32 _s: The second 32 byte chunk of the generated signature.
+    :returns: ``True`` iff the function is successful.
+    :rtype: bool
+    :reverts: If the ``_owner`` argument is the zero address.
+    :reverts: If the ``block.timestamp`` at execution is greater than the ``deadline`` argument.
+    :reverts: If the recovered signer is not equivalent to the ``_owner`` argument.
+    :log: :class:`Approval`
+
 .. function:: increaseAllowance(_spender: address, _add_value: uint256) -> bool
 
 .. function:: decreaseAllowance(_spender: address, _sub_value: uint256) -> bool
