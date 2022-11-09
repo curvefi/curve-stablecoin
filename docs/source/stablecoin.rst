@@ -8,7 +8,7 @@ Functions
 
 .. function:: transferFrom(_from: address, _to: address, _value: uint256) -> bool
 
-    Transfer tokens between two accounts using a previously granted approval from the
+    Transfer funds between two accounts using a previously granted approval from the
     originating account to the caller.
 
     :param address _from: The account funds will originate from.
@@ -22,7 +22,7 @@ Functions
 
 .. function:: transfer(_to: address, _value: uint256) -> bool
 
-    Transfer tokens from the caller to another account.
+    Transfer funds from the caller to another account.
 
     :param address _to: The account to credit funds to.
     :param uint256 _value: The amount of funds to transfer.
@@ -32,6 +32,13 @@ Functions
     :reverts: If the caller has an insufficient balance.
 
 .. function:: approve(_spender: address, _value: uint256) -> bool
+
+    Allow an account to transfer up to ``_value`` amount of the caller's funds.
+
+    :param address _spender: The account to grant an allowance to.
+    :param uint256 _value: The total allowance amount.
+    :returns: ``True`` iff the function is successful.
+    :rtype: bool
 
 .. function:: permit(_owner: address, _spender: address, _value: uint256, _deadline: uint256, _v: uint8, _r: bytes32, _s: bytes32) -> bool
 
