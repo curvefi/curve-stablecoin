@@ -66,21 +66,25 @@ Functions
 
     Increase the allowance granted to ``_spender`` by the caller.
 
+    **If an overflow were to occur, the allowance is instead set to** ``MAX_UINT256``.
+
     :param address _spender: The account to increase the allowance of.
     :param uint256 _add_value: The amount to increase the allowance by.
     :returns: ``True`` iff the function is successful.
     :rtype: bool
-    :log: :class:`Approval`
+    :log: :class:`Approval` - iff the allowance is updated to a new value.
 
 .. function:: decreaseAllowance(_spender: address, _sub_value: uint256) -> bool
 
     Decrease the allowance granted to ``_spender`` by the caller.
 
+    **If an underflow were to occur, the allowance is instead set to** ``0``.
+
     :param address _spender: The account to decrease the allowance of.
     :param uint256 _sub_value: The amount to decrease the allowance by.
     :returns: ``True`` iff the function is successful.
     :rtype: bool
-    :log: :class:`Approval`
+    :log: :class:`Approval` - iff the allowance is updated to a new value.
 
 .. function:: burnFrom(_from: address, _value: uint256) -> bool
 
