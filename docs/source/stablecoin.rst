@@ -8,7 +8,23 @@ Functions
 
 .. function:: transferFrom(_from: address, _to: address, _value: uint256) -> bool
 
+    Transfer tokens between two accounts using a previously granted approval from the
+    originating account to the caller.
+
+    :param address _from: The account funds will originate from.
+    :param address _to: The account to credit funds to.
+    :param uint256 _value: The amount of funds to transfer.
+    :returns: ``True`` iff the function is successful.
+    :rtype: bool
+
 .. function:: transfer(_to: address, _value: uint256) -> bool
+
+    Transfer tokens from the caller to another account.
+
+    :param address _to: The account to credit funds to.
+    :param uint256 _value: The amount of funds to transfer.
+    :returns: ``True`` iff the function is successful.
+    :rtype: bool
 
 .. function:: approve(_spender: address, _value: uint256) -> bool
 
