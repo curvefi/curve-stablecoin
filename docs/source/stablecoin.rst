@@ -16,6 +16,9 @@ Functions
     :param uint256 _value: The amount of funds to transfer.
     :returns: ``True`` iff the function is successful.
     :rtype: bool
+    :reverts: If the caller has an insufficient allowance granted by the originating account.
+    :reverts: If the receiving account is either the zero address, or the token contract itself.
+    :reverts: If the originating account has an insufficient balance.
 
 .. function:: transfer(_to: address, _value: uint256) -> bool
 
@@ -25,6 +28,8 @@ Functions
     :param uint256 _value: The amount of funds to transfer.
     :returns: ``True`` iff the function is successful.
     :rtype: bool
+    :reverts: If the receiving account is either the zero address, or the token contract itself.
+    :reverts: If the caller has an insufficient balance.
 
 .. function:: approve(_spender: address, _value: uint256) -> bool
 
