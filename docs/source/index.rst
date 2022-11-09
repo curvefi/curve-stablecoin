@@ -10,7 +10,7 @@ Welcome to Curve Stablecoin's documentation!
    :maxdepth: 2
    :caption: Contents:
 
-
+   stablecoin
 
 Indices and tables
 ==================
