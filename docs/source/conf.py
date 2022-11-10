@@ -19,6 +19,7 @@ extensions = []
 templates_path = ['_templates']
 exclude_patterns = []
 
+add_function_parentheses = False
 add_module_names = False
 
 # -- Options for HTML output -------------------------------------------------

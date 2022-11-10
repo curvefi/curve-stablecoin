@@ -38,6 +38,11 @@ Functions
 
     Allow an account to transfer up to ``_value`` amount of the caller's funds.
 
+    .. note::
+
+        This function is suceptible to front running as described `here <https://github.com/ethereum/EIPs/issues/20#issuecomment-263524729>`_.
+        Use the :func:`increaseAllowance` and :func:`decreaseAllowance` functions to mitigate the described race condition.
+
     :param address _spender: The account to grant an allowance to.
     :param uint256 _value: The total allowance amount.
     :returns: ``True`` iff the function is successful.
