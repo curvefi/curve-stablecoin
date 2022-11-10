@@ -93,7 +93,7 @@ Functions
 
 .. function:: burnFrom(_from: address, _value: uint256) -> bool
 
-    Burn tokens from an account using a previously granted allowance.
+    Burn funds from an account using a previously granted allowance.
 
     :param address _from: The account to burn funds from.
     :param uint256 _value: The amount of funds to burn.
@@ -106,7 +106,7 @@ Functions
 
 .. function:: burn(_value: uint256) -> bool
 
-    Burn tokens.
+    Burn funds.
 
     :param uint256 _value: The amount of funds to burn.
     :returns: ``True`` iff the function is successful.
@@ -116,7 +116,25 @@ Functions
 
 .. function:: mint(_to: address, _value: uint256) -> bool
 
+    Mint new funds to ``_to``.
+
+    :param address _to: The account to received the newly minted funds.
+    :param uint256 _value: The amount of funds to mint.
+    :returns: ``True`` iff the function is successful.
+    :rtype: bool
+    :reverts: If the caller is not the :func:`minter`.
+    :reverts: If the receiving account is either the zero address, or the token contract itself.
+    :reverts: If the :func:`balanceOf` the receiver overflows.
+    :reverts: If :func:`totalSupply` overflows.
+    :log: :class:`Transfer`
+
 .. function:: set_minter(_new_minter: address)
+
+    Set the minter, which is capable of calling :func:`mint`.
+
+    :param address _new_minter: The account to set as the new minter.
+    :reverts: If the caller is not the current :func:`minter`.
+    :log: :class:`SetMinter`
 
 View Functions
 --------------
