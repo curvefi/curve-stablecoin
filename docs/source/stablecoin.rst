@@ -93,7 +93,26 @@ Functions
 
 .. function:: burnFrom(_from: address, _value: uint256) -> bool
 
+    Burn tokens from an account using a previously granted allowance.
+
+    :param address _from: The account to burn funds from.
+    :param uint256 _value: The amount of funds to burn.
+    :returns: ``True`` iff the function is successful.
+    :rtype: bool
+    :reverts: If the caller has an insufficient allowance.
+    :reverts: If the account funds are to be burned from has an insufficient balance.
+    :log: :class:`Approval` - iff the caller's allowance is less than ``MAX_UINT256``.
+    :log: :class:`Transfer`
+
 .. function:: burn(_value: uint256) -> bool
+
+    Burn tokens.
+
+    :param uint256 _value: The amount of funds to burn.
+    :returns: ``True`` iff the function is successful.
+    :rtype: bool
+    :reverts: If the caller has an insufficient balance.
+    :log: :class:`Transfer`
 
 .. function:: mint(_to: address, _value: uint256) -> bool
 
