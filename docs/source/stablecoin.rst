@@ -136,8 +136,8 @@ Functions
     :reverts: If the caller is not the current :func:`minter`.
     :log: :class:`SetMinter`
 
-View Functions
---------------
+Read-Only Functions
+-------------------
 
 .. function:: DOMAIN_SEPARATOR() -> bytes32
 
