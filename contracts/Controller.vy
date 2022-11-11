@@ -696,7 +696,7 @@ def health_calculator(user: address, d_collateral: int256, d_debt: int256, full:
 
     if ns[0] > active_band:  # re-deposit
         collateral = convert(xy[1], int256) + d_collateral
-        n1 = self._calculate_debt_n1(xy[1], convert(debt, uint256), N)
+        n1 = self._calculate_debt_n1(convert(collateral, uint256), convert(debt, uint256), N)
 
     else:
         n1 = ns[0]
