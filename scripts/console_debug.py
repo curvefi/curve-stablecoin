@@ -62,5 +62,5 @@ def main():
     print('Controller:  ', controller.address)
 
     active_project = project.get_loaded_projects()[0]
-    shell = console.Console(active_project)
+    shell = console.Console(active_project, extra_locals=locals())
     shell.interact(banner="Deployment successful. Use `collateral_token`, `stablecoin`, `amm` and `controller` objects", exitmsg="")
