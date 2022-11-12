@@ -31,9 +31,17 @@ class StatefulLendBorrow(RuleBasedStateMachine):
     @contextmanager
     def health_calculator(self, user, d_collateral, d_amount):
         if self.controller.loan_exists(user):
-            future_health = self.controller.health_calculator(user, d_collateral, d_amount, False)
-            future_health_full = self.controller.health_calculator(user, d_collateral, d_amount, True)
+            calculation_success = True
+            try:
+                future_health = self.controller.health_calculator(user, d_collateral, d_amount, False)
+                future_health_full = self.controller.health_calculator(user, d_collateral, d_amount, True)
+            except Exception:
+                calculation_success = False
+
             yield
+
+            # If we are here - no exception has happened in the wrapped function
+            assert calculation_success
             if future_health > 10**36:
                 assert not self.controller.loan_exists(user)
             else:
@@ -144,7 +152,8 @@ class StatefulLendBorrow(RuleBasedStateMachine):
                     self.controller.add_collateral(c_amount, user)
                 return
 
-            self.controller.add_collateral(c_amount, user)
+            with self.health_calculator(user, c_amount, 0):
+                self.controller.add_collateral(c_amount, user)
 
     @rule(c_amount=c_amount, amount_frac=amount_frac, user_id=user_id)
     def borrow_more(self, c_amount, amount_frac, user_id):
@@ -197,7 +206,8 @@ class StatefulLendBorrow(RuleBasedStateMachine):
                     self.controller.borrow_more(c_amount, amount)
                 return
 
-            self.controller.borrow_more(c_amount, amount)
+            with self.health_calculator(user, c_amount, amount):
+                self.controller.borrow_more(c_amount, amount)
 
     @invariant()
     def debt_supply(self):
