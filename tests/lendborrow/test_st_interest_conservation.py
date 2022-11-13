@@ -71,7 +71,7 @@ class StatefulLendBorrow(RuleBasedStateMachine):
             except Exception:
                 return  # Probably overflow
 
-            if c_amount >= 2**128:
+            if c_amount // n >= 2**128:
                 with boa.reverts():
                     self.controller.create_loan(c_amount, amount, n)
                 return
