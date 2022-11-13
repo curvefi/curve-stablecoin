@@ -685,8 +685,7 @@ def health_calculator(user: address, d_collateral: int256, d_debt: int256, full:
     collateral: int256 = 0
     x_eff: int256 = 0
     debt: int256 = convert(self._debt_ro(user), int256) + d_debt
-    if debt <= 0:
-        return max_value(int256)
+    assert debt >= 0, "Negative debt"
 
     active_band: int256 = AMM.active_band()
     for i in range(MAX_SKIP_TICKS):
@@ -694,7 +693,7 @@ def health_calculator(user: address, d_collateral: int256, d_debt: int256, full:
             break
         active_band -= 1
 
-    if ns[0] > active_band:  # re-deposit
+    if ns[0] > active_band and (d_collateral != 0 or d_debt != 0):  # re-deposit
         collateral = convert(xy[1], int256) + d_collateral
         n1 = self._calculate_debt_n1(convert(collateral, uint256), convert(debt, uint256), N)
 
