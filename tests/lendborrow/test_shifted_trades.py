@@ -1,0 +1,27 @@
+from .test_health_in_trades import AdiabaticTrader
+from hypothesis import strategies as st
+from hypothesis.stateful import initialize, run_state_machine_as_test
+from hypothesis import settings
+from datetime import timedelta
+
+
+class ShiftedTrader(AdiabaticTrader):
+    oracle_shift = st.floats(min_value=-0.05, max_value=0.05)
+    collateral_amount = st.integers(min_value=10**10, max_value=10**18 * 10**6 // 3000)
+    n = st.integers(min_value=5, max_value=50)
+
+    @initialize(collateral_amount=collateral_amount, n=n, oracle_shift=oracle_shift)
+    def initializer(self, collateral_amount, n, oracle_shift):
+        super().initializer(collateral_amount, n)
+        self.price_shift = oracle_shift
+        self.shift_oracle(0)
+
+    def trade_to_price(self, p):
+        super().trade_to_price(int(p * (1 + self.price_shift)))
+
+
+def test_adiabatic_shifted(market_amm, market_controller, monetary_policy, collateral_token, stablecoin, price_oracle, accounts, admin):
+    ShiftedTrader.TestCase.settings = settings(max_examples=50, stateful_step_count=50, deadline=timedelta(seconds=1000))
+    for k, v in locals().items():
+        setattr(ShiftedTrader, k, v)
+    run_state_machine_as_test(ShiftedTrader)
