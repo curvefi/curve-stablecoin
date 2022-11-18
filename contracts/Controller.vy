@@ -667,24 +667,30 @@ def _health(user: address, debt: uint256, full: bool, liquidation_discount: uint
 
 @external
 @view
-def health_calculator(user: address, d_collateral: int256, d_debt: int256, full: bool) -> int256:
+def health_calculator(user: address, d_collateral: int256, d_debt: int256, full: bool, N: uint256 = 0) -> int256:
     """
     @notice Health predictor in case user changes the debt or collateral
     @param user Address of the user
     @param d_collateral Change in collateral amount (signed)
     @param d_debt Change in debt amount (signed)
     @param full Whether it's a 'full' health or not
+    @param N Number of bands in case loan doesn't yet exist
     @return Signed health value
     """
     xy: uint256[2] = AMM.get_sum_xy(user)
     xy[1] *= COLLATERAL_PRECISION
     ns: int256[2] = AMM.read_user_tick_numbers(user)
-    N: uint256 = convert(ns[1] - ns[0] + 1, uint256)
+    debt: int256 = convert(self._debt_ro(user), int256)
+    n: uint256 = N
+    if debt != 0:
+        n = convert(ns[1] - ns[0] + 1, uint256)
+    else:
+        ns[0] = max_value(int256)  # This will trigger a "re-deposit"
 
     n1: int256 = 0
     collateral: int256 = 0
     x_eff: int256 = 0
-    debt: int256 = convert(self._debt_ro(user), int256) + d_debt
+    debt += d_debt
     assert debt >= 0, "Negative debt"
 
     active_band: int256 = AMM.active_band()
@@ -695,7 +701,7 @@ def health_calculator(user: address, d_collateral: int256, d_debt: int256, full:
 
     if ns[0] > active_band and (d_collateral != 0 or d_debt != 0):  # re-deposit
         collateral = convert(xy[1], int256) + d_collateral
-        n1 = self._calculate_debt_n1(convert(collateral, uint256), convert(debt, uint256), N)
+        n1 = self._calculate_debt_n1(convert(collateral, uint256), convert(debt, uint256), n)
 
     else:
         n1 = ns[0]
@@ -703,7 +709,7 @@ def health_calculator(user: address, d_collateral: int256, d_debt: int256, full:
 
     p0: int256 = convert(AMM.p_oracle_up(n1), int256)
     if ns[0] > active_band:
-        x_eff = convert(self.get_y_effective(convert(collateral, uint256), N, 0), int256) * p0
+        x_eff = convert(self.get_y_effective(convert(collateral, uint256), n, 0), int256) * p0
     ld: int256 = convert(self.liquidation_discounts[user], int256)
 
     health: int256 = x_eff / debt
