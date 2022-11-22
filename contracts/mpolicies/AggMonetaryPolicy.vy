@@ -43,6 +43,7 @@ MAX_TARGET_DEBT_FRACTION: constant(uint256) = 10**18
 MAX_SIGMA: constant(uint256) = 10**18
 MIN_SIGMA: constant(uint256) = 10**14
 MAX_EXP: constant(uint256) = 1000 * 10**18
+MAX_RATE: constant(uint256) = 43959106799  # 400% APY
 
 
 @external
@@ -50,6 +51,7 @@ def __init__(admin: address,
              price_oracle: PriceOracle,
              controller_factory: ControllerFactory,
              peg_keepers: PegKeeper[5],
+             rate: uint256,
              sigma: uint256,
              target_debt_fraction: uint256):
     self.admin = admin
@@ -63,6 +65,8 @@ def __init__(admin: address,
     assert sigma >= MIN_SIGMA
     assert sigma <= MAX_SIGMA
     assert target_debt_fraction <= MAX_TARGET_DEBT_FRACTION
+    assert rate <= MAX_RATE
+    self.rate0 = rate
     self.sigma = convert(sigma, int256)
     self.target_debt_fraction = target_debt_fraction
 
@@ -181,6 +185,7 @@ def rate_write() -> uint256:
 @external
 def set_rate(rate: uint256):
     assert msg.sender == self.admin
+    assert rate <= MAX_RATE
     self.rate0 = rate
     log SetRate(rate)
 

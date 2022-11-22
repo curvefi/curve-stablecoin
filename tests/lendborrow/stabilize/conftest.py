@@ -137,6 +137,7 @@ def agg_monetary_policy(peg_keepers, agg, controller_factory, admin):
                 agg.address,
                 controller_factory.address,
                 [p.address for p in peg_keepers] + [ZERO_ADDRESS] * 3,
+                0,  # Rate
                 2 * 10**16,  # Sigma 2%
                 5 * 10**16)  # Target debt fraction 5%
         mp.rate()
