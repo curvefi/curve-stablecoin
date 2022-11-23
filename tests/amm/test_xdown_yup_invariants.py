@@ -23,41 +23,40 @@ Test that get_x_down and get_y_up don't change:
 def test_immediate(amm, price_oracle, collateral_token, borrowed_token, accounts, admin,
                    p_o, n1, dn, deposit_amount, f_pump, f_trade, is_pump):
     user = accounts[0]
-    with boa.env.anchor():
-        with boa.env.prank(admin):
-            price_oracle.set_price(p_o)
-            amm.set_fee(0)
-            collateral_token._mint_for_testing(user, deposit_amount)
-            amm.deposit_range(user, deposit_amount, n1, n1+dn, True)
-        pump_amount = int(p_o * deposit_amount / 10**18 * f_pump / 10**12)
+    with boa.env.prank(admin):
+        price_oracle.set_price(p_o)
+        amm.set_fee(0)
+        collateral_token._mint_for_testing(user, deposit_amount)
+        amm.deposit_range(user, deposit_amount, n1, n1+dn, True)
+    pump_amount = int(p_o * deposit_amount / 10**18 * f_pump / 10**12)
+    with boa.env.prank(user):
+        borrowed_token._mint_for_testing(user, pump_amount)
+        amm.exchange(0, 1, pump_amount, 0)
+
+    x0 = amm.get_x_down(user)
+    y0 = amm.get_y_up(user)
+
+    if is_pump:
+        trade_amount = int(p_o * deposit_amount / 10**18 * f_trade / 10**12)
         with boa.env.prank(user):
-            borrowed_token._mint_for_testing(user, pump_amount)
-            amm.exchange(0, 1, pump_amount, 0)
-
-        x0 = amm.get_x_down(user)
-        y0 = amm.get_y_up(user)
-
-        if is_pump:
-            trade_amount = int(p_o * deposit_amount / 10**18 * f_trade / 10**12)
-            with boa.env.prank(user):
-                borrowed_token._mint_for_testing(user, trade_amount)
-            i = 0
-            j = 1
-        else:
-            trade_amount = int(deposit_amount * f_trade)
-            with boa.env.prank(user):
-                collateral_token._mint_for_testing(user, trade_amount)
-            i = 1
-            j = 0
-
+            borrowed_token._mint_for_testing(user, trade_amount)
+        i = 0
+        j = 1
+    else:
+        trade_amount = int(deposit_amount * f_trade)
         with boa.env.prank(user):
-            amm.exchange(i, j, trade_amount, 0)
+            collateral_token._mint_for_testing(user, trade_amount)
+        i = 1
+        j = 0
 
-        x1 = amm.get_x_down(user)
-        y1 = amm.get_y_up(user)
+    with boa.env.prank(user):
+        amm.exchange(i, j, trade_amount, 0)
 
-        assert approx(x0, x1, 1e-9, 100)
-        assert approx(y0, y1, 1e-9, 100)
+    x1 = amm.get_x_down(user)
+    y1 = amm.get_y_up(user)
+
+    assert approx(x0, x1, 1e-9, 100)
+    assert approx(y0, y1, 1e-9, 100)
 
 
 def test_immediate_above_p0(amm, price_oracle, collateral_token, borrowed_token, accounts, admin):
@@ -140,52 +139,51 @@ def test_adiabatic(amm, price_oracle, collateral_token, borrowed_token, accounts
     N_STEPS = 101
     user = accounts[0]
 
-    with boa.env.anchor():
+    with boa.env.prank(admin):
+        amm.set_fee(0)
+        collateral_token._mint_for_testing(user, deposit_amount)
+        amm.deposit_range(user, deposit_amount, dn, n1+dn, True)
 
+    p_o = p_o_1
+    p_o_mul = (p_o_2 / p_o_1) ** (1 / (N_STEPS - 1))
+    precision = max(1.5 * abs(p_o_mul - 1) * (dn + 1) * (max(p_o_2, p_o_1) / min(p_o_2, p_o_1)), 1e-6)  # Emprical formula
+
+    x0 = 0
+    y0 = 0
+
+    for k in range(N_STEPS):
         with boa.env.prank(admin):
-            amm.set_fee(0)
-            collateral_token._mint_for_testing(user, deposit_amount)
-            amm.deposit_range(user, deposit_amount, dn, n1+dn, True)
+            price_oracle.set_price(p_o)
 
-        p_o = p_o_1
-        p_o_mul = (p_o_2 / p_o_1) ** (1 / (N_STEPS - 1))
-        precision = max(1.5 * abs(p_o_mul - 1) * (dn + 1) * (max(p_o_2, p_o_1) / min(p_o_2, p_o_1)), 1e-6)  # Emprical formula
+        amount, is_pump = amm.get_amount_for_price(p_o)
 
-        x0 = 0
-        y0 = 0
+        if is_pump:
+            i = 0
+            j = 1
+            borrowed_token._mint_for_testing(user, amount)
+        else:
+            i = 1
+            j = 0
+            collateral_token._mint_for_testing(user, amount)
 
-        for k in range(N_STEPS):
-            with boa.env.prank(admin):
-                price_oracle.set_price(p_o)
+        with boa.env.prank(user):
+            amm.exchange(i, j, amount, 0)
 
-            amount, is_pump = amm.get_amount_for_price(p_o)
+        if k == 0:
+            x0 = amm.get_x_down(user)
+            y0 = amm.get_y_up(user)
 
-            if is_pump:
-                i = 0
-                j = 1
-                borrowed_token._mint_for_testing(user, amount)
-            else:
-                i = 1
-                j = 0
-                collateral_token._mint_for_testing(user, amount)
+        x = amm.get_x_down(user)
+        y = amm.get_y_up(user)
+        assert approx(x, x0, precision)
+        assert approx(y, y0, precision)
 
-            with boa.env.prank(user):
-                amm.exchange(i, j, amount, 0)
-
-            if k == 0:
-                x0 = amm.get_x_down(user)
-                y0 = amm.get_y_up(user)
-
-            x = amm.get_x_down(user)
-            y = amm.get_y_up(user)
-            assert approx(x, x0, precision)
-            assert approx(y, y0, precision)
-
-            if k != N_STEPS - 1:
-                p_o = int(p_o * p_o_mul)
+        if k != N_STEPS - 1:
+            p_o = int(p_o * p_o_mul)
 
 
 def test_adiabatic_fail_1(amm, price_oracle, collateral_token, borrowed_token, accounts, admin):
-    test_adiabatic.hypothesis.inner_test(
-        amm, price_oracle, collateral_token, borrowed_token, accounts, admin,
-        p_o_1=2296376199582847058288, p_o_2=2880636282130384399567, n1=19, dn=0, deposit_amount=1000000000000000000)
+    with boa.env.anchor():
+        test_adiabatic.hypothesis.inner_test(
+            amm, price_oracle, collateral_token, borrowed_token, accounts, admin,
+            p_o_1=2296376199582847058288, p_o_2=2880636282130384399567, n1=19, dn=0, deposit_amount=1000000000000000000)

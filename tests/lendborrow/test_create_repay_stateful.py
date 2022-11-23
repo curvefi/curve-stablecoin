@@ -16,8 +16,6 @@ class StatefulLendBorrow(RuleBasedStateMachine):
 
     def __init__(self):
         super().__init__()
-        self.anchor = boa.env.anchor()
-        self.anchor.__enter__()
         self.controller = self.market_controller
         self.amm = self.market_amm
         self.debt_ceiling = self.controller_factory.debt_ceiling(self.controller)
@@ -191,9 +189,6 @@ class StatefulLendBorrow(RuleBasedStateMachine):
             if self.controller.loan_exists(user):
                 assert self.controller.health(user) > 0
 
-    def teardown(self):
-        self.anchor.__exit__(None, None, None)
-
 
 def test_stateful_lendborrow(controller_factory, market_amm, market_controller, collateral_token, stablecoin, accounts):
     StatefulLendBorrow.TestCase.settings = settings(max_examples=50, stateful_step_count=20, deadline=timedelta(seconds=1000))
@@ -205,35 +200,35 @@ def test_stateful_lendborrow(controller_factory, market_amm, market_controller, 
 def test_bad_health_underflow(controller_factory, market_amm, market_controller, collateral_token, stablecoin, accounts):
     for k, v in locals().items():
         setattr(StatefulLendBorrow, k, v)
-    state = StatefulLendBorrow()
-    state.create_loan(amount=1, c_amount=21, n=6, user_id=0)
-    state.health()
-    state.teardown()
+    with boa.env.anchor():
+        state = StatefulLendBorrow()
+        state.create_loan(amount=1, c_amount=21, n=6, user_id=0)
+        state.health()
 
 
 def test_overflow(controller_factory, market_amm, market_controller, collateral_token, stablecoin, accounts):
     for k, v in locals().items():
         setattr(StatefulLendBorrow, k, v)
-    state = StatefulLendBorrow()
-    state.create_loan(
-        amount=407364794483206832621538773467837164307398905518629081113581615337081836,
-        c_amount=41658360764272065869638360137931952069431923873907374062, n=5, user_id=0)
-    state.teardown()
+    with boa.env.anchor():
+        state = StatefulLendBorrow()
+        state.create_loan(
+            amount=407364794483206832621538773467837164307398905518629081113581615337081836,
+            c_amount=41658360764272065869638360137931952069431923873907374062, n=5, user_id=0)
 
 
 def test_health_overflow(controller_factory, market_amm, market_controller, collateral_token, stablecoin, accounts):
     for k, v in locals().items():
         setattr(StatefulLendBorrow, k, v)
-    state = StatefulLendBorrow()
-    state.create_loan(amount=256, c_amount=2787635851270792912435800128182537894764544, n=5, user_id=0)
-    state.health()
-    state.teardown()
+    with boa.env.anchor():
+        state = StatefulLendBorrow()
+        state.create_loan(amount=256, c_amount=2787635851270792912435800128182537894764544, n=5, user_id=0)
+        state.health()
 
 
 def test_health_underflow_2(controller_factory, market_amm, market_controller, collateral_token, stablecoin, accounts):
     for k, v in locals().items():
         setattr(StatefulLendBorrow, k, v)
-    state = StatefulLendBorrow()
-    state.create_loan(amount=1, c_amount=44, n=6, user_id=0)
-    state.health()
-    state.teardown()
+    with boa.env.anchor():
+        state = StatefulLendBorrow()
+        state.create_loan(amount=1, c_amount=44, n=6, user_id=0)
+        state.health()

@@ -2,11 +2,6 @@ from ...conftest import approx
 import boa
 
 
-def time_travel(dt):
-    boa.env.vm.patch.timestamp += dt
-    boa.env.vm.patch.block_number += dt // 13 + 1
-
-
 def test_price_aggregator(stableswap_a, stableswap_b, stablecoin_a, agg, admin):
     amount = 300_000 * 10**6
     dt = 86400
@@ -22,7 +17,7 @@ def test_price_aggregator(stableswap_a, stableswap_b, stablecoin_a, agg, admin):
             p = stableswap_a.get_p()
             assert p > 10**18 * 1.01
 
-            time_travel(dt)
+            boa.env.time_travel(dt)
 
             p_o = stableswap_a.price_oracle()
             assert approx(p_o, p, 1e-4)
@@ -43,7 +38,7 @@ def test_crypto_agg(dummy_tricrypto, crypto_agg, stableswap_a, stablecoin_a, adm
             assert crypto_agg.price() == 3000 * 10**18
             assert crypto_agg.raw_price() == 1000 * 10**18
 
-            time_travel(200_000)
+            boa.env.time_travel(200_000)
 
             p = crypto_agg.price()
             assert approx(p, 1000 * 10**18, 1e-10)
@@ -52,7 +47,7 @@ def test_crypto_agg(dummy_tricrypto, crypto_agg, stableswap_a, stablecoin_a, adm
             stablecoin_a._mint_for_testing(admin, amount)
             stableswap_a.exchange(0, 1, amount, 0)
 
-            time_travel(200_000)
+            boa.env.time_travel(200_000)
             p = stableswap_a.price_oracle()
             assert p > 10**18 * 1.01
             assert crypto_agg.price() > p * 1.01

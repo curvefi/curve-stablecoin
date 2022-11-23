@@ -15,8 +15,6 @@ class StatefulLendBorrow(RuleBasedStateMachine):
 
     def __init__(self):
         super().__init__()
-        self.anchor = boa.env.anchor()
-        self.anchor.__enter__()
         self.collateral = self.collateral_token
         self.amm = self.market_amm
         self.controller = self.market_controller
@@ -197,8 +195,7 @@ class StatefulLendBorrow(RuleBasedStateMachine):
 
     @rule(t=t)
     def time_travel(self, t):
-        boa.env.vm.patch.timestamp += t
-        boa.env.vm.patch.block_number += t // 13 + 1
+        boa.env.time_travel(t)
 
     @rule(rate=rate)
     def change_rate(self, rate):
@@ -218,9 +215,6 @@ class StatefulLendBorrow(RuleBasedStateMachine):
             debt = self.controller.total_debt()
             assert debt == supply - b
 
-    def teardown(self):
-        self.anchor.__exit__(None, None, None)
-
 
 def test_stateful_lendborrow(controller_factory, market_amm, market_controller, monetary_policy, collateral_token, stablecoin, accounts, admin):
     StatefulLendBorrow.TestCase.settings = settings(max_examples=100, stateful_step_count=10, deadline=timedelta(seconds=1000))
@@ -232,37 +226,37 @@ def test_stateful_lendborrow(controller_factory, market_amm, market_controller, 
 def test_rate_too_high(controller_factory, market_amm, market_controller, monetary_policy, collateral_token, stablecoin, accounts, admin):
     for k, v in locals().items():
         setattr(StatefulLendBorrow, k, v)
-    state = StatefulLendBorrow()
-    state.change_rate(rate=19298681539552733520784193015473224553355594960504706685844695763378761203935)
-    state.time_travel(100000)
-    # rate clipping
-    state.amm.get_rate_mul()
-    state.teardown()
+    with boa.env.anchor():
+        state = StatefulLendBorrow()
+        state.change_rate(rate=19298681539552733520784193015473224553355594960504706685844695763378761203935)
+        state.time_travel(100000)
+        # rate clipping
+        state.amm.get_rate_mul()
 
 
 def test_unexpected_revert(controller_factory, market_amm, market_controller, monetary_policy, collateral_token, stablecoin, accounts, admin):
     for k, v in locals().items():
         setattr(StatefulLendBorrow, k, v)
-    state = StatefulLendBorrow()
-    state.create_loan(amount=28150, c_amount=5384530291638384907, n=8, user_id=1)
-    state.time_travel(t=31488)
-    state.repay(amount=39777, user_id=1)
-    state.teardown()
+    with boa.env.anchor():
+        state = StatefulLendBorrow()
+        state.create_loan(amount=28150, c_amount=5384530291638384907, n=8, user_id=1)
+        state.time_travel(t=31488)
+        state.repay(amount=39777, user_id=1)
 
 
 def test_no_revert_reason(controller_factory, market_amm, market_controller, monetary_policy, collateral_token, stablecoin, accounts, admin):
     for k, v in locals().items():
         setattr(StatefulLendBorrow, k, v)
-    state = StatefulLendBorrow()
-    state.create_loan(amount=1, c_amount=1, n=5, user_id=0)
-    state.teardown()
+    with boa.env.anchor():
+        state = StatefulLendBorrow()
+        state.create_loan(amount=1, c_amount=1, n=5, user_id=0)
 
 
 def test_too_deep(controller_factory, market_amm, market_controller, monetary_policy, collateral_token, stablecoin, accounts, admin):
     for k, v in locals().items():
         setattr(StatefulLendBorrow, k, v)
-    state = StatefulLendBorrow()
-    state.create_loan(amount=13119, c_amount=48, n=43, user_id=0)
-    state.create_loan(amount=34049, c_amount=48388, n=18, user_id=1)
-    state.create_loan(amount=10161325728155098164, c_amount=4156800770, n=50, user_id=2)
-    state.teardown()
+    with boa.env.anchor():
+        state = StatefulLendBorrow()
+        state.create_loan(amount=13119, c_amount=48, n=43, user_id=0)
+        state.create_loan(amount=34049, c_amount=48388, n=18, user_id=1)
+        state.create_loan(amount=10161325728155098164, c_amount=4156800770, n=50, user_id=2)

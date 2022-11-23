@@ -11,11 +11,6 @@ def ema_price_oracle(price_oracle, admin):
         return boa.load('contracts/price_oracles/EmaPriceOracle.vy', 10000, price_oracle.address, signature)
 
 
-def sleep(dt):
-    boa.env.vm.patch.timestamp += dt
-    boa.env.vm.patch.block_number += dt // 13 + 1
-
-
 def test_price_oracle(price_oracle, amm):
     assert price_oracle.price() == PRICE * 10**18
     assert amm.price_oracle() == price_oracle.price()
@@ -55,10 +50,10 @@ def test_ema_wrapping(ema_price_oracle, price_oracle):
         assert price_oracle.price() == ema_price_oracle.last_price()
         assert price_oracle.price() == ema_price_oracle.price()
         ema_price_oracle.price_w()
-        sleep(20000)
+        boa.env.time_travel(20000)
         assert price_oracle.price() == ema_price_oracle.price()
         ema_price_oracle.price_w()
-        sleep(20000)
+        boa.env.time_travel(20000)
         assert price_oracle.price() == ema_price_oracle.price()
 
 
@@ -67,7 +62,7 @@ def test_ema_sleep(ema_price_oracle, price_oracle, admin):
         p = price_oracle.price()
         with boa.env.prank(admin):
             price_oracle.set_price(p // 2)
-        sleep(5)
+        boa.env.time_travel(5)
         ema_price_oracle.price_w()
-        sleep(1000000)
+        boa.env.time_travel(1000000)
         assert (ema_price_oracle.price() - p // 2) < p / 10

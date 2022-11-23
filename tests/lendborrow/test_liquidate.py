@@ -5,11 +5,6 @@ from ..conftest import approx
 N = 5
 
 
-def sleep(dt):
-    boa.env.vm.patch.timestamp += dt
-    boa.env.vm.patch.block_number += dt // 13 + 1
-
-
 @pytest.fixture(scope="module")
 def controller_for_liquidation(stablecoin, collateral_token, market_controller, market_amm,
                                price_oracle, monetary_policy, admin, accounts):
@@ -37,7 +32,7 @@ def controller_for_liquidation(stablecoin, collateral_token, market_controller, 
 
         assert approx(health_0, health_1, 1e-6)
 
-        sleep(sleep_time)
+        boa.env.time_travel(sleep_time)
 
         health_2 = market_controller.health(user)
         # Still healthy but liquidation threshold satisfied

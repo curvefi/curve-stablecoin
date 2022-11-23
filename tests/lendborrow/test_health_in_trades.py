@@ -16,8 +16,6 @@ class AdiabaticTrader(RuleBasedStateMachine):
 
     def __init__(self):
         super().__init__()
-        self.anchor = boa.env.anchor()
-        self.anchor.__enter__()
         self.collateral = self.collateral_token
         self.amm = self.market_amm
         self.controller = self.market_controller
@@ -69,8 +67,7 @@ class AdiabaticTrader(RuleBasedStateMachine):
 
     @rule(t=t)
     def time_travel(self, t):
-        boa.env.vm.patch.timestamp += t
-        boa.env.vm.patch.block_number += t // 13 + 1
+        boa.env.time_travel(t)
 
     @rule(rate=rate)
     def change_rate(self, rate):
@@ -80,9 +77,6 @@ class AdiabaticTrader(RuleBasedStateMachine):
     @invariant()
     def health(self):
         assert self.controller.health(self.accounts[0]) > 0
-
-    def teardown(self):
-        self.anchor.__exit__(None, None, None)
 
 
 def test_adiabatic_follow(market_amm, market_controller, monetary_policy, collateral_token, stablecoin, price_oracle, accounts, admin):
@@ -95,23 +89,23 @@ def test_adiabatic_follow(market_amm, market_controller, monetary_policy, collat
 def test_approval_worked(market_amm, market_controller, monetary_policy, collateral_token, stablecoin, price_oracle, accounts, admin):
     for k, v in locals().items():
         setattr(AdiabaticTrader, k, v)
-    state = AdiabaticTrader()
-    state.initializer(collateral_amount=10000000000, n=7)
-    state.shift_oracle(oracle_step=-5581384867293334/1e18)
-    state.shift_oracle(oracle_step=-6965451302984162/1e18)
-    state.teardown()
+    with boa.env.anchor():
+        state = AdiabaticTrader()
+        state.initializer(collateral_amount=10000000000, n=7)
+        state.shift_oracle(oracle_step=-5581384867293334/1e18)
+        state.shift_oracle(oracle_step=-6965451302984162/1e18)
 
 
 def test_shift_oracle_fail(market_amm, market_controller, monetary_policy, collateral_token, stablecoin, price_oracle, accounts, admin):
     for k, v in locals().items():
         setattr(AdiabaticTrader, k, v)
     # Fail which was due to rounding eror in get_amount_for_price
-    state = AdiabaticTrader()
-    state.initializer(collateral_amount=10000000257, n=5)
-    state.change_rate(rate=1)
-    state.change_rate(rate=0)
-    state.change_rate(rate=0)
-    state.shift_oracle(oracle_step=-7545700784685381/1e18)
-    state.shift_oracle(oracle_step=-9113745346295811/1e18)
-    state.shift_oracle(oracle_step=0)
-    state.teardown()
+    with boa.env.anchor():
+        state = AdiabaticTrader()
+        state.initializer(collateral_amount=10000000257, n=5)
+        state.change_rate(rate=1)
+        state.change_rate(rate=0)
+        state.change_rate(rate=0)
+        state.shift_oracle(oracle_step=-7545700784685381/1e18)
+        state.shift_oracle(oracle_step=-9113745346295811/1e18)
+        state.shift_oracle(oracle_step=0)

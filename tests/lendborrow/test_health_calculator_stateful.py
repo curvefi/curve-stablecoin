@@ -22,8 +22,6 @@ class StatefulLendBorrow(RuleBasedStateMachine):
 
     def __init__(self):
         super().__init__()
-        self.anchor = boa.env.anchor()
-        self.anchor.__enter__()
         self.controller = self.market_controller
         self.amm = self.market_amm
         self.debt_ceiling = self.controller_factory.debt_ceiling(self.controller)
@@ -234,9 +232,6 @@ class StatefulLendBorrow(RuleBasedStateMachine):
             if self.controller.loan_exists(user):
                 assert self.controller.health(user) > 0
 
-    def teardown(self):
-        self.anchor.__exit__(None, None, None)
-
 
 def test_stateful_lendborrow(controller_factory, market_amm, market_controller, collateral_token, stablecoin, accounts):
     StatefulLendBorrow.TestCase.settings = settings(max_examples=200, stateful_step_count=20, deadline=timedelta(seconds=1000))
@@ -249,15 +244,15 @@ def test_large_loan_fail(controller_factory, market_amm, market_controller, coll
     StatefulLendBorrow.TestCase.settings = settings(max_examples=200, stateful_step_count=20, deadline=timedelta(seconds=1000))
     for k, v in locals().items():
         setattr(StatefulLendBorrow, k, v)
-    state = StatefulLendBorrow()
-    state.create_loan(amount_frac=1.0, c_amount=340282366920938463463374607431768211456, n=5, user_id=0)
-    state.teardown()
+    with boa.env.anchor():
+        state = StatefulLendBorrow()
+        state.create_loan(amount_frac=1.0, c_amount=340282366920938463463374607431768211456, n=5, user_id=0)
 
 
 def test_repay_no_calculation_success(controller_factory, market_amm, market_controller, monetary_policy, collateral_token, stablecoin, accounts, admin):
     for k, v in locals().items():
         setattr(StatefulLendBorrow, k, v)
-    state = StatefulLendBorrow()
-    state.create_loan(amount_frac=0.5, c_amount=10000000000, n=5, user_id=0)
-    state.repay(amount_frac=1.0, user_id=0)
-    state.teardown()
+    with boa.env.anchor():
+        state = StatefulLendBorrow()
+        state.create_loan(amount_frac=0.5, c_amount=10000000000, n=5, user_id=0)
+        state.repay(amount_frac=1.0, user_id=0)

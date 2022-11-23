@@ -16,78 +16,78 @@ from datetime import timedelta
 @settings(max_examples=500, deadline=timedelta(seconds=1000))
 def test_amount_for_price(price_oracle, amm, accounts, collateral_token, borrowed_token, admin,
                           oracle_price, n1, dn, deposit_amount, init_trade_frac, p_frac):
-    with boa.env.anchor():
-        user = accounts[0]
-        with boa.env.prank(admin):
-            amm.set_fee(0)
-            price_oracle.set_price(oracle_price)
-        n2 = n1 + dn
+    user = accounts[0]
+    with boa.env.prank(admin):
+        amm.set_fee(0)
+        price_oracle.set_price(oracle_price)
+    n2 = n1 + dn
 
-        # Initial deposit
-        with boa.env.prank(admin):
-            collateral_token._mint_for_testing(user, deposit_amount)
-            amm.deposit_range(user, deposit_amount, n1, n2, True)
+    # Initial deposit
+    with boa.env.prank(admin):
+        collateral_token._mint_for_testing(user, deposit_amount)
+        amm.deposit_range(user, deposit_amount, n1, n2, True)
 
-        with boa.env.prank(user):
-            # Dump some to be somewhere inside the bands
-            eamount = int(deposit_amount * amm.get_p() // 10**18 * init_trade_frac)
-            if eamount > 0:
-                borrowed_token._mint_for_testing(user, eamount)
-                amm.exchange(0, 1, eamount, 0)
-            n0 = amm.active_band()
+    with boa.env.prank(user):
+        # Dump some to be somewhere inside the bands
+        eamount = int(deposit_amount * amm.get_p() // 10**18 * init_trade_frac)
+        if eamount > 0:
+            borrowed_token._mint_for_testing(user, eamount)
+            amm.exchange(0, 1, eamount, 0)
+        n0 = amm.active_band()
 
-            p_initial = amm.get_p()
-            p_final = int(p_initial * p_frac)
-            p_max = amm.p_current_up(n2)
-            p_min = amm.p_current_down(n1)
+        p_initial = amm.get_p()
+        p_final = int(p_initial * p_frac)
+        p_max = amm.p_current_up(n2)
+        p_min = amm.p_current_down(n1)
 
-            amount, is_pump = amm.get_amount_for_price(p_final)
+        amount, is_pump = amm.get_amount_for_price(p_final)
 
-            assert is_pump == (p_final >= p_initial)
+        assert is_pump == (p_final >= p_initial)
 
-            if is_pump:
-                borrowed_token._mint_for_testing(user, amount)
-                amm.exchange(0, 1, amount, 0)
+        if is_pump:
+            borrowed_token._mint_for_testing(user, amount)
+            amm.exchange(0, 1, amount, 0)
 
-            else:
-                collateral_token._mint_for_testing(user, amount)
-                amm.exchange(1, 0, amount, 0)
-
-        p = amm.get_p()
-
-        prec = 1e-6
-        if amount > 0:
-            if is_pump:
-                prec = max(2 / amount + 2 / (1e12 * amount * 1e18 / p_max), prec)
-            else:
-                prec = max(2 / amount + 2 / (amount * p_max / 1e18 / 1e12), prec)
         else:
-            return
+            collateral_token._mint_for_testing(user, amount)
+            amm.exchange(1, 0, amount, 0)
 
-        n_final = amm.active_band()
+    p = amm.get_p()
 
-        assert approx(p_max, amm.p_current_up(n2), 1e-8)
-        assert approx(p_min, amm.p_current_down(n1), 1e-8)
+    prec = 1e-6
+    if amount > 0:
+        if is_pump:
+            prec = max(2 / amount + 2 / (1e12 * amount * 1e18 / p_max), prec)
+        else:
+            prec = max(2 / amount + 2 / (amount * p_max / 1e18 / 1e12), prec)
+    else:
+        return
 
-        if abs(n_final - n0) < 50 - 1 and prec < 0.1:
-            if p_final > p_min * (1 + prec) and p_final < p_max * (1 - prec):
-                assert approx(p, p_final, prec)
+    n_final = amm.active_band()
 
-            elif p_final >= p_max * (1 - prec):
-                if not approx(p, p_max, prec):
-                    assert n_final > n2
+    assert approx(p_max, amm.p_current_up(n2), 1e-8)
+    assert approx(p_min, amm.p_current_down(n1), 1e-8)
 
-            elif p_final <= p_min * (1 + prec):
-                if not approx(p, p_min, prec):
-                    assert n_final < n1
+    if abs(n_final - n0) < 50 - 1 and prec < 0.1:
+        if p_final > p_min * (1 + prec) and p_final < p_max * (1 - prec):
+            assert approx(p, p_final, prec)
+
+        elif p_final >= p_max * (1 - prec):
+            if not approx(p, p_max, prec):
+                assert n_final > n2
+
+        elif p_final <= p_min * (1 + prec):
+            if not approx(p, p_min, prec):
+                assert n_final < n1
 
 
 def test_amount_for_price_ticks_too_far(price_oracle, amm, accounts, collateral_token, borrowed_token, admin):
-    test_amount_for_price.hypothesis.inner_test(
-        price_oracle, amm, accounts, collateral_token, borrowed_token, admin,
-        oracle_price=2000000000000000000000,
-        n1=50,
-        dn=0,
-        deposit_amount=1000000000000,
-        init_trade_frac=0.0,
-        p_frac=2891564947520759727/1e18)
+    with boa.env.anchor():
+        test_amount_for_price.hypothesis.inner_test(
+            price_oracle, amm, accounts, collateral_token, borrowed_token, admin,
+            oracle_price=2000000000000000000000,
+            n1=50,
+            dn=0,
+            deposit_amount=1000000000000,
+            init_trade_frac=0.0,
+            p_frac=2891564947520759727/1e18)

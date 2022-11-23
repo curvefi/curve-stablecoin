@@ -1,5 +1,5 @@
 import boa
-from boa.contract import BoaError
+from boa.vyper.contract import BoaError
 from hypothesis import settings
 from hypothesis import strategies as st
 from hypothesis.stateful import RuleBasedStateMachine, run_state_machine_as_test, rule, invariant
@@ -34,8 +34,6 @@ class BigFuzz(RuleBasedStateMachine):
 
     def __init__(self):
         super().__init__()
-        self.anchor = boa.env.anchor()
-        self.anchor.__enter__()
         self.A = self.market_amm.A()
         self.debt_ceiling = self.controller_factory.debt_ceiling(self.market_controller.address)
         self.fees = 0
@@ -299,8 +297,7 @@ class BigFuzz(RuleBasedStateMachine):
 
     @rule(dt=time_shift)
     def time_travel(self, dt):
-        boa.env.vm.patch.timestamp += dt
-        boa.env.vm.patch.block_number += dt // 13 + 1
+        boa.env.time_travel(dt)
 
     @invariant()
     def debt_supply(self):
@@ -309,9 +306,6 @@ class BigFuzz(RuleBasedStateMachine):
         assert total_debt == self.stablecoin.totalSupply() - self.stablecoin.balanceOf(self.market_controller.address)
         assert abs(sum(self.market_controller.debt(u) for u in self.accounts) - total_debt) <= 10
         # 10 accounts = 10 wei error?
-
-    def teardown(self):
-        self.anchor.__exit__(None, None, None)
 
 
 def test_big_fuzz(
@@ -326,14 +320,14 @@ def test_noraise(
         controller_factory, market_amm, market_controller, monetary_policy, collateral_token, stablecoin, price_oracle, accounts, admin):
     for k, v in locals().items():
         setattr(BigFuzz, k, v)
-    state = BigFuzz()
-    state.debt_supply()
-    state.add_collateral(uid=0, y=0)
-    state.debt_supply()
-    state.shift_oracle(dp=0.0078125)
-    state.debt_supply()
-    state.deposit(n=5, ratio=1.0, uid=0, y=505)
-    state.teardown()
+    with boa.env.anchor():
+        state = BigFuzz()
+        state.debt_supply()
+        state.add_collateral(uid=0, y=0)
+        state.debt_supply()
+        state.shift_oracle(dp=0.0078125)
+        state.debt_supply()
+        state.deposit(n=5, ratio=1.0, uid=0, y=505)
 
 
 def test_noraise_2(
@@ -341,10 +335,10 @@ def test_noraise_2(
     # This is due to evmdiv working not like floor div (fixed)
     for k, v in locals().items():
         setattr(BigFuzz, k, v)
-    state = BigFuzz()
-    state.shift_oracle(dp=2.3841130314394837e-09)
-    state.deposit(n=5, ratio=0.9340958492675753, uid=0, y=4063)
-    state.teardown()
+    with boa.env.anchor():
+        state = BigFuzz()
+        state.shift_oracle(dp=2.3841130314394837e-09)
+        state.deposit(n=5, ratio=0.9340958492675753, uid=0, y=4063)
 
 
 def test_exchange_fails(
@@ -352,171 +346,171 @@ def test_exchange_fails(
     # This is due to evmdiv working not like floor div (fixed)
     for k, v in locals().items():
         setattr(BigFuzz, k, v)
-    state = BigFuzz()
-    state.debt_supply()
-    state.add_collateral(uid=0, y=0)
-    state.debt_supply()
-    state.shift_oracle(dp=0.0)
-    state.debt_supply()
-    state.time_travel(dt=6)
-    state.debt_supply()
-    state.deposit(n=5, ratio=6.103515625e-05, uid=1, y=14085)
-    state.debt_supply()
-    state.deposit(n=5, ratio=1.199379084937393e-07, uid=0, y=26373080523014146049)
-    state.debt_supply()
-    state.trade(is_pump=True, r=1.0, uid=0)
-    state.teardown()
+    with boa.env.anchor():
+        state = BigFuzz()
+        state.debt_supply()
+        state.add_collateral(uid=0, y=0)
+        state.debt_supply()
+        state.shift_oracle(dp=0.0)
+        state.debt_supply()
+        state.time_travel(dt=6)
+        state.debt_supply()
+        state.deposit(n=5, ratio=6.103515625e-05, uid=1, y=14085)
+        state.debt_supply()
+        state.deposit(n=5, ratio=1.199379084937393e-07, uid=0, y=26373080523014146049)
+        state.debt_supply()
+        state.trade(is_pump=True, r=1.0, uid=0)
 
 
 def test_noraise_3(
         controller_factory, market_amm, market_controller, monetary_policy, collateral_token, stablecoin, price_oracle, accounts, admin):
     for k, v in locals().items():
         setattr(BigFuzz, k, v)
-    state = BigFuzz()
-    state.shift_oracle(dp=0.00040075302124023446)
-    state.deposit(n=45, ratio=0.7373046875, uid=0, y=18945)
-    state.teardown()
+    with boa.env.anchor():
+        state = BigFuzz()
+        state.shift_oracle(dp=0.00040075302124023446)
+        state.deposit(n=45, ratio=0.7373046875, uid=0, y=18945)
 
 
 def test_repay_error_1(
         controller_factory, market_amm, market_controller, monetary_policy, collateral_token, stablecoin, price_oracle, accounts, admin):
     for k, v in locals().items():
         setattr(BigFuzz, k, v)
-    state = BigFuzz()
-    state.deposit(n=5, ratio=0.5, uid=0, y=505)
-    state.trade(is_pump=True, r=1.0, uid=0)
-    state.repay(ratio=0.5, uid=0)
-    state.teardown()
+    with boa.env.anchor():
+        state = BigFuzz()
+        state.deposit(n=5, ratio=0.5, uid=0, y=505)
+        state.trade(is_pump=True, r=1.0, uid=0)
+        state.repay(ratio=0.5, uid=0)
 
 
 def test_not_enough_collateral(
         controller_factory, market_amm, market_controller, monetary_policy, collateral_token, stablecoin, price_oracle, accounts, admin):
     for k, v in locals().items():
         setattr(BigFuzz, k, v)
-    state = BigFuzz()
-    state.borrow_more(ratio=0.0, uid=0, y=13840970168756334397)
-    state.trade(is_pump=False, r=2.220446049250313e-16, uid=0)
-    state.borrow_more(ratio=0.0, uid=7, y=173)
-    state.deposit(n=6, ratio=6.103515625e-05, uid=6, y=3526)
-    state.trade(is_pump=True, r=1.0, uid=0)
-    state.trade(is_pump=False, r=1.0, uid=0)
-    state.borrow_more(ratio=0.5, uid=6, y=0)
-    state.teardown()
+    with boa.env.anchor():
+        state = BigFuzz()
+        state.borrow_more(ratio=0.0, uid=0, y=13840970168756334397)
+        state.trade(is_pump=False, r=2.220446049250313e-16, uid=0)
+        state.borrow_more(ratio=0.0, uid=7, y=173)
+        state.deposit(n=6, ratio=6.103515625e-05, uid=6, y=3526)
+        state.trade(is_pump=True, r=1.0, uid=0)
+        state.trade(is_pump=False, r=1.0, uid=0)
+        state.borrow_more(ratio=0.5, uid=6, y=0)
 
 
 def test_noraise_4(
         controller_factory, market_amm, market_controller, monetary_policy, collateral_token, stablecoin, price_oracle, accounts, admin):
     for k, v in locals().items():
         setattr(BigFuzz, k, v)
-    state = BigFuzz()
-    state.deposit(n=5, ratio=0.5, uid=0, y=505)
-    state.trade(is_pump=True, r=1.0, uid=0)
-    state.repay(ratio=1.0, uid=0)
-    state.teardown()
+    with boa.env.anchor():
+        state = BigFuzz()
+        state.deposit(n=5, ratio=0.5, uid=0, y=505)
+        state.trade(is_pump=True, r=1.0, uid=0)
+        state.repay(ratio=1.0, uid=0)
 
 
 def test_debt_nonequal(
         controller_factory, market_amm, market_controller, monetary_policy, collateral_token, stablecoin, price_oracle, accounts, admin):
     for k, v in locals().items():
         setattr(BigFuzz, k, v)
-    state = BigFuzz()
-    state.rule_change_rate(rate=183)
-    state.deposit(n=5, ratio=0.5, uid=0, y=40072859744991)
-    state.time_travel(dt=1)
-    state.debt_supply()
-    state.teardown()
+    with boa.env.anchor():
+        state = BigFuzz()
+        state.rule_change_rate(rate=183)
+        state.deposit(n=5, ratio=0.5, uid=0, y=40072859744991)
+        state.time_travel(dt=1)
+        state.debt_supply()
 
 
 def test_noraise_5(
         controller_factory, market_amm, market_controller, monetary_policy, collateral_token, stablecoin, price_oracle, accounts, admin):
     for k, v in locals().items():
         setattr(BigFuzz, k, v)
-    state = BigFuzz()
-    state.debt_supply()
-    state.self_liquidate_and_health()
-    state.debt_supply()
-    state.self_liquidate_and_health()
-    state.debt_supply()
-    state.deposit(n=9, ratio=0.5, uid=1, y=5131452002964343839)
-    state.debt_supply()
-    state.borrow_more(ratio=0.8847036853778303, uid=1, y=171681017142554251259)
-    state.teardown()
+    with boa.env.anchor():
+        state = BigFuzz()
+        state.debt_supply()
+        state.self_liquidate_and_health()
+        state.debt_supply()
+        state.self_liquidate_and_health()
+        state.debt_supply()
+        state.deposit(n=9, ratio=0.5, uid=1, y=5131452002964343839)
+        state.debt_supply()
+        state.borrow_more(ratio=0.8847036853778303, uid=1, y=171681017142554251259)
 
 
 def test_add_collateral_fail(
         controller_factory, market_amm, market_controller, monetary_policy, collateral_token, stablecoin, price_oracle, accounts, admin):
     for k, v in locals().items():
         setattr(BigFuzz, k, v)
-    state = BigFuzz()
-    state.debt_supply()
-    state.rule_change_rate(rate=5430516289)
-    state.debt_supply()
-    state.time_travel(dt=1)
-    state.debt_supply()
-    state.time_travel(dt=1)
-    state.debt_supply()
-    state.deposit(n=21, ratio=0.8125, uid=3, y=2444)
-    state.debt_supply()
-    state.time_travel(dt=1860044)
-    state.debt_supply()
-    state.rule_change_rate(rate=0)
-    state.debt_supply()
-    state.rule_change_rate(rate=0)
-    state.debt_supply()
-    state.add_collateral(uid=3, y=1)
-    state.teardown()
+    with boa.env.anchor():
+        state = BigFuzz()
+        state.debt_supply()
+        state.rule_change_rate(rate=5430516289)
+        state.debt_supply()
+        state.time_travel(dt=1)
+        state.debt_supply()
+        state.time_travel(dt=1)
+        state.debt_supply()
+        state.deposit(n=21, ratio=0.8125, uid=3, y=2444)
+        state.debt_supply()
+        state.time_travel(dt=1860044)
+        state.debt_supply()
+        state.rule_change_rate(rate=0)
+        state.debt_supply()
+        state.rule_change_rate(rate=0)
+        state.debt_supply()
+        state.add_collateral(uid=3, y=1)
 
 
 def test_debt_eq_repay_no_coins(
         controller_factory, market_amm, market_controller, monetary_policy, collateral_token, stablecoin, price_oracle, accounts, admin):
     for k, v in locals().items():
         setattr(BigFuzz, k, v)
-    state = BigFuzz()
-    state.debt_supply()
-    state.trade(is_pump=False, r=0.0, uid=0)
-    state.debt_supply()
-    state.repay(ratio=0.0, uid=0)
-    state.debt_supply()
-    state.deposit(n=5, ratio=0.5, uid=0, y=505)
-    state.debt_supply()
-    state.deposit(n=5, ratio=0.5009765625, uid=1, y=519)
-    state.debt_supply()
-    state.trade(is_pump=True, r=1.0, uid=0)
-    state.debt_supply()
-    state.repay(ratio=1.0, uid=1)
-    state.teardown()
+    with boa.env.anchor():
+        state = BigFuzz()
+        state.debt_supply()
+        state.trade(is_pump=False, r=0.0, uid=0)
+        state.debt_supply()
+        state.repay(ratio=0.0, uid=0)
+        state.debt_supply()
+        state.deposit(n=5, ratio=0.5, uid=0, y=505)
+        state.debt_supply()
+        state.deposit(n=5, ratio=0.5009765625, uid=1, y=519)
+        state.debt_supply()
+        state.trade(is_pump=True, r=1.0, uid=0)
+        state.debt_supply()
+        state.repay(ratio=1.0, uid=1)
 
 
 def test_amount_not_too_low(
         controller_factory, market_amm, market_controller, monetary_policy, collateral_token, stablecoin, price_oracle, accounts, admin):
     for k, v in locals().items():
         setattr(BigFuzz, k, v)
-    state = BigFuzz()
-    state.debt_supply()
-    state.deposit(n=5, ratio=0.0004882816574536263, uid=0, y=505)
-    state.debt_supply()
-    state.remove_collateral(uid=0, y=3)
-    state.teardown()
+    with boa.env.anchor():
+        state = BigFuzz()
+        state.debt_supply()
+        state.deposit(n=5, ratio=0.0004882816574536263, uid=0, y=505)
+        state.debt_supply()
+        state.remove_collateral(uid=0, y=3)
 
 
 def test_debt_too_high(
         controller_factory, market_amm, market_controller, monetary_policy, collateral_token, stablecoin, price_oracle, accounts, admin):
     for k, v in locals().items():
         setattr(BigFuzz, k, v)
-    state = BigFuzz()
-    state.debt_supply()
-    state.deposit(n=24, ratio=0.8201103210449219, uid=0, y=18138)
-    state.debt_supply()
-    state.remove_collateral(uid=0, y=187)
-    state.teardown()
+    with boa.env.anchor():
+        state = BigFuzz()
+        state.debt_supply()
+        state.deposit(n=24, ratio=0.8201103210449219, uid=0, y=18138)
+        state.debt_supply()
+        state.remove_collateral(uid=0, y=187)
 
 
 def test_debt_too_high_2(
         controller_factory, market_amm, market_controller, monetary_policy, collateral_token, stablecoin, price_oracle, accounts, admin):
     for k, v in locals().items():
         setattr(BigFuzz, k, v)
-    state = BigFuzz()
-    state.shift_oracle(dp=-0.00877380371093752)
-    state.shift_oracle(dp=-0.00390625)
-    state.deposit(n=29, ratio=0.796142578125, uid=0, y=15877)
-    state.teardown()
+    with boa.env.anchor():
+        state = BigFuzz()
+        state.shift_oracle(dp=-0.00877380371093752)
+        state.shift_oracle(dp=-0.00390625)
+        state.deposit(n=29, ratio=0.796142578125, uid=0, y=15877)

@@ -15,8 +15,6 @@ class StatefulExchange(RuleBasedStateMachine):
 
     def __init__(self):
         super().__init__()
-        self.anchor = boa.env.anchor()
-        self.anchor.__enter__()
         self.total_deposited = 0
 
     @initialize(amounts=amounts, ns=ns, dns=dns)
@@ -80,12 +78,12 @@ class StatefulExchange(RuleBasedStateMachine):
                     self.amm.exchange(1, 0, to_swap, 0)
                 left_in_amm = sum(self.amm.bands_y(n) for n in range(42))
                 assert left_in_amm >= self.total_deposited
-        self.anchor.__exit__(None, None, None)
 
 
 def test_exchange(admin, accounts, amm, collateral_token, borrowed_token):
-    StatefulExchange.TestCase.settings = settings(deadline=timedelta(seconds=1000))
-    accounts = accounts[:5]
-    for k, v in locals().items():
-        setattr(StatefulExchange, k, v)
-    run_state_machine_as_test(StatefulExchange)
+    with boa.env.anchor():
+        StatefulExchange.TestCase.settings = settings(deadline=timedelta(seconds=1000))
+        accounts = accounts[:5]
+        for k, v in locals().items():
+            setattr(StatefulExchange, k, v)
+        run_state_machine_as_test(StatefulExchange)
