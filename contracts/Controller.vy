@@ -682,9 +682,12 @@ def health_calculator(user: address, d_collateral: int256, d_debt: int256, full:
     ns: int256[2] = AMM.read_user_tick_numbers(user)
     debt: int256 = convert(self._debt_ro(user), int256)
     n: uint256 = N
+    ld: int256 = 0
     if debt != 0:
+        ld = convert(self.liquidation_discounts[user], int256)
         n = convert(ns[1] - ns[0] + 1, uint256)
     else:
+        ld = convert(self.liquidation_discount, int256)
         ns[0] = max_value(int256)  # This will trigger a "re-deposit"
 
     n1: int256 = 0
@@ -710,7 +713,6 @@ def health_calculator(user: address, d_collateral: int256, d_debt: int256, full:
     p0: int256 = convert(AMM.p_oracle_up(n1), int256)
     if ns[0] > active_band:
         x_eff = convert(self.get_y_effective(convert(collateral, uint256), n, 0), int256) * p0
-    ld: int256 = convert(self.liquidation_discounts[user], int256)
 
     health: int256 = x_eff / debt
     health = health - health * ld / 10**18 - 10**18
