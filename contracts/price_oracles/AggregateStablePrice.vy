@@ -137,14 +137,18 @@ def price() -> uint256:
         if i == n:
             break
         price_pair: PricePair = self.price_pairs[i]
-        p: uint256 = price_pair.pool.price_oracle()
-        if price_pair.is_inverse:
-            p = 10**36 / p
-        prices[i] = p
-        _D: uint256 = price_pair.pool.get_virtual_price() * price_pair.pool.totalSupply() / 10**18
-        D[i] = _D
-        Dsum += _D
-        DPsum += _D * p
+        pool_supply: uint256 = price_pair.pool.totalSupply()
+        if pool_supply > 0:
+            p: uint256 = price_pair.pool.price_oracle()
+            if price_pair.is_inverse:
+                p = 10**36 / p
+            prices[i] = p
+            _D: uint256 = price_pair.pool.get_virtual_price() * pool_supply / 10**18
+            D[i] = _D
+            Dsum += _D
+            DPsum += _D * p
+    if Dsum == 0:
+        return 10**18  # Placeholder for no active pools
     p_avg: uint256 = DPsum / Dsum
     e: uint256[MAX_PAIRS] = empty(uint256[MAX_PAIRS])
     e_min: uint256 = max_value(uint256)
