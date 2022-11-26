@@ -71,6 +71,8 @@ class AggMonetaryPolicyCreation(RuleBasedStateMachine):
     def add_peg_keeper(self, d):
         if len(self.peg_keepers) < 10:
             self.add_stablecoin(d)
+            with boa.env.prank(self.admin):
+                self.mp.add_peg_keeper(self.peg_keepers[-1].address)
 
     @rule(amount=deposit_amount, split=deposit_split, _n=pool_number)
     def deposit(self, amount, split, _n):
