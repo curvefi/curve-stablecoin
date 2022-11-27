@@ -7,6 +7,7 @@ import boa
 
 
 ZERO_ADDRESS = "0x0000000000000000000000000000000000000000"
+RATE0 = 634195839  # 2%
 
 
 class AggMonetaryPolicyCreation(RuleBasedStateMachine):
@@ -40,7 +41,7 @@ class AggMonetaryPolicyCreation(RuleBasedStateMachine):
             self.agg.address,
             self.controller_factory.address,
             [p.address for p in self.peg_keepers] + [ZERO_ADDRESS] * (5 - len(digits)),
-            0,  # Rate
+            RATE0,
             2 * 10**16,  # Sigma 2%
             5 * 10**16)  # Target debt fraction 5%
 
@@ -90,6 +91,11 @@ class AggMonetaryPolicyCreation(RuleBasedStateMachine):
     def agg_price_readable(self):
         p = self.agg.price() / 1e18
         assert abs(1 - p) < 0.5
+
+    @invariant()
+    def rate_readable(self):
+        rate = self.mp.rate()
+        assert abs((rate - RATE0) / RATE0) < 0.5
 
 
 def test_agg_mp(unsafe_factory, swap_deployer, swap_impl, stablecoin, admin):
