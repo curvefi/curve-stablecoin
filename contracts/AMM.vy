@@ -10,7 +10,7 @@
 # * rate_mul - rate multiplier, 1 + integral(rate * dt)
 # * active_band - current band. Other bands are either in one or other coin, but not both
 # * min_band - bands below this are definitely empty
-# * min_band - bands above this are definitely empty
+# * max_band - bands above this are definitely empty
 # * bands_x[n], bands_y[n] - amounts of coin x or y deposited in band n
 # * user_shares[user,n] / total_shares[n] - fraction of n'th band owned by a user
 # * p_oracle - external oracle price (can be from another AMM)
