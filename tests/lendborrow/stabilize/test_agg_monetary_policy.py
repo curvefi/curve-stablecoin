@@ -124,7 +124,8 @@ class AggMonetaryPolicyCreation(RuleBasedStateMachine):
     @invariant()
     def rate_readable(self):
         rate = self.mp.rate()
-        assert abs((rate - RATE0) / RATE0) < 0.5
+        rate0 = self.mp.rate0()
+        assert abs((rate - rate0) / (rate0 + RATE0 // 1000)) < 0.5
 
 
 def test_agg_mp(unsafe_factory, swap_deployer, swap_impl, stablecoin, admin):
