@@ -16,6 +16,9 @@ class AggMonetaryPolicyCreation(RuleBasedStateMachine):
     deposit_amount = st.floats(min_value=1, max_value=1e9)
     deposit_split = st.floats(min_value=0.5, max_value=1.5)
     pool_number = st.integers(min_value=0, max_value=10000)
+    rate = st.integers(min_value=0, max_value=43959106799)
+    sigma = st.integers(min_value=10**14, max_value=10**18)
+    target_debt_fraction = st.integers(min_value=0, max_value=10**18)
 
     def __init__(self):
         super().__init__()
@@ -74,6 +77,32 @@ class AggMonetaryPolicyCreation(RuleBasedStateMachine):
             self.add_stablecoin(d)
             with boa.env.prank(self.admin):
                 self.mp.add_peg_keeper(self.peg_keepers[-1].address)
+
+    @rule(_n=pool_number)
+    def remove_peg_keeper(self, _n):
+        if len(self.peg_keepers) > 0:
+            n = _n % len(self.peg_keepers)
+            pk = self.peg_keepers.pop(n)
+            self.stablecoins.pop(n)
+            self.swaps.pop(n)
+            self.one_usd.pop(n)
+            with boa.env.prank(self.admin):
+                self.mp.remove_peg_keeper(pk.address)
+
+    @rule(r=rate)
+    def set_rate(self, r):
+        with boa.env.prank(self.admin):
+            self.mp.set_rate(r)
+
+    @rule(s=sigma)
+    def set_sigma(self, s):
+        with boa.env.prank(self.admin):
+            self.mp.set_sigma(s)
+
+    @rule(f=target_debt_fraction)
+    def set_target_debt_fraction(self, f):
+        with boa.env.prank(self.admin):
+            self.mp.set_target_debt_fraction(f)
 
     @rule(amount=deposit_amount, split=deposit_split, _n=pool_number)
     def deposit(self, amount, split, _n):
