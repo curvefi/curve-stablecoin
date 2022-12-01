@@ -8,3 +8,5 @@
 /export
 \#*.lyx\#
 /.hypothesis
+.build
+venv
