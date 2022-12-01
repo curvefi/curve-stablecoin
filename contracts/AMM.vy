@@ -2,7 +2,7 @@
 
 # Glossary of variables and terms
 # =======================
-# * ticks, bands - price ranges where liquiditity is deposited
+# * ticks, bands - price ranges where liquidity is deposited
 # * x - coin which is being borrowed, typically stablecoin
 # * y - collateral coin (for example, wETH)
 # * A - amplification, the measure of how concentrated the tick is
