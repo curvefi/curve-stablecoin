@@ -128,13 +128,27 @@ Functions
     :reverts: If :func:`totalSupply` overflows.
     :log: :class:`Transfer`
 
-.. function:: set_minter(_new_minter: address)
+.. function:: add_minter(_minter: address)
 
-    Set the minter, which is capable of calling :func:`mint`.
+    Grant an account the ability to mint tokens.
 
-    :param address _new_minter: The account to set as the new minter.
-    :reverts: If the caller is not the current :func:`minter`.
-    :log: :class:`SetMinter`
+    :param address _minter: The account to grant permissions to.
+    :reverts: If the caller is not the :func:`admin`
+
+.. function:: remove_minter(_minter: address)
+
+    Revoke an account's ability to mint tokens.
+
+    :param address _minter: The account to revoke the permissions of.
+    :reverts: If the caller is not the :func:`admin`
+
+.. function:: set_admin(_new_admin: address)
+
+    Set the admin, which is capable of calling :func:`mint`, :func:`add_minter` and :func:`remove_minter`.
+
+    :param address _new_admin: The account to set as the new admin.
+    :reverts: If the caller is not the current :func:`admin`.
+    :log: :class:`SetAdmin`
 
 Read-Only Functions
 -------------------
@@ -146,6 +160,14 @@ Read-Only Functions
     **In the event of a chain fork, this value is updated to prevent replay attacks.**
 
     :rtype: bytes32
+
+.. function:: is_minter(_account: address) -> bool
+
+    Query whether an account is allowed to call the :func:`mint` function.
+
+    :param address _account: The account to query the privilege of.
+    :returns: Whether an account is allowed to call :func:`mint`.
+    :rtype: bool
 
 .. function:: name() -> String[64]
 
@@ -193,9 +215,9 @@ Read-Only Functions
     :param address _owner: The account to query the nonce of.
     :rtype: uint256
 
-.. function:: minter() -> address
+.. function:: admin() -> address
 
-    Get the account capable of calling the :func:`mint` function.
+    Get the account with administrator privileges.
 
     :rtype: address
 
@@ -210,6 +232,14 @@ Events
 
     See :eip:`20`.
 
-.. class:: SetMinter(minter: address)
+.. class:: SetAdmin(admin: address)
 
-    Logged when the contract's :func:`minter` changes.
+    Logged when the contract's :func:`admin` changes.
+
+.. class:: AddMinter(minter: address)
+
+    Logged when an account is granted the minter role.
+
+.. class:: RemoveMinter(minter: address)
+
+    Logged when an account has it's minter role revoked.
