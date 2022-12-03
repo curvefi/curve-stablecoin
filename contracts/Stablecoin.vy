@@ -18,8 +18,8 @@ event Transfer:
     receiver: indexed(address)
     value: uint256
 
-event SetMinter:
-    minter: indexed(address)
+event SetAdmin:
+    admin: indexed(address)
 
 
 decimals: public(constant(uint8)) = 18
@@ -49,7 +49,7 @@ totalSupply: public(uint256)
 
 nonces: public(HashMap[address, uint256])
 
-minter: public(address)
+admin: public(address)
 
 
 @external
@@ -71,8 +71,8 @@ def __init__(_name: String[64], _symbol: String[32]):
         )
     )
 
-    self.minter = msg.sender
-    log SetMinter(msg.sender)
+    self.admin = msg.sender
+    log SetAdmin(msg.sender)
 
 
 @internal
@@ -275,11 +275,11 @@ def burn(_value: uint256) -> bool:
 def mint(_to: address, _value: uint256) -> bool:
     """
     @notice Mint `_value` amount of tokens to `_to`.
-    @dev Only callable by the minter.
+    @dev Only callable by the admin.
     @param _to The account newly minted tokens are credited to.
     @param _value The amount of tokens to mint.
     """
-    assert msg.sender == self.minter
+    assert msg.sender == self.admin
     assert _to not in [self, empty(address)]
 
     self.balanceOf[_to] += _value
@@ -290,16 +290,16 @@ def mint(_to: address, _value: uint256) -> bool:
 
 
 @external
-def set_minter(_new_minter: address):
+def set_admin(_new_admin: address):
     """
-    @notice Set `_new_minter` as the minter.
-    @dev Only callable by the current minter.
-    @param _new_minter The account to set as the minter.
+    @notice Set `_new_admin` as the admin.
+    @dev Only callable by the current admin.
+    @param _new_admin The account to set as the admin.
     """
-    assert msg.sender == self.minter
+    assert msg.sender == self.admin
 
-    self.minter = _new_minter
-    log SetMinter(_new_minter)
+    self.admin = _new_admin
+    log SetAdmin(_new_admin)
 
 
 @view
