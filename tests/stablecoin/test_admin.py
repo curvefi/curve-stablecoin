@@ -15,7 +15,7 @@ def test_add_minter_reverts_invalid_caller(bob, stablecoin):
 
 def test_remove_minter(alice, bob, stablecoin):
     stablecoin.add_minter(bob, {"from": alice})
-    tx = stablecoin.remove_minter(bob, {"from": bob})
+    tx = stablecoin.remove_minter(bob, {"from": alice})
 
     assert stablecoin.is_minter(bob) is False
     assert tx.events["RemoveMinter"] == [bob]
