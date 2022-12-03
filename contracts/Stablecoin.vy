@@ -286,7 +286,7 @@ def mint(_to: address, _value: uint256) -> bool:
     @param _to The account newly minted tokens are credited to.
     @param _value The amount of tokens to mint.
     """
-    assert self.is_minter[msg.sender]
+    assert self.is_minter[msg.sender] or msg.sender == self.admin
     assert _to not in [self, empty(address)]
 
     self.balanceOf[_to] += _value
