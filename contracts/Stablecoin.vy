@@ -21,6 +21,12 @@ event Transfer:
 event SetAdmin:
     admin: indexed(address)
 
+event AddMinter:
+    minter: indexed(address)
+
+event RemoveMinter:
+    minter: indexed(address)
+
 
 decimals: public(constant(uint8)) = 18
 version: public(constant(String[8])) = "1"
@@ -50,6 +56,7 @@ totalSupply: public(uint256)
 nonces: public(HashMap[address, uint256])
 
 admin: public(address)
+is_minter: public(HashMap[address, bool])
 
 
 @external
@@ -275,11 +282,11 @@ def burn(_value: uint256) -> bool:
 def mint(_to: address, _value: uint256) -> bool:
     """
     @notice Mint `_value` amount of tokens to `_to`.
-    @dev Only callable by the admin.
+    @dev Only callable by an account with minter privileges.
     @param _to The account newly minted tokens are credited to.
     @param _value The amount of tokens to mint.
     """
-    assert msg.sender == self.admin
+    assert self.is_minter[msg.sender]
     assert _to not in [self, empty(address)]
 
     self.balanceOf[_to] += _value
@@ -287,6 +294,32 @@ def mint(_to: address, _value: uint256) -> bool:
 
     log Transfer(empty(address), _to, _value)
     return True
+
+
+@external
+def add_minter(_minter: address):
+    """
+    @notice Allow an account to mint new tokens.
+    @dev Only callable by the admin.
+    @param _minter The account to grant minter privileges to.
+    """
+    assert msg.sender == self.admin
+
+    self.is_minter[_minter] = True
+    log AddMinter(_minter)
+
+
+@external
+def remove_minter(_minter: address):
+    """
+    @notice Revoke an account's ability to mint new tokens.
+    @dev Only callable by the admin.
+    @param _minter The account to revoke minter privileges from.
+    """
+    assert msg.sender == self.admin
+
+    self.is_minter[_minter] = False
+    log RemoveMinter(_minter)
 
 
 @external
