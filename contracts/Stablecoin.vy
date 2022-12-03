@@ -56,7 +56,7 @@ totalSupply: public(uint256)
 nonces: public(HashMap[address, uint256])
 
 admin: public(address)
-is_minter: HashMap[address, bool]
+_is_minter: HashMap[address, bool]
 
 
 @external
@@ -286,7 +286,7 @@ def mint(_to: address, _value: uint256) -> bool:
     @param _to The account newly minted tokens are credited to.
     @param _value The amount of tokens to mint.
     """
-    assert self.is_minter[msg.sender] or msg.sender == self.admin
+    assert self._is_minter[msg.sender] or msg.sender == self.admin
     assert _to not in [self, empty(address)]
 
     self.balanceOf[_to] += _value
@@ -305,7 +305,7 @@ def add_minter(_minter: address):
     """
     assert msg.sender == self.admin
 
-    self.is_minter[_minter] = True
+    self._is_minter[_minter] = True
     log AddMinter(_minter)
 
 
@@ -318,7 +318,7 @@ def remove_minter(_minter: address):
     """
     assert msg.sender == self.admin
 
-    self.is_minter[_minter] = False
+    self._is_minter[_minter] = False
     log RemoveMinter(_minter)
 
 
