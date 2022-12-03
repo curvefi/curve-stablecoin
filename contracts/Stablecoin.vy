@@ -56,7 +56,7 @@ totalSupply: public(uint256)
 nonces: public(HashMap[address, uint256])
 
 admin: public(address)
-is_minter: public(HashMap[address, bool])
+is_minter: HashMap[address, bool]
 
 
 @external
@@ -342,3 +342,13 @@ def DOMAIN_SEPARATOR() -> bytes32:
     @notice EIP712 domain separator.
     """
     return self._domain_separator()
+
+
+@view
+@external
+def is_minter(_account: address) -> bool:
+    """
+    @notice Query whether an account is allowed to mint new tokens.
+    @param _account The account to check the minter privileges of.
+    """
+    return self._is_minter[_account] or _account == self.admin
