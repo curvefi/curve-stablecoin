@@ -1,7 +1,6 @@
 import brownie
-from brownie import ZERO_ADDRESS
 import pytest
-
+from brownie import ZERO_ADDRESS
 
 AMOUNT = 10**21
 
@@ -39,14 +38,14 @@ def test_burnFrom(alice, bob, stablecoin):
 
 
 def test_burnFrom_with_infinite_allowance(alice, bob, stablecoin):
-    stablecoin.approve(bob, 2**256 -1, {"from": alice})
+    stablecoin.approve(bob, 2**256 - 1, {"from": alice})
     tx = stablecoin.burnFrom(alice, AMOUNT, {"from": bob})
 
     assert stablecoin.balanceOf(alice) == 0
     assert stablecoin.totalSupply() == 0
     assert tx.events["Transfer"].values() == [alice, ZERO_ADDRESS, AMOUNT]
 
-    assert stablecoin.allowance(alice, bob) == 2**256 -1
+    assert stablecoin.allowance(alice, bob) == 2**256 - 1
     assert "Approval" not in tx.events
     assert tx.return_value is True
 
@@ -57,7 +56,7 @@ def test_burnFrom_reverts_insufficient_allowance(alice, bob, stablecoin):
 
 
 def test_burnFrom_reverts_insufficient_balance(alice, bob, stablecoin):
-    stablecoin.approve(bob, 2**256 -1, {"from": alice})
+    stablecoin.approve(bob, 2**256 - 1, {"from": alice})
 
     with brownie.reverts():
         stablecoin.burnFrom(alice, AMOUNT + 1, {"from": bob})

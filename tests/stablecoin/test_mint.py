@@ -1,6 +1,6 @@
 import brownie
-from brownie import ZERO_ADDRESS
 import pytest
+from brownie import ZERO_ADDRESS
 
 
 def test_mint(alice, bob, stablecoin):
