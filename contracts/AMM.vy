@@ -660,7 +660,8 @@ def withdraw(user: address, move_to: address) -> uint256[2]:
     total_y: uint256 = 0
     min_band: int256 = self.min_band
     old_min_band: int256 = min_band
-    max_band: int256 = 0
+    max_band: int256 = self.max_band
+    old_max_band: int256 = max_band
 
     for i in range(MAX_TICKS):
         x: uint256 = self.bands_x[ns[0]]
@@ -694,7 +695,7 @@ def withdraw(user: address, move_to: address) -> uint256[2]:
 
     if old_min_band != min_band:
         self.min_band = min_band
-    if self.max_band <= ns[1]:
+    if old_max_band <= ns[1]:
         self.max_band = max_band
 
     total_x = unsafe_div(total_x, BORROWED_PRECISION)
