@@ -11,7 +11,6 @@ interface LLAMMA:
     def get_sum_xy(user: address) -> uint256[2]: view
     def withdraw(user: address, move_to: address) -> uint256[2]: nonpayable
     def get_x_down(user: address) -> uint256: view
-    def get_y_up(user: address) -> uint256: view
     def get_rate_mul() -> uint256: view
     def set_rate(rate: uint256) -> uint256: nonpayable
     def set_fee(fee: uint256): nonpayable
