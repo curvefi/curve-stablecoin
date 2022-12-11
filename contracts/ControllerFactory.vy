@@ -169,7 +169,7 @@ def add_market(token: address, A: uint256, fee: uint256, admin_fee: uint256,
     assert loan_discount > liquidation_discount, "need loan_discount>liquidation_discount"
     MonetaryPolicy(monetary_policy).rate_write()  # Test that MonetaryPolicy has correct ABI
 
-    p: uint256 = PriceOracle(_price_oracle_contract).price()  # This also valudates price oracle ABI
+    p: uint256 = PriceOracle(_price_oracle_contract).price()  # This also validates price oracle ABI
     A_ratio: uint256 = 10**18 * A / (A - 1)
 
     amm: address = create_from_blueprint(
