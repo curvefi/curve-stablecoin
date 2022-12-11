@@ -752,7 +752,7 @@ def _liquidate(user: address, min_x: uint256, health_limit: uint256):
 
     # x increase in same block -> price up -> good
     # x decrease in same block -> price down -> bad
-    assert xy[0] >= min_x, "Sandwich"
+    assert xy[0] >= min_x, "Slippage"
 
     min_amm_burn: uint256 = min(xy[0], debt)
     if min_amm_burn != 0:
