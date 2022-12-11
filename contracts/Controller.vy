@@ -268,6 +268,7 @@ def _debt_ro(user: address) -> uint256:
 
 @external
 @view
+@nonreentrant('lock')
 def debt(user: address) -> uint256:
     """
     @notice Get the value of debt without changing the state
@@ -279,6 +280,7 @@ def debt(user: address) -> uint256:
 
 @external
 @view
+@nonreentrant('lock')
 def loan_exists(user: address) -> bool:
     """
     @notice Check whether there is a loan of `user` in existence
@@ -288,6 +290,7 @@ def loan_exists(user: address) -> bool:
 
 @external
 @view
+@nonreentrant('lock')
 def total_debt() -> uint256:
     """
     @notice Total debt of this controller
@@ -396,6 +399,7 @@ def max_p_base() -> uint256:
 
 @external
 @view
+@nonreentrant('lock')
 def max_borrowable(collateral: uint256, N: uint256) -> uint256:
     """
     @notice Calculation of maximum which can be borrowed (details in comments)
@@ -425,6 +429,7 @@ def max_borrowable(collateral: uint256, N: uint256) -> uint256:
 
 @external
 @view
+@nonreentrant('lock')
 def min_collateral(debt: uint256, N: uint256) -> uint256:
     """
     @notice Minimal amount of collateral required to support debt
@@ -438,6 +443,7 @@ def min_collateral(debt: uint256, N: uint256) -> uint256:
 
 @external
 @view
+@nonreentrant('lock')
 def calculate_debt_n1(collateral: uint256, debt: uint256, N: uint256) -> int256:
     """
     @notice Calculate the upper band number for the deposit to sit in to support
@@ -666,6 +672,7 @@ def _health(user: address, debt: uint256, full: bool, liquidation_discount: uint
 
 @external
 @view
+@nonreentrant('lock')
 def health_calculator(user: address, d_collateral: int256, d_debt: int256, full: bool, N: uint256 = 0) -> int256:
     """
     @notice Health predictor in case user changes the debt or collateral
@@ -797,6 +804,7 @@ def self_liquidate(min_x: uint256):
 
 @view
 @external
+@nonreentrant('lock')
 def tokens_to_liquidate(user: address) -> uint256:
     """
     @notice Calculate the amount of stablecoins to have in liquidator's wallet to liquidate a user
@@ -809,6 +817,7 @@ def tokens_to_liquidate(user: address) -> uint256:
 
 @view
 @external
+@nonreentrant('lock')
 def health(user: address, full: bool = False) -> int256:
     """
     @notice Returns position health normalized to 1e18 for the user.
@@ -828,6 +837,7 @@ def amm_price() -> uint256:
 
 @view
 @external
+@nonreentrant('lock')
 def user_prices(user: address) -> uint256[2]:  # Upper, lower
     """
     @notice Lowest price of the lower band and highest price of the upper band the user has deposit in the AMM
@@ -841,6 +851,7 @@ def user_prices(user: address) -> uint256[2]:  # Upper, lower
 
 @view
 @external
+@nonreentrant('lock')
 def user_state(user: address) -> uint256[4]:
     """
     @notice Return the user state in one call

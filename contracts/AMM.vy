@@ -455,6 +455,7 @@ def _get_p(n: int256, x: uint256, y: uint256) -> uint256:
 
 @external
 @view
+@nonreentrant('lock')
 def get_p() -> uint256:
     """
     @notice Get current AMM price in active_band
@@ -483,6 +484,7 @@ def _read_user_tick_numbers(user: address) -> int256[2]:
 
 @external
 @view
+@nonreentrant('lock')
 def read_user_tick_numbers(user: address) -> int256[2]:
     """
     @notice Unpacks and reads user tick numbers
@@ -517,6 +519,7 @@ def _read_user_ticks(user: address, size: int256) -> uint256[MAX_TICKS]:
 
 @external
 @view
+@nonreentrant('lock')
 def can_skip_bands(n_end: int256) -> bool:
     """
     @notice Check that we have no liquidity between active_band and `n_end`
@@ -543,6 +546,7 @@ def can_skip_bands(n_end: int256) -> bool:
 
 @external
 @view
+@nonreentrant('lock')
 def has_liquidity(user: address) -> bool:
     """
     @notice Check if `user` has any liquidity in the AMM
@@ -878,6 +882,7 @@ def _get_dxdy(i: uint256, j: uint256, in_amount: uint256) -> DetailedTrade:
 
 @external
 @view
+@nonreentrant('lock')
 def get_dy(i: uint256, j: uint256, in_amount: uint256) -> uint256:
     """
     @notice Method to use to calculate out amount
@@ -891,6 +896,7 @@ def get_dy(i: uint256, j: uint256, in_amount: uint256) -> uint256:
 
 @external
 @view
+@nonreentrant('lock')
 def get_dxdy(i: uint256, j: uint256, in_amount: uint256) -> (uint256, uint256):
     """
     @notice Method to use to calculate out amount and spent in amount
@@ -1101,6 +1107,7 @@ def get_xy_up(user: address, use_y: bool) -> uint256:
 
 @external
 @view
+@nonreentrant('lock')
 def get_y_up(user: address) -> uint256:
     """
     @notice Measure the amount of y (collateral) in the band n if we adiabatically trade near p_oracle on the way up
@@ -1112,6 +1119,7 @@ def get_y_up(user: address) -> uint256:
 
 @external
 @view
+@nonreentrant('lock')
 def get_x_down(user: address) -> uint256:
     """
     @notice Measure the amount of x (stablecoin) if we trade adiabatically down
@@ -1123,6 +1131,7 @@ def get_x_down(user: address) -> uint256:
 
 @external
 @view
+@nonreentrant('lock')
 def get_sum_xy(user: address) -> uint256[2]:
     """
     @notice A low-gas function to measure amounts of stablecoins and collateral which user currently owns
@@ -1147,6 +1156,7 @@ def get_sum_xy(user: address) -> uint256[2]:
 
 @external
 @view
+@nonreentrant('lock')
 def get_amount_for_price(p: uint256) -> (uint256, bool):
     """
     @notice Amount necessary to be exchanged to have the AMM at the final price `p`
