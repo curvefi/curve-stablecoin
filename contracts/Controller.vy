@@ -4,6 +4,7 @@ interface LLAMMA:
     def A() -> uint256: view
     def get_p() -> uint256: view
     def active_band() -> int256: view
+    def active_band_with_skip() -> int256: view
     def p_oracle_up(n: int256) -> uint256: view
     def p_oracle_down(n: int256) -> uint256: view
     def deposit_range(user: address, amount: uint256, n1: int256, n2: int256, move_coins: bool): nonpayable
@@ -17,7 +18,6 @@ interface LLAMMA:
     def set_admin_fee(fee: uint256): nonpayable
     def price_oracle() -> uint256: view
     def can_skip_bands(n_end: int256) -> bool: view
-    def bands_x(n: int256) -> uint256: view
     def set_price_oracle(price_oracle: PriceOracle): nonpayable
     def admin_fees_x() -> uint256: view
     def admin_fees_y() -> uint256: view
@@ -384,10 +384,11 @@ def max_p_base() -> uint256:
     n1: int256 = AMM.active_band() + 5  # Should be correct unless price changes suddenly by 5+ bands
     p_base: uint256 = AMM.p_oracle_up(n1)
     p_oracle: uint256 = AMM.price_oracle()
+    n_min: int256 = AMM.active_band_with_skip()
 
     for i in range(MAX_SKIP_TICKS + 1):
         n1 -= 1
-        if AMM.bands_x(n1) != 0:
+        if n1 <= n_min:
             break
         p_base_prev: uint256 = p_base
         p_base = unsafe_div(p_base * A, Aminus1)
@@ -607,11 +608,7 @@ def repay(_d_debt: uint256, _for: address):
         log Repay(_for, xy[1], d_debt)
 
     else:
-        active_band: int256 = AMM.active_band()
-        for i in range(MAX_SKIP_TICKS):
-            if AMM.bands_x(active_band) != 0:
-                break
-            active_band -= 1
+        active_band: int256 = AMM.active_band_with_skip()
 
         if ns[0] > active_band:
             # Not in liquidation - can move bands
@@ -702,11 +699,7 @@ def health_calculator(user: address, d_collateral: int256, d_debt: int256, full:
     debt += d_debt
     assert debt >= 0, "Negative debt"
 
-    active_band: int256 = AMM.active_band()
-    for i in range(MAX_SKIP_TICKS):
-        if AMM.bands_x(active_band) != 0:
-            break
-        active_band -= 1
+    active_band: int256 = AMM.active_band_with_skip()
 
     if ns[0] > active_band and (d_collateral != 0 or d_debt != 0):  # re-deposit
         collateral = convert(xy[1], int256) + d_collateral

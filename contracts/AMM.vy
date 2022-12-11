@@ -547,6 +547,18 @@ def can_skip_bands(n_end: int256) -> bool:
 @external
 @view
 @nonreentrant('lock')
+def active_band_with_skip() -> int256:
+    n: int256 = self.active_band
+    for i in range(MAX_SKIP_TICKS):
+        if self.bands_x[n] != 0:
+            break
+        n -= 1
+    return n
+
+
+@external
+@view
+@nonreentrant('lock')
 def has_liquidity(user: address) -> bool:
     """
     @notice Check if `user` has any liquidity in the AMM
