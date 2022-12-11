@@ -176,6 +176,15 @@ def __init__(
     LOG_A_RATIO = _log_A_ratio
 
 
+@internal
+def approve_max(token: ERC20, _admin: address):
+    """
+    Approve max in a separate function because it uses less bytespace than
+    calling directly, and gas doesn't matter in set_admin
+    """
+    assert token.approve(_admin, max_value(uint256), default_return_value=True)
+
+
 @external
 def set_admin(_admin: address):
     """
@@ -184,8 +193,8 @@ def set_admin(_admin: address):
     """
     assert self.admin == empty(address)
     self.admin = _admin
-    assert BORROWED_TOKEN.approve(_admin, max_value(uint256), default_return_value=True)
-    assert COLLATERAL_TOKEN.approve(_admin, max_value(uint256), default_return_value=True)
+    self.approve_max(BORROWED_TOKEN, _admin)
+    self.approve_max(COLLATERAL_TOKEN, _admin)
 
 
 @internal
@@ -403,8 +412,6 @@ def get_y0(_n: int256) -> uint256:
     @return y0
     """
     n: int256 = _n
-    if _n == max_value(int256):
-        n = self.active_band
     return self._get_y0(
         self.bands_x[n],
         self.bands_y[n],
