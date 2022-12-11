@@ -62,7 +62,7 @@ def test_liquidate(accounts, admin, controller_for_liquidation, market_amm):
         x = market_amm.get_sum_xy(user)[0]
 
         with boa.env.prank(fee_receiver):
-            with boa.reverts("Sandwich"):
+            with boa.reverts("Slippage"):
                 controller.liquidate(user, x + 1)
             controller.liquidate(user, x)
 
@@ -82,7 +82,7 @@ def test_self_liquidate(accounts, admin, controller_for_liquidation, market_amm,
             with boa.reverts("Not enough rekt"):
                 controller.liquidate(user, 0)
 
-            with boa.reverts("Sandwich"):
+            with boa.reverts("Slippage"):
                 controller.self_liquidate(x + 1)
 
             controller.self_liquidate(x)
