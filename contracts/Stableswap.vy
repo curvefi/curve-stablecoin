@@ -90,9 +90,6 @@ PERMIT_TYPEHASH: constant(bytes32) = keccak256("Permit(address owner,address spe
 ERC1271_MAGIC_VAL: constant(bytes32) = 0x1626ba7e00000000000000000000000000000000000000000000000000000000
 VERSION: constant(String[8]) = "v6.0.0"
 
-EXP_PRECISION: constant(uint256) = 10**10
-
-
 factory: address
 
 coins: public(address[N_COINS])
