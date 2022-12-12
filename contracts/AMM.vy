@@ -864,6 +864,11 @@ def calc_swap_out(pump: bool, in_amount: uint256, p_o: uint256) -> DetailedTrade
     # ceil(in_amount_used/BORROWED_PRECISION) * BORROWED_PRECISION
     out.in_amount = unsafe_mul(unsafe_div(unsafe_add(out.in_amount, unsafe_sub(in_precision, 1)), in_precision), in_precision)
     out.out_amount = unsafe_mul(unsafe_div(out.out_amount, out_precision), out_precision)
+
+    # If out_amount is zeroed because of rounding off - don't charge admin fees
+    if out.out_amount == 0:
+        out.admin_fee = 0
+
     return out
 
 
