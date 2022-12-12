@@ -598,7 +598,7 @@ def deposit_range(user: address, amount: uint256, n1: int256, n2: int256, move_c
     if move_coins:
         assert COLLATERAL_TOKEN.transferFrom(user, self, amount, default_return_value=True)
 
-    i: uint256 = convert(unsafe_sub(band, n1), uint256)
+    i: uint256 = convert(unsafe_sub(n2, n1), uint256)
     n_bands: uint256 = unsafe_add(i, 1)
     assert n_bands <= MAX_TICKS_UINT
 
@@ -646,14 +646,13 @@ def deposit_range(user: address, amount: uint256, n1: int256, n2: int256, move_c
     if save_n:
         self.user_shares[user].ns = n1 + n2 * 2**128
 
-    dist: uint256 = convert(unsafe_sub(n2, n1), uint256) + 1
     ptr: uint256 = 0
     for j in range(MAX_TICKS_UINT / 2):
-        if ptr >= dist:
+        if ptr >= n_bands:
             break
         tick: uint256 = user_shares[ptr]
         ptr = unsafe_add(ptr, 1)
-        if dist != ptr:
+        if n_bands != ptr:
             tick = tick | shift(user_shares[ptr], 128)
         ptr = unsafe_add(ptr, 1)
         self.user_shares[user].ticks[j] = tick
