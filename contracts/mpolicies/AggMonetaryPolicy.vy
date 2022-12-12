@@ -14,10 +14,10 @@ event SetAdmin:
     admin: address
 
 event AddPegKeeper:
-    peg_keeper: address
+    peg_keeper: indexed(address)
 
 event RemovePegKeeper:
-    peg_keeper: address
+    peg_keeper: indexed(address)
 
 event SetRate:
     rate: uint256

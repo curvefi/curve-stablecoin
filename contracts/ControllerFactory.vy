@@ -20,14 +20,14 @@ interface MonetaryPolicy:
 
 
 event AddMarket:
-    collateral: address
+    collateral: indexed(address)
     controller: address
     amm: address
     monetary_policy: address
     ix: uint256
 
 event SetDebtCeiling:
-    addr: address
+    addr: indexed(address)
     debt_ceiling: uint256
 
 event SetImplementations:
