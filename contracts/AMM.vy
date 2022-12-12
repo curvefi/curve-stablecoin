@@ -580,15 +580,15 @@ def deposit_range(user: address, amount: uint256, n1: int256, n2: int256, move_c
     assert msg.sender == self.admin
 
     n0: int256 = self.active_band
-    band: int256 = max(n1, n2)  # Fill from high N to low N
-    upper: int256 = band
-    lower: int256 = min(n1, n2)
-    assert upper < 2**127
-    assert lower > -2**127
+    band: int256 = n2  # Fill from high N to low N
+
+    # We assume that n1,n2 area already sorted (and they are in Controller)
+    assert n2 < 2**127
+    assert n1 > -2**127
 
     # Autoskip bands if we can
     for i in range(MAX_SKIP_TICKS + 1):
-        if lower > n0:
+        if n1 > n0:
             if i != 0:
                 self.active_band = n0
             break
@@ -598,7 +598,7 @@ def deposit_range(user: address, amount: uint256, n1: int256, n2: int256, move_c
     if move_coins:
         assert COLLATERAL_TOKEN.transferFrom(user, self, amount, default_return_value=True)
 
-    i: uint256 = convert(unsafe_sub(band, lower), uint256)
+    i: uint256 = convert(unsafe_sub(band, n1), uint256)
     n_bands: uint256 = unsafe_add(i, 1)
     assert n_bands <= MAX_TICKS_UINT
 
@@ -608,7 +608,7 @@ def deposit_range(user: address, amount: uint256, n1: int256, n2: int256, move_c
     save_n: bool = True
     if self.user_shares[user].ticks[0] != 0:  # Has liquidity
         ns: int256[2] = self._read_user_tick_numbers(user)
-        assert ns[0] == lower and ns[1] == band, "Wrong range"
+        assert ns[0] == n1 and ns[1] == band, "Wrong range"
         save_n = False
 
     user_shares: uint256[MAX_TICKS] = empty(uint256[MAX_TICKS])
@@ -640,13 +640,13 @@ def deposit_range(user: address, amount: uint256, n1: int256, n2: int256, move_c
             break
         i = unsafe_sub(i, 1)
 
-    self.min_band = min(self.min_band, lower)
-    self.max_band = max(self.max_band, upper)
+    self.min_band = min(self.min_band, n1)
+    self.max_band = max(self.max_band, n2)
 
     if save_n:
-        self.user_shares[user].ns = lower + upper * 2**128
+        self.user_shares[user].ns = n1 + n2 * 2**128
 
-    dist: uint256 = convert(unsafe_sub(upper, lower), uint256) + 1
+    dist: uint256 = convert(unsafe_sub(n2, n1), uint256) + 1
     ptr: uint256 = 0
     for j in range(MAX_TICKS_UINT / 2):
         if ptr >= dist:
