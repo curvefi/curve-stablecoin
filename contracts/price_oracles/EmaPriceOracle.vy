@@ -1,5 +1,6 @@
 # @version 0.3.7
 
+last_ema_price: public(uint256)
 last_price: public(uint256)
 last_timestamp: uint256
 MA_EXP_TIME: immutable(uint256)
@@ -26,7 +27,9 @@ def __init__(ma_exp_time: uint256,
         is_static_call=True,
         max_outsize=32
     )
-    self.last_price = convert(response, uint256)
+    p: uint256 = convert(response, uint256)
+    self.last_ema_price = p
+    self.last_price = p
     self.last_timestamp = block.timestamp
 
 
@@ -100,15 +103,15 @@ def exp(power: int256) -> uint256:
 @view
 def ema_price() -> uint256:
     last_timestamp: uint256 = self.last_timestamp
+    last_ema_price: uint256 = self.last_ema_price
     last_price: uint256 = self.last_price
 
     if last_timestamp < block.timestamp:
-        current_price: uint256 = self._price_oracle()
         alpha: uint256 = self.exp(- convert((block.timestamp - last_timestamp) * 10**18 / MA_EXP_TIME, int256))
-        return (current_price * (10**18 - alpha) + last_price * alpha) / 10**18
+        return (last_price * (10**18 - alpha) + last_ema_price * alpha) / 10**18
 
     else:
-        return last_price
+        return last_ema_price
 
 
 @external
@@ -121,6 +124,7 @@ def price() -> uint256:
 def price_w() -> uint256:
     p: uint256 = self.ema_price()
     if self.last_timestamp < block.timestamp:
-        self.last_price = p
+        self.last_ema_price = p
+        self.last_price = self._price_oracle()
         self.last_timestamp = block.timestamp
     return p
