@@ -42,6 +42,18 @@ def pack_prices(p1: uint256, p2: uint256) -> uint256:
 
 @view
 @external
+def last_price() -> uint256:
+    return self.last_prices_packed & (2**128 - 1)
+
+
+@view
+@external
+def last_ema_price() -> uint256:
+    return shift(self.last_prices_packed, -128)
+
+
+@view
+@external
 def ma_exp_time() -> uint256:
     return MA_EXP_TIME
 
