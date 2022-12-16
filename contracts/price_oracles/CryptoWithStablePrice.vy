@@ -195,7 +195,7 @@ def price() -> uint256:
 @external
 def price_w() -> uint256:
     p: uint256 = self.ema_price()
+    self.last_prices_packed = self.pack_prices(self._raw_price(), p)
     if self.last_timestamp < block.timestamp:
-        self.last_prices_packed = self.pack_prices(self._raw_price(), p)
         self.last_timestamp = block.timestamp
     return p

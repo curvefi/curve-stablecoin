@@ -71,7 +71,6 @@ def test_ema_sleep(ema_price_oracle, price_oracle, admin, t1, p_mul):
     boa.env.time_travel(t1)
     with boa.env.prank(admin):
         price_oracle.set_price(p_target)
-    boa.env.time_travel(1)
     ema_price_oracle.price_w()
     assert (ema_price_oracle.price() - p) < 0.001 * p
     boa.env.time_travel(100_000_000)

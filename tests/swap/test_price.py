@@ -27,7 +27,7 @@ def test_price(swap_w_d, redeemable_coin, volatile_coin, accounts, amount, ix):
 @given(
     amount=st.integers(min_value=1, max_value=10**5),
     ix=st.integers(min_value=0, max_value=1),
-    dt0=st.integers(min_value=1, max_value=10**6),
+    dt0=st.integers(min_value=0, max_value=10**6),
     dt=st.integers(min_value=0, max_value=10**6))
 @settings(max_examples=1000, deadline=timedelta(seconds=1000))
 def test_ema(swap_w_d, redeemable_coin, volatile_coin, accounts, amount, ix, dt0, dt):
