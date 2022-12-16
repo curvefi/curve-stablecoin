@@ -7,6 +7,10 @@
 @dev ERC20 support for return True/revert, return True/False, return None
 """
 
+# XXX this is an incomplete implementation!
+# XXX it should have commit_new_parameters included
+# XXX as well as handling setting the new MA time
+
 from vyper.interfaces import ERC20
 
 interface Factory:
