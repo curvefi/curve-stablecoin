@@ -113,8 +113,8 @@ totalSupply: public(uint256)
 DOMAIN_SEPARATOR: public(bytes32)
 nonces: public(HashMap[address, uint256])
 
-ma_price: uint256
-ma_half_time: public(uint256)
+last_prices_packed: uint256  #  [last_price, ma_price]
+ma_exp_time: public(uint256)  # XXX need a setter for this
 ma_last_time: public(uint256)
 
 
@@ -158,8 +158,8 @@ def initialize(
     self.future_A = A
     self.fee = _fee
     self.factory = msg.sender
-    self.ma_half_time = 866  # = 600 / ln(2)
-    self.ma_price = 10**18
+    self.ma_exp_time = 866  # = 600 / ln(2)
+    self.last_prices_packed = self.pack_prices(10**18, 10**18)
     self.ma_last_time = block.timestamp
 
     name: String[64] = concat("Curve.fi Factory Plain Pool: ", _name)
@@ -295,6 +295,25 @@ def permit(
 
 
 ### StableSwap Functionality ###
+
+@pure
+@internal
+def pack_prices(p1: uint256, p2: uint256) -> uint256:
+    assert p1 < 2**128
+    assert p2 < 2**128
+    return p1 | shift(p2, 128)
+
+
+@view
+@external
+def last_price() -> uint256:
+    return self.last_prices_packed & (2**128 - 1)
+
+
+@view
+@external
+def ema_price() -> uint256:
+    return shift(self.last_prices_packed, -128)
 
 @view
 @external
@@ -452,19 +471,36 @@ def exp(power: int256) -> uint256:
 
 @internal
 @view
-def _ma_price(xp: uint256[N_COINS], amp: uint256, D: uint256) -> uint256:
-    p: uint256 = self._get_p(xp, amp, D)
-    ema_mul: uint256 = self.exp(-convert((block.timestamp - self.ma_last_time) * 10**18 / self.ma_half_time, int256))
-    return (self.ma_price * ema_mul + p * (10**18 - ema_mul)) / 10**18
+def _ma_price() -> uint256:
+    ma_last_time: uint256 = self.ma_last_time
+
+    pp: uint256 = self.last_prices_packed
+    last_price: uint256 = pp & (2**128 - 1)
+    last_ema_price: uint256 = shift(pp, -128)
+
+    if ma_last_time < block.timestamp:
+        alpha: uint256 = self.exp(- convert((block.timestamp - ma_last_time) * 10**18 / self.ma_exp_time, int256))
+        return (last_price * (10**18 - alpha) + last_ema_price * alpha) / 10**18
+
+    else:
+        return last_ema_price
 
 
 @external
 @view
 def price_oracle() -> uint256:
-    amp: uint256 = self._A()
-    xp: uint256[N_COINS] = self._xp_mem(self.rate_multipliers, self.balances)
-    D: uint256 = self.get_D(xp, amp)
-    return self._ma_price(xp, amp, D)
+    return self._ma_price()
+
+
+@internal
+def save_p_from_price(last_price: uint256):
+    """
+    Saves current price and its EMA
+    """
+    if last_price != 0:
+        if self.ma_last_time < block.timestamp:
+            self.last_prices_packed = self.pack_prices(last_price, self._ma_price())
+            self.ma_last_time = block.timestamp
 
 
 @internal
@@ -472,8 +508,7 @@ def save_p(xp: uint256[N_COINS], amp: uint256, D: uint256):
     """
     Saves current price and its EMA
     """
-    self.ma_price = self._ma_price(xp, amp, D)
-    self.ma_last_time = block.timestamp
+    self.save_p_from_price(self._get_p(xp, amp, D))
 
 
 @view
@@ -914,11 +949,11 @@ def _calc_withdraw_one_coin(_burn_amount: uint256, i: int128) -> uint256[3]:
     dy = (dy - 1) * PRECISION / rates[i]  # Withdraw less to account for rounding errors
 
     xp[i] = new_y
-    ma_p: uint256 = 0
+    last_p: uint256 = 0
     if new_y > 0:
-        ma_p = self._ma_price(xp, amp, D1)
+        last_p = self._get_p(xp, amp, D1)
 
-    return [dy, dy_0 - dy, ma_p]
+    return [dy, dy_0 - dy, last_p]
 
 
 @view
@@ -961,8 +996,7 @@ def remove_liquidity_one_coin(
     assert ERC20(self.coins[i]).transfer(_receiver, dy[0], default_return_value=True)  # dev: failed transfer
     log RemoveLiquidityOne(msg.sender, _burn_amount, dy[0], total_supply)
 
-    self.ma_price = dy[2]
-    self.ma_last_time = block.timestamp
+    self.save_p_from_price(dy[2])
 
     return dy[0]
 
