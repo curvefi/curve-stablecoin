@@ -304,7 +304,7 @@ def total_debt() -> uint256:
 @view
 def get_y_effective(collateral: uint256, N: uint256, discount: uint256) -> uint256:
     """
-    @notice Intermediary method which calculates y_effective defined as x_effective * p_base,
+    @notice Intermediary method which calculates y_effective defined as x_effective / p_base,
             however discounted by loan_discount.
             x_effective is an amount which can be obtained from collateral when liquidating
     @param collateral Amount of collateral to get the value for
