@@ -1,5 +1,6 @@
 from ape import project, accounts
-from ape.cli import NetworkBoundCommand, account_option, network_option
+from ape.cli import NetworkBoundCommand, network_option
+# account_option could be used when in prod?
 import click
 
 SHORT_NAME = "crvUSD"
@@ -39,11 +40,12 @@ def cli():
     name="deploy",
 )
 @network_option()
-@account_option()
-def main(network, account):
-    if not network == "ethereum:mainnet-fork":
+def main(network):
+    if 'hardhat' not in network and 'foundry' not in network:
+        # admin = fee_receiver = accounts.load('babe')
         raise NotImplementedError("Mainnet not implemented yet")
     else:
+        account = accounts.test_accounts[0]
         admin = account
         fee_receiver = account
 
@@ -73,7 +75,7 @@ def main(network, account):
     amm = project.AMM.at(factory.get_amm(collateral_token))
     controller = project.Controller.at(factory.get_controller(collateral_token))
 
-    if network == "ethereum:mainnet-fork":
+    if 'hardhat' in network or 'foundry' in network:
         for user in accounts:
             collateral_token._mint_for_testing(user, 10**4 * 10**18, sender=account)
 
