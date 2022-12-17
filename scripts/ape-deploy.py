@@ -1,7 +1,6 @@
 from ape import project, accounts
 from ape.cli import NetworkBoundCommand, account_option, network_option
 import click
-import typing
 
 SHORT_NAME = "crvUSD"
 FULL_NAME = "Curve.Fi USD Stablecoin"
@@ -42,7 +41,6 @@ def cli():
 @network_option()
 @account_option()
 def main(network, account):
-    
     if not network == "ethereum:mainnet-fork":
         raise NotImplementedError("Mainnet not implemented yet")
     else:

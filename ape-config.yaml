@@ -20,7 +20,8 @@ hardhat:
   fork:
     ethereum:
       mainnet:
-        upstream_provider: geth
+        upstream_provider: alchemy
+        enable_hardhat_deployments: true
 
 geth:
   ethereum:
