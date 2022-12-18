@@ -12,9 +12,6 @@ from vyper.interfaces import ERC20
 
 implements: ERC20
 
-interface Controller:
-    def admin() -> address: view
-
 
 event Transfer:
     _from: indexed(address)
