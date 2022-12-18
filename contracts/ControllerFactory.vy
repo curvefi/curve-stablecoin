@@ -30,6 +30,14 @@ event SetDebtCeiling:
     addr: indexed(address)
     debt_ceiling: uint256
 
+event MintForMarket:
+    addr: indexed(address)
+    amount: uint256
+
+event RemoveFromMarket:
+    addr: indexed(address)
+    amount: uint256
+
 event SetImplementations:
     amm: address
     controller: address
@@ -128,13 +136,16 @@ def _set_debt_ceiling(addr: address, debt_ceiling: uint256, update: bool):
     old_debt_residual: uint256 = self.debt_ceiling_residual[addr]
 
     if debt_ceiling > old_debt_residual:
-        STABLECOIN.mint(addr, debt_ceiling - old_debt_residual)
+        to_mint: uint256 = debt_ceiling - old_debt_residual
+        STABLECOIN.mint(addr, to_mint)
         self.debt_ceiling_residual[addr] = debt_ceiling
+        log MintForMarket(addr, to_mint)
 
     if debt_ceiling < old_debt_residual:
         diff: uint256 = min(old_debt_residual - debt_ceiling, STABLECOIN.balanceOf(addr))
         STABLECOIN.burnFrom(addr, diff)
         self.debt_ceiling_residual[addr] = old_debt_residual - diff
+        log RemoveFromMarket(addr, diff)
 
     if update:
         self.debt_ceiling[addr] = debt_ceiling
