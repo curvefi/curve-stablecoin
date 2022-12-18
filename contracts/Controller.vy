@@ -100,9 +100,12 @@ MAX_SKIP_TICKS: constant(uint256) = 1024
 
 MAX_RATE: constant(uint256) = 43959106799  # 400% APY
 
-loans: HashMap[address, Loan]
+loan: HashMap[address, Loan]
 liquidation_discounts: public(HashMap[address, uint256])
 _total_debt: Loan
+
+loans: public(address[10**18])  # Enumerate existing loans
+n_loans: public(uint256)        # Number of nonzero loans
 
 minted: public(uint256)
 redeemed: public(uint256)
@@ -243,7 +246,7 @@ def _debt(user: address) -> (uint256, uint256):
     @return (debt, rate_mul)
     """
     rate_mul: uint256 = self._rate_mul_w()
-    loan: Loan = self.loans[user]
+    loan: Loan = self.loan[user]
     if loan.initial_debt == 0:
         return (0, rate_mul)
     else:
@@ -259,7 +262,7 @@ def _debt_ro(user: address) -> uint256:
     @return Value of debt
     """
     rate_mul: uint256 = AMM.get_rate_mul()
-    loan: Loan = self.loans[user]
+    loan: Loan = self.loan[user]
     if loan.initial_debt == 0:
         return 0
     else:
@@ -285,7 +288,7 @@ def loan_exists(user: address) -> bool:
     """
     @notice Check whether there is a loan of `user` in existence
     """
-    return self.loans[user].initial_debt > 0
+    return self.loan[user].initial_debt > 0
 
 
 @external
@@ -467,7 +470,7 @@ def create_loan(collateral: uint256, debt: uint256, N: uint256):
     @param N Number of bands to deposit into (to do autoliquidation-deliquidation),
            can be from MIN_TICKS to MAX_TICKS
     """
-    assert self.loans[msg.sender].initial_debt == 0, "Loan already created"
+    assert self.loan[msg.sender].initial_debt == 0, "Loan already created"
     assert N > MIN_TICKS-1, "Need more ticks"
     assert N < MAX_TICKS+1, "Need less ticks"
 
@@ -475,9 +478,14 @@ def create_loan(collateral: uint256, debt: uint256, N: uint256):
     n2: int256 = n1 + convert(N - 1, int256)
 
     rate_mul: uint256 = self._rate_mul_w()
-    self.loans[msg.sender] = Loan({initial_debt: debt, rate_mul: rate_mul})
+    self.loan[msg.sender] = Loan({initial_debt: debt, rate_mul: rate_mul})
     liquidation_discount: uint256 = self.liquidation_discount
     self.liquidation_discounts[msg.sender] = liquidation_discount
+
+    n_loans: uint256 = self.n_loans
+    self.loans[n_loans] = msg.sender
+    self.n_loans = unsafe_add(n_loans, 1)
+
     total_debt: uint256 = self._total_debt.initial_debt * rate_mul / self._total_debt.rate_mul + debt
     self._total_debt.initial_debt = total_debt
     self._total_debt.rate_mul = rate_mul
@@ -519,7 +527,7 @@ def _add_collateral_borrow(d_collateral: uint256, d_debt: uint256, _for: address
     n2: int256 = n1 + ns[1] - ns[0]
 
     AMM.deposit_range(_for, xy[1], n1, n2, False)
-    self.loans[_for] = Loan({initial_debt: debt, rate_mul: rate_mul})
+    self.loan[_for] = Loan({initial_debt: debt, rate_mul: rate_mul})
     liquidation_discount: uint256 = self.liquidation_discount
     self.liquidation_discounts[_for] = liquidation_discount
 
@@ -629,7 +637,7 @@ def repay(_d_debt: uint256, _for: address):
     STABLECOIN.transferFrom(msg.sender, self, d_debt)  # fail: insufficient funds
     self.redeemed += d_debt
 
-    self.loans[_for] = Loan({initial_debt: debt, rate_mul: rate_mul})
+    self.loan[_for] = Loan({initial_debt: debt, rate_mul: rate_mul})
     total_debt: uint256 = self._total_debt.initial_debt * rate_mul / self._total_debt.rate_mul
     self._total_debt.initial_debt = max(total_debt, d_debt) - d_debt
     self._total_debt.rate_mul = rate_mul
@@ -765,7 +773,7 @@ def _liquidate(user: address, min_x: uint256, health_limit: uint256):
 
     assert COLLATERAL_TOKEN.transferFrom(AMM.address, msg.sender, xy[1], default_return_value=True)
 
-    self.loans[user] = Loan({initial_debt: 0, rate_mul: rate_mul})
+    self.loan[user] = Loan({initial_debt: 0, rate_mul: rate_mul})
     log UserState(user, 0, 0, 0, 0, 0)
     log Repay(user, xy[1], debt)
     log Liquidate(msg.sender, user, xy[1], xy[0], debt)
