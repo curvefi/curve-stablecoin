@@ -107,6 +107,7 @@ def __init__(_pool: CurvePool, _index: uint256, _receiver: address, _caller_shar
     log ApplyNewReceiver(_receiver)
 
     self.caller_share = _caller_share
+    assert _caller_share <= SHARE_PRECISION  # dev: bad part value
     log SetNewCallerShare(_caller_share)
 
     FACTORY = _factory
