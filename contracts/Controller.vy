@@ -105,7 +105,8 @@ liquidation_discounts: public(HashMap[address, uint256])
 _total_debt: Loan
 
 loans: public(address[10**18])  # Enumerate existing loans
-n_loans: public(uint256)        # Number of nonzero loans
+loan_ix: public(HashMap[address, uint256])  # Position of the loan in the list
+n_loans: public(uint256)  # Number of nonzero loans
 
 minted: public(uint256)
 redeemed: public(uint256)
@@ -484,6 +485,7 @@ def create_loan(collateral: uint256, debt: uint256, N: uint256):
 
     n_loans: uint256 = self.n_loans
     self.loans[n_loans] = msg.sender
+    self.loan_ix[msg.sender] = n_loans
     self.n_loans = unsafe_add(n_loans, 1)
 
     total_debt: uint256 = self._total_debt.initial_debt * rate_mul / self._total_debt.rate_mul + debt
@@ -587,6 +589,19 @@ def borrow_more(collateral: uint256, debt: uint256):
     self.minted += debt
 
 
+@internal
+def _remove_from_list(_for: address):
+    last_loan_ix: uint256 = self.n_loans - 1
+    loan_ix: uint256 = self.loan_ix[_for]
+    assert self.loans[loan_ix] == _for  # dev: should never fail but safety first
+    self.loan_ix[_for] = 0
+    if loan_ix < last_loan_ix:  # Need to replace
+        last_loan: address = self.loans[last_loan_ix]
+        self.loans[loan_ix] = last_loan
+        self.loan_ix[last_loan] = loan_ix
+    self.n_loans = last_loan_ix
+
+
 @external
 @nonreentrant('lock')
 def repay(_d_debt: uint256, _for: address):
@@ -614,6 +629,7 @@ def repay(_d_debt: uint256, _for: address):
         xy: uint256[2] = AMM.withdraw(_for, _for)
         log UserState(_for, 0, 0, 0, 0, 0)
         log Repay(_for, xy[1], d_debt)
+        self._remove_from_list(_for)
 
     else:
         active_band: int256 = AMM.active_band_with_skip()
@@ -777,6 +793,7 @@ def _liquidate(user: address, min_x: uint256, health_limit: uint256):
     log UserState(user, 0, 0, 0, 0, 0)
     log Repay(user, xy[1], debt)
     log Liquidate(msg.sender, user, xy[1], xy[0], debt)
+    self._remove_from_list(user)
 
     d: uint256 = self._total_debt.initial_debt * rate_mul / self._total_debt.rate_mul
     self._total_debt.initial_debt = max(d, debt) - debt
