@@ -88,6 +88,13 @@ struct Loan:
     initial_debt: uint256
     rate_mul: uint256
 
+struct Position:
+    user: address
+    x: uint256
+    y: uint256
+    debt: uint256
+    health: int256
+
 
 FACTORY: immutable(Factory)
 STABLECOIN: immutable(ERC20)
@@ -840,9 +847,45 @@ def tokens_to_liquidate(user: address) -> uint256:
 def health(user: address, full: bool = False) -> int256:
     """
     @notice Returns position health normalized to 1e18 for the user.
-             Liquidation starts when < 0, however devaluation of collateral doesn't cause liquidation
+            Liquidation starts when < 0, however devaluation of collateral doesn't cause liquidation
     """
     return self._health(user, self._debt_ro(user), full, self.liquidation_discounts[user])
+
+
+@view
+@external
+@nonreentrant('lock')
+def users_to_liquidate(_from: uint256=0, _limit: uint256=0) -> DynArray[Position, 1000]:
+    """
+    @notice Returns a dynamic array of users who can be "hard-liquidated".
+            This method is designed for convenience of liquidation bots.
+    @param _from Loan index to start iteration from
+    @param _limit Number of loans to look over
+    @return Dynamic array with detailed info about positions of users
+    """
+    n_loans: uint256 = self.n_loans
+    limit: uint256 = _limit
+    if _limit == 0:
+        limit = n_loans
+    ix: uint256 = _from
+    out: DynArray[Position, 1000] = []
+    for i in range(10**6):
+        if ix >= n_loans or i == limit:
+            break
+        user: address = self.loans[ix]
+        debt: uint256 = self._debt_ro(user)
+        health: int256 = self._health(user, self._debt_ro(user), True, self.liquidation_discounts[user])
+        if health < 0:
+            xy: uint256[2] = AMM.get_sum_xy(user)
+            out.append(Position({
+                user: user,
+                x: xy[0],
+                y: xy[1],
+                debt: debt,
+                health: health
+            }))
+        ix += 1
+    return out
 
 
 @view
