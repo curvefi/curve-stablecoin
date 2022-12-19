@@ -104,7 +104,8 @@ loan: HashMap[address, Loan]
 liquidation_discounts: public(HashMap[address, uint256])
 _total_debt: Loan
 
-loans: public(address[10**18])  # Enumerate existing loans
+# XXX address[LARGE_NUMBER] causes Memory error in boa - need to report!
+loans: public(HashMap[uint256, address])  # Enumerate existing loans
 loan_ix: public(HashMap[address, uint256])  # Position of the loan in the list
 n_loans: public(uint256)  # Number of nonzero loans
 
