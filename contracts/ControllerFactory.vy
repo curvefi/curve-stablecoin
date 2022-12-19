@@ -73,20 +73,25 @@ MAX_ADMIN_FEE: constant(uint256) = 10**18  # 100%
 MAX_LOAN_DISCOUNT: constant(uint256) = 5 * 10**17
 MIN_LIQUIDATION_DISCOUNT: constant(uint256) = 10**16
 
+WETH: public(immutable(address))
+
 
 @external
 def __init__(stablecoin: ERC20,
              admin: address,
-             fee_receiver: address):
+             fee_receiver: address,
+             weth: address):
     """
     @notice Factory which creates both controllers and AMMs from blueprints
     @param stablecoin Stablecoin address
     @param admin Admin of the factory (ideally DAO)
     @param fee_receiver Receiver of interest and admin fees
+    @param weth Address of WETH contract address
     """
     STABLECOIN = stablecoin
     self.admin = admin
     self.fee_receiver = fee_receiver
+    WETH = weth
 
 
 @internal

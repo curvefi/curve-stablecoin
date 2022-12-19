@@ -9,9 +9,15 @@ def stablecoin(admin):
 
 
 @pytest.fixture(scope="module")
-def controller_prefactory(stablecoin, admin, accounts):
+def weth(admin):
     with boa.env.prank(admin):
-        return boa.load('contracts/ControllerFactory.vy', stablecoin.address, admin, accounts[0])
+        return boa.load('contracts/testing/WETH.vy')
+
+
+@pytest.fixture(scope="module")
+def controller_prefactory(stablecoin, weth, admin, accounts):
+    with boa.env.prank(admin):
+        return boa.load('contracts/ControllerFactory.vy', stablecoin.address, admin, accounts[0], weth.address)
 
 
 @pytest.fixture(scope="module")

@@ -30,6 +30,10 @@ interface ERC20:
     def decimals() -> uint256: view
     def approve(_spender: address, _value: uint256) -> bool: nonpayable
 
+interface WETH:
+    def deposit(): payable
+    def withdraw(_amount: uint256): nonpayable
+
 interface MonetaryPolicy:
     def rate_write() -> uint256: nonpayable
 
@@ -37,6 +41,7 @@ interface Factory:
     def stablecoin() -> address: view
     def admin() -> address: view
     def fee_receiver() -> address: view
+    def WETH() -> address: view
 
 interface PriceOracle:
     def price() -> uint256: view
@@ -135,6 +140,8 @@ SQRT_BAND_RATIO: immutable(uint256)
 MAX_ADMIN_FEE: constant(uint256) = 10**18  # 100%
 MAX_FEE: constant(uint256) = 10**17  # 10%
 
+USE_ETH: immutable(bool)
+
 
 @external
 def __init__(
@@ -151,6 +158,7 @@ def __init__(
     @param liquidation_discount Discount of the maximum loan size compare to
            get_x_down() for "bad liquidation" purposes
     @param amm AMM address (Already deployed from blueprint)
+    @param use_eth Use wrapping/unwrapping if collateral is ETH
     """
     FACTORY = Factory(msg.sender)
     stablecoin: ERC20 = ERC20(Factory(msg.sender).stablecoin())
@@ -175,6 +183,9 @@ def __init__(
     SQRT_BAND_RATIO = isqrt(10**36 * _A / (_A - 1))
 
     stablecoin.approve(msg.sender, max_value(uint256))
+
+    if Factory(msg.sender).WETH() == collateral_token:
+        USE_ETH = True
 
 
 @internal
