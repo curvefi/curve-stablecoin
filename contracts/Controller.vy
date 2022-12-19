@@ -480,6 +480,19 @@ def calculate_debt_n1(collateral: uint256, debt: uint256, N: uint256) -> int256:
     return self._calculate_debt_n1(collateral, debt, N)
 
 
+@internal
+def _deposit_collateral(amount: uint256, mvalue: uint256):
+    if not USE_ETH:
+        assert mvalue == 0  # dev: Not accepting ETH
+    if mvalue == 0:
+        assert COLLATERAL_TOKEN.transferFrom(msg.sender, AMM.address, amount, default_return_value=True)
+    else:
+        assert mvalue == amount  # dev: Incorrect ETH amount
+        WETH(COLLATERAL_TOKEN.address).deposit(value=amount)
+        assert COLLATERAL_TOKEN.transferFrom(self, AMM.address, amount)
+
+
+@payable
 @external
 @nonreentrant('lock')
 def create_loan(collateral: uint256, debt: uint256, N: uint256):
@@ -512,7 +525,7 @@ def create_loan(collateral: uint256, debt: uint256, N: uint256):
     self._total_debt.rate_mul = rate_mul
 
     AMM.deposit_range(msg.sender, collateral, n1, n2, False)
-    assert COLLATERAL_TOKEN.transferFrom(msg.sender, AMM.address, collateral, default_return_value=True)
+    self._deposit_collateral(collateral, msg.value)
 
     STABLECOIN.transfer(msg.sender, debt)
     self.minted += debt
@@ -564,6 +577,7 @@ def _add_collateral_borrow(d_collateral: uint256, d_debt: uint256, _for: address
     log UserState(_for, xy[1], debt, n1, n2, liquidation_discount)
 
 
+@payable
 @external
 @nonreentrant('lock')
 def add_collateral(collateral: uint256, _for: address = msg.sender):
@@ -575,7 +589,7 @@ def add_collateral(collateral: uint256, _for: address = msg.sender):
     if collateral == 0:
         return
     self._add_collateral_borrow(collateral, 0, _for, False)
-    assert COLLATERAL_TOKEN.transferFrom(msg.sender, AMM.address, collateral, default_return_value=True)
+    self._deposit_collateral(collateral, msg.value)
 
 
 @external
@@ -588,9 +602,11 @@ def remove_collateral(collateral: uint256):
     if collateral == 0:
         return
     self._add_collateral_borrow(collateral, 0, msg.sender, True)
+    # XXX
     assert COLLATERAL_TOKEN.transferFrom(AMM.address, msg.sender, collateral, default_return_value=True)
 
 
+@payable
 @external
 @nonreentrant('lock')
 def borrow_more(collateral: uint256, debt: uint256):
@@ -603,7 +619,7 @@ def borrow_more(collateral: uint256, debt: uint256):
         return
     self._add_collateral_borrow(collateral, debt, msg.sender, False)
     if collateral != 0:
-        assert COLLATERAL_TOKEN.transferFrom(msg.sender, AMM.address, collateral, default_return_value=True)
+        self._deposit_collateral(collateral, msg.value)
     STABLECOIN.transfer(msg.sender, debt)
     self.minted += debt
 
@@ -806,6 +822,7 @@ def _liquidate(user: address, min_x: uint256, health_limit: uint256):
         STABLECOIN.transferFrom(AMM.address, msg.sender, to_transfer)
         self.redeemed += to_transfer
 
+    # XXX
     assert COLLATERAL_TOKEN.transferFrom(AMM.address, msg.sender, xy[1], default_return_value=True)
 
     self.loan[user] = Loan({initial_debt: 0, rate_mul: rate_mul})
