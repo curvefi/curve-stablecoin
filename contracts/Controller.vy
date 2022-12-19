@@ -492,6 +492,17 @@ def _deposit_collateral(amount: uint256, mvalue: uint256):
         assert COLLATERAL_TOKEN.transferFrom(self, AMM.address, amount)
 
 
+@internal
+def _withdraw_collateral(amount: uint256, use_eth: bool):
+    if use_eth:
+        assert USE_ETH
+        assert COLLATERAL_TOKEN.transferFrom(AMM.address, self, amount)
+        WETH(COLLATERAL_TOKEN.address).withdraw(amount)
+        raw_call(msg.sender, b"", value=amount)
+    else:
+        assert COLLATERAL_TOKEN.transferFrom(AMM.address, msg.sender, amount, default_return_value=True)
+
+
 @payable
 @external
 @nonreentrant('lock')
@@ -594,16 +605,16 @@ def add_collateral(collateral: uint256, _for: address = msg.sender):
 
 @external
 @nonreentrant('lock')
-def remove_collateral(collateral: uint256):
+def remove_collateral(collateral: uint256, use_eth: bool = False):
     """
     @notice Remove some collateral without repaying the debt
     @param collateral Amount of collateral to remove
+    @param use_eth Use wrapping/unwrapping if collateral is ETH
     """
     if collateral == 0:
         return
     self._add_collateral_borrow(collateral, 0, msg.sender, True)
-    # XXX
-    assert COLLATERAL_TOKEN.transferFrom(AMM.address, msg.sender, collateral, default_return_value=True)
+    self._withdraw_collateral(collateral, use_eth)
 
 
 @payable
@@ -785,12 +796,13 @@ def health_calculator(user: address, d_collateral: int256, d_debt: int256, full:
 
 
 @internal
-def _liquidate(user: address, min_x: uint256, health_limit: uint256):
+def _liquidate(user: address, min_x: uint256, health_limit: uint256, use_eth: bool):
     """
     @notice Perform a bad liquidation of user if the health is too bad
     @param user Address of the user
     @param min_x Minimal amount of stablecoin to receive (to avoid liquidators being sandwiched)
     @param health_limit Minimal health to liquidate at
+    @param use_eth Use wrapping/unwrapping if collateral is ETH
     """
     debt: uint256 = 0
     rate_mul: uint256 = 0
@@ -822,8 +834,7 @@ def _liquidate(user: address, min_x: uint256, health_limit: uint256):
         STABLECOIN.transferFrom(AMM.address, msg.sender, to_transfer)
         self.redeemed += to_transfer
 
-    # XXX
-    assert COLLATERAL_TOKEN.transferFrom(AMM.address, msg.sender, xy[1], default_return_value=True)
+    self._withdraw_collateral(xy[1], use_eth)
 
     self.loan[user] = Loan({initial_debt: 0, rate_mul: rate_mul})
     log UserState(user, 0, 0, 0, 0, 0)
@@ -838,22 +849,24 @@ def _liquidate(user: address, min_x: uint256, health_limit: uint256):
 
 @external
 @nonreentrant('lock')
-def liquidate(user: address, min_x: uint256):
+def liquidate(user: address, min_x: uint256, use_eth: bool = False):
     """
     @notice Peform a bad liquidation of user if health is not good
     @param min_x Minimal amount of stablecoin to receive (to avoid liquidators being sandwiched)
+    @param use_eth Use wrapping/unwrapping if collateral is ETH
     """
-    self._liquidate(user, min_x, self.liquidation_discounts[user])
+    self._liquidate(user, min_x, self.liquidation_discounts[user], use_eth)
 
 
 @external
 @nonreentrant('lock')
-def self_liquidate(min_x: uint256):
+def self_liquidate(min_x: uint256, use_eth: bool = False):
     """
     @notice Peform a self-liquidation to avoid a bad liquidation
     @param min_x Minimal amount of stablecoin to receive (to avoid liquidators being sandwiched)
+    @param use_eth Use wrapping/unwrapping if collateral is ETH
     """
-    self._liquidate(msg.sender, min_x, 0)
+    self._liquidate(msg.sender, min_x, 0, use_eth)
 
 
 @view
