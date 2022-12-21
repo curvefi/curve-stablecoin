@@ -13,12 +13,25 @@ interface LLAMMA:
     def min_band() -> int256: view
     def max_band() -> int256: view
     def active_band() -> int256: view
-    def bands_x(n: int256) -> int256: view
-    def bands_y(n: int256) -> int256: view
+    def bands_x(n: int256) -> uint256: view
+    def bands_y(n: int256) -> uint256: view
     def p_oracle_up(n: int256) -> uint256: view
     def fee() -> uint256: view
     def admin_fee() -> uint256: view
-    def price_oracle_contract() -> PriceOracle: view
+    def price_oracle() -> uint256: view
+
+MAX_TICKS: constant(int256) = 50
+MAX_TICKS_UINT: constant(uint256) = 50
+MAX_SKIP_TICKS: constant(int256) = 1024
+
+struct DetailedTrade:
+    in_amount: uint256
+    out_amount: uint256
+    n1: int256
+    n2: int256
+    ticks_in: uint256[MAX_TICKS]
+    last_tick_j: uint256
+    admin_fee: uint256
 
 @internal
 @pure
@@ -31,7 +44,7 @@ def sqrt_int(_x: uint256) -> uint256:
 
 @internal
 @view
-def _get_y0(x: uint256, y: uint256, p_o: uint256, p_o_up: uint256) -> uint256:
+def _get_y0(_llamma: address, x: uint256, y: uint256, p_o: uint256, p_o_up: uint256) -> uint256:
     """
     @notice Calculate y0 for the invariant based on current liquidity in band.
             The value of y0 has a meaning of amount of collateral when band has no stablecoin
@@ -43,8 +56,8 @@ def _get_y0(x: uint256, y: uint256, p_o: uint256, p_o_up: uint256) -> uint256:
     @return y0
     """
     assert p_o != 0
-    _A: uint256 = LLAMMA(amm).A()
-    _Aminus1 = unsafe_sub(_A, 1)
+    _A: uint256 = LLAMMA(_llamma).A()
+    _Aminus1: uint256 = unsafe_sub(_A, 1)
     # solve:
     # p_o * A * y0**2 - y0 * (p_oracle_up/p_o * (A-1) * x + p_o**2/p_oracle_up * A * y) - xy = 0
     b: uint256 = 0
@@ -75,19 +88,19 @@ def calc_swap_in(_llamma: address, pump: bool, out_amount: uint256, p_o: uint256
     """
     # pump = True: borrowable (USD) in, collateral (ETH) out; going up
     # pump = False: collateral (ETH) in, borrowable (USD) out; going down
-    _A: uint256 = LLAMMA(amm).A()
-    _Aminus1 = unsafe_sub(_A, 1)
-    min_band: int256 = LLAMMA(_llamma).min_band
-    max_band: int256 = LLAMMA(_llamma).max_band
+    _A: uint256 = LLAMMA(_llamma).A()
+    _Aminus1: uint256 = unsafe_sub(_A, 1)
+    min_band: int256 = LLAMMA(_llamma).min_band()
+    max_band: int256 = LLAMMA(_llamma).max_band()
     out: DetailedTrade = empty(DetailedTrade)
-    out.n2 = LLAMMA(_llamma).active_band
-    p_o_up: uint256 = LLAMMA(_llamma)._p_oracle_up(out.n2)
+    out.n2 = LLAMMA(_llamma).active_band()
+    p_o_up: uint256 = LLAMMA(_llamma).p_oracle_up(out.n2)
     x: uint256 = LLAMMA(_llamma).bands_x(out.n2)
     y: uint256 = LLAMMA(_llamma).bands_y(out.n2)
 
     out_amount_left: uint256 = out_amount
-    antifee: uint256 = unsafe_div((10 ** 18) ** 2, unsafe_sub(10 ** 18, LLAMMA(_llamma).fee))
-    admin_fee: uint256 = LLAMMA(_llamma).admin_fee
+    antifee: uint256 = unsafe_div((10 ** 18) ** 2, unsafe_sub(10 ** 18, LLAMMA(_llamma).fee()))
+    admin_fee: uint256 = LLAMMA(_llamma).admin_fee()
     j: uint256 = MAX_TICKS_UINT
 
     for i in range(MAX_TICKS + MAX_SKIP_TICKS):
@@ -100,7 +113,7 @@ def calc_swap_in(_llamma: address, pump: bool, out_amount: uint256, p_o: uint256
             if j == MAX_TICKS_UINT:
                 out.n1 = out.n2
                 j = 0
-            y0 = self._get_y0(x, y, p_o, p_o_up)  # <- also checks p_o
+            y0 = self._get_y0(_llamma, x, y, p_o, p_o_up)  # <- also checks p_o
             f = unsafe_div(_A * y0 * p_o / p_o_up * p_o, 10**18)
             g = unsafe_div(_Aminus1 * y0 * p_o_up, p_o)
             Inv = (f + x) * (g + y)
@@ -140,7 +153,7 @@ def calc_swap_in(_llamma: address, pump: bool, out_amount: uint256, p_o: uint256
                 out.n2 += 1
                 p_o_up = unsafe_div(p_o_up * _Aminus1, _A)
                 x = 0
-                y = self.bands_y[out.n2]
+                y = LLAMMA(_llamma).bands_y(out.n2)
 
         else:  # dump
             if x != 0:
@@ -176,16 +189,17 @@ def calc_swap_in(_llamma: address, pump: bool, out_amount: uint256, p_o: uint256
                     break
                 out.n2 -= 1
                 p_o_up = unsafe_div(p_o_up * _A, _Aminus1)
-                x = self.bands_x[out.n2]
+                x = LLAMMA(_llamma).bands_x(out.n2)
                 y = 0
 
         if j != MAX_TICKS_UINT:
             j = unsafe_add(j, 1)
 
     # Round up what goes in and down what goes out
+    _stablecoin: address = LLAMMA(_llamma).coins(0)
     _collateral: address = LLAMMA(_llamma).coins(1)
-    _BORROWED_PRECISION: uint256 = 1
     _COLLATERAL_PRECISION: uint256 = 10**(18 - ERC20(_collateral).decimals())
+    _BORROWED_PRECISION: uint256 = 10**(18 - ERC20(_stablecoin).decimals())
     in_precision: uint256 = _COLLATERAL_PRECISION
     out_precision: uint256 = _BORROWED_PRECISION
     if pump:
@@ -215,16 +229,17 @@ def _get_dydx(_llamma: address, i: uint256, j: uint256, out_amount: uint256) -> 
     out: DetailedTrade = empty(DetailedTrade)
     if out_amount == 0:
         return out
+    _stablecoin: address = LLAMMA(_llamma).coins(0)
     _collateral: address = LLAMMA(_llamma).coins(1)
-    _BORROWED_PRECISION: uint256 = 1
-    _COLLATERAL_PRECISION: uint256 = 10 ** (18 - ERC20(_collateral).decimals())
+    _COLLATERAL_PRECISION: uint256 = 10**(18 - ERC20(_collateral).decimals())
+    _BORROWED_PRECISION: uint256 = 10**(18 - ERC20(_stablecoin).decimals())
     in_precision: uint256 = _COLLATERAL_PRECISION
     out_precision: uint256 = _BORROWED_PRECISION
     if i == 0:
         in_precision = _BORROWED_PRECISION
         out_precision = _COLLATERAL_PRECISION
-    out = self.calc_swap_out(i == 0, out_amount * in_precision, LLAMMA(_llamma).price_oracle_contract.price())
-    out.out_amount = unsafe_div(out.out_amount, in_precision)
+    out = self.calc_swap_in(_llamma, i == 0, out_amount * out_precision, LLAMMA(_llamma).price_oracle())
+    out.in_amount = unsafe_div(out.in_amount, in_precision)
     out.out_amount = unsafe_div(out.out_amount, out_precision)
     return out
 
@@ -237,10 +252,10 @@ def get_dx(_llamma: address, i: uint256, j: uint256, out_amount: uint256) -> uin
     @notice Method to use to calculate out amount
     @param i Input coin index
     @param j Output coin index
-    @param out_amount Amount of input coin to receive as a result of swap
+    @param out_amount Amount of output coin to receive as a result of swap
     @return Amount of coin j to give out
     """
-    return self._get_dydx(_llamma, i, j, out_amount).out_amount
+    return self._get_dydx(_llamma, i, j, out_amount).in_amount
 
 
 @external
@@ -251,8 +266,8 @@ def get_dydx(_llamma: address, i: uint256, j: uint256, out_amount: uint256) -> (
     @notice Method to use to calculate out amount and spent in amount
     @param i Input coin index
     @param j Output coin index
-    @param out_amount Amount of input coin to swap
-    @return A tuple with out_amount used and out_amount returned
+    @param out_amount Amount of output coin to receive as a result of swap
+    @return A tuple with out_amount used and in_amount returned
     """
-    out: DetailedTrade = self._get_dxdy(_llamma, i, j, out_amount)
-    return (out.out_amount, out.out_amount)
+    out: DetailedTrade = self._get_dydx(_llamma, i, j, out_amount)
+    return (out.out_amount, out.in_amount)
