@@ -51,4 +51,4 @@ def test_add_market(controller_factory, collateral_token, price_oracle, monetary
             assert amm.admin().lower() == controller.address.lower()
             assert amm.A() == 100
             assert amm.price_oracle_contract().lower() == price_oracle.address.lower()
-            assert amm.collateral_token().lower() == collateral_token.address.lower()
+            assert amm.coins(1).lower() == collateral_token.address.lower()

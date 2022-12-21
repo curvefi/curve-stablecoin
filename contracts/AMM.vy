@@ -208,12 +208,9 @@ def sqrt_int(_x: uint256) -> uint256:
 
 
 @external
-@view
-def collateral_token() -> address:
-    """
-    @notice Collateral token address
-    """
-    return COLLATERAL_TOKEN.address
+@pure
+def coins(i: uint256) -> address:
+    return [BORROWED_TOKEN.address, COLLATERAL_TOKEN.address][i]
 
 
 @external
