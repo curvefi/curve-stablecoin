@@ -11,3 +11,4 @@
 .build
 venv
 /hardhat.config.js
+.idea
