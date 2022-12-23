@@ -74,7 +74,7 @@ def _get_y0(_llamma: address, x: uint256, y: uint256, p_o: uint256, p_o_up: uint
 
 @internal
 @view
-def calc_swap_in(_llamma: address, pump: bool, out_amount: uint256, p_o: uint256) -> DetailedTrade:
+def calc_swap_in(_llamma: address, pump: bool, out_amount: uint256, p_o: uint256, in_precision: uint256, out_precision: uint256) -> DetailedTrade:
     """
     @notice Calculate the input amount required to get the provided output amount.
             If couldn't exchange all - will also update the amount which was actually used.
@@ -99,7 +99,7 @@ def calc_swap_in(_llamma: address, pump: bool, out_amount: uint256, p_o: uint256
     y: uint256 = LLAMMA(_llamma).bands_y(out.n2)
 
     out_amount_left: uint256 = out_amount
-    antifee: uint256 = unsafe_div((10 ** 18) ** 2, unsafe_sub(10 ** 18, LLAMMA(_llamma).fee()))
+    antifee: uint256 = unsafe_div((10**18)**2, unsafe_sub(10**18, LLAMMA(_llamma).fee()))
     admin_fee: uint256 = LLAMMA(_llamma).admin_fee()
     j: uint256 = MAX_TICKS_UINT
 
@@ -196,15 +196,6 @@ def calc_swap_in(_llamma: address, pump: bool, out_amount: uint256, p_o: uint256
             j = unsafe_add(j, 1)
 
     # Round up what goes in and down what goes out
-    _stablecoin: address = LLAMMA(_llamma).coins(0)
-    _collateral: address = LLAMMA(_llamma).coins(1)
-    _COLLATERAL_PRECISION: uint256 = 10**(18 - ERC20(_collateral).decimals())
-    _BORROWED_PRECISION: uint256 = 10**(18 - ERC20(_stablecoin).decimals())
-    in_precision: uint256 = _COLLATERAL_PRECISION
-    out_precision: uint256 = _BORROWED_PRECISION
-    if pump:
-        in_precision = _BORROWED_PRECISION
-        out_precision = _COLLATERAL_PRECISION
     # ceil(in_amount_used/BORROWED_PRECISION) * BORROWED_PRECISION
     out.in_amount = unsafe_mul(unsafe_div(unsafe_add(out.in_amount, unsafe_sub(in_precision, 1)), in_precision), in_precision)
     out.out_amount = unsafe_mul(unsafe_div(out.out_amount, out_precision), out_precision)
@@ -238,7 +229,7 @@ def _get_dydx(_llamma: address, i: uint256, j: uint256, out_amount: uint256) -> 
     if i == 0:
         in_precision = _BORROWED_PRECISION
         out_precision = _COLLATERAL_PRECISION
-    out = self.calc_swap_in(_llamma, i == 0, out_amount * out_precision, LLAMMA(_llamma).price_oracle())
+    out = self.calc_swap_in(_llamma, i == 0, out_amount * out_precision, LLAMMA(_llamma).price_oracle(), in_precision, out_precision)
     out.in_amount = unsafe_div(out.in_amount, in_precision)
     out.out_amount = unsafe_div(out.out_amount, out_precision)
     return out
@@ -271,3 +262,27 @@ def get_dydx(_llamma: address, i: uint256, j: uint256, out_amount: uint256) -> (
     """
     out: DetailedTrade = self._get_dydx(_llamma, i, j, out_amount)
     return (out.out_amount, out.in_amount)
+
+
+
+# @external
+# @view
+# @nonreentrant('lock')
+# def get_swap_data(_llamma: address, i: uint256, j: uint256, out_amount: uint256) -> (uint256, uint256, int256, int256, uint256[MAX_TICKS], uint256, uint256):
+#     """
+#     @notice Method to use to calculate out amount and spent in amount
+#     @param i Input coin index
+#     @param j Output coin index
+#     @param out_amount Amount of output coin to receive as a result of swap
+#     @return A tuple with out_amount used and in_amount returned
+#     """
+#     out: DetailedTrade = self._get_dydx(_llamma, i, j, out_amount)
+#     return (
+#         out.in_amount,
+#         out.out_amount,
+#         out.n1,
+#         out.n2,
+#         out.ticks_in,
+#         out.last_tick_j,
+#         out.admin_fee,
+#     )
