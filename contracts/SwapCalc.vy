@@ -121,13 +121,11 @@ def calc_swap_in(_llamma: address, pump: bool, out_amount: uint256, p_o: uint256
         if pump:
             if y != 0:
                 if g != 0:
-                    x_dest: uint256 = (unsafe_div(Inv, g) - f) - x
-                    dx: uint256 = unsafe_div(x_dest * antifee, 10**18)
                     if y >= out_amount_left:
                         # This is the last band
                         out.last_tick_j = y - out_amount_left  # Should be always >= 0
-                        x_dest = Inv / (g + out.last_tick_j) - f - x
-                        dx = unsafe_div(x_dest * antifee, 10**18)  # MORE than x_dest
+                        x_dest: uint256 = Inv / (g + out.last_tick_j) - f - x
+                        dx: uint256 = unsafe_div(x_dest * antifee, 10**18)  # MORE than x_dest
                         x_dest = unsafe_div(unsafe_sub(dx, x_dest) * admin_fee, 10**18)  # abs admin fee now
                         x += dx
                         out.out_amount = out_amount
@@ -138,6 +136,8 @@ def calc_swap_in(_llamma: address, pump: bool, out_amount: uint256, p_o: uint256
 
                     else:
                         # We go into the next band
+                        x_dest: uint256 = (unsafe_div(Inv, g) - f) - x
+                        dx: uint256 = unsafe_div(x_dest * antifee, 10**18)
                         x_dest = unsafe_div(unsafe_sub(dx, x_dest) * admin_fee, 10**18)  # abs admin fee now
                         out_amount_left -= y
                         out.ticks_in[j] = x + dx - x_dest
@@ -158,13 +158,11 @@ def calc_swap_in(_llamma: address, pump: bool, out_amount: uint256, p_o: uint256
         else:  # dump
             if x != 0:
                 if f != 0:
-                    y_dest: uint256 = (unsafe_div(Inv, f) - g) - y
-                    dy: uint256 = unsafe_div(y_dest * antifee, 10**18)
                     if x >= out_amount_left:
                         # This is the last band
                         out.last_tick_j = x - out_amount_left
-                        y_dest = Inv / (f + out.last_tick_j) - g - y
-                        dy = unsafe_div(y_dest * antifee, 10**18)  # MORE than y_dest
+                        y_dest: uint256 = Inv / (f + out.last_tick_j) - g - y
+                        dy: uint256 = unsafe_div(y_dest * antifee, 10**18)  # MORE than y_dest
                         y_dest = unsafe_div(unsafe_sub(dy, y_dest) * admin_fee, 10**18)  # abs admin fee now
                         y += dy
                         out.out_amount = out_amount
@@ -175,6 +173,8 @@ def calc_swap_in(_llamma: address, pump: bool, out_amount: uint256, p_o: uint256
 
                     else:
                         # We go into the next band
+                        y_dest: uint256 = (unsafe_div(Inv, f) - g) - y
+                        dy: uint256 = unsafe_div(y_dest * antifee, 10**18)
                         y_dest = unsafe_div(unsafe_sub(dy, y_dest) * admin_fee, 10**18)  # abs admin fee now
                         out_amount_left -= x
                         out.ticks_in[j] = y + dy - y_dest
