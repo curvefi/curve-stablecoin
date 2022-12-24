@@ -1258,6 +1258,7 @@ def get_amount_for_price(p: uint256) -> (uint256, bool):
 
 
 @external
+@nonreentrant('lock')
 def set_rate(rate: uint256) -> uint256:
     """
     @notice Set interest rate. That affects the dependence of AMM base price over time
@@ -1274,6 +1275,7 @@ def set_rate(rate: uint256) -> uint256:
 
 
 @external
+@nonreentrant('lock')
 def set_fee(fee: uint256):
     """
     @notice Set AMM fee
@@ -1285,6 +1287,7 @@ def set_fee(fee: uint256):
 
 
 @external
+@nonreentrant('lock')
 def set_admin_fee(fee: uint256):
     """
     @notice Set admin fee - fraction of the AMM fee to go to admin
@@ -1296,6 +1299,7 @@ def set_admin_fee(fee: uint256):
 
 
 @external
+@nonreentrant('lock')
 def reset_admin_fees():
     """
     @notice Zero out AMM fees collected
@@ -1306,6 +1310,7 @@ def reset_admin_fees():
 
 
 @external
+@nonreentrant('lock')
 def set_price_oracle(price_oracle: PriceOracle):
     """
     @notice Set a new price oracle contract
