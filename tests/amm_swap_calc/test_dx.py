@@ -29,17 +29,6 @@ def test_dydx(amm, swap_calc, amounts, accounts, ns, dns, collateral_token, admi
     assert dy1 == dy2
     assert dx1 == dx2
 
-    # dx1, dy1, n11, n21, ticks_in1, last_tick_j1, admin_fee1 = amm.get_swap_data(0, 1, 10**24)
-    # dx2, dy2, n12, n22, ticks_in2, last_tick_j2, admin_fee2 = swap_calc.get_swap_data(amm, 0, 1, dy1)
-    # assert n11 == n12
-    # assert n21 == n22
-    # assert last_tick_j1 == last_tick_j2
-    # for n in range(n12, n22 + 1):
-    #     assert ticks_in1[n] == ticks_in2[n]
-    # assert admin_fee1 == admin_fee2
-    # assert dy1 == dy2
-    # assert dx1 == dx2
-
     # dx, dy = amm.get_dxdy(1, 0, 10**16)  # No liquidity
     # assert dx == 0
     # assert dy == 0  # Rounded down

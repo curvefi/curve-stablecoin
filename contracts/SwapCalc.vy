@@ -76,13 +76,13 @@ def _get_y0(_llamma: address, x: uint256, y: uint256, p_o: uint256, p_o_up: uint
 @view
 def calc_swap_in(_llamma: address, pump: bool, out_amount: uint256, p_o: uint256, in_precision: uint256, out_precision: uint256) -> DetailedTrade:
     """
-    @notice Calculate the input amount required to get the provided output amount.
-            If couldn't exchange all - will also update the amount which was actually used.
+    @notice Calculate the input amount required to receive the desired output amount.
+            If couldn't exchange all - will also update the amount which was actually received.
             Also returns other parameters related to state after swap.
     @param pump Indicates whether the trade buys or sells collateral
-    @param out_amount Amount of token going out
+    @param out_amount Desired amount of token going out
     @param p_o Current oracle price
-    @return Amounts spent and given out, initial and final bands of the AMM, new
+    @return Amounts required and given out, initial and final bands of the AMM, new
             amounts of coins in bands in the AMM, as well as admin fee charged,
             all in one data structure
     """
@@ -127,9 +127,8 @@ def calc_swap_in(_llamma: address, pump: bool, out_amount: uint256, p_o: uint256
                         x_dest: uint256 = Inv / (g + out.last_tick_j) - f - x
                         dx: uint256 = unsafe_div(x_dest * antifee, 10**18)  # MORE than x_dest
                         x_dest = unsafe_div(unsafe_sub(dx, x_dest) * admin_fee, 10**18)  # abs admin fee now
-                        x += dx
                         out.out_amount = out_amount
-                        out.ticks_in[j] = x - x_dest
+                        out.ticks_in[j] = x + dx - x_dest
                         out.in_amount += dx
                         out.admin_fee = unsafe_add(out.admin_fee, x_dest)
                         break
@@ -164,9 +163,8 @@ def calc_swap_in(_llamma: address, pump: bool, out_amount: uint256, p_o: uint256
                         y_dest: uint256 = Inv / (f + out.last_tick_j) - g - y
                         dy: uint256 = unsafe_div(y_dest * antifee, 10**18)  # MORE than y_dest
                         y_dest = unsafe_div(unsafe_sub(dy, y_dest) * admin_fee, 10**18)  # abs admin fee now
-                        y += dy
                         out.out_amount = out_amount
-                        out.ticks_in[j] = y - y_dest
+                        out.ticks_in[j] = y + dy - y_dest
                         out.in_amount += dy
                         out.admin_fee = unsafe_add(out.admin_fee, y_dest)
                         break
@@ -210,20 +208,20 @@ def calc_swap_in(_llamma: address, pump: bool, out_amount: uint256, p_o: uint256
 @view
 def _get_dydx(_llamma: address, i: uint256, j: uint256, out_amount: uint256) -> DetailedTrade:
     """
-    @notice Method to use to calculate out amount and spent in amount
+    @notice Method to use to calculate in amount required and out amount received
     @param i Input coin index
     @param j Output coin index
-    @param out_amount Amount of output coin to receive as a result of swap
+    @param out_amount Desired amount of output coin to receive
     @return DetailedTrade with all swap results
     """
     assert (i == 0 and j == 1) or (i == 1 and j == 0), "Wrong index"
     out: DetailedTrade = empty(DetailedTrade)
     if out_amount == 0:
         return out
-    _stablecoin: address = LLAMMA(_llamma).coins(0)
+    _borrowed: address = LLAMMA(_llamma).coins(0)
     _collateral: address = LLAMMA(_llamma).coins(1)
     _COLLATERAL_PRECISION: uint256 = 10**(18 - ERC20(_collateral).decimals())
-    _BORROWED_PRECISION: uint256 = 10**(18 - ERC20(_stablecoin).decimals())
+    _BORROWED_PRECISION: uint256 = 10**(18 - ERC20(_borrowed).decimals())
     in_precision: uint256 = _COLLATERAL_PRECISION
     out_precision: uint256 = _BORROWED_PRECISION
     if i == 0:
@@ -240,11 +238,11 @@ def _get_dydx(_llamma: address, i: uint256, j: uint256, out_amount: uint256) -> 
 @nonreentrant('lock')
 def get_dx(_llamma: address, i: uint256, j: uint256, out_amount: uint256) -> uint256:
     """
-    @notice Method to use to calculate out amount
+    @notice Method to use to calculate in amount required to receive the desired out_amount
     @param i Input coin index
     @param j Output coin index
-    @param out_amount Amount of output coin to receive as a result of swap
-    @return Amount of coin j to give out
+    @param out_amount Desired amount of output coin to receive
+    @return Amount of coin i to spend
     """
     return self._get_dydx(_llamma, i, j, out_amount).in_amount
 
@@ -254,35 +252,11 @@ def get_dx(_llamma: address, i: uint256, j: uint256, out_amount: uint256) -> uin
 @nonreentrant('lock')
 def get_dydx(_llamma: address, i: uint256, j: uint256, out_amount: uint256) -> (uint256, uint256):
     """
-    @notice Method to use to calculate out amount and spent in amount
+    @notice Method to use to calculate in amount required and out amount received
     @param i Input coin index
     @param j Output coin index
-    @param out_amount Amount of output coin to receive as a result of swap
-    @return A tuple with out_amount used and in_amount returned
+    @param out_amount Desired amount of output coin to receive
+    @return A tuple with out_amount received and in_amount returned
     """
     out: DetailedTrade = self._get_dydx(_llamma, i, j, out_amount)
     return (out.out_amount, out.in_amount)
-
-
-
-# @external
-# @view
-# @nonreentrant('lock')
-# def get_swap_data(_llamma: address, i: uint256, j: uint256, out_amount: uint256) -> (uint256, uint256, int256, int256, uint256[MAX_TICKS], uint256, uint256):
-#     """
-#     @notice Method to use to calculate out amount and spent in amount
-#     @param i Input coin index
-#     @param j Output coin index
-#     @param out_amount Amount of output coin to receive as a result of swap
-#     @return A tuple with out_amount used and in_amount returned
-#     """
-#     out: DetailedTrade = self._get_dydx(_llamma, i, j, out_amount)
-#     return (
-#         out.in_amount,
-#         out.out_amount,
-#         out.n1,
-#         out.n2,
-#         out.ticks_in,
-#         out.last_tick_j,
-#         out.admin_fee,
-#     )
