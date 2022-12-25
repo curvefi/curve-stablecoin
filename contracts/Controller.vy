@@ -23,6 +23,8 @@ interface LLAMMA:
     def admin_fees_y() -> uint256: view
     def reset_admin_fees(): nonpayable
     def has_liquidity(user: address) -> bool: view
+    def bands_x(n: int256) -> uint256: view
+    def bands_y(n: int256) -> uint256: view
 
 interface ERC20:
     def transferFrom(_from: address, _to: address, _value: uint256) -> bool: nonpayable
@@ -556,8 +558,30 @@ def create_loan(collateral: uint256, debt: uint256, N: uint256):
 @payable
 @external
 @nonreentrant('lock')
-def create_loan_flash(collateral: uint256, debt: uint256, callbacker: address, callback_sig: bytes32):
-    pass
+def create_loan_extended(collateral: uint256, debt: uint256, N: uint256, callbacker: address, callback_sig: bytes32):
+    # Before callback
+    STABLECOIN.transfer(callbacker, debt)
+
+    # Checks before callback
+    active_band: int256 = AMM.active_band()
+    band_x: uint256 = AMM.bands_x(active_band)
+    band_y: uint256 = AMM.bands_y(active_band)
+    # Callback
+    response: Bytes[32] = raw_call(
+        callbacker,
+        concat(slice(callback_sig, 0, 4), _abi_encode(collateral, debt, N)),
+        max_outsize=32
+    )
+    more_collateral: uint256 = convert(response, uint256)
+    # Checks after callback
+    assert active_band == AMM.active_band()
+    assert band_x == AMM.bands_x(active_band)
+    assert band_y == AMM.bands_y(active_band)
+
+    # After callback
+    self._deposit_collateral(collateral, msg.value)
+    COLLATERAL_TOKEN.transferFrom(callbacker, AMM.address, more_collateral)
+    self._create_loan(0, collateral + more_collateral, debt, N, False)
 
 
 @internal
