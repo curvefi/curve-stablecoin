@@ -482,14 +482,17 @@ def calculate_debt_n1(collateral: uint256, debt: uint256, N: uint256) -> int256:
 
 @internal
 def _deposit_collateral(amount: uint256, mvalue: uint256):
+    """
+    Deposits raw ETH, WETH or both at the same time
+    """
     if not USE_ETH:
         assert mvalue == 0  # dev: Not accepting ETH
-    if mvalue == 0:
-        assert COLLATERAL_TOKEN.transferFrom(msg.sender, AMM.address, amount, default_return_value=True)
-    else:
-        assert mvalue == amount  # dev: Incorrect ETH amount
-        WETH(COLLATERAL_TOKEN.address).deposit(value=amount)
-        assert COLLATERAL_TOKEN.transferFrom(self, AMM.address, amount)
+    diff: uint256 = amount - mvalue  # dev: Incorrect ETH amount
+    if mvalue > 0:
+        WETH(COLLATERAL_TOKEN.address).deposit(value=mvalue)
+        assert COLLATERAL_TOKEN.transferFrom(self, AMM.address, mvalue)
+    if diff > 0:
+        assert COLLATERAL_TOKEN.transferFrom(msg.sender, AMM.address, diff, default_return_value=True)
 
 
 @internal
