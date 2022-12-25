@@ -481,7 +481,7 @@ def calculate_debt_n1(collateral: uint256, debt: uint256, N: uint256) -> int256:
 
 
 @internal
-def _transfer_collateral(_to: address, amount: uint256, mvalue: uint256):
+def _deposit_collateral(amount: uint256, mvalue: uint256):
     """
     Deposits raw ETH, WETH or both at the same time
     """
@@ -490,9 +490,9 @@ def _transfer_collateral(_to: address, amount: uint256, mvalue: uint256):
     diff: uint256 = amount - mvalue  # dev: Incorrect ETH amount
     if mvalue > 0:
         WETH(COLLATERAL_TOKEN.address).deposit(value=mvalue)
-        assert COLLATERAL_TOKEN.transferFrom(self, _to, mvalue)
+        assert COLLATERAL_TOKEN.transferFrom(self, AMM.address, mvalue)
     if diff > 0:
-        assert COLLATERAL_TOKEN.transferFrom(msg.sender, _to, diff, default_return_value=True)
+        assert COLLATERAL_TOKEN.transferFrom(msg.sender, AMM.address, diff, default_return_value=True)
 
 
 @internal
@@ -506,7 +506,7 @@ def _withdraw_collateral(amount: uint256, use_eth: bool):
 
 
 @internal
-def _create_loan(mvalue: uint256, collateral: uint256, debt: uint256, N: uint256):
+def _create_loan(mvalue: uint256, collateral: uint256, debt: uint256, N: uint256, transfer_coins: bool):
     assert self.loan[msg.sender].initial_debt == 0, "Loan already created"
     assert N > MIN_TICKS-1, "Need more ticks"
     assert N < MAX_TICKS+1, "Need less ticks"
@@ -529,10 +529,11 @@ def _create_loan(mvalue: uint256, collateral: uint256, debt: uint256, N: uint256
     self._total_debt.rate_mul = rate_mul
 
     AMM.deposit_range(msg.sender, collateral, n1, n2, False)
-    self._transfer_collateral(AMM.address, collateral, mvalue)
-
-    STABLECOIN.transfer(msg.sender, debt)
     self.minted += debt
+
+    if transfer_coins:
+        self._deposit_collateral(collateral, mvalue)
+        STABLECOIN.transfer(msg.sender, debt)
 
     log UserState(msg.sender, collateral, debt, n1, n2, liquidation_discount)
     log Borrow(msg.sender, collateral, debt)
@@ -549,7 +550,7 @@ def create_loan(collateral: uint256, debt: uint256, N: uint256):
     @param N Number of bands to deposit into (to do autoliquidation-deliquidation),
            can be from MIN_TICKS to MAX_TICKS
     """
-    self._create_loan(msg.value, collateral, debt, N)
+    self._create_loan(msg.value, collateral, debt, N, True)
 
 
 @payable
@@ -614,7 +615,7 @@ def add_collateral(collateral: uint256, _for: address = msg.sender):
     if collateral == 0:
         return
     self._add_collateral_borrow(collateral, 0, _for, False)
-    self._transfer_collateral(AMM.address, collateral, msg.value)
+    self._deposit_collateral(collateral, msg.value)
 
 
 @external
@@ -644,7 +645,7 @@ def borrow_more(collateral: uint256, debt: uint256):
         return
     self._add_collateral_borrow(collateral, debt, msg.sender, False)
     if collateral != 0:
-        self._transfer_collateral(AMM.address, collateral, msg.value)
+        self._deposit_collateral(collateral, msg.value)
     STABLECOIN.transfer(msg.sender, debt)
     self.minted += debt
 
