@@ -502,17 +502,8 @@ def _withdraw_collateral(amount: uint256, use_eth: bool):
         assert COLLATERAL_TOKEN.transferFrom(AMM.address, msg.sender, amount, default_return_value=True)
 
 
-@payable
-@external
-@nonreentrant('lock')
-def create_loan(collateral: uint256, debt: uint256, N: uint256):
-    """
-    @notice Create loan
-    @param collateral Amount of collateral to use
-    @param debt Stablecoin debt to take
-    @param N Number of bands to deposit into (to do autoliquidation-deliquidation),
-           can be from MIN_TICKS to MAX_TICKS
-    """
+@internal
+def _create_loan(mvalue: uint256, collateral: uint256, debt: uint256, N: uint256):
     assert self.loan[msg.sender].initial_debt == 0, "Loan already created"
     assert N > MIN_TICKS-1, "Need more ticks"
     assert N < MAX_TICKS+1, "Need less ticks"
@@ -535,13 +526,27 @@ def create_loan(collateral: uint256, debt: uint256, N: uint256):
     self._total_debt.rate_mul = rate_mul
 
     AMM.deposit_range(msg.sender, collateral, n1, n2, False)
-    self._deposit_collateral(collateral, msg.value)
+    self._deposit_collateral(collateral, mvalue)
 
     STABLECOIN.transfer(msg.sender, debt)
     self.minted += debt
 
     log UserState(msg.sender, collateral, debt, n1, n2, liquidation_discount)
     log Borrow(msg.sender, collateral, debt)
+
+
+@payable
+@external
+@nonreentrant('lock')
+def create_loan(collateral: uint256, debt: uint256, N: uint256):
+    """
+    @notice Create loan
+    @param collateral Amount of collateral to use
+    @param debt Stablecoin debt to take
+    @param N Number of bands to deposit into (to do autoliquidation-deliquidation),
+           can be from MIN_TICKS to MAX_TICKS
+    """
+    self._create_loan(msg.value, collateral, debt, N)
 
 
 @internal
