@@ -567,12 +567,13 @@ def create_loan_extended(collateral: uint256, debt: uint256, N: uint256, callbac
     band_x: uint256 = AMM.bands_x(active_band)
     band_y: uint256 = AMM.bands_y(active_band)
     # Callback
-    response: Bytes[32] = raw_call(
+    response: Bytes[64] = raw_call(
         callbacker,
         concat(slice(callback_sig, 0, 4), _abi_encode(collateral, debt, N)),
-        max_outsize=32
+        max_outsize=64
     )
-    more_collateral: uint256 = convert(response, uint256)
+    more_collateral: uint256 = convert(slice(response, 0, 32), uint256)
+    unused_debt: uint256 = convert(slice(response, 32, 32), uint256)
     # Checks after callback
     assert active_band == AMM.active_band()
     assert band_x == AMM.bands_x(active_band)
@@ -580,8 +581,10 @@ def create_loan_extended(collateral: uint256, debt: uint256, N: uint256, callbac
 
     # After callback
     self._deposit_collateral(collateral, msg.value)
-    COLLATERAL_TOKEN.transferFrom(callbacker, AMM.address, more_collateral)
+    assert COLLATERAL_TOKEN.transferFrom(callbacker, AMM.address, more_collateral, default_return_value=True)
     self._create_loan(0, collateral + more_collateral, debt, N, False)
+    if unused_debt > 0:
+        STABLECOIN.transfer(msg.sender, unused_debt)
 
 
 @internal
@@ -687,14 +690,8 @@ def _remove_from_list(_for: address):
     self.n_loans = last_loan_ix
 
 
-@external
-@nonreentrant('lock')
-def repay(_d_debt: uint256, _for: address):
-    """
-    @notice Repay debt (partially or fully)
-    @param _d_debt The amount of debt to repay. If higher than the current debt - will do full repayment
-    @param _for The user to repay the debt for
-    """
+@internal
+def _repay(_d_debt: uint256, _for: address):
     if _d_debt == 0:
         return
     # Or repay all for MAX_UINT256
@@ -742,6 +739,17 @@ def repay(_d_debt: uint256, _for: address):
     total_debt: uint256 = self._total_debt.initial_debt * rate_mul / self._total_debt.rate_mul
     self._total_debt.initial_debt = max(total_debt, d_debt) - d_debt
     self._total_debt.rate_mul = rate_mul
+
+
+@external
+@nonreentrant('lock')
+def repay(_d_debt: uint256, _for: address):
+    """
+    @notice Repay debt (partially or fully)
+    @param _d_debt The amount of debt to repay. If higher than the current debt - will do full repayment
+    @param _for The user to repay the debt for
+    """
+    self._repay(_d_debt, _for)
 
 
 @internal
