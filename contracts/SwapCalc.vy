@@ -38,6 +38,7 @@ MAX_SKIP_TICKS: constant(int256) = 1024
 
 allowance: public(HashMap[address, HashMap[address, bool]])
 
+
 @internal
 @pure
 def sqrt_int(_x: uint256) -> uint256:
@@ -46,6 +47,7 @@ def sqrt_int(_x: uint256) -> uint256:
     @param _x Square root's input in "normal" units, e.g. sqrt_int(1) == 1
     """
     return isqrt(_x)
+
 
 @internal
 @view
@@ -76,6 +78,7 @@ def _get_y0(_llamma: address, x: uint256, y: uint256, p_o: uint256, p_o_up: uint
         return unsafe_div((b + self.sqrt_int(D)) * 10**18, unsafe_mul(2 * _A, p_o))
     else:
         return unsafe_div(b * 10**18, _A * p_o)
+
 
 @internal
 @view
@@ -210,6 +213,7 @@ def calc_swap_in(_llamma: address, pump: bool, out_amount: uint256, p_o: uint256
 
     return out
 
+
 @internal
 @view
 def _get_dydx(_llamma: address, i: uint256, j: uint256, out_amount: uint256) -> DetailedTrade:
@@ -290,7 +294,7 @@ def exchange_by_dy(_llamma: address, i: uint256, j: uint256, out_amount: uint256
     """
     # i = 0: borrowable (USD) in, collateral (ETH) out; going up
     # i = 1: collateral (ETH) in, borrowable (USD) out; going down
-    out: DetailedTrade = self._get_dydx(_llamma, i, j, out_amount) # <- also checks out_amount == 0
+    out: DetailedTrade = self._get_dydx(_llamma, i, j, out_amount) # <- also checks i,j and out_amount == 0
     if out.in_amount == 0:
         return 0
 
@@ -304,5 +308,5 @@ def exchange_by_dy(_llamma: address, i: uint256, j: uint256, out_amount: uint256
         self.allowance[_llamma][in_coin] = True
         ERC20(in_coin).approve(_llamma, MAX_UINT256)
 
-    assert ERC20(in_coin).transferFrom(sender, self, out.in_amount, default_return_value=True)
-    return LLAMMA(_llamma).exchange(i, j, out.in_amount, min_amount, _for) # <- also checks i,j
+    assert ERC20(in_coin).transferFrom(msg.sender, self, out.in_amount, default_return_value=True)
+    return LLAMMA(_llamma).exchange(i, j, out.in_amount, min_amount, _for)
