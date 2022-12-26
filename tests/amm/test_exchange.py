@@ -92,5 +92,5 @@ def test_exchange_down_up(amm, amounts, accounts, ns, dns, amount,
         amm.exchange(1, 0, in_amount, 0)
     dy_measured = borrowed_token.balanceOf(u) - dy_measured
     dx_measured -= collateral_token.balanceOf(u)
-    dy == dy_measured
-    assert approx(dx_measured, dx, 5e-5)
+    assert dy == dy_measured
+    assert dx == dx_measured
