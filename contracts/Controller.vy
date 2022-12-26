@@ -566,7 +566,9 @@ def create_loan_extended(collateral: uint256, debt: uint256, N: uint256, callbac
     active_band: int256 = AMM.active_band()
     band_x: uint256 = AMM.bands_x(active_band)
     band_y: uint256 = AMM.bands_y(active_band)
+
     # Callback
+    # XXX Extra information (like slippage)
     response: Bytes[32] = raw_call(
         callbacker,
         concat(slice(callback_sig, 0, 4), _abi_encode(msg.sender, collateral, debt, N)),
@@ -574,6 +576,7 @@ def create_loan_extended(collateral: uint256, debt: uint256, N: uint256, callbac
     )
     # If there is any unused debt, callbacker can send it to the user
     more_collateral: uint256 = convert(response, uint256)
+
     # Checks after callback
     assert active_band == AMM.active_band()
     assert band_x == AMM.bands_x(active_band)
@@ -753,13 +756,32 @@ def repay(_d_debt: uint256, _for: address):
 
 @external
 @nonreentrant('lock')
-def repay_extended(_d_debt: uint256, _for: address, callbacker: address, callback_sig: bytes32):
+def repay_extended(min_d_debt: uint256, callbacker: address, callback_sig: bytes32):
     # Before callback
+    xy: uint256[2] = AMM.get_sum_xy(msg.sender)  # Shouldn't do for anyone because it can deleverage, not just repay
+    COLLATERAL_TOKEN.transferFrom(AMM.address, callbacker, xy[1], default_return_value=True)
+
     # Checks before callback
+    active_band: int256 = AMM.active_band()
+    band_x: uint256 = AMM.bands_x(active_band)
+    band_y: uint256 = AMM.bands_y(active_band)
+
     # Callback
+    response: Bytes[32] = raw_call(
+        callbacker,
+        concat(slice(callback_sig, 0, 4), _abi_encode(msg.sender, min_d_debt, xy[0], xy[1])),
+        max_outsize=32
+    )
+    # If callback needs more stablecoins for repayment - it can transferFrom sender
+    d_debt: uint256 = convert(response, uint256)
+    assert d_debt >= min_d_debt, "min amount"
+
     # Checks after callback
+    assert active_band == AMM.active_band()
+    assert band_x == AMM.bands_x(active_band)
+    assert band_y == AMM.bands_y(active_band)
+
     # After callback
-    pass
 
 @internal
 @view
