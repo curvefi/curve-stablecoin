@@ -2,6 +2,7 @@
 
 interface ERC20:
     def decimals() -> uint256: view
+    def approve(_spender: address, _value: uint256) -> bool: nonpayable
     def transferFrom(_from: address, _to: address, _value: uint256) -> bool: nonpayable
 
 interface PriceOracle:
@@ -22,10 +23,6 @@ interface LLAMMA:
     def price_oracle() -> uint256: view
     def exchange(i: uint256, j: uint256, in_amount: uint256, min_amount: uint256, _for: address) -> uint256: nonpayable
 
-MAX_TICKS: constant(int256) = 50
-MAX_TICKS_UINT: constant(uint256) = 50
-MAX_SKIP_TICKS: constant(int256) = 1024
-
 struct DetailedTrade:
     in_amount: uint256
     out_amount: uint256
@@ -34,6 +31,12 @@ struct DetailedTrade:
     ticks_in: uint256[MAX_TICKS]
     last_tick_j: uint256
     admin_fee: uint256
+
+MAX_TICKS: constant(int256) = 50
+MAX_TICKS_UINT: constant(uint256) = 50
+MAX_SKIP_TICKS: constant(int256) = 1024
+
+allowance: public(HashMap[address, HashMap[address, bool]])
 
 @internal
 @pure
@@ -81,6 +84,7 @@ def calc_swap_in(_llamma: address, pump: bool, out_amount: uint256, p_o: uint256
     @notice Calculate the input amount required to receive the desired output amount.
             If couldn't exchange all - will also update the amount which was actually received.
             Also returns other parameters related to state after swap.
+            Precision depending on in_coin decimals (if out_decimals=18): 18 - 10_000, 17 - 1000, 16 - 100, 15 - 10, < 14 - 1
     @param pump Indicates whether the trade buys or sells collateral
     @param out_amount Desired amount of token going out
     @param p_o Current oracle price
@@ -216,6 +220,8 @@ def _get_dydx(_llamma: address, i: uint256, j: uint256, out_amount: uint256) -> 
     @param out_amount Desired amount of output coin to receive
     @return DetailedTrade with all swap results
     """
+    # i = 0: borrowable (USD) in, collateral (ETH) out; going up
+    # i = 1: collateral (ETH) in, borrowable (USD) out; going down
     assert (i == 0 and j == 1) or (i == 1 and j == 0), "Wrong index"
     out: DetailedTrade = empty(DetailedTrade)
     if out_amount == 0:
@@ -246,6 +252,8 @@ def get_dx(_llamma: address, i: uint256, j: uint256, out_amount: uint256) -> uin
     @param out_amount Desired amount of output coin to receive
     @return Amount of coin i to spend
     """
+    # i = 0: borrowable (USD) in, collateral (ETH) out; going up
+    # i = 1: collateral (ETH) in, borrowable (USD) out; going down
     return self._get_dydx(_llamma, i, j, out_amount).in_amount
 
 
@@ -260,6 +268,8 @@ def get_dydx(_llamma: address, i: uint256, j: uint256, out_amount: uint256) -> (
     @param out_amount Desired amount of output coin to receive
     @return A tuple with out_amount received and in_amount returned
     """
+    # i = 0: borrowable (USD) in, collateral (ETH) out; going up
+    # i = 1: collateral (ETH) in, borrowable (USD) out; going down
     out: DetailedTrade = self._get_dydx(_llamma, i, j, out_amount)
     return (out.out_amount, out.in_amount)
 
@@ -278,18 +288,21 @@ def exchange_by_dy(_llamma: address, i: uint256, j: uint256, out_amount: uint256
     @param _for Address to send coins to
     @return Amount of coins given out
     """
-    if out_amount == 0:
+    # i = 0: borrowable (USD) in, collateral (ETH) out; going up
+    # i = 1: collateral (ETH) in, borrowable (USD) out; going down
+    out: DetailedTrade = self._get_dydx(_llamma, i, j, out_amount) # <- also checks out_amount == 0
+    if out.in_amount == 0:
         return 0
 
     BORROWED_TOKEN: address = LLAMMA(_llamma).coins(0)
     COLLATERAL_TOKEN: address = LLAMMA(_llamma).coins(1)
-    in_coin: ERC20 = ERC20(COLLATERAL_TOKEN)
-    out_coin: ERC20 = ERC20(BORROWED_TOKEN)
-    if i == 0:
-        in_coin = ERC20(BORROWED_TOKEN)
-        out_coin = ERC20(COLLATERAL_TOKEN)
+    in_coin: address = BORROWED_TOKEN
+    if i == 1:
+        in_coin = COLLATERAL_TOKEN
 
+    if not self.allowance[_llamma][in_coin]:
+        self.allowance[_llamma][in_coin] = True
+        ERC20(in_coin).approve(_llamma, MAX_UINT256)
 
-    out: DetailedTrade = self._get_dydx(_llamma, i, j, out_amount)
-    assert in_coin.transferFrom(msg.sender, self, out.in_amount, default_return_value=True)
+    assert ERC20(in_coin).transferFrom(sender, self, out.in_amount, default_return_value=True)
     return LLAMMA(_llamma).exchange(i, j, out.in_amount, min_amount, _for) # <- also checks i,j

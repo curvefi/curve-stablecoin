@@ -47,14 +47,14 @@ def test_dydx_limits(amm, swap_calc, amounts, accounts, ns, dns, collateral_toke
     dy1, dx1 = swap_calc.get_dydx(amm, 0, 1, 10**12 * 10**collateral_deciamls)
     dx2, dy2 = amm.get_dxdy(0, 1, dx1)
     assert dy1 < 10**12 * 10**collateral_deciamls      # Less than all is desired
-    assert abs(dy1 - sum(amounts)) <= 1000                   # but everything is bought
+    assert abs(dy1 - sum(amounts)) <= 1000             # but everything is bought
     assert dx1 == dx2
     assert dy1 == dy2
 
     dx1, dy1 = amm.get_dxdy(0, 1, 10**12 * 10**borrowed_deciamls)
     dy2, dx2 = swap_calc.get_dydx(amm, 0, 1, dy1)
     assert dx1 < 10**12 * 10**borrowed_deciamls        # Less than all is spent
-    assert abs(dy1 - sum(amounts)) <= 1000                   # but everything is bought
+    assert abs(dy1 - sum(amounts)) <= 1000             # but everything is bought
     assert dx1 == dx2
     assert dy1 == dy2
 
