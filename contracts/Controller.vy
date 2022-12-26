@@ -704,6 +704,7 @@ def _repay(_d_debt: uint256, _for: address, _to: address):
     d_debt: uint256 = min(debt, _d_debt)
     debt -= d_debt
 
+    # XXX move these inside else
     ns: int256[2] = AMM.read_user_tick_numbers(_for)
     size: uint256 = convert(ns[1] - ns[0] + 1, uint256)
 
