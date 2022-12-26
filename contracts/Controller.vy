@@ -567,13 +567,13 @@ def create_loan_extended(collateral: uint256, debt: uint256, N: uint256, callbac
     band_x: uint256 = AMM.bands_x(active_band)
     band_y: uint256 = AMM.bands_y(active_band)
     # Callback
-    response: Bytes[64] = raw_call(
+    response: Bytes[32] = raw_call(
         callbacker,
-        concat(slice(callback_sig, 0, 4), _abi_encode(collateral, debt, N)),
-        max_outsize=64
+        concat(slice(callback_sig, 0, 4), _abi_encode(msg.sender, collateral, debt, N)),
+        max_outsize=32
     )
-    more_collateral: uint256 = convert(slice(response, 0, 32), uint256)
-    unused_debt: uint256 = convert(slice(response, 32, 32), uint256)
+    # If there is any unused debt, callbacker can send it to the user
+    more_collateral: uint256 = convert(response, uint256)
     # Checks after callback
     assert active_band == AMM.active_band()
     assert band_x == AMM.bands_x(active_band)
@@ -583,8 +583,6 @@ def create_loan_extended(collateral: uint256, debt: uint256, N: uint256, callbac
     self._deposit_collateral(collateral, msg.value)
     assert COLLATERAL_TOKEN.transferFrom(callbacker, AMM.address, more_collateral, default_return_value=True)
     self._create_loan(0, collateral + more_collateral, debt, N, False)
-    if unused_debt > 0:
-        STABLECOIN.transfer(msg.sender, unused_debt)
 
 
 @internal
@@ -712,6 +710,7 @@ def _repay(_d_debt: uint256, _for: address):
         log UserState(_for, 0, 0, 0, 0, 0)
         log Repay(_for, xy[1], d_debt)
         self._remove_from_list(_for)
+        # XXX include using ETH
 
     else:
         active_band: int256 = AMM.active_band_with_skip()
@@ -751,6 +750,16 @@ def repay(_d_debt: uint256, _for: address):
     """
     self._repay(_d_debt, _for)
 
+
+@external
+@nonreentrant('lock')
+def repay_extended(_d_debt: uint256, _for: address, callbacker: address, callback_sig: bytes32):
+    # Before callback
+    # Checks before callback
+    # Callback
+    # Checks after callback
+    # After callback
+    pass
 
 @internal
 @view
