@@ -692,7 +692,7 @@ def _remove_from_list(_for: address):
 
 
 @internal
-def _repay(_d_debt: uint256, _for: address):
+def _repay(_d_debt: uint256, _for: address, _to: address):
     if _d_debt == 0:
         return
     # Or repay all for MAX_UINT256
@@ -709,7 +709,7 @@ def _repay(_d_debt: uint256, _for: address):
 
     if debt == 0:
         # Allow to withdraw all assets even when underwater
-        xy: uint256[2] = AMM.withdraw(_for, _for)
+        xy: uint256[2] = AMM.withdraw(_for, _to)
         log UserState(_for, 0, 0, 0, 0, 0)
         log Repay(_for, xy[1], d_debt)
         self._remove_from_list(_for)
@@ -751,14 +751,15 @@ def repay(_d_debt: uint256, _for: address):
     @param _d_debt The amount of debt to repay. If higher than the current debt - will do full repayment
     @param _for The user to repay the debt for
     """
-    self._repay(_d_debt, _for)
+    self._repay(_d_debt, _for, _for)
 
 
 @external
 @nonreentrant('lock')
-def repay_extended(min_d_debt: uint256, callbacker: address, callback_sig: bytes32):
+def repay_extended(callbacker: address, callback_sig: bytes32, callback_args: DynArray[uint256,5]):
     # Before callback
     xy: uint256[2] = AMM.get_sum_xy(msg.sender)  # Shouldn't do for anyone because it can deleverage, not just repay
+    debt: uint256 = self._debt(msg.sender)[0]
     COLLATERAL_TOKEN.transferFrom(AMM.address, callbacker, xy[1], default_return_value=True)
 
     # Checks before callback
@@ -767,14 +768,14 @@ def repay_extended(min_d_debt: uint256, callbacker: address, callback_sig: bytes
     band_y: uint256 = AMM.bands_y(active_band)
 
     # Callback
-    response: Bytes[32] = raw_call(
+    response: Bytes[64] = raw_call(
         callbacker,
-        concat(slice(callback_sig, 0, 4), _abi_encode(msg.sender, min_d_debt, xy[0], xy[1])),
-        max_outsize=32
+        concat(slice(callback_sig, 0, 4), _abi_encode(msg.sender, xy[0], xy[1], debt, callback_args)),
+        max_outsize=64
     )
     # If callback needs more stablecoins for repayment - it can transferFrom sender
-    d_debt: uint256 = convert(response, uint256)
-    assert d_debt >= min_d_debt, "min amount"
+    cb_stablecoins: uint256 = convert(slice(response, 0, 32), uint256)
+    cb_collateral: uint256 = convert(slice(response, 32, 32), uint256)
 
     # Checks after callback
     assert active_band == AMM.active_band()
@@ -782,6 +783,22 @@ def repay_extended(min_d_debt: uint256, callbacker: address, callback_sig: bytes
     assert band_y == AMM.bands_y(active_band)
 
     # After callback
+    if cb_stablecoins > 0:
+        STABLECOIN.transferFrom(callbacker, self, cb_stablecoins)
+    if cb_collateral > 0:
+        assert COLLATERAL_TOKEN.transferFrom(callbacker, self, cb_collateral, default_return_value=True)
+
+    STABLECOIN.transferFrom(AMM.address, self, xy[0])
+    cb_stablecoins += xy[0]
+
+    # Only full repay/deleverage at the moment
+    assert cb_stablecoins >= debt, "only full repay"
+    self._repay(debt, msg.sender, empty(address))  # XXX better to do directly
+    if cb_stablecoins > debt:
+        STABLECOIN.transfer(msg.sender, cb_stablecoins - debt)
+    if cb_collateral > 0:
+        assert COLLATERAL_TOKEN.transfer(msg.sender, cb_collateral, default_return_value=True)
+
 
 @internal
 @view
