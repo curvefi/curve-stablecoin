@@ -87,7 +87,7 @@ def calc_swap_in(_llamma: address, pump: bool, out_amount: uint256, p_o: uint256
     @notice Calculate the input amount required to receive the desired output amount.
             If couldn't exchange all - will also update the amount which was actually received.
             Also returns other parameters related to state after swap.
-            Precision depending on in_coin decimals (if out_decimals=18): 18 - 10_000, 17 - 1000, 16 - 100, 15 - 10, < 14 - 1
+            This method is NOT PRECISE!
     @param pump Indicates whether the trade buys or sells collateral
     @param out_amount Desired amount of token going out
     @param p_o Current oracle price
@@ -280,7 +280,7 @@ def get_dydx(_llamma: address, i: uint256, j: uint256, out_amount: uint256) -> (
 
 @external
 @nonreentrant('lock')
-def exchange_by_dy(_llamma: address, i: uint256, j: uint256, out_amount: uint256, min_amount: uint256, _for: address = msg.sender) -> uint256:
+def exchange_dy(_llamma: address, i: uint256, j: uint256, out_amount: uint256, min_amount: uint256, _for: address = msg.sender) -> uint256:
     """
     @notice Exchanges two coins to get desired out_amount, callable by anyone.
             Actual received amount can be slightly different from passed out_amount even if no slippage.
