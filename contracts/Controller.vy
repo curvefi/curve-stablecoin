@@ -786,18 +786,11 @@ def repay_extended(callbacker: address, callback_sig: bytes32, callback_args: Dy
     assert band_y == AMM.bands_y(active_band)
 
     # After callback
-    if cb_stablecoins > 0:
-        STABLECOIN.transferFrom(callbacker, self, cb_stablecoins)
-    if cb_collateral > 0:
-        assert COLLATERAL_TOKEN.transferFrom(callbacker, self, cb_collateral, default_return_value=True)
-
-    STABLECOIN.transferFrom(AMM.address, self, xy[0])
-    cb_stablecoins += xy[0]
-
-    assert cb_stablecoins > 0  # dev: no coins to repay
+    total_stablecoins: uint256 = cb_stablecoins + xy[0]
+    assert total_stablecoins > 0  # dev: no coins to repay
 
     # If we have more stablecoins than the debt - full repayment and closing the position
-    if cb_stablecoins >= debt:
+    if total_stablecoins >= debt:
         xy = AMM.withdraw(msg.sender, empty(address))
         log UserState(msg.sender, 0, 0, 0, 0, 0)
         log Repay(msg.sender, xy[1], debt)
@@ -809,10 +802,15 @@ def repay_extended(callbacker: address, callback_sig: bytes32, callback_args: Dy
         self._total_debt.initial_debt = max(total_debt, debt) - debt
         self._total_debt.rate_mul = rate_mul
 
-        if cb_stablecoins > debt:
-            STABLECOIN.transfer(msg.sender, cb_stablecoins - debt)
+        # Transfer debt to self, everything else to sender
+        if cb_stablecoins > 0:
+            STABLECOIN.transferFrom(callbacker, self, cb_stablecoins)
+        if xy[0] > 0:
+            STABLECOIN.transferFrom(AMM.address, self, xy[0])
+        if total_stablecoins > debt:
+            STABLECOIN.transfer(msg.sender, total_stablecoins - debt)
         if cb_collateral > 0:
-            assert COLLATERAL_TOKEN.transfer(msg.sender, cb_collateral, default_return_value=True)
+            assert COLLATERAL_TOKEN.transferFrom(callbacker, msg.sender, cb_collateral, default_return_value=True)
 
     # Else - partial repayment -> deleverage, but only if we are not underwater
     else:
@@ -829,8 +827,11 @@ def repay_extended(callbacker: address, callback_sig: bytes32, callback_args: Dy
         liquidation_discount: uint256 = self.liquidation_discount
         self.liquidation_discounts[msg.sender] = liquidation_discount
 
-        assert COLLATERAL_TOKEN.transfer(AMM.address, cb_collateral, default_return_value=True)
-        # Stablecoin is all spent to repay debt -> no transfer
+        if cb_collateral > 0:
+            assert COLLATERAL_TOKEN.transferFrom(callbacker, AMM.address, cb_collateral, default_return_value=True)
+        # Stablecoin is all spent to repay debt -> all goes to self
+        STABLECOIN.transferFrom(callbacker, self, cb_stablecoins)
+        # We are above active band, so xy[0] is 0 anyway
 
         self.redeemed += cb_stablecoins
         self.loan[msg.sender] = Loan({initial_debt: debt - cb_stablecoins, rate_mul: rate_mul})
@@ -840,6 +841,7 @@ def repay_extended(callbacker: address, callback_sig: bytes32, callback_args: Dy
 
         log UserState(msg.sender, cb_collateral, debt - cb_stablecoins, n1, n2, liquidation_discount)
         log Repay(msg.sender, 0, cb_stablecoins)
+
 
 @internal
 @view
