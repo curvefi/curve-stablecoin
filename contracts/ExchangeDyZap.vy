@@ -26,11 +26,6 @@ interface LLAMMA:
 struct DetailedTrade:
     in_amount: uint256
     out_amount: uint256
-    n1: int256
-    n2: int256
-    ticks_in: uint256[MAX_TICKS]
-    last_tick_j: uint256
-    admin_fee: uint256
 
 MAX_TICKS: constant(int256) = 50
 MAX_TICKS_UINT: constant(uint256) = 50
@@ -101,15 +96,14 @@ def calc_swap_in(_llamma: address, pump: bool, out_amount: uint256, p_o: uint256
     _Aminus1: uint256 = unsafe_sub(_A, 1)
     min_band: int256 = LLAMMA(_llamma).min_band()
     max_band: int256 = LLAMMA(_llamma).max_band()
+    n: int256 = LLAMMA(_llamma).active_band()
     out: DetailedTrade = empty(DetailedTrade)
-    out.n2 = LLAMMA(_llamma).active_band()
-    p_o_up: uint256 = LLAMMA(_llamma).p_oracle_up(out.n2)
-    x: uint256 = LLAMMA(_llamma).bands_x(out.n2)
-    y: uint256 = LLAMMA(_llamma).bands_y(out.n2)
+    p_o_up: uint256 = LLAMMA(_llamma).p_oracle_up(n)
+    x: uint256 = LLAMMA(_llamma).bands_x(n)
+    y: uint256 = LLAMMA(_llamma).bands_y(n)
 
     out_amount_left: uint256 = out_amount
     antifee: uint256 = unsafe_div((10**18)**2, unsafe_sub(10**18, LLAMMA(_llamma).fee()))
-    admin_fee: uint256 = LLAMMA(_llamma).admin_fee()
     j: uint256 = MAX_TICKS_UINT
 
     for i in range(MAX_TICKS + MAX_SKIP_TICKS):
@@ -120,7 +114,6 @@ def calc_swap_in(_llamma: address, pump: bool, out_amount: uint256, p_o: uint256
 
         if x > 0 or y > 0:
             if j == MAX_TICKS_UINT:
-                out.n1 = out.n2
                 j = 0
             y0 = self._get_y0(_llamma, x, y, p_o, p_o_up)  # <- also checks p_o
             f = unsafe_div(_A * y0 * p_o / p_o_up * p_o, 10**18)
@@ -132,71 +125,57 @@ def calc_swap_in(_llamma: address, pump: bool, out_amount: uint256, p_o: uint256
                 if g != 0:
                     if y >= out_amount_left:
                         # This is the last band
-                        out.last_tick_j = y - out_amount_left  # Should be always >= 0
-                        x_dest: uint256 = Inv / (g + out.last_tick_j) - f - x
+                        x_dest: uint256 = Inv / (g + (y - out_amount_left)) - f - x
                         dx: uint256 = unsafe_div(x_dest * antifee, 10**18)  # MORE than x_dest
-                        x_dest = unsafe_div(unsafe_sub(dx, x_dest) * admin_fee, 10**18)  # abs admin fee now
                         out.out_amount = out_amount
-                        out.ticks_in[j] = x + dx - x_dest
                         out.in_amount += dx
-                        out.admin_fee = unsafe_add(out.admin_fee, x_dest)
                         break
 
                     else:
                         # We go into the next band
                         x_dest: uint256 = (unsafe_div(Inv, g) - f) - x
                         dx: uint256 = unsafe_div(x_dest * antifee, 10**18)
-                        x_dest = unsafe_div(unsafe_sub(dx, x_dest) * admin_fee, 10**18)  # abs admin fee now
                         out_amount_left -= y
-                        out.ticks_in[j] = x + dx - x_dest
                         out.in_amount += dx
                         out.out_amount += y
-                        out.admin_fee = unsafe_add(out.admin_fee, x_dest)
 
             if i != MAX_TICKS + MAX_SKIP_TICKS - 1:
-                if out.n2 == max_band:
+                if n == max_band:
                     break
                 if j == MAX_TICKS_UINT - 1:
                     break
-                out.n2 += 1
+                n += 1
                 p_o_up = unsafe_div(p_o_up * _Aminus1, _A)
                 x = 0
-                y = LLAMMA(_llamma).bands_y(out.n2)
+                y = LLAMMA(_llamma).bands_y(n)
 
         else:  # dump
             if x != 0:
                 if f != 0:
                     if x >= out_amount_left:
                         # This is the last band
-                        out.last_tick_j = x - out_amount_left
-                        y_dest: uint256 = Inv / (f + out.last_tick_j) - g - y
+                        y_dest: uint256 = Inv / (f + (x - out_amount_left)) - g - y
                         dy: uint256 = unsafe_div(y_dest * antifee, 10**18)  # MORE than y_dest
-                        y_dest = unsafe_div(unsafe_sub(dy, y_dest) * admin_fee, 10**18)  # abs admin fee now
                         out.out_amount = out_amount
-                        out.ticks_in[j] = y + dy - y_dest
                         out.in_amount += dy
-                        out.admin_fee = unsafe_add(out.admin_fee, y_dest)
                         break
 
                     else:
                         # We go into the next band
                         y_dest: uint256 = (unsafe_div(Inv, f) - g) - y
                         dy: uint256 = unsafe_div(y_dest * antifee, 10**18)
-                        y_dest = unsafe_div(unsafe_sub(dy, y_dest) * admin_fee, 10**18)  # abs admin fee now
                         out_amount_left -= x
-                        out.ticks_in[j] = y + dy - y_dest
                         out.in_amount += dy
                         out.out_amount += x
-                        out.admin_fee = unsafe_add(out.admin_fee, y_dest)
 
             if i != MAX_TICKS + MAX_SKIP_TICKS - 1:
-                if out.n2 == min_band:
+                if n == min_band:
                     break
                 if j == MAX_TICKS_UINT - 1:
                     break
-                out.n2 -= 1
+                n -= 1
                 p_o_up = unsafe_div(p_o_up * _A, _Aminus1)
-                x = LLAMMA(_llamma).bands_x(out.n2)
+                x = LLAMMA(_llamma).bands_x(n)
                 y = 0
 
         if j != MAX_TICKS_UINT:
@@ -206,10 +185,6 @@ def calc_swap_in(_llamma: address, pump: bool, out_amount: uint256, p_o: uint256
     # ceil(in_amount_used/BORROWED_PRECISION) * BORROWED_PRECISION
     out.in_amount = unsafe_mul(unsafe_div(unsafe_add(out.in_amount, unsafe_sub(in_precision, 1)), in_precision), in_precision)
     out.out_amount = unsafe_mul(unsafe_div(out.out_amount, out_precision), out_precision)
-
-    # If out_amount is zeroed because of rounding off - don't charge admin fees
-    if out.out_amount == 0:
-        out.admin_fee = 0
 
     return out
 
