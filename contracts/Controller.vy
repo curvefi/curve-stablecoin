@@ -693,11 +693,12 @@ def _remove_from_list(_for: address):
 
 @external
 @nonreentrant('lock')
-def repay(_d_debt: uint256, _for: address):
+def repay(_d_debt: uint256, _for: address = msg.sender, use_eth: bool = True):
     """
     @notice Repay debt (partially or fully)
     @param _d_debt The amount of debt to repay. If higher than the current debt - will do full repayment
     @param _for The user to repay the debt for
+    @param use_eth Use wrapping/unwrapping if collateral is ETH
     """
     if _d_debt == 0:
         return
@@ -712,11 +713,16 @@ def repay(_d_debt: uint256, _for: address):
 
     if debt == 0:
         # Allow to withdraw all assets even when underwater
-        xy: uint256[2] = AMM.withdraw(_for, _for)
+        xy: uint256[2] = AMM.withdraw(_for, empty(address))
+        if xy[0] > 0:
+            # Only allow full repayment when underwater for the sender to do
+            assert _for == msg.sender
+            STABLECOIN.transferFrom(AMM.address, _for, xy[0])
+        if xy[1] > 0:
+            self._withdraw_collateral(xy[1], use_eth)
         log UserState(_for, 0, 0, 0, 0, 0)
         log Repay(_for, xy[1], d_debt)
         self._remove_from_list(_for)
-        # XXX include using ETH
 
     else:
         active_band: int256 = AMM.active_band_with_skip()
