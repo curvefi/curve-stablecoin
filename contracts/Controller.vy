@@ -158,7 +158,6 @@ def __init__(
     @param liquidation_discount Discount of the maximum loan size compare to
            get_x_down() for "bad liquidation" purposes
     @param amm AMM address (Already deployed from blueprint)
-    @param use_eth Use wrapping/unwrapping if collateral is ETH
     """
     FACTORY = Factory(msg.sender)
     stablecoin: ERC20 = ERC20(Factory(msg.sender).stablecoin())
