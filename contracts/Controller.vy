@@ -691,8 +691,14 @@ def _remove_from_list(_for: address):
     self.n_loans = last_loan_ix
 
 
-@internal
-def _repay(_d_debt: uint256, _for: address, _to: address):
+@external
+@nonreentrant('lock')
+def repay(_d_debt: uint256, _for: address):
+    """
+    @notice Repay debt (partially or fully)
+    @param _d_debt The amount of debt to repay. If higher than the current debt - will do full repayment
+    @param _for The user to repay the debt for
+    """
     if _d_debt == 0:
         return
     # Or repay all for MAX_UINT256
@@ -706,7 +712,7 @@ def _repay(_d_debt: uint256, _for: address, _to: address):
 
     if debt == 0:
         # Allow to withdraw all assets even when underwater
-        xy: uint256[2] = AMM.withdraw(_for, _to)
+        xy: uint256[2] = AMM.withdraw(_for, _for)
         log UserState(_for, 0, 0, 0, 0, 0)
         log Repay(_for, xy[1], d_debt)
         self._remove_from_list(_for)
@@ -741,17 +747,6 @@ def _repay(_d_debt: uint256, _for: address, _to: address):
     total_debt: uint256 = self._total_debt.initial_debt * rate_mul / self._total_debt.rate_mul
     self._total_debt.initial_debt = max(total_debt, d_debt) - d_debt
     self._total_debt.rate_mul = rate_mul
-
-
-@external
-@nonreentrant('lock')
-def repay(_d_debt: uint256, _for: address):
-    """
-    @notice Repay debt (partially or fully)
-    @param _d_debt The amount of debt to repay. If higher than the current debt - will do full repayment
-    @param _for The user to repay the debt for
-    """
-    self._repay(_d_debt, _for, _for)
 
 
 @external
