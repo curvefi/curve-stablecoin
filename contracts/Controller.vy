@@ -10,7 +10,7 @@ interface LLAMMA:
     def deposit_range(user: address, amount: uint256, n1: int256, n2: int256, move_coins: bool): nonpayable
     def read_user_tick_numbers(_for: address) -> int256[2]: view
     def get_sum_xy(user: address) -> uint256[2]: view
-    def withdraw(user: address, move_to: address) -> uint256[2]: nonpayable
+    def withdraw(user: address) -> uint256[2]: nonpayable
     def get_x_down(user: address) -> uint256: view
     def get_rate_mul() -> uint256: view
     def set_rate(rate: uint256) -> uint256: nonpayable
@@ -23,6 +23,8 @@ interface LLAMMA:
     def admin_fees_y() -> uint256: view
     def reset_admin_fees(): nonpayable
     def has_liquidity(user: address) -> bool: view
+    def bands_x(n: int256) -> uint256: view
+    def bands_y(n: int256) -> uint256: view
 
 interface ERC20:
     def transferFrom(_from: address, _to: address, _value: uint256) -> bool: nonpayable
@@ -116,8 +118,7 @@ loan: HashMap[address, Loan]
 liquidation_discounts: public(HashMap[address, uint256])
 _total_debt: Loan
 
-# XXX address[LARGE_NUMBER] causes Memory error in boa - need to report!
-loans: public(HashMap[uint256, address])  # Enumerate existing loans
+loans: public(address[10**20])  # Enumerate existing loans
 loan_ix: public(HashMap[address, uint256])  # Position of the loan in the list
 n_loans: public(uint256)  # Number of nonzero loans
 
@@ -481,14 +482,17 @@ def calculate_debt_n1(collateral: uint256, debt: uint256, N: uint256) -> int256:
 
 @internal
 def _deposit_collateral(amount: uint256, mvalue: uint256):
+    """
+    Deposits raw ETH, WETH or both at the same time
+    """
     if not USE_ETH:
         assert mvalue == 0  # dev: Not accepting ETH
-    if mvalue == 0:
-        assert COLLATERAL_TOKEN.transferFrom(msg.sender, AMM.address, amount, default_return_value=True)
-    else:
-        assert mvalue == amount  # dev: Incorrect ETH amount
-        WETH(COLLATERAL_TOKEN.address).deposit(value=amount)
-        assert COLLATERAL_TOKEN.transferFrom(self, AMM.address, amount)
+    diff: uint256 = amount - mvalue  # dev: Incorrect ETH amount
+    if mvalue > 0:
+        WETH(COLLATERAL_TOKEN.address).deposit(value=mvalue)
+        assert COLLATERAL_TOKEN.transferFrom(self, AMM.address, mvalue)
+    if diff > 0:
+        assert COLLATERAL_TOKEN.transferFrom(msg.sender, AMM.address, diff, default_return_value=True)
 
 
 @internal
@@ -501,17 +505,8 @@ def _withdraw_collateral(amount: uint256, use_eth: bool):
         assert COLLATERAL_TOKEN.transferFrom(AMM.address, msg.sender, amount, default_return_value=True)
 
 
-@payable
-@external
-@nonreentrant('lock')
-def create_loan(collateral: uint256, debt: uint256, N: uint256):
-    """
-    @notice Create loan
-    @param collateral Amount of collateral to use
-    @param debt Stablecoin debt to take
-    @param N Number of bands to deposit into (to do autoliquidation-deliquidation),
-           can be from MIN_TICKS to MAX_TICKS
-    """
+@internal
+def _create_loan(mvalue: uint256, collateral: uint256, debt: uint256, N: uint256, transfer_coins: bool):
     assert self.loan[msg.sender].initial_debt == 0, "Loan already created"
     assert N > MIN_TICKS-1, "Need more ticks"
     assert N < MAX_TICKS+1, "Need less ticks"
@@ -534,13 +529,60 @@ def create_loan(collateral: uint256, debt: uint256, N: uint256):
     self._total_debt.rate_mul = rate_mul
 
     AMM.deposit_range(msg.sender, collateral, n1, n2, False)
-    self._deposit_collateral(collateral, msg.value)
-
-    STABLECOIN.transfer(msg.sender, debt)
     self.minted += debt
+
+    if transfer_coins:
+        self._deposit_collateral(collateral, mvalue)
+        STABLECOIN.transfer(msg.sender, debt)
 
     log UserState(msg.sender, collateral, debt, n1, n2, liquidation_discount)
     log Borrow(msg.sender, collateral, debt)
+
+
+@payable
+@external
+@nonreentrant('lock')
+def create_loan(collateral: uint256, debt: uint256, N: uint256):
+    """
+    @notice Create loan
+    @param collateral Amount of collateral to use
+    @param debt Stablecoin debt to take
+    @param N Number of bands to deposit into (to do autoliquidation-deliquidation),
+           can be from MIN_TICKS to MAX_TICKS
+    """
+    self._create_loan(msg.value, collateral, debt, N, True)
+
+
+@payable
+@external
+@nonreentrant('lock')
+def create_loan_extended(collateral: uint256, debt: uint256, N: uint256, callbacker: address, callback_sig: bytes32, callback_args: DynArray[uint256,5]):
+    # Before callback
+    STABLECOIN.transfer(callbacker, debt)
+
+    # Checks before callback
+    active_band: int256 = AMM.active_band()
+    band_x: uint256 = AMM.bands_x(active_band)
+    band_y: uint256 = AMM.bands_y(active_band)
+
+    # Callback
+    response: Bytes[32] = raw_call(
+        callbacker,
+        concat(slice(callback_sig, 0, 4), _abi_encode(msg.sender, collateral, debt, N, callback_args)),
+        max_outsize=32
+    )
+    # If there is any unused debt, callbacker can send it to the user
+    more_collateral: uint256 = convert(response, uint256)
+
+    # Checks after callback
+    assert active_band == AMM.active_band()
+    assert band_x == AMM.bands_x(active_band)
+    assert band_y == AMM.bands_y(active_band)
+
+    # After callback
+    self._deposit_collateral(collateral, msg.value)
+    assert COLLATERAL_TOKEN.transferFrom(callbacker, AMM.address, more_collateral, default_return_value=True)
+    self._create_loan(0, collateral + more_collateral, debt, N, False)
 
 
 @internal
@@ -560,7 +602,7 @@ def _add_collateral_borrow(d_collateral: uint256, d_debt: uint256, _for: address
     ns: int256[2] = AMM.read_user_tick_numbers(_for)
     size: uint256 = convert(ns[1] - ns[0] + 1, uint256)
 
-    xy: uint256[2] = AMM.withdraw(_for, empty(address))
+    xy: uint256[2] = AMM.withdraw(_for)
     assert xy[0] == 0, "Already in underwater mode"
     if remove_collateral:
         xy[1] -= d_collateral
@@ -648,11 +690,12 @@ def _remove_from_list(_for: address):
 
 @external
 @nonreentrant('lock')
-def repay(_d_debt: uint256, _for: address):
+def repay(_d_debt: uint256, _for: address = msg.sender, use_eth: bool = True):
     """
     @notice Repay debt (partially or fully)
     @param _d_debt The amount of debt to repay. If higher than the current debt - will do full repayment
     @param _for The user to repay the debt for
+    @param use_eth Use wrapping/unwrapping if collateral is ETH
     """
     if _d_debt == 0:
         return
@@ -665,22 +708,28 @@ def repay(_d_debt: uint256, _for: address):
     d_debt: uint256 = min(debt, _d_debt)
     debt -= d_debt
 
-    ns: int256[2] = AMM.read_user_tick_numbers(_for)
-    size: uint256 = convert(ns[1] - ns[0] + 1, uint256)
-
     if debt == 0:
         # Allow to withdraw all assets even when underwater
-        xy: uint256[2] = AMM.withdraw(_for, _for)
+        xy: uint256[2] = AMM.withdraw(_for)
+        if xy[0] > 0:
+            # Only allow full repayment when underwater for the sender to do
+            assert _for == msg.sender
+            STABLECOIN.transferFrom(AMM.address, _for, xy[0])
+        if xy[1] > 0:
+            self._withdraw_collateral(xy[1], use_eth)
         log UserState(_for, 0, 0, 0, 0, 0)
         log Repay(_for, xy[1], d_debt)
         self._remove_from_list(_for)
 
     else:
         active_band: int256 = AMM.active_band_with_skip()
+        ns: int256[2] = AMM.read_user_tick_numbers(_for)
+        size: uint256 = convert(ns[1] - ns[0] + 1, uint256)
+
 
         if ns[0] > active_band:
             # Not in liquidation - can move bands
-            xy: uint256[2] = AMM.withdraw(_for, empty(address))
+            xy: uint256[2] = AMM.withdraw(_for)
             n1: int256 = self._calculate_debt_n1(xy[1], debt, size)
             n2: int256 = n1 + ns[1] - ns[0]
             AMM.deposit_range(_for, xy[1], n1, n2, False)
@@ -701,6 +750,89 @@ def repay(_d_debt: uint256, _for: address):
     total_debt: uint256 = self._total_debt.initial_debt * rate_mul / self._total_debt.rate_mul
     self._total_debt.initial_debt = max(total_debt, d_debt) - d_debt
     self._total_debt.rate_mul = rate_mul
+
+
+@external
+@nonreentrant('lock')
+def repay_extended(callbacker: address, callback_sig: bytes32, callback_args: DynArray[uint256,5]):
+    # Before callback
+    xy: uint256[2] = AMM.get_sum_xy(msg.sender)  # Shouldn't do for anyone because it can deleverage, not just repay
+    debt: uint256 = 0
+    rate_mul: uint256 = 0
+    debt, rate_mul = self._debt(msg.sender)
+    COLLATERAL_TOKEN.transferFrom(AMM.address, callbacker, xy[1], default_return_value=True)
+
+    # Checks before callback
+    active_band: int256 = AMM.active_band()
+    band_x: uint256 = AMM.bands_x(active_band)
+    band_y: uint256 = AMM.bands_y(active_band)
+
+    # Callback
+    response: Bytes[64] = raw_call(
+        callbacker,
+        concat(slice(callback_sig, 0, 4), _abi_encode(msg.sender, xy[0], xy[1], debt, callback_args)),
+        max_outsize=64
+    )
+    # If callback needs more stablecoins for repayment - it can transferFrom sender
+    cb_stablecoins: uint256 = convert(slice(response, 0, 32), uint256)
+    cb_collateral: uint256 = convert(slice(response, 32, 32), uint256)
+
+    # Checks after callback
+    assert active_band == AMM.active_band()
+    assert band_x == AMM.bands_x(active_band)
+    assert band_y == AMM.bands_y(active_band)
+
+    # After callback
+    total_stablecoins: uint256 = cb_stablecoins + xy[0]
+    assert total_stablecoins > 0  # dev: no coins to repay
+
+    # Common calls which we will do regardless of whether it's a full repay or not
+    xy = AMM.withdraw(msg.sender)
+    d_debt: uint256 = min(debt, total_stablecoins)
+    self.redeemed += d_debt
+    self.loan[msg.sender] = Loan({initial_debt: debt - d_debt, rate_mul: rate_mul})
+    total_debt: uint256 = self._total_debt.initial_debt * rate_mul / self._total_debt.rate_mul
+    self._total_debt.initial_debt = max(total_debt, d_debt) - d_debt
+    self._total_debt.rate_mul = rate_mul
+
+    # If we have more stablecoins than the debt - full repayment and closing the position
+    if total_stablecoins >= debt:
+        self._remove_from_list(msg.sender)
+
+        # Transfer debt to self, everything else to sender
+        if cb_stablecoins > 0:
+            STABLECOIN.transferFrom(callbacker, self, cb_stablecoins)
+        if xy[0] > 0:
+            STABLECOIN.transferFrom(AMM.address, self, xy[0])
+        if total_stablecoins > debt:
+            STABLECOIN.transfer(msg.sender, total_stablecoins - debt)
+        if cb_collateral > 0:
+            assert COLLATERAL_TOKEN.transferFrom(callbacker, msg.sender, cb_collateral, default_return_value=True)
+
+        log UserState(msg.sender, 0, 0, 0, 0, 0)
+        log Repay(msg.sender, xy[1], debt)
+
+    # Else - partial repayment -> deleverage, but only if we are not underwater
+    else:
+        ns: int256[2] = AMM.read_user_tick_numbers(msg.sender)
+        size: uint256 = convert(ns[1] - ns[0] + 1, uint256)
+        assert ns[0] > active_band
+
+        # Not in liquidation - can move bands
+        n1: int256 = self._calculate_debt_n1(cb_collateral, debt - cb_stablecoins, size)
+        n2: int256 = n1 + ns[1] - ns[0]
+        AMM.deposit_range(msg.sender, cb_collateral, n1, n2, False)
+        liquidation_discount: uint256 = self.liquidation_discount
+        self.liquidation_discounts[msg.sender] = liquidation_discount
+
+        if cb_collateral > 0:
+            assert COLLATERAL_TOKEN.transferFrom(callbacker, AMM.address, cb_collateral, default_return_value=True)
+        # Stablecoin is all spent to repay debt -> all goes to self
+        STABLECOIN.transferFrom(callbacker, self, cb_stablecoins)
+        # We are above active band, so xy[0] is 0 anyway
+
+        log UserState(msg.sender, cb_collateral, debt - cb_stablecoins, n1, n2, liquidation_discount)
+        log Repay(msg.sender, 0, cb_stablecoins)
 
 
 @internal
@@ -810,7 +942,7 @@ def _liquidate(user: address, min_x: uint256, health_limit: uint256, use_eth: bo
         assert self._health(user, debt, True, health_limit) < 0, "Not enough rekt"
 
     # Send all the sender's stablecoin and collateral to our contract
-    xy: uint256[2] = AMM.withdraw(user, empty(address))  # [stable, collateral]
+    xy: uint256[2] = AMM.withdraw(user)  # [stable, collateral]
 
     # x increase in same block -> price up -> good
     # x decrease in same block -> price down -> bad

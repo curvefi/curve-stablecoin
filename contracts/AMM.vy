@@ -54,7 +54,6 @@ event Deposit:
 
 event Withdraw:
     provider: indexed(address)
-    receiver: address
     amount_borrowed: uint256
     amount_collateral: uint256
 
@@ -662,11 +661,10 @@ def deposit_range(user: address, amount: uint256, n1: int256, n2: int256, move_c
 
 @external
 @nonreentrant('lock')
-def withdraw(user: address, move_to: address) -> uint256[2]:
+def withdraw(user: address) -> uint256[2]:
     """
     @notice Withdraw all liquidity for the user. Only admin contract can do it
     @param user User who owns liquidity
-    @param move_to Withdraw to address. If 0x0 - don't move coins but change the numbers (Controller will move coins instead)
     @return Amount of [stablecoins, collateral] withdrawn
     """
     assert msg.sender == self.admin
@@ -719,10 +717,7 @@ def withdraw(user: address, move_to: address) -> uint256[2]:
 
     total_x = unsafe_div(total_x, BORROWED_PRECISION)
     total_y = unsafe_div(total_y, COLLATERAL_PRECISION)
-    if move_to != empty(address):
-        assert BORROWED_TOKEN.transfer(move_to, total_x, default_return_value=True)
-        assert COLLATERAL_TOKEN.transfer(move_to, total_y, default_return_value=True)
-    log Withdraw(user, move_to, total_x, total_y)
+    log Withdraw(user, total_x, total_y)
 
     self.rate_mul = self._rate_mul()
     self.rate_time = block.timestamp
