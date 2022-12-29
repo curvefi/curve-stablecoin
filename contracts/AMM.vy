@@ -1314,13 +1314,3 @@ def set_price_oracle(price_oracle: PriceOracle):
     assert msg.sender == self.admin
     self.price_oracle_contract = price_oracle
     log SetPriceOracle(price_oracle.address)
-
-
-@external
-@view
-@nonreentrant('lock')
-def deny_reentry():
-    """
-    @notice A lowest-gas way to check if there was a reentry attempt
-    """
-    pass
