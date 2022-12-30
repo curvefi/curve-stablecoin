@@ -583,6 +583,7 @@ def deposit_range(user: address, amount: uint256, n1: int256, n2: int256, move_c
     assert msg.sender == self.admin
 
     user_shares: DynArray[uint256, MAX_TICKS_UINT] = []
+    collateral_shares: DynArray[uint256, MAX_TICKS_UINT] = []
 
     n0: int256 = self.active_band
 
@@ -625,7 +626,6 @@ def deposit_range(user: address, amount: uint256, n1: int256, n2: int256, move_c
             y = amount * COLLATERAL_PRECISION - y * unsafe_sub(n_bands, 1)
 
         total_y: uint256 = self.bands_y[band]
-        self.bands_y[band] = total_y + y
 
         # Total / user share
         s: uint256 = self.total_shares[band]
@@ -638,6 +638,10 @@ def deposit_range(user: address, amount: uint256, n1: int256, n2: int256, move_c
         user_shares.append(ds)
         s += ds
         self.total_shares[band] = s
+
+        total_y += y
+        self.bands_y[band] = total_y
+        collateral_shares.append(total_y * 10**18 / s)
 
     self.min_band = min(self.min_band, n1)
     self.max_band = max(self.max_band, n2)
@@ -660,6 +664,10 @@ def deposit_range(user: address, amount: uint256, n1: int256, n2: int256, move_c
     self.rate_time = block.timestamp
 
     log Deposit(user, amount, n1, n2)
+
+    if self.liquidity_mining_callback.address != empty(address):
+        self.liquidity_mining_callback.callback_collateral_shares(n1, collateral_shares)
+        self.liquidity_mining_callback.callback_user_shares(n1, user_shares)
 
 
 @external
