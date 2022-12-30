@@ -1003,7 +1003,7 @@ def exchange(i: uint256, j: uint256, in_amount: uint256, min_amount: uint256, _f
         if lm.address != empty(address):
             s: uint256 = 0
             if y > 0:
-                s = y * 10**18 / self.total_shares[n]
+                s = unsafe_div(y * 10**18, self.total_shares[n])
             collateral_shares.append(s)
         if k == n_diff:
             break
