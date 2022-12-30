@@ -592,7 +592,6 @@ def deposit_range(user: address, amount: uint256, n1: int256, n2: int256, move_c
     assert n1 > -2**127
 
     lm: LMGauge = self.liquidity_mining_callback
-    has_lm: bool = lm.address != empty(address)
 
     # Autoskip bands if we can
     for i in range(MAX_SKIP_TICKS + 1):
@@ -645,7 +644,7 @@ def deposit_range(user: address, amount: uint256, n1: int256, n2: int256, move_c
         total_y += y
         self.bands_y[band] = total_y
 
-        if has_lm:
+        if lm.address != empty(address):
             collateral_shares.append(total_y * 10**18 / s)
 
     self.min_band = min(self.min_band, n1)
@@ -670,7 +669,7 @@ def deposit_range(user: address, amount: uint256, n1: int256, n2: int256, move_c
 
     log Deposit(user, amount, n1, n2)
 
-    if has_lm:
+    if lm.address != empty(address):
         lm.callback_collateral_shares(n1, collateral_shares)
         lm.callback_user_shares(n1, user_shares)
 
@@ -959,7 +958,6 @@ def exchange(i: uint256, j: uint256, in_amount: uint256, min_amount: uint256, _f
         return 0
 
     lm: LMGauge = self.liquidity_mining_callback
-    has_lm: bool = lm.address != empty(address)
     collateral_shares: DynArray[uint256, MAX_TICKS_UINT] = []
 
     in_coin: ERC20 = BORROWED_TOKEN
@@ -1004,7 +1002,7 @@ def exchange(i: uint256, j: uint256, in_amount: uint256, min_amount: uint256, _f
                 x = out.last_tick_j
         self.bands_x[n] = x
         self.bands_y[n] = y
-        if has_lm:
+        if lm.address != empty(address):
             s: uint256 = 0
             if y > 0:
                 s = y * 10**18 / self.total_shares[n]
@@ -1017,7 +1015,7 @@ def exchange(i: uint256, j: uint256, in_amount: uint256, min_amount: uint256, _f
 
     log TokenExchange(_for, i, in_amount_done, j, out_amount_done)
 
-    if has_lm:
+    if lm.address != empty(address):
         lm.callback_collateral_shares(n_start, collateral_shares)
 
     return out_amount_done
