@@ -90,7 +90,7 @@ struct DetailedTrade:
     out_amount: uint256
     n1: int256
     n2: int256
-    ticks_in: uint256[MAX_TICKS]
+    ticks_in: DynArray[uint256, MAX_TICKS]
     last_tick_j: uint256
     admin_fee: uint256
 
@@ -500,24 +500,23 @@ def read_user_tick_numbers(user: address) -> int256[2]:
 
 @internal
 @view
-def _read_user_ticks(user: address, size: int256) -> uint256[MAX_TICKS]:
+def _read_user_ticks(user: address, ns: int256[2]) -> DynArray[uint256, MAX_TICKS]:
     """
     @notice Unpacks and reads user ticks (shares) for all the ticks user deposited into
     @param user User address
     @param size Number of ticks the user deposited into
     @return Array of shares the user has
     """
-    ticks: uint256[MAX_TICKS] = empty(uint256[MAX_TICKS])
-    ptr: int256 = 0
+    ticks: DynArray[uint256, MAX_TICKS] = []
+    size: uint256 = convert(ns[1] - ns[0] + 1, uint256)
     for i in range(MAX_TICKS / 2):
-        if unsafe_add(ptr, 1) > size:
+        if len(ticks) == size:
             break
         tick: uint256 = self.user_shares[user].ticks[i]
-        ticks[ptr] = tick & (2**128 - 1)
-        ptr = unsafe_add(ptr, 1)
-        if ptr != size:
-            ticks[ptr] = shift(tick, -128)
-        ptr = unsafe_add(ptr, 1)
+        ticks.append(tick & (2**128 - 1))
+        if len(ticks) == size:
+            break
+        ticks.append(shift(tick, -128))
     return ticks
 
 
@@ -678,7 +677,7 @@ def withdraw(user: address) -> uint256[2]:
     assert msg.sender == self.admin
 
     ns: int256[2] = self._read_user_tick_numbers(user)
-    user_shares: uint256[MAX_TICKS] = self._read_user_ticks(user, ns[1] - ns[0] + 1)
+    user_shares: DynArray[uint256, MAX_TICKS] = self._read_user_ticks(user, ns)
     assert user_shares[0] > 0, "No deposits"
 
     total_x: uint256 = 0
@@ -777,6 +776,10 @@ def calc_swap_out(pump: bool, in_amount: uint256, p_o: uint256) -> DetailedTrade
             f = unsafe_div(A * y0 * p_o / p_o_up * p_o, 10**18)
             g = unsafe_div(Aminus1 * y0 * p_o_up, p_o)
             Inv = (f + x) * (g + y)
+
+        if j != MAX_TICKS_UINT:
+            # Initialize to zero in case we have 0 bands between full bands
+            out.ticks_in.append(0)
 
         if pump:
             if y != 0:
@@ -1006,7 +1009,7 @@ def get_xy_up(user: address, use_y: bool) -> uint256:
     @return Amount of coins
     """
     ns: int256[2] = self._read_user_tick_numbers(user)
-    ticks: uint256[MAX_TICKS] = self._read_user_ticks(user, ns[1] - ns[0] + 1)
+    ticks: DynArray[uint256, MAX_TICKS] = self._read_user_ticks(user, ns)
     if ticks[0] == 0:
         return 0
     p_o: uint256 = self.price_oracle_contract.price()
@@ -1157,7 +1160,7 @@ def get_sum_xy(user: address) -> uint256[2]:
     x: uint256 = 0
     y: uint256 = 0
     ns: int256[2] = self._read_user_tick_numbers(user)
-    ticks: uint256[MAX_TICKS] = self._read_user_ticks(user, ns[1] - ns[0] + 1)
+    ticks: DynArray[uint256, MAX_TICKS] = self._read_user_ticks(user, ns)
     if ticks[0] == 0:
         return [0, 0]
     for i in range(MAX_TICKS):
