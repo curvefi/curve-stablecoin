@@ -645,9 +645,8 @@ def deposit_range(user: address, amount: uint256, n1: int256, n2: int256, move_c
         self.bands_y[band] = total_y
 
         if lm.address != empty(address):
-            if s != 0:
-                s = total_y * 10**18 / s
-            collateral_shares.append(s)
+            # If initial s == 0 - s becomes equal to y which is > 100 => nonzero
+            collateral_shares.append(total_y * 10**18 / s)
 
     self.min_band = min(self.min_band, n1)
     self.max_band = max(self.max_band, n2)
