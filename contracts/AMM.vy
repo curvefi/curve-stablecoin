@@ -90,7 +90,7 @@ struct DetailedTrade:
     out_amount: uint256
     n1: int256
     n2: int256
-    ticks_in: DynArray[uint256, MAX_TICKS]
+    ticks_in: DynArray[uint256, MAX_TICKS_UINT]
     last_tick_j: uint256
     admin_fee: uint256
 
@@ -500,14 +500,14 @@ def read_user_tick_numbers(user: address) -> int256[2]:
 
 @internal
 @view
-def _read_user_ticks(user: address, ns: int256[2]) -> DynArray[uint256, MAX_TICKS]:
+def _read_user_ticks(user: address, ns: int256[2]) -> DynArray[uint256, MAX_TICKS_UINT]:
     """
     @notice Unpacks and reads user ticks (shares) for all the ticks user deposited into
     @param user User address
     @param size Number of ticks the user deposited into
     @return Array of shares the user has
     """
-    ticks: DynArray[uint256, MAX_TICKS] = []
+    ticks: DynArray[uint256, MAX_TICKS_UINT] = []
     size: uint256 = convert(ns[1] - ns[0] + 1, uint256)
     for i in range(MAX_TICKS / 2):
         if len(ticks) == size:
@@ -582,8 +582,9 @@ def deposit_range(user: address, amount: uint256, n1: int256, n2: int256, move_c
     """
     assert msg.sender == self.admin
 
+    user_shares: DynArray[uint256, MAX_TICKS_UINT] = []
+
     n0: int256 = self.active_band
-    band: int256 = n2  # Fill from high N to low N
 
     # We assume that n1,n2 area already sorted (and they are in Controller)
     assert n2 < 2**127
@@ -601,47 +602,42 @@ def deposit_range(user: address, amount: uint256, n1: int256, n2: int256, move_c
     if move_coins:
         assert COLLATERAL_TOKEN.transferFrom(user, self, amount, default_return_value=True)
 
-    i: uint256 = convert(unsafe_sub(n2, n1), uint256)
-    n_bands: uint256 = unsafe_add(i, 1)
+    n_bands: uint256 = unsafe_add(convert(unsafe_sub(n2, n1), uint256), 1)
     assert n_bands <= MAX_TICKS_UINT
 
-    y: uint256 = unsafe_div(amount * COLLATERAL_PRECISION, n_bands)
-    assert y > 100, "Amount too low"
+    y_per_band: uint256 = unsafe_div(amount * COLLATERAL_PRECISION, n_bands)
+    assert y_per_band > 100, "Amount too low"
 
     save_n: bool = True
     if self.user_shares[user].ticks[0] != 0:  # Has liquidity
         ns: int256[2] = self._read_user_tick_numbers(user)
-        assert ns[0] == n1 and ns[1] == band, "Wrong range"
+        assert ns[0] == n1 and ns[1] == n2, "Wrong range"
         save_n = False
 
-    user_shares: uint256[MAX_TICKS] = empty(uint256[MAX_TICKS])
+    for i in range(MAX_TICKS):
+        band: int256 = unsafe_add(n1, i)
+        if band > n2:
+            break
 
-    for j in range(MAX_TICKS):
-        if i == 0:
-            # Take the dust in the last band
-            # Maybe could give up on this though
-            y = amount * COLLATERAL_PRECISION - y * unsafe_sub(n_bands, 1)
-        # Deposit coins
         assert self.bands_x[band] == 0, "Band not empty"
+        y: uint256 = y_per_band
+        if i == 0:
+            y = amount * COLLATERAL_PRECISION - y * unsafe_sub(n_bands, 1)
+
         total_y: uint256 = self.bands_y[band]
         self.bands_y[band] = total_y + y
+
         # Total / user share
         s: uint256 = self.total_shares[band]
+        ds: uint256 = y
         if s == 0:
             assert y < 2**128
-            s = y
-            user_shares[i] = y
         else:
-            ds: uint256 = s * y / total_y
+            ds = s * y / total_y
             assert ds > 0, "Amount too low"
-            user_shares[i] = ds
-            s += ds
+        user_shares.append(ds)
+        s += ds
         self.total_shares[band] = s
-        # End the cycle
-        band = unsafe_sub(band, 1)
-        if i == 0:
-            break
-        i = unsafe_sub(i, 1)
 
     self.min_band = min(self.min_band, n1)
     self.max_band = max(self.max_band, n2)
@@ -677,7 +673,7 @@ def withdraw(user: address) -> uint256[2]:
     assert msg.sender == self.admin
 
     ns: int256[2] = self._read_user_tick_numbers(user)
-    user_shares: DynArray[uint256, MAX_TICKS] = self._read_user_ticks(user, ns)
+    user_shares: DynArray[uint256, MAX_TICKS_UINT] = self._read_user_ticks(user, ns)
     assert user_shares[0] > 0, "No deposits"
 
     total_x: uint256 = 0
@@ -1009,7 +1005,7 @@ def get_xy_up(user: address, use_y: bool) -> uint256:
     @return Amount of coins
     """
     ns: int256[2] = self._read_user_tick_numbers(user)
-    ticks: DynArray[uint256, MAX_TICKS] = self._read_user_ticks(user, ns)
+    ticks: DynArray[uint256, MAX_TICKS_UINT] = self._read_user_ticks(user, ns)
     if ticks[0] == 0:
         return 0
     p_o: uint256 = self.price_oracle_contract.price()
@@ -1160,7 +1156,7 @@ def get_sum_xy(user: address) -> uint256[2]:
     x: uint256 = 0
     y: uint256 = 0
     ns: int256[2] = self._read_user_tick_numbers(user)
-    ticks: DynArray[uint256, MAX_TICKS] = self._read_user_ticks(user, ns)
+    ticks: DynArray[uint256, MAX_TICKS_UINT] = self._read_user_ticks(user, ns)
     if ticks[0] == 0:
         return [0, 0]
     for i in range(MAX_TICKS):
