@@ -1354,5 +1354,9 @@ def set_price_oracle(price_oracle: PriceOracle):
 
 @external
 def set_callback(liquidity_mining_callback: LMGauge):
+    """
+    @notice Set a gauge address with callbacks for liquidity mining for collateral
+    @param liquidity_mining_callback Gauge address
+    """
     assert msg.sender == self.admin
     self.liquidity_mining_callback = liquidity_mining_callback
