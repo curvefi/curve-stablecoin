@@ -611,11 +611,11 @@ def deposit_range(user: address, amount: uint256, n1: int256, n2: int256, move_c
     y_per_band: uint256 = unsafe_div(amount * COLLATERAL_PRECISION, n_bands)
     assert y_per_band > 100, "Amount too low"
 
-    save_n: bool = True
     if self.user_shares[user].ticks[0] != 0:  # Has liquidity
         ns: int256[2] = self._read_user_tick_numbers(user)
         assert ns[0] == n1 and ns[1] == n2, "Wrong range"
-        save_n = False
+    else:
+        self.user_shares[user].ns = unsafe_add(n1, unsafe_mul(n2, 2**128))
 
     for i in range(MAX_TICKS):
         band: int256 = unsafe_add(n1, i)
@@ -645,13 +645,12 @@ def deposit_range(user: address, amount: uint256, n1: int256, n2: int256, move_c
         self.bands_y[band] = total_y
 
         if lm.address != empty(address):
-            collateral_shares.append(total_y * 10**18 / s)
+            if s != 0:
+                s = total_y * 10**18 / s
+            collateral_shares.append(s)
 
     self.min_band = min(self.min_band, n1)
     self.max_band = max(self.max_band, n2)
-
-    if save_n:
-        self.user_shares[user].ns = n1 + n2 * 2**128
 
     ptr: uint256 = 0
     for j in range(MAX_TICKS_UINT / 2):
