@@ -958,6 +958,10 @@ def exchange(i: uint256, j: uint256, in_amount: uint256, min_amount: uint256, _f
     if in_amount == 0:
         return 0
 
+    lm: LMGauge = self.liquidity_mining_callback
+    has_lm: bool = lm.address != empty(address)
+    collateral_shares: DynArray[uint256, MAX_TICKS_UINT] = []
+
     in_coin: ERC20 = BORROWED_TOKEN
     out_coin: ERC20 = COLLATERAL_TOKEN
     in_precision: uint256 = BORROWED_PRECISION
@@ -983,31 +987,38 @@ def exchange(i: uint256, j: uint256, in_amount: uint256, min_amount: uint256, _f
     assert in_coin.transferFrom(msg.sender, self, in_amount_done, default_return_value=True)
     assert out_coin.transfer(_for, out_amount_done, default_return_value=True)
 
-    n: int256 = out.n1
+    n: int256 = min(out.n1, out.n2)
+    n_start: int256 = n
+    n_diff: int256 = abs(unsafe_sub(out.n2, out.n1))
 
     for k in range(MAX_TICKS):
+        x: uint256 = 0
+        y: uint256 = 0
         if i == 0:
-            self.bands_x[n] = out.ticks_in[k]
+            x = out.ticks_in[k]
             if n == out.n2:
-                self.bands_y[n] = out.last_tick_j
-                break
-            self.bands_y[n] = 0
-
+                y = out.last_tick_j
         else:
-            self.bands_y[n] = out.ticks_in[k]
+            y = out.ticks_in[unsafe_sub(n_diff, k)]
             if n == out.n2:
-                self.bands_x[n] = out.last_tick_j
-                break
-            self.bands_x[n] = 0
+                x = out.last_tick_j
+        self.bands_x[n] = x
+        self.bands_y[n] = y
+        if has_lm:
+            s: uint256 = 0
+            if y > 0:
+                s = y * 10**18 / self.total_shares[n]
+            collateral_shares.append(s)
+        if k == n_diff:
+            break
+        n = unsafe_add(n, 1)
 
-        if out.n2 < out.n1:
-            n = unsafe_sub(n, 1)
-        else:
-            n = unsafe_add(n, 1)
-
-    self.active_band = n
+    self.active_band = out.n2
 
     log TokenExchange(_for, i, in_amount_done, j, out_amount_done)
+
+    if has_lm:
+        lm.callback_collateral_shares(n_start, collateral_shares)
 
     return out_amount_done
 
