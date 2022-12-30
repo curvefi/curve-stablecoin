@@ -685,6 +685,8 @@ def withdraw(user: address) -> uint256[2]:
     """
     assert msg.sender == self.admin
 
+    lm: LMGauge = self.liquidity_mining_callback
+
     ns: int256[2] = self._read_user_tick_numbers(user)
     user_shares: DynArray[uint256, MAX_TICKS_UINT] = self._read_user_ticks(user, ns)
     assert user_shares[0] > 0, "No deposits"
@@ -737,6 +739,9 @@ def withdraw(user: address) -> uint256[2]:
 
     self.rate_mul = self._rate_mul()
     self.rate_time = block.timestamp
+
+    if lm.address != empty(address):
+        lm.callback_user_shares(ns[0], [])
 
     return [total_x, total_y]
 
