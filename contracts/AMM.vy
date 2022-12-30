@@ -38,6 +38,10 @@ interface PriceOracle:
     def price() -> uint256: view
     def price_w() -> uint256: nonpayable
 
+interface LMGauge:
+    def callback_collateral_shares(n: int256, collateral_per_share: DynArray[uint256, MAX_TICKS_UINT]): nonpayable
+    def callback_user_shares(n: int256, user_shares: DynArray[uint256, MAX_TICKS_UINT]): nonpayable
+
 
 event TokenExchange:
     buyer: indexed(address)
@@ -76,6 +80,7 @@ MAX_TICKS: constant(int256) = 50
 MAX_TICKS_UINT: constant(uint256) = 50
 MAX_SKIP_TICKS: constant(int256) = 1024
 
+
 struct UserTicks:
     ns: int256  # packs n1 and n2, each is int128
     ticks: uint256[MAX_TICKS/2]  # Share fractions packed 2 per slot
@@ -88,6 +93,7 @@ struct DetailedTrade:
     ticks_in: uint256[MAX_TICKS]
     last_tick_j: uint256
     admin_fee: uint256
+
 
 BORROWED_TOKEN: immutable(ERC20)    # x
 BORROWED_PRECISION: immutable(uint256)
@@ -122,6 +128,8 @@ bands_y: public(HashMap[int256, uint256])
 
 total_shares: HashMap[int256, uint256]
 user_shares: HashMap[address, UserTicks]
+
+liquidity_mining_callback: public(LMGauge)
 
 
 @external
@@ -1314,3 +1322,9 @@ def set_price_oracle(price_oracle: PriceOracle):
     assert msg.sender == self.admin
     self.price_oracle_contract = price_oracle
     log SetPriceOracle(price_oracle.address)
+
+
+@external
+def set_callback(liquidity_mining_callback: LMGauge):
+    assert msg.sender == self.admin
+    self.liquidity_mining_callback = liquidity_mining_callback
