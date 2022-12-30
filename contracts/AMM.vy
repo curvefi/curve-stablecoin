@@ -591,6 +591,9 @@ def deposit_range(user: address, amount: uint256, n1: int256, n2: int256, move_c
     assert n2 < 2**127
     assert n1 > -2**127
 
+    lm: LMGauge = self.liquidity_mining_callback
+    has_lm: bool = lm.address != empty(address)
+
     # Autoskip bands if we can
     for i in range(MAX_SKIP_TICKS + 1):
         if n1 > n0:
@@ -641,7 +644,9 @@ def deposit_range(user: address, amount: uint256, n1: int256, n2: int256, move_c
 
         total_y += y
         self.bands_y[band] = total_y
-        collateral_shares.append(total_y * 10**18 / s)
+
+        if has_lm:
+            collateral_shares.append(total_y * 10**18 / s)
 
     self.min_band = min(self.min_band, n1)
     self.max_band = max(self.max_band, n2)
@@ -665,9 +670,9 @@ def deposit_range(user: address, amount: uint256, n1: int256, n2: int256, move_c
 
     log Deposit(user, amount, n1, n2)
 
-    if self.liquidity_mining_callback.address != empty(address):
-        self.liquidity_mining_callback.callback_collateral_shares(n1, collateral_shares)
-        self.liquidity_mining_callback.callback_user_shares(n1, user_shares)
+    if has_lm:
+        lm.callback_collateral_shares(n1, collateral_shares)
+        lm.callback_user_shares(n1, user_shares)
 
 
 @external
