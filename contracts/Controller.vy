@@ -490,7 +490,7 @@ def _deposit_collateral(amount: uint256, mvalue: uint256):
     diff: uint256 = amount - mvalue  # dev: Incorrect ETH amount
     if mvalue > 0:
         WETH(COLLATERAL_TOKEN.address).deposit(value=mvalue)
-        assert COLLATERAL_TOKEN.transferFrom(self, AMM.address, mvalue)
+        assert COLLATERAL_TOKEN.transfer(AMM.address, mvalue)
     if diff > 0:
         assert COLLATERAL_TOKEN.transferFrom(msg.sender, AMM.address, diff, default_return_value=True)
 
