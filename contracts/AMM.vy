@@ -1031,7 +1031,7 @@ def get_xy_up(user: address, use_y: bool) -> uint256:
     """
     ns: int256[2] = self._read_user_tick_numbers(user)
     ticks: DynArray[uint256, MAX_TICKS_UINT] = self._read_user_ticks(user, ns)
-    if ticks[0] == 0:
+    if ticks[0] == 0:  # Even dynamic array will have 0th element set here
         return 0
     p_o: uint256 = self.price_oracle_contract.price()
     assert p_o != 0
