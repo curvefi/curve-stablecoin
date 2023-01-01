@@ -40,7 +40,7 @@ def cli():
 )
 @network_option()
 def deploy(network):
-    if 'hardhat' not in network and 'foundry' not in network:
+    if 'mainnet' in network:
         # admin = fee_receiver = accounts.load('babe')
         raise NotImplementedError("Mainnet not implemented yet")
     else:
@@ -58,7 +58,7 @@ def deploy(network):
     factory.set_implementations(controller_impl, amm_impl, sender=account)
     stablecoin.set_minter(factory.address, sender=account)
 
-    if 'hardhat' in network or 'foundry' in network:
+    if 'mainnet' not in network:
         policy = account.deploy(project.ConstantMonetaryPolicy, admin)
         policy.set_rate(0, sender=account)  # 0%
         price_oracle = account.deploy(project.DummyPriceOracle, admin, 3000 * 10**18)
@@ -80,3 +80,5 @@ def deploy(network):
     print('Collateral (WETH): ', weth.address)
     print('AMM:               ', amm.address)
     print('Controller:        ', controller.address)
+    print('Price Oracle:      ', price_oracle.address)
+    print('Monetary policy:   ', policy.address)
