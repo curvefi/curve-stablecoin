@@ -82,3 +82,31 @@ def test_create_loan(stablecoin, weth, market_controller, market_amm, accounts):
 
             h = market_controller.health(user, True) / 1e18 + 0.02
             assert approx(h, c_amount * 3000 / l_amount - 1, 0.02)
+
+
+@pytest.fixture(scope="module")
+def existing_loan(market_controller, accounts):
+    user = accounts[0]
+    c_amount = int(2 * 1e6 * 1e18 * 1.5 / 3000)
+    l_amount = 5 * 10**5 * 10**18
+    n = 5
+
+    with boa.env.prank(user):
+        boa.env.set_balance(user, c_amount)
+        market_controller.create_loan(c_amount, l_amount, n, value=c_amount)
+
+
+def test_repay_all(weth, stablecoin, market_controller, existing_loan, accounts):
+    user = accounts[0]
+    with boa.env.anchor():
+        with boa.env.prank(user):
+            c_amount = int(2 * 1e6 * 1e18 * 1.5 / 3000)
+            amm = market_controller.amm()
+            stablecoin.approve(market_controller, 2**256-1)
+            market_controller.repay(2**100, user)  # use_eth is already true
+            assert market_controller.debt(user) == 0
+            assert stablecoin.balanceOf(user) == 0
+            assert boa.env.get_balance(user) == c_amount
+            assert stablecoin.balanceOf(amm) == 0
+            assert weth.balanceOf(amm) == 0
+            assert market_controller.total_debt() == 0

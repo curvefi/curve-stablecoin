@@ -496,13 +496,13 @@ def _deposit_collateral(amount: uint256, mvalue: uint256):
 
 
 @internal
-def _withdraw_collateral(amount: uint256, use_eth: bool):
+def _withdraw_collateral(_for: address, amount: uint256, use_eth: bool):
     if use_eth and USE_ETH:
         assert COLLATERAL_TOKEN.transferFrom(AMM.address, self, amount)
         WETH(COLLATERAL_TOKEN.address).withdraw(amount)
-        raw_call(msg.sender, b"", value=amount)
+        raw_call(_for, b"", value=amount)
     else:
-        assert COLLATERAL_TOKEN.transferFrom(AMM.address, msg.sender, amount, default_return_value=True)
+        assert COLLATERAL_TOKEN.transferFrom(AMM.address, _for, amount, default_return_value=True)
 
 
 @internal
@@ -654,7 +654,7 @@ def remove_collateral(collateral: uint256, use_eth: bool = True):
     if collateral == 0:
         return
     self._add_collateral_borrow(collateral, 0, msg.sender, True)
-    self._withdraw_collateral(collateral, use_eth)
+    self._withdraw_collateral(msg.sender, collateral, use_eth)
 
 
 @payable
@@ -716,7 +716,7 @@ def repay(_d_debt: uint256, _for: address = msg.sender, use_eth: bool = True):
             assert _for == msg.sender
             STABLECOIN.transferFrom(AMM.address, _for, xy[0])
         if xy[1] > 0:
-            self._withdraw_collateral(xy[1], use_eth)
+            self._withdraw_collateral(_for, xy[1], use_eth)
         log UserState(_for, 0, 0, 0, 0, 0)
         log Repay(_for, xy[1], d_debt)
         self._remove_from_list(_for)
@@ -964,7 +964,7 @@ def _liquidate(user: address, min_x: uint256, health_limit: uint256, use_eth: bo
         STABLECOIN.transferFrom(AMM.address, msg.sender, to_transfer)
         self.redeemed += to_transfer
 
-    self._withdraw_collateral(xy[1], use_eth)
+    self._withdraw_collateral(msg.sender, xy[1], use_eth)
 
     self.loan[user] = Loan({initial_debt: 0, rate_mul: rate_mul})
     log UserState(user, 0, 0, 0, 0, 0)
