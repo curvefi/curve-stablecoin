@@ -3,5 +3,4 @@ ape-vyper
 ape-etherscan
 ape-ledger
 ape-hardhat
-ape-foundry
 ape-alchemy

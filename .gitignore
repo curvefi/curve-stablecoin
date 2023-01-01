@@ -10,3 +10,4 @@
 /.hypothesis
 .build
 venv
+/hardhat.config.js

@@ -31,16 +31,15 @@ def deploy_blueprint(contract, account):
 @click.group()
 def cli():
     """
-    Command-line helper for managing Smartwallet Checker
+    Script for test deployment of crvUSD
     """
 
 
 @cli.command(
     cls=NetworkBoundCommand,
-    name="deploy",
 )
 @network_option()
-def main(network):
+def deploy(network):
     if 'hardhat' not in network and 'foundry' not in network:
         # admin = fee_receiver = accounts.load('babe')
         raise NotImplementedError("Mainnet not implemented yet")
@@ -48,9 +47,10 @@ def main(network):
         account = accounts.test_accounts[0]
         admin = account
         fee_receiver = account
+        weth = account.deploy(project.WETH)
 
     stablecoin = account.deploy(project.Stablecoin, FULL_NAME, SHORT_NAME)
-    factory = account.deploy(project.ControllerFactory, stablecoin, admin, fee_receiver)
+    factory = account.deploy(project.ControllerFactory, stablecoin, admin, weth, fee_receiver)
 
     controller_impl = deploy_blueprint(project.Controller, account)
     amm_impl = deploy_blueprint(project.AMM, account)
@@ -58,30 +58,25 @@ def main(network):
     factory.set_implementations(controller_impl, amm_impl, sender=account)
     stablecoin.set_minter(factory.address, sender=account)
 
-    if network == "ethereum:mainnet-fork":
+    if 'hardhat' in network or 'foundry' in network:
         policy = account.deploy(project.ConstantMonetaryPolicy, admin)
         policy.set_rate(0, sender=account)  # 0%
         price_oracle = account.deploy(project.DummyPriceOracle, admin, 3000 * 10**18)
-        collateral_token = account.deploy(project.ERC20Mock, 'Collateral WETH', 'WETH', 18)
 
     factory.add_market(
-        collateral_token, 100, 10**16, 0,
+        weth, 100, 10**16, 0,
         price_oracle,
         policy, 5 * 10**16, 2 * 10**16,
         10**6 * 10**18,
         sender=account
     )
 
-    amm = project.AMM.at(factory.get_amm(collateral_token))
-    controller = project.Controller.at(factory.get_controller(collateral_token))
-
-    if 'hardhat' in network or 'foundry' in network:
-        for user in accounts:
-            collateral_token._mint_for_testing(user, 10**4 * 10**18, sender=account)
+    amm = project.AMM.at(factory.get_amm(weth))
+    controller = project.Controller.at(factory.get_controller(weth))
 
     print('========================')
-    print('Stablecoin:  ', stablecoin.address)
-    print('Factory:     ', factory.address)
-    print('Collateral:  ', collateral_token.address)
-    print('AMM:         ', amm.address)
-    print('Controller:  ', controller.address)
+    print('Stablecoin:        ', stablecoin.address)
+    print('Factory:           ', factory.address)
+    print('Collateral (WETH): ', weth.address)
+    print('AMM:               ', amm.address)
+    print('Controller:        ', controller.address)
