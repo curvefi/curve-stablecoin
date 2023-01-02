@@ -133,3 +133,14 @@ def test_add_collateral(stablecoin, weth, market_controller, existing_loan, mark
     assert stablecoin.balanceOf(market_amm) == 0
     assert weth.balanceOf(market_amm) == 2 * c_amount
     assert market_controller.total_debt() == debt
+
+
+def test_remove_collateral(stablecoin, weth, market_controller, existing_loan, market_amm, accounts):
+    user = accounts[0]
+    c_amount = int(2 * 1e6 * 1e18 * 1.5 / 3000)
+
+    with boa.env.prank(user):
+        market_controller.remove_collateral(10**6)
+
+    assert boa.env.get_balance(user) == 10**6
+    assert weth.balanceOf(market_amm) == c_amount - 10**6
