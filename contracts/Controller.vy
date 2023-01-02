@@ -188,6 +188,13 @@ def __init__(
         USE_ETH = True
 
 
+@payable
+@external
+def __default__():
+    if msg.value > 0:
+        assert USE_ETH
+
+
 @internal
 @pure
 def log2(_x: uint256) -> int256:
@@ -688,6 +695,7 @@ def _remove_from_list(_for: address):
     self.n_loans = last_loan_ix
 
 
+@payable
 @external
 @nonreentrant('lock')
 def repay(_d_debt: uint256, _for: address = msg.sender, use_eth: bool = True):
