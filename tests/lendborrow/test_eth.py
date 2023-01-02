@@ -98,15 +98,38 @@ def existing_loan(market_controller, accounts):
 
 def test_repay_all(weth, stablecoin, market_controller, existing_loan, accounts):
     user = accounts[0]
-    with boa.env.anchor():
-        with boa.env.prank(user):
-            c_amount = int(2 * 1e6 * 1e18 * 1.5 / 3000)
-            amm = market_controller.amm()
-            stablecoin.approve(market_controller, 2**256-1)
-            market_controller.repay(2**100, user)  # use_eth is already true
-            assert market_controller.debt(user) == 0
-            assert stablecoin.balanceOf(user) == 0
-            assert boa.env.get_balance(user) == c_amount
-            assert stablecoin.balanceOf(amm) == 0
-            assert weth.balanceOf(amm) == 0
-            assert market_controller.total_debt() == 0
+    with boa.env.prank(user):
+        c_amount = int(2 * 1e6 * 1e18 * 1.5 / 3000)
+        amm = market_controller.amm()
+        stablecoin.approve(market_controller, 2**256-1)
+        market_controller.repay(2**100, user)  # use_eth is already true
+        assert market_controller.debt(user) == 0
+        assert stablecoin.balanceOf(user) == 0
+        assert boa.env.get_balance(user) == c_amount
+        assert stablecoin.balanceOf(amm) == 0
+        assert weth.balanceOf(amm) == 0
+        assert market_controller.total_debt() == 0
+
+
+def test_add_collateral(stablecoin, weth, market_controller, existing_loan, market_amm, accounts):
+    user = accounts[0]
+
+    c_amount = int(2 * 1e6 * 1e18 * 1.5 / 3000)
+    debt = market_controller.debt(user)
+
+    n_before_0, n_before_1 = market_amm.read_user_tick_numbers(user)
+    with boa.env.prank(user):
+        boa.env.set_balance(user, c_amount)
+        market_controller.add_collateral(c_amount, user, value=c_amount)
+    n_after_0, n_after_1 = market_amm.read_user_tick_numbers(user)
+
+    assert n_before_1 - n_before_0 + 1 == 5
+    assert n_after_1 - n_after_0 + 1 == 5
+    assert n_after_0 > n_before_0
+
+    assert market_controller.debt(user) == debt
+    assert stablecoin.balanceOf(user) == debt
+    assert boa.env.get_balance(user) == 0
+    assert stablecoin.balanceOf(market_amm) == 0
+    assert weth.balanceOf(market_amm) == 2 * c_amount
+    assert market_controller.total_debt() == debt
