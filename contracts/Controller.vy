@@ -575,7 +575,7 @@ def create_loan_extended(collateral: uint256, debt: uint256, N: uint256, callbac
     # Callback
     response: Bytes[32] = raw_call(
         callbacker,
-        concat(slice(callback_sig, 0, 4), _abi_encode(msg.sender, collateral, debt, N, callback_args)),
+        concat(slice(callback_sig, 0, 4), _abi_encode(msg.sender, collateral, debt, callback_args)),
         max_outsize=32
     )
     # If there is any unused debt, callbacker can send it to the user
