@@ -255,7 +255,7 @@ def get_dydx(_llamma: address, i: uint256, j: uint256, out_amount: uint256) -> (
 
 @external
 @nonreentrant('lock')
-def exchange_dy(_llamma: address, i: uint256, j: uint256, out_amount: uint256, min_amount: uint256, _for: address = msg.sender) -> uint256:
+def exchange_dy(_llamma: address, i: uint256, j: uint256, out_amount: uint256, max_amount: uint256, _for: address = msg.sender) -> uint256:
     """
     @notice Exchanges two coins to get desired out_amount, callable by anyone.
             Actual received amount can be slightly different from passed out_amount even if no slippage.
@@ -263,13 +263,14 @@ def exchange_dy(_llamma: address, i: uint256, j: uint256, out_amount: uint256, m
     @param i Input coin index
     @param j Output coin index
     @param out_amount Desired amount of output coin to receive
-    @param min_amount Minimal amount to get as output (revert if less)
+    @param max_amount Maximum amount to spend (revert if more)
     @param _for Address to send coins to
     @return Amount of coins given out
     """
     # i = 0: borrowable (USD) in, collateral (ETH) out; going up
     # i = 1: collateral (ETH) in, borrowable (USD) out; going down
     out: DetailedTrade = self._get_dydx(_llamma, i, j, out_amount) # <- also checks i,j and out_amount == 0
+    assert out.in_amount <= max_amount, "Slippage"
     if out.in_amount == 0:
         return 0
 
@@ -284,4 +285,5 @@ def exchange_dy(_llamma: address, i: uint256, j: uint256, out_amount: uint256, m
         ERC20(in_coin).approve(_llamma, MAX_UINT256)
 
     assert ERC20(in_coin).transferFrom(msg.sender, self, out.in_amount, default_return_value=True)
-    return LLAMMA(_llamma).exchange(i, j, out.in_amount, min_amount, _for)
+
+    return LLAMMA(_llamma).exchange(i, j, out.in_amount, 0, _for)

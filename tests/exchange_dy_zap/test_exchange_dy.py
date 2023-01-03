@@ -129,3 +129,27 @@ def test_exchange_dy_down_up(amm, exchange_dy_zap, amounts, accounts, ns, dns, a
     dx_measured -= collateral_token.balanceOf(u)
     assert abs(dy_measured - dy) <= borrowed_precision
     assert approx(dx_measured, dx, 5e-5)
+
+
+def test_slippage(amm, exchange_dy_zap, accounts, borrowed_token, collateral_token, admin):
+    collateral_deciamls = collateral_token.decimals()
+    amounts = list(map(lambda x: int(x * 10**collateral_deciamls), [1, 2, 3, 4, 5, 6]))
+    ns = [1, 2, 3, 4, 5, 6]
+    dns = [1, 2, 3, 4, 5, 6]
+
+    with boa.env.prank(admin):
+        for user, amount, n1, dn in zip(accounts[1:6], amounts, ns, dns):
+            n2 = n1 + dn
+            collateral_token._mint_for_testing(user, amount)
+            amm.deposit_range(user, amount, n1, n2, True)
+
+    amount = amount * 10**borrowed_token.decimals()
+    u = accounts[6]
+    dy, dx = exchange_dy_zap.get_dydx(amm, 0, 1, amount)
+
+    borrowed_token._mint_for_testing(u, dx)
+    # with boa.env.prank(u):
+    #     exchange_dy_zap.exchange_dy(amm, 0, 1, amount, 0)  # ETH --> crvUSD
+    with boa.env.prank(u):
+        with boa.reverts("Slippage"):
+            exchange_dy_zap.exchange_dy(amm, 0, 1, dy, 0)  # crvUSD --> ETH
