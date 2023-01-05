@@ -32,4 +32,5 @@ def leverage(user: address, collateral: uint256, debt: uint256, extra_args: DynA
 def deleverage(user: address, stablecoins: uint256, collateral: uint256, debt: uint256, extra_args: DynArray[uint256, 5]) -> uint256[2]:
     min_amount: uint256 = extra_args[0]
     s_diff: uint256 = debt - stablecoins
+    assert s_diff >= min_amount
     return [s_diff, collateral - s_diff * 10**18 / self.price]
