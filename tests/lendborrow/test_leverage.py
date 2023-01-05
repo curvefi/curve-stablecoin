@@ -21,7 +21,7 @@ def test_leverage(collateral_token, stablecoin, market_controller, market_amm, f
     user = accounts[0]
     amount = 10 * 10**18
     leverage_method = get_method_id("leverage(address,uint256,uint256,uint256[])")  # min_amount for output collateral
-    # deleverage_method = get_method_id("leverage(address,uint256,uint256,uint256,uint256[])")  # min_amount for stablecoins
+    deleverage_method = get_method_id("leverage(address,uint256,uint256,uint256,uint256[])")  # min_amount for stablecoins
 
     with boa.env.prank(user):
         boa.env.set_balance(user, amount)
@@ -32,3 +32,6 @@ def test_leverage(collateral_token, stablecoin, market_controller, market_amm, f
         assert collateral_token.balanceOf(market_amm.address) == 3 * amount
         assert market_amm.get_sum_xy(user) == (0, 3 * amount)
         assert market_controller.debt(user) == amount * 2 * 3000
+        assert stablecoin.balanceOf(user) == 0
+
+        market_controller.repay_extended(fake_leverage.address, deleverage_method, [int(0.8 * amount * 2 * 3000)])
