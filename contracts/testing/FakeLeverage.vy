@@ -7,7 +7,7 @@ price: public(uint256)
 
 
 @external
-def __init__(stablecoin_token: ERC20, collateral_token: ERC20, price: uint256, controller: address):
+def __init__(stablecoin_token: ERC20, collateral_token: ERC20, controller: address, price: uint256):
     STABLECOIN = stablecoin_token
     COLLATERAL = collateral_token
     self.price = price
