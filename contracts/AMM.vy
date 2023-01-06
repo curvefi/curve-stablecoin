@@ -40,7 +40,7 @@ interface PriceOracle:
 
 interface LMGauge:
     def callback_collateral_shares(n: int256, collateral_per_share: DynArray[uint256, MAX_TICKS_UINT]): nonpayable
-    def callback_user_shares(n: int256, user_shares: DynArray[uint256, MAX_TICKS_UINT]): nonpayable
+    def callback_user_shares(user: address, n: int256, user_shares: DynArray[uint256, MAX_TICKS_UINT]): nonpayable
 
 
 event TokenExchange:
@@ -669,7 +669,7 @@ def deposit_range(user: address, amount: uint256, n1: int256, n2: int256, move_c
 
     if lm.address != empty(address):
         lm.callback_collateral_shares(n1, collateral_shares)
-        lm.callback_user_shares(n1, user_shares)
+        lm.callback_user_shares(user, n1, user_shares)
 
 
 @external
@@ -685,6 +685,7 @@ def withdraw(user: address) -> uint256[2]:
     lm: LMGauge = self.liquidity_mining_callback
 
     ns: int256[2] = self._read_user_tick_numbers(user)
+    n: int256 = ns[0]
     user_shares: DynArray[uint256, MAX_TICKS_UINT] = self._read_user_ticks(user, ns)
     assert user_shares[0] > 0, "No deposits"
 
@@ -696,31 +697,32 @@ def withdraw(user: address) -> uint256[2]:
     old_max_band: int256 = max_band
 
     for i in range(MAX_TICKS):
-        x: uint256 = self.bands_x[ns[0]]
-        y: uint256 = self.bands_y[ns[0]]
+        x: uint256 = self.bands_x[n]
+        y: uint256 = self.bands_y[n]
         ds: uint256 = user_shares[i]
-        s: uint256 = self.total_shares[ns[0]]
+        user_shares[i] = 0
+        s: uint256 = self.total_shares[n]
         dx: uint256 = x * ds / s
         dy: uint256 = unsafe_div(y * ds, s)
 
-        self.total_shares[ns[0]] = s - ds
+        self.total_shares[n] = s - ds
         x -= dx
         y -= dy
-        if ns[0] == min_band:
+        if n == min_band:
             if x == 0:
                 if y == 0:
                     min_band += 1
         if x > 0 or y > 0:
-            max_band = ns[0]
-        self.bands_x[ns[0]] = x
-        self.bands_y[ns[0]] = y
+            max_band = n
+        self.bands_x[n] = x
+        self.bands_y[n] = y
         total_x += dx
         total_y += dy
 
-        if ns[0] == ns[1]:
+        if n == ns[1]:
             break
         else:
-            ns[0] = unsafe_add(ns[0], 1)
+            n = unsafe_add(n, 1)
 
     # Empty the ticks
     self.user_shares[user].ticks[0] = 0
@@ -738,7 +740,7 @@ def withdraw(user: address) -> uint256[2]:
     self.rate_time = block.timestamp
 
     if lm.address != empty(address):
-        lm.callback_user_shares(ns[0], [])
+        lm.callback_user_shares(user, ns[0], user_shares)
 
     return [total_x, total_y]
 
