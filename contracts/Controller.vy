@@ -564,6 +564,16 @@ def create_loan(collateral: uint256, debt: uint256, N: uint256):
 @external
 @nonreentrant('lock')
 def create_loan_extended(collateral: uint256, debt: uint256, N: uint256, callbacker: address, callback_sig: bytes32, callback_args: DynArray[uint256,5]):
+    """
+    @notice Create loan but pass stablecoin to a callback first so that it can build leverage
+    @param collateral Amount of collateral to use
+    @param debt Stablecoin debt to take
+    @param N Number of bands to deposit into (to do autoliquidation-deliquidation),
+           can be from MIN_TICKS to MAX_TICKS
+    @param callbacker Address of the callback contract
+    @param callback_sig method_id of the method which is called in the callbacker
+    @param callback_args Extra arguments for the callback (up to 5) such as min_amount etc
+    """
     # Before callback
     STABLECOIN.transfer(callbacker, debt)
 
@@ -763,6 +773,12 @@ def repay(_d_debt: uint256, _for: address = msg.sender, use_eth: bool = True):
 @external
 @nonreentrant('lock')
 def repay_extended(callbacker: address, callback_sig: bytes32, callback_args: DynArray[uint256,5]):
+    """
+    @notice Repay loan but get a stablecoin for that from callback (to deleverage)
+    @param callbacker Address of the callback contract
+    @param callback_sig method_id of the method which is called in the callbacker
+    @param callback_args Extra arguments for the callback (up to 5) such as min_amount etc
+    """
     # Before callback
     xy: uint256[2] = AMM.get_sum_xy(msg.sender)  # Shouldn't do for anyone because it can deleverage, not just repay
     debt: uint256 = 0
