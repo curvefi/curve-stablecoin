@@ -25,6 +25,7 @@ interface LLAMMA:
     def has_liquidity(user: address) -> bool: view
     def bands_x(n: int256) -> uint256: view
     def bands_y(n: int256) -> uint256: view
+    def set_callback(user: address): nonpayable
 
 interface ERC20:
     def transferFrom(_from: address, _to: address, _value: uint256) -> bool: nonpayable
@@ -1180,6 +1181,15 @@ def set_borrowing_discounts(loan_discount: uint256, liquidation_discount: uint25
     self.liquidation_discount = liquidation_discount
     self.loan_discount = loan_discount
     log SetBorrowingDiscounts(loan_discount, liquidation_discount)
+
+
+@external
+def set_callback(cb: address):
+    """
+    @notice Set liquidity mining callback
+    """
+    assert msg.sender == FACTORY.admin()
+    AMM.set_callback(cb)
 
 
 @external
