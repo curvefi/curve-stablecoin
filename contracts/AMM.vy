@@ -740,6 +740,7 @@ def withdraw(user: address) -> uint256[2]:
     self.rate_time = block.timestamp
 
     if lm.address != empty(address):
+        lm.callback_collateral_shares(0, [])
         lm.callback_user_shares(user, ns[0], user_shares)
 
     return [total_x, total_y]
