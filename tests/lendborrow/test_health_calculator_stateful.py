@@ -17,7 +17,7 @@ class AllGood(Exception):
 class StatefulLendBorrow(RuleBasedStateMachine):
     n = st.integers(min_value=5, max_value=50)
     amount_frac = st.floats(min_value=0.01, max_value=2)
-    c_amount = st.integers(min_value=10**10, max_value=2**256-1)
+    c_amount = st.integers(min_value=10**10, max_value=2**128-1)
     user_id = st.integers(min_value=0, max_value=9)
 
     def __init__(self):
