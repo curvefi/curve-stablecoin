@@ -1161,6 +1161,39 @@ def _get_dydx(i: uint256, j: uint256, out_amount: uint256) -> DetailedTrade:
     return out
 
 
+@external
+@view
+@nonreentrant('lock')
+def get_dx(i: uint256, j: uint256, out_amount: uint256) -> uint256:
+    """
+    @notice Method to use to calculate in amount required to receive the desired out_amount
+    @param i Input coin index
+    @param j Output coin index
+    @param out_amount Desired amount of output coin to receive
+    @return Amount of coin i to spend
+    """
+    # i = 0: borrowable (USD) in, collateral (ETH) out; going up
+    # i = 1: collateral (ETH) in, borrowable (USD) out; going down
+    return self._get_dydx(i, j, out_amount).in_amount
+
+
+@external
+@view
+@nonreentrant('lock')
+def get_dydx(i: uint256, j: uint256, out_amount: uint256) -> (uint256, uint256):
+    """
+    @notice Method to use to calculate in amount required and out amount received
+    @param i Input coin index
+    @param j Output coin index
+    @param out_amount Desired amount of output coin to receive
+    @return A tuple with out_amount received and in_amount returned
+    """
+    # i = 0: borrowable (USD) in, collateral (ETH) out; going up
+    # i = 1: collateral (ETH) in, borrowable (USD) out; going down
+    out: DetailedTrade = self._get_dydx(i, j, out_amount)
+    return (out.out_amount, out.in_amount)
+
+
 @internal
 @view
 def get_xy_up(user: address, use_y: bool) -> uint256:
