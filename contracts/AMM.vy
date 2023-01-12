@@ -1024,6 +1024,118 @@ def exchange(i: uint256, j: uint256, in_amount: uint256, min_amount: uint256, _f
 
 @internal
 @view
+def calc_swap_in(pump: bool, out_amount: uint256, p_o: uint256, in_precision: uint256, out_precision: uint256) -> DetailedTrade:
+    """
+    @notice Calculate the input amount required to receive the desired output amount.
+            If couldn't exchange all - will also update the amount which was actually received.
+            Also returns other parameters related to state after swap.
+            This method is NOT PRECISE!
+    @param pump Indicates whether the trade buys or sells collateral
+    @param out_amount Desired amount of token going out
+    @param p_o Current oracle price
+    @return Amounts required and given out, initial and final bands of the AMM, new
+            amounts of coins in bands in the AMM, as well as admin fee charged,
+            all in one data structure
+    """
+    # pump = True: borrowable (USD) in, collateral (ETH) out; going up
+    # pump = False: collateral (ETH) in, borrowable (USD) out; going down
+    min_band: int256 = self.min_band
+    max_band: int256 = self.max_band
+    n: int256 = self.active_band
+    out: DetailedTrade = empty(DetailedTrade)
+    p_o_up: uint256 = self._p_oracle_up(n)
+    x: uint256 = self.bands_x[n]
+    y: uint256 = self.bands_y[n]
+
+    out_amount_left: uint256 = out_amount
+    antifee: uint256 = unsafe_div((10**18)**2, unsafe_sub(10**18, self.fee))
+    j: uint256 = MAX_TICKS_UINT
+
+    for i in range(MAX_TICKS + MAX_SKIP_TICKS):
+        y0: uint256 = 0
+        f: uint256 = 0
+        g: uint256 = 0
+        Inv: uint256 = 0
+
+        if x > 0 or y > 0:
+            if j == MAX_TICKS_UINT:
+                j = 0
+            y0 = self._get_y0(x, y, p_o, p_o_up)  # <- also checks p_o
+            f = unsafe_div(A * y0 * p_o / p_o_up * p_o, 10**18)
+            g = unsafe_div(Aminus1 * y0 * p_o_up, p_o)
+            Inv = (f + x) * (g + y)
+
+        if pump:
+            if y != 0:
+                if g != 0:
+                    if y >= out_amount_left:
+                        # This is the last band
+                        x_dest: uint256 = Inv / (g + (y - out_amount_left)) - f - x  # XXX check for underflow
+                        dx: uint256 = unsafe_div(x_dest * antifee, 10**18)  # MORE than x_dest
+                        out.out_amount = out_amount
+                        out.in_amount += dx
+                        break
+
+                    else:
+                        # We go into the next band
+                        x_dest: uint256 = (unsafe_div(Inv, g) - f) - x  # XXX check for underflow
+                        dx: uint256 = unsafe_div(x_dest * antifee, 10**18)
+                        out_amount_left -= y
+                        out.in_amount += dx
+                        out.out_amount += y
+
+            if i != MAX_TICKS + MAX_SKIP_TICKS - 1:
+                if n == max_band:
+                    break
+                if j == MAX_TICKS_UINT - 1:
+                    break
+                n += 1
+                p_o_up = unsafe_div(p_o_up * Aminus1, A)
+                x = 0
+                y = self.bands_y[n]
+
+        else:  # dump
+            if x != 0:
+                if f != 0:
+                    if x >= out_amount_left:
+                        # This is the last band
+                        y_dest: uint256 = Inv / (f + (x - out_amount_left)) - g - y  # XXX check for underflow
+                        dy: uint256 = unsafe_div(y_dest * antifee, 10**18)  # MORE than y_dest
+                        out.out_amount = out_amount
+                        out.in_amount += dy
+                        break
+
+                    else:
+                        # We go into the next band
+                        y_dest: uint256 = (unsafe_div(Inv, f) - g) - y  # XXX check for underflow
+                        dy: uint256 = unsafe_div(y_dest * antifee, 10**18)
+                        out_amount_left -= x
+                        out.in_amount += dy
+                        out.out_amount += x
+
+            if i != MAX_TICKS + MAX_SKIP_TICKS - 1:
+                if n == min_band:
+                    break
+                if j == MAX_TICKS_UINT - 1:
+                    break
+                n -= 1
+                p_o_up = unsafe_div(p_o_up * A, Aminus1)
+                x = self.bands_x[n]
+                y = 0
+
+        if j != MAX_TICKS_UINT:
+            j = unsafe_add(j, 1)
+
+    # Round up what goes in and down what goes out
+    # ceil(in_amount_used/BORROWED_PRECISION) * BORROWED_PRECISION
+    out.in_amount = unsafe_mul(unsafe_div(unsafe_add(out.in_amount, unsafe_sub(in_precision, 1)), in_precision), in_precision)
+    out.out_amount = unsafe_mul(unsafe_div(out.out_amount, out_precision), out_precision)
+
+    return out
+
+
+@internal
+@view
 def get_xy_up(user: address, use_y: bool) -> uint256:
     """
     @notice Measure the amount of y (collateral) in the band n if we adiabatically trade near p_oracle on the way up,
