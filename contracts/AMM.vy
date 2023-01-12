@@ -1136,6 +1136,33 @@ def calc_swap_in(pump: bool, out_amount: uint256, p_o: uint256, in_precision: ui
 
 @internal
 @view
+def _get_dydx(i: uint256, j: uint256, out_amount: uint256) -> DetailedTrade:
+    """
+    @notice Method to use to calculate in amount required and out amount received
+    @param i Input coin index
+    @param j Output coin index
+    @param out_amount Desired amount of output coin to receive
+    @return DetailedTrade with all swap results
+    """
+    # i = 0: borrowable (USD) in, collateral (ETH) out; going up
+    # i = 1: collateral (ETH) in, borrowable (USD) out; going down
+    assert (i == 0 and j == 1) or (i == 1 and j == 0), "Wrong index"
+    out: DetailedTrade = empty(DetailedTrade)
+    if out_amount == 0:
+        return out
+    in_precision: uint256 = COLLATERAL_PRECISION
+    out_precision: uint256 = BORROWED_PRECISION
+    if i == 0:
+        in_precision = BORROWED_PRECISION
+        out_precision = COLLATERAL_PRECISION
+    out = self.calc_swap_in(i == 0, out_amount * out_precision, self.price_oracle_contract.price(), in_precision, out_precision)
+    out.in_amount = unsafe_div(out.in_amount, in_precision)
+    out.out_amount = unsafe_div(out.out_amount, out_precision)
+    return out
+
+
+@internal
+@view
 def get_xy_up(user: address, use_y: bool) -> uint256:
     """
     @notice Measure the amount of y (collateral) in the band n if we adiabatically trade near p_oracle on the way up,
