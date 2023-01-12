@@ -7,6 +7,10 @@ rewards streamed with constant rate, as well as for testing the method.
 In production version, one needs to make rate variable with checkpoints for the
 times rate changes (every week), as well as as gas optimizations are needed.
 This contract focuses on readability.
+
+WARNING:
+At the moment this contract is unfinished, so not recommended to be used
+without understanding.
 """
 from vyper.interfaces import ERC20
 
