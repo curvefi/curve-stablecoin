@@ -1049,6 +1049,7 @@ def calc_swap_in(pump: bool, out_amount: uint256, p_o: uint256, in_precision: ui
 
     out_amount_left: uint256 = out_amount
     antifee: uint256 = unsafe_div((10**18)**2, unsafe_sub(10**18, self.fee))
+    admin_fee: uint256 = self.admin_fee
     j: uint256 = MAX_TICKS_UINT
 
     for i in range(MAX_TICKS + MAX_SKIP_TICKS):
@@ -1065,24 +1066,34 @@ def calc_swap_in(pump: bool, out_amount: uint256, p_o: uint256, in_precision: ui
             g = unsafe_div(Aminus1 * y0 * p_o_up, p_o)
             Inv = (f + x) * (g + y)
 
+        if j != MAX_TICKS_UINT:
+            # Initialize to zero in case we have 0 bands between full bands
+            out.ticks_in.append(0)
+
         if pump:
             if y != 0:
                 if g != 0:
                     if y >= out_amount_left:
                         # This is the last band
-                        x_dest: uint256 = Inv / (g + (y - out_amount_left)) - f - x  # XXX check for underflow
+                        x_dest: uint256 = Inv / (g + (y - out_amount_left)) - f - x
                         dx: uint256 = unsafe_div(x_dest * antifee, 10**18)  # MORE than x_dest
                         out.out_amount = out_amount
                         out.in_amount += dx
+                        x_dest = unsafe_div(unsafe_sub(dx, x_dest) * admin_fee, 10**18)  # abs admin fee now
+                        out.ticks_in[j] = x + dx - x_dest
+                        # XXX out.admin_fee
                         break
 
                     else:
                         # We go into the next band
-                        x_dest: uint256 = (unsafe_div(Inv, g) - f) - x  # XXX check for underflow
+                        x_dest: uint256 = (unsafe_div(Inv, g) - f) - x
                         dx: uint256 = unsafe_div(x_dest * antifee, 10**18)
                         out_amount_left -= y
                         out.in_amount += dx
                         out.out_amount += y
+                        x_dest = unsafe_div(unsafe_sub(dx, x_dest) * admin_fee, 10**18)  # abs admin fee now
+                        out.ticks_in[j] = x + dx - x_dest
+                        # XXX out.admin_fee
 
             if i != MAX_TICKS + MAX_SKIP_TICKS - 1:
                 if n == max_band:
@@ -1099,19 +1110,25 @@ def calc_swap_in(pump: bool, out_amount: uint256, p_o: uint256, in_precision: ui
                 if f != 0:
                     if x >= out_amount_left:
                         # This is the last band
-                        y_dest: uint256 = Inv / (f + (x - out_amount_left)) - g - y  # XXX check for underflow
+                        y_dest: uint256 = Inv / (f + (x - out_amount_left)) - g - y
                         dy: uint256 = unsafe_div(y_dest * antifee, 10**18)  # MORE than y_dest
                         out.out_amount = out_amount
                         out.in_amount += dy
+                        y_dest = unsafe_div(unsafe_sub(dy, y_dest) * admin_fee, 10**18)  # abs admin fee now
+                        out.ticks_in[j] = y + dy - y_dest
+                        # XXX out.admin_fee
                         break
 
                     else:
                         # We go into the next band
-                        y_dest: uint256 = (unsafe_div(Inv, f) - g) - y  # XXX check for underflow
+                        y_dest: uint256 = (unsafe_div(Inv, f) - g) - y
                         dy: uint256 = unsafe_div(y_dest * antifee, 10**18)
                         out_amount_left -= x
                         out.in_amount += dy
                         out.out_amount += x
+                        y_dest = unsafe_div(unsafe_sub(dy, y_dest) * admin_fee, 10**18)  # abs admin fee now
+                        out.ticks_in[j] = y + dy - y_dest
+                        # XXX out.admin_fee
 
             if i != MAX_TICKS + MAX_SKIP_TICKS - 1:
                 if n == min_band:
