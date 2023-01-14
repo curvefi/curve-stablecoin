@@ -748,7 +748,7 @@ def withdraw(user: address) -> uint256[2]:
 
 @internal
 @view
-def calc_swap_out(pump: bool, in_amount: uint256, p_o: uint256) -> DetailedTrade:
+def calc_swap_out(pump: bool, in_amount: uint256, p_o: uint256, in_precision: uint256, out_precision: uint256) -> DetailedTrade:
     """
     @notice Calculate the amount which can be obtained as a result of exchange.
             If couldn't exchange all - will also update the amount which was actually used.
@@ -872,11 +872,6 @@ def calc_swap_out(pump: bool, in_amount: uint256, p_o: uint256) -> DetailedTrade
             j = unsafe_add(j, 1)
 
     # Round up what goes in and down what goes out
-    in_precision: uint256 = COLLATERAL_PRECISION
-    out_precision: uint256 = BORROWED_PRECISION
-    if pump:
-        in_precision = BORROWED_PRECISION
-        out_precision = COLLATERAL_PRECISION
     # ceil(in_amount_used/BORROWED_PRECISION) * BORROWED_PRECISION
     out.in_amount = unsafe_mul(unsafe_div(unsafe_add(out.in_amount, unsafe_sub(in_precision, 1)), in_precision), in_precision)
     out.out_amount = unsafe_mul(unsafe_div(out.out_amount, out_precision), out_precision)
@@ -890,24 +885,31 @@ def calc_swap_out(pump: bool, in_amount: uint256, p_o: uint256) -> DetailedTrade
 
 @internal
 @view
-def _get_dxdy(i: uint256, j: uint256, in_amount: uint256) -> DetailedTrade:
+def _get_dxdy(i: uint256, j: uint256, amount: uint256, is_in: bool) -> DetailedTrade:
     """
     @notice Method to use to calculate out amount and spent in amount
     @param i Input coin index
     @param j Output coin index
-    @param in_amount Amount of input coin to swap
+    @param amount Amount of input coin to swap
+    @param is_in Whether IN our OUT amount is known
     @return DetailedTrade with all swap results
     """
+    # i = 0: borrowable (USD) in, collateral (ETH) out; going up
+    # i = 1: collateral (ETH) in, borrowable (USD) out; going down
     assert (i == 0 and j == 1) or (i == 1 and j == 0), "Wrong index"
     out: DetailedTrade = empty(DetailedTrade)
-    if in_amount == 0:
+    if amount == 0:
         return out
     in_precision: uint256 = COLLATERAL_PRECISION
     out_precision: uint256 = BORROWED_PRECISION
     if i == 0:
         in_precision = BORROWED_PRECISION
         out_precision = COLLATERAL_PRECISION
-    out = self.calc_swap_out(i == 0, in_amount * in_precision, self.price_oracle_contract.price())
+    p_o: uint256 = self.price_oracle_contract.price()
+    if is_in:
+        out = self.calc_swap_out(i == 0, amount * in_precision, p_o, in_precision, out_precision)
+    else:
+        out = self.calc_swap_in(i == 0, amount * in_precision, p_o, in_precision, out_precision)
     out.in_amount = unsafe_div(out.in_amount, in_precision)
     out.out_amount = unsafe_div(out.out_amount, out_precision)
     return out
@@ -924,7 +926,7 @@ def get_dy(i: uint256, j: uint256, in_amount: uint256) -> uint256:
     @param in_amount Amount of input coin to swap
     @return Amount of coin j to give out
     """
-    return self._get_dxdy(i, j, in_amount).out_amount
+    return self._get_dxdy(i, j, in_amount, True).out_amount
 
 
 @external
@@ -938,7 +940,7 @@ def get_dxdy(i: uint256, j: uint256, in_amount: uint256) -> (uint256, uint256):
     @param in_amount Amount of input coin to swap
     @return A tuple with in_amount used and out_amount returned
     """
-    out: DetailedTrade = self._get_dxdy(i, j, in_amount)
+    out: DetailedTrade = self._get_dxdy(i, j, in_amount, True)
     return (out.in_amount, out.out_amount)
 
 
@@ -971,7 +973,7 @@ def exchange(i: uint256, j: uint256, in_amount: uint256, min_amount: uint256, _f
         out_precision = BORROWED_PRECISION
         out_coin = BORROWED_TOKEN
 
-    out: DetailedTrade = self.calc_swap_out(i == 0, in_amount * in_precision, self.price_oracle_contract.price_w())
+    out: DetailedTrade = self.calc_swap_out(i == 0, in_amount * in_precision, self.price_oracle_contract.price_w(), in_precision, out_precision)
     out.admin_fee = unsafe_div(out.admin_fee, in_precision)
     if i == 0:
         self.admin_fees_x += out.admin_fee
@@ -1075,9 +1077,10 @@ def calc_swap_in(pump: bool, out_amount: uint256, p_o: uint256, in_precision: ui
                 if g != 0:
                     if y >= out_amount_left:
                         # This is the last band
-                        x_dest: uint256 = Inv / (g + (y - out_amount_left)) - f - x
+                        out.last_tick_j = unsafe_sub(y, out_amount_left)
+                        x_dest: uint256 = Inv / (g + out.last_tick_j) - f - x
                         dx: uint256 = unsafe_div(x_dest * antifee, 10**18)  # MORE than x_dest
-                        out.out_amount = out_amount
+                        out.out_amount = out_amount  # We successfully found liquidity for all the out_amount
                         out.in_amount += dx
                         x_dest = unsafe_div(unsafe_sub(dx, x_dest) * admin_fee, 10**18)  # abs admin fee now
                         out.ticks_in[j] = x + dx - x_dest
@@ -1110,7 +1113,8 @@ def calc_swap_in(pump: bool, out_amount: uint256, p_o: uint256, in_precision: ui
                 if f != 0:
                     if x >= out_amount_left:
                         # This is the last band
-                        y_dest: uint256 = Inv / (f + (x - out_amount_left)) - g - y
+                        out.last_tick_j = unsafe_sub(x, out_amount_left)
+                        y_dest: uint256 = Inv / (f + out.last_tick_j) - g - y
                         dy: uint256 = unsafe_div(y_dest * antifee, 10**18)  # MORE than y_dest
                         out.out_amount = out_amount
                         out.in_amount += dy
@@ -1155,33 +1159,6 @@ def calc_swap_in(pump: bool, out_amount: uint256, p_o: uint256, in_precision: ui
     return out
 
 
-@internal
-@view
-def _get_dydx(i: uint256, j: uint256, out_amount: uint256) -> DetailedTrade:
-    """
-    @notice Method to use to calculate in amount required and out amount received
-    @param i Input coin index
-    @param j Output coin index
-    @param out_amount Desired amount of output coin to receive
-    @return DetailedTrade with all swap results
-    """
-    # i = 0: borrowable (USD) in, collateral (ETH) out; going up
-    # i = 1: collateral (ETH) in, borrowable (USD) out; going down
-    assert (i == 0 and j == 1) or (i == 1 and j == 0), "Wrong index"
-    out: DetailedTrade = empty(DetailedTrade)
-    if out_amount == 0:
-        return out
-    in_precision: uint256 = COLLATERAL_PRECISION
-    out_precision: uint256 = BORROWED_PRECISION
-    if i == 0:
-        in_precision = BORROWED_PRECISION
-        out_precision = COLLATERAL_PRECISION
-    out = self.calc_swap_in(i == 0, out_amount * out_precision, self.price_oracle_contract.price(), in_precision, out_precision)
-    out.in_amount = unsafe_div(out.in_amount, in_precision)
-    out.out_amount = unsafe_div(out.out_amount, out_precision)
-    return out
-
-
 @external
 @view
 @nonreentrant('lock')
@@ -1195,7 +1172,7 @@ def get_dx(i: uint256, j: uint256, out_amount: uint256) -> uint256:
     """
     # i = 0: borrowable (USD) in, collateral (ETH) out; going up
     # i = 1: collateral (ETH) in, borrowable (USD) out; going down
-    return self._get_dydx(i, j, out_amount).in_amount
+    return self._get_dxdy(i, j, out_amount, False).in_amount
 
 
 @external
@@ -1211,8 +1188,88 @@ def get_dydx(i: uint256, j: uint256, out_amount: uint256) -> (uint256, uint256):
     """
     # i = 0: borrowable (USD) in, collateral (ETH) out; going up
     # i = 1: collateral (ETH) in, borrowable (USD) out; going down
-    out: DetailedTrade = self._get_dydx(i, j, out_amount)
+    out: DetailedTrade = self._get_dxdy(i, j, out_amount, False)
     return (out.out_amount, out.in_amount)
+
+
+@external
+@nonreentrant('lock')
+def exchange_dy(i: uint256, j: uint256, out_amount: uint256, max_amount: uint256, _for: address = msg.sender) -> uint256:
+    """
+    @notice Exchanges two coins, callable by anyone
+    @param i Input coin index
+    @param j Output coin index
+    @param out_amount Desired amount of output coin to receive
+    @param max_amount Maximum amount to spend (revert if more)
+    @param _for Address to send coins to
+    @return Amount of coins given out
+    """
+    assert (i == 0 and j == 1) or (i == 1 and j == 0), "Wrong index"
+    if out_amount == 0:
+        return 0
+
+    lm: LMGauge = self.liquidity_mining_callback
+    collateral_shares: DynArray[uint256, MAX_TICKS_UINT] = []
+
+    in_coin: ERC20 = BORROWED_TOKEN
+    out_coin: ERC20 = COLLATERAL_TOKEN
+    in_precision: uint256 = BORROWED_PRECISION
+    out_precision: uint256 = COLLATERAL_PRECISION
+    if i == 1:
+        in_precision = out_precision
+        in_coin = out_coin
+        out_precision = BORROWED_PRECISION
+        out_coin = BORROWED_TOKEN
+
+    out: DetailedTrade = self.calc_swap_in(i == 0, out_amount * out_precision, self.price_oracle_contract.price_w(), in_precision, out_precision)
+    out.admin_fee = unsafe_div(out.admin_fee, in_precision)
+    if i == 0:
+        self.admin_fees_x += out.admin_fee
+    else:
+        self.admin_fees_y += out.admin_fee
+    in_amount_done: uint256 = unsafe_div(out.in_amount, in_precision)
+    out_amount_done: uint256 = unsafe_div(out.out_amount, out_precision)
+    assert in_amount_done <= max_amount, "Slippage"
+    if out_amount_done == 0:
+        return 0
+
+    assert in_coin.transferFrom(msg.sender, self, in_amount_done, default_return_value=True)
+    assert out_coin.transfer(_for, out_amount_done, default_return_value=True)
+
+    n: int256 = min(out.n1, out.n2)
+    n_start: int256 = n
+    n_diff: int256 = abs(unsafe_sub(out.n2, out.n1))
+
+    for k in range(MAX_TICKS):
+        x: uint256 = 0
+        y: uint256 = 0
+        if i == 0:
+            x = out.ticks_in[k]
+            if n == out.n2:
+                y = out.last_tick_j
+        else:
+            y = out.ticks_in[unsafe_sub(n_diff, k)]
+            if n == out.n2:
+                x = out.last_tick_j
+        self.bands_x[n] = x
+        self.bands_y[n] = y
+        if lm.address != empty(address):
+            s: uint256 = 0
+            if y > 0:
+                s = unsafe_div(y * 10**18, self.total_shares[n])
+            collateral_shares.append(s)
+        if k == n_diff:
+            break
+        n = unsafe_add(n, 1)
+
+    self.active_band = out.n2
+
+    log TokenExchange(_for, i, in_amount_done, j, out_amount_done)
+
+    if lm.address != empty(address):
+        lm.callback_collateral_shares(n_start, collateral_shares)
+
+    return out_amount_done
 
 
 @internal
