@@ -1081,7 +1081,7 @@ def calc_swap_in(pump: bool, out_amount: uint256, p_o: uint256, in_precision: ui
                         out.in_amount += dx
                         x_dest = unsafe_div(unsafe_sub(dx, x_dest) * admin_fee, 10**18)  # abs admin fee now
                         out.ticks_in[j] = x + dx - x_dest
-                        # XXX out.admin_fee
+                        out.admin_fee = unsafe_add(out.admin_fee, x_dest)
                         break
 
                     else:
@@ -1093,7 +1093,7 @@ def calc_swap_in(pump: bool, out_amount: uint256, p_o: uint256, in_precision: ui
                         out.out_amount += y
                         x_dest = unsafe_div(unsafe_sub(dx, x_dest) * admin_fee, 10**18)  # abs admin fee now
                         out.ticks_in[j] = x + dx - x_dest
-                        # XXX out.admin_fee
+                        out.admin_fee = unsafe_add(out.admin_fee, x_dest)
 
             if i != MAX_TICKS + MAX_SKIP_TICKS - 1:
                 if n == max_band:
@@ -1116,7 +1116,7 @@ def calc_swap_in(pump: bool, out_amount: uint256, p_o: uint256, in_precision: ui
                         out.in_amount += dy
                         y_dest = unsafe_div(unsafe_sub(dy, y_dest) * admin_fee, 10**18)  # abs admin fee now
                         out.ticks_in[j] = y + dy - y_dest
-                        # XXX out.admin_fee
+                        out.admin_fee = unsafe_add(out.admin_fee, y_dest)
                         break
 
                     else:
@@ -1128,7 +1128,7 @@ def calc_swap_in(pump: bool, out_amount: uint256, p_o: uint256, in_precision: ui
                         out.out_amount += x
                         y_dest = unsafe_div(unsafe_sub(dy, y_dest) * admin_fee, 10**18)  # abs admin fee now
                         out.ticks_in[j] = y + dy - y_dest
-                        # XXX out.admin_fee
+                        out.admin_fee = unsafe_add(out.admin_fee, y_dest)
 
             if i != MAX_TICKS + MAX_SKIP_TICKS - 1:
                 if n == min_band:
@@ -1147,6 +1147,10 @@ def calc_swap_in(pump: bool, out_amount: uint256, p_o: uint256, in_precision: ui
     # ceil(in_amount_used/BORROWED_PRECISION) * BORROWED_PRECISION
     out.in_amount = unsafe_mul(unsafe_div(unsafe_add(out.in_amount, unsafe_sub(in_precision, 1)), in_precision), in_precision)
     out.out_amount = unsafe_mul(unsafe_div(out.out_amount, out_precision), out_precision)
+
+    # If out_amount is zeroed because of rounding off - don't charge admin fees
+    if out.out_amount == 0:
+        out.admin_fee = 0
 
     return out
 
