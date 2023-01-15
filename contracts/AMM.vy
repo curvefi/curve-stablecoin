@@ -1050,11 +1050,11 @@ def calc_swap_in(pump: bool, out_amount: uint256, p_o: uint256, in_precision: ui
     # pump = False: collateral (ETH) in, borrowable (USD) out; going down
     min_band: int256 = self.min_band
     max_band: int256 = self.max_band
-    n: int256 = self.active_band
     out: DetailedTrade = empty(DetailedTrade)
-    p_o_up: uint256 = self._p_oracle_up(n)
-    x: uint256 = self.bands_x[n]
-    y: uint256 = self.bands_y[n]
+    out.n2 = self.active_band
+    p_o_up: uint256 = self._p_oracle_up(out.n2)
+    x: uint256 = self.bands_x[out.n2]
+    y: uint256 = self.bands_y[out.n2]
 
     out_amount_left: uint256 = out_amount
     antifee: uint256 = unsafe_div((10**18)**2, unsafe_sub(10**18, self.fee))
@@ -1069,6 +1069,7 @@ def calc_swap_in(pump: bool, out_amount: uint256, p_o: uint256, in_precision: ui
 
         if x > 0 or y > 0:
             if j == MAX_TICKS_UINT:
+                out.n1 = out.n2
                 j = 0
             y0 = self._get_y0(x, y, p_o, p_o_up)  # <- also checks p_o
             f = unsafe_div(A * y0 * p_o / p_o_up * p_o, 10**18)
@@ -1106,14 +1107,14 @@ def calc_swap_in(pump: bool, out_amount: uint256, p_o: uint256, in_precision: ui
                         out.admin_fee = unsafe_add(out.admin_fee, x_dest)
 
             if i != MAX_TICKS + MAX_SKIP_TICKS - 1:
-                if n == max_band:
+                if out.n2 == max_band:
                     break
                 if j == MAX_TICKS_UINT - 1:
                     break
-                n += 1
+                out.n2 += 1
                 p_o_up = unsafe_div(p_o_up * Aminus1, A)
                 x = 0
-                y = self.bands_y[n]
+                y = self.bands_y[out.n2]
 
         else:  # dump
             if x != 0:
@@ -1142,13 +1143,13 @@ def calc_swap_in(pump: bool, out_amount: uint256, p_o: uint256, in_precision: ui
                         out.admin_fee = unsafe_add(out.admin_fee, y_dest)
 
             if i != MAX_TICKS + MAX_SKIP_TICKS - 1:
-                if n == min_band:
+                if out.n2 == min_band:
                     break
                 if j == MAX_TICKS_UINT - 1:
                     break
-                n -= 1
+                out.n2 -= 1
                 p_o_up = unsafe_div(p_o_up * A, Aminus1)
-                x = self.bands_x[n]
+                x = self.bands_x[out.n2]
                 y = 0
 
         if j != MAX_TICKS_UINT:
