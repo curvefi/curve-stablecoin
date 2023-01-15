@@ -26,14 +26,3 @@ def amm(collateral_token, borrowed_token, price_oracle, admin, accounts):
             collateral_token.approve(amm.address, 2**256-1)
             borrowed_token.approve(amm.address, 2**256-1)
     return amm
-
-
-@pytest.fixture(scope="module")
-def exchange_dy_zap(admin, collateral_token, borrowed_token, accounts):
-    with boa.env.prank(admin):
-        exchange_dy_zap = boa.load('contracts/ExchangeDyZap.vy')
-    for acct in accounts:
-        with boa.env.prank(acct):
-            collateral_token.approve(exchange_dy_zap.address, 2**256-1)
-            borrowed_token.approve(exchange_dy_zap.address, 2**256-1)
-    return exchange_dy_zap
