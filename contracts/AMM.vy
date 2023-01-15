@@ -945,7 +945,7 @@ def get_dxdy(i: uint256, j: uint256, in_amount: uint256) -> (uint256, uint256):
 
 
 @internal
-def _exchange(i: uint256, j: uint256, amount: uint256, minmax_amount: uint256, _for: address, use_in_amount: bool) -> uint256:
+def _exchange(i: uint256, j: uint256, amount: uint256, minmax_amount: uint256, _for: address, use_in_amount: bool) -> uint256[2]:
     """
     @notice Exchanges two coins, callable by anyone
     @param i Input coin index
@@ -954,11 +954,11 @@ def _exchange(i: uint256, j: uint256, amount: uint256, minmax_amount: uint256, _
     @param minmax_amount Minimal/maximum amount to get as output/input
     @param _for Address to send coins to
     @param use_in_amount Whether input or output amount is specified
-    @return Amount of coins given out
+    @return Amount of coins given in and out
     """
     assert (i == 0 and j == 1) or (i == 1 and j == 0), "Wrong index"
     if amount == 0:
-        return 0
+        return [0, 0]
 
     lm: LMGauge = self.liquidity_mining_callback
     collateral_shares: DynArray[uint256, MAX_TICKS_UINT] = []
@@ -990,7 +990,7 @@ def _exchange(i: uint256, j: uint256, amount: uint256, minmax_amount: uint256, _
     else:
         assert in_amount_done <= minmax_amount, "Slippage"
     if out_amount_done == 0:
-        return 0
+        return [0, 0]
 
     assert in_coin.transferFrom(msg.sender, self, in_amount_done, default_return_value=True)
     assert out_coin.transfer(_for, out_amount_done, default_return_value=True)
@@ -1028,7 +1028,7 @@ def _exchange(i: uint256, j: uint256, amount: uint256, minmax_amount: uint256, _
     if lm.address != empty(address):
         lm.callback_collateral_shares(n_start, collateral_shares)
 
-    return out_amount_done
+    return [in_amount_done, out_amount_done]
 
 
 @internal
@@ -1200,7 +1200,7 @@ def get_dydx(i: uint256, j: uint256, out_amount: uint256) -> (uint256, uint256):
 
 
 @external
-def exchange(i: uint256, j: uint256, in_amount: uint256, min_amount: uint256, _for: address = msg.sender) -> uint256:
+def exchange(i: uint256, j: uint256, in_amount: uint256, min_amount: uint256, _for: address = msg.sender) -> uint256[2]:
     """
     @notice Exchanges two coins, callable by anyone
     @param i Input coin index
@@ -1208,14 +1208,14 @@ def exchange(i: uint256, j: uint256, in_amount: uint256, min_amount: uint256, _f
     @param in_amount Amount of input coin to swap
     @param min_amount Minimal amount to get as output
     @param _for Address to send coins to
-    @return Amount of coins given out
+    @return Amount of coins given in/out
     """
     return self._exchange(i, j, in_amount, min_amount, _for, True)
 
 
 @external
 @nonreentrant('lock')
-def exchange_dy(i: uint256, j: uint256, out_amount: uint256, max_amount: uint256, _for: address = msg.sender) -> uint256:
+def exchange_dy(i: uint256, j: uint256, out_amount: uint256, max_amount: uint256, _for: address = msg.sender) -> uint256[2]:
     """
     @notice Exchanges two coins, callable by anyone
     @param i Input coin index
@@ -1223,7 +1223,7 @@ def exchange_dy(i: uint256, j: uint256, out_amount: uint256, max_amount: uint256
     @param out_amount Desired amount of output coin to receive
     @param max_amount Maximum amount to spend (revert if more)
     @param _for Address to send coins to
-    @return Amount of coins given out
+    @return Amount of coins given in/out
     """
     return self._exchange(i, j, out_amount, max_amount, _for, False)
 
