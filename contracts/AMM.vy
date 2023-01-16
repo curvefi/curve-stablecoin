@@ -909,7 +909,7 @@ def _get_dxdy(i: uint256, j: uint256, amount: uint256, is_in: bool) -> DetailedT
     if is_in:
         out = self.calc_swap_out(i == 0, amount * in_precision, p_o, in_precision, out_precision)
     else:
-        out = self.calc_swap_in(i == 0, amount * in_precision, p_o, in_precision, out_precision)
+        out = self.calc_swap_in(i == 0, amount * out_precision, p_o, in_precision, out_precision)
     out.in_amount = unsafe_div(out.in_amount, in_precision)
     out.out_amount = unsafe_div(out.out_amount, out_precision)
     return out
