@@ -1031,11 +1031,14 @@ def _liquidate(user: address, min_x: uint256, health_limit: uint256, use_eth: bo
 @nonreentrant('lock')
 def liquidate(user: address, min_x: uint256, use_eth: bool = True):
     """
-    @notice Peform a bad liquidation of user if health is not good
+    @notice Peform a bad liquidation (or self-liquidation) of user if health is not good
     @param min_x Minimal amount of stablecoin to receive (to avoid liquidators being sandwiched)
     @param use_eth Use wrapping/unwrapping if collateral is ETH
     """
-    self._liquidate(user, min_x, self.liquidation_discounts[user], use_eth,
+    discount: uint256 = 0
+    if user != msg.sender:
+        discount = self.liquidation_discounts[user]
+    self._liquidate(user, min_x, discount, use_eth,
                     empty(address), empty(bytes32), [])
 
 
@@ -1043,13 +1046,13 @@ def liquidate(user: address, min_x: uint256, use_eth: bool = True):
 @nonreentrant('lock')
 def self_liquidate(min_x: uint256, use_eth: bool = True):
     """
+    XXX remove that
     @notice Peform a self-liquidation to avoid a bad liquidation
     @param min_x Minimal amount of stablecoin to receive (to avoid liquidators being sandwiched)
     @param use_eth Use wrapping/unwrapping if collateral is ETH
     """
     self._liquidate(msg.sender, min_x, 0, use_eth,
                     empty(address), empty(bytes32), [])
-
 
 @view
 @external

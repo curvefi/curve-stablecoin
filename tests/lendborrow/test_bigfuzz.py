@@ -247,7 +247,7 @@ class BigFuzz(RuleBasedStateMachine):
             if self.market_controller.loan_exists(user) and health <= 0:
                 self.get_stablecoins(user)
                 with boa.env.prank(user):
-                    self.market_controller.self_liquidate(0)
+                    self.market_controller.liquidate(user, 0)
                 self.remove_stablecoins(user)
                 assert not self.market_controller.loan_exists(user)
                 with boa.reverts():
