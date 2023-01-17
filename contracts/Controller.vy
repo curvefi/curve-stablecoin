@@ -103,6 +103,11 @@ struct Position:
     debt: uint256
     health: int256
 
+struct CallbackData:
+    active_band: int256
+    stablecoins: uint256
+    collateral: uint256
+
 
 FACTORY: immutable(Factory)
 STABLECOIN: immutable(ERC20)
@@ -514,6 +519,31 @@ def _withdraw_collateral(_for: address, amount: uint256, use_eth: bool):
 
 
 @internal
+def execute_callback(callbacker: address, callback_sig: bytes32,
+                     user: address, stablecoins: uint256, collateral: uint256, debt: uint256,
+                     callback_args: DynArray[uint256, 5]) -> CallbackData:
+    data: CallbackData = empty(CallbackData)
+    data.active_band = AMM.active_band()
+    band_x: uint256 = AMM.bands_x(data.active_band)
+    band_y: uint256 = AMM.bands_y(data.active_band)
+
+    # Callback
+    response: Bytes[64] = raw_call(
+        callbacker,
+        concat(slice(callback_sig, 0, 4), _abi_encode(user, stablecoins, collateral, debt, callback_args)),
+        max_outsize=64
+    )
+    data.stablecoins = convert(slice(response, 0, 32), uint256)
+    data.collateral = convert(slice(response, 32, 32), uint256)
+
+    # Checks after callback
+    assert data.active_band == AMM.active_band()
+    assert band_x == AMM.bands_x(data.active_band)
+    assert band_y == AMM.bands_y(data.active_band)
+
+    return data
+
+@internal
 def _create_loan(mvalue: uint256, collateral: uint256, debt: uint256, N: uint256, transfer_coins: bool):
     assert self.loan[msg.sender].initial_debt == 0, "Loan already created"
     assert N > MIN_TICKS-1, "Need more ticks"
@@ -578,24 +608,10 @@ def create_loan_extended(collateral: uint256, debt: uint256, N: uint256, callbac
     # Before callback
     STABLECOIN.transfer(callbacker, debt)
 
-    # Checks before callback
-    active_band: int256 = AMM.active_band()
-    band_x: uint256 = AMM.bands_x(active_band)
-    band_y: uint256 = AMM.bands_y(active_band)
-
     # Callback
-    response: Bytes[32] = raw_call(
-        callbacker,
-        concat(slice(callback_sig, 0, 4), _abi_encode(msg.sender, collateral, debt, callback_args)),
-        max_outsize=32
-    )
     # If there is any unused debt, callbacker can send it to the user
-    more_collateral: uint256 = convert(response, uint256)
-
-    # Checks after callback
-    assert active_band == AMM.active_band()
-    assert band_x == AMM.bands_x(active_band)
-    assert band_y == AMM.bands_y(active_band)
+    more_collateral: uint256 = self.execute_callback(
+        callbacker, callback_sig, msg.sender, 0, collateral, debt, callback_args).collateral
 
     # After callback
     self._deposit_collateral(collateral, msg.value)
@@ -788,28 +804,11 @@ def repay_extended(callbacker: address, callback_sig: bytes32, callback_args: Dy
     debt, rate_mul = self._debt(msg.sender)
     COLLATERAL_TOKEN.transferFrom(AMM.address, callbacker, xy[1], default_return_value=True)
 
-    # Checks before callback
-    active_band: int256 = AMM.active_band()
-    band_x: uint256 = AMM.bands_x(active_band)
-    band_y: uint256 = AMM.bands_y(active_band)
-
-    # Callback
-    response: Bytes[64] = raw_call(
-        callbacker,
-        concat(slice(callback_sig, 0, 4), _abi_encode(msg.sender, xy[0], xy[1], debt, callback_args)),
-        max_outsize=64
-    )
-    # If callback needs more stablecoins for repayment - it can transferFrom sender
-    cb_stablecoins: uint256 = convert(slice(response, 0, 32), uint256)
-    cb_collateral: uint256 = convert(slice(response, 32, 32), uint256)
-
-    # Checks after callback
-    assert active_band == AMM.active_band()
-    assert band_x == AMM.bands_x(active_band)
-    assert band_y == AMM.bands_y(active_band)
+    cb: CallbackData = self.execute_callback(
+        callbacker, callback_sig, msg.sender, xy[0], xy[1], debt, callback_args)
 
     # After callback
-    total_stablecoins: uint256 = cb_stablecoins + xy[0]
+    total_stablecoins: uint256 = cb.stablecoins + xy[0]
     assert total_stablecoins > 0  # dev: no coins to repay
 
     # d_debt: uint256 = min(debt, total_stablecoins)
@@ -822,38 +821,38 @@ def repay_extended(callbacker: address, callback_sig: bytes32, callback_args: Dy
         self._remove_from_list(msg.sender)
 
         # Transfer debt to self, everything else to sender
-        if cb_stablecoins > 0:
-            STABLECOIN.transferFrom(callbacker, self, cb_stablecoins)
+        if cb.stablecoins > 0:
+            STABLECOIN.transferFrom(callbacker, self, cb.stablecoins)
         if xy[0] > 0:
             STABLECOIN.transferFrom(AMM.address, self, xy[0])
         if total_stablecoins > debt:
             STABLECOIN.transfer(msg.sender, unsafe_sub(total_stablecoins, debt))
-        if cb_collateral > 0:
-            assert COLLATERAL_TOKEN.transferFrom(callbacker, msg.sender, cb_collateral, default_return_value=True)
+        if cb.collateral > 0:
+            assert COLLATERAL_TOKEN.transferFrom(callbacker, msg.sender, cb.collateral, default_return_value=True)
 
         log UserState(msg.sender, 0, 0, 0, 0, 0)
 
     # Else - partial repayment -> deleverage, but only if we are not underwater
     else:
         size: uint256 = convert(ns[1] - ns[0] + 1, uint256)
-        assert ns[0] > active_band
-        d_debt = cb_stablecoins  # cb_stablecoins <= total_stablecoins < debt
-        debt = unsafe_sub(debt, cb_stablecoins)
+        assert ns[0] > cb.active_band
+        d_debt = cb.stablecoins  # cb.stablecoins <= total_stablecoins < debt
+        debt = unsafe_sub(debt, cb.stablecoins)
 
         # Not in liquidation - can move bands
-        n1: int256 = self._calculate_debt_n1(cb_collateral, debt, size)
+        n1: int256 = self._calculate_debt_n1(cb.collateral, debt, size)
         n2: int256 = n1 + ns[1] - ns[0]
-        AMM.deposit_range(msg.sender, cb_collateral, n1, n2, False)
+        AMM.deposit_range(msg.sender, cb.collateral, n1, n2, False)
         liquidation_discount: uint256 = self.liquidation_discount
         self.liquidation_discounts[msg.sender] = liquidation_discount
 
-        if cb_collateral > 0:
-            assert COLLATERAL_TOKEN.transferFrom(callbacker, AMM.address, cb_collateral, default_return_value=True)
+        if cb.collateral > 0:
+            assert COLLATERAL_TOKEN.transferFrom(callbacker, AMM.address, cb.collateral, default_return_value=True)
         # Stablecoin is all spent to repay debt -> all goes to self
-        STABLECOIN.transferFrom(callbacker, self, cb_stablecoins)
+        STABLECOIN.transferFrom(callbacker, self, cb.stablecoins)
         # We are above active band, so xy[0] is 0 anyway
 
-        log UserState(msg.sender, cb_collateral, debt, n1, n2, liquidation_discount)
+        log UserState(msg.sender, cb.collateral, debt, n1, n2, liquidation_discount)
         xy[1] = 0
 
     # Common calls which we will do regardless of whether it's a full repay or not
@@ -998,19 +997,12 @@ def _liquidate(user: address, min_x: uint256, health_limit: uint256, use_eth: bo
             # Move collateral to callbacker, call it and remove everything from it back in
             assert COLLATERAL_TOKEN.transferFrom(AMM.address, callbacker, xy[1], default_return_value=True)
             # Callback
-            # XXX check that bands x/y are unchanged
-            response: Bytes[64] = raw_call(
-                callbacker,
-                concat(slice(callback_sig, 0, 4), _abi_encode(msg.sender, user, xy[0], xy[1], debt, callback_args)),
-                max_outsize=64
-            )
-            # If callback needs more stablecoins for repayment - it can transferFrom sender
-            cb_stablecoins: uint256 = convert(slice(response, 0, 32), uint256)
-            cb_collateral: uint256 = convert(slice(response, 32, 32), uint256)
-            assert cb_stablecoins >= to_repay, "not enough proceeds"
-            if cb_stablecoins > to_repay:
-                STABLECOIN.transferFrom(callbacker, msg.sender, unsafe_sub(cb_stablecoins, to_repay))
-            COLLATERAL_TOKEN.transferFrom(callbacker, msg.sender, cb_collateral)
+            cb: CallbackData = self.execute_callback(
+                callbacker, callback_sig, user, xy[0], xy[1], debt, callback_args)
+            assert cb.stablecoins >= to_repay, "not enough proceeds"
+            if cb.stablecoins > to_repay:
+                STABLECOIN.transferFrom(callbacker, msg.sender, unsafe_sub(cb.stablecoins, to_repay))
+            COLLATERAL_TOKEN.transferFrom(callbacker, msg.sender, cb.collateral)
 
         # Request what's left from user
         STABLECOIN.transferFrom(msg.sender, self, to_repay)
