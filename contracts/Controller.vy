@@ -951,13 +951,17 @@ def health_calculator(user: address, d_collateral: int256, d_debt: int256, full:
 
 
 @internal
-def _liquidate(user: address, min_x: uint256, health_limit: uint256, use_eth: bool):
+def _liquidate(user: address, min_x: uint256, health_limit: uint256, use_eth: bool,
+               callbacker: address, callback_sig: bytes32, callback_args: DynArray[uint256,5]):
     """
     @notice Perform a bad liquidation of user if the health is too bad
     @param user Address of the user
     @param min_x Minimal amount of stablecoin to receive (to avoid liquidators being sandwiched)
     @param health_limit Minimal health to liquidate at
     @param use_eth Use wrapping/unwrapping if collateral is ETH
+    @param callbacker Address of the callback contract
+    @param callback_sig method_id of the method which is called in the callbacker
+    @param callback_args Extra arguments for the callback (up to 5) such as min_amount etc
     """
     debt: uint256 = 0
     rate_mul: uint256 = 0
@@ -979,17 +983,40 @@ def _liquidate(user: address, min_x: uint256, health_limit: uint256, use_eth: bo
         self.redeemed += min_amm_burn
 
     if debt > xy[0]:
+        to_repay: uint256 = debt - xy[0]
+
+        if callbacker == empty(address):
+            # Withdraw collateral if no callback is present
+            self._withdraw_collateral(msg.sender, xy[1], use_eth)
+
+        else:
+            # Move collateral to callbacker, call it and remove everything from it back in
+            assert COLLATERAL_TOKEN.transferFrom(AMM.address, callbacker, xy[1], default_return_value=True)
+            # Callback
+            response: Bytes[64] = raw_call(
+                callbacker,
+                concat(slice(callback_sig, 0, 4), _abi_encode(msg.sender, user, xy[0], xy[1], debt, callback_args)),
+                max_outsize=64
+            )
+            # If callback needs more stablecoins for repayment - it can transferFrom sender
+            cb_stablecoins: uint256 = convert(slice(response, 0, 32), uint256)
+            cb_collateral: uint256 = convert(slice(response, 32, 32), uint256)
+            assert cb_stablecoins >= to_repay, "not enough proceeds"
+            if cb_stablecoins > to_repay:
+                STABLECOIN.transferFrom(callbacker, msg.sender, cb_stablecoins - to_repay)
+            COLLATERAL_TOKEN.transferFrom(callbacker, msg.sender, cb_collateral)
+
         # Request what's left from user
-        to_transfer: uint256 = debt - xy[0]
-        STABLECOIN.transferFrom(msg.sender, self, to_transfer)
-        self.redeemed += to_transfer
+        STABLECOIN.transferFrom(msg.sender, self, to_repay)
+        self.redeemed += to_repay
+
     else:
+        # Withdraw collateral
+        self._withdraw_collateral(msg.sender, xy[1], use_eth)
         # Return what's left to user
         to_transfer: uint256 = xy[0] - debt
         STABLECOIN.transferFrom(AMM.address, msg.sender, to_transfer)
         self.redeemed += to_transfer
-
-    self._withdraw_collateral(msg.sender, xy[1], use_eth)
 
     self.loan[user] = Loan({initial_debt: 0, rate_mul: rate_mul})
     log UserState(user, 0, 0, 0, 0, 0)
@@ -1010,7 +1037,8 @@ def liquidate(user: address, min_x: uint256, use_eth: bool = True):
     @param min_x Minimal amount of stablecoin to receive (to avoid liquidators being sandwiched)
     @param use_eth Use wrapping/unwrapping if collateral is ETH
     """
-    self._liquidate(user, min_x, self.liquidation_discounts[user], use_eth)
+    self._liquidate(user, min_x, self.liquidation_discounts[user], use_eth,
+                    empty(address), empty(bytes32), [])
 
 
 @external
@@ -1021,7 +1049,8 @@ def self_liquidate(min_x: uint256, use_eth: bool = True):
     @param min_x Minimal amount of stablecoin to receive (to avoid liquidators being sandwiched)
     @param use_eth Use wrapping/unwrapping if collateral is ETH
     """
-    self._liquidate(msg.sender, min_x, 0, use_eth)
+    self._liquidate(msg.sender, min_x, 0, use_eth,
+                    empty(address), empty(bytes32), [])
 
 
 @view
