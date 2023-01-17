@@ -78,10 +78,11 @@ def test_self_liquidate(accounts, admin, controller_for_liquidation, market_amm,
         with boa.env.prank(fee_receiver):
             stablecoin.transfer(user, stablecoin.balanceOf(fee_receiver))
 
-        with boa.env.prank(user):
+        with boa.env.prank(accounts[1]):
             with boa.reverts("Not enough rekt"):
                 controller.liquidate(user, 0)
 
+        with boa.env.prank(user):
             with boa.reverts("Slippage"):
                 controller.liquidate(user, x + 1)
 

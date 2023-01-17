@@ -1042,18 +1042,6 @@ def liquidate(user: address, min_x: uint256, use_eth: bool = True):
                     empty(address), empty(bytes32), [])
 
 
-@external
-@nonreentrant('lock')
-def self_liquidate(min_x: uint256, use_eth: bool = True):
-    """
-    XXX remove that
-    @notice Peform a self-liquidation to avoid a bad liquidation
-    @param min_x Minimal amount of stablecoin to receive (to avoid liquidators being sandwiched)
-    @param use_eth Use wrapping/unwrapping if collateral is ETH
-    """
-    self._liquidate(msg.sender, min_x, 0, use_eth,
-                    empty(address), empty(bytes32), [])
-
 @view
 @external
 @nonreentrant('lock')
