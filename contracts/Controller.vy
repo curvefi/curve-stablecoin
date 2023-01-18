@@ -1042,6 +1042,24 @@ def liquidate(user: address, min_x: uint256, use_eth: bool = True):
                     empty(address), empty(bytes32), [])
 
 
+@external
+@nonreentrant('lock')
+def liquidate_extended(user: address, min_x: uint256, use_eth: bool,
+                       callbacker: address, callback_sig: bytes32, callback_args: DynArray[uint256,5]):
+    """
+    @notice Peform a bad liquidation (or self-liquidation) of user if health is not good
+    @param min_x Minimal amount of stablecoin to receive (to avoid liquidators being sandwiched)
+    @param use_eth Use wrapping/unwrapping if collateral is ETH
+    @param callbacker Address of the callback contract
+    @param callback_sig method_id of the method which is called in the callbacker
+    @param callback_args Extra arguments for the callback (up to 5) such as min_amount etc
+    """
+    discount: uint256 = 0
+    if user != msg.sender:
+        discount = self.liquidation_discounts[user]
+    self._liquidate(user, min_x, discount, use_eth, callbacker, callback_sig, callback_args)
+
+
 @view
 @external
 @nonreentrant('lock')
