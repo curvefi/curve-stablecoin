@@ -7,13 +7,10 @@
 @dev ERC20 support for return True/revert, return True/False, return None
 """
 
-# XXX this is an incomplete implementation!
-# XXX it should have commit_new_parameters included
-# XXX as well as handling setting the new MA time
-
 from vyper.interfaces import ERC20
 
 interface Factory:
+    def convert_fees() -> bool: nonpayable
     def get_fee_receiver(_pool: address) -> address: view
     def admin() -> address: view
 
@@ -74,15 +71,23 @@ event StopRampA:
     A: uint256
     t: uint256
 
+event CommitNewFee:
+    new_fee: uint256
+
+event ApplyNewFee:
+    fee: uint256
+
 
 N_COINS: constant(uint256) = 2
 N_COINS_128: constant(int128) = 2
 PRECISION: constant(uint256) = 10 ** 18
+ADMIN_ACTIONS_DEADLINE_DT: constant(uint256) = 86400 * 3
 
 FEE_DENOMINATOR: constant(uint256) = 10 ** 10
 ADMIN_FEE: constant(uint256) = 5000000000
 
 A_PRECISION: constant(uint256) = 100
+MAX_FEE: constant(uint256) = 5 * 10 ** 9
 MAX_A: constant(uint256) = 10 ** 6
 MAX_A_CHANGE: constant(uint256) = 10
 MIN_RAMP_TIME: constant(uint256) = 86400
@@ -94,11 +99,14 @@ PERMIT_TYPEHASH: constant(bytes32) = keccak256("Permit(address owner,address spe
 ERC1271_MAGIC_VAL: constant(bytes32) = 0x1626ba7e00000000000000000000000000000000000000000000000000000000
 VERSION: constant(String[8]) = "v6.0.0"
 
+
 factory: address
 
 coins: public(address[N_COINS])
 balances: public(uint256[N_COINS])
 fee: public(uint256)  # fee * 1e10
+future_fee: public(uint256)
+admin_action_deadline: public(uint256)
 
 initial_A: public(uint256)
 future_A: public(uint256)
@@ -118,7 +126,7 @@ DOMAIN_SEPARATOR: public(bytes32)
 nonces: public(HashMap[address, uint256])
 
 last_prices_packed: uint256  #  [last_price, ma_price]
-ma_exp_time: public(uint256)  # XXX need a setter for this
+ma_exp_time: public(uint256)
 ma_last_time: public(uint256)
 
 
@@ -318,6 +326,7 @@ def last_price() -> uint256:
 @external
 def ema_price() -> uint256:
     return shift(self.last_prices_packed, -128)
+
 
 @view
 @external
@@ -839,6 +848,7 @@ def remove_liquidity_imbalance(
         if amount != 0:
             new_balances[i] -= amount
             assert ERC20(self.coins[i]).transfer(_receiver, amount, default_return_value=True)  # dev: failed transfer
+
     D1: uint256 = self.get_D_mem(rates, new_balances, amp)
 
     fees: uint256[N_COINS] = empty(uint256[N_COINS])
@@ -1042,10 +1052,41 @@ def stop_ramp_A():
     log StopRampA(current_A, block.timestamp)
 
 
+@external
+def set_ma_exp_time(_ma_exp_time: uint256):
+    assert msg.sender == Factory(self.factory).admin()  # dev: only owner
+    assert _ma_exp_time != 0
+
+    self.ma_exp_time = _ma_exp_time
+
+
 @view
 @external
 def admin_balances(i: uint256) -> uint256:
     return ERC20(self.coins[i]).balanceOf(self) - self.balances[i]
+
+
+@external
+def commit_new_fee(_new_fee: uint256):
+    assert msg.sender == Factory(self.factory).admin()
+    assert _new_fee <= MAX_FEE
+    assert self.admin_action_deadline == 0
+
+    self.future_fee = _new_fee
+    self.admin_action_deadline = block.timestamp + ADMIN_ACTIONS_DEADLINE_DT
+    log CommitNewFee(_new_fee)
+
+
+@external
+def apply_new_fee():
+    assert msg.sender == Factory(self.factory).admin()
+    deadline: uint256 = self.admin_action_deadline
+    assert deadline != 0 and block.timestamp >= deadline
+    
+    fee: uint256 = self.future_fee
+    self.fee = fee
+    self.admin_action_deadline = 0
+    log ApplyNewFee(fee)
 
 
 @external
