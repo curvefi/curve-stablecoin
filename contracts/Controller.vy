@@ -984,7 +984,6 @@ def _liquidate(user: address, min_x: uint256, health_limit: uint256, use_eth: bo
     min_amm_burn: uint256 = min(xy[0], debt)
     if min_amm_burn != 0:
         STABLECOIN.transferFrom(AMM.address, self, min_amm_burn)
-        self.redeemed += min_amm_burn
 
     if debt > xy[0]:
         to_repay: uint256 = unsafe_sub(debt, xy[0])
@@ -1006,7 +1005,6 @@ def _liquidate(user: address, min_x: uint256, health_limit: uint256, use_eth: bo
 
         # Request what's left from user
         STABLECOIN.transferFrom(msg.sender, self, to_repay)
-        self.redeemed += to_repay
 
     else:
         # Withdraw collateral
@@ -1014,8 +1012,8 @@ def _liquidate(user: address, min_x: uint256, health_limit: uint256, use_eth: bo
         # Return what's left to user
         to_transfer: uint256 = unsafe_sub(xy[0], debt)
         STABLECOIN.transferFrom(AMM.address, msg.sender, to_transfer)
-        self.redeemed += to_transfer
 
+    self.redeemed += debt
     self.loan[user] = Loan({initial_debt: 0, rate_mul: rate_mul})
     log UserState(user, 0, 0, 0, 0, 0)
     log Repay(user, xy[1], debt)
