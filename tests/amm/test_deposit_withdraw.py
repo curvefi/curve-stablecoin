@@ -37,12 +37,12 @@ def test_deposit_withdraw(amm, amounts, accounts, ns, dns, collateral_token, adm
         for user in accounts:
             if user in deposits:
                 before = amm.get_sum_xy(user)
-                amm.withdraw(user)
+                amm.withdraw(user, 10**18)
                 after = amm.get_sum_xy(user)
                 assert approx(before[1] - after[1], deposits[user], 1e-6, 20)
             else:
                 with boa.reverts("No deposits"):
-                    amm.withdraw(user)
+                    amm.withdraw(user, 10**18)
 
 
 def test_deposit_withdraw_1(amm, accounts, collateral_token, admin):

@@ -10,7 +10,7 @@ interface LLAMMA:
     def deposit_range(user: address, amount: uint256, n1: int256, n2: int256, move_coins: bool): nonpayable
     def read_user_tick_numbers(_for: address) -> int256[2]: view
     def get_sum_xy(user: address) -> uint256[2]: view
-    def withdraw(user: address) -> uint256[2]: nonpayable
+    def withdraw(user: address, frac: uint256) -> uint256[2]: nonpayable
     def get_x_down(user: address) -> uint256: view
     def get_rate_mul() -> uint256: view
     def set_rate(rate: uint256) -> uint256: nonpayable
@@ -636,7 +636,7 @@ def _add_collateral_borrow(d_collateral: uint256, d_debt: uint256, _for: address
     ns: int256[2] = AMM.read_user_tick_numbers(_for)
     size: uint256 = convert(ns[1] - ns[0] + 1, uint256)
 
-    xy: uint256[2] = AMM.withdraw(_for)
+    xy: uint256[2] = AMM.withdraw(_for, 10**18)
     assert xy[0] == 0, "Already in underwater mode"
     if remove_collateral:
         xy[1] -= d_collateral
@@ -745,7 +745,7 @@ def repay(_d_debt: uint256, _for: address = msg.sender, use_eth: bool = True):
 
     if debt == 0:
         # Allow to withdraw all assets even when underwater
-        xy: uint256[2] = AMM.withdraw(_for)
+        xy: uint256[2] = AMM.withdraw(_for, 10**18)
         if xy[0] > 0:
             # Only allow full repayment when underwater for the sender to do
             assert _for == msg.sender
@@ -764,7 +764,7 @@ def repay(_d_debt: uint256, _for: address = msg.sender, use_eth: bool = True):
 
         if ns[0] > active_band:
             # Not in liquidation - can move bands
-            xy: uint256[2] = AMM.withdraw(_for)
+            xy: uint256[2] = AMM.withdraw(_for, 10**18)
             n1: int256 = self._calculate_debt_n1(xy[1], debt, size)
             n2: int256 = n1 + ns[1] - ns[0]
             AMM.deposit_range(_for, xy[1], n1, n2, False)
@@ -798,7 +798,7 @@ def repay_extended(callbacker: address, callback_sig: bytes32, callback_args: Dy
     """
     # Before callback
     ns: int256[2] = AMM.read_user_tick_numbers(msg.sender)
-    xy: uint256[2] = AMM.withdraw(msg.sender)
+    xy: uint256[2] = AMM.withdraw(msg.sender, 10**18)
     debt: uint256 = 0
     rate_mul: uint256 = 0
     debt, rate_mul = self._debt(msg.sender)
@@ -975,7 +975,7 @@ def _liquidate(user: address, min_x: uint256, health_limit: uint256, use_eth: bo
         assert self._health(user, debt, True, health_limit) < 0, "Not enough rekt"
 
     # Send all the sender's stablecoin and collateral to our contract
-    xy: uint256[2] = AMM.withdraw(user)  # [stable, collateral]
+    xy: uint256[2] = AMM.withdraw(user, 10**18)  # [stable, collateral]
 
     # x increase in same block -> price up -> good
     # x decrease in same block -> price down -> bad

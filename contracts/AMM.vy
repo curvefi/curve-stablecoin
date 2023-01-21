@@ -569,6 +569,20 @@ def has_liquidity(user: address) -> bool:
     return self.user_shares[user].ticks[0] != 0
 
 
+@internal
+def save_user_shares(user: address, user_shares: DynArray[uint256, MAX_TICKS_UINT]):
+    ptr: uint256 = 0
+    for j in range(MAX_TICKS_UINT / 2):
+        if ptr >= len(user_shares):
+            break
+        tick: uint256 = user_shares[ptr]
+        ptr = unsafe_add(ptr, 1)
+        if len(user_shares) != ptr:
+            tick = tick | shift(user_shares[ptr], 128)
+        ptr = unsafe_add(ptr, 1)
+        self.user_shares[user].ticks[j] = tick
+
+
 @external
 @nonreentrant('lock')
 def deposit_range(user: address, amount: uint256, n1: int256, n2: int256, move_coins: bool):
@@ -651,16 +665,7 @@ def deposit_range(user: address, amount: uint256, n1: int256, n2: int256, move_c
     self.min_band = min(self.min_band, n1)
     self.max_band = max(self.max_band, n2)
 
-    ptr: uint256 = 0
-    for j in range(MAX_TICKS_UINT / 2):
-        if ptr >= n_bands:
-            break
-        tick: uint256 = user_shares[ptr]
-        ptr = unsafe_add(ptr, 1)
-        if n_bands != ptr:
-            tick = tick | shift(user_shares[ptr], 128)
-        ptr = unsafe_add(ptr, 1)
-        self.user_shares[user].ticks[j] = tick
+    self.save_user_shares(user, user_shares)
 
     self.rate_mul = self._rate_mul()
     self.rate_time = block.timestamp
@@ -674,13 +679,15 @@ def deposit_range(user: address, amount: uint256, n1: int256, n2: int256, move_c
 
 @external
 @nonreentrant('lock')
-def withdraw(user: address) -> uint256[2]:
+def withdraw(user: address, frac: uint256) -> uint256[2]:
     """
     @notice Withdraw all liquidity for the user. Only admin contract can do it
     @param user User who owns liquidity
+    @param frac Fraction to withdraw (1e18 being 100%)
     @return Amount of [stablecoins, collateral] withdrawn
     """
     assert msg.sender == self.admin
+    assert frac <= 10**18
 
     lm: LMGauge = self.liquidity_mining_callback
 
@@ -699,8 +706,8 @@ def withdraw(user: address) -> uint256[2]:
     for i in range(MAX_TICKS):
         x: uint256 = self.bands_x[n]
         y: uint256 = self.bands_y[n]
-        ds: uint256 = user_shares[i]
-        user_shares[i] = 0
+        ds: uint256 = unsafe_div(frac * user_shares[i], 10**18)  # Can ONLY zero out when frac == 10**18
+        user_shares[i] = unsafe_sub(user_shares[i], ds)
         s: uint256 = self.total_shares[n]
         dx: uint256 = x * ds / s
         dy: uint256 = unsafe_div(y * ds, s)
@@ -725,7 +732,10 @@ def withdraw(user: address) -> uint256[2]:
             n = unsafe_add(n, 1)
 
     # Empty the ticks
-    self.user_shares[user].ticks[0] = 0
+    if frac == 10**18:
+        self.user_shares[user].ticks[0] = 0
+    else:
+        self.save_user_shares(user, user_shares)
 
     if old_min_band != min_band:
         self.min_band = min_band
@@ -740,7 +750,7 @@ def withdraw(user: address) -> uint256[2]:
     self.rate_time = block.timestamp
 
     if lm.address != empty(address):
-        lm.callback_collateral_shares(0, [])
+        lm.callback_collateral_shares(0, [])  # collateral/shares ratio is unchanged
         lm.callback_user_shares(user, ns[0], user_shares)
 
     return [total_x, total_y]
