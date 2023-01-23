@@ -960,7 +960,7 @@ def _liquidate(user: address, min_x: uint256, health_limit: uint256, frac: uint2
     """
     @notice Perform a bad liquidation of user if the health is too bad
     @param user Address of the user
-    @param min_x Minimal amount of stablecoin to have in AMM for the user (to avoid liquidators being sandwiched)
+    @param min_x Minimal amount of stablecoin withdrawn (to avoid liquidators being sandwiched)
     @param health_limit Minimal health to liquidate at
     @param frac Fraction to liquidate; 100% = 10**18
     @param use_eth Use wrapping/unwrapping if collateral is ETH
@@ -971,12 +971,21 @@ def _liquidate(user: address, min_x: uint256, health_limit: uint256, frac: uint2
     debt: uint256 = 0
     rate_mul: uint256 = 0
     debt, rate_mul = self._debt(user)
+    final_debt: uint256 = debt
+    debt = unsafe_div(debt * frac, 10**18)
+    final_debt = unsafe_sub(final_debt, debt)
 
     if health_limit != 0:
         assert self._health(user, debt, True, health_limit) < 0, "Not enough rekt"
 
-    # Send all the sender's stablecoin and collateral to our contract
-    xy: uint256[2] = AMM.withdraw(user, 10**18)  # [stable, collateral]
+    # Withdraw sender's stablecoin and collateral to our contract
+    # When frac is set - we withdraw a bit less for the same debt fraction
+    # f_remove = (1 + h/2) / (1 + h)
+    # This is less than full h discount but more than no discount
+    f_remove: uint256 = 10**18
+    if frac < 10**18:
+        f_remove = unsafe_div(unsafe_mul(unsafe_add(10**18, unsafe_div(health_limit, 2)), 10**18), unsafe_add(10**18, health_limit))
+    xy: uint256[2] = AMM.withdraw(user, f_remove)  # [stable, collateral]
 
     # x increase in same block -> price up -> good
     # x decrease in same block -> price down -> bad
@@ -992,34 +1001,36 @@ def _liquidate(user: address, min_x: uint256, health_limit: uint256, frac: uint2
         if callbacker == empty(address):
             # Withdraw collateral if no callback is present
             self._withdraw_collateral(msg.sender, xy[1], use_eth)
+            # Request what's left from user
+            STABLECOIN.transferFrom(msg.sender, self, to_repay)
 
         else:
             # Move collateral to callbacker, call it and remove everything from it back in
-            assert COLLATERAL_TOKEN.transferFrom(AMM.address, callbacker, xy[1], default_return_value=True)
+            if xy[1] > 0:
+                assert COLLATERAL_TOKEN.transferFrom(AMM.address, callbacker, xy[1], default_return_value=True)
             # Callback
             cb: CallbackData = self.execute_callback(
                 callbacker, callback_sig, user, xy[0], xy[1], debt, callback_args)
             assert cb.stablecoins >= to_repay, "not enough proceeds"
             if cb.stablecoins > to_repay:
                 STABLECOIN.transferFrom(callbacker, msg.sender, unsafe_sub(cb.stablecoins, to_repay))
-            COLLATERAL_TOKEN.transferFrom(callbacker, msg.sender, cb.collateral)
-
-        # Request what's left from user
-        STABLECOIN.transferFrom(msg.sender, self, to_repay)
+            STABLECOIN.transferFrom(callbacker, self, to_repay)
+            assert COLLATERAL_TOKEN.transferFrom(callbacker, msg.sender, cb.collateral)
 
     else:
         # Withdraw collateral
         self._withdraw_collateral(msg.sender, xy[1], use_eth)
         # Return what's left to user
-        to_transfer: uint256 = unsafe_sub(xy[0], debt)
-        STABLECOIN.transferFrom(AMM.address, msg.sender, to_transfer)
+        if xy[0] > debt:
+            STABLECOIN.transferFrom(AMM.address, msg.sender, unsafe_sub(xy[0], debt))
 
     self.redeemed += debt
-    self.loan[user] = Loan({initial_debt: 0, rate_mul: rate_mul})
-    log UserState(user, 0, 0, 0, 0, 0)
+    self.loan[user] = Loan({initial_debt: final_debt, rate_mul: rate_mul})
     log Repay(user, xy[1], debt)
     log Liquidate(msg.sender, user, xy[1], xy[0], debt)
-    self._remove_from_list(user)
+    if final_debt == 0:
+        log UserState(user, 0, 0, 0, 0, 0)  # Not logging partial removeal b/c we have not enough info
+        self._remove_from_list(user)
 
     d: uint256 = self._total_debt.initial_debt * rate_mul / self._total_debt.rate_mul
     self._total_debt.initial_debt = unsafe_sub(max(d, debt), debt)
