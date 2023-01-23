@@ -955,13 +955,14 @@ def health_calculator(user: address, d_collateral: int256, d_debt: int256, full:
 
 
 @internal
-def _liquidate(user: address, min_x: uint256, health_limit: uint256, use_eth: bool,
+def _liquidate(user: address, min_x: uint256, health_limit: uint256, frac: uint256, use_eth: bool,
                callbacker: address, callback_sig: bytes32, callback_args: DynArray[uint256,5]):
     """
     @notice Perform a bad liquidation of user if the health is too bad
     @param user Address of the user
-    @param min_x Minimal amount of stablecoin to receive (to avoid liquidators being sandwiched)
+    @param min_x Minimal amount of stablecoin to have in AMM for the user (to avoid liquidators being sandwiched)
     @param health_limit Minimal health to liquidate at
+    @param frac Fraction to liquidate; 100% = 10**18
     @param use_eth Use wrapping/unwrapping if collateral is ETH
     @param callbacker Address of the callback contract
     @param callback_sig method_id of the method which is called in the callbacker
@@ -1036,7 +1037,7 @@ def liquidate(user: address, min_x: uint256, use_eth: bool = True):
     discount: uint256 = 0
     if user != msg.sender:
         discount = self.liquidation_discounts[user]
-    self._liquidate(user, min_x, discount, use_eth,
+    self._liquidate(user, min_x, discount, 10**18, use_eth,
                     empty(address), empty(bytes32), [])
 
 
@@ -1055,7 +1056,7 @@ def liquidate_extended(user: address, min_x: uint256, use_eth: bool,
     discount: uint256 = 0
     if user != msg.sender:
         discount = self.liquidation_discounts[user]
-    self._liquidate(user, min_x, discount, use_eth, callbacker, callback_sig, callback_args)
+    self._liquidate(user, min_x, discount, 10**18, use_eth, callbacker, callback_sig, callback_args)
 
 
 @view
