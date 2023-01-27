@@ -1268,20 +1268,25 @@ def collect_fees() -> uint256:
     if collateral_fees > 0:
         assert COLLATERAL_TOKEN.transferFrom(AMM.address, _to, collateral_fees, default_return_value=True)
     AMM.reset_admin_fees()
+
     # Borrowing-based fees
     rate_mul: uint256 = self._rate_mul_w()
     loan: Loan = self._total_debt
     loan.initial_debt = loan.initial_debt * rate_mul / loan.rate_mul
     loan.rate_mul = rate_mul
     self._total_debt = loan
-    redeemed: uint256 = loan.initial_debt + self.redeemed
+
+    # Amount which would have been redeemed if all the debt was repaid now
+    to_be_redeemed: uint256 = loan.initial_debt + self.redeemed
+    # Amount which was minted when borrowing + all previously claimed admin fees
     minted: uint256 = self.minted
-    if redeemed > minted:
-        self.minted = redeemed
-        redeemed = unsafe_sub(redeemed, minted)
-        STABLECOIN.transfer(_to, redeemed)
-        log CollectFees(redeemed, loan.initial_debt)
-        return redeemed
+    # Difference between to_be_redeemed and minted amount is exactly due to interest charged
+    if to_be_redeemed > minted:
+        self.minted = to_be_redeemed
+        to_be_redeemed = unsafe_sub(to_be_redeemed, minted)  # Now this is the fees to charge
+        STABLECOIN.transfer(_to, to_be_redeemed)
+        log CollectFees(to_be_redeemed, loan.initial_debt)
+        return to_be_redeemed
     else:
         log CollectFees(0, loan.initial_debt)
         return 0
