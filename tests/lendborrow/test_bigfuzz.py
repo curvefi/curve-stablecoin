@@ -43,7 +43,12 @@ class BigFuzz(RuleBasedStateMachine):
     # Auxiliary methods #
     def collect_fees(self):
         fees = self.stablecoin.balanceOf(self.accounts[0])
-        self.market_controller.collect_fees()
+        try:
+            self.market_controller.collect_fees()
+        except BoaError:
+            with boa.env.prank(self.admin):
+                self.controller_factory.collect_fees_above_ceiling(self.market_controller.address)
+            self.debt_ceiling = self.controller_factory.debt_ceiling(self.market_controller.address)
         fees = self.stablecoin.balanceOf(self.accounts[0]) - fees
         self.fees += fees
 
@@ -550,4 +555,4 @@ def test_change_debt_ceiling_error(
     state.rule_change_rate(rate=2863307149)
     state.deposit(n=5, ratio=0.5, uid=0, y=232831)
     state.time_travel(dt=1)
-    state.debt_supply()
+    state.debt_supply()  # Interest is above the coins we have, so debt ceiling is increased

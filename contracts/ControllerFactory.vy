@@ -14,6 +14,9 @@ interface AMM:
 
 interface Controller:
     def total_debt() -> uint256: view
+    def minted() -> uint256: view
+    def redeemed() -> uint256: view
+    def collect_fees() -> uint256: nonpayable
 
 interface MonetaryPolicy:
     def rate_write() -> uint256: nonpayable
@@ -315,3 +318,19 @@ def rug_debt_ceiling(_to: address):
     @param _to Address to remove stablecoins from
     """
     self._set_debt_ceiling(_to, self.debt_ceiling[_to], False)
+
+
+@external
+@nonreentrant('lock')
+def collect_fees_above_ceiling(_to: address):
+    """
+    @notice If the receiver is the controller - increase the debt ceiling if it's not enough to claim admin fees
+            and claim them
+    @param _to Address of the controller
+    """
+    assert msg.sender == self.admin
+    admin_fees: uint256 = Controller(_to).total_debt() + Controller(_to).redeemed() - Controller(_to).minted()
+    b: uint256 = STABLECOIN.balanceOf(_to)
+    if admin_fees > b:
+        self._set_debt_ceiling(_to, self.debt_ceiling[_to] + admin_fees - b, True)
+    Controller(_to).collect_fees()
