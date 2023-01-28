@@ -306,6 +306,8 @@ class BigFuzz(RuleBasedStateMachine):
     def debt_supply(self):
         self.collect_fees()
         total_debt = self.market_controller.total_debt()
+        if total_debt == 0:
+            assert self.market_controller.minted() == self.market_controller.redeemed()
         assert total_debt == self.stablecoin.totalSupply() - self.stablecoin.balanceOf(self.market_controller.address)
         assert abs(sum(self.market_controller.debt(u) for u in self.accounts) - total_debt) <= 10
         # 10 accounts = 10 wei error?
