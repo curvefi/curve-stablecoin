@@ -32,6 +32,8 @@ class BigFuzz(RuleBasedStateMachine):
     liquidator_id = st.integers(min_value=0, max_value=9)
     time_shift = st.integers(min_value=1, max_value=30 * 86400)
 
+    debt_ceiling_change = st.integers(min_value=-10**6 * 10**18, max_value=10**6 * 10**18)
+
     def __init__(self):
         super().__init__()
         self.A = self.market_amm.A()
@@ -315,6 +317,15 @@ class BigFuzz(RuleBasedStateMachine):
     @invariant()
     def minted_redeemed(self):
         assert self.market_controller.redeemed() + self.market_controller.total_debt() >= self.market_controller.minted()
+
+    # Debt ceiling
+    @rule(d_ceil=debt_ceiling_change)
+    def change_debt_ceiling(self, d_ceil):
+        current_ceil = self.controller_factory.debt_ceiling(self.market_controller.address)
+        new_ceil = max(current_ceil + d_ceil, 0)
+        with boa.env.prank(self.admin):
+            self.controller_factory.set_debt_ceiling(self.market_controller.address, new_ceil)
+        self.debt_ceiling = new_ceil
 
 
 def test_big_fuzz(
