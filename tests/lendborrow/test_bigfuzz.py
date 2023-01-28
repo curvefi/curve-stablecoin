@@ -310,6 +310,10 @@ class BigFuzz(RuleBasedStateMachine):
         assert abs(sum(self.market_controller.debt(u) for u in self.accounts) - total_debt) <= 10
         # 10 accounts = 10 wei error?
 
+    @invariant()
+    def minted_redeemed(self):
+        assert self.market_controller.redeemed() + self.market_controller.total_debt() >= self.market_controller.minted()
+
 
 def test_big_fuzz(
         controller_factory, market_amm, market_controller, monetary_policy, collateral_token, stablecoin, price_oracle, accounts, admin):
