@@ -327,6 +327,11 @@ class BigFuzz(RuleBasedStateMachine):
             self.controller_factory.set_debt_ceiling(self.market_controller.address, new_ceil)
         self.debt_ceiling = new_ceil
 
+    @rule()
+    def rug_debt_ceiling(self):
+        with boa.env.prank(self.admin):
+            self.controller_factory.rug_debt_ceiling(self.market_controller.address)
+
 
 def test_big_fuzz(
         controller_factory, market_amm, market_controller, monetary_policy, collateral_token, stablecoin, price_oracle, accounts, admin):
@@ -534,3 +539,15 @@ def test_debt_too_high_2(
         state.shift_oracle(dp=-0.00877380371093752)
         state.shift_oracle(dp=-0.00390625)
         state.deposit(n=29, ratio=0.796142578125, uid=0, y=15877)
+
+
+def test_change_debt_ceiling_error(
+        controller_factory, market_amm, market_controller, monetary_policy, collateral_token, stablecoin, price_oracle, accounts, admin):
+    for k, v in locals().items():
+        setattr(BigFuzz, k, v)
+    state = BigFuzz()
+    state.change_debt_ceiling(d_ceil=-999999999999999650753500)
+    state.rule_change_rate(rate=2863307149)
+    state.deposit(n=5, ratio=0.5, uid=0, y=232831)
+    state.time_travel(dt=1)
+    state.debt_supply()
