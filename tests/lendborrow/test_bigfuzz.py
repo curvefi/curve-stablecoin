@@ -336,6 +336,13 @@ class BigFuzz(RuleBasedStateMachine):
     def rug_debt_ceiling(self):
         with boa.env.prank(self.admin):
             self.controller_factory.rug_debt_ceiling(self.market_controller.address)
+        total_debt = self.market_controller.total_debt()
+        minted = self.market_controller.minted()
+        redeemed = self.market_controller.redeemed()
+        if total_debt == 0 and redeemed + total_debt == minted:
+            # Debt is 0 and admin fees are claimed
+            ceiling = self.controller_factory.debt_ceiling(self.market_controller.address)
+            assert self.stablecoin.balanceOf(self.market_controller.address) == ceiling
 
 
 def test_big_fuzz(

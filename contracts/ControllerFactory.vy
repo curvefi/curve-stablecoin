@@ -329,8 +329,13 @@ def collect_fees_above_ceiling(_to: address):
     @param _to Address of the controller
     """
     assert msg.sender == self.admin
+    old_debt_residual: uint256 = self.debt_ceiling_residual[_to]
+    assert self.debt_ceiling[_to] > 0 or old_debt_residual > 0
+
     admin_fees: uint256 = Controller(_to).total_debt() + Controller(_to).redeemed() - Controller(_to).minted()
     b: uint256 = STABLECOIN.balanceOf(_to)
     if admin_fees > b:
-        self._set_debt_ceiling(_to, self.debt_ceiling[_to] + admin_fees - b, True)
+        to_mint: uint256 = admin_fees - b
+        STABLECOIN.mint(_to, to_mint)
+        self.debt_ceiling_residual[_to] = old_debt_residual + to_mint
     Controller(_to).collect_fees()
