@@ -13,10 +13,12 @@ def approx(x1, x2, precision, abs_precision=None):
     result = False
     if abs_precision is not None:
         result = abs(x2 - x1) <= abs_precision
+    else:
+        abs_precision = 0
     if x2 == 0:
-        return x1 == 0
+        return abs(x1) <= abs_precision
     elif x1 == 0:
-        return x2 == 0
+        return abs(x2) <= abs_precision
     return result or (abs(log(x1 / x2)) <= precision)
 
 
