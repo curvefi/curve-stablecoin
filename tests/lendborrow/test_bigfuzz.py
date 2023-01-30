@@ -34,6 +34,9 @@ class BigFuzz(RuleBasedStateMachine):
 
     debt_ceiling_change = st.integers(min_value=-10**6 * 10**18, max_value=10**6 * 10**18)
 
+    # is_extended = st.booleans()
+    # liquidate_frac = st.integers(min_value=0, max_value=10**18 + 1)
+
     def __init__(self):
         super().__init__()
         self.A = self.market_amm.A()
@@ -182,7 +185,7 @@ class BigFuzz(RuleBasedStateMachine):
                 amount = int(self.market_amm.price_oracle() * (sy + y) / 1e18 * ratio)
                 final_debt = self.market_controller.debt(user) + amount
 
-                if not self.check_debt_ceiling(amount):
+                if not self.check_debt_ceiling(amount) and amount > 0:
                     with boa.reverts():
                         self.market_controller.borrow_more(y, amount)
                     return
@@ -563,3 +566,14 @@ def test_change_debt_ceiling_error(
     state.deposit(n=5, ratio=0.5, uid=0, y=232831)
     state.time_travel(dt=1)
     state.debt_supply()  # Interest is above the coins we have, so debt ceiling is increased
+
+
+def test_borrow_zero_norevert(
+        controller_factory, market_amm, market_controller, monetary_policy, collateral_token, stablecoin, price_oracle, accounts, admin):
+    for k, v in locals().items():
+        setattr(BigFuzz, k, v)
+    state = BigFuzz()
+    state.deposit(n=5, ratio=0.5, uid=0, y=18879089852719101952)
+    state.change_debt_ceiling(d_ceil=-971681365220921345835009)
+    # Important that we borrow 0 after changing the debt ceiling
+    state.borrow_more(ratio=0.0, uid=0, y=0)
