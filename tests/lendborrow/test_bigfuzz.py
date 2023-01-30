@@ -17,6 +17,8 @@ from datetime import timedelta
 # * set_borrowing_discounts
 # * collect AMM fees
 
+ZERO_ADDRESS = "0x0000000000000000000000000000000000000000"
+
 
 class BigFuzz(RuleBasedStateMachine):
     collateral_amount = st.integers(min_value=0, max_value=10**18 * 10**6 // 3000)
@@ -34,8 +36,8 @@ class BigFuzz(RuleBasedStateMachine):
 
     debt_ceiling_change = st.integers(min_value=-10**6 * 10**18, max_value=10**6 * 10**18)
 
-    # is_extended = st.booleans()
-    # liquidate_frac = st.integers(min_value=0, max_value=10**18 + 1)
+    is_extended = st.booleans()
+    liquidate_frac = st.integers(min_value=0, max_value=10**18 + 1)
 
     def __init__(self):
         super().__init__()
@@ -246,8 +248,8 @@ class BigFuzz(RuleBasedStateMachine):
         self.remove_stablecoins(user)
 
     # Liquidations
-    @rule()
-    def self_liquidate_and_health(self):
+    @rule(is_extended=is_extended, frac=liquidate_frac)
+    def self_liquidate_and_health(self, is_extended, frac):
         for user in self.accounts:
             try:
                 health = self.market_controller.health(user)
@@ -257,14 +259,18 @@ class BigFuzz(RuleBasedStateMachine):
             if self.market_controller.loan_exists(user) and health <= 0:
                 self.get_stablecoins(user)
                 with boa.env.prank(user):
-                    self.market_controller.liquidate(user, 0)
+                    if is_extended:
+                        self.market_controller.liquidate_extended(
+                                user, 0, frac, True, ZERO_ADDRESS, b'\x00'*32, [])
+                    else:
+                        self.market_controller.liquidate(user, 0)
                 self.remove_stablecoins(user)
                 assert not self.market_controller.loan_exists(user)
                 with boa.reverts():
                     self.market_controller.health(user)
 
-    @rule(uid=user_id, luid=liquidator_id)
-    def liquidate(self, uid, luid):
+    @rule(uid=user_id, luid=liquidator_id, is_extended=is_extended, frac=liquidate_frac)
+    def liquidate(self, uid, luid, is_extended, frac):
         user = self.accounts[uid]
         liquidator = self.accounts[luid]
         if user == liquidator:
@@ -274,7 +280,11 @@ class BigFuzz(RuleBasedStateMachine):
         if not self.market_controller.loan_exists(user):
             with boa.env.prank(liquidator):
                 with boa.reverts():
-                    self.market_controller.liquidate(user, 0)
+                    if is_extended:
+                        self.market_controller.liquidate_extended(
+                                user, 0, frac, True, ZERO_ADDRESS, b'\x00'*32, [])
+                    else:
+                        self.market_controller.liquidate(user, 0)
         else:
             health_limit = self.market_controller.liquidation_discount()
             try:
@@ -284,9 +294,17 @@ class BigFuzz(RuleBasedStateMachine):
             with boa.env.prank(liquidator):
                 if health >= health_limit:
                     with boa.reverts():
-                        self.market_controller.liquidate(user, 0)
+                        if is_extended:
+                            self.market_controller.liquidate_extended(
+                                    user, 0, frac, True, ZERO_ADDRESS, b'\x00'*32, [])
+                        else:
+                            self.market_controller.liquidate(user, 0)
                 else:
-                    self.market_controller.liquidate(user, 0)
+                    if is_extended:
+                        self.market_controller.liquidate_extended(
+                                user, 0, frac, True, ZERO_ADDRESS, b'\x00'*32, [])
+                    else:
+                        self.market_controller.liquidate(user, 0)
                     with boa.reverts():
                         self.market_controller.health(user)
         self.remove_stablecoins(liquidator)
@@ -468,9 +486,9 @@ def test_noraise_5(
     with boa.env.anchor():
         state = BigFuzz()
         state.debt_supply()
-        state.self_liquidate_and_health()
+        state.self_liquidate_and_health(False, 0)
         state.debt_supply()
-        state.self_liquidate_and_health()
+        state.self_liquidate_and_health(False, 0)
         state.debt_supply()
         state.deposit(n=9, ratio=0.5, uid=1, y=5131452002964343839)
         state.debt_supply()
