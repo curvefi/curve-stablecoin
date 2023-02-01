@@ -1,8 +1,25 @@
 import pytest
 import boa
 from ..conftest import approx
+from vyper.utils import abi_method_id
+
 
 N = 5
+
+
+def get_method_id(desc):
+    return abi_method_id(desc).to_bytes(4, 'big') + b'\x00' * 28
+
+
+@pytest.fixture(scope="module")
+def fake_leverage(stablecoin, collateral_token, market_controller, admin):
+    # Fake leverage testing contract can also be used to liquidate via the callback
+    with boa.env.prank(admin):
+        leverage = boa.load('contracts/testing/FakeLeverage.vy', stablecoin.address, collateral_token.address,
+                            market_controller.address, 3000 * 10**18)
+        boa.env.set_balance(admin, 1000 * 10**18)
+        collateral_token._mint_for_testing(leverage.address, 1000 * 10**18)
+        return leverage
 
 
 @pytest.fixture(scope="module")
@@ -65,6 +82,26 @@ def test_liquidate(accounts, admin, controller_for_liquidation, market_amm):
             with boa.reverts("Slippage"):
                 controller.liquidate(user, x + 1)
             controller.liquidate(user, x)
+
+
+def test_liquidate_callback(accounts, admin, stablecoin, controller_for_liquidation, market_amm, fake_leverage):
+    user = admin
+    fee_receiver = accounts[0]
+    deleverage_method = get_method_id("liquidate(address,uint256,uint256,uint256,uint256[])")  # min_amount for stablecoins
+
+    controller = controller_for_liquidation(sleep_time=80 * 86400, discount=0)
+    x = market_amm.get_sum_xy(user)[0]
+
+    with boa.env.prank(fee_receiver):
+        # Prepare stablecoins to use for liquidation
+        # we do it by borrowing
+
+        with boa.reverts("Slippage"):
+            controller.liquidate(user, x + 1)
+        b = stablecoin.balanceOf(fee_receiver)
+        stablecoin.transfer(fake_leverage.address, b)
+        controller.liquidate_extended(user, x, 10**18, True,
+                                      fake_leverage.address, deleverage_method, [b])
 
 
 def test_self_liquidate(accounts, admin, controller_for_liquidation, market_amm, stablecoin):

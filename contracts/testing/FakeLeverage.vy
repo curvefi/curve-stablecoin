@@ -37,3 +37,11 @@ def deleverage(user: address, stablecoins: uint256, collateral: uint256, debt: u
     # Instead of returning collateral - what_was_spent we could unwrap and send
     # ETH from here to user (if it was ETH), so no need to do it in controller
     return [s_diff, collateral - s_diff * 10**18 / self.price]
+
+
+@external
+def liquidate(user: address, stablecoins: uint256, collateral: uint256, debt: uint256, extra_args: DynArray[uint256, 5]) -> uint256[2]:
+    min_amount: uint256 = extra_args[0]
+    s_diff: uint256 = debt - stablecoins
+    assert s_diff >= min_amount
+    return [s_diff, collateral]
