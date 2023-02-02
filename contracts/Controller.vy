@@ -971,12 +971,13 @@ def _liquidate(user: address, min_x: uint256, health_limit: uint256, frac: uint2
     debt: uint256 = 0
     rate_mul: uint256 = 0
     debt, rate_mul = self._debt(user)
-    final_debt: uint256 = debt
-    debt = unsafe_div(debt * frac, 10**18)
-    final_debt = unsafe_sub(final_debt, debt)
 
     if health_limit != 0:
         assert self._health(user, debt, True, health_limit) < 0, "Not enough rekt"
+
+    final_debt: uint256 = debt
+    debt = unsafe_div(debt * frac, 10**18)
+    final_debt = unsafe_sub(final_debt, debt)
 
     # Withdraw sender's stablecoin and collateral to our contract
     # When frac is set - we withdraw a bit less for the same debt fraction
