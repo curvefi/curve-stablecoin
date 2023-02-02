@@ -94,6 +94,11 @@ def test_liquidate_callback(accounts, admin, stablecoin, controller_for_liquidat
     user = admin
     fee_receiver = accounts[0]
     deleverage_method = get_method_id("liquidate(address,uint256,uint256,uint256,uint256[])")  # min_amount for stablecoins
+    ld = int(0.02 * 1e18)
+    if frac < 10**18:
+        f = (10**18 + ld // 2) * frac // (10**18 + ld) // 5 * 5  # The latter part is rounding off for multiple bands
+    else:
+        f = 10**18
 
     controller = controller_for_liquidation(sleep_time=80 * 86400, discount=0)
     x = market_amm.get_sum_xy(user)[0]
@@ -107,8 +112,8 @@ def test_liquidate_callback(accounts, admin, stablecoin, controller_for_liquidat
         b = stablecoin.balanceOf(fee_receiver)
         stablecoin.transfer(fake_leverage.address, b)
         try:
-            controller.liquidate_extended(user, x * frac // 10**18, frac, True,
-                                          fake_leverage.address, deleverage_method, [b * frac // 10**18])
+            controller.liquidate_extended(user, int(0.999 * f * x / 1e18), frac, True,
+                                          fake_leverage.address, deleverage_method, [])
         except BoaError as e:
             if frac == 0 and "Loan doesn't exist" in str(e):
                 pass
