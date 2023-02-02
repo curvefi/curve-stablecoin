@@ -1,7 +1,11 @@
 import pytest
 import boa
-from ..conftest import approx
+from boa.vyper.contract import BoaError
+from hypothesis import given, settings
+from hypothesis import strategies as st
+from datetime import timedelta
 from vyper.utils import abi_method_id
+from ..conftest import approx
 
 
 N = 5
@@ -84,7 +88,9 @@ def test_liquidate(accounts, admin, controller_for_liquidation, market_amm):
             controller.liquidate(user, x)
 
 
-def test_liquidate_callback(accounts, admin, stablecoin, controller_for_liquidation, market_amm, fake_leverage):
+@given(frac=st.integers(min_value=0, max_value=11 * 10**17))
+@settings(deadline=timedelta(seconds=1000))
+def test_liquidate_callback(accounts, admin, stablecoin, controller_for_liquidation, market_amm, fake_leverage, frac):
     user = admin
     fee_receiver = accounts[0]
     deleverage_method = get_method_id("liquidate(address,uint256,uint256,uint256,uint256[])")  # min_amount for stablecoins
@@ -100,8 +106,14 @@ def test_liquidate_callback(accounts, admin, stablecoin, controller_for_liquidat
             controller.liquidate(user, x + 1)
         b = stablecoin.balanceOf(fee_receiver)
         stablecoin.transfer(fake_leverage.address, b)
-        controller.liquidate_extended(user, x, 10**18, True,
-                                      fake_leverage.address, deleverage_method, [b])
+        try:
+            controller.liquidate_extended(user, x * frac // 10**18, frac, True,
+                                          fake_leverage.address, deleverage_method, [b * frac // 10**18])
+        except BoaError as e:
+            if frac == 0 and "Loan doesn't exist" in str(e):
+                pass
+            else:
+                raise
 
 
 def test_self_liquidate(accounts, admin, controller_for_liquidation, market_amm, stablecoin):
