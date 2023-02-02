@@ -981,11 +981,12 @@ def _liquidate(user: address, min_x: uint256, health_limit: uint256, frac: uint2
 
     # Withdraw sender's stablecoin and collateral to our contract
     # When frac is set - we withdraw a bit less for the same debt fraction
-    # f_remove = (1 + h/2) / (1 + h)
+    # f_remove = (1 + h/2) / (1 + h) * frac
+    # where h is health limit.
     # This is less than full h discount but more than no discount
     f_remove: uint256 = 10**18
     if frac < 10**18:
-        f_remove = unsafe_div(unsafe_mul(unsafe_add(10**18, unsafe_div(health_limit, 2)), 10**18), unsafe_add(10**18, health_limit))
+        f_remove = unsafe_div(unsafe_mul(unsafe_add(10**18, unsafe_div(health_limit, 2)), frac), unsafe_add(10**18, health_limit))
     xy: uint256[2] = AMM.withdraw(user, f_remove)  # [stable, collateral]
 
     # x increase in same block -> price up -> good
