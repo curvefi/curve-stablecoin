@@ -89,16 +89,20 @@ def test_liquidate(accounts, admin, controller_for_liquidation, market_amm):
 
 
 @given(frac=st.integers(min_value=0, max_value=11 * 10**17))
-@settings(deadline=timedelta(seconds=1000))
-def test_liquidate_callback(accounts, admin, stablecoin, controller_for_liquidation, market_amm, fake_leverage, frac):
+@settings(deadline=timedelta(seconds=1000), max_examples=200)
+def test_liquidate_callback(accounts, admin, stablecoin, collateral_token, controller_for_liquidation, market_amm, fake_leverage, frac):
     user = admin
     fee_receiver = accounts[0]
-    deleverage_method = get_method_id("liquidate(address,uint256,uint256,uint256,uint256[])")  # min_amount for stablecoins
+    liquidate_method = get_method_id("liquidate(address,uint256,uint256,uint256,uint256[])")  # min_amount for stablecoins
     ld = int(0.02 * 1e18)
     if frac < 10**18:
         f = (10**18 + ld // 2) * frac // (10**18 + ld) // 5 * 5  # The latter part is rounding off for multiple bands
     else:
         f = 10**18
+    # Partial liquidation improves health.
+    # In case AMM has stablecoins in addition to collateral (our test), it means more stablecoins there.
+    # But that requires more stablecoins than exist.
+    # Therefore, we make more stablecoins if liquidation is partial
 
     controller = controller_for_liquidation(sleep_time=80 * 86400, discount=0)
     x = market_amm.get_sum_xy(user)[0]
@@ -106,14 +110,24 @@ def test_liquidate_callback(accounts, admin, stablecoin, controller_for_liquidat
     with boa.env.prank(fee_receiver):
         # Prepare stablecoins to use for liquidation
         # we do it by borrowing
+        if f != 10**18:
+            with boa.env.prank(fee_receiver):
+                collateral_token._mint_for_testing(fee_receiver, 10**18)
+                collateral_token.approve(controller.address, 2**256-1)
+                debt2 = controller.max_borrowable(10**18, 5) // 2  # XXX waaat this doesn't work without /2
+                controller.create_loan(10**18, debt2, 5)
+                stablecoin.transfer(fake_leverage.address, debt2)
 
         with boa.reverts("Slippage"):
             controller.liquidate(user, x + 1)
         b = stablecoin.balanceOf(fee_receiver)
         stablecoin.transfer(fake_leverage.address, b)
+        health_before = controller.health(user)
         try:
             controller.liquidate_extended(user, int(0.999 * f * x / 1e18), frac, True,
-                                          fake_leverage.address, deleverage_method, [])
+                                          fake_leverage.address, liquidate_method, [])
+            if f != 10**18 and f > 0:
+                assert controller.health(user) > health_before
         except BoaError as e:
             if frac == 0 and "Loan doesn't exist" in str(e):
                 pass
