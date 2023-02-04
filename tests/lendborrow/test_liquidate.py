@@ -126,7 +126,8 @@ def test_liquidate_callback(accounts, admin, stablecoin, collateral_token, contr
         try:
             controller.liquidate_extended(user, int(0.999 * f * x / 1e18), frac, True,
                                           fake_leverage.address, liquidate_method, [])
-            # XXX check balances
+            # We initialized it in a way causing a bad debt (!)
+            # Need to have debt being not bad to measure if we had a positive profit
             if f != 10**18 and f > 0:
                 assert controller.health(user) > health_before
         except BoaError as e:

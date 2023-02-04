@@ -40,6 +40,5 @@ def deleverage(user: address, stablecoins: uint256, collateral: uint256, debt: u
 
 
 @external
-def liquidate(user: address, stablecoins: uint256, collateral: uint256, debt: uint256, extra_args: DynArray[uint256, 5]) -> uint256[2]:
-    s_diff: uint256 = debt - stablecoins
-    return [s_diff, collateral]
+def liquidate(sender: address, stablecoins: uint256, collateral: uint256, debt: uint256, extra_args: DynArray[uint256, 5]) -> uint256[2]:
+    return [STABLECOIN.balanceOf(self), collateral]
