@@ -3,6 +3,7 @@
 interface LLAMMA:
     def A() -> uint256: view
     def get_p() -> uint256: view
+    def get_base_price() -> uint256: view
     def active_band() -> int256: view
     def active_band_with_skip() -> int256: view
     def p_oracle_up(n: int256) -> uint256: view
@@ -117,6 +118,7 @@ MAX_TICKS: constant(int256) = 50
 MAX_TICKS_UINT: constant(uint256) = 50
 MIN_TICKS: constant(int256) = 5
 MAX_SKIP_TICKS: constant(uint256) = 1024
+MAX_P_BASE_BANDS: constant(int256) = 5
 
 MAX_RATE: constant(uint256) = 43959106799  # 400% APY
 
@@ -417,9 +419,10 @@ def max_p_base() -> uint256:
     """
     @notice Calculate max base price including skipping bands
     """
-    n1: int256 = AMM.active_band() + 5  # Should be correct unless price changes suddenly by 5+ bands
-    p_base: uint256 = AMM.p_oracle_up(n1)
     p_oracle: uint256 = AMM.price_oracle()
+    # Should be correct unless price changes suddenly by MAX_P_BASE_BANDS+ bands
+    n1: int256 = unsafe_div(self.log2(AMM.get_base_price() * 10**18 / p_oracle), LOG2_A_RATIO) + MAX_P_BASE_BANDS
+    p_base: uint256 = AMM.p_oracle_up(n1)
     n_min: int256 = AMM.active_band_with_skip()
 
     for i in range(MAX_SKIP_TICKS + 1):

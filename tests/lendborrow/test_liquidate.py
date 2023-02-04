@@ -114,7 +114,7 @@ def test_liquidate_callback(accounts, admin, stablecoin, collateral_token, contr
             with boa.env.prank(fee_receiver):
                 collateral_token._mint_for_testing(fee_receiver, 10**18)
                 collateral_token.approve(controller.address, 2**256-1)
-                debt2 = controller.max_borrowable(10**18, 5) // 2  # XXX waaat this doesn't work without /2
+                debt2 = controller.max_borrowable(10**18, 5)
                 controller.create_loan(10**18, debt2, 5)
                 stablecoin.transfer(fake_leverage.address, debt2)
 
@@ -126,6 +126,7 @@ def test_liquidate_callback(accounts, admin, stablecoin, collateral_token, contr
         try:
             controller.liquidate_extended(user, int(0.999 * f * x / 1e18), frac, True,
                                           fake_leverage.address, liquidate_method, [])
+            # XXX check balances
             if f != 10**18 and f > 0:
                 assert controller.health(user) > health_before
         except BoaError as e:
