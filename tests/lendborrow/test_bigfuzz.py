@@ -102,7 +102,11 @@ class BigFuzz(RuleBasedStateMachine):
                     assert debt < max_debt * (self.A / (self.A - 1))**0.4
                 return
             else:
-                self.market_controller.create_loan(y, debt, n)
+                try:
+                    self.market_controller.create_loan(y, debt, n)
+                except BoaError:
+                    assert y * ratio < n * 1000
+                    return
             self.stablecoin.transfer(self.accounts[0], debt)
 
     @rule(ratio=ratio, uid=user_id)
