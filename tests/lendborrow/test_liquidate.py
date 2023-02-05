@@ -104,7 +104,8 @@ def test_liquidate_callback(accounts, admin, stablecoin, collateral_token, contr
     # But that requires more stablecoins than exist.
     # Therefore, we make more stablecoins if liquidation is partial
 
-    controller = controller_for_liquidation(sleep_time=80 * 86400, discount=0)
+    controller = controller_for_liquidation(sleep_time=45 * 86400, discount=0)
+    # Health here is not too bad, so we still can profitably liquidate
     x = market_amm.get_sum_xy(user)[0]
 
     with boa.env.prank(fee_receiver):
@@ -124,10 +125,14 @@ def test_liquidate_callback(accounts, admin, stablecoin, collateral_token, contr
         stablecoin.transfer(fake_leverage.address, b)
         health_before = controller.health(user)
         try:
+            dy = collateral_token.balanceOf(fee_receiver)
             controller.liquidate_extended(user, int(0.999 * f * x / 1e18), frac, True,
                                           fake_leverage.address, liquidate_method, [])
-            # We initialized it in a way causing a bad debt (!)
-            # Need to have debt being not bad to measure if we had a positive profit
+            dy = collateral_token.balanceOf(fee_receiver) - dy
+            dx = stablecoin.balanceOf(fee_receiver) - b
+            if f > 0:
+                p = market_amm.get_p() / 1e18
+                assert dy * p + dx > 0, "Liquidator didn't make money"
             if f != 10**18 and f > 0:
                 assert controller.health(user) > health_before
         except BoaError as e:
