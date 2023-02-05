@@ -595,3 +595,14 @@ def test_borrow_zero_norevert(
     state.change_debt_ceiling(d_ceil=-971681365220921345835009)
     # Important that we borrow 0 after changing the debt ceiling
     state.borrow_more(ratio=0.0, uid=0, y=0)
+
+
+def test_debt_too_high_3(
+        controller_factory, market_amm, market_controller, monetary_policy, collateral_token, stablecoin, price_oracle, accounts, admin):
+    for k, v in locals().items():
+        setattr(BigFuzz, k, v)
+    state = BigFuzz()
+    state.rule_change_rate(rate=0)
+    state.deposit(n=5, ratio=0.5, uid=0, y=505)
+    state.trade(is_pump=True, r=1.0, uid=0)
+    state.deposit(n=5, ratio=0.5, uid=1, y=505)
