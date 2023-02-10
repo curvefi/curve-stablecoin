@@ -21,6 +21,13 @@ def __init__(stablecoin_token: ERC20, collateral_token: ERC20, controller: addre
 
 
 @external
+def approve_all():
+    # Don't do this at home - only for tests!
+    STABLECOIN.approve(msg.sender, max_value(uint256))
+    COLLATERAL.approve(msg.sender, max_value(uint256))
+
+
+@external
 def leverage(user: address, stablecoins_no_use: uint256, collateral: uint256, debt: uint256, extra_args: DynArray[uint256, 5]) -> uint256[2]:
     min_amount: uint256 = extra_args[0]
     assert STABLECOIN.balanceOf(self) >= debt

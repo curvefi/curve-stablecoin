@@ -3,6 +3,7 @@ from boa.vyper.contract import BoaError
 from hypothesis import settings
 from hypothesis import strategies as st
 from hypothesis.stateful import RuleBasedStateMachine, run_state_machine_as_test, rule, invariant
+from .conftest import get_method_id
 from datetime import timedelta
 
 
@@ -18,6 +19,8 @@ from datetime import timedelta
 # * collect AMM fees
 
 ZERO_ADDRESS = "0x0000000000000000000000000000000000000000"
+USE_FRACTION = 1
+USE_CALLBACKS = 2
 
 
 class BigFuzz(RuleBasedStateMachine):
@@ -36,8 +39,10 @@ class BigFuzz(RuleBasedStateMachine):
 
     debt_ceiling_change = st.integers(min_value=-10**6 * 10**18, max_value=10**6 * 10**18)
 
-    is_extended = st.booleans()
+    extended_mode = st.integers(min_value=0, max_value=2)
     liquidate_frac = st.integers(min_value=0, max_value=10**18 + 1)
+
+    liquidate_method = get_method_id("liquidate(address,uint256,uint256,uint256,uint256[])")
 
     def __init__(self):
         super().__init__()
@@ -252,8 +257,8 @@ class BigFuzz(RuleBasedStateMachine):
         self.remove_stablecoins(user)
 
     # Liquidations
-    @rule(is_extended=is_extended, frac=liquidate_frac)
-    def self_liquidate_and_health(self, is_extended, frac):
+    @rule(emode=extended_mode, frac=liquidate_frac)
+    def self_liquidate_and_health(self, emode, frac):
         for user in self.accounts:
             try:
                 health = self.market_controller.health(user)
@@ -263,9 +268,14 @@ class BigFuzz(RuleBasedStateMachine):
             if self.market_controller.loan_exists(user) and health <= 0:
                 self.get_stablecoins(user)
                 with boa.env.prank(user):
-                    if is_extended:
+                    if emode == USE_FRACTION:
                         self.market_controller.liquidate_extended(
                                 user, 0, frac, True, ZERO_ADDRESS, b'\x00'*32, [])
+                    elif emode == USE_CALLBACKS:
+                        self.stablecoin.transfer(self.fake_leverage.address, self.stablecoin.balanceOf(user))
+                        self.market_controller.liquidate_extended(
+                                user, 0, frac, True,
+                                self.fake_leverage.address, self.liquidate_method, [])
                     else:
                         self.market_controller.liquidate(user, 0)
                 self.remove_stablecoins(user)
@@ -273,8 +283,8 @@ class BigFuzz(RuleBasedStateMachine):
                 with boa.reverts():
                     self.market_controller.health(user)
 
-    @rule(uid=user_id, luid=liquidator_id, is_extended=is_extended, frac=liquidate_frac)
-    def liquidate(self, uid, luid, is_extended, frac):
+    @rule(uid=user_id, luid=liquidator_id, emode=extended_mode, frac=liquidate_frac)
+    def liquidate(self, uid, luid, emode, frac):
         user = self.accounts[uid]
         liquidator = self.accounts[luid]
         if user == liquidator:
@@ -284,7 +294,7 @@ class BigFuzz(RuleBasedStateMachine):
         if not self.market_controller.loan_exists(user):
             with boa.env.prank(liquidator):
                 with boa.reverts():
-                    if is_extended:
+                    if emode:
                         self.market_controller.liquidate_extended(
                                 user, 0, frac, True, ZERO_ADDRESS, b'\x00'*32, [])
                     else:
@@ -298,13 +308,13 @@ class BigFuzz(RuleBasedStateMachine):
             with boa.env.prank(liquidator):
                 if health >= health_limit:
                     with boa.reverts():
-                        if is_extended:
+                        if emode:
                             self.market_controller.liquidate_extended(
                                     user, 0, frac, True, ZERO_ADDRESS, b'\x00'*32, [])
                         else:
                             self.market_controller.liquidate(user, 0)
                 else:
-                    if is_extended:
+                    if emode:
                         self.market_controller.liquidate_extended(
                                 user, 0, frac, True, ZERO_ADDRESS, b'\x00'*32, [])
                     else:
@@ -371,15 +381,17 @@ class BigFuzz(RuleBasedStateMachine):
 
 
 def test_big_fuzz(
-        controller_factory, market_amm, market_controller, monetary_policy, collateral_token, stablecoin, price_oracle, accounts, admin):
+        controller_factory, market_amm, market_controller, monetary_policy, collateral_token, stablecoin, price_oracle, accounts, fake_leverage, admin):
     BigFuzz.TestCase.settings = settings(max_examples=2500, stateful_step_count=20, deadline=timedelta(seconds=1000))
+    # Or quick check
+    # BigFuzz.TestCase.settings = settings(max_examples=25, stateful_step_count=20, deadline=timedelta(seconds=1000))
     for k, v in locals().items():
         setattr(BigFuzz, k, v)
     run_state_machine_as_test(BigFuzz)
 
 
 def test_noraise(
-        controller_factory, market_amm, market_controller, monetary_policy, collateral_token, stablecoin, price_oracle, accounts, admin):
+        controller_factory, market_amm, market_controller, monetary_policy, collateral_token, stablecoin, price_oracle, accounts, fake_leverage, admin):
     for k, v in locals().items():
         setattr(BigFuzz, k, v)
     with boa.env.anchor():
@@ -393,7 +405,7 @@ def test_noraise(
 
 
 def test_noraise_2(
-        controller_factory, market_amm, market_controller, monetary_policy, collateral_token, stablecoin, price_oracle, accounts, admin):
+        controller_factory, market_amm, market_controller, monetary_policy, collateral_token, stablecoin, price_oracle, accounts, fake_leverage, admin):
     # This is due to evmdiv working not like floor div (fixed)
     for k, v in locals().items():
         setattr(BigFuzz, k, v)
@@ -404,7 +416,7 @@ def test_noraise_2(
 
 
 def test_exchange_fails(
-        controller_factory, market_amm, market_controller, monetary_policy, collateral_token, stablecoin, price_oracle, accounts, admin):
+        controller_factory, market_amm, market_controller, monetary_policy, collateral_token, stablecoin, price_oracle, accounts, fake_leverage, admin):
     # This is due to evmdiv working not like floor div (fixed)
     for k, v in locals().items():
         setattr(BigFuzz, k, v)
@@ -425,7 +437,7 @@ def test_exchange_fails(
 
 
 def test_noraise_3(
-        controller_factory, market_amm, market_controller, monetary_policy, collateral_token, stablecoin, price_oracle, accounts, admin):
+        controller_factory, market_amm, market_controller, monetary_policy, collateral_token, stablecoin, price_oracle, accounts, fake_leverage, admin):
     for k, v in locals().items():
         setattr(BigFuzz, k, v)
     with boa.env.anchor():
@@ -435,7 +447,7 @@ def test_noraise_3(
 
 
 def test_repay_error_1(
-        controller_factory, market_amm, market_controller, monetary_policy, collateral_token, stablecoin, price_oracle, accounts, admin):
+        controller_factory, market_amm, market_controller, monetary_policy, collateral_token, stablecoin, price_oracle, accounts, fake_leverage, admin):
     for k, v in locals().items():
         setattr(BigFuzz, k, v)
     with boa.env.anchor():
@@ -446,7 +458,7 @@ def test_repay_error_1(
 
 
 def test_not_enough_collateral(
-        controller_factory, market_amm, market_controller, monetary_policy, collateral_token, stablecoin, price_oracle, accounts, admin):
+        controller_factory, market_amm, market_controller, monetary_policy, collateral_token, stablecoin, price_oracle, accounts, fake_leverage, admin):
     for k, v in locals().items():
         setattr(BigFuzz, k, v)
     with boa.env.anchor():
@@ -461,7 +473,7 @@ def test_not_enough_collateral(
 
 
 def test_noraise_4(
-        controller_factory, market_amm, market_controller, monetary_policy, collateral_token, stablecoin, price_oracle, accounts, admin):
+        controller_factory, market_amm, market_controller, monetary_policy, collateral_token, stablecoin, price_oracle, accounts, fake_leverage, admin):
     for k, v in locals().items():
         setattr(BigFuzz, k, v)
     with boa.env.anchor():
@@ -472,7 +484,7 @@ def test_noraise_4(
 
 
 def test_debt_nonequal(
-        controller_factory, market_amm, market_controller, monetary_policy, collateral_token, stablecoin, price_oracle, accounts, admin):
+        controller_factory, market_amm, market_controller, monetary_policy, collateral_token, stablecoin, price_oracle, accounts, fake_leverage, admin):
     for k, v in locals().items():
         setattr(BigFuzz, k, v)
     with boa.env.anchor():
@@ -484,15 +496,15 @@ def test_debt_nonequal(
 
 
 def test_noraise_5(
-        controller_factory, market_amm, market_controller, monetary_policy, collateral_token, stablecoin, price_oracle, accounts, admin):
+        controller_factory, market_amm, market_controller, monetary_policy, collateral_token, stablecoin, price_oracle, accounts, fake_leverage, admin):
     for k, v in locals().items():
         setattr(BigFuzz, k, v)
     with boa.env.anchor():
         state = BigFuzz()
         state.debt_supply()
-        state.self_liquidate_and_health(False, 0)
+        state.self_liquidate_and_health(0, 0)
         state.debt_supply()
-        state.self_liquidate_and_health(False, 0)
+        state.self_liquidate_and_health(0, 0)
         state.debt_supply()
         state.deposit(n=9, ratio=0.5, uid=1, y=5131452002964343839)
         state.debt_supply()
@@ -500,7 +512,7 @@ def test_noraise_5(
 
 
 def test_add_collateral_fail(
-        controller_factory, market_amm, market_controller, monetary_policy, collateral_token, stablecoin, price_oracle, accounts, admin):
+        controller_factory, market_amm, market_controller, monetary_policy, collateral_token, stablecoin, price_oracle, accounts, fake_leverage, admin):
     for k, v in locals().items():
         setattr(BigFuzz, k, v)
     with boa.env.anchor():
@@ -524,7 +536,7 @@ def test_add_collateral_fail(
 
 
 def test_debt_eq_repay_no_coins(
-        controller_factory, market_amm, market_controller, monetary_policy, collateral_token, stablecoin, price_oracle, accounts, admin):
+        controller_factory, market_amm, market_controller, monetary_policy, collateral_token, stablecoin, price_oracle, accounts, fake_leverage, admin):
     for k, v in locals().items():
         setattr(BigFuzz, k, v)
     with boa.env.anchor():
@@ -544,7 +556,7 @@ def test_debt_eq_repay_no_coins(
 
 
 def test_amount_not_too_low(
-        controller_factory, market_amm, market_controller, monetary_policy, collateral_token, stablecoin, price_oracle, accounts, admin):
+        controller_factory, market_amm, market_controller, monetary_policy, collateral_token, stablecoin, price_oracle, accounts, fake_leverage, admin):
     for k, v in locals().items():
         setattr(BigFuzz, k, v)
     with boa.env.anchor():
@@ -556,7 +568,7 @@ def test_amount_not_too_low(
 
 
 def test_debt_too_high(
-        controller_factory, market_amm, market_controller, monetary_policy, collateral_token, stablecoin, price_oracle, accounts, admin):
+        controller_factory, market_amm, market_controller, monetary_policy, collateral_token, stablecoin, price_oracle, accounts, fake_leverage, admin):
     for k, v in locals().items():
         setattr(BigFuzz, k, v)
     with boa.env.anchor():
@@ -568,7 +580,7 @@ def test_debt_too_high(
 
 
 def test_debt_too_high_2(
-        controller_factory, market_amm, market_controller, monetary_policy, collateral_token, stablecoin, price_oracle, accounts, admin):
+        controller_factory, market_amm, market_controller, monetary_policy, collateral_token, stablecoin, price_oracle, accounts, fake_leverage, admin):
     for k, v in locals().items():
         setattr(BigFuzz, k, v)
     with boa.env.anchor():
@@ -579,7 +591,7 @@ def test_debt_too_high_2(
 
 
 def test_change_debt_ceiling_error(
-        controller_factory, market_amm, market_controller, monetary_policy, collateral_token, stablecoin, price_oracle, accounts, admin):
+        controller_factory, market_amm, market_controller, monetary_policy, collateral_token, stablecoin, price_oracle, accounts, fake_leverage, admin):
     for k, v in locals().items():
         setattr(BigFuzz, k, v)
     state = BigFuzz()
@@ -591,7 +603,7 @@ def test_change_debt_ceiling_error(
 
 
 def test_borrow_zero_norevert(
-        controller_factory, market_amm, market_controller, monetary_policy, collateral_token, stablecoin, price_oracle, accounts, admin):
+        controller_factory, market_amm, market_controller, monetary_policy, collateral_token, stablecoin, price_oracle, accounts, fake_leverage, admin):
     for k, v in locals().items():
         setattr(BigFuzz, k, v)
     state = BigFuzz()
@@ -602,7 +614,7 @@ def test_borrow_zero_norevert(
 
 
 def test_debt_too_high_3(
-        controller_factory, market_amm, market_controller, monetary_policy, collateral_token, stablecoin, price_oracle, accounts, admin):
+        controller_factory, market_amm, market_controller, monetary_policy, collateral_token, stablecoin, price_oracle, accounts, fake_leverage, admin):
     for k, v in locals().items():
         setattr(BigFuzz, k, v)
     state = BigFuzz()
@@ -610,3 +622,19 @@ def test_debt_too_high_3(
     state.deposit(n=5, ratio=0.5, uid=0, y=505)
     state.trade(is_pump=True, r=1.0, uid=0)
     state.deposit(n=5, ratio=0.5, uid=1, y=505)
+
+
+def test_debt_too_high_4(
+        controller_factory, market_amm, market_controller, monetary_policy, collateral_token, stablecoin, price_oracle, accounts, fake_leverage, admin):
+    for k, v in locals().items():
+        setattr(BigFuzz, k, v)
+    state = BigFuzz()
+    state.debt_supply()
+    state.minted_redeemed()
+    state.deposit(n=5, ratio=0.5, uid=1, y=36893488147419103232)
+    state.debt_supply()
+    state.minted_redeemed()
+    state.trade(is_pump=True, r=1.0, uid=0)
+    state.debt_supply()
+    state.minted_redeemed()
+    state.deposit(n=5, ratio=0.5, uid=0, y=10009)

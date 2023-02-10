@@ -1,20 +1,5 @@
 import boa
-import pytest
-from vyper.utils import abi_method_id
-
-
-def get_method_id(desc):
-    return abi_method_id(desc).to_bytes(4, 'big') + b'\x00' * 28
-
-
-@pytest.fixture(scope="module")
-def fake_leverage(stablecoin, collateral_token, market_controller, admin):
-    with boa.env.prank(admin):
-        leverage = boa.load('contracts/testing/FakeLeverage.vy', stablecoin.address, collateral_token.address,
-                            market_controller.address, 3000 * 10**18)
-        boa.env.set_balance(admin, 1000 * 10**18)
-        collateral_token._mint_for_testing(leverage.address, 1000 * 10**18)
-        return leverage
+from .conftest import get_method_id
 
 
 def test_leverage(collateral_token, stablecoin, market_controller, market_amm, fake_leverage, accounts):
