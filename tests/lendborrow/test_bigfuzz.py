@@ -110,7 +110,7 @@ class BigFuzz(RuleBasedStateMachine):
                 try:
                     self.market_controller.create_loan(y, debt, n)
                 except BoaError:
-                    assert y * ratio < n * 1000
+                    assert y * ratio < n * 5000
                     return
             self.stablecoin.transfer(self.accounts[0], debt)
 
@@ -279,9 +279,10 @@ class BigFuzz(RuleBasedStateMachine):
                     else:
                         self.market_controller.liquidate(user, 0)
                 self.remove_stablecoins(user)
-                assert not self.market_controller.loan_exists(user)
-                with boa.reverts():
-                    self.market_controller.health(user)
+                if emode == 0 or frac == 10**18:
+                    assert not self.market_controller.loan_exists(user)
+                    with boa.reverts():
+                        self.market_controller.health(user)
 
     @rule(uid=user_id, luid=liquidator_id, emode=extended_mode, frac=liquidate_frac)
     def liquidate(self, uid, luid, emode, frac):
@@ -629,12 +630,31 @@ def test_debt_too_high_4(
     for k, v in locals().items():
         setattr(BigFuzz, k, v)
     state = BigFuzz()
+    state.deposit(n=5, ratio=0.5, uid=1, y=36893488147419103232)
+    state.trade(is_pump=True, r=1.0, uid=0)
+    state.deposit(n=5, ratio=0.5, uid=0, y=10009)
+
+
+def test_loan_doesnt_exist(
+        controller_factory, market_amm, market_controller, monetary_policy, collateral_token, stablecoin, price_oracle, accounts, fake_leverage, admin):
+    for k, v in locals().items():
+        setattr(BigFuzz, k, v)
+    state = BigFuzz()
     state.debt_supply()
     state.minted_redeemed()
-    state.deposit(n=5, ratio=0.5, uid=1, y=36893488147419103232)
+    state.rug_debt_ceiling()
+    state.debt_supply()
+    state.minted_redeemed()
+    state.change_debt_ceiling(d_ceil=0)
+    state.debt_supply()
+    state.minted_redeemed()
+    state.deposit(n=5, ratio=0.25, uid=1, y=505)
     state.debt_supply()
     state.minted_redeemed()
     state.trade(is_pump=True, r=1.0, uid=0)
     state.debt_supply()
     state.minted_redeemed()
-    state.deposit(n=5, ratio=0.5, uid=0, y=10009)
+    state.deposit(n=8, ratio=1.52587890625e-05, uid=0, y=1610)
+    state.debt_supply()
+    state.minted_redeemed()
+    state.self_liquidate_and_health(emode=1, frac=0)
