@@ -849,8 +849,7 @@ def repay_extended(callbacker: address, callback_sig: bytes32, callback_args: Dy
         liquidation_discount: uint256 = self.liquidation_discount
         self.liquidation_discounts[msg.sender] = liquidation_discount
 
-        if cb.collateral > 0:
-            assert COLLATERAL_TOKEN.transferFrom(callbacker, AMM.address, cb.collateral, default_return_value=True)
+        assert COLLATERAL_TOKEN.transferFrom(callbacker, AMM.address, cb.collateral, default_return_value=True)
         # Stablecoin is all spent to repay debt -> all goes to self
         STABLECOIN.transferFrom(callbacker, self, cb.stablecoins)
         # We are above active band, so xy[0] is 0 anyway
