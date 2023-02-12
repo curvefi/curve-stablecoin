@@ -821,6 +821,7 @@ def repay_extended(callbacker: address, callback_sig: bytes32, callback_args: Dy
     # If we have more stablecoins than the debt - full repayment and closing the position
     if total_stablecoins >= debt:
         d_debt = debt
+        debt = 0
         self._remove_from_list(msg.sender)
 
         # Transfer debt to self, everything else to sender
@@ -828,8 +829,8 @@ def repay_extended(callbacker: address, callback_sig: bytes32, callback_args: Dy
             STABLECOIN.transferFrom(callbacker, self, cb.stablecoins)
         if xy[0] > 0:
             STABLECOIN.transferFrom(AMM.address, self, xy[0])
-        if total_stablecoins > debt:
-            STABLECOIN.transfer(msg.sender, unsafe_sub(total_stablecoins, debt))
+        if total_stablecoins > d_debt:
+            STABLECOIN.transfer(msg.sender, unsafe_sub(total_stablecoins, d_debt))
         if cb.collateral > 0:
             assert COLLATERAL_TOKEN.transferFrom(callbacker, msg.sender, cb.collateral, default_return_value=True)
 
@@ -860,7 +861,7 @@ def repay_extended(callbacker: address, callback_sig: bytes32, callback_args: Dy
     # Common calls which we will do regardless of whether it's a full repay or not
     log Repay(msg.sender, xy[1], d_debt)
     self.redeemed += d_debt
-    self.loan[msg.sender] = Loan({initial_debt: unsafe_sub(debt, d_debt), rate_mul: rate_mul})
+    self.loan[msg.sender] = Loan({initial_debt: debt, rate_mul: rate_mul})
     total_debt: uint256 = self._total_debt.initial_debt * rate_mul / self._total_debt.rate_mul
     self._total_debt.initial_debt = unsafe_sub(max(total_debt, d_debt), d_debt)
     self._total_debt.rate_mul = rate_mul
