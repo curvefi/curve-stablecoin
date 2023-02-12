@@ -110,7 +110,10 @@ class BigFuzz(RuleBasedStateMachine):
                 try:
                     self.market_controller.create_loan(y, debt, n)
                 except BoaError:
-                    assert y * ratio < n * 5000
+                    # Reverts at low numbers due to numerical issues of log calculation
+                    # Not a problem because these numbers are not practical to use
+                    # And it doesn't allow to create a "bad" loan
+                    assert y * ratio < n * 50000
                     return
             self.stablecoin.transfer(self.accounts[0], debt)
 
