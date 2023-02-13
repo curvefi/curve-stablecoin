@@ -655,9 +655,10 @@ def test_debt_too_high_4(
     for k, v in locals().items():
         setattr(BigFuzz, k, v)
     state = BigFuzz()
-    state.deposit(n=5, ratio=0.5, uid=1, y=36893488147419103232)
+    state.deposit(n=5, ratio=0.3684895833333333, uid=0, y=57525)
+    state.trade(is_pump=False, r=1.1, uid=0)
     state.trade(is_pump=True, r=1.0, uid=0)
-    state.deposit(n=5, ratio=0.5, uid=0, y=10009)
+    state.deposit(n=5, ratio=0.5624999999999999, uid=1, y=757895)
 
 
 def test_loan_doesnt_exist(
