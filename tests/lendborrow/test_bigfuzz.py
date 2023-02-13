@@ -113,7 +113,10 @@ class BigFuzz(RuleBasedStateMachine):
                     # Reverts at low numbers due to numerical issues of log calculation
                     # Not a problem because these numbers are not practical to use
                     # And it doesn't allow to create a "bad" loan
-                    assert y * ratio < n * 50000
+                    p_o = self.market_amm.price_oracle()
+                    p = self.market_amm.get_p()
+                    # Another reason - price increase being too large to handle without oracle following it
+                    assert y * ratio < n * 500 or p > p_o
                     return
             self.stablecoin.transfer(self.accounts[0], debt)
 
