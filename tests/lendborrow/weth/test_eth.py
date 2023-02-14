@@ -1,40 +1,6 @@
 import boa
 import pytest
-from ..conftest import approx
-
-
-# +++ WETH-specific fixtures +++
-@pytest.fixture(scope="module")
-def market(controller_factory, weth, monetary_policy, price_oracle, admin):
-    with boa.env.prank(admin):
-        if controller_factory.n_collaterals() == 0:
-            controller_factory.add_market(
-                weth.address, 100, 10**16, 0,
-                price_oracle.address,
-                monetary_policy.address, 5 * 10**16, 2 * 10**16,
-                10**6 * 10**18)
-        return controller_factory
-
-
-@pytest.fixture(scope="module")
-def market_amm(market, weth, stablecoin, amm_impl, amm_interface, accounts):
-    amm = amm_interface.at(market.get_amm(weth.address))
-    for acc in accounts:
-        with boa.env.prank(acc):
-            weth.approve(amm.address, 2**256-1)
-            stablecoin.approve(amm.address, 2**256-1)
-    return amm
-
-
-@pytest.fixture(scope="module")
-def market_controller(market, stablecoin, weth, controller_impl, controller_interface, controller_factory, accounts):
-    controller = controller_interface.at(market.get_controller(weth.address))
-    for acc in accounts:
-        with boa.env.prank(acc):
-            weth.approve(controller.address, 2**256-1)
-            stablecoin.approve(controller.address, 2**256-1)
-    return controller
-# ^^^ WETH-specific fixtures ^^^
+from ...conftest import approx
 
 
 def test_create_loan(stablecoin, weth, market_controller, market_amm, accounts):
