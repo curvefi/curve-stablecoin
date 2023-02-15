@@ -886,10 +886,6 @@ def calc_swap_out(pump: bool, in_amount: uint256, p_o: uint256, in_precision: ui
     out.in_amount = unsafe_mul(unsafe_div(unsafe_add(out.in_amount, unsafe_sub(in_precision, 1)), in_precision), in_precision)
     out.out_amount = unsafe_mul(unsafe_div(out.out_amount, out_precision), out_precision)
 
-    # If out_amount is zeroed because of rounding off - don't charge admin fees
-    if out.out_amount == 0:
-        out.admin_fee = 0
-
     return out
 
 
@@ -988,11 +984,6 @@ def _exchange(i: uint256, j: uint256, amount: uint256, minmax_amount: uint256, _
         out = self.calc_swap_out(i == 0, amount * in_precision, self.price_oracle_contract.price_w(), in_precision, out_precision)
     else:
         out = self.calc_swap_in(i == 0, amount * out_precision, self.price_oracle_contract.price_w(), in_precision, out_precision)
-    out.admin_fee = unsafe_div(out.admin_fee, in_precision)
-    if i == 0:
-        self.admin_fees_x += out.admin_fee
-    else:
-        self.admin_fees_y += out.admin_fee
     in_amount_done: uint256 = unsafe_div(out.in_amount, in_precision)
     out_amount_done: uint256 = unsafe_div(out.out_amount, out_precision)
     if use_in_amount:
@@ -1001,6 +992,12 @@ def _exchange(i: uint256, j: uint256, amount: uint256, minmax_amount: uint256, _
         assert in_amount_done <= minmax_amount, "Slippage"
     if out_amount_done == 0:
         return [0, 0]
+
+    out.admin_fee = unsafe_div(out.admin_fee, in_precision)
+    if i == 0:
+        self.admin_fees_x += out.admin_fee
+    else:
+        self.admin_fees_y += out.admin_fee
 
     assert in_coin.transferFrom(msg.sender, self, in_amount_done, default_return_value=True)
     assert out_coin.transfer(_for, out_amount_done, default_return_value=True)
@@ -1168,10 +1165,6 @@ def calc_swap_in(pump: bool, out_amount: uint256, p_o: uint256, in_precision: ui
     # ceil(in_amount_used/BORROWED_PRECISION) * BORROWED_PRECISION
     out.in_amount = unsafe_mul(unsafe_div(unsafe_add(out.in_amount, unsafe_sub(in_precision, 1)), in_precision), in_precision)
     out.out_amount = unsafe_mul(unsafe_div(out.out_amount, out_precision), out_precision)
-
-    # If out_amount is zeroed because of rounding off - don't charge admin fees
-    if out.out_amount == 0:
-        out.admin_fee = 0
 
     return out
 
