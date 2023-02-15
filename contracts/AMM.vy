@@ -990,7 +990,7 @@ def _exchange(i: uint256, j: uint256, amount: uint256, minmax_amount: uint256, _
         assert out_amount_done >= minmax_amount, "Slippage"
     else:
         assert in_amount_done <= minmax_amount, "Slippage"
-    if out_amount_done == 0:
+    if out_amount_done == 0 or in_amount_done == 0:
         return [0, 0]
 
     out.admin_fee = unsafe_div(out.admin_fee, in_precision)
