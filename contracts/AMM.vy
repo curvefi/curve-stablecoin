@@ -1048,7 +1048,6 @@ def calc_swap_in(pump: bool, out_amount: uint256, p_o: uint256, in_precision: ui
     @notice Calculate the input amount required to receive the desired output amount.
             If couldn't exchange all - will also update the amount which was actually received.
             Also returns other parameters related to state after swap.
-            This method is NOT PRECISE!
     @param pump Indicates whether the trade buys or sells collateral
     @param out_amount Desired amount of token going out
     @param p_o Current oracle price
