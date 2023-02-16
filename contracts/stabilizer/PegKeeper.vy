@@ -184,16 +184,6 @@ def _calc_profit() -> uint256:
         return lp_balance - lp_debt - PROFIT_THRESHOLD
 
 
-@internal
-@view
-def _pool_price() -> uint256:
-    p: uint256 = POOL.get_p()
-    if IS_INVERSE:
-        return 10**36 / p
-    else:
-        return p
-
-
 @external
 @view
 def calc_profit() -> uint256:
@@ -221,17 +211,17 @@ def update(_beneficiary: address = msg.sender) -> uint256:
     initial_profit: uint256 = self._calc_profit()
 
     p_agg: uint256 = AGGREGATOR.price()  # Current USD per stablecoin
-    p0: uint256 = self._pool_price()  # USDT per stablecoin
+
+    # Checking the balance will ensure no-loss of the stabilizer, but to ensure stabilization
+    # we need to exclude "bad" p_agg, so we add an extra check for it
 
     if balance_peg > balance_pegged:
-        self._provide((balance_peg - balance_pegged) / 5)
-        # self._pool_price() >= p0 * 10**18 / p_agg
-        assert self._pool_price() * p_agg >= p0 * 10**18
+        assert p_agg > 10**18
+        self._provide((balance_peg - balance_pegged) / 5)  # this dumps stablecoin
 
     else:
-        self._withdraw((balance_pegged - balance_peg) / 5)
-        # self._pool_price() <= p0 * 10**18 / p_agg
-        assert self._pool_price() * p_agg <= p0 * 10**18
+        assert p_agg < 10**18
+        self._withdraw((balance_pegged - balance_peg) / 5)  # this pumps stablecoin
 
     # Send generated profit
     new_profit: uint256 = self._calc_profit()
