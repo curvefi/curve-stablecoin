@@ -156,9 +156,7 @@ def _provide(_amount: uint256):
 @internal
 def _withdraw(_amount: uint256):
     debt: uint256 = self.debt
-    amount: uint256 = _amount
-    if amount > debt:
-        amount = debt
+    amount: uint256 = min(_amount, debt)
 
     amounts: uint256[2] = empty(uint256[2])
     amounts[I] = amount
@@ -176,12 +174,12 @@ def _calc_profit() -> uint256:
     lp_balance: uint256 = POOL.balanceOf(self)
 
     virtual_price: uint256 = POOL.get_virtual_price()
-    lp_debt: uint256 = self.debt * PRECISION / virtual_price
+    lp_debt: uint256 = self.debt * PRECISION / virtual_price + PROFIT_THRESHOLD
 
-    if lp_balance <= lp_debt + PROFIT_THRESHOLD:
+    if lp_balance <= lp_debt:
         return 0
     else:
-        return lp_balance - lp_debt - PROFIT_THRESHOLD
+        return lp_balance - lp_debt
 
 
 @external
