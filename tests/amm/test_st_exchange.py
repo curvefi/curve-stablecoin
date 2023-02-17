@@ -21,10 +21,10 @@ class StatefulExchange(RuleBasedStateMachine):
     def initializer(self, amounts, ns, dns):
         for user, amount, n1, dn in zip(self.accounts, amounts, ns, dns):
             n2 = n1 + dn
-            self.collateral_token._mint_for_testing(user, amount)
             try:
                 with boa.env.prank(self.admin):
-                    self.amm.deposit_range(user, amount, n1, n2, True)
+                    self.amm.deposit_range(user, amount, n1, n2)
+                    self.collateral_token._mint_for_testing(self.amm.address, amount)
             except Exception as e:
                 if 'Amount too low' in str(e):
                     assert amount // (dn + 1) <= 100

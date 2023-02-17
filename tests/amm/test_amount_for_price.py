@@ -24,8 +24,8 @@ def test_amount_for_price(price_oracle, amm, accounts, collateral_token, borrowe
 
     # Initial deposit
     with boa.env.prank(admin):
-        collateral_token._mint_for_testing(user, deposit_amount)
-        amm.deposit_range(user, deposit_amount, n1, n2, True)
+        amm.deposit_range(user, deposit_amount, n1, n2)
+        collateral_token._mint_for_testing(amm.address, deposit_amount)
 
     with boa.env.prank(user):
         # Dump some to be somewhere inside the bands

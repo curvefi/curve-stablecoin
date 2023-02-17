@@ -17,12 +17,12 @@ def test_deposit_withdraw(amm, amounts, accounts, ns, dns, fracs, collateral_tok
     with boa.env.prank(admin):
         for user, amount, n1, dn in zip(accounts, amounts, ns, dns):
             n2 = n1 + dn
-            collateral_token._mint_for_testing(user, amount)
             if amount // (dn + 1) <= 100:
                 with boa.reverts('Amount too low'):
-                    amm.deposit_range(user, amount, n1, n2, True)
+                    amm.deposit_range(user, amount, n1, n2)
             else:
-                amm.deposit_range(user, amount, n1, n2, True)
+                amm.deposit_range(user, amount, n1, n2)
+                collateral_token._mint_for_testing(amm.address, amount)
                 deposits[user] = amount
                 assert collateral_token.balanceOf(user) == 0
 

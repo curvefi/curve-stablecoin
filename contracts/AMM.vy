@@ -585,14 +585,13 @@ def save_user_shares(user: address, user_shares: DynArray[uint256, MAX_TICKS_UIN
 
 @external
 @nonreentrant('lock')
-def deposit_range(user: address, amount: uint256, n1: int256, n2: int256, move_coins: bool):
+def deposit_range(user: address, amount: uint256, n1: int256, n2: int256):
     """
     @notice Deposit for a user in a range of bands. Only admin contract (Controller) can do it
     @param user User address
     @param amount Amount of collateral to deposit
     @param n1 Lower band in the deposit range
     @param n2 Upper band in the deposit range
-    @param move_coins Should we actually execute transferFrom, or should we not do anything (because the Controller will do)
     """
     assert msg.sender == self.admin
 
@@ -616,20 +615,14 @@ def deposit_range(user: address, amount: uint256, n1: int256, n2: int256, move_c
         assert self.bands_x[n0] == 0 and i < MAX_SKIP_TICKS, "Deposit below current band"
         n0 -= 1
 
-    if move_coins:
-        assert COLLATERAL_TOKEN.transferFrom(user, self, amount, default_return_value=True)
-
     n_bands: uint256 = unsafe_add(convert(unsafe_sub(n2, n1), uint256), 1)
     assert n_bands <= MAX_TICKS_UINT
 
     y_per_band: uint256 = unsafe_div(amount * COLLATERAL_PRECISION, n_bands)
     assert y_per_band > 100, "Amount too low"
 
-    if self.user_shares[user].ticks[0] != 0:  # Has liquidity
-        ns: int256[2] = self._read_user_tick_numbers(user)
-        assert ns[0] == n1 and ns[1] == n2, "Wrong range"
-    else:
-        self.user_shares[user].ns = unsafe_add(n1, unsafe_mul(n2, 2**128))
+    assert self.user_shares[user].ticks[0] == 0  # dev: User must have no liquidity
+    self.user_shares[user].ns = unsafe_add(n1, unsafe_mul(n2, 2**128))
 
     for i in range(MAX_TICKS):
         band: int256 = unsafe_add(n1, i)

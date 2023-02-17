@@ -26,8 +26,8 @@ def test_immediate(amm, price_oracle, collateral_token, borrowed_token, accounts
     with boa.env.prank(admin):
         price_oracle.set_price(p_o)
         amm.set_fee(0)
-        collateral_token._mint_for_testing(user, deposit_amount)
-        amm.deposit_range(user, deposit_amount, n1, n1+dn, True)
+        amm.deposit_range(user, deposit_amount, n1, n1+dn)
+        collateral_token._mint_for_testing(amm.address, deposit_amount)
     pump_amount = int(p_o * deposit_amount / 10**18 * f_pump / 10**12)
     with boa.env.prank(user):
         borrowed_token._mint_for_testing(user, pump_amount)
@@ -66,8 +66,8 @@ def test_immediate_above_p0(amm, price_oracle, collateral_token, borrowed_token,
     with boa.env.anchor():
         with boa.env.prank(admin):
             amm.set_fee(0)
-            collateral_token._mint_for_testing(user, deposit_amount)
-            amm.deposit_range(user, deposit_amount, 6, 6, True)
+            amm.deposit_range(user, deposit_amount, 6, 6)
+            collateral_token._mint_for_testing(amm.address, deposit_amount)
 
         pump_amount = 3000 * deposit_amount * 147 // 10**18 // 10**12
         with boa.env.prank(user):
@@ -100,8 +100,8 @@ def test_immediate_in_band(amm, price_oracle, collateral_token, borrowed_token, 
         user = accounts[0]
         with boa.env.prank(admin):
             amm.set_fee(0)
-            collateral_token._mint_for_testing(user, deposit_amount)
-            amm.deposit_range(user, deposit_amount, 4, 4, True)
+            amm.deposit_range(user, deposit_amount, 4, 4)
+            collateral_token._mint_for_testing(amm.address, deposit_amount)
 
         pump_amount = 137
         with boa.env.prank(user):
@@ -141,8 +141,8 @@ def test_adiabatic(amm, price_oracle, collateral_token, borrowed_token, accounts
 
     with boa.env.prank(admin):
         amm.set_fee(0)
-        collateral_token._mint_for_testing(user, deposit_amount)
-        amm.deposit_range(user, deposit_amount, dn, n1+dn, True)
+        amm.deposit_range(user, deposit_amount, dn, n1+dn)
+        collateral_token._mint_for_testing(amm.address, deposit_amount)
 
     p_o = p_o_1
     p_o_mul = (p_o_2 / p_o_1) ** (1 / (N_STEPS - 1))

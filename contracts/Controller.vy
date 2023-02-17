@@ -8,7 +8,7 @@ interface LLAMMA:
     def active_band_with_skip() -> int256: view
     def p_oracle_up(n: int256) -> uint256: view
     def p_oracle_down(n: int256) -> uint256: view
-    def deposit_range(user: address, amount: uint256, n1: int256, n2: int256, move_coins: bool): nonpayable
+    def deposit_range(user: address, amount: uint256, n1: int256, n2: int256): nonpayable
     def read_user_tick_numbers(_for: address) -> int256[2]: view
     def get_sum_xy(user: address) -> uint256[2]: view
     def withdraw(user: address, frac: uint256) -> uint256[2]: nonpayable
@@ -569,7 +569,7 @@ def _create_loan(mvalue: uint256, collateral: uint256, debt: uint256, N: uint256
     self._total_debt.initial_debt = total_debt
     self._total_debt.rate_mul = rate_mul
 
-    AMM.deposit_range(msg.sender, collateral, n1, n2, False)
+    AMM.deposit_range(msg.sender, collateral, n1, n2)
     self.minted += debt
 
     if transfer_coins:
@@ -648,7 +648,7 @@ def _add_collateral_borrow(d_collateral: uint256, d_debt: uint256, _for: address
     n1: int256 = self._calculate_debt_n1(xy[1], debt, size)
     n2: int256 = n1 + ns[1] - ns[0]
 
-    AMM.deposit_range(_for, xy[1], n1, n2, False)
+    AMM.deposit_range(_for, xy[1], n1, n2)
     self.loan[_for] = Loan({initial_debt: debt, rate_mul: rate_mul})
     liquidation_discount: uint256 = self.liquidation_discount
     self.liquidation_discounts[_for] = liquidation_discount
@@ -770,7 +770,7 @@ def repay(_d_debt: uint256, _for: address = msg.sender, use_eth: bool = True):
             xy: uint256[2] = AMM.withdraw(_for, 10**18)
             n1: int256 = self._calculate_debt_n1(xy[1], debt, size)
             n2: int256 = n1 + ns[1] - ns[0]
-            AMM.deposit_range(_for, xy[1], n1, n2, False)
+            AMM.deposit_range(_for, xy[1], n1, n2)
             liquidation_discount: uint256 = self.liquidation_discount
             self.liquidation_discounts[_for] = liquidation_discount
             log UserState(_for, xy[1], debt, n1, n2, liquidation_discount)
@@ -846,7 +846,7 @@ def repay_extended(callbacker: address, callback_sig: bytes32, callback_args: Dy
         # Not in liquidation - can move bands
         n1: int256 = self._calculate_debt_n1(cb.collateral, debt, size)
         n2: int256 = n1 + ns[1] - ns[0]
-        AMM.deposit_range(msg.sender, cb.collateral, n1, n2, False)
+        AMM.deposit_range(msg.sender, cb.collateral, n1, n2)
         liquidation_discount: uint256 = self.liquidation_discount
         self.liquidation_discounts[msg.sender] = liquidation_discount
 

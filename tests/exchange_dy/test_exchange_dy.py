@@ -24,8 +24,8 @@ def test_dydx_limits(amm, amounts, accounts, ns, dns, collateral_token, admin, b
     with boa.env.prank(admin):
         for user, amount, n1, dn in zip(accounts[1:6], amounts, ns, dns):
             n2 = n1 + dn
-            collateral_token._mint_for_testing(user, amount)
-            amm.deposit_range(user, amount, n1, n2, True)
+            amm.deposit_range(user, amount, n1, n2)
+            collateral_token._mint_for_testing(amm.address, amount)
 
     # Swap 0
     dy, dx = amm.get_dydx(0, 1, 0)
@@ -90,12 +90,12 @@ def test_exchange_dy_down_up(amm, amounts, accounts, ns, dns, amount, borrowed_t
     with boa.env.prank(admin):
         for user, amount, n1, dn in zip(accounts[1:6], amounts, ns, dns):
             n2 = n1 + dn
-            collateral_token._mint_for_testing(user, amount)
             if amount // (dn + 1) <= 100:
                 with boa.reverts("Amount too low"):
-                    amm.deposit_range(user, amount, n1, n2, True)
+                    amm.deposit_range(user, amount, n1, n2)
             else:
-                amm.deposit_range(user, amount, n1, n2, True)
+                amm.deposit_range(user, amount, n1, n2)
+                collateral_token._mint_for_testing(amm.address, amount)
 
     dy, dx = amm.get_dydx(0, 1, amount)
     assert dy <= amount
