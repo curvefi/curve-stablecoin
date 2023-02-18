@@ -21,6 +21,7 @@ interface CurvePool:
 
 interface ERC20:
     def approve(_spender: address, _amount: uint256): nonpayable
+    def decimals() -> uint256: view
 
 
 event Provide:
@@ -60,6 +61,7 @@ POOL: immutable(CurvePool)
 I: immutable(uint256)  # index of pegged in pool
 PEGGED: immutable(address)
 IS_INVERSE: immutable(bool)
+PEG_MUL: immutable(uint256)
 
 AGGREGATOR: immutable(StableAggregator)
 
@@ -100,6 +102,8 @@ def __init__(_pool: CurvePool, _index: uint256, _receiver: address, _caller_shar
     PEGGED = pegged
     ERC20(pegged).approve(_pool.address, max_value(uint256))
     ERC20(pegged).approve(_factory, max_value(uint256))
+
+    PEG_MUL = 10 ** (18 - ERC20(_pool.coins(1 - _index)).decimals())
 
     self.admin = msg.sender
     self.receiver = _receiver
@@ -204,7 +208,7 @@ def update(_beneficiary: address = msg.sender) -> uint256:
         return 0
 
     balance_pegged: uint256 = POOL.balances(I)
-    balance_peg: uint256 = POOL.balances(1 - I)
+    balance_peg: uint256 = POOL.balances(1 - I) * PEG_MUL
 
     initial_profit: uint256 = self._calc_profit()
 
@@ -214,11 +218,11 @@ def update(_beneficiary: address = msg.sender) -> uint256:
     # we need to exclude "bad" p_agg, so we add an extra check for it
 
     if balance_peg > balance_pegged:
-        assert p_agg > 10**18
+        assert p_agg >= 10**18
         self._provide((balance_peg - balance_pegged) / 5)  # this dumps stablecoin
 
     else:
-        assert p_agg < 10**18
+        assert p_agg <= 10**18
         self._withdraw((balance_pegged - balance_peg) / 5)  # this pumps stablecoin
 
     # Send generated profit

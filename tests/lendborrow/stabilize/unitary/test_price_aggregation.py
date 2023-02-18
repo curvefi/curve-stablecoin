@@ -1,4 +1,4 @@
-from ...conftest import approx
+from ....conftest import approx
 import boa
 
 

@@ -3,6 +3,23 @@ import pytest
 from boa.vyper.contract import VyperContract
 
 ZERO_ADDRESS = "0x0000000000000000000000000000000000000000"
+BASE_AMOUNT = 10**6
+
+
+# Accounts
+@pytest.fixture(scope="module")
+def receiver(accounts):
+    return accounts[1]
+
+
+@pytest.fixture(scope="module")
+def peg_keeper_updater(accounts):
+    return accounts[2]
+
+
+@pytest.fixture(scope="module")
+def alice(accounts):
+    return accounts[3]
 
 
 @pytest.fixture(scope="module")
@@ -66,6 +83,16 @@ def stableswap_b(unsafe_factory, swap_deployer, swap_impl, stablecoin, stablecoi
 
 
 @pytest.fixture(scope="module")
+def swaps(stableswap_a, stableswap_b):
+    return [stableswap_a, stableswap_b]
+
+
+@pytest.fixture(scope="module")
+def redeemable_tokens(stablecoin_a, stablecoin_b):
+    return [stablecoin_a, stablecoin_b]
+
+
+@pytest.fixture(scope="module")
 def price_aggregator(stablecoin, stableswap_a, stableswap_b, admin):
     with boa.env.prank(admin):
         agg = boa.load('contracts/price_oracles/AggregateStablePrice.vy', stablecoin.address, 10**15, admin)
@@ -115,14 +142,14 @@ def crypto_agg(dummy_tricrypto, agg, stableswap_a, admin):
 
 
 @pytest.fixture(scope="module")
-def peg_keepers(stablecoin_a, stablecoin_b, stableswap_a, stableswap_b, controller_factory, agg, admin):
+def peg_keepers(stablecoin_a, stablecoin_b, stableswap_a, stableswap_b, controller_factory, agg, admin, receiver):
     pks = []
     with boa.env.prank(admin):
         for (coin, pool) in [(stablecoin_a, stableswap_a), (stablecoin_b, stableswap_b)]:
             pks.append(
                     boa.load(
                         'contracts/stabilizer/PegKeeper.vy',
-                        pool.address, 1, admin, 5 * 10**4,
+                        pool.address, 1, receiver, 2 * 10**4,
                         controller_factory.address, agg.address)
             )
     return pks
@@ -145,13 +172,15 @@ def agg_monetary_policy(peg_keepers, agg, controller_factory, admin):
 
 
 @pytest.fixture(scope="module")
-def market_agg(controller_factory, collateral_token, agg_monetary_policy, crypto_agg, admin):
+def market_agg(controller_factory, collateral_token, agg_monetary_policy, crypto_agg, peg_keepers, admin):
     with boa.env.prank(admin):
         controller_factory.add_market(
             collateral_token.address, 100, 10**16, 0,
             crypto_agg.address,
             agg_monetary_policy.address, 5 * 10**16, 2 * 10**16,
-            10**6 * 10**18)
+            10**8 * 10**18)
+        for pk in peg_keepers:
+            controller_factory.set_debt_ceiling(pk.address, 10**7 * 10**18)
         return controller_factory
 
 
@@ -173,3 +202,44 @@ def market_controller_agg(market_agg, stablecoin, collateral_token, controller_i
             collateral_token.approve(controller.address, 2**256-1)
             stablecoin.approve(controller.address, 2**256-1)
     return controller
+
+
+@pytest.fixture(scope="module")
+def initial_amounts(redeemable_tokens, stablecoin):
+    stablecoin_amount = BASE_AMOUNT * 10**stablecoin.decimals()
+    return [(BASE_AMOUNT * 10**redeemable.decimals(), stablecoin_amount) for redeemable in redeemable_tokens]
+
+
+@pytest.fixture(scope="module")
+def add_initial_liquidity(
+        initial_amounts, stablecoin, redeemable_tokens, swaps, collateral_token, market_controller_agg, alice):
+    collateral_amount = 3000 * BASE_AMOUNT * 10**18 * 10 * len(swaps)
+    collateral_token._mint_for_testing(alice, collateral_amount)
+    with boa.env.prank(alice):
+        market_controller_agg.create_loan(collateral_amount, BASE_AMOUNT * 10**18 * len(swaps), 5)
+        for (amount_r, amount_s), redeemable, pool in zip(initial_amounts, redeemable_tokens, swaps):
+            stablecoin.approve(pool.address, 2**256 - 1)
+            redeemable.approve(pool.address, 2**256 - 1)
+            redeemable._mint_for_testing(alice, amount_r)
+            pool.add_liquidity([amount_r, amount_s], 0)
+
+
+@pytest.fixture(scope="module")
+def provide_token_to_peg_keepers(initial_amounts, swaps, peg_keepers, redeemable_tokens, alice, peg_keeper_updater):
+    for (amount_r, amount_s), swap, pk, rtoken in zip(initial_amounts, swaps, peg_keepers, redeemable_tokens):
+        with boa.env.prank(alice):
+            # Mint necessary amount of redeemable token
+            rtoken.approve(pk.address, 2**256 - 1)
+            amount = amount_r * 5
+            rtoken._mint_for_testing(alice, amount)
+
+            # Add redeemable token's liquidity to the stableswap pool
+            swap.add_liquidity([amount, 0], 0)
+
+        with boa.env.prank(peg_keeper_updater):
+            pk.update()
+
+
+@pytest.fixture(scope="module")
+def imbalance_pools():
+    pass
