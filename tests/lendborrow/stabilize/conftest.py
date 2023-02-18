@@ -1,5 +1,6 @@
 import boa
 import pytest
+from ...conftest import approx
 from boa.vyper.contract import VyperContract
 
 ZERO_ADDRESS = "0x0000000000000000000000000000000000000000"
@@ -238,6 +239,12 @@ def provide_token_to_peg_keepers(initial_amounts, swaps, peg_keepers, redeemable
 
         with boa.env.prank(peg_keeper_updater):
             pk.update()
+
+        with boa.env.prank(alice):
+            rtoken_mul = 10 ** (18 - rtoken.decimals())
+            remove_amount = (swap.balances(0) * rtoken_mul - swap.balances(1)) // rtoken_mul
+            swap.remove_liquidity_imbalance([remove_amount, 0], 2**256 - 1)
+            assert approx(swap.balances(0), swap.balances(1) // rtoken_mul, 1e-6)
 
 
 @pytest.fixture(scope="module")
