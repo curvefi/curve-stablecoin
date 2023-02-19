@@ -24,6 +24,11 @@ def alice(accounts):
 
 
 @pytest.fixture(scope="module")
+def bob(accounts):
+    return accounts[4]
+
+
+@pytest.fixture(scope="module")
 def stablecoin_a(admin):
     with boa.env.prank(admin):
         return boa.load('contracts/testing/ERC20Mock.vy', "USDa", "USDa", 6)
