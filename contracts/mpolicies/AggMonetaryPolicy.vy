@@ -36,8 +36,8 @@ sigma: public(int256)  # 2 * 10**16 for example
 target_debt_fraction: public(uint256)
 
 peg_keepers: public(PegKeeper[1001])
-PRICE_ORACLE: immutable(PriceOracle)
-CONTROLLER_FACTORY: immutable(ControllerFactory)
+PRICE_ORACLE: public(immutable(PriceOracle))
+CONTROLLER_FACTORY: public(immutable(ControllerFactory))
 
 MAX_TARGET_DEBT_FRACTION: constant(uint256) = 10**18
 MAX_SIGMA: constant(uint256) = 10**18
