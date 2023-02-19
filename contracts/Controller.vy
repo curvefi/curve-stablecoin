@@ -328,7 +328,6 @@ def loan_exists(user: address) -> bool:
 
 @external
 @view
-@nonreentrant('lock')
 def total_debt() -> uint256:
     """
     @notice Total debt of this controller
