@@ -214,7 +214,7 @@ def initial_amounts(redeemable_tokens, stablecoin):
 @pytest.fixture(scope="module")
 def add_initial_liquidity(
         initial_amounts, stablecoin, redeemable_tokens, swaps, collateral_token, market_controller_agg, alice):
-    collateral_amount = 3000 * BASE_AMOUNT * 10**18 * 10 * len(swaps)
+    collateral_amount = BASE_AMOUNT // 3000 * 10**18 * 10 * len(swaps)
     collateral_token._mint_for_testing(alice, collateral_amount)
     with boa.env.prank(alice):
         market_controller_agg.create_loan(collateral_amount, BASE_AMOUNT * 10**18 * len(swaps), 5)
@@ -226,7 +226,7 @@ def add_initial_liquidity(
 
 
 @pytest.fixture(scope="module")
-def provide_token_to_peg_keepers(initial_amounts, swaps, peg_keepers, redeemable_tokens, alice, peg_keeper_updater):
+def provide_token_to_peg_keepers_no_sleep(initial_amounts, swaps, peg_keepers, redeemable_tokens, alice, peg_keeper_updater):
     for (amount_r, amount_s), swap, pk, rtoken in zip(initial_amounts, swaps, peg_keepers, redeemable_tokens):
         with boa.env.prank(alice):
             # Mint necessary amount of redeemable token
@@ -248,5 +248,27 @@ def provide_token_to_peg_keepers(initial_amounts, swaps, peg_keepers, redeemable
 
 
 @pytest.fixture(scope="module")
-def imbalance_pools():
-    pass
+def provide_token_to_peg_keepers(provide_token_to_peg_keepers_no_sleep):
+    boa.env.time_travel(15 * 60)
+
+
+@pytest.fixture(scope="module")
+def imbalance_pools(swaps, initial_amounts, redeemable_tokens, stablecoin, collateral_token, market_controller_agg, alice):
+    def _inner(i, amount=None, add_diff=False):
+        with boa.env.prank(alice):
+            for initial, swap, rtoken in zip(initial_amounts, swaps, redeemable_tokens):
+                token_mul = [10 ** (18 - rtoken.decimals()), 1]
+                amounts = [0, 0]
+                if add_diff:
+                    amount += swap.balances(1 - i) * token_mul[1 - i] - swap.balances(i) * token_mul[i]
+                amounts[i] = amount or initial[i] // 3
+                if i == 0:
+                    rtoken._mint_for_testing(alice, amounts[i], {"from": alice})
+                else:
+                    if stablecoin.balanceOf(alice) < amounts[i]:
+                        collateral_amount = amounts[i] // 3000 * 10
+                        collateral_token._mint_for_testing(alice, collateral_amount)
+                        market_controller_agg.borrow_more(collateral_amount, amounts[i])
+                swap.add_liquidity(amounts, 0)
+
+    return _inner
