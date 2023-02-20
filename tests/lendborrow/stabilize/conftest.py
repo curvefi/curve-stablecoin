@@ -217,16 +217,32 @@ def initial_amounts(redeemable_tokens, stablecoin):
 
 
 @pytest.fixture(scope="module")
+def _mint(stablecoin, collateral_token, market_controller_agg):
+    def f(acct, coins, amounts):
+        with boa.env.prank(acct):
+            for coin, amount in zip(coins, amounts):
+                if amount > 0:
+                    if coin == stablecoin:
+                        collateral_amount = amount * 5 // 3000
+                        collateral_token._mint_for_testing(acct, collateral_amount)
+                        if market_controller_agg.debt(acct) == 0:
+                            collateral_token.approve(market_controller_agg.address, 2**256 - 1)
+                            market_controller_agg.create_loan(collateral_amount, amount, 5)
+                        else:
+                            market_controller_agg.borrow_more(collateral_amount, amount)
+                    else:
+                        coin._mint_for_testing(acct, amount)
+    return f
+
+
+@pytest.fixture(scope="module")
 def add_initial_liquidity(
-        initial_amounts, stablecoin, redeemable_tokens, swaps, collateral_token, market_controller_agg, alice):
-    collateral_amount = BASE_AMOUNT // 3000 * 10**18 * 10 * len(swaps)
-    collateral_token._mint_for_testing(alice, collateral_amount)
+        initial_amounts, stablecoin, redeemable_tokens, swaps, collateral_token, market_controller_agg, alice, _mint):
     with boa.env.prank(alice):
-        market_controller_agg.create_loan(collateral_amount, BASE_AMOUNT * 10**18 * len(swaps), 5)
         for (amount_r, amount_s), redeemable, pool in zip(initial_amounts, redeemable_tokens, swaps):
+            _mint(alice, [redeemable, stablecoin], [amount_r, amount_s])
             stablecoin.approve(pool.address, 2**256 - 1)
             redeemable.approve(pool.address, 2**256 - 1)
-            redeemable._mint_for_testing(alice, amount_r)
             pool.add_liquidity([amount_r, amount_s], 0)
 
 
@@ -258,7 +274,8 @@ def provide_token_to_peg_keepers(provide_token_to_peg_keepers_no_sleep):
 
 
 @pytest.fixture(scope="module")
-def imbalance_pools(swaps, initial_amounts, redeemable_tokens, stablecoin, collateral_token, market_controller_agg, alice):
+def imbalance_pools(
+        swaps, initial_amounts, redeemable_tokens, stablecoin, collateral_token, market_controller_agg, alice, _mint):
     def _inner(i, amount=None, add_diff=False):
         with boa.env.prank(alice):
             for initial, swap, rtoken in zip(initial_amounts, swaps, redeemable_tokens):
@@ -267,13 +284,16 @@ def imbalance_pools(swaps, initial_amounts, redeemable_tokens, stablecoin, colla
                 if add_diff:
                     amount += swap.balances(1 - i) * token_mul[1 - i] - swap.balances(i) * token_mul[i]
                 amounts[i] = amount or initial[i] // 3
-                if i == 0:
-                    rtoken._mint_for_testing(alice, amounts[i], {"from": alice})
-                else:
-                    if stablecoin.balanceOf(alice) < amounts[i]:
-                        collateral_amount = amounts[i] // 3000 * 10
-                        collateral_token._mint_for_testing(alice, collateral_amount)
-                        market_controller_agg.borrow_more(collateral_amount, amounts[i])
+                _mint(alice, [rtoken, stablecoin], amounts)
                 swap.add_liquidity(amounts, 0)
 
     return _inner
+
+
+@pytest.fixture(scope="module")
+def mint_bob(bob, stablecoin, redeemable_tokens, swaps, initial_amounts, _mint):
+    for swap, rtoken, amounts in zip(swaps, redeemable_tokens, initial_amounts):
+        _mint(bob, [rtoken, stablecoin], amounts)
+        with boa.env.prank(bob):
+            rtoken.approve(swap, 2**256 - 1)
+            stablecoin.approve(swap, 2**256 - 1)
