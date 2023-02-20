@@ -1196,6 +1196,7 @@ def get_dydx(i: uint256, j: uint256, out_amount: uint256) -> (uint256, uint256):
 
 
 @external
+@nonreentrant('lock')
 def exchange(i: uint256, j: uint256, in_amount: uint256, min_amount: uint256, _for: address = msg.sender) -> uint256[2]:
     """
     @notice Exchanges two coins, callable by anyone
