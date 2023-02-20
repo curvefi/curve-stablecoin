@@ -5,22 +5,6 @@ import pytest
 ACTION_DELAY = 15 * 60
 
 
-# XXX
-def _prepare_for_provide(swap, peg, bob) -> int:
-    amount = peg.balanceOf(bob)
-    swap.add_liquidity([amount, 0], 0)
-
-    return amount
-
-
-# XXX
-def _prepare_for_withdraw(swap, pegged, bob) -> int:
-    amount = pegged.balanceOf(bob)
-    swap.add_liquidity([0, amount], 0)
-
-    return amount
-
-
 @pytest.mark.parametrize("method", ["provide", "withdraw"])
 def test_update_delay(peg_keepers, swaps, redeemable_tokens, stablecoin, bob, peg_keeper_updater, method,
                       add_initial_liquidity,
