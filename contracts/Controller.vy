@@ -1122,7 +1122,7 @@ def users_to_liquidate(_from: uint256=0, _limit: uint256=0) -> DynArray[Position
             break
         user: address = self.loans[ix]
         debt: uint256 = self._debt_ro(user)
-        health: int256 = self._health(user, self._debt_ro(user), True, self.liquidation_discounts[user])
+        health: int256 = self._health(user, debt, True, self.liquidation_discounts[user])
         if health < 0:
             xy: uint256[2] = AMM.get_sum_xy(user)
             out.append(Position({
