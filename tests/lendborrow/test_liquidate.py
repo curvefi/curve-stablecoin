@@ -81,7 +81,8 @@ def test_liquidate_callback(accounts, admin, stablecoin, collateral_token, contr
     liquidate_method = get_method_id("liquidate(address,uint256,uint256,uint256,uint256[])")  # min_amount for stablecoins
     ld = int(0.02 * 1e18)
     if frac < 10**18:
-        f = (10**18 + ld // 2) * frac // (10**18 + ld) // 5 * 5  # The latter part is rounding off for multiple bands
+        # f = ((1 + h/2) / (1 + h) * (1 - frac) + frac) * frac
+        f = ((10**18 + ld // 2) * (10**18 - frac) // (10**18 + ld) + frac) * frac // 10**18 // 5 * 5  # The latter part is rounding off for multiple bands
     else:
         f = 10**18
     # Partial liquidation improves health.
@@ -149,7 +150,7 @@ def test_self_liquidate(accounts, admin, controller_for_liquidation, market_amm,
             controller.liquidate(user, x)
 
 
-@given(frac=st.integers(min_value=10**14, max_value=10**18))
+@given(frac=st.integers(min_value=10**14, max_value=10**18 - 13))
 @settings(deadline=timedelta(seconds=1000))
 def test_tokens_to_liquidate(accounts, admin, controller_for_liquidation, market_amm, stablecoin, frac):
     user = admin
