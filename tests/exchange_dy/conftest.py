@@ -8,7 +8,7 @@ PRICE = 3000
 @pytest.fixture(scope="module")
 def borrowed_token(admin):
     with boa.env.prank(admin):
-        return boa.load('contracts/testing/ERC20Mock.vy', "Curve USD", "crvUSD", 18)
+        return boa.load('contracts/testing/ERC20Mock.vy', "Curve USD", "crvUSD", 6)
 
 
 @pytest.fixture(scope="module")
