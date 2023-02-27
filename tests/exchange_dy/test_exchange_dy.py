@@ -14,6 +14,45 @@ from datetime import timedelta
 def test_dydx_limits(amm, amounts, accounts, ns, dns, collateral_token, admin, borrowed_token):
     collateral_decimals = collateral_token.decimals()
     borrowed_decimals = borrowed_token.decimals()
+    amounts = list(map(lambda x: int(x * 10 ** collateral_decimals), amounts))
+
+    with boa.env.prank(admin):
+        for user, amount, n1, dn in zip(accounts[1:6], amounts, ns, dns):
+            n2 = n1 + dn
+            amm.deposit_range(user, amount, n1, n2)
+            collateral_token._mint_for_testing(amm.address, amount)
+
+    # Swap 0
+    dx, dy = amm.get_dydx(0, 1, 0)
+    assert dx == 0 and dy == 0
+    dx, dy = amm.get_dydx(1, 0, 0)
+    assert dx == dy == 0
+
+    # Small swap
+    dy, dx = amm.get_dydx(0, 1, 10**(collateral_decimals - 6))  # 0.000001 ETH
+    assert dy == 10**12
+    assert approx(dx, dy * 3000 / 10**(collateral_decimals - borrowed_decimals), 4e-2 + 2 * min(ns) / amm.A())
+    dy, dx = amm.get_dydx(1, 0, 10**16)  # No liquidity
+    assert dx == 0
+    assert dy == 0  # Rounded down
+
+    # Huge swap
+    dy, dx = amm.get_dydx(0, 1, 10**12 * 10**collateral_decimals)
+    assert abs(dy - sum(amounts)) <= 1000    # Less than desired amount buy everything is bought
+    dy, dx = amm.get_dydx(1, 0, 10**12 * 10**18)
+    assert dx == 0
+    assert dy == 0  # Rounded down
+
+
+@given(
+        amounts=st.lists(st.floats(min_value=0.01, max_value=1e6), min_size=5, max_size=5),
+        ns=st.lists(st.integers(min_value=1, max_value=20), min_size=5, max_size=5),
+        dns=st.lists(st.integers(min_value=0, max_value=20), min_size=5, max_size=5),
+)
+@settings(deadline=timedelta(seconds=1000))
+def test_dydx_compare_to_dxdy(amm, amounts, accounts, ns, dns, collateral_token, admin, borrowed_token):
+    collateral_decimals = collateral_token.decimals()
+    borrowed_decimals = borrowed_token.decimals()
     amounts = list(map(lambda x: int(x * 10**collateral_decimals), amounts))
 
     # 18 - 10_000, 17 - 1000, 16 - 100, 15 - 10, <= 14 - 1
