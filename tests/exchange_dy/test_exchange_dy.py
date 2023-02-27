@@ -38,7 +38,8 @@ def test_dydx_limits(amm, amounts, accounts, ns, dns, collateral_token, admin, b
 
     # Huge swap
     dy, dx = amm.get_dydx(0, 1, 10**12 * 10**collateral_decimals)
-    assert abs(dy - sum(amounts)) <= 1000    # Less than desired amount buy everything is bought
+    assert dy < 10**12 * 10**collateral_decimals  # Less than desired amount
+    assert abs(dy - sum(amounts)) <= 1000  # but everything is bought
     dy, dx = amm.get_dydx(1, 0, 10**12 * 10**18)
     assert dx == 0
     assert dy == 0  # Rounded down
@@ -121,11 +122,6 @@ def test_exchange_dy_down_up(amm, amounts, accounts, ns, dns, amount, borrowed_t
     amount = amount * 10**borrowed_decimals
     u = accounts[6]
 
-    # 18 - 10_000, 17 - 1000, 16 - 100, 15 - 10, <= 14 - 1
-    borrowed_precision = 10 ** (max(borrowed_decimals - 14, 0))
-    # >= 16 - 0; 15, 14 - 10; 13, 12 - 1000 ...
-    collateral_precision = 10 ** (max(15 - (borrowed_decimals // 2) * 2, 0)) if borrowed_decimals < 16 else 0
-
     with boa.env.prank(admin):
         for user, amount, n1, dn in zip(accounts[1:6], amounts, ns, dns):
             n2 = n1 + dn
@@ -136,6 +132,7 @@ def test_exchange_dy_down_up(amm, amounts, accounts, ns, dns, amount, borrowed_t
                 amm.deposit_range(user, amount, n1, n2)
                 collateral_token._mint_for_testing(amm.address, amount)
 
+    # crvUSD --> ETH (dx - crvUSD, dy - ETH)
     dy, dx = amm.get_dydx(0, 1, amount)
     assert dy <= amount
     dy2, dx2 = amm.get_dydx(0, 1, dy)
@@ -147,13 +144,14 @@ def test_exchange_dy_down_up(amm, amounts, accounts, ns, dns, amount, borrowed_t
             amm.exchange_dy(0, 1, dy2, dx2 - 1)  # crvUSD --> ETH
         amm.exchange_dy(0, 1, dy2, dx2)  # crvUSD --> ETH
     assert borrowed_token.balanceOf(u) == 0
-    assert abs(collateral_token.balanceOf(u) - dy2) <= collateral_precision
+    assert collateral_token.balanceOf(u) == dy2
 
     sum_borrowed = sum(amm.bands_x(i) for i in range(50))
     sum_collateral = sum(amm.bands_y(i) for i in range(50))
     assert abs(borrowed_token.balanceOf(amm) - sum_borrowed // 10**(18 - borrowed_decimals)) <= 1
     assert abs(collateral_token.balanceOf(amm) - sum_collateral // 10**(18 - collateral_decimals)) <= 1
 
+    # ETH --> crvUSD (dx - ETH, dy - crvUSD)
     expected_in_amount = int(dy2 / 0.98)  # two trades charge 1% twice
     out_amount = dx2
 
@@ -170,5 +168,5 @@ def test_exchange_dy_down_up(amm, amounts, accounts, ns, dns, amount, borrowed_t
         amm.exchange_dy(1, 0, out_amount, dx)  # ETH --> crvUSD
     dy_measured = borrowed_token.balanceOf(u) - dy_measured
     dx_measured -= collateral_token.balanceOf(u)
-    assert abs(dy_measured - dy) <= borrowed_precision
-    assert approx(dx_measured, dx, 5e-5)
+    assert dy_measured == dy
+    assert dx_measured == dx
