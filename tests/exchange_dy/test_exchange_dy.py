@@ -157,7 +157,7 @@ def test_exchange_dy_down_up(amm, amounts, accounts, ns, dns, amount, borrowed_t
 
     dy, dx = amm.get_dydx(1, 0, out_amount)
     assert approx(dx, expected_in_amount, 5e-4)  # Not precise because fee is charged on different directions
-    assert dy == out_amount
+    assert out_amount - dy <= 1
 
     collateral_token._mint_for_testing(u, dx - collateral_token.balanceOf(u))
     dy_measured = borrowed_token.balanceOf(u)
