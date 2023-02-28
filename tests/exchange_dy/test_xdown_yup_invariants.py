@@ -14,7 +14,7 @@ Test that get_x_down and get_y_up don't change:
     p_o=st.integers(min_value=1000 * 10**18, max_value=10000 * 10**18),
     n1=st.integers(min_value=1, max_value=30),
     dn=st.integers(min_value=0, max_value=30),
-    deposit_amount=st.integers(min_value=10**9, max_value=10**25),
+    deposit_amount=st.floats(min_value=1e-9, max_value=1e7),
     f_pump=st.floats(min_value=0, max_value=10),
     f_trade=st.floats(min_value=0, max_value=10),
     is_pump=st.booleans()
@@ -22,6 +22,9 @@ Test that get_x_down and get_y_up don't change:
 @settings(deadline=timedelta(seconds=1000))
 def test_immediate(amm, price_oracle, collateral_token, borrowed_token, accounts, admin,
                    p_o, n1, dn, deposit_amount, f_pump, f_trade, is_pump):
+    collateral_decimals = collateral_token.decimals()
+    borrowed_decimals = borrowed_token.decimals()
+    deposit_amount = int(deposit_amount * 10**collateral_decimals)
     user = accounts[0]
     with boa.env.prank(admin):
         price_oracle.set_price(p_o)
@@ -44,7 +47,7 @@ def test_immediate(amm, price_oracle, collateral_token, borrowed_token, accounts
         i = 0
         j = 1
     else:
-        trade_recv_amount = int(p_o * deposit_amount / 10**18 * f_trade / 10**12)
+        trade_recv_amount = int(p_o * deposit_amount / 10**collateral_decimals * f_trade / 10**(collateral_decimals - borrowed_decimals))
         trade_amount = amm.get_dx(1, 0, trade_recv_amount)
         with boa.env.prank(user):
             collateral_token._mint_for_testing(user, trade_amount)
@@ -66,11 +69,13 @@ def test_immediate(amm, price_oracle, collateral_token, borrowed_token, accounts
     p_o_2=st.integers(min_value=2000 * 10**18, max_value=4000 * 10**18),
     n1=st.integers(min_value=1, max_value=30),
     dn=st.integers(min_value=0, max_value=30),
-    deposit_amount=st.integers(min_value=10**18, max_value=10**25),
+    deposit_amount=st.floats(min_value=1, max_value=1e7),
 )
 @settings(max_examples=100, deadline=timedelta(seconds=1000))
 def test_adiabatic(amm, price_oracle, collateral_token, borrowed_token, accounts, admin,
                    p_o_1, p_o_2, n1, dn, deposit_amount):
+    collateral_decimals = collateral_token.decimals()
+    deposit_amount = int(deposit_amount * 10 ** collateral_decimals)
     N_STEPS = 101
     user = accounts[0]
 
