@@ -6,19 +6,22 @@ from datetime import timedelta
 
 
 class StatefulExchange(RuleBasedStateMachine):
-    amounts = st.lists(st.integers(min_value=0, max_value=10**6 * 10**18), min_size=5, max_size=5)
+    amounts = st.lists(st.floats(min_value=0, max_value=10**6), min_size=5, max_size=5)
     ns = st.lists(st.integers(min_value=1, max_value=20), min_size=5, max_size=5)
     dns = st.lists(st.integers(min_value=0, max_value=20), min_size=5, max_size=5)
-    amount = st.integers(min_value=0, max_value=10**9 * 10**18)
+    amount = st.floats(min_value=0, max_value=10**9)
     pump = st.booleans()
     user_id = st.integers(min_value=0, max_value=4)
 
     def __init__(self):
         super().__init__()
         self.total_deposited = 0
+        self.collateral_decimals = self.collateral_token.decimals()
+        self.borrowed_decimals = self.borrowed_token.decimals()
 
     @initialize(amounts=amounts, ns=ns, dns=dns)
     def initializer(self, amounts, ns, dns):
+        amounts = list(map(lambda x: int(x * 10**self.collateral_decimals), amounts))
         for user, amount, n1, dn in zip(self.accounts, amounts, ns, dns):
             n2 = n1 + dn
             try:
@@ -35,6 +38,7 @@ class StatefulExchange(RuleBasedStateMachine):
 
     @rule(amount=amount, pump=pump, user_id=user_id)
     def exchange(self, amount, pump, user_id):
+        amount = int(amount * 10**self.collateral_decimals)
         u = self.accounts[user_id]
         if pump:
             i = 0
@@ -55,7 +59,7 @@ class StatefulExchange(RuleBasedStateMachine):
     def amm_solvent(self):
         X = sum(self.amm.bands_x(n) for n in range(42))
         Y = sum(self.amm.bands_y(n) for n in range(42))
-        assert self.borrowed_token.balanceOf(self.amm) * 10**(18 - 6) >= X
+        assert self.borrowed_token.balanceOf(self.amm) * 10**(self.collateral_decimals - self.borrowed_decimals) >= X
         assert self.collateral_token.balanceOf(self.amm) >= Y
 
     @invariant()

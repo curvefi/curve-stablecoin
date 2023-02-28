@@ -32,7 +32,7 @@ def test_dydx_limits(amm, amounts, accounts, ns, dns, collateral_token, admin, b
     dy, dx = amm.get_dydx(0, 1, 10**(collateral_decimals - 6))  # 0.000001 ETH
     assert dy == 10**12
     assert approx(dx, dy * 3000 / 10**(collateral_decimals - borrowed_decimals), 4e-2 + 2 * min(ns) / amm.A())
-    dy, dx = amm.get_dydx(1, 0, 10**16)  # No liquidity
+    dy, dx = amm.get_dydx(1, 0, 10**(borrowed_decimals - 4))  # No liquidity
     assert dx == 0
     assert dy == 0  # Rounded down
 
@@ -40,7 +40,7 @@ def test_dydx_limits(amm, amounts, accounts, ns, dns, collateral_token, admin, b
     dy, dx = amm.get_dydx(0, 1, 10**12 * 10**collateral_decimals)
     assert dy < 10**12 * 10**collateral_decimals  # Less than desired amount
     assert abs(dy - sum(amounts)) <= 1000  # but everything is bought
-    dy, dx = amm.get_dydx(1, 0, 10**12 * 10**18)
+    dy, dx = amm.get_dydx(1, 0, 10**12 * 10**borrowed_decimals)
     assert dx == 0
     assert dy == 0  # Rounded down
 
