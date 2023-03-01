@@ -124,6 +124,7 @@ admin_fees_y: public(uint256)
 price_oracle_contract: public(PriceOracle)
 internal_p_o: uint256
 prev_p_o_time: uint256
+PREV_P_O_DELAY: constant(uint256) = 60  # s = 1 min
 
 bands_x: public(HashMap[int256, uint256])
 bands_y: public(HashMap[int256, uint256])
@@ -232,7 +233,11 @@ def _price_oracle_ro() -> uint256:
 
 @internal
 def _price_oracle_w() -> uint256:
-    return self.price_oracle_contract.price_w()
+    p: uint256 = self.price_oracle_contract.price_w()
+    if block.timestamp >= self.prev_p_o_time + PREV_P_O_DELAY:
+        self.prev_p_o_time = block.timestamp
+        self.internal_p_o = p
+    return p
 
 
 @external
