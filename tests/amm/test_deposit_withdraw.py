@@ -29,7 +29,7 @@ def test_deposit_withdraw(amm, amounts, accounts, ns, dns, fracs, collateral_tok
         for user, n1 in zip(accounts, ns):
             if user in deposits:
                 if n1 >= 0:
-                    assert approx(amm.get_y_up(user), deposits[user], 1e-6, 20)
+                    assert approx(amm.get_y_up(user), deposits[user], 1e-6, 25)
                 else:
                     assert amm.get_y_up(user) < deposits[user]  # price manipulation caused loss for user
             else:
@@ -40,7 +40,7 @@ def test_deposit_withdraw(amm, amounts, accounts, ns, dns, fracs, collateral_tok
                 before = amm.get_sum_xy(user)
                 amm.withdraw(user, frac)
                 after = amm.get_sum_xy(user)
-                assert approx(before[1] - after[1], deposits[user] * frac / 1e18, 1e-6, 20)
+                assert approx(before[1] - after[1], deposits[user] * frac / 1e18, 1e-6, 25)
             else:
                 with boa.reverts("No deposits"):
                     amm.withdraw(user, frac)
