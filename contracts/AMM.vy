@@ -122,6 +122,8 @@ admin_fees_x: public(uint256)
 admin_fees_y: public(uint256)
 
 price_oracle_contract: public(PriceOracle)
+internal_p_o: uint256
+prev_p_o_time: uint256
 
 bands_x: public(HashMap[int256, uint256])
 bands_y: public(HashMap[int256, uint256])
@@ -174,6 +176,8 @@ def __init__(
     self.fee = fee
     self.admin_fee = admin_fee
     self.price_oracle_contract = PriceOracle(_price_oracle_contract)
+    self.prev_p_o_time = block.timestamp
+    self.internal_p_o = PriceOracle(_price_oracle_contract).price()
 
     self.rate_mul = 10**18
 
@@ -220,13 +224,24 @@ def coins(i: uint256) -> address:
     return [BORROWED_TOKEN.address, COLLATERAL_TOKEN.address][i]
 
 
+@internal
+@view
+def _price_oracle_ro() -> uint256:
+    return self.price_oracle_contract.price()
+
+
+@internal
+def _price_oracle_w() -> uint256:
+    return self.price_oracle_contract.price_w()
+
+
 @external
 @view
 def price_oracle() -> uint256:
     """
     @notice Value returned by the external price oracle contract
     """
-    return self.price_oracle_contract.price()
+    return self._price_oracle_ro()
 
 
 @internal
@@ -329,7 +344,7 @@ def _p_current_band(n: int256) -> uint256:
     p_base: uint256 = self._p_oracle_up(n)
 
     # return self.p_oracle**3 / p_base**2
-    p_oracle: uint256 = self.price_oracle_contract.price()
+    p_oracle: uint256 = self._price_oracle_ro()
     return unsafe_div(p_oracle**2 / p_base * p_oracle, p_base)
 
 
@@ -419,7 +434,7 @@ def get_y0(_n: int256) -> uint256:
     return self._get_y0(
         self.bands_x[n],
         self.bands_y[n],
-        self.price_oracle_contract.price(),
+        self._price_oracle_ro(),
         self._p_oracle_up(n)
     )
 
@@ -435,7 +450,7 @@ def _get_p(n: int256, x: uint256, y: uint256) -> uint256:
     @return Current price at 1e18 base
     """
     p_o_up: uint256 = self._p_oracle_up(n)
-    p_o: uint256 = self.price_oracle_contract.price()
+    p_o: uint256 = self._price_oracle_ro()
 
     # Special cases
     if x == 0:
@@ -907,7 +922,7 @@ def _get_dxdy(i: uint256, j: uint256, amount: uint256, is_in: bool) -> DetailedT
     if i == 0:
         in_precision = BORROWED_PRECISION
         out_precision = COLLATERAL_PRECISION
-    p_o: uint256 = self.price_oracle_contract.price()
+    p_o: uint256 = self._price_oracle_ro()
     if is_in:
         out = self.calc_swap_out(i == 0, amount * in_precision, p_o, in_precision, out_precision)
     else:
@@ -976,10 +991,11 @@ def _exchange(i: uint256, j: uint256, amount: uint256, minmax_amount: uint256, _
         out_coin = BORROWED_TOKEN
 
     out: DetailedTrade = empty(DetailedTrade)
+    p_o: uint256 = self._price_oracle_w()
     if use_in_amount:
-        out = self.calc_swap_out(i == 0, amount * in_precision, self.price_oracle_contract.price_w(), in_precision, out_precision)
+        out = self.calc_swap_out(i == 0, amount * in_precision, p_o, in_precision, out_precision)
     else:
-        out = self.calc_swap_in(i == 0, amount * out_precision, self.price_oracle_contract.price_w(), in_precision, out_precision)
+        out = self.calc_swap_in(i == 0, amount * out_precision, p_o, in_precision, out_precision)
     in_amount_done: uint256 = unsafe_div(out.in_amount, in_precision)
     out_amount_done: uint256 = unsafe_div(out.out_amount, out_precision)
     if use_in_amount:
@@ -1245,7 +1261,7 @@ def get_xy_up(user: address, use_y: bool) -> uint256:
     ticks: DynArray[uint256, MAX_TICKS_UINT] = self._read_user_ticks(user, ns)
     if ticks[0] == 0:  # Even dynamic array will have 0th element set here
         return 0
-    p_o: uint256 = self.price_oracle_contract.price()
+    p_o: uint256 = self._price_oracle_ro()
     assert p_o != 0
 
     n: int256 = ns[0] - 1
@@ -1417,7 +1433,7 @@ def get_amount_for_price(p: uint256) -> (uint256, bool):
     min_band: int256 = self.min_band
     max_band: int256 = self.max_band
     n: int256 = self.active_band
-    p_o: uint256 = self.price_oracle_contract.price()
+    p_o: uint256 = self._price_oracle_ro()
     p_o_up: uint256 = self._p_oracle_up(n)
     p_down: uint256 = unsafe_div(unsafe_div(p_o**2, p_o_up) * p_o, p_o_up)  # p_current_down
     p_up: uint256 = unsafe_div(p_down * A2, Aminus12)  # p_crurrent_up
