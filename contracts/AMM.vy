@@ -122,9 +122,11 @@ admin_fees_x: public(uint256)
 admin_fees_y: public(uint256)
 
 price_oracle_contract: public(PriceOracle)
-internal_p_o: uint256
+old_p_o: uint256
 prev_p_o_time: uint256
 PREV_P_O_DELAY: constant(uint256) = 60  # s = 1 min
+MAX_TICKS_PER_P_O: constant(int256) = 50  # Don't move away from p_o by more ticks within 1 min
+MAX_D_P_O: immutable(uint256)  # Max relative change in p_o per 1 min allowed
 
 bands_x: public(HashMap[int256, uint256])
 bands_y: public(HashMap[int256, uint256])
@@ -178,7 +180,7 @@ def __init__(
     self.admin_fee = admin_fee
     self.price_oracle_contract = PriceOracle(_price_oracle_contract)
     self.prev_p_o_time = block.timestamp
-    self.internal_p_o = PriceOracle(_price_oracle_contract).price()
+    self.old_p_o = self.price_oracle_contract.price()
 
     self.rate_mul = 10**18
 
@@ -186,6 +188,10 @@ def __init__(
     SQRT_BAND_RATIO = _sqrt_band_ratio
     # log(A / (A - 1)) - needs to be pre-calculated externally
     LOG_A_RATIO = _log_A_ratio
+    # {dp_o / p_o}_max = 1/3 * ((A - 1) / A)**(2 * dN_max)
+    # where dN_max === MAX_TICKS_PER_P_O.
+    # For safety, we take a smaller change allowed: 1/4 * ...
+    MAX_D_P_O = unsafe_div(self._Apow(2 * MAX_TICKS_PER_P_O), 4)
 
 
 @internal
@@ -227,16 +233,28 @@ def coins(i: uint256) -> address:
 
 @internal
 @view
+def limit_p_o(p: uint256) -> uint256:
+    old_p_o: uint256 = self.old_p_o
+    max_dp: uint256 = unsafe_div(MAX_D_P_O * old_p_o, 10**18)
+    # p = old_p_o + dp
+    if p > old_p_o:
+        return unsafe_add(old_p_o, min(unsafe_sub(p, old_p_o), max_dp))
+    else:
+        return unsafe_sub(old_p_o, min(unsafe_sub(old_p_o, p), max_dp))
+
+
+@internal
+@view
 def _price_oracle_ro() -> uint256:
-    return self.price_oracle_contract.price()
+    return self.limit_p_o(self.price_oracle_contract.price())
 
 
 @internal
 def _price_oracle_w() -> uint256:
-    p: uint256 = self.price_oracle_contract.price_w()
+    p: uint256 = self.limit_p_o(self.price_oracle_contract.price_w())
     if block.timestamp >= self.prev_p_o_time + PREV_P_O_DELAY:
         self.prev_p_o_time = block.timestamp
-        self.internal_p_o = p
+        self.old_p_o = p
     return p
 
 
@@ -290,17 +308,11 @@ def get_base_price() -> uint256:
 
 
 @internal
-@view
-def _p_oracle_up(n: int256) -> uint256:
+@pure
+def _Apow(n: int256) -> uint256:
     """
-    @notice Upper oracle price for the band to have liquidity when p = p_oracle
-    @param n Band number (can be negative)
-    @return Price at 1e18 base
+    @return ((A - 1) / A) ** n = exp(-n * A / (A - 1))
     """
-    # p_oracle_up(n) = p_base * ((A - 1) / A) ** n
-    # p_oracle_down(n) = p_base * ((A - 1) / A) ** (n + 1) = p_oracle_up(n+1)
-    # return unsafe_div(self._base_price() * self.exp_int(-n * LOG_A_RATIO), 10**18)
-
     power: int256 = -n * LOG_A_RATIO
     # exp(-n * LOG_A_RATIO)
     ## Exp implementation based on solmate's
@@ -329,11 +341,24 @@ def _p_oracle_up(n: int256) -> uint256:
     q = unsafe_sub(unsafe_div(unsafe_mul(q, x), 2**96), 14423608567350463180887372962807573)
     q = unsafe_add(unsafe_div(unsafe_mul(q, x), 2**96), 26449188498355588339934803723976023)
 
-    exp_result: uint256 = shift(
+    return shift(
         unsafe_mul(convert(unsafe_div(p, q), uint256), 3822833074963236453042738258902158003155416615667),
         unsafe_sub(k, 195))
-    ## End exp
-    return unsafe_div(self._base_price() * exp_result, 10**18)
+
+
+@internal
+@view
+def _p_oracle_up(n: int256) -> uint256:
+    """
+    @notice Upper oracle price for the band to have liquidity when p = p_oracle
+    @param n Band number (can be negative)
+    @return Price at 1e18 base
+    """
+    # p_oracle_up(n) = p_base * ((A - 1) / A) ** n
+    # p_oracle_down(n) = p_base * ((A - 1) / A) ** (n + 1) = p_oracle_up(n+1)
+    # return unsafe_div(self._base_price() * self.exp_int(-n * LOG_A_RATIO), 10**18)
+
+    return unsafe_div(self._base_price() * self._Apow(n), 10**18)
 
 
 @internal
