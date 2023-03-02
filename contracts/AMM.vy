@@ -125,7 +125,7 @@ price_oracle_contract: public(PriceOracle)
 old_p_o: uint256
 prev_p_o_time: uint256
 PREV_P_O_DELAY: constant(uint256) = 60  # s = 1 min
-MAX_P_O_CHG: constant(uint256) = 144 * 10**16  # == 3**(1/3) - max relative change to have fee < 50%
+MAX_P_O_CHG: constant(uint256) = 14422 * 10**14  # == 3**(1/3) - max relative change to have fee < 50%
 
 bands_x: public(HashMap[int256, uint256])
 bands_y: public(HashMap[int256, uint256])
@@ -245,7 +245,7 @@ def limit_p_o(p: uint256) -> uint256[2]:
         ratio = unsafe_div(10**36, ratio)
     # Guaranteed to be more than 1e18
     # Also guaranteed to be limited, therefore can have all ops unsafe
-    ratio = unsafe_div(pow_mod256(ratio, 3), 10**36)
+    ratio = unsafe_div(pow_mod256(ratio, 3), (10**36 * 99/100))  # slightly higher to make the ratio higher
 
     return [
         p_new,
