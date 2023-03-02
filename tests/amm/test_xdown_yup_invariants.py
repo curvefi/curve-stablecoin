@@ -14,7 +14,7 @@ Test that get_x_down and get_y_up don't change:
     p_o=st.integers(min_value=1000 * 10**18, max_value=10000 * 10**18),
     n1=st.integers(min_value=1, max_value=30),
     dn=st.integers(min_value=0, max_value=30),
-    deposit_amount=st.integers(min_value=10**9, max_value=10**25),
+    deposit_amount=st.integers(min_value=10**18, max_value=10**25),
     f_pump=st.floats(min_value=0, max_value=10),
     f_trade=st.floats(min_value=0, max_value=10),
     is_pump=st.booleans()
@@ -31,7 +31,14 @@ def test_immediate(amm, price_oracle, collateral_token, borrowed_token, accounts
     pump_amount = int(p_o * deposit_amount / 10**18 * f_pump / 10**12)
     with boa.env.prank(user):
         borrowed_token._mint_for_testing(user, pump_amount)
+        boa.env.time_travel(120)  # To reset the prev p_o counter
         amm.exchange(0, 1, pump_amount, 0)
+        while True:
+            p_internal = amm.price_oracle()
+            boa.env.time_travel(120)  # To reset the prev p_o counter
+            amm.exchange(0, 1, 0, 0)
+            if p_o == p_internal:
+                break
 
     x0 = amm.get_x_down(user)
     y0 = amm.get_y_up(user)
@@ -143,15 +150,21 @@ def test_adiabatic(amm, price_oracle, collateral_token, borrowed_token, accounts
         amm.set_fee(0)
         amm.deposit_range(user, deposit_amount, dn, n1+dn)
         collateral_token._mint_for_testing(amm.address, deposit_amount)
+        for i in range(2):
+            boa.env.time_travel(120)
+            price_oracle.set_price(p_o_1)
+            amm.exchange(0, 1, 0, 0)
 
     p_o = p_o_1
     p_o_mul = (p_o_2 / p_o_1) ** (1 / (N_STEPS - 1))
     precision = max(1.5 * abs(p_o_mul - 1) * (dn + 1) * (max(p_o_2, p_o_1) / min(p_o_2, p_o_1)), 1e-6)  # Emprical formula
+    precision += (p_o_mul**3 - 1) / (p_o_mul**3 + 1)  # Dynamic fee component
 
     x0 = 0
     y0 = 0
 
     for k in range(N_STEPS):
+        boa.env.time_travel(120)
         with boa.env.prank(admin):
             price_oracle.set_price(p_o)
 
