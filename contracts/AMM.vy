@@ -228,30 +228,43 @@ def coins(i: uint256) -> address:
 
 @internal
 @view
-def limit_p_o(p: uint256) -> uint256:
+def limit_p_o(p: uint256) -> uint256[2]:
     old_p_o: uint256 = self.old_p_o
     ratio: uint256 = p * 10**18 / old_p_o
+    p_new: uint256 = p
 
     if ratio > MAX_P_O_CHG:
-        return unsafe_div(old_p_o * MAX_P_O_CHG, 10**18)
+        p_new = unsafe_div(old_p_o * MAX_P_O_CHG, 10**18)
+        ratio = MAX_P_O_CHG
     elif ratio < 10**36 / MAX_P_O_CHG:
-        return unsafe_div(old_p_o * 10**18, MAX_P_O_CHG)
-    else:
-        return p
+        p_new = unsafe_div(old_p_o * 10**18, MAX_P_O_CHG)
+        ratio = 10**36 / MAX_P_O_CHG
+
+    # r**3 where r = p_o_max / p_o_min
+    if ratio < 10**18:
+        ratio = unsafe_div(10**36, ratio)
+    # Guaranteed to be more than 1e18
+    # Also guaranteed to be limited, therefore can have all ops unsafe
+    ratio = unsafe_div(pow_mod256(ratio, 3), 10**36)
+
+    return [
+        p_new,
+        unsafe_div(unsafe_mul(unsafe_sub(ratio, 10**18), 10**18), unsafe_add(ratio, 10**18))  # (r**3 - 1) / (r**3 + 1)
+    ]
 
 
 @internal
 @view
-def _price_oracle_ro() -> uint256:
+def _price_oracle_ro() -> uint256[2]:
     return self.limit_p_o(self.price_oracle_contract.price())
 
 
 @internal
-def _price_oracle_w() -> uint256:
-    p: uint256 = self.limit_p_o(self.price_oracle_contract.price_w())
+def _price_oracle_w() -> uint256[2]:
+    p: uint256[2] = self.limit_p_o(self.price_oracle_contract.price_w())
     if block.timestamp >= self.prev_p_o_time + PREV_P_O_DELAY:
         self.prev_p_o_time = block.timestamp
-        self.old_p_o = p
+        self.old_p_o = p[0]
     return p
 
 
@@ -261,7 +274,7 @@ def price_oracle() -> uint256:
     """
     @notice Value returned by the external price oracle contract
     """
-    return self._price_oracle_ro()
+    return self._price_oracle_ro()[0]
 
 
 @internal
@@ -365,7 +378,7 @@ def _p_current_band(n: int256) -> uint256:
     p_base: uint256 = self._p_oracle_up(n)
 
     # return self.p_oracle**3 / p_base**2
-    p_oracle: uint256 = self._price_oracle_ro()
+    p_oracle: uint256 = self._price_oracle_ro()[0]
     return unsafe_div(p_oracle**2 / p_base * p_oracle, p_base)
 
 
@@ -455,7 +468,7 @@ def get_y0(_n: int256) -> uint256:
     return self._get_y0(
         self.bands_x[n],
         self.bands_y[n],
-        self._price_oracle_ro(),
+        self._price_oracle_ro()[0],
         self._p_oracle_up(n)
     )
 
@@ -471,7 +484,7 @@ def _get_p(n: int256, x: uint256, y: uint256) -> uint256:
     @return Current price at 1e18 base
     """
     p_o_up: uint256 = self._p_oracle_up(n)
-    p_o: uint256 = self._price_oracle_ro()
+    p_o: uint256 = self._price_oracle_ro()[0]
 
     # Special cases
     if x == 0:
@@ -943,7 +956,7 @@ def _get_dxdy(i: uint256, j: uint256, amount: uint256, is_in: bool) -> DetailedT
     if i == 0:
         in_precision = BORROWED_PRECISION
         out_precision = COLLATERAL_PRECISION
-    p_o: uint256 = self._price_oracle_ro()
+    p_o: uint256 = self._price_oracle_ro()[0]  # XXX
     if is_in:
         out = self.calc_swap_out(i == 0, amount * in_precision, p_o, in_precision, out_precision)
     else:
@@ -1012,7 +1025,7 @@ def _exchange(i: uint256, j: uint256, amount: uint256, minmax_amount: uint256, _
         out_coin = BORROWED_TOKEN
 
     out: DetailedTrade = empty(DetailedTrade)
-    p_o: uint256 = self._price_oracle_w()
+    p_o: uint256 = self._price_oracle_w()[0]  # XXX
     if use_in_amount:
         out = self.calc_swap_out(i == 0, amount * in_precision, p_o, in_precision, out_precision)
     else:
@@ -1282,7 +1295,7 @@ def get_xy_up(user: address, use_y: bool) -> uint256:
     ticks: DynArray[uint256, MAX_TICKS_UINT] = self._read_user_ticks(user, ns)
     if ticks[0] == 0:  # Even dynamic array will have 0th element set here
         return 0
-    p_o: uint256 = self._price_oracle_ro()
+    p_o: uint256 = self._price_oracle_ro()[0]
     assert p_o != 0
 
     n: int256 = ns[0] - 1
@@ -1454,7 +1467,7 @@ def get_amount_for_price(p: uint256) -> (uint256, bool):
     min_band: int256 = self.min_band
     max_band: int256 = self.max_band
     n: int256 = self.active_band
-    p_o: uint256 = self._price_oracle_ro()
+    p_o: uint256 = self._price_oracle_ro()[0]  # XXX
     p_o_up: uint256 = self._p_oracle_up(n)
     p_down: uint256 = unsafe_div(unsafe_div(p_o**2, p_o_up) * p_o, p_o_up)  # p_current_down
     p_up: uint256 = unsafe_div(p_down * A2, Aminus12)  # p_crurrent_up
