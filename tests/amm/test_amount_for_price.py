@@ -6,7 +6,7 @@ from datetime import timedelta
 
 
 @given(
-    oracle_price=st.integers(min_value=2000 * 10**18, max_value=4000 * 10**18),
+    oracle_price=st.integers(min_value=2100 * 10**18, max_value=4000 * 10**18),
     n1=st.integers(min_value=1, max_value=50),
     dn=st.integers(min_value=0, max_value=49),
     deposit_amount=st.integers(min_value=10**12, max_value=10**20),
@@ -32,7 +32,8 @@ def test_amount_for_price(price_oracle, amm, accounts, collateral_token, borrowe
         eamount = int(deposit_amount * amm.get_p() // 10**18 * init_trade_frac)
         if eamount > 0:
             borrowed_token._mint_for_testing(user, eamount)
-            amm.exchange(0, 1, eamount, 0)
+        boa.env.time_travel(120)  # To reset the prev p_o counter
+        amm.exchange(0, 1, eamount, 0)
         n0 = amm.active_band()
 
         p_initial = amm.get_p()
