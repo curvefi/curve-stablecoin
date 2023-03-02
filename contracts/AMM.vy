@@ -1017,6 +1017,7 @@ def _exchange(i: uint256, j: uint256, amount: uint256, minmax_amount: uint256, _
     @return Amount of coins given in and out
     """
     assert (i == 0 and j == 1) or (i == 1 and j == 0), "Wrong index"
+    p_o: uint256[2] = self._price_oracle_w()  # Let's update the oracle even if we exchange 0
     if amount == 0:
         return [0, 0]
 
@@ -1034,7 +1035,6 @@ def _exchange(i: uint256, j: uint256, amount: uint256, minmax_amount: uint256, _
         out_coin = BORROWED_TOKEN
 
     out: DetailedTrade = empty(DetailedTrade)
-    p_o: uint256[2] = self._price_oracle_w()
     if use_in_amount:
         out = self.calc_swap_out(i == 0, amount * in_precision, p_o, in_precision, out_precision)
     else:
