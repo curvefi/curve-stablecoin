@@ -795,8 +795,11 @@ def calc_swap_out(pump: bool, in_amount: uint256, p_o: uint256, in_precision: ui
             Inv = (f + x) * (g + y)
 
         if j != MAX_TICKS_UINT:
-            # Initialize to zero in case we have 0 bands between full bands
-            out.ticks_in.append(0)
+            # Initialize
+            if pump:
+                out.ticks_in.append(x)
+            else:
+                out.ticks_in.append(y)
 
         if pump:
             if y != 0:
@@ -1076,8 +1079,11 @@ def calc_swap_in(pump: bool, out_amount: uint256, p_o: uint256, in_precision: ui
             Inv = (f + x) * (g + y)
 
         if j != MAX_TICKS_UINT:
-            # Initialize to zero in case we have 0 bands between full bands
-            out.ticks_in.append(0)
+            # Initialize
+            if pump:
+                out.ticks_in.append(x)
+            else:
+                out.ticks_in.append(y)
 
         if pump:
             if y != 0:
