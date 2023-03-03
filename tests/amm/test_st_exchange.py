@@ -90,7 +90,7 @@ def test_exchange(admin, accounts, amm, collateral_token, borrowed_token):
 
 
 # For 18 stablecoin decimals
-def test_raise_at_teardown(admin, accounts, amm, collateral_token, borrowed_token):
+def test_raise_at_dy_back(admin, accounts, amm, collateral_token, borrowed_token):
     StatefulExchange.TestCase.settings = settings(deadline=timedelta(seconds=1000))
     accounts = accounts[:5]
     for k, v in locals().items():
