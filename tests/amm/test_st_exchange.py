@@ -87,3 +87,21 @@ def test_exchange(admin, accounts, amm, collateral_token, borrowed_token):
         for k, v in locals().items():
             setattr(StatefulExchange, k, v)
         run_state_machine_as_test(StatefulExchange)
+
+
+def test_raise_at_dy_back(admin, accounts, amm, collateral_token, borrowed_token):
+    StatefulExchange.TestCase.settings = settings(deadline=timedelta(seconds=1000))
+    accounts = accounts[:5]
+    for k, v in locals().items():
+        setattr(StatefulExchange, k, v)
+    state = StatefulExchange()
+    state.initializer(amounts=[0, 0, 0, 10**18, 10**18], ns=[1, 1, 1, 1, 2], dns=[0, 0, 0, 0, 0])
+    state.amm_solvent()
+    state.dy_back()
+    state.exchange(amount=10**25, pump=True, user_id=0)
+    state.amm_solvent()
+    state.dy_back()
+    state.exchange(amount=10**25, pump=True, user_id=0)
+    state.amm_solvent()
+    state.dy_back()
+    state.teardown()
