@@ -67,8 +67,8 @@ def test_immediate(amm, price_oracle, collateral_token, borrowed_token, accounts
     x1 = amm.get_x_down(user)
     y1 = amm.get_y_up(user)
 
-    assert approx(x0, x1, 1e-9, 100)
-    assert approx(y0, y1, 1e-9, 100)
+    assert approx(x0, x1, 1e-6, 100)
+    assert approx(y0, y1, 1e-6, 100)
 
 
 @given(

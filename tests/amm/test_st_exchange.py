@@ -89,6 +89,7 @@ def test_exchange(admin, accounts, amm, collateral_token, borrowed_token):
         run_state_machine_as_test(StatefulExchange)
 
 
+# For 18 stablecoin decimals
 def test_raise_at_dy_back(admin, accounts, amm, collateral_token, borrowed_token):
     StatefulExchange.TestCase.settings = settings(deadline=timedelta(seconds=1000))
     accounts = accounts[:5]
@@ -98,10 +99,10 @@ def test_raise_at_dy_back(admin, accounts, amm, collateral_token, borrowed_token
     state.initializer(amounts=[0, 0, 0, 10**18, 10**18], ns=[1, 1, 1, 1, 2], dns=[0, 0, 0, 0, 0])
     state.amm_solvent()
     state.dy_back()
-    state.exchange(amount=10**25, pump=True, user_id=0)
+    state.exchange(amount=3123061067055650168655, pump=True, user_id=0)
     state.amm_solvent()
     state.dy_back()
-    state.exchange(amount=10**25, pump=True, user_id=0)
+    state.exchange(amount=3123061067055650168655, pump=True, user_id=0)
     state.amm_solvent()
     state.dy_back()
     state.teardown()
