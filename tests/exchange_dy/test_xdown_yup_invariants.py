@@ -31,6 +31,13 @@ def test_immediate(amm, price_oracle, collateral_token, borrowed_token, accounts
         amm.set_fee(0)
         amm.deposit_range(user, deposit_amount, n1, n1+dn)
         collateral_token._mint_for_testing(amm.address, deposit_amount)
+        while True:
+            p_internal = amm.price_oracle()
+            boa.env.time_travel(120)  # To reset the prev p_o counter
+            amm.exchange(0, 1, 0, 0)
+            if p_o == p_internal:
+                break
+
     pump_recv_amount = int(deposit_amount * f_pump)
     pump_amount = amm.get_dx(0, 1, pump_recv_amount)
     with boa.env.prank(user):
@@ -83,15 +90,21 @@ def test_adiabatic(amm, price_oracle, collateral_token, borrowed_token, accounts
         amm.set_fee(0)
         amm.deposit_range(user, deposit_amount, dn, n1+dn)
         collateral_token._mint_for_testing(amm.address, deposit_amount)
+        for i in range(2):
+            boa.env.time_travel(120)
+            price_oracle.set_price(p_o_1)
+            amm.exchange(0, 1, 0, 0)
 
     p_o = p_o_1
     p_o_mul = (p_o_2 / p_o_1) ** (1 / (N_STEPS - 1))
     precision = max(1.5 * abs(p_o_mul - 1) * (dn + 1) * (max(p_o_2, p_o_1) / min(p_o_2, p_o_1)), 1e-6)  # Emprical formula
+    precision += (p_o_mul**3 - 1) / (p_o_mul**3 + 1)  # Dynamic fee component
 
     x0 = 0
     y0 = 0
 
     for k in range(N_STEPS):
+        boa.env.time_travel(120)
         with boa.env.prank(admin):
             price_oracle.set_price(p_o)
 
