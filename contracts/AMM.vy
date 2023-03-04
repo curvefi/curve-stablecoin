@@ -857,10 +857,10 @@ def calc_swap_out(pump: bool, in_amount: uint256, p_o: uint256[2], in_precision:
 
         if j != MAX_TICKS_UINT:
             # Initialize
+            _tick: uint256 = y
             if pump:
-                out.ticks_in.append(x)
-            else:
-                out.ticks_in.append(y)
+                _tick = x
+            out.ticks_in.append(_tick)
 
         if pump:
             if y != 0:
@@ -1145,10 +1145,10 @@ def calc_swap_in(pump: bool, out_amount: uint256, p_o: uint256[2], in_precision:
 
         if j != MAX_TICKS_UINT:
             # Initialize
+            _tick: uint256 = y
             if pump:
-                out.ticks_in.append(x)
-            else:
-                out.ticks_in.append(y)
+                _tick = x
+            out.ticks_in.append(_tick)
 
         if pump:
             if y != 0:
