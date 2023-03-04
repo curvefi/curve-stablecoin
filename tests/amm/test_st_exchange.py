@@ -2,6 +2,7 @@ import boa
 from hypothesis import settings
 from hypothesis import strategies as st
 from hypothesis.stateful import RuleBasedStateMachine, run_state_machine_as_test, rule, invariant, initialize
+from hypothesis import Phase
 from datetime import timedelta
 
 
@@ -96,7 +97,9 @@ class StatefulExchange(RuleBasedStateMachine):
 
 def test_exchange(admin, accounts, get_amm, get_collateral_token, get_borrowed_token):
     with boa.env.anchor():
-        StatefulExchange.TestCase.settings = settings(deadline=timedelta(seconds=1000))
+        StatefulExchange.TestCase.settings = settings(max_examples=200, stateful_step_count=10,
+                                                      deadline=timedelta(seconds=1000),
+                                                      phases=(Phase.explicit, Phase.reuse, Phase.generate, Phase.target))
         accounts = accounts[:5]
         for k, v in locals().items():
             setattr(StatefulExchange, k, v)
@@ -130,5 +133,53 @@ def test_raise_rounding(admin, accounts, get_amm, get_collateral_token, get_borr
     state = StatefulExchange()
     state.initializer(amounts=[101, 0, 0, 0, 0], ns=[1, 1, 1, 1, 1], dns=[0, 0, 0, 0, 0], borrowed_digits=16, collateral_digits=18)
     state.exchange(amount=100, pump=True, user_id=0)
+    state.dy_back()
+    state.teardown()
+
+
+def test_raise_rounding_2(admin, accounts, get_amm, get_collateral_token, get_borrowed_token):
+    StatefulExchange.TestCase.settings = settings(deadline=timedelta(seconds=1000))
+    accounts = accounts[:5]
+    for k, v in locals().items():
+        setattr(StatefulExchange, k, v)
+    state = StatefulExchange()
+    state.initializer(amounts=[779, 5642, 768, 51924, 5], ns=[2, 3, 4, 10, 18], dns=[11, 12, 14, 15, 15], borrowed_digits=18, collateral_digits=18)
+    state.amm_solvent()
+    state.dy_back()
+    state.exchange(amount=42, pump=True, user_id=1)
+    state.amm_solvent()
+    state.dy_back()
+    state.exchange(amount=512, pump=True, user_id=2)
+    state.amm_solvent()
+    state.dy_back()
+    state.teardown()
+
+
+def test_raise_rounding_3(admin, accounts, get_amm, get_collateral_token, get_borrowed_token):
+    StatefulExchange.TestCase.settings = settings(deadline=timedelta(seconds=1000))
+    accounts = accounts[:5]
+    for k, v in locals().items():
+        setattr(StatefulExchange, k, v)
+    state = StatefulExchange()
+    state.initializer(amounts=[33477, 63887, 387, 1, 0], ns=[4, 18, 6, 19, 5], dns=[18, 0, 8, 20, 5], borrowed_digits=17, collateral_digits=18)
+    state.amm_solvent()
+    state.dy_back()
+    state.exchange(amount=22005, pump=False, user_id=2)
+    state.amm_solvent()
+    state.dy_back()
+    state.exchange(amount=184846817736507205598398482, pump=False, user_id=4)
+    state.amm_solvent()
+    state.dy_back()
+    state.exchange(amount=140, pump=True, user_id=2)
+    state.amm_solvent()
+    state.dy_back()
+    state.exchange(amount=233, pump=True, user_id=0)
+    state.amm_solvent()
+    state.dy_back()
+    state.exchange(amount=54618, pump=True, user_id=3)
+    state.amm_solvent()
+    state.dy_back()
+    state.exchange(amount=169, pump=True, user_id=3)
+    state.amm_solvent()
     state.dy_back()
     state.teardown()
