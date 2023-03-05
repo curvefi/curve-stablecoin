@@ -59,7 +59,8 @@ def test_dydx_compare_to_dxdy(amm, amounts, accounts, ns, dns, collateral_token,
     # 18 - 10_000, 17 - 1000, 16 - 100, 15 - 10, <= 14 - 1
     borrowed_precision = 10 ** (max(borrowed_decimals - 14, 0))
     # >= 16 - 0; 15, 14 - 10; 13, 12 - 1000 ...
-    collateral_precision = 10 ** (max(15 - (borrowed_decimals // 2) * 2, 0)) if borrowed_decimals < 16 else 0
+    # collateral_precision = 10 ** (max(15 - (borrowed_decimals // 2) * 2, 0)) if borrowed_decimals < 16 else 0
+    collateral_precision = 10 ** (18 - borrowed_decimals)
 
     with boa.env.prank(admin):
         for user, amount, n1, dn in zip(accounts[1:6], amounts, ns, dns):
@@ -94,7 +95,8 @@ def test_dydx_compare_to_dxdy(amm, amounts, accounts, ns, dns, collateral_token,
     assert dy1 < 10**12 * 10**collateral_decimals      # Less than all is desired
     assert abs(dy1 - sum(amounts)) <= 1000             # but everything is bought
     assert dx1 == dx2
-    assert dy1 == dy2
+    assert dy2 <= dy1  # We might get less because AMM rounds in its favor
+    assert abs(dy1 - dy2) <= collateral_precision
 
     dx1, dy1 = amm.get_dxdy(0, 1, 10**12 * 10**borrowed_decimals)
     dy2, dx2 = amm.get_dydx(0, 1, dy1)

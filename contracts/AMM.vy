@@ -1157,7 +1157,7 @@ def calc_swap_in(pump: bool, out_amount: uint256, p_o: uint256[2], in_precision:
                         # This is the last band
                         out.last_tick_j = unsafe_sub(y, out_amount_left)
                         x_dest: uint256 = Inv / (g + out.last_tick_j) - f - x
-                        dx: uint256 = unsafe_div(x_dest * antifee, 10**18) + 1  # MORE than x_dest
+                        dx: uint256 = unsafe_div(x_dest * antifee, 10**18)  # MORE than x_dest
                         out.out_amount = out_amount  # We successfully found liquidity for all the out_amount
                         out.in_amount += dx
                         x_dest = unsafe_div(unsafe_sub(dx, x_dest) * admin_fee, 10**18)  # abs admin fee now
@@ -1193,7 +1193,7 @@ def calc_swap_in(pump: bool, out_amount: uint256, p_o: uint256[2], in_precision:
                         # This is the last band
                         out.last_tick_j = unsafe_sub(x, out_amount_left)
                         y_dest: uint256 = Inv / (f + out.last_tick_j) - g - y
-                        dy: uint256 = unsafe_div(y_dest * antifee, 10**18) + 1  # MORE than y_dest
+                        dy: uint256 = unsafe_div(y_dest * antifee, 10**18)  # MORE than y_dest
                         out.out_amount = out_amount
                         out.in_amount += dy
                         y_dest = unsafe_div(unsafe_sub(dy, y_dest) * admin_fee, 10**18)  # abs admin fee now
