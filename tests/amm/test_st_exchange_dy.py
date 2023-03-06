@@ -2,6 +2,7 @@ import boa
 from hypothesis import settings
 from hypothesis import strategies as st
 from hypothesis.stateful import RuleBasedStateMachine, run_state_machine_as_test, rule, invariant, initialize
+from hypothesis import Phase
 from datetime import timedelta
 
 
@@ -12,15 +13,22 @@ class StatefulExchange(RuleBasedStateMachine):
     amount = st.floats(min_value=0, max_value=10**9)
     pump = st.booleans()
     user_id = st.integers(min_value=0, max_value=4)
+    borrowed_digits = st.integers(min_value=18, max_value=18)
+    collateral_digits = st.integers(min_value=18, max_value=18)
 
     def __init__(self):
         super().__init__()
         self.total_deposited = 0
-        self.collateral_decimals = self.collateral_token.decimals()
-        self.borrowed_decimals = self.borrowed_token.decimals()
 
-    @initialize(amounts=amounts, ns=ns, dns=dns)
-    def initializer(self, amounts, ns, dns):
+    @initialize(amounts=amounts, ns=ns, dns=dns, borrowed_digits=borrowed_digits, collateral_digits=collateral_digits)
+    def initializer(self, amounts, ns, dns, borrowed_digits, collateral_digits):
+        self.borrowed_decimals = borrowed_digits
+        self.collateral_decimals = collateral_digits
+        self.borrowed_mul = 10**(18 - borrowed_digits)
+        self.collateral_mul = 10**(18 - collateral_digits)
+        self.borrowed_token = StatefulExchange.get_borrowed_token(borrowed_digits)
+        self.collateral_token = StatefulExchange.get_collateral_token(collateral_digits)
+        self.amm = StatefulExchange.get_amm(self.collateral_token, self.borrowed_token)
         amounts = list(map(lambda x: int(x * 10**self.collateral_decimals), amounts))
         for user, amount, n1, dn in zip(self.accounts, amounts, ns, dns):
             n2 = n1 + dn
@@ -86,22 +94,27 @@ class StatefulExchange(RuleBasedStateMachine):
                 assert left_in_amm >= self.total_deposited
 
 
-def test_exchange(admin, accounts, amm, collateral_token, borrowed_token):
-    with boa.env.anchor():
-        StatefulExchange.TestCase.settings = settings(deadline=timedelta(seconds=1000))
-        accounts = accounts[:5]
-        for k, v in locals().items():
-            setattr(StatefulExchange, k, v)
-        run_state_machine_as_test(StatefulExchange)
-
-
-def test_raise_at_dy_back(admin, accounts, amm, collateral_token, borrowed_token):
-    StatefulExchange.TestCase.settings = settings(deadline=timedelta(seconds=1000))
+def test_exchange(admin, accounts, get_amm, get_collateral_token, get_borrowed_token):
+    StatefulExchange.TestCase.settings = settings(max_examples=200, stateful_step_count=10,
+                                                  deadline=timedelta(seconds=1000),
+                                                  phases=(Phase.explicit, Phase.reuse, Phase.generate, Phase.target))
     accounts = accounts[:5]
     for k, v in locals().items():
         setattr(StatefulExchange, k, v)
+    run_state_machine_as_test(StatefulExchange)
+
+
+def test_raise_at_dy_back(admin, accounts, get_amm, get_collateral_token, get_borrowed_token):
+    StatefulExchange.TestCase.settings = settings(max_examples=200, stateful_step_count=10,
+                                                  deadline=timedelta(seconds=1000),
+                                                  phases=(Phase.explicit, Phase.reuse, Phase.generate, Phase.target))
+    accounts = accounts[:5]
+    for k, v in locals().items():
+        setattr(StatefulExchange, k, v)
+
     state = StatefulExchange()
-    state.initializer(amounts=[0.0, 0.0, 0.0, 1.0, 1.0], ns=[1, 1, 1, 1, 2], dns=[0, 0, 0, 0, 0])
+    state.initializer(amounts=[0.0, 0.0, 0.0, 1.0, 1.0], ns=[1, 1, 1, 1, 2], dns=[0, 0, 0, 0, 0],
+                      borrowed_digits=18, collateral_digits=18)
     state.amm_solvent()
     state.dy_back()
     state.exchange(amount=1.0, pump=True, user_id=0)
