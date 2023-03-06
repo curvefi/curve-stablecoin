@@ -14,7 +14,7 @@ class StatefulExchange(RuleBasedStateMachine):
     pump = st.booleans()
     user_id = st.integers(min_value=0, max_value=4)
     borrowed_digits = st.integers(min_value=6, max_value=18)
-    collateral_digits = st.integers(min_value=18, max_value=18)
+    collateral_digits = st.integers(min_value=6, max_value=18)
 
     def __init__(self):
         super().__init__()
@@ -96,14 +96,13 @@ class StatefulExchange(RuleBasedStateMachine):
 
 
 def test_exchange(admin, accounts, get_amm, get_collateral_token, get_borrowed_token):
-    with boa.env.anchor():
-        StatefulExchange.TestCase.settings = settings(max_examples=200, stateful_step_count=10,
-                                                      deadline=timedelta(seconds=1000),
-                                                      phases=(Phase.explicit, Phase.reuse, Phase.generate, Phase.target))
-        accounts = accounts[:5]
-        for k, v in locals().items():
-            setattr(StatefulExchange, k, v)
-        run_state_machine_as_test(StatefulExchange)
+    StatefulExchange.TestCase.settings = settings(max_examples=200, stateful_step_count=10,
+                                                  deadline=timedelta(seconds=1000),
+                                                  phases=(Phase.explicit, Phase.reuse, Phase.generate, Phase.target))
+    accounts = accounts[:5]
+    for k, v in locals().items():
+        setattr(StatefulExchange, k, v)
+    run_state_machine_as_test(StatefulExchange)
 
 
 def test_raise_at_dy_back(admin, accounts, get_amm, get_collateral_token, get_borrowed_token):
