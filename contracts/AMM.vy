@@ -1470,6 +1470,30 @@ def get_sum_xy(user: address) -> uint256[2]:
         ns[0] += 1
     return [unsafe_div(x, BORROWED_PRECISION), unsafe_div(y, COLLATERAL_PRECISION)]
 
+@external
+@view
+@nonreentrant('lock')
+def get_xy(user: address) -> DynArray[uint256, MAX_TICKS_UINT][2]:
+    """
+    @notice A low-gas function to measure amounts of stablecoins and collateral by bands which user currently owns
+    @param user User address
+    @return Amounts of (stablecoin, collateral) by bands in a tuple
+    """
+    xs: DynArray[uint256, MAX_TICKS_UINT] = []
+    ys: DynArray[uint256, MAX_TICKS_UINT] = []
+    ns: int256[2] = self._read_user_tick_numbers(user)
+    ticks: DynArray[uint256, MAX_TICKS_UINT] = self._read_user_ticks(user, ns)
+    if ticks[0] == 0:
+        return [[], []]
+    for i in range(MAX_TICKS):
+        total_shares: uint256 = self.total_shares[ns[0]]
+        xs.append(self.bands_x[ns[0]] * ticks[i] / total_shares)
+        ys.append(unsafe_div(self.bands_y[ns[0]] * ticks[i], total_shares))
+        if ns[0] == ns[1]:
+            break
+        ns[0] += 1
+    return [xs, ys]
+
 
 @external
 @view
