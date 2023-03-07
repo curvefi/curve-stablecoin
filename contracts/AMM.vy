@@ -108,6 +108,7 @@ A2: immutable(uint256)
 Aminus12: immutable(uint256)
 SQRT_BAND_RATIO: immutable(uint256)  # sqrt(A / (A - 1))
 LOG_A_RATIO: immutable(int256)  # ln(A / (A - 1))
+MAX_ORACLE_DN_POW: immutable(uint256)  # (A / (A - 1)) ** 50
 
 fee: public(uint256)
 admin_fee: public(uint256)
@@ -187,6 +188,11 @@ def __init__(
     SQRT_BAND_RATIO = _sqrt_band_ratio
     # log(A / (A - 1)) - needs to be pre-calculated externally
     LOG_A_RATIO = _log_A_ratio
+
+    # (A / (A - 1)) ** 50
+    _Apow: uint256 = A**25
+    _Aminus1pow: uint256 = pow_mod256(Aminus1, 25)
+    MAX_ORACLE_DN_POW = unsafe_div(unsafe_div(_Apow, _Aminus1pow) * _Apow, unsafe_div(_Aminus1pow, 10**18))
 
 
 @internal
