@@ -326,6 +326,7 @@ def loan_exists(user: address) -> bool:
     return self.loan[user].initial_debt > 0
 
 
+# No decorator because used in monetary policy
 @external
 @view
 def total_debt() -> uint256:
@@ -1152,6 +1153,7 @@ def users_to_liquidate(_from: uint256=0, _limit: uint256=0) -> DynArray[Position
     return out
 
 
+# AMM has a nonreentrant decorator
 @view
 @external
 def amm_price() -> uint256:
@@ -1189,6 +1191,7 @@ def user_state(user: address) -> uint256[4]:
     return [xy[1], xy[0], self._debt_ro(user), convert(ns[1] - ns[0] + 1, uint256)]
 
 
+# AMM has nonreentrant decorator
 @external
 def set_amm_fee(fee: uint256):
     """
@@ -1200,6 +1203,7 @@ def set_amm_fee(fee: uint256):
     AMM.set_fee(fee)
 
 
+# AMM has nonreentrant decorator
 @external
 def set_amm_admin_fee(fee: uint256):
     """
@@ -1211,6 +1215,7 @@ def set_amm_admin_fee(fee: uint256):
     AMM.set_admin_fee(fee)
 
 
+# AMM has nonreentrant decorator
 @external
 def set_amm_price_oracle(price_oracle: PriceOracle):
     """
@@ -1223,6 +1228,7 @@ def set_amm_price_oracle(price_oracle: PriceOracle):
     AMM.set_price_oracle(price_oracle)
 
 
+@nonreentrant('lock')
 @external
 def set_monetary_policy(monetary_policy: address):
     """
@@ -1235,6 +1241,7 @@ def set_monetary_policy(monetary_policy: address):
     log SetMonetaryPolicy(monetary_policy)
 
 
+@nonreentrant('lock')
 @external
 def set_borrowing_discounts(loan_discount: uint256, liquidation_discount: uint256):
     """
@@ -1252,6 +1259,7 @@ def set_borrowing_discounts(loan_discount: uint256, liquidation_discount: uint25
 
 
 @external
+@nonreentrant('lock')
 def set_callback(cb: address):
     """
     @notice Set liquidity mining callback

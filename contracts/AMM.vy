@@ -1649,6 +1649,7 @@ def set_price_oracle(price_oracle: PriceOracle):
     log SetPriceOracle(price_oracle.address)
 
 
+# nonreentrant decorator is in Controller which is admin
 @external
 def set_callback(liquidity_mining_callback: LMGauge):
     """
