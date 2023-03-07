@@ -13,8 +13,8 @@ class StatefulExchange(RuleBasedStateMachine):
     amount = st.floats(min_value=0, max_value=10**9)
     pump = st.booleans()
     user_id = st.integers(min_value=0, max_value=4)
-    borrowed_digits = st.integers(min_value=18, max_value=18)
-    collateral_digits = st.integers(min_value=18, max_value=18)
+    borrowed_digits = st.integers(min_value=6, max_value=18)
+    collateral_digits = st.integers(min_value=6, max_value=18)
 
     def __init__(self):
         super().__init__()
@@ -67,23 +67,23 @@ class StatefulExchange(RuleBasedStateMachine):
     def amm_solvent(self):
         X = sum(self.amm.bands_x(n) for n in range(42))
         Y = sum(self.amm.bands_y(n) for n in range(42))
-        assert self.borrowed_token.balanceOf(self.amm) * 10**(self.collateral_decimals - self.borrowed_decimals) >= X
-        assert self.collateral_token.balanceOf(self.amm) >= Y
+        assert self.borrowed_token.balanceOf(self.amm) * self.borrowed_mul >= X
+        assert self.collateral_token.balanceOf(self.amm) * self.collateral_mul >= Y
 
     @invariant()
     def dy_back(self):
         n = self.amm.active_band()
-        to_receive = self.total_deposited * self.initial_price  # Huge amount
+        to_receive = self.total_deposited * self.initial_price * 10 // 10**18 // self.borrowed_mul  # Huge amount
         left_in_amm = sum(self.amm.bands_y(n) for n in range(42))
         if n < 50:
             dx = self.amm.get_dx(1, 0, to_receive)
-            assert dx >= self.total_deposited - left_in_amm  # With fees, AMM will have more
+            assert dx * self.collateral_mul >= self.total_deposited - left_in_amm  # With fees, AMM will have more
 
     def teardown(self):
         u = self.accounts[0]
         # Trade back and do the check
         n = self.amm.active_band()
-        to_receive = self.total_deposited * self.initial_price  # Huge amount
+        to_receive = self.total_deposited * self.initial_price * 10 // 10**18 // self.borrowed_mul  # Huge amount
         if n < 50:
             dy, dx = self.amm.get_dydx(1, 0, to_receive)
             if dy > 0:
@@ -121,6 +121,27 @@ def test_raise_at_dy_back(admin, accounts, get_amm, get_collateral_token, get_bo
     state.amm_solvent()
     state.dy_back()
     state.exchange(amount=1.0, pump=True, user_id=0)
+    state.amm_solvent()
+    state.dy_back()
+    state.teardown()
+
+
+def test_raise_not_enough_left(admin, accounts, get_amm, get_collateral_token, get_borrowed_token):
+    StatefulExchange.TestCase.settings = settings(max_examples=200, stateful_step_count=10,
+                                                  deadline=timedelta(seconds=1000),
+                                                  phases=(Phase.explicit, Phase.reuse, Phase.generate, Phase.target))
+    accounts = accounts[:5]
+    for k, v in locals().items():
+        setattr(StatefulExchange, k, v)
+
+    state = StatefulExchange()
+    state.initializer(amounts=[419403.0765402276, 1.0, 5e-324, 5.960464477539063e-08, 999999.9999999999], ns=[17, 16, 14, 14, 16], dns=[15, 7, 2, 11, 16], borrowed_digits=16, collateral_digits=13)
+    state.amm_solvent()
+    state.dy_back()
+    state.exchange(amount=6.103515625e-05, pump=True, user_id=2)
+    state.amm_solvent()
+    state.dy_back()
+    state.exchange(amount=14177506.010146782, pump=True, user_id=0)
     state.amm_solvent()
     state.dy_back()
     state.teardown()
