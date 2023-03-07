@@ -1,8 +1,14 @@
 import boa
+import pytest
 from ..conftest import approx
 from hypothesis import given, settings
 from hypothesis import strategies as st
 from datetime import timedelta
+
+
+@pytest.fixture(scope="module")
+def borrowed_token(get_borrowed_token):
+    return get_borrowed_token(18)
 
 
 @given(
