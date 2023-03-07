@@ -1,6 +1,7 @@
 from hypothesis import given, settings
 from hypothesis import strategies as st
 import boa
+import pytest
 from datetime import timedelta
 from ..conftest import approx
 """
@@ -8,6 +9,11 @@ Test that get_x_down and get_y_up don't change:
 * if we do trades at constant p_o (immediate trades)
 * or if we do adiabatic trade keeping p = p_o (adiabatic_trades)
 """
+
+
+@pytest.fixture(scope="module")
+def borrowed_token(get_borrowed_token):
+    return get_borrowed_token(18)
 
 
 @given(

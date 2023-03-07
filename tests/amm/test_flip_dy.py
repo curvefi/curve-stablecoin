@@ -1,6 +1,5 @@
-import math
-
 import boa
+import pytest
 from pytest import mark  # noqa
 
 # 1. deposit below (N > 0 in 5 bands)
@@ -10,6 +9,11 @@ from pytest import mark  # noqa
 # 5. repeat in other way
 AMOUNT_D = 5
 STEP = 0.01
+
+
+@pytest.fixture(scope="module")
+def borrowed_token(get_borrowed_token):
+    return get_borrowed_token(18)
 
 
 def test_flip(amm, price_oracle, collateral_token, borrowed_token, accounts, admin):
