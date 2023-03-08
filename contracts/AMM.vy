@@ -1445,6 +1445,40 @@ def get_x_down(user: address) -> uint256:
     """
     return self.get_xy_up(user, False)
 
+@internal
+@view
+def _get_xy(user: address, sum: bool) -> DynArray[uint256, MAX_TICKS_UINT][2]:
+    """
+    @notice A low-gas function to measure amounts of stablecoins and collateral which user currently owns
+    @param user User address
+    @param sum Return sum or amounts by bands
+    @return Amounts of (stablecoin, collateral) in a tuple
+    """
+    xs: DynArray[uint256, MAX_TICKS_UINT] = []
+    ys: DynArray[uint256, MAX_TICKS_UINT] = []
+    if sum:
+        xs.append(0)
+        ys.append(0)
+    ns: int256[2] = self._read_user_tick_numbers(user)
+    ticks: DynArray[uint256, MAX_TICKS_UINT] = self._read_user_ticks(user, ns)
+    if ticks[0] != 0:
+        for i in range(MAX_TICKS):
+            total_shares: uint256 = self.total_shares[ns[0]]
+            if sum:
+                xs[0] += self.bands_x[ns[0]] * ticks[i] / total_shares
+                ys[0] += unsafe_div(self.bands_y[ns[0]] * ticks[i], total_shares)
+            else:
+                xs.append(unsafe_div(self.bands_x[ns[0]] * ticks[i] / total_shares, BORROWED_PRECISION))
+                ys.append(unsafe_div(unsafe_div(self.bands_y[ns[0]] * ticks[i], total_shares), COLLATERAL_PRECISION))
+            if ns[0] == ns[1]:
+                break
+            ns[0] = unsafe_add(ns[0], 1)
+
+    if sum:
+        xs[0] = unsafe_div(xs[0], BORROWED_PRECISION)
+        ys[0] = unsafe_div(ys[0], COLLATERAL_PRECISION)
+
+    return [xs, ys]
 
 @external
 @view
@@ -1455,20 +1489,8 @@ def get_sum_xy(user: address) -> uint256[2]:
     @param user User address
     @return Amounts of (stablecoin, collateral) in a tuple
     """
-    x: uint256 = 0
-    y: uint256 = 0
-    ns: int256[2] = self._read_user_tick_numbers(user)
-    ticks: DynArray[uint256, MAX_TICKS_UINT] = self._read_user_ticks(user, ns)
-    if ticks[0] == 0:
-        return [0, 0]
-    for i in range(MAX_TICKS):
-        total_shares: uint256 = self.total_shares[ns[0]]
-        x += self.bands_x[ns[0]] * ticks[i] / total_shares
-        y += unsafe_div(self.bands_y[ns[0]] * ticks[i], total_shares)
-        if ns[0] == ns[1]:
-            break
-        ns[0] += 1
-    return [unsafe_div(x, BORROWED_PRECISION), unsafe_div(y, COLLATERAL_PRECISION)]
+    xy: DynArray[uint256, MAX_TICKS_UINT][2] = self._get_xy(user, True)
+    return [xy[0][0], xy[1][0]]
 
 @external
 @view
@@ -1479,20 +1501,7 @@ def get_xy(user: address) -> DynArray[uint256, MAX_TICKS_UINT][2]:
     @param user User address
     @return Amounts of (stablecoin, collateral) by bands in a tuple
     """
-    xs: DynArray[uint256, MAX_TICKS_UINT] = []
-    ys: DynArray[uint256, MAX_TICKS_UINT] = []
-    ns: int256[2] = self._read_user_tick_numbers(user)
-    ticks: DynArray[uint256, MAX_TICKS_UINT] = self._read_user_ticks(user, ns)
-    if ticks[0] == 0:
-        return [[], []]
-    for i in range(MAX_TICKS):
-        total_shares: uint256 = self.total_shares[ns[0]]
-        xs.append(self.bands_x[ns[0]] * ticks[i] / total_shares)
-        ys.append(unsafe_div(self.bands_y[ns[0]] * ticks[i], total_shares))
-        if ns[0] == ns[1]:
-            break
-        ns[0] += 1
-    return [xs, ys]
+    return self._get_xy(user, False)
 
 
 @external
