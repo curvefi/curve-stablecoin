@@ -944,6 +944,15 @@ def calc_swap_out(pump: bool, in_amount: uint256, p_o: uint256[2], in_precision:
         if j != MAX_TICKS_UINT:
             j = unsafe_add(j, 1)
 
+        # Don't allow to be away by more than ~50 ticks
+        p_ratio: uint256 = p_o_up * 10**18 / p_o[0]
+        if pump:
+            if p_ratio < 10**36 / MAX_ORACLE_DN_POW:
+                break
+        else:
+            if p_ratio > MAX_ORACLE_DN_POW:
+                break
+
     # Round up what goes in and down what goes out
     # ceil(in_amount_used/BORROWED_PRECISION) * BORROWED_PRECISION
     out.in_amount = unsafe_mul(unsafe_div(unsafe_add(out.in_amount, unsafe_sub(in_precision, 1)), in_precision), in_precision)
