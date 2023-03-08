@@ -108,7 +108,7 @@ A2: immutable(uint256)
 Aminus12: immutable(uint256)
 SQRT_BAND_RATIO: immutable(uint256)  # sqrt(A / (A - 1))
 LOG_A_RATIO: immutable(int256)  # ln(A / (A - 1))
-MAX_ORACLE_DN_POW: public(immutable(uint256))  # (A / (A - 1)) ** 50
+MAX_ORACLE_DN_POW: immutable(uint256)  # (A / (A - 1)) ** 50
 
 fee: public(uint256)
 admin_fee: public(uint256)
