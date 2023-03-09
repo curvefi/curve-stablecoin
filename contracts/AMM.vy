@@ -468,24 +468,6 @@ def _get_y0(x: uint256, y: uint256, p_o: uint256, p_o_up: uint256) -> uint256:
         return unsafe_div(b * 10**18, A * p_o)
 
 
-@external
-@view
-def get_y0(_n: int256) -> uint256:
-    """
-    @notice Calculate y0 for the invariant based on current liquidity in band.
-            Unlike the internal method, this one reads most of the inputs from the state
-    @param _n Band number
-    @return y0
-    """
-    n: int256 = _n
-    return self._get_y0(
-        self.bands_x[n],
-        self.bands_y[n],
-        self._price_oracle_ro()[0],
-        self._p_oracle_up(n)
-    )
-
-
 @internal
 @view
 def _get_p(n: int256, x: uint256, y: uint256) -> uint256:
@@ -866,6 +848,9 @@ def calc_swap_out(pump: bool, in_amount: uint256, p_o: uint256[2], in_precision:
                 _tick = x
             out.ticks_in.append(_tick)
 
+        # Need this to break if price is too far
+        p_ratio: uint256 = unsafe_div(p_o_up * 10**18, p_o[0])
+
         if pump:
             if y != 0:
                 if g != 0:
@@ -897,6 +882,9 @@ def calc_swap_out(pump: bool, in_amount: uint256, p_o: uint256[2], in_precision:
                 if out.n2 == max_band:
                     break
                 if j == MAX_TICKS_UINT - 1:
+                    break
+                if p_ratio < 10**36 / MAX_ORACLE_DN_POW:
+                    # Don't allow to be away by more than ~50 ticks
                     break
                 out.n2 += 1
                 p_o_up = unsafe_div(p_o_up * Aminus1, A)
@@ -934,6 +922,9 @@ def calc_swap_out(pump: bool, in_amount: uint256, p_o: uint256[2], in_precision:
                     break
                 if j == MAX_TICKS_UINT - 1:
                     break
+                if p_ratio > MAX_ORACLE_DN_POW:
+                    # Don't allow to be away by more than ~50 ticks
+                    break
                 out.n2 -= 1
                 p_o_up = unsafe_div(p_o_up * A, Aminus1)
                 x = self.bands_x[out.n2]
@@ -941,15 +932,6 @@ def calc_swap_out(pump: bool, in_amount: uint256, p_o: uint256[2], in_precision:
 
         if j != MAX_TICKS_UINT:
             j = unsafe_add(j, 1)
-
-        # Don't allow to be away by more than ~50 ticks
-        p_ratio: uint256 = p_o_up * 10**18 / p_o[0]
-        if pump:
-            if p_ratio < 10**36 / MAX_ORACLE_DN_POW:
-                break
-        else:
-            if p_ratio > MAX_ORACLE_DN_POW:
-                break
 
     # Round up what goes in and down what goes out
     # ceil(in_amount_used/BORROWED_PRECISION) * BORROWED_PRECISION
@@ -1163,6 +1145,9 @@ def calc_swap_in(pump: bool, out_amount: uint256, p_o: uint256[2], in_precision:
                 _tick = x
             out.ticks_in.append(_tick)
 
+        # Need this to break if price is too far
+        p_ratio: uint256 = unsafe_div(p_o_up * 10**18, p_o[0])
+
         if pump:
             if y != 0:
                 if g != 0:
@@ -1193,6 +1178,9 @@ def calc_swap_in(pump: bool, out_amount: uint256, p_o: uint256[2], in_precision:
                 if out.n2 == max_band:
                     break
                 if j == MAX_TICKS_UINT - 1:
+                    break
+                if p_ratio < 10**36 / MAX_ORACLE_DN_POW:
+                    # Don't allow to be away by more than ~50 ticks
                     break
                 out.n2 += 1
                 p_o_up = unsafe_div(p_o_up * Aminus1, A)
@@ -1229,6 +1217,9 @@ def calc_swap_in(pump: bool, out_amount: uint256, p_o: uint256[2], in_precision:
                 if out.n2 == min_band:
                     break
                 if j == MAX_TICKS_UINT - 1:
+                    break
+                if p_ratio > MAX_ORACLE_DN_POW:
+                    # Don't allow to be away by more than ~50 ticks
                     break
                 out.n2 -= 1
                 p_o_up = unsafe_div(p_o_up * A, Aminus1)
@@ -1558,12 +1549,18 @@ def get_amount_for_price(p: uint256) -> (uint256, bool):
                         amount += unsafe_sub(max(ynew, y), y)
                 break
 
+        # Need this to break if price is too far
+        p_ratio: uint256 = unsafe_div(p_o_up * 10**18, p_o[0])
+
         if pump:
             if not_empty:
                 amount += (Inv / g - f) - x
             if n == max_band:
                 break
             if j == MAX_TICKS_UINT - 1:
+                break
+            if p_ratio < 10**36 / MAX_ORACLE_DN_POW:
+                # Don't allow to be away by more than ~50 ticks
                 break
             n += 1
             p_down = p_up
@@ -1576,6 +1573,9 @@ def get_amount_for_price(p: uint256) -> (uint256, bool):
             if n == min_band:
                 break
             if j == MAX_TICKS_UINT - 1:
+                break
+            if p_ratio > MAX_ORACLE_DN_POW:
+                # Don't allow to be away by more than ~50 ticks
                 break
             n -= 1
             p_up = p_down
