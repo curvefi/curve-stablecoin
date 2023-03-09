@@ -70,6 +70,16 @@ def test_amount_for_price(price_oracle, amm, accounts, collateral_token, borrowe
     assert approx(p_min, amm.p_current_down(n1), 1e-8)
 
     if abs(n_final - n0) < 50 - 1 and prec < 0.1:
+        A = amm.A()
+        a_ratio = A / (A - 1)
+        p_o_ratio = amm.p_oracle_up(n_final) / amm.price_oracle()
+        if is_pump:
+            if p_o_ratio < a_ratio**-50 * (1 + 1e-8):
+                return
+        else:
+            if p_o_ratio > a_ratio**50 * (1 - 1e-8):
+                return
+
         if p_final > p_min * (1 + prec) and p_final < p_max * (1 - prec):
             assert approx(p, p_final, prec)
 
