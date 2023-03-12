@@ -18,7 +18,7 @@ def amm(collateral_token, borrowed_token, get_amm):
 
 
 @given(
-    n1=st.integers(min_value=1, max_value=40),
+    n1=st.integers(min_value=1, max_value=60),  # Max is probably unreachable
     dn=st.integers(min_value=0, max_value=20),
     amount=st.integers(min_value=10**10, max_value=10**20),
     price_shift=st.floats(min_value=0.1, max_value=10)
