@@ -1168,7 +1168,7 @@ def calc_swap_in(pump: bool, out_amount: uint256, p_o: uint256[2], in_precision:
                     else:
                         # We go into the next band
                         x_dest: uint256 = (unsafe_div(Inv, g) - f) - x
-                        dx: uint256 = unsafe_div(x_dest * antifee, 10**18)
+                        dx: uint256 = max(unsafe_div(x_dest * antifee, 10**18), 1)
                         out_amount_left -= y
                         out.in_amount += dx
                         out.out_amount += y
@@ -1207,7 +1207,7 @@ def calc_swap_in(pump: bool, out_amount: uint256, p_o: uint256[2], in_precision:
                     else:
                         # We go into the next band
                         y_dest: uint256 = (unsafe_div(Inv, f) - g) - y
-                        dy: uint256 = unsafe_div(y_dest * antifee, 10**18)
+                        dy: uint256 = max(unsafe_div(y_dest * antifee, 10**18), 1)
                         out_amount_left -= x
                         out.in_amount += dy
                         out.out_amount += x
