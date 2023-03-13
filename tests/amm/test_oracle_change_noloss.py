@@ -2,7 +2,7 @@
 
 import boa
 import pytest
-from hypothesis import given, settings
+from hypothesis import given, settings, example
 from hypothesis import strategies as st
 from datetime import timedelta
 
@@ -60,3 +60,95 @@ def test_buy_with_shift(amm, collateral_token, borrowed_token, price_oracle, acc
     # Measure profit
     profit = new_b - amount
     assert profit <= 0
+
+
+@given(
+    n1=st.integers(min_value=1, max_value=20),  # Max is probably unreachable
+    dn=st.integers(min_value=0, max_value=20),
+    amount=st.integers(min_value=10**10, max_value=10**18),
+    price_shift=st.floats(min_value=0.1, max_value=10)
+)
+@settings(deadline=timedelta(seconds=1000), max_examples=1000)
+def test_sell_with_shift(amm, collateral_token, borrowed_token, price_oracle, accounts, admin,
+                         n1, dn, amount, price_shift):
+    user = accounts[1]
+    collateral_amount = 10**18
+    MANY = 10**24
+    c_balances = []
+
+    # Deposit
+    with boa.env.prank(admin):
+        amm.deposit_range(user, collateral_amount, n1, n1 + dn)
+        collateral_token._mint_for_testing(amm.address, collateral_amount)
+
+    # Swap max (buy)
+    borrowed_token._mint_for_testing(user, MANY)
+    with boa.env.prank(user):
+        amm.exchange(0, 1, MANY, 0)
+
+    # Swap back some amount (sell)
+    c_balances += [collateral_token.balanceOf(user)]
+    amount = min(amount, c_balances[0])
+    with boa.env.prank(user):
+        amm.exchange(1, 0, amount, 0)
+    c_balances += [collateral_token.balanceOf(user)]
+    if c_balances[0] == c_balances[1]:
+        return  # No swap -> stop it
+
+    # Shift oracle
+    with boa.env.prank(admin):
+        price_oracle.set_price(int(price_oracle.price() * price_shift))
+
+    # Swap max (buy) to trade back
+    with boa.env.prank(user):
+        amm.exchange(0, 1, MANY, 0)
+    c_balances += [collateral_token.balanceOf(user)]
+
+    # Measure profit
+    profit = c_balances[-1] - c_balances[0]
+    assert profit <= 0
+
+
+@given(
+    n1=st.integers(min_value=20, max_value=60),  # Max is probably unreachable
+    dn=st.integers(min_value=0, max_value=20),
+    amount=st.integers(min_value=1, max_value=10**20),
+    price_shift=st.floats(min_value=0.1, max_value=10)
+)
+@settings(deadline=timedelta(seconds=1000), max_examples=1000)
+@example(n1=20, dn=0, amount=4351, price_shift=2.0)  # Leaves small dust
+def test_no_untradable_funds(amm, collateral_token, borrowed_token, price_oracle, accounts, admin,
+                             n1, dn, amount, price_shift):
+    # Same as buy test at the beginning
+    user = accounts[1]
+    collateral_amount = 10**18
+
+    # Deposit
+    with boa.env.prank(admin):
+        amm.deposit_range(user, collateral_amount, n1, n1 + dn)
+        collateral_token._mint_for_testing(amm.address, collateral_amount)
+
+    # Swap stablecoin for collateral
+    borrowed_token._mint_for_testing(user, amount)
+    with boa.env.prank(user):
+        amm.exchange(0, 1, amount, 0)
+    b = borrowed_token.balanceOf(user)
+    if b < amount:
+        collateral_amount = collateral_token.balanceOf(user)
+        assert collateral_amount != 0
+    else:
+        return  # No real swap
+
+    # Shift oracle
+    with boa.env.prank(admin):
+        price_oracle.set_price(int(price_oracle.price() * price_shift))
+
+    # Trade back
+    collateral_token._mint_for_testing(user, 10**24)  # BIG
+    with boa.env.prank(user):
+        amm.exchange(1, 0, 10**24, 0)
+    # Check that we cleaned up the last band
+    new_b = borrowed_token.balanceOf(user)
+    assert sum(amm.bands_x(n) for n in range(61)) == borrowed_token.balanceOf(amm.address), "Insolvent"
+    assert amm.bands_x(n1) == 0
+    assert new_b > b
