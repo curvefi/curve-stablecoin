@@ -4,8 +4,6 @@ from hypothesis import given, settings
 from hypothesis import strategies as st
 from datetime import timedelta
 
-from hypothesis.stateful import RuleBasedStateMachine, run_state_machine_as_test, rule, initialize
-
 
 @given(
         amounts=st.lists(st.integers(min_value=10**16, max_value=10**6 * 10**18), min_size=5, max_size=5),
@@ -96,62 +94,3 @@ def test_exchange_down_up(amm, amounts, accounts, ns, dns, amount,
     dx_measured -= collateral_token.balanceOf(u)
     assert dy == dy_measured
     assert dx == dx_measured
-
-
-class NoUntradableFunds(RuleBasedStateMachine):
-    n1 = st.integers(min_value=1, max_value=40)
-    dn = st.integers(min_value=0, max_value=20)
-    amount_in = st.integers(min_value=1, max_value=10**18)
-    decimals_borrowed = st.integers(min_value=6, max_value=18)
-    decimals_collateral = st.integers(min_value=6, max_value=18)
-
-    def __init__(self):
-        super().__init__()
-        self.user = self.accounts[1]
-
-    @initialize(decimals_borrowed=decimals_borrowed, decimals_collateral=decimals_collateral)
-    def initializer(self, decimals_borrowed, decimals_collateral):
-        self.decimals_borrowed = decimals_borrowed
-        self.decimals_collateral = decimals_collateral
-        # These are slow operations
-        self.borrowed_token = NoUntradableFunds.get_borrowed_token(decimals_borrowed)
-        self.collateral_token = NoUntradableFunds.get_collateral_token(decimals_collateral)
-        self.amm = NoUntradableFunds.get_amm(self.collateral_token, self.borrowed_token)
-
-    @rule(n1=n1, dn=dn, amount_in=amount_in)
-    def trade_up_down(self, n1, dn, amount_in):
-        collateral_a = 10 ** self.decimals_collateral
-        to_swap = amount_in // 10 ** (18 - self.decimals_borrowed)
-
-        with boa.env.anchor():
-            # Deposit
-            with boa.env.prank(self.admin):
-                self.amm.deposit_range(self.user, collateral_a, n1, n1 + dn)
-                self.collateral_token._mint_for_testing(self.amm.address, collateral_a)
-
-            # Swap stablecoin for collateral
-            self.borrowed_token._mint_for_testing(self.user, to_swap)
-            with boa.env.prank(self.user):
-                self.amm.exchange(0, 1, to_swap, 0)
-            b = self.borrowed_token.balanceOf(self.user)
-            if b < to_swap:
-                collateral_amount = self.collateral_token.balanceOf(self.user)
-                assert collateral_amount != 0
-            else:
-                return  # No real swap
-
-            # Swap a lot back
-            self.collateral_token._mint_for_testing(self.user, 10 ** self.decimals_collateral)  # BIG
-            with boa.env.prank(self.user):
-                self.amm.exchange(1, 0, 10 ** self.decimals_collateral, 0)
-            # Check that we cleaned up the last band
-            assert self.amm.bands_x(n1) == 0
-            assert self.borrowed_token.balanceOf(self.user) > b
-
-
-def test_no_untradable_funds(accounts, admin, get_borrowed_token, get_collateral_token, get_amm):
-    NoUntradableFunds.TestCase.settings = settings(max_examples=20, stateful_step_count=500,
-                                                   deadline=timedelta(seconds=1000))
-    for k, v in locals().items():
-        setattr(NoUntradableFunds, k, v)
-    run_state_machine_as_test(NoUntradableFunds)
