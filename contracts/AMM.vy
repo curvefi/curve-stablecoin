@@ -871,6 +871,7 @@ def calc_swap_out(pump: bool, in_amount: uint256, p_o: uint256[2], in_precision:
 
                     else:
                         # We go into the next band
+                        dx = max(dx, 1)  # Prevents from leaving dust in the band
                         x_dest = unsafe_div(unsafe_sub(dx, x_dest) * admin_fee, 10**18)  # abs admin fee now
                         in_amount_left -= dx
                         out.ticks_in[j] = x + dx - x_dest
@@ -910,6 +911,7 @@ def calc_swap_out(pump: bool, in_amount: uint256, p_o: uint256[2], in_precision:
 
                     else:
                         # We go into the next band
+                        dy = max(dy, 1)  # Prevents from leaving dust in the band
                         y_dest = unsafe_div(unsafe_sub(dy, y_dest) * admin_fee, 10**18)  # abs admin fee now
                         in_amount_left -= dy
                         out.ticks_in[j] = y + dy - y_dest
