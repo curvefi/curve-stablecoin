@@ -5,11 +5,11 @@ import pytest
 ACTION_DELAY = 15 * 60
 
 
+pytestmark = pytest.mark.usefixtures("add_initial_liquidity", "provide_token_to_peg_keepers", "mint_bob")
+
+
 @pytest.mark.parametrize("method", ["provide", "withdraw"])
-def test_update_delay(peg_keepers, swaps, redeemable_tokens, stablecoin, bob, peg_keeper_updater, method,
-                      add_initial_liquidity,
-                      provide_token_to_peg_keepers,
-                      mint_bob):
+def test_update_delay(peg_keepers, swaps, redeemable_tokens, stablecoin, bob, peg_keeper_updater, method):
     for pk, swap, rtoken in zip(peg_keepers, swaps, redeemable_tokens):
         with boa.env.anchor():
             with boa.env.prank(bob):
@@ -26,10 +26,7 @@ def test_update_delay(peg_keepers, swaps, redeemable_tokens, stablecoin, bob, pe
 
 
 @pytest.mark.parametrize("method", ["provide", "withdraw"])
-def test_update_no_delay(peg_keepers, swaps, redeemable_tokens, stablecoin, bob, peg_keeper_updater, method,
-                         add_initial_liquidity,
-                         provide_token_to_peg_keepers,
-                         mint_bob):
+def test_update_no_delay(peg_keepers, swaps, redeemable_tokens, stablecoin, bob, peg_keeper_updater, method):
     for pk, swap, rtoken in zip(peg_keepers, swaps, redeemable_tokens):
         with boa.env.anchor():
             with boa.env.prank(bob):
