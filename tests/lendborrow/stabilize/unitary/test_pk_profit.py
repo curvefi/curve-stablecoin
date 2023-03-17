@@ -1,5 +1,8 @@
 import boa
 import pytest
+from hypothesis import given, settings
+from hypothesis import strategies as st
+from datetime import timedelta
 
 pytestmark = pytest.mark.usefixtures(
     "add_initial_liquidity",
@@ -15,18 +18,22 @@ def make_profit(swaps, redeemable_tokens, stablecoin, alice, admin):
         """Amount to add to balances."""
         for rtoken, swap in zip(redeemable_tokens, swaps):
             with boa.env.prank(admin):
-                swap.set_fee(10**9)
+                swap.commit_new_fee(10**9)
+                boa.env.time_travel(4 * 86400)
+                swap.apply_new_fee()
 
             with boa.env.prank(alice):
                 exchange_amount = amount * 5
                 rtoken.approve(swap.address, exchange_amount)
-                _, out = swap.exchange(0, 1, exchange_amount, 0)
+                out = swap.exchange(0, 1, exchange_amount, 0)
 
                 stablecoin.approve(swap.address, out)
                 swap.exchange(1, 0, out, 0)
 
             with boa.env.prank(admin):
-                swap.set_fee(0)
+                swap.commit_new_fee(0)
+                boa.env.time_travel(4 * 86400)
+                swap.apply_new_fee()
 
     return _inner
 
@@ -36,28 +43,31 @@ def test_initial_debt(peg_keepers, initial_amounts):
         assert peg_keeper.debt() == amount_s
 
 
+def test_calc_initial_profit(peg_keepers, swaps):
+    """Peg Keeper always generate profit, including first mint."""
+    for peg_keeper, swap in zip(peg_keepers, swaps):
+        debt = peg_keeper.debt()
+        assert debt / swap.get_virtual_price() < swap.balanceOf(peg_keeper)
+        aim_profit = swap.balanceOf(peg_keeper) - debt * 10**18 / swap.get_virtual_price()
+        assert aim_profit > peg_keeper.calc_profit() > 0
+
+
 # Paused conversion here
 
 
-def test_calc_initial_profit(peg_keeper, swap):
-    """Peg Keeper always generate profit, including first mint."""
-    debt = peg_keeper.debt()
-    assert debt / swap.get_virtual_price() < swap.balanceOf(peg_keeper)
-    aim_profit = swap.balanceOf(peg_keeper) - debt * 10**18 / swap.get_virtual_price()
-    assert aim_profit > peg_keeper.calc_profit() > 0
-
-
-# @given(donate_fee=strategy("int", min_value=1, max_value=10**20))
-def test_calc_profit(peg_keeper, swap, make_profit, donate_fee):
+@given(donate_fee=st.integers(min_value=1, max_value=10**20))
+@settings(deadline=timedelta(seconds=1000))
+def test_calc_profit(peg_keepers, swaps, make_profit, donate_fee):
     make_profit(donate_fee)
 
-    profit = peg_keeper.calc_profit()
-    virtual_price = swap.get_virtual_price()
-    aim_profit = (
-        swap.balanceOf(peg_keeper) - peg_keeper.debt() * 10**18 // virtual_price
-    )
-    assert aim_profit >= profit  # Never take more than real profit
-    assert aim_profit - profit < 2e18  # Error less than 2 LP Tokens
+    for peg_keeper, swap in zip(peg_keepers, swaps):
+        profit = peg_keeper.calc_profit()
+        virtual_price = swap.get_virtual_price()
+        aim_profit = (
+            swap.balanceOf(peg_keeper) - peg_keeper.debt() * 10**18 // virtual_price
+        )
+        assert aim_profit >= profit  # Never take more than real profit
+        assert aim_profit - profit < 2e18  # Error less than 2 LP Tokens
 
 
 # @given(donate_fee=strategy("int", min_value=1, max_value=10**20))
@@ -136,7 +146,7 @@ def test_unprofitable_peg(
 
     set_fees(10**9)
 
-    with brownie.reverts():  # dev: peg was unprofitable
+    with boa.reverts():  # dev: peg was unprofitable
         chain.sleep(15 * 60)
         peg_keeper.update({"from": alice})
 

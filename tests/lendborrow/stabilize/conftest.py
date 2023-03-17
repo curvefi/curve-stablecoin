@@ -1,7 +1,6 @@
 import boa
 import pytest
 from ...conftest import approx
-from boa.vyper.contract import VyperContract
 
 ZERO_ADDRESS = "0x0000000000000000000000000000000000000000"
 BASE_AMOUNT = 10**6
@@ -65,26 +64,16 @@ def unsafe_factory(controller_factory, stablecoin, admin, accounts):
 @pytest.fixture(scope="module")
 def stableswap_a(unsafe_factory, swap_deployer, swap_impl, stablecoin, stablecoin_a, admin):
     with boa.env.prank(admin):
-        n = swap_deployer.n()
-        swap_deployer.deploy(stablecoin_a, stablecoin)
-        addr = swap_deployer.pools(n)
-        swap = VyperContract(
-            swap_impl.compiler_data,
-            override_address=addr
-        )
+        addr = swap_deployer.deploy(stablecoin_a, stablecoin)
+        swap = swap_impl.deployer.at(addr)
         return swap
 
 
 @pytest.fixture(scope="module")
 def stableswap_b(unsafe_factory, swap_deployer, swap_impl, stablecoin, stablecoin_b, admin):
     with boa.env.prank(admin):
-        n = swap_deployer.n()
-        swap_deployer.deploy(stablecoin_b, stablecoin)
-        addr = swap_deployer.pools(n)
-        swap = VyperContract(
-            swap_impl.compiler_data,
-            override_address=addr
-        )
+        addr = swap_deployer.deploy(stablecoin_b, stablecoin)
+        swap = swap_impl.deployer.at(addr)
         return swap
 
 

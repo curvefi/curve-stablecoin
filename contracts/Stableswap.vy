@@ -10,7 +10,6 @@
 from vyper.interfaces import ERC20
 
 interface Factory:
-    def convert_fees() -> bool: nonpayable
     def get_fee_receiver(_pool: address) -> address: view
     def admin() -> address: view
 
@@ -100,7 +99,7 @@ ERC1271_MAGIC_VAL: constant(bytes32) = 0x1626ba7e0000000000000000000000000000000
 VERSION: constant(String[8]) = "v6.0.0"
 
 
-factory: address
+factory: public(address)
 
 coins: public(address[N_COINS])
 balances: public(uint256[N_COINS])
@@ -1082,7 +1081,7 @@ def apply_new_fee():
     assert msg.sender == Factory(self.factory).admin()
     deadline: uint256 = self.admin_action_deadline
     assert deadline != 0 and block.timestamp >= deadline
-    
+
     fee: uint256 = self.future_fee
     self.fee = fee
     self.admin_action_deadline = 0
