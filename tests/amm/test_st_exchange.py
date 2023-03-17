@@ -179,6 +179,8 @@ def test_raise_rounding_3(admin, accounts, get_amm, get_collateral_token, get_bo
     state.amm_solvent()
     state.dy_back()
     state.exchange(amount=169, pump=True, user_id=3)
+=======
+>>>>>>> 6c4eb9e (Update tests slightly)
     state.amm_solvent()
     state.dy_back()
     state.teardown()
