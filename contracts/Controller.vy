@@ -879,18 +879,15 @@ def _health(user: address, debt: uint256, full: bool, liquidation_discount: uint
     @param liquidation_discount Liquidation discount to use (can be 0)
     @return Health: > 0 = good.
     """
-    _debt: int256 = convert(debt, int256)
     assert debt > 0, "Loan doesn't exist"
-    xmax: int256 = convert(AMM.get_x_down(user), int256)
     health: int256 = 10**18
     if liquidation_discount > 0:
         health -= convert(liquidation_discount, int256)
-    health = unsafe_div(xmax * health, _debt) - 10**18
+    health = unsafe_div(convert(AMM.get_x_down(user), int256) * health, convert(debt, int256)) - 10**18
 
     if full:
-        active_band: int256 = AMM.active_band()
         ns: int256[2] = AMM.read_user_tick_numbers(user) # ns[1] > ns[0]
-        if ns[0] > active_band:  # We are not in liquidation mode
+        if ns[0] > AMM.active_band():  # We are not in liquidation mode
             p: uint256 = AMM.price_oracle()
             p_up: uint256 = AMM.p_oracle_up(ns[0])
             if p > p_up:
