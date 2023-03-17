@@ -879,18 +879,15 @@ def _health(user: address, debt: uint256, full: bool, liquidation_discount: uint
     @param liquidation_discount Liquidation discount to use (can be 0)
     @return Health: > 0 = good.
     """
-    _debt: int256 = convert(debt, int256)
     assert debt > 0, "Loan doesn't exist"
-    xmax: int256 = convert(AMM.get_x_down(user), int256)
     health: int256 = 10**18
     if liquidation_discount > 0:
         health -= convert(liquidation_discount, int256)
-    health = unsafe_div(xmax * health, _debt) - 10**18
+    health = unsafe_div(convert(AMM.get_x_down(user), int256) * health, convert(debt, int256)) - 10**18
 
     if full:
-        active_band: int256 = AMM.active_band()
         ns: int256[2] = AMM.read_user_tick_numbers(user) # ns[1] > ns[0]
-        if ns[0] > active_band:  # We are not in liquidation mode
+        if ns[0] > AMM.active_band():  # We are not in liquidation mode
             p: uint256 = AMM.price_oracle()
             p_up: uint256 = AMM.p_oracle_up(ns[0])
             if p > p_up:
@@ -958,6 +955,17 @@ def health_calculator(user: address, d_collateral: int256, d_debt: int256, full:
 
 
 @internal
+@view
+def _get_f_remove(frac: uint256, health_limit: uint256) -> uint256:
+    # f_remove = ((1 + h / 2) / (1 + h) * (1 - frac) + frac) * frac
+    f_remove: uint256 = 10 ** 18
+    if frac < 10 ** 18:
+        f_remove = unsafe_div(unsafe_mul(unsafe_add(10 ** 18, unsafe_div(health_limit, 2)), unsafe_sub(10 ** 18, frac)), unsafe_add(10 ** 18, health_limit))
+        f_remove = unsafe_div(unsafe_mul(unsafe_add(f_remove, frac), frac), 10 ** 18)
+
+    return f_remove
+
+@internal
 def _liquidate(user: address, min_x: uint256, health_limit: uint256, frac: uint256, use_eth: bool,
                callbacker: address, callback_sig: bytes32, callback_args: DynArray[uint256,5]):
     """
@@ -984,12 +992,10 @@ def _liquidate(user: address, min_x: uint256, health_limit: uint256, frac: uint2
 
     # Withdraw sender's stablecoin and collateral to our contract
     # When frac is set - we withdraw a bit less for the same debt fraction
-    # f_remove = (1 + h/2) / (1 + h) * frac
+    # f_remove = ((1 + h/2) / (1 + h) * (1 - frac) + frac) * frac
     # where h is health limit.
     # This is less than full h discount but more than no discount
-    f_remove: uint256 = 10**18
-    if frac < 10**18:
-        f_remove = unsafe_div(unsafe_mul(unsafe_add(10**18, unsafe_div(health_limit, 2)), frac), unsafe_add(10**18, health_limit))
+    f_remove: uint256 = self._get_f_remove(frac, health_limit)
     xy: uint256[2] = AMM.withdraw(user, f_remove)  # [stable, collateral]
 
     # x increase in same block -> price up -> good
@@ -1080,14 +1086,21 @@ def liquidate_extended(user: address, min_x: uint256, frac: uint256, use_eth: bo
 @view
 @external
 @nonreentrant('lock')
-def tokens_to_liquidate(user: address) -> uint256:
+def tokens_to_liquidate(user: address, frac: uint256 = 10 ** 18) -> uint256:
     """
     @notice Calculate the amount of stablecoins to have in liquidator's wallet to liquidate a user
     @param user Address of the user to liquidate
+    @param frac Fraction to liquidate; 100% = 10**18
     @return The amount of stablecoins needed
     """
-    stablecoins: uint256 = AMM.get_sum_xy(user)[0]
-    return unsafe_sub(max(self._debt_ro(user), stablecoins), stablecoins)
+    health_limit: uint256 = 0
+    if user != msg.sender:
+        health_limit = self.liquidation_discounts[user]
+    f_remove: uint256 = self._get_f_remove(frac, health_limit)
+    stablecoins: uint256 = unsafe_div(AMM.get_sum_xy(user)[0] * f_remove, 10 ** 18)
+    debt: uint256 = unsafe_div(self._debt_ro(user) * frac, 10 ** 18)
+
+    return unsafe_sub(max(debt, stablecoins), stablecoins)
 
 
 @view
@@ -1123,7 +1136,7 @@ def users_to_liquidate(_from: uint256=0, _limit: uint256=0) -> DynArray[Position
             break
         user: address = self.loans[ix]
         debt: uint256 = self._debt_ro(user)
-        health: int256 = self._health(user, self._debt_ro(user), True, self.liquidation_discounts[user])
+        health: int256 = self._health(user, debt, True, self.liquidation_discounts[user])
         if health < 0:
             xy: uint256[2] = AMM.get_sum_xy(user)
             out.append(Position({
