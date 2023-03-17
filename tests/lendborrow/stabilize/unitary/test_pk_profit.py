@@ -17,13 +17,17 @@ def make_profit(swaps, redeemable_tokens, stablecoin, alice, admin):
     def _inner(amount):
         """Amount to add to balances."""
         for rtoken, swap in zip(redeemable_tokens, swaps):
+            exchange_amount = amount * 5 // 10**(18 - rtoken.decimals())
+            if exchange_amount == 0:
+                continue
+
             with boa.env.prank(admin):
                 swap.commit_new_fee(10**9)
                 boa.env.time_travel(4 * 86400)
                 swap.apply_new_fee()
 
             with boa.env.prank(alice):
-                exchange_amount = amount * 5
+                rtoken._mint_for_testing(alice, exchange_amount)
                 rtoken.approve(swap.address, exchange_amount)
                 out = swap.exchange(0, 1, exchange_amount, 0)
 
@@ -52,9 +56,6 @@ def test_calc_initial_profit(peg_keepers, swaps):
         assert aim_profit > peg_keeper.calc_profit() > 0
 
 
-# Paused conversion here
-
-
 @given(donate_fee=st.integers(min_value=1, max_value=10**20))
 @settings(deadline=timedelta(seconds=1000))
 def test_calc_profit(peg_keepers, swaps, make_profit, donate_fee):
@@ -68,6 +69,9 @@ def test_calc_profit(peg_keepers, swaps, make_profit, donate_fee):
         )
         assert aim_profit >= profit  # Never take more than real profit
         assert aim_profit - profit < 2e18  # Error less than 2 LP Tokens
+
+
+# Paused conversion here
 
 
 # @given(donate_fee=strategy("int", min_value=1, max_value=10**20))
