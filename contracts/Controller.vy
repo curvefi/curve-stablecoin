@@ -1089,14 +1089,21 @@ def liquidate_extended(user: address, min_x: uint256, frac: uint256, use_eth: bo
 @view
 @external
 @nonreentrant('lock')
-def tokens_to_liquidate(user: address) -> uint256:
+def tokens_to_liquidate(user: address, frac: uint256 = 10 ** 18) -> uint256:
     """
     @notice Calculate the amount of stablecoins to have in liquidator's wallet to liquidate a user
     @param user Address of the user to liquidate
+    @param frac Fraction to liquidate; 100% = 10**18
     @return The amount of stablecoins needed
     """
-    stablecoins: uint256 = AMM.get_sum_xy(user)[0]
-    return unsafe_sub(max(self._debt_ro(user), stablecoins), stablecoins)
+    health_limit: uint256 = 0
+    if user != msg.sender:
+        health_limit = self.liquidation_discounts[user]
+    f_remove: uint256 = self._get_f_remove(frac, health_limit)
+    stablecoins: uint256 = unsafe_div(AMM.get_sum_xy(user)[0] * f_remove, 10 ** 18)
+    debt: uint256 = unsafe_div(self._debt_ro(user) * frac, 10 ** 18)
+
+    return unsafe_sub(max(debt, stablecoins), stablecoins)
 
 
 @view
