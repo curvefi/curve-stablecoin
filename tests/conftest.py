@@ -33,9 +33,24 @@ def admin():
 
 
 @pytest.fixture(scope="module")
-def collateral_token(admin):
-    with boa.env.prank(admin):
-        return boa.load('contracts/testing/ERC20Mock.vy', "Colalteral", "ETH", 18)
+def get_collateral_token(admin):
+    def f(digits):
+        with boa.env.prank(admin):
+            return boa.load('contracts/testing/ERC20Mock.vy', "Colalteral", "ETH", digits)
+    return f
+
+
+@pytest.fixture(scope="module")
+def get_borrowed_token(admin):
+    def f(digits):
+        with boa.env.prank(admin):
+            return boa.load('contracts/testing/ERC20Mock.vy', "Rugworks USD", "rUSD", digits)
+    return f
+
+
+@pytest.fixture(scope="module")
+def collateral_token(get_collateral_token):
+    return get_collateral_token(18)
 
 
 @pytest.fixture(scope="session")
