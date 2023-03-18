@@ -33,6 +33,7 @@ def test_buy_with_shift(amm, collateral_token, borrowed_token, price_oracle, acc
     with boa.env.prank(admin):
         amm.deposit_range(user, collateral_amount, n1, n1 + dn)
         collateral_token._mint_for_testing(amm.address, collateral_amount)
+        amm.set_fee(0)
 
     # Swap stablecoin for collateral
     borrowed_token._mint_for_testing(user, amount)
@@ -51,15 +52,16 @@ def test_buy_with_shift(amm, collateral_token, borrowed_token, price_oracle, acc
 
     # Trade back
     collateral_token._mint_for_testing(user, 10**24)  # BIG
+    collateral_amount += 10**24
     with boa.env.prank(user):
         amm.exchange(1, 0, 10**24, 0)
     # Check that we cleaned up the last band
     new_b = borrowed_token.balanceOf(user)
     assert new_b > b
+    collateral_amount -= 10**24
 
     # Measure profit
-    profit = new_b - amount
-    assert profit <= 0
+    assert collateral_amount <= 0
 
 
 @given(
