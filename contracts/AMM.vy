@@ -124,9 +124,10 @@ admin_fees_y: public(uint256)
 
 price_oracle_contract: public(PriceOracle)
 old_p_o: uint256
+old_dfee: uint256
 prev_p_o_time: uint256
-PREV_P_O_DELAY: constant(uint256) = 60  # s = 1 min
-MAX_P_O_CHG: constant(uint256) = 14422 * 10**14  # == 3**(1/3) - max relative change to have fee < 50%
+PREV_P_O_DELAY: constant(uint256) = 5 * 60  # s = 5 min
+MAX_P_O_CHG: constant(uint256) = 12500 * 10**14  # <= 2**(1/3) - max relative change to have fee < 50%
 
 bands_x: public(HashMap[int256, uint256])
 bands_y: public(HashMap[int256, uint256])
@@ -233,28 +234,36 @@ def coins(i: uint256) -> address:
 @internal
 @view
 def limit_p_o(p: uint256) -> uint256[2]:
-    old_p_o: uint256 = self.old_p_o
-    ratio: uint256 = p * 10**18 / old_p_o
     p_new: uint256 = p
+    dt: uint256 = unsafe_sub(PREV_P_O_DELAY, min(PREV_P_O_DELAY, block.timestamp - self.prev_p_o_time))
+    ratio: uint256 = 0
 
-    if ratio > MAX_P_O_CHG:
-        p_new = unsafe_div(old_p_o * MAX_P_O_CHG, 10**18)
-        ratio = MAX_P_O_CHG
-    elif ratio < 10**36 / MAX_P_O_CHG:
-        p_new = unsafe_div(old_p_o * 10**18, MAX_P_O_CHG)
-        ratio = 10**36 / MAX_P_O_CHG
+    # ratio = 1 - (p_o_min / p_o_max)**3
 
-    # r**3 where r = p_o_max / p_o_min
-    if ratio < 10**18:
-        ratio = unsafe_div(10**36, ratio)
-    # Guaranteed to be more than 1e18
-    # Also guaranteed to be limited, therefore can have all ops unsafe
-    ratio = unsafe_div(pow_mod256(ratio, 3), 10**36)  # slightly higher to make the ratio higher
+    if dt > 0:
+        old_p_o: uint256 = self.old_p_o
+        old_ratio: uint256 = self.old_dfee
+        # ratio = p_o_min / p_o_max
+        if p > old_p_o:
+            ratio = unsafe_div(old_p_o * 10**18, p)
+            if ratio < 10**36 / MAX_P_O_CHG:
+                p_new = unsafe_div(old_p_o * MAX_P_O_CHG, 10**18)
+                ratio = 10**36 / MAX_P_O_CHG
+        else:
+            ratio = unsafe_div(p * 10**18, old_p_o)
+            if ratio < 10**36 / MAX_P_O_CHG:
+                p_new = unsafe_div(old_p_o * 10**18, MAX_P_O_CHG)
+                ratio = 10**36 / MAX_P_O_CHG
 
-    return [
-        p_new,
-        unsafe_div(unsafe_mul(unsafe_sub(ratio, 10**18), 101 * 10**16), unsafe_add(ratio, 10**18))  # (r**3 - 1) / (r**3 + 1)
-    ]
+        # ratio is guaranteed to be less than 1e18
+        # Also guaranteed to be limited, therefore can have all ops unsafe
+        ratio = unsafe_div(
+            unsafe_mul(
+                unsafe_sub(unsafe_add(10**18, old_ratio), unsafe_div(pow_mod256(ratio, 3), 10**36)),  # (f' + (1 - r**3))
+                dt),                                                                                  # * dt / T
+            PREV_P_O_DELAY)
+
+    return [p_new, ratio]
 
 
 @internal
@@ -266,9 +275,9 @@ def _price_oracle_ro() -> uint256[2]:
 @internal
 def _price_oracle_w() -> uint256[2]:
     p: uint256[2] = self.limit_p_o(self.price_oracle_contract.price_w())
-    if block.timestamp >= self.prev_p_o_time + PREV_P_O_DELAY:
-        self.prev_p_o_time = block.timestamp
-        self.old_p_o = p[0]
+    self.prev_p_o_time = block.timestamp
+    self.old_p_o = p[0]
+    self.old_dfee = p[1]
     return p
 
 
