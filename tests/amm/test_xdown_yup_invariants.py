@@ -31,11 +31,11 @@ def test_immediate(amm, price_oracle, collateral_token, borrowed_token, accounts
     pump_amount = int(p_o * deposit_amount / 10**18 * f_pump / 10**12)
     with boa.env.prank(user):
         borrowed_token._mint_for_testing(user, pump_amount)
-        boa.env.time_travel(120)  # To reset the prev p_o counter
+        boa.env.time_travel(600)  # To reset the prev p_o counter
         amm.exchange(0, 1, pump_amount, 0)
         while True:
             p_internal = amm.price_oracle()
-            boa.env.time_travel(120)  # To reset the prev p_o counter
+            boa.env.time_travel(600)  # To reset the prev p_o counter
             amm.exchange(0, 1, 0, 0)
             if p_o == p_internal:
                 break
@@ -151,7 +151,7 @@ def test_adiabatic(amm, price_oracle, collateral_token, borrowed_token, accounts
         amm.deposit_range(user, deposit_amount, dn, n1+dn)
         collateral_token._mint_for_testing(amm.address, deposit_amount)
         for i in range(2):
-            boa.env.time_travel(120)
+            boa.env.time_travel(600)
             price_oracle.set_price(p_o_1)
             amm.exchange(0, 1, 0, 0)
 
@@ -164,7 +164,7 @@ def test_adiabatic(amm, price_oracle, collateral_token, borrowed_token, accounts
     y0 = 0
 
     for k in range(N_STEPS):
-        boa.env.time_travel(120)
+        boa.env.time_travel(600)
         with boa.env.prank(admin):
             price_oracle.set_price(p_o)
 
