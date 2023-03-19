@@ -158,7 +158,7 @@ def test_adiabatic(amm, price_oracle, collateral_token, borrowed_token, accounts
     p_o = p_o_1
     p_o_mul = (p_o_2 / p_o_1) ** (1 / (N_STEPS - 1))
     precision = max(1.5 * abs(p_o_mul - 1) * (dn + 1) * (max(p_o_2, p_o_1) / min(p_o_2, p_o_1)), 1e-6)  # Emprical formula
-    precision += (p_o_mul**3 - 1) / (p_o_mul**3 + 1)  # Dynamic fee component
+    precision += 1 - min(p_o_mul, 1 / p_o_mul)**3  # Dynamic fee component
 
     x0 = 0
     y0 = 0
@@ -167,6 +167,7 @@ def test_adiabatic(amm, price_oracle, collateral_token, borrowed_token, accounts
         boa.env.time_travel(600)
         with boa.env.prank(admin):
             price_oracle.set_price(p_o)
+        boa.env.time_travel(600)
 
         amount, is_pump = amm.get_amount_for_price(p_o)
 

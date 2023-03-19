@@ -126,7 +126,7 @@ price_oracle_contract: public(PriceOracle)
 old_p_o: uint256
 old_dfee: uint256
 prev_p_o_time: uint256
-PREV_P_O_DELAY: constant(uint256) = 5 * 60  # s = 5 min
+PREV_P_O_DELAY: constant(uint256) = 2 * 60  # s = 2 min
 MAX_P_O_CHG: constant(uint256) = 12500 * 10**14  # <= 2**(1/3) - max relative change to have fee < 50%
 
 bands_x: public(HashMap[int256, uint256])
