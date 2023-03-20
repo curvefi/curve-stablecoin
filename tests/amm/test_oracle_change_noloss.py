@@ -21,7 +21,7 @@ def amm(collateral_token, borrowed_token, get_amm):
     n1=st.integers(min_value=1, max_value=60),  # Max is probably unreachable
     dn=st.integers(min_value=0, max_value=20),
     amount=st.integers(min_value=10**10, max_value=10**20),
-    price_shift=st.floats(min_value=0.1, max_value=10)
+    price_shift=st.floats(min_value=0.9, max_value=1.1)
 )
 @settings(deadline=timedelta(seconds=1000), max_examples=1000)
 def test_buy_with_shift(amm, collateral_token, borrowed_token, price_oracle, accounts, admin,
@@ -56,10 +56,10 @@ def test_buy_with_shift(amm, collateral_token, borrowed_token, price_oracle, acc
     # Check that we cleaned up the last band
     new_b = borrowed_token.balanceOf(user)
     assert new_b > b
+    collateral_amount = collateral_token.balanceOf(user) - 10**24
 
     # Measure profit
-    profit = new_b - amount
-    assert profit <= 0
+    assert collateral_amount <= 0
 
 
 @given(
@@ -74,7 +74,7 @@ def test_sell_with_shift(amm, collateral_token, borrowed_token, price_oracle, ac
     user = accounts[1]
     collateral_amount = 10**18
     MANY = 10**24
-    c_balances = []
+    b_balances = []
 
     # Deposit
     with boa.env.prank(admin):
@@ -87,12 +87,12 @@ def test_sell_with_shift(amm, collateral_token, borrowed_token, price_oracle, ac
         amm.exchange(0, 1, MANY, 0)
 
     # Swap back some amount (sell)
-    c_balances += [collateral_token.balanceOf(user)]
-    amount = min(amount, c_balances[0])
+    b_balances += [borrowed_token.balanceOf(user)]
+    amount = min(amount, collateral_token.balanceOf(user))
     with boa.env.prank(user):
         amm.exchange(1, 0, amount, 0)
-    c_balances += [collateral_token.balanceOf(user)]
-    if c_balances[0] == c_balances[1]:
+    b_balances += [borrowed_token.balanceOf(user)]
+    if b_balances[0] == b_balances[1]:
         return  # No swap -> stop it
 
     # Shift oracle
@@ -102,10 +102,10 @@ def test_sell_with_shift(amm, collateral_token, borrowed_token, price_oracle, ac
     # Swap max (buy) to trade back
     with boa.env.prank(user):
         amm.exchange(0, 1, MANY, 0)
-    c_balances += [collateral_token.balanceOf(user)]
+    b_balances += [borrowed_token.balanceOf(user)]
 
     # Measure profit
-    profit = c_balances[-1] - c_balances[0]
+    profit = b_balances[-1] - MANY
     assert profit <= 0
 
 

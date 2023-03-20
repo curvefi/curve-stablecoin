@@ -81,7 +81,8 @@ def test_liquidate_callback(accounts, admin, stablecoin, collateral_token, contr
     liquidate_method = get_method_id("liquidate(address,uint256,uint256,uint256,uint256[])")  # min_amount for stablecoins
     ld = int(0.02 * 1e18)
     if frac < 10**18:
-        f = (10**18 + ld // 2) * frac // (10**18 + ld) // 5 * 5  # The latter part is rounding off for multiple bands
+        # f = ((1 + h/2) / (1 + h) * (1 - frac) + frac) * frac
+        f = ((10 ** 18 + ld // 2) * (10 ** 18 - frac) // (10 ** 18 + ld) + frac) * frac // 10 ** 18 // 5 * 5  # The latter part is rounding off for multiple bands
     else:
         f = 10**18
     # Partial liquidation improves health.
@@ -147,3 +148,25 @@ def test_self_liquidate(accounts, admin, controller_for_liquidation, market_amm,
                 controller.liquidate(user, x + 1)
 
             controller.liquidate(user, x)
+
+
+@given(frac=st.integers(min_value=10**14, max_value=10**18 - 13))
+@settings(deadline=timedelta(seconds=1000))
+def test_tokens_to_liquidate(accounts, admin, controller_for_liquidation, market_amm, stablecoin, frac):
+    user = admin
+    fee_receiver = accounts[0]
+
+    with boa.env.anchor():
+        controller = controller_for_liquidation(sleep_time=80 * 86400, discount=0)
+        initial_balance = stablecoin.balanceOf(fee_receiver)
+        tokens_to_liquidate = controller.tokens_to_liquidate(user, frac)
+
+        with boa.env.prank(fee_receiver):
+            controller.liquidate_extended(user, 0, frac, True, "0x0000000000000000000000000000000000000000", b'', [])
+
+        balance = stablecoin.balanceOf(fee_receiver)
+
+        if frac < 10**18:
+            assert approx(balance, initial_balance - tokens_to_liquidate, 1e5, abs_precision=1e5)
+        else:
+            assert balance != initial_balance - tokens_to_liquidate
