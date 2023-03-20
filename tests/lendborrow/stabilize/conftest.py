@@ -286,3 +286,16 @@ def mint_bob(bob, stablecoin, redeemable_tokens, swaps, initial_amounts, _mint):
         with boa.env.prank(bob):
             rtoken.approve(swap, 2**256 - 1)
             stablecoin.approve(swap, 2**256 - 1)
+
+
+@pytest.fixture(scope="module")
+def balance_change_after_withdraw(swaps, stablecoin, redeemable_tokens):
+    def _inner(diffs):
+        # diff should be positive
+        for swap, rtoken, diff in zip(swaps, redeemable_tokens, diffs):
+            rtoken_mul = 10 ** (18 - rtoken.decimals())
+            small = 1000000 // rtoken_mul
+            assert abs(swap.balances(0) + (diff - diff // 5) // rtoken_mul - swap.balances(1) // rtoken_mul) <= small
+            assert abs(rtoken.balanceOf(swap.address) + (diff - diff // 5) // rtoken_mul
+                       - stablecoin.balanceOf(swap.address) // rtoken_mul) <= small
+    return _inner

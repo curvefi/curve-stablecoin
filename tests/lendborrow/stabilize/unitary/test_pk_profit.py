@@ -71,43 +71,50 @@ def test_calc_profit(peg_keepers, swaps, make_profit, donate_fee):
         assert aim_profit - profit < 2e18  # Error less than 2 LP Tokens
 
 
-# Paused conversion here
-
-
-# @given(donate_fee=strategy("int", min_value=1, max_value=10**20))
+@given(donate_fee=st.integers(min_value=1, max_value=10**20))
+@settings(deadline=timedelta(seconds=1000))
 def test_withdraw_profit(
-    peg_keeper,
-    swap,
-    pegged,
-    initial_amounts,
+    peg_keepers,
+    swaps,
+    stablecoin,
+    _mint,
+    redeemable_tokens,
     make_profit,
     admin,
     receiver,
     alice,
     peg_keeper_updater,
     balance_change_after_withdraw,
-    donate_fee,
-    peg_keeper_name,
+    donate_fee
 ):
     """Withdraw profit and update for the whole debt."""
     make_profit(donate_fee)
+    diffs = []
 
-    profit = peg_keeper.calc_profit()
-    returned = peg_keeper.withdraw_profit({"from": admin}).return_value
-    assert profit == returned
-    assert profit == swap.balanceOf(receiver)
+    for peg_keeper, swap, rtoken in zip(peg_keepers, swaps, redeemable_tokens):
+        rtoken_mul = 10 ** (18 - rtoken.decimals())
 
-    debt = peg_keeper.debt()
-    if "meta" in peg_keeper_name:
-        amount = 5 * debt + swap.balances(1) * 11 // 10 - swap.balances(0)
-    else:
-        amount = 5 * debt + swap.balances(1) - swap.balances(0)
-    pegged._mint_for_testing(alice, amount, {"from": alice})
-    pegged.approve(swap, amount, {"from": alice})
-    swap.add_liquidity([amount, 0], 0, {"from": alice})
+        profit = peg_keeper.calc_profit()
+        with boa.env.prank(admin):
+            returned = peg_keeper.withdraw_profit()
+            assert profit == returned
+            assert profit == swap.balanceOf(receiver)
 
-    assert peg_keeper.update({"from": peg_keeper_updater}).return_value
-    balance_change_after_withdraw(5 * debt)
+        debt = peg_keeper.debt()
+        amount = 5 * debt + swap.balances(1) - swap.balances(0) * rtoken_mul
+        with boa.env.prank(alice):
+            _mint(alice, [stablecoin], [amount])
+            stablecoin.approve(swap, amount)
+            swap.add_liquidity([0, amount], 0)
+
+        with boa.env.prank(peg_keeper_updater):
+            assert peg_keeper.update()
+        diffs.append(5 * debt)
+
+    balance_change_after_withdraw(diffs)
+
+
+# Paused conversion here
 
 
 def test_0_after_withdraw(peg_keeper, admin):
