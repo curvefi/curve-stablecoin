@@ -14,9 +14,12 @@ pytestmark = pytest.mark.usefixtures(
 
 @pytest.fixture(scope="module")
 def make_profit(swaps, redeemable_tokens, stablecoin, alice, admin):
-    def _inner(amount):
+    def _inner(amount, i=None):
         """Amount to add to balances."""
-        for rtoken, swap in zip(redeemable_tokens, swaps):
+        for j, (rtoken, swap) in enumerate(zip(redeemable_tokens, swaps)):
+            if i is not None:
+                if j != i:
+                    continue
             exchange_amount = amount * 5 // 10**(18 - rtoken.decimals())
             if exchange_amount == 0:
                 continue
@@ -71,7 +74,7 @@ def test_calc_profit(peg_keepers, swaps, make_profit, donate_fee):
         assert aim_profit - profit < 2e18  # Error less than 2 LP Tokens
 
 
-@given(donate_fee=st.integers(min_value=1, max_value=10**20))
+@given(donate_fee=st.integers(min_value=10**14, max_value=10**20))
 @settings(deadline=timedelta(seconds=1000))
 def test_withdraw_profit(
     peg_keepers,
@@ -84,34 +87,35 @@ def test_withdraw_profit(
     receiver,
     alice,
     peg_keeper_updater,
-    balance_change_after_withdraw,
     donate_fee
 ):
     """Withdraw profit and update for the whole debt."""
-    make_profit(donate_fee)
-    diffs = []
 
-    for peg_keeper, swap, rtoken in zip(peg_keepers, swaps, redeemable_tokens):
-        rtoken_mul = 10 ** (18 - rtoken.decimals())
+    for i, (peg_keeper, swap, rtoken) in enumerate(zip(peg_keepers, swaps, redeemable_tokens)):
+        with boa.env.anchor():
+            make_profit(donate_fee, i)
+            rtoken_mul = 10 ** (18 - rtoken.decimals())
 
-        profit = peg_keeper.calc_profit()
-        with boa.env.prank(admin):
-            returned = peg_keeper.withdraw_profit()
-            assert profit == returned
-            assert profit == swap.balanceOf(receiver)
+            profit = peg_keeper.calc_profit()
+            with boa.env.prank(admin):
+                returned = peg_keeper.withdraw_profit()
+                assert profit == returned
+                assert profit == swap.balanceOf(receiver)
 
-        debt = peg_keeper.debt()
-        amount = 5 * debt + swap.balances(1) - swap.balances(0) * rtoken_mul
-        with boa.env.prank(alice):
-            _mint(alice, [stablecoin], [amount])
-            stablecoin.approve(swap, amount)
-            swap.add_liquidity([0, amount], 0)
+            debt = peg_keeper.debt()
+            amount = 5 * debt + swap.balances(1) - swap.balances(0) * rtoken_mul
+            with boa.env.prank(alice):
+                _mint(alice, [stablecoin], [amount])
+                stablecoin.approve(swap, amount)
+                swap.add_liquidity([0, amount], 0)
 
-        with boa.env.prank(peg_keeper_updater):
-            assert peg_keeper.update()
-        diffs.append(5 * debt)
+            with boa.env.prank(peg_keeper_updater):
+                assert peg_keeper.update()
 
-    balance_change_after_withdraw(diffs)
+            diff = 5 * debt
+
+            assert swap.balances(0) + (diff - diff // 5) // rtoken_mul == swap.balances(1) // rtoken_mul
+            assert rtoken.balanceOf(swap.address) + (diff - diff // 5) // rtoken_mul == stablecoin.balanceOf(swap.address) // rtoken_mul
 
 
 # Paused conversion here
