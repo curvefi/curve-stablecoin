@@ -87,7 +87,8 @@ def test_withdraw_profit(
     receiver,
     alice,
     peg_keeper_updater,
-    donate_fee
+    donate_fee,
+    price_aggregator
 ):
     """Withdraw profit and update for the whole debt."""
 
@@ -103,11 +104,14 @@ def test_withdraw_profit(
                 assert profit == swap.balanceOf(receiver)
 
             debt = peg_keeper.debt()
-            amount = 5 * debt + swap.balances(1) - swap.balances(0) * rtoken_mul
+            amount = 5 * debt + swap.balances(0) * rtoken_mul - swap.balances(1)
             with boa.env.prank(alice):
                 _mint(alice, [stablecoin], [amount])
                 stablecoin.approve(swap, amount)
                 swap.add_liquidity([0, amount], 0)
+
+            # Time-travel to have price oracle changed
+            boa.env.time_travel(20000)
 
             with boa.env.prank(peg_keeper_updater):
                 assert peg_keeper.update()
@@ -115,7 +119,7 @@ def test_withdraw_profit(
             diff = 5 * debt
 
             assert swap.balances(0) + (diff - diff // 5) // rtoken_mul == swap.balances(1) // rtoken_mul
-            assert rtoken.balanceOf(swap.address) + (diff - diff // 5) // rtoken_mul == stablecoin.balanceOf(swap.address) // rtoken_mul
+            # Not checking balances==balanceOf because admin fee is nonzero
 
 
 # Paused conversion here
