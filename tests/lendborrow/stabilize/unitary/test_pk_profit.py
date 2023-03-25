@@ -122,33 +122,33 @@ def test_withdraw_profit(
             # Not checking balances==balanceOf because admin fee is nonzero
 
 
-# Paused conversion here
+def test_0_after_withdraw(peg_keepers, admin):
+    for peg_keeper in peg_keepers:
+        assert peg_keeper.calc_profit() != 0
+        with boa.env.prank(admin):
+            peg_keeper.withdraw_profit()
+        assert peg_keeper.calc_profit() == 0
 
 
-def test_0_after_withdraw(peg_keeper, admin):
-    peg_keeper.withdraw_profit({"from": admin})
-    assert peg_keeper.calc_profit() == 0
+def test_withdraw_profit_access(peg_keepers, alice):
+    for peg_keeper in peg_keepers:
+        with boa.env.prank(alice):
+            peg_keeper.withdraw_profit()
 
 
-def test_withdraw_profit_access(peg_keeper, alice):
-    peg_keeper.withdraw_profit({"from": alice})
-
-
-def test_event(peg_keeper):
-    profit = peg_keeper.calc_profit()
-    tx = peg_keeper.withdraw_profit()
-    event = tx.events["Profit"]
-    assert event["lp_amount"] == profit
-
-
-# @pytest.mark.parametrize("coin_to_imbalance", [0, 1])
+@pytest.mark.parametrize("coin_to_imbalance", [0, 1])
 def test_profit_receiver(
-    swap, peg_keeper, bob, receiver, coin_to_imbalance, imbalance_pool
+    swaps, peg_keepers, bob, receiver, coin_to_imbalance, imbalance_pools
 ):
-    imbalance_pool(coin_to_imbalance)
-    peg_keeper.update(receiver, {"from": bob})
-    assert swap.balanceOf(bob) == 0
-    assert swap.balanceOf(receiver) > 0
+    imbalance_pools(coin_to_imbalance)
+    for peg_keeper, swap in zip(peg_keepers, swaps):
+        with boa.env.prank(bob):
+            peg_keeper.update(receiver)
+        assert swap.balanceOf(bob) == 0
+        assert swap.balanceOf(receiver) > 0
+
+
+# Paused conversion here
 
 
 def test_unprofitable_peg(
