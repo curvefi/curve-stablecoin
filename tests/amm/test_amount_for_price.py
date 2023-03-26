@@ -2,7 +2,6 @@ import boa
 from ..conftest import approx
 from hypothesis import given, settings
 from hypothesis import strategies as st
-from datetime import timedelta
 
 
 @given(
@@ -13,7 +12,7 @@ from datetime import timedelta
     init_trade_frac=st.floats(min_value=0.0, max_value=1.0),
     p_frac=st.floats(min_value=0.1, max_value=10)
 )
-@settings(max_examples=500, deadline=timedelta(seconds=1000))
+@settings(max_examples=500)
 def test_amount_for_price(price_oracle, amm, accounts, collateral_token, borrowed_token, admin,
                           oracle_price, n1, dn, deposit_amount, init_trade_frac, p_frac):
     user = accounts[0]

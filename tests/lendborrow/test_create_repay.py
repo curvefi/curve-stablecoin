@@ -1,8 +1,7 @@
 import boa
 import pytest
-from hypothesis import given, settings
+from hypothesis import given
 from hypothesis import strategies as st
-from datetime import timedelta
 from ..conftest import approx
 
 
@@ -55,7 +54,6 @@ def test_create_loan(controller_factory, stablecoin, collateral_token, market_co
     collateral_amount=st.integers(min_value=10**9, max_value=10**20),
     n=st.integers(min_value=5, max_value=50),
 )
-@settings(deadline=timedelta(seconds=1000))
 def test_max_borrowable(market_controller, accounts, collateral_amount, n):
     max_borrowable = market_controller.max_borrowable(collateral_amount, n)
     with boa.reverts('Debt too high'):

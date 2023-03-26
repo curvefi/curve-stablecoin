@@ -1,8 +1,7 @@
 import boa
 from ..conftest import approx
-from hypothesis import given, settings
+from hypothesis import given
 from hypothesis import strategies as st
-from datetime import timedelta
 
 
 @given(
@@ -11,7 +10,6 @@ from datetime import timedelta
         dns=st.lists(st.integers(min_value=0, max_value=20), min_size=5, max_size=5),
         fracs=st.lists(st.integers(min_value=0, max_value=10**18), min_size=5, max_size=5)
 )
-@settings(deadline=timedelta(seconds=1000))
 def test_deposit_withdraw(amm, amounts, accounts, ns, dns, fracs, collateral_token, admin):
     deposits = {}
     with boa.env.prank(admin):

@@ -1,8 +1,7 @@
 import boa
 import pytest
-from hypothesis import given, settings
+from hypothesis import given
 from hypothesis import strategies as st
-from datetime import timedelta
 
 pytestmark = pytest.mark.usefixtures(
     "add_initial_liquidity",
@@ -60,7 +59,6 @@ def test_calc_initial_profit(peg_keepers, swaps):
 
 
 @given(donate_fee=st.integers(min_value=1, max_value=10**20))
-@settings(deadline=timedelta(seconds=1000))
 def test_calc_profit(peg_keepers, swaps, make_profit, donate_fee):
     make_profit(donate_fee)
 
@@ -75,7 +73,6 @@ def test_calc_profit(peg_keepers, swaps, make_profit, donate_fee):
 
 
 @given(donate_fee=st.integers(min_value=10**14, max_value=10**20))
-@settings(deadline=timedelta(seconds=1000))
 def test_withdraw_profit(
     peg_keepers,
     swaps,

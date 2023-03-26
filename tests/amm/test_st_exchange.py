@@ -3,7 +3,6 @@ from hypothesis import settings
 from hypothesis import strategies as st
 from hypothesis.stateful import RuleBasedStateMachine, run_state_machine_as_test, rule, invariant, initialize
 from hypothesis import Phase
-from datetime import timedelta
 
 
 class StatefulExchange(RuleBasedStateMachine):
@@ -97,7 +96,6 @@ class StatefulExchange(RuleBasedStateMachine):
 
 def test_exchange(admin, accounts, get_amm, get_collateral_token, get_borrowed_token):
     StatefulExchange.TestCase.settings = settings(max_examples=200, stateful_step_count=10,
-                                                  deadline=timedelta(seconds=1000),
                                                   phases=(Phase.explicit, Phase.reuse, Phase.generate, Phase.target))
     accounts = accounts[:5]
     for k, v in locals().items():
@@ -106,7 +104,6 @@ def test_exchange(admin, accounts, get_amm, get_collateral_token, get_borrowed_t
 
 
 def test_raise_at_dy_back(admin, accounts, get_amm, get_collateral_token, get_borrowed_token):
-    StatefulExchange.TestCase.settings = settings(deadline=timedelta(seconds=1000))
     accounts = accounts[:5]
     for k, v in locals().items():
         setattr(StatefulExchange, k, v)
@@ -125,7 +122,6 @@ def test_raise_at_dy_back(admin, accounts, get_amm, get_collateral_token, get_bo
 
 
 def test_raise_rounding(admin, accounts, get_amm, get_collateral_token, get_borrowed_token):
-    StatefulExchange.TestCase.settings = settings(deadline=timedelta(seconds=1000))
     accounts = accounts[:5]
     for k, v in locals().items():
         setattr(StatefulExchange, k, v)
@@ -137,7 +133,6 @@ def test_raise_rounding(admin, accounts, get_amm, get_collateral_token, get_borr
 
 
 def test_raise_rounding_2(admin, accounts, get_amm, get_collateral_token, get_borrowed_token):
-    StatefulExchange.TestCase.settings = settings(deadline=timedelta(seconds=1000))
     accounts = accounts[:5]
     for k, v in locals().items():
         setattr(StatefulExchange, k, v)
@@ -155,7 +150,6 @@ def test_raise_rounding_2(admin, accounts, get_amm, get_collateral_token, get_bo
 
 
 def test_raise_rounding_3(admin, accounts, get_amm, get_collateral_token, get_borrowed_token):
-    StatefulExchange.TestCase.settings = settings(deadline=timedelta(seconds=1000))
     accounts = accounts[:5]
     for k, v in locals().items():
         setattr(StatefulExchange, k, v)

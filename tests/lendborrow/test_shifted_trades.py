@@ -2,7 +2,6 @@ from .test_health_in_trades import AdiabaticTrader
 from hypothesis import strategies as st
 from hypothesis.stateful import initialize, run_state_machine_as_test
 from hypothesis import settings
-from datetime import timedelta
 
 
 class ShiftedTrader(AdiabaticTrader):
@@ -21,7 +20,7 @@ class ShiftedTrader(AdiabaticTrader):
 
 
 def test_adiabatic_shifted(market_amm, market_controller, monetary_policy, collateral_token, stablecoin, price_oracle, accounts, admin):
-    ShiftedTrader.TestCase.settings = settings(max_examples=50, stateful_step_count=50, deadline=timedelta(seconds=1000))
+    ShiftedTrader.TestCase.settings = settings(max_examples=50, stateful_step_count=50)
     for k, v in locals().items():
         setattr(ShiftedTrader, k, v)
     run_state_machine_as_test(ShiftedTrader)

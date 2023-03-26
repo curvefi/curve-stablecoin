@@ -1,8 +1,7 @@
 import boa
 from ..conftest import approx
-from hypothesis import given, settings
+from hypothesis import given
 from hypothesis import strategies as st
-from datetime import timedelta
 
 
 @given(
@@ -10,7 +9,6 @@ from datetime import timedelta
         ns=st.lists(st.integers(min_value=1, max_value=20), min_size=5, max_size=5),
         dns=st.lists(st.integers(min_value=0, max_value=20), min_size=5, max_size=5),
 )
-@settings(deadline=timedelta(seconds=1000))
 def test_dxdy_limits(amm, amounts, accounts, ns, dns, collateral_token, admin):
     with boa.env.prank(admin):
         for user, amount, n1, dn in zip(accounts[1:6], amounts, ns, dns):
@@ -47,7 +45,6 @@ def test_dxdy_limits(amm, amounts, accounts, ns, dns, collateral_token, admin):
         dns=st.lists(st.integers(min_value=0, max_value=20), min_size=5, max_size=5),
         amount=st.integers(min_value=0, max_value=10**9 * 10**6)
 )
-@settings(deadline=timedelta(seconds=1000))
 def test_exchange_down_up(amm, amounts, accounts, ns, dns, amount,
                           borrowed_token, collateral_token, admin):
     u = accounts[6]

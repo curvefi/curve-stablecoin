@@ -2,7 +2,6 @@ import boa
 from hypothesis import settings
 from hypothesis import strategies as st
 from hypothesis.stateful import RuleBasedStateMachine, run_state_machine_as_test, rule, invariant, initialize
-from datetime import timedelta
 
 
 class AdiabaticTrader(RuleBasedStateMachine):
@@ -80,7 +79,7 @@ class AdiabaticTrader(RuleBasedStateMachine):
 
 
 def test_adiabatic_follow(market_amm, market_controller, monetary_policy, collateral_token, stablecoin, price_oracle, accounts, admin):
-    AdiabaticTrader.TestCase.settings = settings(max_examples=50, stateful_step_count=50, deadline=timedelta(seconds=1000))
+    AdiabaticTrader.TestCase.settings = settings(max_examples=50, stateful_step_count=50)
     for k, v in locals().items():
         setattr(AdiabaticTrader, k, v)
     run_state_machine_as_test(AdiabaticTrader)

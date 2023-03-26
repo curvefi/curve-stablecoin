@@ -1,5 +1,4 @@
 import boa
-from datetime import timedelta
 from .conftest import get_method_id
 from ..conftest import approx
 
@@ -42,7 +41,7 @@ def test_leverage(collateral_token, stablecoin, market_controller, market_amm, f
     amount=st.integers(min_value=10 * 10**8, max_value=10**18),
     loan_mul=st.floats(min_value=0, max_value=10.0),
     repay_mul=st.floats(min_value=0, max_value=1.0))
-@settings(deadline=timedelta(seconds=1000), max_examples=200)
+@settings(max_examples=200)
 def test_leverage_property(collateral_token, stablecoin, market_controller, market_amm, fake_leverage, accounts,
                            amount, loan_mul, repay_mul):
     user = accounts[0]

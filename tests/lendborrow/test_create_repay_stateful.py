@@ -5,7 +5,6 @@ import boa
 from hypothesis import settings
 from hypothesis import strategies as st
 from hypothesis.stateful import RuleBasedStateMachine, run_state_machine_as_test, rule, invariant
-from datetime import timedelta
 
 
 class StatefulLendBorrow(RuleBasedStateMachine):
@@ -191,7 +190,7 @@ class StatefulLendBorrow(RuleBasedStateMachine):
 
 
 def test_stateful_lendborrow(controller_factory, market_amm, market_controller, collateral_token, stablecoin, accounts):
-    StatefulLendBorrow.TestCase.settings = settings(max_examples=50, stateful_step_count=20, deadline=timedelta(seconds=1000))
+    StatefulLendBorrow.TestCase.settings = settings(max_examples=50, stateful_step_count=20)
     for k, v in locals().items():
         setattr(StatefulLendBorrow, k, v)
     run_state_machine_as_test(StatefulLendBorrow)

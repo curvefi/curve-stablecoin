@@ -1,7 +1,6 @@
 import boa
 from hypothesis import given, settings
 from hypothesis import strategies as st
-from datetime import timedelta
 from math import exp
 from ..conftest import approx
 
@@ -9,7 +8,7 @@ from ..conftest import approx
 @given(
     amount=st.integers(min_value=1, max_value=10**6),
     ix=st.integers(min_value=0, max_value=1))
-@settings(max_examples=100, deadline=timedelta(seconds=1000))
+@settings(max_examples=100)
 def test_price(swap_w_d, redeemable_coin, volatile_coin, accounts, amount, ix):
     user = accounts[0]
     assert swap_w_d.get_p() == 10**18
@@ -29,7 +28,7 @@ def test_price(swap_w_d, redeemable_coin, volatile_coin, accounts, amount, ix):
     ix=st.integers(min_value=0, max_value=1),
     dt0=st.integers(min_value=0, max_value=10**6),
     dt=st.integers(min_value=0, max_value=10**6))
-@settings(max_examples=1000, deadline=timedelta(seconds=1000))
+@settings(max_examples=1000)
 def test_ema(swap_w_d, redeemable_coin, volatile_coin, accounts, amount, ix, dt0, dt):
     user = accounts[0]
     from_coin = [redeemable_coin, volatile_coin][ix]

@@ -4,7 +4,6 @@ from hypothesis import settings
 from hypothesis import strategies as st
 from hypothesis.stateful import RuleBasedStateMachine, run_state_machine_as_test, rule, invariant
 from ..conftest import get_method_id
-from datetime import timedelta
 
 
 # Variables and methods to check
@@ -436,9 +435,9 @@ class BigFuzz(RuleBasedStateMachine):
 
 def test_big_fuzz(
         controller_factory, market_amm, market_controller, monetary_policy, weth, stablecoin, price_oracle, accounts, fake_leverage, admin):
-    BigFuzz.TestCase.settings = settings(max_examples=2500, stateful_step_count=20, deadline=timedelta(seconds=1000))
+    BigFuzz.TestCase.settings = settings(max_examples=2500, stateful_step_count=20)
     # Or quick check
-    # BigFuzz.TestCase.settings = settings(max_examples=25, stateful_step_count=20, deadline=timedelta(seconds=1000))
+    # BigFuzz.TestCase.settings = settings(max_examples=25, stateful_step_count=20)
     collateral_token = weth
     for k, v in locals().items():
         setattr(BigFuzz, k, v)

@@ -1,7 +1,6 @@
 import boa
-from hypothesis import given, settings
+from hypothesis import given
 from hypothesis import strategies as st
-from datetime import timedelta
 
 
 @given(
@@ -9,7 +8,6 @@ from datetime import timedelta
     debt=st.integers(min_value=10**10, max_value=2 * 10**6 * 10**18),
     collateral=st.integers(min_value=10**10, max_value=10**9 * 10**18 // 3000),
 )
-@settings(deadline=timedelta(seconds=1000))
 def test_health_calculator_create(market_amm, market_controller, collateral_token, collateral, debt, n, accounts):
     user = accounts[1]
     calculator_fail = False

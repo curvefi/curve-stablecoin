@@ -2,7 +2,6 @@ from hypothesis import given, settings
 from hypothesis import strategies as st
 import boa
 import pytest
-from datetime import timedelta
 from ..conftest import approx
 """
 Test that get_x_down and get_y_up don't change:
@@ -25,7 +24,6 @@ def borrowed_token(get_borrowed_token):
     f_trade=st.floats(min_value=0, max_value=10),
     is_pump=st.booleans()
 )
-@settings(deadline=timedelta(seconds=1000))
 def test_immediate(amm, price_oracle, collateral_token, borrowed_token, accounts, admin,
                    p_o, n1, dn, deposit_amount, f_pump, f_trade, is_pump):
     collateral_decimals = collateral_token.decimals()
@@ -84,7 +82,7 @@ def test_immediate(amm, price_oracle, collateral_token, borrowed_token, accounts
     dn=st.integers(min_value=0, max_value=30),
     deposit_amount=st.floats(min_value=1, max_value=1e7),
 )
-@settings(max_examples=100, deadline=timedelta(seconds=1000))
+@settings(max_examples=100)
 def test_adiabatic(amm, price_oracle, collateral_token, borrowed_token, accounts, admin,
                    p_o_1, p_o_2, n1, dn, deposit_amount):
     collateral_decimals = collateral_token.decimals()

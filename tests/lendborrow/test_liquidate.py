@@ -3,7 +3,6 @@ import boa
 from boa.vyper.contract import BoaError
 from hypothesis import given, settings
 from hypothesis import strategies as st
-from datetime import timedelta
 from .conftest import get_method_id
 from ..conftest import approx
 
@@ -74,7 +73,7 @@ def test_liquidate(accounts, admin, controller_for_liquidation, market_amm):
 
 
 @given(frac=st.integers(min_value=0, max_value=11 * 10**17))
-@settings(deadline=timedelta(seconds=1000), max_examples=200)
+@settings(max_examples=200)
 def test_liquidate_callback(accounts, admin, stablecoin, collateral_token, controller_for_liquidation, market_amm, fake_leverage, frac):
     user = admin
     fee_receiver = accounts[0]
@@ -151,7 +150,6 @@ def test_self_liquidate(accounts, admin, controller_for_liquidation, market_amm,
 
 
 @given(frac=st.integers(min_value=10**14, max_value=10**18 - 13))
-@settings(deadline=timedelta(seconds=1000))
 def test_tokens_to_liquidate(accounts, admin, controller_for_liquidation, market_amm, stablecoin, frac):
     user = admin
     fee_receiver = accounts[0]

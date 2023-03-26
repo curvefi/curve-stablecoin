@@ -1,8 +1,7 @@
 import boa
 import pytest
-from hypothesis import given, settings
+from hypothesis import given
 from hypothesis import strategies as st
-from datetime import timedelta
 from ..conftest import PRICE, approx
 
 
@@ -64,7 +63,6 @@ def test_ema_wrapping(ema_price_oracle, price_oracle):
     t1=st.integers(min_value=0, max_value=10**6),
     p_mul=st.floats(min_value=0.1, max_value=10),
 )
-@settings(deadline=timedelta(seconds=1000))
 def test_ema_sleep(ema_price_oracle, price_oracle, admin, t1, p_mul):
     p = price_oracle.price()
     p_target = int(p_mul * p)

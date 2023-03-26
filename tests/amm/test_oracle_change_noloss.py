@@ -4,7 +4,6 @@ import boa
 import pytest
 from hypothesis import given, settings, example
 from hypothesis import strategies as st
-from datetime import timedelta
 
 
 @pytest.fixture(scope="module")
@@ -23,7 +22,7 @@ def amm(collateral_token, borrowed_token, get_amm):
     amount=st.integers(min_value=10**10, max_value=10**20),
     price_shift=st.floats(min_value=0.9, max_value=1.1)
 )
-@settings(deadline=timedelta(seconds=1000), max_examples=1000)
+@settings(max_examples=1000)
 def test_buy_with_shift(amm, collateral_token, borrowed_token, price_oracle, accounts, admin,
                         n1, dn, amount, price_shift):
     user = accounts[1]
@@ -68,7 +67,7 @@ def test_buy_with_shift(amm, collateral_token, borrowed_token, price_oracle, acc
     amount=st.integers(min_value=10**10, max_value=10**18),
     price_shift=st.floats(min_value=0.1, max_value=10)
 )
-@settings(deadline=timedelta(seconds=1000), max_examples=1000)
+@settings(max_examples=1000)
 def test_sell_with_shift(amm, collateral_token, borrowed_token, price_oracle, accounts, admin,
                          n1, dn, amount, price_shift):
     user = accounts[1]
@@ -115,7 +114,7 @@ def test_sell_with_shift(amm, collateral_token, borrowed_token, price_oracle, ac
     amount=st.integers(min_value=1, max_value=10**20),
     price_shift=st.floats(min_value=0.1, max_value=10)
 )
-@settings(deadline=timedelta(seconds=1000), max_examples=1000)
+@settings(max_examples=1000)
 @example(n1=20, dn=0, amount=4351, price_shift=2.0)  # Leaves small dust
 def test_no_untradable_funds(amm, collateral_token, borrowed_token, price_oracle, accounts, admin,
                              n1, dn, amount, price_shift):
@@ -160,7 +159,7 @@ def test_no_untradable_funds(amm, collateral_token, borrowed_token, price_oracle
     amount=st.integers(min_value=1, max_value=10**20),
     price_shift=st.floats(min_value=0.1, max_value=10)
 )
-@settings(deadline=timedelta(seconds=1000), max_examples=1000)
+@settings(max_examples=1000)
 @example(n1=20, dn=0, amount=4351, price_shift=2.0)  # Leaves small dust
 def test_no_untradable_funds_in(amm, collateral_token, borrowed_token, price_oracle, accounts, admin,
                                 n1, dn, amount, price_shift):

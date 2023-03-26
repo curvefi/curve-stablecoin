@@ -1,9 +1,8 @@
 import boa
 import pytest
 from ..conftest import approx
-from hypothesis import given, settings
+from hypothesis import given
 from hypothesis import strategies as st
-from datetime import timedelta
 
 
 @pytest.fixture(scope="module")
@@ -16,7 +15,6 @@ def borrowed_token(get_borrowed_token):
         ns=st.lists(st.integers(min_value=1, max_value=20), min_size=5, max_size=5),
         dns=st.lists(st.integers(min_value=0, max_value=20), min_size=5, max_size=5),
 )
-@settings(deadline=timedelta(seconds=1000))
 def test_dydx_limits(amm, amounts, accounts, ns, dns, collateral_token, admin, borrowed_token):
     collateral_decimals = collateral_token.decimals()
     borrowed_decimals = borrowed_token.decimals()
@@ -56,7 +54,6 @@ def test_dydx_limits(amm, amounts, accounts, ns, dns, collateral_token, admin, b
         ns=st.lists(st.integers(min_value=1, max_value=20), min_size=5, max_size=5),
         dns=st.lists(st.integers(min_value=0, max_value=20), min_size=5, max_size=5),
 )
-@settings(deadline=timedelta(seconds=1000))
 def test_dydx_compare_to_dxdy(amm, amounts, accounts, ns, dns, collateral_token, admin, borrowed_token):
     collateral_decimals = collateral_token.decimals()
     borrowed_decimals = borrowed_token.decimals()
@@ -122,7 +119,6 @@ def test_dydx_compare_to_dxdy(amm, amounts, accounts, ns, dns, collateral_token,
         dns=st.lists(st.integers(min_value=0, max_value=20), min_size=5, max_size=5),
         amount=st.floats(min_value=0, max_value=10e9)
 )
-@settings(deadline=timedelta(seconds=1000))
 def test_exchange_dy_down_up(amm, amounts, accounts, ns, dns, amount, borrowed_token, collateral_token, admin):
     collateral_decimals = collateral_token.decimals()
     borrowed_decimals = borrowed_token.decimals()

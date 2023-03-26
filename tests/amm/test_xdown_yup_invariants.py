@@ -1,7 +1,6 @@
 from hypothesis import given, settings
 from hypothesis import strategies as st
 import boa
-from datetime import timedelta
 from ..conftest import approx
 """
 Test that get_x_down and get_y_up don't change:
@@ -19,7 +18,6 @@ Test that get_x_down and get_y_up don't change:
     f_trade=st.floats(min_value=0, max_value=10),
     is_pump=st.booleans()
 )
-@settings(deadline=timedelta(seconds=1000))
 def test_immediate(amm, price_oracle, collateral_token, borrowed_token, accounts, admin,
                    p_o, n1, dn, deposit_amount, f_pump, f_trade, is_pump):
     user = accounts[0]
@@ -140,7 +138,7 @@ def test_immediate_in_band(amm, price_oracle, collateral_token, borrowed_token, 
     dn=st.integers(min_value=0, max_value=30),
     deposit_amount=st.integers(min_value=10**18, max_value=10**25),
 )
-@settings(max_examples=100, deadline=timedelta(seconds=1000))
+@settings(max_examples=100)
 def test_adiabatic(amm, price_oracle, collateral_token, borrowed_token, accounts, admin,
                    p_o_1, p_o_2, n1, dn, deposit_amount):
     N_STEPS = 101
