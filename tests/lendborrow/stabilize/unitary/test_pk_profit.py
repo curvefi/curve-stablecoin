@@ -148,26 +148,32 @@ def test_profit_receiver(
         assert swap.balanceOf(receiver) > 0
 
 
+def test_unprofitable_peg(swaps, peg_keepers, redeemable_tokens, stablecoin, alice, imbalance_pool, admin):
+    for swap, peg_keeper, rtoken in zip(swaps, peg_keepers, redeemable_tokens):
+        with boa.env.anchor():
+            # Leave a little of debt
+            little = 10 * 10**18
+            rtoken_mul = 10 ** (18 - rtoken.decimals())
+            imbalance_pool(swap, 1, 5 * (peg_keeper.debt() - little))
+            with boa.env.prank(alice):
+                peg_keeper.update()
+
+            # Imbalance so it should give all
+            able_to_add = stablecoin.balanceOf(peg_keeper) // rtoken_mul
+            imbalance_pool(swap, 0, 5 * able_to_add, add_diff=True)
+
+            with boa.env.prank(admin):
+                swap.commit_new_fee(10**9)
+                boa.env.time_travel(4 * 86400)
+                swap.apply_new_fee()
+
+            boa.env.time_travel(15 * 60)
+            with boa.reverts():  # dev: peg was unprofitable
+                with boa.env.prank(alice):
+                    peg_keeper.update()
+
+
 # Paused conversion here
-
-
-def test_unprofitable_peg(
-    swap, decimals, pegged, peg_keeper, alice, imbalance_pool, set_fees, chain
-):
-    # Leave a little of debt
-    little = 10 * 10 ** decimals[0]
-    imbalance_pool(0, 5 * (peg_keeper.debt() - little))
-    peg_keeper.update({"from": alice})
-
-    # Imbalance so it should give all
-    able_to_add = pegged.balanceOf(peg_keeper)
-    imbalance_pool(1, 5 * able_to_add, add_diff=True)
-
-    set_fees(10**9)
-
-    with boa.reverts():  # dev: peg was unprofitable
-        chain.sleep(15 * 60)
-        peg_keeper.update({"from": alice})
 
 
 # @given(share=strategy("int", min_value=0, max_value=10**5))

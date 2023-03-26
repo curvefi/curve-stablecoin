@@ -263,6 +263,23 @@ def provide_token_to_peg_keepers(provide_token_to_peg_keepers_no_sleep):
 
 
 @pytest.fixture(scope="module")
+def imbalance_pool(
+        initial_amounts, redeemable_tokens, stablecoin, collateral_token, market_controller_agg, alice, _mint):
+    def _inner(swap, i, amount=None, add_diff=False):
+        with boa.env.prank(alice):
+            rtoken, initial = [(r, i) for r, i in zip(redeemable_tokens, initial_amounts) if r.address == swap.coins(0)][0]
+            token_mul = [10 ** (18 - rtoken.decimals()), 1]
+            amounts = [0, 0]
+            if add_diff:
+                amount += (swap.balances(1 - i) * token_mul[1 - i] - swap.balances(i) * token_mul[i]) // token_mul[i]
+            amounts[i] = amount or initial[i] // 3
+            _mint(alice, [rtoken, stablecoin], amounts)
+            swap.add_liquidity(amounts, 0)
+
+    return _inner
+
+
+@pytest.fixture(scope="module")
 def imbalance_pools(
         swaps, initial_amounts, redeemable_tokens, stablecoin, collateral_token, market_controller_agg, alice, _mint):
     def _inner(i, amount=None, add_diff=False):
@@ -271,7 +288,7 @@ def imbalance_pools(
                 token_mul = [10 ** (18 - rtoken.decimals()), 1]
                 amounts = [0, 0]
                 if add_diff:
-                    amount += swap.balances(1 - i) * token_mul[1 - i] - swap.balances(i) * token_mul[i]
+                    amount += (swap.balances(1 - i) * token_mul[1 - i] - swap.balances(i) * token_mul[i]) // token_mul[i]
                 amounts[i] = amount or initial[i] // 3
                 _mint(alice, [rtoken, stablecoin], amounts)
                 swap.add_liquidity(amounts, 0)
