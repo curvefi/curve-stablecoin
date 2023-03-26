@@ -1,12 +1,19 @@
 import boa
+import os
 import pytest
 from math import log
+from hypothesis import settings
+from datetime import timedelta
 
 boa.interpret.set_cache_dir()
 boa.reset_env()
 
 
 PRICE = 3000
+
+
+settings.register_profile("default", deadline=timedelta(seconds=1000))
+settings.load_profile(os.getenv(u"HYPOTHESIS_PROFILE", "default"))
 
 
 def approx(x1, x2, precision, abs_precision=None):
