@@ -176,19 +176,24 @@ def test_unprofitable_peg(swaps, peg_keepers, redeemable_tokens, stablecoin, ali
 # Paused conversion here
 
 
-# @given(share=strategy("int", min_value=0, max_value=10**5))
-# @pytest.mark.parametrize("coin_to_imbalance", [0, 1])
+@given(share=st.integers(min_value=0, max_value=10**5))
+@pytest.mark.parametrize("coin_to_imbalance", [0, 1])
 def test_profit_share(
-    peg_keeper, swap, bob, admin, coin_to_imbalance, imbalance_pool, share
+    peg_keepers, swaps, bob, admin, coin_to_imbalance, imbalance_pools, share
 ):
-    peg_keeper.set_new_caller_share(share, {"from": admin})
-    imbalance_pool(coin_to_imbalance)
+    imbalance_pools(coin_to_imbalance)
 
-    profit_before = peg_keeper.calc_profit()
-    peg_keeper.update({"from": bob})
-    profit_after = peg_keeper.calc_profit()
+    for peg_keeper, swap in zip(peg_keepers, swaps):
+        with boa.env.anchor():
+            with boa.env.prank(admin):
+                peg_keeper.set_new_caller_share(share)
 
-    receiver_profit = profit_after - profit_before
-    caller_profit = swap.balanceOf(bob)
+            profit_before = peg_keeper.calc_profit()
+            with boa.env.prank(bob):
+                peg_keeper.update()
+            profit_after = peg_keeper.calc_profit()
 
-    assert caller_profit == (receiver_profit + caller_profit) * share // 10**5
+            receiver_profit = profit_after - profit_before
+            caller_profit = swap.balanceOf(bob)
+
+            assert caller_profit == (receiver_profit + caller_profit) * share // 10**5
