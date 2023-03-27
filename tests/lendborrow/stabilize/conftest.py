@@ -303,3 +303,12 @@ def mint_bob(bob, stablecoin, redeemable_tokens, swaps, initial_amounts, _mint):
         with boa.env.prank(bob):
             rtoken.approve(swap, 2**256 - 1)
             stablecoin.approve(swap, 2**256 - 1)
+
+
+@pytest.fixture(scope="module")
+def mint_alice(alice, stablecoin, redeemable_tokens, swaps, initial_amounts, _mint):
+    for swap, rtoken, amounts in zip(swaps, redeemable_tokens, initial_amounts):
+        _mint(alice, [rtoken, stablecoin], amounts)
+        with boa.env.prank(alice):
+            rtoken.approve(swap, 2**256 - 1)
+            stablecoin.approve(swap, 2**256 - 1)

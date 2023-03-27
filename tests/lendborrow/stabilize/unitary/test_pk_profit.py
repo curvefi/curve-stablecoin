@@ -6,8 +6,6 @@ from hypothesis import strategies as st
 pytestmark = pytest.mark.usefixtures(
     "add_initial_liquidity",
     "provide_token_to_peg_keepers",
-    # "mint_alice",
-    # "approve_alice",
 )
 
 
