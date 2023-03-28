@@ -6,7 +6,7 @@ Installing poetry and all dependencies for tests
 
 ```shell
 pip install poetry==1.4.1
-poetry install --without ape
+poetry install
 ```
 
 Installing specific dependency groups (main/dev(tests)/ape(deploy))
