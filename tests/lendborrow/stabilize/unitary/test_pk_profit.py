@@ -168,9 +168,6 @@ def test_unprofitable_peg(swaps, peg_keepers, redeemable_tokens, stablecoin, ali
                     peg_keeper.update()
 
 
-# Paused conversion here
-
-
 @given(share=st.integers(min_value=0, max_value=10**5))
 @pytest.mark.parametrize("coin_to_imbalance", [0, 1])
 def test_profit_share(
