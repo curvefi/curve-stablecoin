@@ -1,5 +1,7 @@
 import boa
+import pytest
 from hypothesis import settings
+from hypothesis import HealthCheck
 from hypothesis import strategies as st
 from hypothesis.stateful import RuleBasedStateMachine, run_state_machine_as_test, rule, invariant, initialize
 from hypothesis import Phase
@@ -12,23 +14,16 @@ class StatefulExchange(RuleBasedStateMachine):
     amount = st.integers(min_value=0, max_value=10**9 * 10**18)
     pump = st.booleans()
     user_id = st.integers(min_value=0, max_value=4)
-    borrowed_digits = st.integers(min_value=6, max_value=18)
-    collateral_digits = st.integers(min_value=6, max_value=18)
 
     def __init__(self):
         super().__init__()
         self.total_deposited = 0
 
-    @initialize(amounts=amounts, ns=ns, dns=dns, borrowed_digits=borrowed_digits, collateral_digits=collateral_digits)
-    def initializer(self, amounts, ns, dns, borrowed_digits, collateral_digits):
-        self.borrowed_digits = borrowed_digits
-        self.collateral_digits = collateral_digits
-        self.borrowed_mul = 10**(18 - borrowed_digits)
-        self.collateral_mul = 10**(18 - collateral_digits)
-        self.borrowed_token = StatefulExchange.get_borrowed_token(borrowed_digits)
-        self.collateral_token = StatefulExchange.get_collateral_token(collateral_digits)
+    @initialize(amounts=amounts, ns=ns, dns=dns)
+    def initializer(self, amounts, ns, dns):
+        self.borrowed_mul = 10**(18 - self.borrowed_digits)
+        self.collateral_mul = 10**(18 - self.collateral_digits)
         amounts = [a // self.collateral_mul for a in amounts]
-        self.amm = StatefulExchange.get_amm(self.collateral_token, self.borrowed_token)
         for user, amount, n1, dn in zip(self.accounts, amounts, ns, dns):
             n2 = n1 + dn
             try:
@@ -94,10 +89,19 @@ class StatefulExchange(RuleBasedStateMachine):
                 assert left_in_amm >= self.total_deposited
 
 
-def test_exchange(admin, accounts, get_amm, get_collateral_token, get_borrowed_token):
-    StatefulExchange.TestCase.settings = settings(max_examples=200, stateful_step_count=10,
-                                                  phases=(Phase.explicit, Phase.reuse, Phase.generate, Phase.target))
+@pytest.mark.parametrize("borrowed_digits", [6, 8, 18])
+@pytest.mark.parametrize("collateral_digits", [6, 8, 18])
+def test_exchange(admin, accounts, get_amm, get_collateral_token, get_borrowed_token,
+                  borrowed_digits, collateral_digits):
+    StatefulExchange.TestCase.settings = settings(max_examples=20, stateful_step_count=10,
+                                                  phases=(Phase.explicit, Phase.reuse, Phase.generate, Phase.target),
+                                                  suppress_health_check=[HealthCheck.data_too_large])
     accounts = accounts[:5]
+
+    borrowed_token = get_borrowed_token(borrowed_digits)
+    collateral_token = get_collateral_token(collateral_digits)
+    amm = get_amm(collateral_token, borrowed_token)
+
     for k, v in locals().items():
         setattr(StatefulExchange, k, v)
     run_state_machine_as_test(StatefulExchange)
@@ -105,11 +109,18 @@ def test_exchange(admin, accounts, get_amm, get_collateral_token, get_borrowed_t
 
 def test_raise_at_dy_back(admin, accounts, get_amm, get_collateral_token, get_borrowed_token):
     accounts = accounts[:5]
+
+    borrowed_digits = 18
+    collateral_digits = 18
+
+    borrowed_token = get_borrowed_token(borrowed_digits)
+    collateral_token = get_collateral_token(collateral_digits)
+    amm = get_amm(collateral_token, borrowed_token)
+
     for k, v in locals().items():
         setattr(StatefulExchange, k, v)
     state = StatefulExchange()
-    state.initializer(amounts=[0, 0, 0, 10**18, 10**18], ns=[1, 1, 1, 1, 2], dns=[0, 0, 0, 0, 0],
-                      borrowed_digits=18, collateral_digits=18)
+    state.initializer(amounts=[0, 0, 0, 10**18, 10**18], ns=[1, 1, 1, 1, 2], dns=[0, 0, 0, 0, 0])
     state.amm_solvent()
     state.dy_back()
     state.exchange(amount=3123061067055650168655, pump=True, user_id=0)
@@ -123,10 +134,18 @@ def test_raise_at_dy_back(admin, accounts, get_amm, get_collateral_token, get_bo
 
 def test_raise_rounding(admin, accounts, get_amm, get_collateral_token, get_borrowed_token):
     accounts = accounts[:5]
+
+    borrowed_digits = 16
+    collateral_digits = 18
+
+    borrowed_token = get_borrowed_token(borrowed_digits)
+    collateral_token = get_collateral_token(collateral_digits)
+    amm = get_amm(collateral_token, borrowed_token)
+
     for k, v in locals().items():
         setattr(StatefulExchange, k, v)
     state = StatefulExchange()
-    state.initializer(amounts=[101, 0, 0, 0, 0], ns=[1, 1, 1, 1, 1], dns=[0, 0, 0, 0, 0], borrowed_digits=16, collateral_digits=18)
+    state.initializer(amounts=[101, 0, 0, 0, 0], ns=[1, 1, 1, 1, 1], dns=[0, 0, 0, 0, 0])
     state.exchange(amount=100, pump=True, user_id=0)
     state.dy_back()
     state.teardown()
@@ -134,10 +153,18 @@ def test_raise_rounding(admin, accounts, get_amm, get_collateral_token, get_borr
 
 def test_raise_rounding_2(admin, accounts, get_amm, get_collateral_token, get_borrowed_token):
     accounts = accounts[:5]
+
+    borrowed_digits = 18
+    collateral_digits = 18
+
+    borrowed_token = get_borrowed_token(borrowed_digits)
+    collateral_token = get_collateral_token(collateral_digits)
+    amm = get_amm(collateral_token, borrowed_token)
+
     for k, v in locals().items():
         setattr(StatefulExchange, k, v)
     state = StatefulExchange()
-    state.initializer(amounts=[779, 5642, 768, 51924, 5], ns=[2, 3, 4, 10, 18], dns=[11, 12, 14, 15, 15], borrowed_digits=18, collateral_digits=18)
+    state.initializer(amounts=[779, 5642, 768, 51924, 5], ns=[2, 3, 4, 10, 18], dns=[11, 12, 14, 15, 15])
     state.amm_solvent()
     state.dy_back()
     state.exchange(amount=42, pump=True, user_id=1)
@@ -151,10 +178,18 @@ def test_raise_rounding_2(admin, accounts, get_amm, get_collateral_token, get_bo
 
 def test_raise_rounding_3(admin, accounts, get_amm, get_collateral_token, get_borrowed_token):
     accounts = accounts[:5]
+
+    borrowed_digits = 17
+    collateral_digits = 18
+
+    borrowed_token = get_borrowed_token(borrowed_digits)
+    collateral_token = get_collateral_token(collateral_digits)
+    amm = get_amm(collateral_token, borrowed_token)
+
     for k, v in locals().items():
         setattr(StatefulExchange, k, v)
     state = StatefulExchange()
-    state.initializer(amounts=[33477, 63887, 387, 1, 0], ns=[4, 18, 6, 19, 5], dns=[18, 0, 8, 20, 5], borrowed_digits=17, collateral_digits=18)
+    state.initializer(amounts=[33477, 63887, 387, 1, 0], ns=[4, 18, 6, 19, 5], dns=[18, 0, 8, 20, 5])
     state.amm_solvent()
     state.dy_back()
     state.exchange(amount=22005, pump=False, user_id=2)
