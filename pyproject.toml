@@ -1,0 +1,30 @@
+[tool.poetry]
+name = "curve-stablecoin"
+version = "0.1.0"
+description = ""
+authors = ["Your Name <you@example.com>"]
+readme = "README.md"
+packages = [{include = "curve_stablecoin"}]
+
+[tool.poetry.dependencies]
+python = ">=3.10,<3.11"
+vyper = "0.3.7"
+eth-abi = "3.0.1"
+
+
+[tool.poetry.group.dev.dependencies]
+brownie = "^0.5.1"
+titanoboa = {git = "https://github.com/vyperlang/titanoboa.git", rev = "6ffcfa724023fb2b9f8ed02221c8bcbf4511712c"}
+
+
+[tool.poetry.group.ape.dependencies]
+eth-ape = "^0.6.6"
+ape-vyper = "^0.6.2"
+ape-etherscan = "^0.6.2"
+ape-ledger = "^0.6.0"
+ape-hardhat = "^0.6.0"
+ape-alchemy = "^0.6.1"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
