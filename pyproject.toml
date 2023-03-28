@@ -2,7 +2,7 @@
 name = "curve-stablecoin"
 version = "0.1.0"
 description = ""
-authors = ["Your Name <you@example.com>"]
+authors = ["Michael Egorov <michael@curve.fi>"]
 readme = "README.md"
 packages = []
 
