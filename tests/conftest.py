@@ -39,7 +39,7 @@ def admin():
     return boa.env.generate_address()
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture(scope="session")
 def get_collateral_token(admin):
     def f(digits):
         with boa.env.prank(admin):
@@ -47,7 +47,7 @@ def get_collateral_token(admin):
     return f
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture(scope="session")
 def get_borrowed_token(admin):
     def f(digits):
         with boa.env.prank(admin):
@@ -55,7 +55,7 @@ def get_borrowed_token(admin):
     return f
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture(scope="session")
 def collateral_token(get_collateral_token):
     return get_collateral_token(18)
 

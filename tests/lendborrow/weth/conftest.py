@@ -3,6 +3,26 @@ import pytest
 
 
 @pytest.fixture(scope="module")
+def stablecoin(admin):
+    with boa.env.prank(admin):
+        return boa.load('contracts/Stablecoin.vy', 'Curve USD', 'crvUSD')
+
+
+@pytest.fixture(scope="module")
+def controller_prefactory(stablecoin, weth, admin, accounts):
+    with boa.env.prank(admin):
+        return boa.load('contracts/ControllerFactory.vy', stablecoin.address, admin, accounts[0], weth.address)
+
+
+@pytest.fixture(scope="module")
+def controller_factory(controller_prefactory, amm_impl, controller_impl, stablecoin, admin):
+    with boa.env.prank(admin):
+        controller_prefactory.set_implementations(controller_impl.address, amm_impl.address)
+        stablecoin.set_minter(controller_prefactory.address)
+    return controller_prefactory
+
+
+@pytest.fixture(scope="module")
 def market(controller_factory, weth, monetary_policy, price_oracle, admin):
     with boa.env.prank(admin):
         if controller_factory.n_collaterals() == 0:

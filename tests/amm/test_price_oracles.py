@@ -5,7 +5,7 @@ from hypothesis import strategies as st
 from ..conftest import PRICE, approx
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture(scope="session")
 def ema_price_oracle(price_oracle, admin):
     with boa.env.prank(admin):
         signature = price_oracle.price.args_abi_type(0)[0]

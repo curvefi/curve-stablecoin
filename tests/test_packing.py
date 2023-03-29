@@ -7,7 +7,7 @@ MAX_N = 2**127 - 1
 MIN_N = -2**127 + 1  # <- not -2**127!
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture(scope="session")
 def packing(admin):
     with boa.env.prank(admin):
         return boa.load('contracts/testing/TestPacking.vy')

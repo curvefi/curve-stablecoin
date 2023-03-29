@@ -11,9 +11,14 @@ AMOUNT_D = 5
 STEP = 0.01
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture(scope="session")
 def borrowed_token(get_borrowed_token):
     return get_borrowed_token(18)
+
+
+@pytest.fixture(scope="session")
+def amm(get_amm, borrowed_token, collateral_token):
+    return get_amm(collateral_token, borrowed_token)
 
 
 def test_flip(amm, price_oracle, collateral_token, borrowed_token, accounts, admin):
