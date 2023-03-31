@@ -1,9 +1,12 @@
-import boa
 import os
-import pytest
-from math import log
-from hypothesis import settings
 from datetime import timedelta
+from math import log
+from typing import Any, Callable, List
+
+import boa
+import pytest
+from boa.environment import AddressT
+from hypothesis import settings
 
 boa.interpret.set_cache_dir()
 boa.reset_env()
@@ -16,7 +19,7 @@ settings.register_profile("default", deadline=timedelta(seconds=1000))
 settings.load_profile(os.getenv(u"HYPOTHESIS_PROFILE", "default"))
 
 
-def approx(x1, x2, precision, abs_precision=None):
+def approx(x1: int, x2: int, precision: int, abs_precision=None):
     result = False
     if abs_precision is not None:
         result = abs(x2 - x1) <= abs_precision
@@ -30,17 +33,17 @@ def approx(x1, x2, precision, abs_precision=None):
 
 
 @pytest.fixture(scope="session")
-def accounts():
-    return [boa.env.generate_address() for i in range(10)]
+def accounts() -> List[AddressT]:
+    return [boa.env.generate_address() for _ in range(10)]
 
 
 @pytest.fixture(scope="session")
-def admin():
+def admin() -> AddressT:
     return boa.env.generate_address()
 
 
 @pytest.fixture(scope="session")
-def get_collateral_token(admin):
+def get_collateral_token(admin) -> Callable[[int], Any]:
     def f(digits):
         with boa.env.prank(admin):
             return boa.load('contracts/testing/ERC20Mock.vy', "Colalteral", "ETH", digits)
@@ -48,7 +51,7 @@ def get_collateral_token(admin):
 
 
 @pytest.fixture(scope="session")
-def get_borrowed_token(admin):
+def get_borrowed_token(admin) -> Callable[[int], Any]:
     def f(digits):
         with boa.env.prank(admin):
             return boa.load('contracts/testing/ERC20Mock.vy', "Rugworks USD", "rUSD", digits)

@@ -12,6 +12,10 @@ interface Stableswap:
     def price_oracle() -> uint256: view
     def coins(i: uint256) -> address: view
 
+interface ChainlinkAggregator:
+    def latestRoundData() -> (uint80, int256, uint256, uint256, uint80): view
+    def decimals() -> uint8: view
+
 
 TRICRYPTO: immutable(Tricrypto)
 TRICRYPTO_IX: immutable(uint256)
@@ -28,11 +32,14 @@ MAX_MA_EXP_TIME: constant(uint256) = 365 * 86400
 last_prices_packed: uint256
 last_timestamp: public(uint256)
 
+CHAINLINK_AGGREGATOR: immutable(ChainlinkAggregator)
+CHAINLINK_PRICE_PRECISION: immutable(uint8)
+
 
 @external
 def __init__(
         tricrypto: Tricrypto, ix: uint256, stableswap: Stableswap, stable_aggregator: StableAggregator,
-        ma_exp_time: uint256
+        chainlink_aggregator: ChainlinkAggregator, chainlink_price_precision: uint8, ma_exp_time: uint256
     ):
     TRICRYPTO = tricrypto
     TRICRYPTO_IX = ix
@@ -56,6 +63,9 @@ def __init__(
     assert ma_exp_time <= MAX_MA_EXP_TIME
     assert ma_exp_time >= MIN_MA_EXP_TIME
     MA_EXP_TIME = ma_exp_time
+
+    CHAINLINK_AGGREGATOR = chainlink_aggregator
+    CHAINLINK_PRICE_PRECISION = chainlink_price_precision
 
 
 @pure
@@ -158,7 +168,18 @@ def _raw_price() -> uint256:
     p_stable_agg: uint256 = STABLESWAP_AGGREGATOR.price()       # d_usd/d_st
     if IS_INVERSE:
         p_stable_r = 10**36 / p_stable_r
-    return p_crypto_r * p_stable_agg / p_stable_r
+    crv_p: uint256 = p_crypto_r * p_stable_agg / p_stable_r     # d_usd/d_eth
+
+    chainlink_lrd: (uint80, int256, uint256, uint256, uint80) = CHAINLINK_AGGREGATOR.latestRoundData()
+    chainlink_p: uint256 = convert(chainlink_lrd[1], uint256) * 10**18 / 10**convert(CHAINLINK_PRICE_PRECISION, uint256)
+
+    if chainlink_p * 99 / 100 > crv_p:
+        return chainlink_p * 99 / 100
+
+    if chainlink_p * 101 / 100 < crv_p:
+        return chainlink_p * 101 / 100
+
+    return crv_p
 
 
 @external
