@@ -11,12 +11,12 @@ AMOUNT_D = 5
 STEP = 0.01
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="module")
 def borrowed_token(get_borrowed_token):
     return get_borrowed_token(18)
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="module")
 def amm(get_amm, borrowed_token, collateral_token):
     return get_amm(collateral_token, borrowed_token)
 

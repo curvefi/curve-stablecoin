@@ -6,12 +6,12 @@ from hypothesis import given, settings, example
 from hypothesis import strategies as st
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="module")
 def borrowed_token(get_borrowed_token):
     return get_borrowed_token(18)
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="module")
 def amm(collateral_token, borrowed_token, get_amm):
     return get_amm(collateral_token, borrowed_token)
 
