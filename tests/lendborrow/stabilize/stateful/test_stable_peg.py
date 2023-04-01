@@ -27,6 +27,7 @@ class StateMachine(RuleBasedStateMachine):
         self.profit = [pk.calc_profit() for pk in self.peg_keepers]
         stablecoin_decimals = self.stablecoin.decimals()
         self.dmul = [[10 ** r.decimals(), 10 ** stablecoin_decimals] for r in self.redeemable_tokens]
+        self.balances = [[swap.balances(0), swap.balances(1)] for swap in self.swaps]
 
     @rule(idx=st_idx, pct=st_pct, pool_idx=st_pool)
     def add_one_coin(self, idx, pct, pool_idx):
@@ -37,6 +38,7 @@ class StateMachine(RuleBasedStateMachine):
         amounts[idx] = int(self.dmul[pool_idx][idx] * pct)
         with boa.env.prank(self.alice):
             self.swaps[pool_idx].add_liquidity(amounts, 0)
+        self.balances[pool_idx][idx] += amounts[idx]
 
     @rule(amount_0=st_pct, amount_1=st_pct, pool_idx=st_pool)
     def add_coins(self, amount_0, amount_1, pool_idx):
@@ -49,6 +51,8 @@ class StateMachine(RuleBasedStateMachine):
         ]
         with boa.env.prank(self.alice):
             self.swaps[pool_idx].add_liquidity(amounts, 0)
+        self.balances[pool_idx][0] += amount_0
+        self.balances[pool_idx][1] += amount_1
 
     @rule(idx=st_idx, pct=st_pct, pool_idx=st_pool)
     def remove_one_coin(self, idx, pct, pool_idx):
@@ -56,7 +60,8 @@ class StateMachine(RuleBasedStateMachine):
         Remove liquidity from the pool in only one coin.
         """
         with boa.env.prank(self.alice):
-            self.swaps[pool_idx].remove_liquidity_one_coin(int(10**18 * pct), idx, 0)
+            amount = self.swaps[pool_idx].remove_liquidity_one_coin(int(10**18 * pct), idx, 0)
+        self.balances[pool_idx][idx] -= amount
 
     @rule(amount_0=st_pct, amount_1=st_pct, pool_idx=st_pool)
     def remove_imbalance(self, amount_0, amount_1, pool_idx):
@@ -70,6 +75,8 @@ class StateMachine(RuleBasedStateMachine):
         with boa.env.prank(self.alice):
             self.swaps[pool_idx].remove_liquidity_imbalance(
                 amounts, 2**256 - 1)
+        self.balances[pool_idx][0] -= amounts[0]
+        self.balances[pool_idx][1] -= amounts[1]
 
     @rule(pct=st_pct, pool_idx=st_pool)
     def remove(self, pct, pool_idx):
@@ -78,15 +85,20 @@ class StateMachine(RuleBasedStateMachine):
         """
         amount = int(10**18 * pct)
         with boa.env.prank(self.alice):
-            self.swaps[pool_idx].remove_liquidity(amount, [0] * 2)
+            amounts = self.swaps[pool_idx].remove_liquidity(amount, [0] * 2)
+        self.balances[pool_idx][0] -= amounts[0]
+        self.balances[pool_idx][1] -= amounts[1]
 
     @rule(idx=st_idx, pct=st_pct, pool_idx=st_pool)
     def exchange(self, idx, pct, pool_idx):
         """
         Perform a swap.
         """
+        amount_in = int(self.dmul[pool_idx][idx] * pct)
         with boa.env.prank(self.alice):
-            self.swaps[pool_idx].exchange(idx, 1 - idx, int(self.dmul[pool_idx][idx] * pct), 0)
+            amount_out = self.swaps[pool_idx].exchange(idx, 1 - idx, amount_in, 0)
+        self.balances[pool_idx][idx] += amount_in
+        self.balances[pool_idx][idx] -= amount_out
 
     @invariant()
     def invariant_profit_increases(self):
@@ -117,6 +129,26 @@ class StateMachine(RuleBasedStateMachine):
             )
             assert aim_profit >= profit  # Never take more than real profit
             assert aim_profit - profit < 2e18  # Error less than 2 LP Tokens
+
+    @invariant()
+    def invariant_check_diff(self):
+        """
+        Verify that Peg Keeper decreased diff of balances by 1/5.
+        """
+        for peg_keeper, swap, dmul in zip(self.peg_keepers, self.swaps, self.dmul):
+            try:
+                with boa.env.prank(self.alice):
+                    peg_keeper.update()
+            except BoaError:
+                continue
+
+            balances = [swap.balances(i) for i in range(2)]
+            diff = balances[1] * 10**18 // dmul[1] - balances[0] * 10**18 // dmul[0]
+            last_diff = balances[1] * 10**18 // dmul[1] - balances[0] * 10**18 // dmul[0]
+            # Negative diff can make error of +-1
+            last_diff = abs(last_diff)
+            assert abs(diff) == last_diff - last_diff // 5
+            self.balances = [swap.balances(0), swap.balances(1)]
 
     @invariant()
     def advance_time(self):
