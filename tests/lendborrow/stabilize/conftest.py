@@ -134,8 +134,22 @@ def crypto_agg(dummy_tricrypto, agg, stableswap_a, chainlink_price_oracle, admin
             0,
             stableswap_a,
             agg,
+            5000
+        )
+        crypto_agg.price_w()
+        return crypto_agg
+
+
+@pytest.fixture(scope="module")
+def crypto_agg_with_external_oracle(dummy_tricrypto, agg, stableswap_a, chainlink_price_oracle, admin):
+    with boa.env.prank(admin):
+        crypto_agg = boa.load(
+            'contracts/price_oracles/CryptoWithStablePriceAndChainlink.vy',
+            dummy_tricrypto.address,
+            0,
+            stableswap_a,
+            agg,
             chainlink_price_oracle.address,
-            8,
             5000
         )
         crypto_agg.price_w()
