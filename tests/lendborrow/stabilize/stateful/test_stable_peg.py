@@ -69,7 +69,7 @@ class StateMachine(base.StateMachine):
             self.balances = [swap.balances(0), swap.balances(1)]
 
 
-def test_profit_increases(
+def test_stable_peg(
     add_initial_liquidity,
     swaps,
     peg_keepers,

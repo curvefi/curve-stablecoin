@@ -1,19 +1,11 @@
-import pytest
 import boa
 from hypothesis import strategies as st
 from hypothesis.stateful import RuleBasedStateMachine, rule, invariant
 
-pytestmark = pytest.mark.usefixtures(
-    "add_initial_liquidity",
-    "provide_token_to_peg_keepers",
-    "mint_alice"
-)
-
 
 class StateMachine(RuleBasedStateMachine):
     """
-    Stateful test that performs a series of deposits, swaps and withdrawals
-    and confirms that profit is calculated right.
+    Base for stateful tests
     """
 
     st_idx = st.integers(min_value=0, max_value=1)
