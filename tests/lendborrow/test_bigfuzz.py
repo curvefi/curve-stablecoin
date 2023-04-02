@@ -1,4 +1,5 @@
 import boa
+import pytest
 from boa.vyper.contract import BoaError
 from hypothesis import settings
 from hypothesis import strategies as st
@@ -408,9 +409,11 @@ class BigFuzz(RuleBasedStateMachine):
             assert self.stablecoin.balanceOf(self.market_controller.address) == ceiling
 
 
+@pytest.mark.parametrize("_tmp", range(8))  # This splits the test into 8 small chunks which are easier to parallelize
 def test_big_fuzz(
-        controller_factory, market_amm, market_controller, monetary_policy, collateral_token, stablecoin, price_oracle, accounts, fake_leverage, admin):
-    BigFuzz.TestCase.settings = settings(max_examples=2500, stateful_step_count=20)
+        controller_factory, market_amm, market_controller, monetary_policy, collateral_token, stablecoin, price_oracle,
+        accounts, fake_leverage, admin, _tmp):
+    BigFuzz.TestCase.settings = settings(max_examples=313, stateful_step_count=20)
     # Or quick check
     # BigFuzz.TestCase.settings = settings(max_examples=25, stateful_step_count=20)
     for k, v in locals().items():
