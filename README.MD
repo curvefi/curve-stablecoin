@@ -35,6 +35,6 @@ Install env for forked tests
 poetry install --with ape
 ```
 
-Put settings file ("_.env_") into [parent](./) directory.
+Put settings file ("_.env_") into [parent](..) directory.
 [Example](./.env-example) defines all required parameters, mainly 
 external web3 provider.
