@@ -13,3 +13,4 @@ venv
 /hardhat.config.js
 .idea
 .python-version
+.env
