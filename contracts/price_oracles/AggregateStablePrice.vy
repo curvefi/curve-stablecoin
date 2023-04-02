@@ -27,6 +27,7 @@ event MovePricePair:
     n_to: uint256
 
 MAX_PAIRS: constant(uint256) = 20
+MIN_LIQUIDITY: constant(uint256) = 100_000 * 10**18  # Only take into account pools with enough liquidity
 
 STABLECOIN: immutable(address)
 SIGMA: immutable(uint256)
@@ -138,7 +139,7 @@ def price() -> uint256:
             break
         price_pair: PricePair = self.price_pairs[i]
         pool_supply: uint256 = price_pair.pool.totalSupply()
-        if pool_supply > 0:
+        if pool_supply >= MIN_LIQUIDITY:
             p: uint256 = price_pair.pool.price_oracle()
             if price_pair.is_inverse:
                 p = 10**36 / p
