@@ -1212,19 +1212,6 @@ def set_amm_admin_fee(fee: uint256):
     AMM.set_admin_fee(fee)
 
 
-# AMM has nonreentrant decorator
-@external
-def set_amm_price_oracle(price_oracle: PriceOracle):
-    """
-    @notice Set AMM's external price oracle contract
-    @param price_oracle Address of the price oracle contract
-    """
-    assert msg.sender == FACTORY.admin()
-    assert price_oracle.price_w() > 0
-    assert price_oracle.price() > 0
-    AMM.set_price_oracle(price_oracle)
-
-
 @nonreentrant('lock')
 @external
 def set_monetary_policy(monetary_policy: address):
