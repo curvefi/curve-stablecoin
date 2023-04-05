@@ -34,6 +34,7 @@ ape-etherscan = "^0.6.2"
 ape-ledger = "^0.6.0"
 ape-hardhat = "^0.6.0"
 ape-alchemy = "^0.6.1"
+python-dotenv = "^1.0.0"
 
 [build-system]
 requires = ["poetry-core"]

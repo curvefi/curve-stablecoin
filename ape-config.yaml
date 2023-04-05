@@ -27,3 +27,7 @@ geth:
   ethereum:
     mainnet:
       uri: http://localhost:9090
+
+test:
+  mnemonic: test test test test test test test test test test test junk
+  number_of_accounts: 5
