@@ -22,7 +22,7 @@ def deploy_blueprint(contract, account):
         nonce=account.nonce,
     )
     tx.gas_limit = project.provider.estimate_gas_cost(tx)
-    tx.signature = account.sign_transaction(tx)
+    tx = account.sign_transaction(tx)
     receipt = project.provider.send_transaction(tx)
     click.echo(f"blueprint deployed at: {receipt.contract_address}")
     return receipt.contract_address
