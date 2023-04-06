@@ -50,12 +50,14 @@ def price_aggregator(project, forked_admin, stablecoin, stableswap_a, stableswap
 @pytest.fixture(scope="module")
 def stableswap_a(project, forked_admin, unsafe_factory, swap_deployer, stablecoin, stablecoin_a):
     trx = swap_deployer.deploy(stablecoin_a, stablecoin, sender=forked_admin)
+    assert trx.events[0].receiver == trx.logs[0]["address"]
     return project.Stableswap.at(trx.logs[0]["address"])
 
 
 @pytest.fixture(scope="module")
 def stableswap_b(project, forked_admin, unsafe_factory, swap_deployer, stablecoin, stablecoin_b):
     trx = swap_deployer.invoke_transaction("deploy", stablecoin_b, stablecoin, sender=forked_admin)
+    assert trx.events[0].receiver == trx.logs[0]["address"]
     return project.Stableswap.at(trx.logs[0]["address"])
 
 
