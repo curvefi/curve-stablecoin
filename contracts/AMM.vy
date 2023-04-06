@@ -72,9 +72,6 @@ event SetFee:
 event SetAdminFee:
     fee: uint256
 
-event SetPriceOracle:
-    price_oracle: address
-
 
 MAX_TICKS: constant(int256) = 50
 MAX_TICKS_UINT: constant(uint256) = 50
