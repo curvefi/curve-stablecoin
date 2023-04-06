@@ -58,10 +58,11 @@ def cli():
 @network_option()
 def deploy(network):
     # Deployer address
-    if ':local:' in network or ':mainnet-fork:' in network:
+    if ':local:' in network:
         account = accounts.test_accounts[0]
-    elif ':mainnet:' in network:
+    elif 'mainnet' in network:
         account = accounts.load('babe')
+        account.set_autosign(True)
 
     temporary_admin = account
 
