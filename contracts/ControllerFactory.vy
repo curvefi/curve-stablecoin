@@ -8,6 +8,7 @@ interface ERC20:
 
 interface PriceOracle:
     def price() -> uint256: view
+    def price_w() -> uint256: nonpayable
 
 interface AMM:
     def set_admin(_admin: address): nonpayable
@@ -189,6 +190,8 @@ def add_market(token: address, A: uint256, fee: uint256, admin_fee: uint256,
     MonetaryPolicy(monetary_policy).rate_write()  # Test that MonetaryPolicy has correct ABI
 
     p: uint256 = PriceOracle(_price_oracle_contract).price()  # This also validates price oracle ABI
+    assert p > 0
+    assert PriceOracle(_price_oracle_contract).price_w() == p
     A_ratio: uint256 = 10**18 * A / (A - 1)
 
     amm: address = create_from_blueprint(

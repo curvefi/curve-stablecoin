@@ -106,12 +106,13 @@ def __init__(_pool: CurvePool, _index: uint256, _receiver: address, _caller_shar
     PEG_MUL = 10 ** (18 - ERC20(_pool.coins(1 - _index)).decimals())
 
     self.admin = msg.sender
+    assert _receiver != empty(address)
     self.receiver = _receiver
     log ApplyNewAdmin(msg.sender)
     log ApplyNewReceiver(_receiver)
 
-    self.caller_share = _caller_share
     assert _caller_share <= SHARE_PRECISION  # dev: bad part value
+    self.caller_share = _caller_share
     log SetNewCallerShare(_caller_share)
 
     FACTORY = _factory

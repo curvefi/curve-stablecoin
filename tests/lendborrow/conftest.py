@@ -58,7 +58,7 @@ def controller_factory(controller_prefactory, amm_impl, controller_impl, stablec
 @pytest.fixture(scope="module")
 def monetary_policy(admin):
     with boa.env.prank(admin):
-        policy = boa.load('contracts/mpolicies/ConstantMonetaryPolicy.vy', admin)
+        policy = boa.load('contracts/testing/ConstantMonetaryPolicy.vy', admin)
         policy.set_rate(0)
         return policy
 

@@ -58,12 +58,12 @@ def get_borrowed_token(admin) -> Callable[[int], Any]:
     return f
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="module")
 def collateral_token(get_collateral_token):
     return get_collateral_token(18)
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="module")
 def price_oracle(admin):
     with boa.env.prank(admin):
         oracle = boa.load('contracts/testing/DummyPriceOracle.vy', admin, PRICE * 10**18)

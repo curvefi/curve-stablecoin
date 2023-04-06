@@ -1672,18 +1672,6 @@ def reset_admin_fees():
     self.admin_fees_y = 0
 
 
-@external
-@nonreentrant('lock')
-def set_price_oracle(price_oracle: PriceOracle):
-    """
-    @notice Set a new price oracle contract
-    @param price_oracle Address of the new price oracle contract
-    """
-    assert msg.sender == self.admin
-    self.price_oracle_contract = price_oracle
-    log SetPriceOracle(price_oracle.address)
-
-
 # nonreentrant decorator is in Controller which is admin
 @external
 def set_callback(liquidity_mining_callback: LMGauge):
