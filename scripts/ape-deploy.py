@@ -137,8 +137,6 @@ def deploy(network):
                     stable_ma_exp_time)
                 # This is a workaround: instead of getting return_value we parse events to get the pool address
                 # This is because reading return_value in ape is broken
-                # Another workaround is manual filtering by contract_address
-                # This is because reading events filtered by contract address in ape is broken
                 pool = project.Stableswap.at(tx.events.filter(swap_factory.PlainPoolDeployed)[0].pool)
                 print(f"Stablecoin pool crvUSD/{name} is deployed at {pool.address}")
 
