@@ -789,7 +789,7 @@ def set_metapool_implementations(
 
 
 @external
-def add_token_to_whitelist(coin: address, _add: bool = True):
+def add_token_to_whitelist(coin: address, _add: bool):
     """
     @notice adds a token to a list of tokens with which plain pools are allowed
     @dev Only callable by admin

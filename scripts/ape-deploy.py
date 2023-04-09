@@ -7,8 +7,8 @@ SHORT_NAME = "crvUSD"
 FULL_NAME = "Curve.Fi USD Stablecoin"
 
 rtokens = {
-    # "USDC": "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
-    # "USDT": "0xdAC17F958D2ee523a2206206994597C13D831ec7",
+    "USDC": "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
+    "USDT": "0xdAC17F958D2ee523a2206206994597C13D831ec7",
     "USDP": "0x8E870D67F660D95d5be530380D0eC0bd388289E1",
     "TUSD": "0x0000000000085d4780B73119b644AE5ecd22b376",
 }
@@ -17,11 +17,18 @@ ZERO_ADDRESS = "0x0000000000000000000000000000000000000000"
 POOL_NAME = "crvUSD/{name}"
 POOL_SYMBOL = "crvUSD{name}"
 
-A = 200  # initially, can go higher later
-fee = 4000000  # 0.04%
-asset_type = 0
-implementation_idx = 4
-ma_exp_time = 866  # 10 min / ln(2)
+OWNERSHIP_ADMIN = "0x40907540d8a6C65c637785e8f8B742ae6b0b9968"
+PARAMETER_ADMIN = "0x4EEb3bA4f221cA16ed4A0cC7254E2E32DF948c5f"
+EMERGENCY_ADMIN = "0x467947EE34aF926cF1DCac093870f613C96B1E0c"
+
+GAUGE_IMPL = "0x5aE854b098727a9f1603A1E21c50D52DC834D846"
+
+FEE_RECEIVER = "0xeCb456EA5365865EbAb8a2661B0c503410e9B347"
+
+stable_A = 500  # initially, can go higher later
+stable_fee = 1000000  # 0.01%
+stable_asset_type = 0
+stable_ma_exp_time = 866  # 10 min / ln(2)
 
 
 def deploy_blueprint(contract, account):
@@ -97,27 +104,42 @@ def deploy(network):
 
         # Deploy plain pools and stabilizer
         if 'mainnet' in network:
-            pool_deployer = Contract("0x742C3cF9Af45f91B109a81EfEaf11535ECDe9571")
+            swap_factory = account.deploy(project.StableswapFactory, FEE_RECEIVER)
+            swap_factory.add_token_to_whitelist(stablecoin, True)
 
+            # Ownership admin is account temporarily, will need to become OWNERSHIP_ADMIN
+            owner_proxy = account.deploy(project.OwnerProxy,
+                                         account, PARAMETER_ADMIN, EMERGENCY_ADMIN,
+                                         swap_factory, ZERO_ADDRESS)
+            swap_factory.commit_transfer_ownership(owner_proxy)
+            owner_proxy.accept_transfer_ownership(swap_factory)
+
+            # Set implementations
+            stableswap_impl = account.deploy(project.Stableswap)
+            owner_proxy.set_plain_implementations(swap_factory, 2, [stableswap_impl.address] + [ZERO_ADDRESS] * 9)
+            owner_proxy.set_gauge_implementation(swap_factory, GAUGE_IMPL)
+
+            # Set all admins to the DAO
+            owner_proxy.commit_set_admins(OWNERSHIP_ADMIN, PARAMETER_ADMIN, EMERGENCY_ADMIN)
+            owner_proxy.apply_set_admins()
+
+            # Deploy pools
             for name, rtoken in rtokens.items():
                 print(f"Deploying a stablecoin pool with {name} ({rtoken})")
-                tx = pool_deployer.deploy_plain_pool(
+                tx = owner_proxy.deploy_plain_pool(
                     POOL_NAME.format(name=name),
                     POOL_SYMBOL.format(name=name),
                     [rtoken, stablecoin.address, ZERO_ADDRESS, ZERO_ADDRESS],
-                    A,
-                    fee,
-                    asset_type,
-                    implementation_idx,
-                    ma_exp_time)
+                    stable_A,
+                    stable_fee,
+                    stable_asset_type,
+                    0,  # implentation_idx
+                    stable_ma_exp_time)
                 # This is a workaround: instead of getting return_value we parse events to get the pool address
                 # This is because reading return_value in ape is broken
                 # Another workaround is manual filtering by contract_address
                 # This is because reading events filtered by contract address in ape is broken
-                pool = project.Stableswap.at([
-                        e for e in tx.events.filter(stablecoin.Approval)
-                        if e.contract_address == stablecoin.address
-                    ][0]._spender)
+                pool = project.Stableswap.at(tx.events.filter(swap_factory.PlainPoolDeployed)[0].pool)
                 print(f"Stablecoin pool crvUSD/{name} is deployed at {pool.address}")
 
         if 'mainnet-fork' in network or 'local' in network:
