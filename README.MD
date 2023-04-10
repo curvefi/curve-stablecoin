@@ -15,10 +15,6 @@ Installing specific dependency groups (main/dev(tests)/ape(deploy))
 poetry install --without dev,ape
 ```
 
-```shell
-poetry install --only dev
-```
-
 Updating dependencies
 
 ```shell
@@ -31,3 +27,16 @@ Removing dependencies
 ```shell
 poetry remove ape-alchemy --group ape
 ```
+
+## Environment for forked tests
+
+Install env for forked tests
+```shell
+cd deploy_env
+poetry install --sync
+cd -
+```
+
+Put settings file ("_.env_") into [parent](.) directory.
+[Example](./.env-example) defines all required parameters, mainly 
+external web3 provider.

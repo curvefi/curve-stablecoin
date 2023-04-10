@@ -9,6 +9,8 @@ packages = []
 [tool.poetry.dependencies]
 python = ">=3.9,<3.11"
 vyper = "0.3.7"
+poetry = "1.4.1"
+python-dotenv = "^1.0.0"
 
 [tool.poetry.group.ape.dependencies]
 eth-ape = "^0.6.7"

@@ -10,6 +10,7 @@ packages = []
 python = ">=3.9,<3.11"
 vyper = "0.3.7"
 eth-abi = "3.0.1"
+poetry = "1.4.1"
 
 
 [tool.poetry.group.dev.dependencies]
