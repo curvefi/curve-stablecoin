@@ -25,6 +25,8 @@ GAUGE_IMPL = "0x5aE854b098727a9f1603A1E21c50D52DC834D846"
 ADDRESS_PROVIDER = "0x0000000022D53366457F9d5E68Ec105046FC4383"
 FEE_RECEIVER = "0xeCb456EA5365865EbAb8a2661B0c503410e9B347"
 
+TRICRYPTO = "0xD51a44d3FaE010294C616388b506AcdA1bfAAE46"
+
 stable_A = 500  # initially, can go higher later
 stable_fee = 1000000  # 0.01%
 stable_asset_type = 0
@@ -130,7 +132,7 @@ def deploy(network):
                     address_provider,
                     address_provider.add_new_id.encode_input(swap_factory, 'crvUSD plain pools'))
 
-            pools = []
+            pools = {}
 
             # Deploy pools
             for name, rtoken in rtokens.items():
@@ -148,18 +150,18 @@ def deploy(network):
                 # This is because reading return_value in ape is broken
                 pool = project.Stableswap.at(tx.events.filter(swap_factory.PlainPoolDeployed)[0].pool)
                 print(f"Stablecoin pool crvUSD/{name} is deployed at {pool.address}")
-                pools.append(pool)
+                pools[name] = pool
 
         # Price aggregator
         print("Deploying stable price aggregator")
         agg = account.deploy(project.AggregateStablePrice, stablecoin, 10**15, account)
-        for pool in pools:
+        for pool in pools.values():
             agg.add_price_pair(pool)
         agg.set_admin(OWNERSHIP_ADMIN)  # Alternatively, we can make it ZERO_ADDRESS
 
         # PegKeepers
         peg_keepers = []
-        for pool in pools:
+        for pool in pools.values():
             print(f"Deploying a PegKeeper for {pool.name()}")
             peg_keeper = account.deploy(project.PegKeeper, pool, 1, FEE_RECEIVER, 2 * 10**4, factory, agg)
             peg_keepers.append(peg_keeper)
@@ -177,8 +179,14 @@ def deploy(network):
                                     2 * 10**16,  # sigma
                                     5 * 10**16)  # Target debt fraction
 
-            # XXX
-            price_oracle = account.deploy(project.DummyPriceOracle, admin, 3000 * 10**18)
+            price_oracle = account.deploy(
+                project.CryptoWithStablePrice,
+                TRICRYPTO,
+                1,  # price index with ETH
+                pools['USDT'],
+                agg,
+                600)
+            # XXX check how it works before any tokens are minted and in the pool
 
         factory.add_market(
             weth, 100, 10**16, 0,
