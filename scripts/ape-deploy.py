@@ -186,7 +186,8 @@ def deploy(network):
                 pools['USDT'],
                 agg,
                 600)
-            # XXX check how it works before any tokens are minted and in the pool
+
+            print('Price oracle price: {:.2f}'.format(price_oracle.price() / 1e18))
 
         factory.add_market(
             weth, 100, 10**16, 0,
