@@ -13,6 +13,17 @@ interface Stableswap:
     def coins(i: uint256) -> address: view
 
 interface ChainlinkAggregator:
+    # Returns: (roundId, answer, startedAt, updatedAt, answeredInRound)
+    # answer
+    # is the answer for the given round
+    # answeredInRound
+    # is the round ID of the round in which the answer was computed. (Only some AggregatorV3Interface implementations return meaningful values)
+    # roundId
+    # is the round ID from the aggregator for which the data was retrieved combined with a phase to ensure that round IDs get larger as time moves forward.
+    # startedAt
+    # is the timestamp when the round was started. (Only some AggregatorV3Interface implementations return meaningful values)
+    # updatedAt
+    # is the timestamp when the round last was updated (i.e. answer was last computed)
     def latestRoundData() -> (uint80, int256, uint256, uint256, uint80): view
     def decimals() -> uint8: view
 
