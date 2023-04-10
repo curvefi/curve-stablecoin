@@ -130,6 +130,8 @@ def deploy(network):
                     address_provider,
                     address_provider.add_new_id.encode_input(swap_factory, 'crvUSD plain pools'))
 
+            pools = []
+
             # Deploy pools
             for name, rtoken in rtokens.items():
                 print(f"Deploying a stablecoin pool with {name} ({rtoken})")
@@ -146,6 +148,13 @@ def deploy(network):
                 # This is because reading return_value in ape is broken
                 pool = project.Stableswap.at(tx.events.filter(swap_factory.PlainPoolDeployed)[0].pool)
                 print(f"Stablecoin pool crvUSD/{name} is deployed at {pool.address}")
+                pools.append(pool)
+
+        # Price aggregator
+        agg = account.deploy(project.AggregateStablePrice, stablecoin, 10**15, account)
+        for pool in pools:
+            agg.add_price_pair(pool)
+        agg.set_admin(OWNERSHIP_ADMIN)
 
         if 'mainnet-fork' in network or 'local' in network:
             policy = account.deploy(project.ConstantMonetaryPolicy, temporary_admin)
