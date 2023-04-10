@@ -22,7 +22,7 @@ PARAMETER_ADMIN = "0x4EEb3bA4f221cA16ed4A0cC7254E2E32DF948c5f"
 EMERGENCY_ADMIN = "0x467947EE34aF926cF1DCac093870f613C96B1E0c"
 
 GAUGE_IMPL = "0x5aE854b098727a9f1603A1E21c50D52DC834D846"
-
+ADDRESS_PROVIDER = "0x0000000022D53366457F9d5E68Ec105046FC4383"
 FEE_RECEIVER = "0xeCb456EA5365865EbAb8a2661B0c503410e9B347"
 
 stable_A = 500  # initially, can go higher later
@@ -122,6 +122,13 @@ def deploy(network):
             # Set all admins to the DAO
             owner_proxy.commit_set_admins(OWNERSHIP_ADMIN, PARAMETER_ADMIN, EMERGENCY_ADMIN)
             owner_proxy.apply_set_admins()
+
+            # Put factory in address provider / registry
+            address_provider = Contract(ADDRESS_PROVIDER)
+            address_provider_admin = Contract(address_provider.admin())
+            address_provider_admin.execute(
+                    address_provider,
+                    address_provider.add_new_id.encode_input(swap_factory, 'crvUSD plain pools'))
 
             # Deploy pools
             for name, rtoken in rtokens.items():
