@@ -24,17 +24,6 @@ pytest-forked = "^1.6.0"
 ipython = "^8.11.0"
 
 
-[tool.poetry.group.ape]
-optional = true
-
-[tool.poetry.group.ape.dependencies]
-eth-ape = "^0.6.6"
-ape-vyper = "^0.6.2"
-ape-etherscan = "^0.6.2"
-ape-ledger = "^0.6.0"
-ape-hardhat = "^0.6.0"
-ape-alchemy = "^0.6.1"
-
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
