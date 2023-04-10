@@ -151,14 +151,33 @@ def deploy(network):
                 pools.append(pool)
 
         # Price aggregator
+        print("Deploying stable price aggregator")
         agg = account.deploy(project.AggregateStablePrice, stablecoin, 10**15, account)
         for pool in pools:
             agg.add_price_pair(pool)
-        agg.set_admin(OWNERSHIP_ADMIN)
+        agg.set_admin(OWNERSHIP_ADMIN)  # Alternatively, we can make it ZERO_ADDRESS
 
-        if 'mainnet-fork' in network or 'local' in network:
+        # PegKeepers
+        peg_keepers = []
+        for pool in pools:
+            print(f"Deploying a PegKeeper for {pool.name()}")
+            peg_keeper = account.deploy(project.PegKeeper, pool, 1, FEE_RECEIVER, 2 * 10**4, factory, agg)
+            peg_keepers.append(peg_keeper)
+
+        if 'local' in network:
             policy = account.deploy(project.ConstantMonetaryPolicy, temporary_admin)
             policy.set_rate(0)  # 0%
+            policy.set_admin(admin)
+            price_oracle = account.deploy(project.DummyPriceOracle, admin, 3000 * 10**18)
+
+        elif 'mainnet' in network:
+            policy = account.deploy(project.AggMonetaryPolicy, admin, agg, factory,
+                                    peg_keepers + [ZERO_ADDRESS],
+                                    627954226,   # rate = 2%
+                                    2 * 10**16,  # sigma
+                                    5 * 10**16)  # Target debt fraction
+
+            # XXX
             price_oracle = account.deploy(project.DummyPriceOracle, admin, 3000 * 10**18)
 
         factory.add_market(
@@ -169,7 +188,6 @@ def deploy(network):
         )
 
         if admin != temporary_admin:
-            policy.set_admin(admin)
             factory.set_admin(admin)
 
     amm = project.AMM.at(factory.get_amm(weth))
