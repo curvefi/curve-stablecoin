@@ -509,6 +509,8 @@ def save_p_from_price(last_price: uint256):
     """
     Saves current price and its EMA
     """
+    # XXX reminder: put an upper limit on last_price (2.0?) to prevent manipulation
+    # (separately)
     if last_price != 0:
         self.last_prices_packed = self.pack_prices(last_price, self._ma_price())
         if self.ma_last_time < block.timestamp:
