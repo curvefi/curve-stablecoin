@@ -26,6 +26,10 @@ event MovePricePair:
     n_from: uint256
     n_to: uint256
 
+event SetAdmin:
+    admin: address
+
+
 MAX_PAIRS: constant(uint256) = 20
 MIN_LIQUIDITY: constant(uint256) = 100_000 * 10**18  # Only take into account pools with enough liquidity
 
@@ -33,20 +37,24 @@ STABLECOIN: immutable(address)
 SIGMA: immutable(uint256)
 price_pairs: public(PricePair[MAX_PAIRS])
 n_price_pairs: uint256
-ADMIN: immutable(address)
+
+admin: public(address)
 
 
 @external
 def __init__(stablecoin: address, sigma: uint256, admin: address):
     STABLECOIN = stablecoin
     SIGMA = sigma  # The change is so rare that we can change the whole thing altogether
-    ADMIN = admin
+    self.admin = admin
 
 
 @external
-@view
-def admin() -> address:
-    return ADMIN
+def set_admin(_admin: address):
+    # We are not doing commit / apply because the owner will be a voting DAO anyway
+    # which has vote delays
+    assert msg.sender == self.admin
+    self.admin = _admin
+    log SetAdmin(_admin)
 
 
 @external
@@ -63,7 +71,7 @@ def stablecoin() -> address:
 
 @external
 def add_price_pair(_pool: Stableswap):
-    assert msg.sender == ADMIN
+    assert msg.sender == self.admin
     price_pair: PricePair = empty(PricePair)
     price_pair.pool = _pool
     coins: address[2] = [_pool.coins(0), _pool.coins(1)]
@@ -79,7 +87,7 @@ def add_price_pair(_pool: Stableswap):
 
 @external
 def remove_price_pair(n: uint256):
-    assert msg.sender == ADMIN
+    assert msg.sender == self.admin
     n_max: uint256 = self.n_price_pairs - 1
     assert n <= n_max
 
