@@ -88,8 +88,8 @@ def deploy(network):
         admin = account
         fee_receiver = account
     elif 'mainnet' in network:
-        admin = '0x40907540d8a6C65c637785e8f8B742ae6b0b9968'  # Ownership admin
-        fee_receiver = '0xeCb456EA5365865EbAb8a2661B0c503410e9B347'  # 0xECB for fee collection
+        admin = OWNERSHIP_ADMIN  # Ownership admin
+        fee_receiver = FEE_RECEIVER  # 0xECB for fee collection
 
     with accounts.use_sender(account) as account:
         # Real or fake wETH
@@ -165,7 +165,7 @@ def deploy(network):
             agg = account.deploy(project.AggregateStablePrice, stablecoin, 10**15, account)
             for pool in pools.values():
                 agg.add_price_pair(pool)
-            agg.set_admin(OWNERSHIP_ADMIN)  # Alternatively, we can make it ZERO_ADDRESS
+            agg.set_admin(admin)  # Alternatively, we can make it ZERO_ADDRESS
 
             # PegKeepers
             peg_keepers = []
