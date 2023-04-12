@@ -72,7 +72,12 @@ def deploy(network):
     # Deployer address
     if ':local:' in network:
         account = accounts.test_accounts[0]
-    elif 'mainnet' in network:
+    elif ':mainnet-fork:' in network:
+        account = "0xbabe61887f1de2713c6f97e567623453d3C79f67"
+        if account in accounts:
+            account = accounts.load('babe')
+            account.set_autosign(True)
+    elif ':mainnet:' in network:
         account = accounts.load('babe')
         account.set_autosign(True)
 
@@ -86,13 +91,13 @@ def deploy(network):
         admin = '0x40907540d8a6C65c637785e8f8B742ae6b0b9968'  # Ownership admin
         fee_receiver = '0xeCb456EA5365865EbAb8a2661B0c503410e9B347'  # 0xECB for fee collection
 
-    # Real or fake wETH
-    if ':local:' in network:
-        weth = account.deploy(project.WETH)
-    elif 'mainnet' in network:
-        weth = Contract("0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2")
+    with accounts.use_sender(account) as account:
+        # Real or fake wETH
+        if ':local:' in network:
+            weth = account.deploy(project.WETH)
+        elif 'mainnet' in network:
+            weth = Contract("0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2")
 
-    with accounts.use_sender(account):
         # Common deployment steps - stablecoin, factory and implementations
         print("Deploying stablecoin")
         stablecoin = account.deploy(project.Stablecoin, FULL_NAME, SHORT_NAME)
