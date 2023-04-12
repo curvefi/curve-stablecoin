@@ -52,9 +52,7 @@ def deploy_blueprint(contract, account):
         gas_price=project.provider.gas_price,
         nonce=account.nonce,
     )
-    tx.gas_limit = project.provider.estimate_gas_cost(tx)
-    tx = account.sign_transaction(tx)
-    receipt = project.provider.send_transaction(tx)
+    receipt = account.call(tx)
     click.echo(f"blueprint deployed at: {receipt.contract_address}")
     return receipt.contract_address
 
@@ -157,19 +155,19 @@ def deploy(network):
                 print(f"Stablecoin pool crvUSD/{name} is deployed at {pool.address}")
                 pools[name] = pool
 
-        # Price aggregator
-        print("Deploying stable price aggregator")
-        agg = account.deploy(project.AggregateStablePrice, stablecoin, 10**15, account)
-        for pool in pools.values():
-            agg.add_price_pair(pool)
-        agg.set_admin(OWNERSHIP_ADMIN)  # Alternatively, we can make it ZERO_ADDRESS
+            # Price aggregator
+            print("Deploying stable price aggregator")
+            agg = account.deploy(project.AggregateStablePrice, stablecoin, 10**15, account)
+            for pool in pools.values():
+                agg.add_price_pair(pool)
+            agg.set_admin(OWNERSHIP_ADMIN)  # Alternatively, we can make it ZERO_ADDRESS
 
-        # PegKeepers
-        peg_keepers = []
-        for pool in pools.values():
-            print(f"Deploying a PegKeeper for {pool.name()}")
-            peg_keeper = account.deploy(project.PegKeeper, pool, 1, FEE_RECEIVER, 2 * 10**4, factory, agg)
-            peg_keepers.append(peg_keeper)
+            # PegKeepers
+            peg_keepers = []
+            for pool in pools.values():
+                print(f"Deploying a PegKeeper for {pool.name()}")
+                peg_keeper = account.deploy(project.PegKeeper, pool, 1, FEE_RECEIVER, 2 * 10**4, factory, agg)
+                peg_keepers.append(peg_keeper)
 
         if 'local' in network:
             policy = account.deploy(project.ConstantMonetaryPolicy, temporary_admin)
