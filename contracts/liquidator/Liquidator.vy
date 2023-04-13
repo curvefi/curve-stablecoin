@@ -32,6 +32,7 @@ def __init__(_llamma_controller: address, _cryptopool: address, _crvusd: address
 
 
 @external
+@nonreentrant('lock')
 def liquidate_callback(user: address, stablecoins: uint256, collateral: uint256, debt: uint256, callback_args: DynArray[uint256, 5]) -> uint256[2]:
     assert msg.sender == LLAMMA_CONTROLLER_ADDRESS
 
@@ -41,11 +42,9 @@ def liquidate_callback(user: address, stablecoins: uint256, collateral: uint256,
     return [stablecoins_received, 0]
 
 
+@view
 @external
 @nonreentrant('lock')
-def liquidate(user: address, min_x: uint256, frac: uint256 = 10**18, _for: address = msg.sender):
+def liquidate_callback_sig() -> bytes32:
     selector: uint256 = shift(convert(method_id("liquidate_callback(address,uint256,uint256,uint256,uint256[])"), uint256), 224)
-    LLAMMA_CONTROLLER(LLAMMA_CONTROLLER_ADDRESS).liquidate_extended(user, min_x, frac, False, self, convert(selector, bytes32), [])
-
-    crvusd_balance: uint256 = ERC20(CRVUSD_ADDRESS).balanceOf(self)
-    ERC20(CRVUSD_ADDRESS).transfer(_for, crvusd_balance)
+    return convert(selector, bytes32)
