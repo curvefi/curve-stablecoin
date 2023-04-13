@@ -107,7 +107,16 @@ def main():
             expected = cryptopool.get_dy(1, 0, int(collateral_in_amm * f_remove))
 
             min_x = int(stablecoin_in_amm * _frac * 0.9999)
-            liquidator_contract.liquidate(unhealthy_user, min_x, frac, {'from': liquidator})
+            controller.liquidate_extended(
+                unhealthy_user,
+                min_x,
+                frac,
+                False,
+                liquidator_contract,
+                "0x69af9ec200000000000000000000000000000000000000000000000000000000",
+                [],
+                {'from': liquidator},
+            )
             print("\n----------------------\n")
             print(f"User {unhealthy_user} has been liquidated: crvUSD: {stablecoin_in_amm / 10**18}, "
                   f"ETH: {collateral_in_amm / 10**18}, debt: {debt / 10**18}")
@@ -117,7 +126,7 @@ def main():
             print("\n----------------------\n")
             break
 
-        price_oracle.set_price(price * 99 // 100)
+        price_oracle.set_price(price * 97 // 100)
         sleep(1)
 
     print('========================')
