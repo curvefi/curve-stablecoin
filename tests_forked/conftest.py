@@ -30,7 +30,7 @@ def pytest_configure():
     pytest.OWNERSHIP_ADMIN = "0x40907540d8a6C65c637785e8f8B742ae6b0b9968"
     pytest.TRICRYPTO = "0xD51a44d3FaE010294C616388b506AcdA1bfAAE46"
 
-    pytest.initial_pool_coin_balance = 250_000  # of both coins
+    pytest.initial_pool_coin_balance = 500_000  # of both coins
     pytest.initial_eth_balance = 1000  # both eth and weth
 
 
