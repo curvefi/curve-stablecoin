@@ -8,7 +8,7 @@ def stablecoin_lend(project, forked_user, controller_factory, factory_with_marke
         controller = project.Controller.at(controller_factory.controllers(0))
         weth.approve(controller.address, 2**256 - 1)
         weth_amount = pytest.initial_eth_balance * 10**18
-        controller.create_loan(weth_amount, 4 * pytest.initial_pool_coin_balance * 10**18, 30)
+        controller.create_loan(weth_amount, 2 * 4 * pytest.initial_pool_coin_balance * 10**18, 30, value=weth_amount)
 
 
 @pytest.fixture(scope="module")
