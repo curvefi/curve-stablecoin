@@ -1,5 +1,5 @@
 from time import sleep
-from brownie import accounts, network
+from brownie import accounts, network, ZERO_ADDRESS
 from brownie import ControllerFactory, Controller, AMM, Stablecoin, WETH, Cryptopool, CurveTokenV5, Liquidator
 from brownie import ConstantMonetaryPolicy, DummyPriceOracle
 from brownie import ERC20Mock
@@ -90,6 +90,7 @@ def main():
     collateral_token.approve(cryptopool, 10 ** 30, {'from': liquidity_provider})
     cryptopool.add_liquidity([90000 * 10 ** 18, 30 * 10 ** 18], 0, {'from': liquidity_provider})
 
+    frac = 17 * 10**16  # 17%
     while True:
         users_to_liquidate = controller.users_to_liquidate()
         price = price_oracle.price()
@@ -98,11 +99,20 @@ def main():
         print(f"Users to liquidate: {users_to_liquidate}")
         if len(users_to_liquidate) > 0:
             unhealthy_user, stablecoin_in_amm, collateral_in_amm, debt, health = users_to_liquidate[0]
-            liquidator_contract.liquidate(unhealthy_user, int(stablecoin_in_amm * 0.999), {'from': liquidator})
+            tokens_to_liquidate = controller.tokens_to_liquidate(unhealthy_user, frac)
+
+            h = controller.liquidation_discounts(unhealthy_user) / 10**18
+            _frac = frac / 10**18
+            f_remove = ((1 + h / 2) / (1 + h) * (1 - _frac) + _frac) * _frac  # < frac
+            expected = cryptopool.get_dy(1, 0, int(collateral_in_amm * f_remove))
+
+            min_x = int(stablecoin_in_amm * _frac * 0.9999)
+            liquidator_contract.liquidate(unhealthy_user, min_x, frac, {'from': liquidator})
             print("\n----------------------\n")
             print(f"User {unhealthy_user} has been liquidated: crvUSD: {stablecoin_in_amm / 10**18}, "
                   f"ETH: {collateral_in_amm / 10**18}, debt: {debt / 10**18}")
             profit = stablecoin.balanceOf(liquidator)
+            print(f"Expected liquidator profit: {(expected - tokens_to_liquidate) / 10**18} crvUSD")
             print(f"Liquidator profit: {profit / 10**18} crvUSD")
             print("\n----------------------\n")
             break
