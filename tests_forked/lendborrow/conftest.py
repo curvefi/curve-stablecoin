@@ -27,8 +27,8 @@ def rtokens_pools_with_liquidity(
 
             pool.add_liquidity(
                 [
-                    pytest.initial_pool_coin_balance * rtoken.decimals(),
-                    pytest.initial_pool_coin_balance * stablecoin.decimals(),
+                    pytest.initial_pool_coin_balance * 10**rtoken.decimals(),
+                    pytest.initial_pool_coin_balance * 10**stablecoin.decimals(),
                 ],
                 0,
             )

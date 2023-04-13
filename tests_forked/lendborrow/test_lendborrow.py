@@ -7,14 +7,14 @@ def test_lend(forked_user, stablecoin_lend, stablecoin):
 
 
 def test_stableswaps(forked_user, stablecoin_lend, rtokens_pools_with_liquidity, stablecoin):
-    for pool in rtokens_pools_with_liquidity:
-        n_coins = pool.N_COINS()
+    for pool in rtokens_pools_with_liquidity.values():
+        n_coins = 2
         addresses = []
         for n in range(n_coins):
             addr = pool.coins(n)
             addresses.append(addr)
 
             coin = stablecoin if addr == stablecoin.address else Contract(addr)
-            assert pool.balances(n) == pytest.initial_pool_coin_balance * coin.decimals()
+            assert pool.balances(n) == pytest.initial_pool_coin_balance * 10**coin.decimals()
 
         assert stablecoin.address in addresses

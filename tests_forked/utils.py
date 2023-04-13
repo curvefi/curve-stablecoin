@@ -37,7 +37,7 @@ def mint_tokens_for_testing(project: Project, account, stablecoin_amount: int, e
     token_contract = Contract("0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48")
     token_minter = "0xe982615d461dd5cd06575bbea87624fda4e3de17"
     project.provider.set_balance(token_minter, 10**18)
-    amount = stablecoin_amount * token_contract.decimals()
+    amount = stablecoin_amount * 10**token_contract.decimals()
     token_contract.configureMinter(token_minter, amount, sender=token_minter)
     token_contract.mint(account, amount, sender=token_minter)
     assert token_contract.balanceOf(account.address) >= amount
@@ -46,7 +46,7 @@ def mint_tokens_for_testing(project: Project, account, stablecoin_amount: int, e
     token_contract = Contract("0xdAC17F958D2ee523a2206206994597C13D831ec7")
     token_owner = "0xc6cde7c39eb2f0f0095f41570af89efc2c1ea828"
     project.provider.set_balance(token_owner, 10**18)
-    amount = stablecoin_amount * token_contract.decimals()
+    amount = stablecoin_amount * 10**token_contract.decimals()
     token_contract.issue(amount, sender=token_owner)
     token_contract.transfer(account, amount, sender=token_owner)
     assert token_contract.balanceOf(account.address) >= amount
@@ -55,7 +55,7 @@ def mint_tokens_for_testing(project: Project, account, stablecoin_amount: int, e
     token_contract = Contract("0x8E870D67F660D95d5be530380D0eC0bd388289E1")
     token_supply_controller = token_contract.supplyController()
     project.provider.set_balance(token_supply_controller, 10**18)
-    amount = stablecoin_amount * token_contract.decimals()
+    amount = stablecoin_amount * 10**token_contract.decimals()
     token_contract.increaseSupply(amount, sender=token_supply_controller)
     token_contract.transfer(account, amount, sender=token_supply_controller)
     assert token_contract.balanceOf(account.address) >= amount
@@ -68,7 +68,7 @@ def mint_tokens_for_testing(project: Project, account, stablecoin_amount: int, e
 
     token_owner = token_contract.owner()
     project.provider.set_balance(token_owner, 10**18)
-    amount = stablecoin_amount * token_contract.decimals()
+    amount = stablecoin_amount * 10**token_contract.decimals()
     token_contract.mint(account, amount, sender=token_owner)
     assert token_contract.balanceOf(account.address) >= amount
 
