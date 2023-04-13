@@ -258,6 +258,6 @@ def factory_with_market(forked_admin, controller_factory, weth, price_oracle, po
         policy,
         5 * 10**16,
         2 * 10**16,
-        10**6 * 10**18,
+        2 * 10**6 * 10**18,
         sender=forked_admin,
     )
