@@ -43,9 +43,9 @@ def liquidate_callback(user: address, stablecoins: uint256, collateral: uint256,
 
 @external
 @nonreentrant('lock')
-def liquidate(user: address, min_x: uint256, _for: address = msg.sender):
+def liquidate(user: address, min_x: uint256, frac: uint256 = 10**18, _for: address = msg.sender):
     selector: uint256 = shift(convert(method_id("liquidate_callback(address,uint256,uint256,uint256,uint256[])"), uint256), 224)
-    LLAMMA_CONTROLLER(LLAMMA_CONTROLLER_ADDRESS).liquidate_extended(user, min_x, 10**18, False, self, convert(selector, bytes32), [])
+    LLAMMA_CONTROLLER(LLAMMA_CONTROLLER_ADDRESS).liquidate_extended(user, min_x, frac, False, self, convert(selector, bytes32), [])
 
     crvusd_balance: uint256 = ERC20(CRVUSD_ADDRESS).balanceOf(self)
     ERC20(CRVUSD_ADDRESS).transfer(_for, crvusd_balance)
