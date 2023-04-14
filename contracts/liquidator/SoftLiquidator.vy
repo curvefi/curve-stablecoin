@@ -44,7 +44,7 @@ def calc_output(in_amount: uint256, liquidation: bool) -> uint256[3]:
     @notice Calculate liquidator profit
     @param in_amount Amount of collateral going in
     @param liquidation Liquidation or de-liquidation
-    @return (amount of collateral going out, amount of crvUSD in the middle, amount of crvUSD DONE)
+    @return (amount of collateral going out, amount of crvUSD in the middle, amount of crvUSD/collateral DONE)
     """
     output: uint256 = 0
     crv_usd: uint256 = 0
