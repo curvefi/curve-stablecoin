@@ -1,6 +1,6 @@
 from time import sleep
 from brownie import accounts, network, ZERO_ADDRESS
-from brownie import ControllerFactory, Controller, AMM, Stablecoin, WETH, Cryptopool, CurveTokenV5, Liquidator
+from brownie import ControllerFactory, Controller, AMM, Stablecoin, WETH, Cryptopool, CurveTokenV5, HardLiquidator
 from brownie import ConstantMonetaryPolicy, DummyPriceOracle
 from brownie import ERC20Mock
 
@@ -76,7 +76,7 @@ def main():
     amm = AMM.at(factory.get_amm(collateral_token))
     controller = Controller.at(factory.get_controller(collateral_token))
 
-    liquidator_contract = Liquidator.deploy(controller, cryptopool, stablecoin, collateral_token, {'from': admin})
+    liquidator_contract = HardLiquidator.deploy(controller, cryptopool, stablecoin, collateral_token, {'from': admin})
 
     for user in accounts:
         collateral_token._mint_for_testing(user, 10**4 * 10**18, {'from': admin})
@@ -117,9 +117,12 @@ def main():
                 [],
                 {'from': liquidator},
             )
+
+            user_state = controller.user_state(user)
             print("\n----------------------\n")
-            print(f"User {unhealthy_user} has been liquidated: crvUSD: {stablecoin_in_amm / 10**18}, "
-                  f"ETH: {collateral_in_amm / 10**18}, debt: {debt / 10**18}")
+            print(f"User {unhealthy_user} has been liquidated by 17%:\n"
+                  f"crvUSD: {stablecoin_in_amm / 10**18}, ETH: {collateral_in_amm / 10**18}, debt: {debt / 10**18} --> "
+                  f"crvUSD: {user_state[1] / 10**18}, ETH: {user_state[0] / 10**18}, debt: {user_state[2] / 10**18}\n")
             profit = stablecoin.balanceOf(liquidator)
             print(f"Expected liquidator profit: {(expected - tokens_to_liquidate) / 10**18} crvUSD")
             print(f"Liquidator profit: {profit / 10**18} crvUSD")
@@ -128,12 +131,3 @@ def main():
 
         price_oracle.set_price(price * 97 // 100)
         sleep(1)
-
-    print('========================')
-    print('Stablecoin:  ', stablecoin.address)
-    print('Factory:     ', factory.address)
-    print('Collateral:  ', collateral_token.address)
-    print('AMM:         ', amm.address)
-    print('Controller:  ', controller.address)
-    print('Cryptopool:  ', cryptopool.address)
-    print('Liquidator:  ', liquidator_contract.address)
