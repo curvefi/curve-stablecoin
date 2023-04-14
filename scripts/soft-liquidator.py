@@ -63,38 +63,40 @@ def main():
     policy = ConstantMonetaryPolicy.deploy(admin, {'from': admin})
     policy.set_rate(0, {'from': admin})  # 0%
     price_oracle = DummyPriceOracle.deploy(admin, 3000 * 10**18, {'from': admin})
-    collateral_token = ERC20Mock.deploy('Collateral WETH', 'WETH', 18, {'from': admin})
-    cryptopool = deploy_cryptopool([stablecoin, collateral_token], weth, {'from': admin})
+    collateral = ERC20Mock.deploy('Collateral WETH', 'WETH', 18, {'from': admin})
+    cryptopool = deploy_cryptopool([stablecoin, collateral], weth, {'from': admin})
 
     factory.add_market(
-        collateral_token, 100, 10**16, 0,
+        collateral, 100, 10**16, 0,
         price_oracle,
         policy, 5 * 10**16, 2 * 10**16,
         10**6 * 10**18,
         {'from': admin})
 
-    amm = AMM.at(factory.get_amm(collateral_token))
-    controller = Controller.at(factory.get_controller(collateral_token))
+    amm = AMM.at(factory.get_amm(collateral))
+    controller = Controller.at(factory.get_controller(collateral))
 
-    liquidator_contract = SoftLiquidator.deploy(amm, cryptopool, stablecoin, collateral_token, {'from': admin})
+    liquidator_contract = SoftLiquidator.deploy(amm, cryptopool, stablecoin, collateral, {'from': admin})
 
     for user in accounts:
-        collateral_token._mint_for_testing(user, 10**4 * 10**18, {'from': admin})
+        collateral._mint_for_testing(user, 10**4 * 10**18, {'from': admin})
 
-    collateral_token.approve(controller, int(1.2 * 10**18), {'from': user})
+    collateral.approve(controller, int(1.2 * 10**18), {'from': user})
     controller.create_loan(int(1.2 * 10**18), 3000 * 10**18, 20, {'from': user})
 
-    collateral_token.approve(controller, 1000 * 10 ** 18, {'from': liquidity_provider})
+    collateral.approve(controller, 1000 * 10 ** 18, {'from': liquidity_provider})
     controller.create_loan(1000 * 10 ** 18, 300_000 * 10 ** 18, 20, {'from': liquidity_provider})
     stablecoin.approve(cryptopool, 2**256 - 1, {'from': liquidity_provider})
-    collateral_token.approve(cryptopool, 2**256 - 1, {'from': liquidity_provider})
+    collateral.approve(cryptopool, 2**256 - 1, {'from': liquidity_provider})
     cryptopool.add_liquidity([234_000 * 10 ** 18, 90 * 10 ** 18], 0, {'from': liquidity_provider})
 
-    # --- LIQUIDATION ---
+    print('\n========================')
+    print("===== LIQUIDATION  =====")
+    print('========================\n')
 
     user_x_down_initial = amm.get_x_down(user)
     tranche = 10**17  # 0.1 WETH
-    collateral_token.approve(liquidator_contract, 2**256 - 1, {'from': liquidator})
+    collateral.approve(liquidator_contract, 2**256 - 1, {'from': liquidator})
 
     liquidation_profit_collateral_calc = 0
     liquidation_profit_stablecoin_calc = 0
@@ -138,10 +140,12 @@ def main():
         sleep(2)
 
     user_state_after_liquidation = controller.user_state(user)
-    liquidation_profit_collateral = (collateral_token.balanceOf(liquidator) - 10**4 * 10**18)
+    liquidation_profit_collateral = (collateral.balanceOf(liquidator) - 10**4 * 10**18)
     liquidation_profit_stablecoin = stablecoin.balanceOf(liquidator)
 
-    # --- DE-LIQUIDATION ---
+    print('\n========================')
+    print("==== DE-LIQUIDATION ====")
+    print('========================\n')
 
     tranche = 10 ** 17  # 0.1 WETH
     deliquidation_profit_collateral_calc = 0
@@ -176,21 +180,21 @@ def main():
         sleep(2)
 
     user_state_after_deliquidation = controller.user_state(user)
-    deliquidation_profit_collateral = (collateral_token.balanceOf(liquidator) - liquidation_profit_collateral - 10 ** 4 * 10 ** 18)
+    deliquidation_profit_collateral = (collateral.balanceOf(liquidator) - liquidation_profit_collateral - 10 ** 4 * 10 ** 18)
     deliquidation_profit_stablecoin = stablecoin.balanceOf(liquidator) - liquidation_profit_stablecoin
 
     print('\n========================')
-    print('START')
+    print('======== START =========')
     print('========================\n')
     print('User collateral:                       1.2 ETH')
     print('User stablecoin equivalent (x_down):  ', user_x_down_initial / 10**18, 'crvUSD')
 
     print('\n========================')
-    print('LIQUIDATION')
+    print("===== LIQUIDATION  =====")
     print('========================\n')
     print('User collateral:                      ', user_state_after_liquidation[0] / 10**18)
     print('User stablecoin:                      ', user_state_after_liquidation[1] / 10**18)
-    print('Calculated liquidator profit:         ',
+    print('Expected liquidator profit:           ',
           liquidation_profit_collateral_calc / 10**18, "ETH,",
           liquidation_profit_stablecoin_calc / 10**18, 'crvUSD')
     print('Liquidator profit:                    ',
@@ -198,11 +202,11 @@ def main():
           liquidation_profit_stablecoin / 10**18, 'crvUSD')
 
     print('\n========================')
-    print('DE-LIQUIDATION')
+    print("==== DE-LIQUIDATION ====")
     print('========================\n')
     print('User collateral:                      ', user_state_after_deliquidation[0] / 10 ** 18)
     print('User stablecoin:                      ', user_state_after_deliquidation[1] / 10 ** 18)
-    print('Calculated de-liquidator profit:         ',
+    print('Expected de-liquidator profit:        ',
           deliquidation_profit_collateral_calc / 10 ** 18, "ETH,",
           0.0, 'crvUSD')
     print('De-liquidator profit:                 ',

@@ -63,31 +63,31 @@ def main():
     policy = ConstantMonetaryPolicy.deploy(admin, {'from': admin})
     policy.set_rate(0, {'from': admin})  # 0%
     price_oracle = DummyPriceOracle.deploy(admin, 3000 * 10**18, {'from': admin})
-    collateral_token = ERC20Mock.deploy('Collateral WETH', 'WETH', 18, {'from': admin})
-    cryptopool = deploy_cryptopool([stablecoin, collateral_token], weth, {'from': admin})
+    collateral = ERC20Mock.deploy('Collateral WETH', 'WETH', 18, {'from': admin})
+    cryptopool = deploy_cryptopool([stablecoin, collateral], weth, {'from': admin})
 
     factory.add_market(
-        collateral_token, 100, 10**16, 0,
+        collateral, 100, 10**16, 0,
         price_oracle,
         policy, 5 * 10**16, 2 * 10**16,
         10**6 * 10**18,
         {'from': admin})
 
-    amm = AMM.at(factory.get_amm(collateral_token))
-    controller = Controller.at(factory.get_controller(collateral_token))
+    amm = AMM.at(factory.get_amm(collateral))
+    controller = Controller.at(factory.get_controller(collateral))
 
-    liquidator_contract = HardLiquidator.deploy(controller, cryptopool, stablecoin, collateral_token, {'from': admin})
+    liquidator_contract = HardLiquidator.deploy(controller, cryptopool, stablecoin, collateral, {'from': admin})
 
     for user in accounts:
-        collateral_token._mint_for_testing(user, 10**4 * 10**18, {'from': admin})
+        collateral._mint_for_testing(user, 10**4 * 10**18, {'from': admin})
 
-    collateral_token.approve(controller, int(1.2 * 10**18), {'from': user})
+    collateral.approve(controller, int(1.2 * 10**18), {'from': user})
     controller.create_loan(int(1.2 * 10**18), 3000 * 10**18, 20, {'from': user})
 
-    collateral_token.approve(controller, 100 * 10 ** 18, {'from': liquidity_provider})
+    collateral.approve(controller, 100 * 10 ** 18, {'from': liquidity_provider})
     controller.create_loan(100 * 10 ** 18, 100000 * 10 ** 18, 20, {'from': liquidity_provider})
     stablecoin.approve(cryptopool, 10 ** 30, {'from': liquidity_provider})
-    collateral_token.approve(cryptopool, 10 ** 30, {'from': liquidity_provider})
+    collateral.approve(cryptopool, 10 ** 30, {'from': liquidity_provider})
     cryptopool.add_liquidity([90000 * 10 ** 18, 30 * 10 ** 18], 0, {'from': liquidity_provider})
 
     frac = 17 * 10**16  # 17%
