@@ -245,19 +245,3 @@ def price_oracle_with_chainlink(project, forked_admin, rtokens_pools, agg_stable
         chainlink_aggregator.address,
         600,
     )
-
-
-@pytest.fixture(scope="module", autouse=True)
-def factory_with_market(forked_admin, controller_factory, weth, price_oracle, policy):
-    controller_factory.add_market(
-        weth,
-        100,
-        10**16,
-        0,
-        price_oracle,
-        policy,
-        5 * 10**16,
-        2 * 10**16,
-        2 * 10**6 * 10**18,
-        sender=forked_admin,
-    )
