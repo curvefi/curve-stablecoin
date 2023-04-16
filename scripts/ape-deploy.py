@@ -30,6 +30,8 @@ GAUGE_IMPL = "0x5aE854b098727a9f1603A1E21c50D52DC834D846"
 ADDRESS_PROVIDER = "0x0000000022D53366457F9d5E68Ec105046FC4383"
 FEE_RECEIVER = "0xeCb456EA5365865EbAb8a2661B0c503410e9B347"
 
+WETH = "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2"
+
 TRICRYPTO = "0xD51a44d3FaE010294C616388b506AcdA1bfAAE46"
 
 stable_A = 500  # initially, can go higher later
@@ -96,7 +98,7 @@ def deploy(network):
         if ':local:' in network:
             weth = account.deploy(project.WETH)
         elif 'mainnet' in network:
-            weth = Contract("0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2")
+            weth = Contract(WETH)
 
         # Common deployment steps - stablecoin, factory and implementations
         print("Deploying stablecoin")
@@ -119,7 +121,7 @@ def deploy(network):
 
             # Ownership admin is account temporarily, will need to become OWNERSHIP_ADMIN
             owner_proxy = account.deploy(project.OwnerProxy,
-                                         account, PARAMETER_ADMIN, EMERGENCY_ADMIN,
+                                         temporary_admin, PARAMETER_ADMIN, EMERGENCY_ADMIN,
                                          swap_factory, ZERO_ADDRESS)
             swap_factory.commit_transfer_ownership(owner_proxy)
             owner_proxy.accept_transfer_ownership(swap_factory)
@@ -162,7 +164,7 @@ def deploy(network):
 
             # Price aggregator
             print("Deploying stable price aggregator")
-            agg = account.deploy(project.AggregateStablePrice, stablecoin, 10**15, account)
+            agg = account.deploy(project.AggregateStablePrice, stablecoin, 10**15, temporary_admin)
             for pool in pools.values():
                 agg.add_price_pair(pool)
             agg.set_admin(admin)  # Alternatively, we can make it ZERO_ADDRESS
@@ -171,7 +173,8 @@ def deploy(network):
             peg_keepers = []
             for pool in pools.values():
                 print(f"Deploying a PegKeeper for {pool.name()}")
-                peg_keeper = account.deploy(project.PegKeeper, pool, 1, FEE_RECEIVER, 2 * 10**4, factory, agg)
+                peg_keeper = account.deploy(project.PegKeeper, pool, 1, FEE_RECEIVER, 2 * 10**4, factory, agg,
+                                            admin)
                 peg_keepers.append(peg_keeper)
 
         if 'local' in network:

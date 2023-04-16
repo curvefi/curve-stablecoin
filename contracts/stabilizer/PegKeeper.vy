@@ -85,7 +85,7 @@ FACTORY: immutable(address)
 
 
 @external
-def __init__(_pool: CurvePool, _index: uint256, _receiver: address, _caller_share: uint256, _factory: address, _aggregator: StableAggregator):
+def __init__(_pool: CurvePool, _index: uint256, _receiver: address, _caller_share: uint256, _factory: address, _aggregator: StableAggregator, _admin: address):
     """
     @notice Contract constructor
     @param _pool Contract pool address
@@ -94,6 +94,7 @@ def __init__(_pool: CurvePool, _index: uint256, _receiver: address, _caller_shar
     @param _caller_share Caller's share of profit
     @param _factory Factory which should be able to take coins away
     @param _aggregator Price aggregator which shows the price of pegged in real "dollars"
+    @param _admin Admin account
     """
     assert _index < 2
     POOL = _pool
@@ -105,7 +106,7 @@ def __init__(_pool: CurvePool, _index: uint256, _receiver: address, _caller_shar
 
     PEG_MUL = 10 ** (18 - ERC20(_pool.coins(1 - _index)).decimals())
 
-    self.admin = msg.sender
+    self.admin = _admin
     assert _receiver != empty(address)
     self.receiver = _receiver
     log ApplyNewAdmin(msg.sender)

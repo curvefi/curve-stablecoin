@@ -165,7 +165,7 @@ def peg_keepers(stablecoin_a, stablecoin_b, stableswap_a, stableswap_b, controll
                     boa.load(
                         'contracts/stabilizer/PegKeeper.vy',
                         pool.address, 1, receiver, 2 * 10**4,
-                        controller_factory.address, agg.address)
+                        controller_factory.address, agg.address, admin)
             )
     return pks
 

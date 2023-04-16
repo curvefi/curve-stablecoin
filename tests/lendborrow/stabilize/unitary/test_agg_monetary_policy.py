@@ -64,7 +64,7 @@ class AggMonetaryPolicyCreation(RuleBasedStateMachine):
             # Deploy a peg keeper
             pk = boa.load('contracts/stabilizer/PegKeeper.vy',
                           swap.address, 1, self.admin, 5 * 10**4,
-                          self.controller_factory.address, self.agg.address)
+                          self.controller_factory.address, self.agg.address, self.admin)
         self.stablecoins.append(fedUSD)
         self.swaps.append(swap)
         self.peg_keepers.append(pk)
