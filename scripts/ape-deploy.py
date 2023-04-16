@@ -39,6 +39,19 @@ stable_fee = 1000000  # 0.01%
 stable_asset_type = 0
 stable_ma_exp_time = 866  # 10 min / ln(2)
 
+policy_rate = 627954226  # 2%
+policy_sigma = 2 * 10**16  # 2% when at target debt fraction
+policy_debt_fraction = 5 * 10**16  # 5%
+
+oracle_ema = 600  # s
+
+market_A = 100
+market_fee = 10**16  # 1%
+market_admin_fee = 0
+market_loan_discount = 5 * 10**16  # 5%
+market_liquidation_discount = 2 * 10**16  # 2%
+market_debt_ceiling = 10**7 * 10**18  # 10M
+
 
 def deploy_blueprint(contract, account):
     initcode = contract.contract_type.deployment_bytecode.bytecode
@@ -186,9 +199,7 @@ def deploy(network):
         elif 'mainnet' in network:
             policy = account.deploy(project.AggMonetaryPolicy, admin, agg, factory,
                                     peg_keepers + [ZERO_ADDRESS],
-                                    627954226,   # rate = 2%
-                                    2 * 10**16,  # sigma
-                                    5 * 10**16)  # Target debt fraction
+                                    policy_rate, policy_sigma, policy_debt_fraction)
 
             price_oracle = account.deploy(
                 project.CryptoWithStablePrice,
@@ -196,15 +207,15 @@ def deploy(network):
                 1,  # price index with ETH
                 pools['USDT'],
                 agg,
-                600)
+                oracle_ema)
 
             print('Price oracle price: {:.2f}'.format(price_oracle.price() / 1e18))
 
         factory.add_market(
-            weth, 100, 10**16, 0,
-            price_oracle,
-            policy, 5 * 10**16, 2 * 10**16,
-            10**6 * 10**18
+            weth, market_A, market_fee, market_admin_fee,
+            price_oracle, policy,
+            market_loan_discount, market_liquidation_discount,
+            market_debt_ceiling
         )
 
         if admin != temporary_admin:
