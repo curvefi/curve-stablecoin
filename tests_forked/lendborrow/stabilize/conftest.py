@@ -99,6 +99,7 @@ def crypto_agg_with_external_oracle(project, forked_admin, dummy_tricrypto, agg,
         agg,
         chainlink_aggregator.address,
         5000,
+        1
     )
     crypto_agg.price_w(sender=forked_admin)
     return crypto_agg

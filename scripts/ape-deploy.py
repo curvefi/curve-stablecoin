@@ -45,6 +45,7 @@ policy_rate = 627954226  # 2%
 policy_sigma = 2 * 10**16  # 2% when at target debt fraction
 policy_debt_fraction = 5 * 10**16  # 5%
 
+oracle_bound_size = 1  # %
 oracle_ema = 600  # s
 
 market_A = 100
@@ -210,7 +211,8 @@ def deploy(network):
                 pools['USDT'],  # tricrypto is vs USDT
                 agg,
                 CHAINLINK_ETH,
-                oracle_ema)
+                oracle_ema,
+                oracle_bound_size)
 
             print('Price oracle price: {:.2f}'.format(price_oracle.price() / 1e18))
 

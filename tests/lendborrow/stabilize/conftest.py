@@ -150,7 +150,8 @@ def crypto_agg_with_external_oracle(dummy_tricrypto, agg, stableswap_a, chainlin
             stableswap_a,
             agg,
             chainlink_price_oracle.address,
-            5000
+            5000,
+            1
         )
         crypto_agg.price_w()
         return crypto_agg

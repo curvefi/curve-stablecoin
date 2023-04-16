@@ -45,13 +45,13 @@ last_timestamp: public(uint256)
 
 CHAINLINK_AGGREGATOR: immutable(ChainlinkAggregator)
 CHAINLINK_PRICE_PRECISION: immutable(uint256)
-BOUND_SIZE: constant(uint256) = 1  # boudaries are +-1 %
+BOUND_SIZE: immutable(uint256)  # boudaries are in %
 
 
 @external
 def __init__(
         tricrypto: Tricrypto, ix: uint256, stableswap: Stableswap, stable_aggregator: StableAggregator,
-        chainlink_aggregator: ChainlinkAggregator, ma_exp_time: uint256
+        chainlink_aggregator: ChainlinkAggregator, ma_exp_time: uint256, bound_size: uint256
     ):
     TRICRYPTO = tricrypto
     TRICRYPTO_IX = ix
@@ -78,6 +78,8 @@ def __init__(
 
     CHAINLINK_AGGREGATOR = chainlink_aggregator
     CHAINLINK_PRICE_PRECISION = 10**convert(chainlink_aggregator.decimals(), uint256)
+
+    BOUND_SIZE = bound_size
 
 
 @pure
