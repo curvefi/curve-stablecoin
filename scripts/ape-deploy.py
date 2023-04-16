@@ -34,6 +34,8 @@ WETH = "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2"
 
 TRICRYPTO = "0xD51a44d3FaE010294C616388b506AcdA1bfAAE46"
 
+CHAINLINK_ETH = "0x5f4eC3Df9cbd43714FE2740f5E3616155c5b8419"
+
 stable_A = 500  # initially, can go higher later
 stable_fee = 1000000  # 0.01%
 stable_asset_type = 0
@@ -202,11 +204,12 @@ def deploy(network):
                                     policy_rate, policy_sigma, policy_debt_fraction)
 
             price_oracle = account.deploy(
-                project.CryptoWithStablePrice,
+                project.CryptoWithStablePriceAndChainlink,
                 TRICRYPTO,
                 1,  # price index with ETH
-                pools['USDT'],
+                pools['USDT'],  # tricrypto is vs USDT
                 agg,
+                CHAINLINK_ETH,
                 oracle_ema)
 
             print('Price oracle price: {:.2f}'.format(price_oracle.price() / 1e18))
