@@ -51,10 +51,10 @@ minter: public(address)
 
 @external
 def __init__(_name: String[64], _symbol: String[32]):
-    self.name = _name
-    self.symbol = _symbol
+    name = _name
+    symbol = _symbol
     self.minter = msg.sender
-    log Transfer(ZERO_ADDRESS, msg.sender, 0)
+    log Transfer(empty(address), msg.sender, 0)
 
 
 @external
@@ -85,7 +85,7 @@ def transferFrom(_from : address, _to : address, _value : uint256) -> bool:
     self.balanceOf[_to] += _value
 
     _allowance: uint256 = self.allowance[_from][msg.sender]
-    if _allowance != MAX_UINT256:
+    if _allowance != max_value(uint256):
         self.allowance[_from][msg.sender] = _allowance - _value
 
     log Transfer(_from, _to, _value)
@@ -160,7 +160,7 @@ def mint(_to: address, _value: uint256) -> bool:
     self.totalSupply += _value
     self.balanceOf[_to] += _value
 
-    log Transfer(ZERO_ADDRESS, _to, _value)
+    log Transfer(empty(address), _to, _value)
     return True
 
 
@@ -176,7 +176,7 @@ def burnFrom(_to: address, _value: uint256) -> bool:
     self.totalSupply -= _value
     self.balanceOf[_to] -= _value
 
-    log Transfer(_to, ZERO_ADDRESS, _value)
+    log Transfer(_to, empty(address), _value)
     return True
 
 
