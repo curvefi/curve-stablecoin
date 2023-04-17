@@ -24,13 +24,28 @@ event Approval:
     _value: uint256
 
 
-name: public(String[64])
-symbol: public(String[32])
+# @dev Returns the name of the stablecoin.
+name: public(immutable(String[64]))
 
+# @dev Returns the symbol of the stablecoin.
+symbol: public(immutable(String[32]))
+
+# @dev Returns the decimals places of the stablecoin.
+decimals: public(constant(uint8)) = 18
+
+# @dev Returns the amount of tokens owned by an `address`.
 balanceOf: public(HashMap[address, uint256])
+
+# @dev Returns the remaining number of tokens that a
+# `spender` will be allowed to spend on behalf of
+# `owner` through `transferFrom`. This is zero by
+# default.
 allowance: public(HashMap[address, HashMap[address, uint256]])
+
+# @dev Returns the amount of tokens in existence.
 totalSupply: public(uint256)
 
+# @dev Returns the address of the current minter.
 minter: public(address)
 
 
@@ -40,17 +55,6 @@ def __init__(_name: String[64], _symbol: String[32]):
     self.symbol = _symbol
     self.minter = msg.sender
     log Transfer(ZERO_ADDRESS, msg.sender, 0)
-
-
-@view
-@external
-def decimals() -> uint8:
-    """
-    @notice Get the number of decimals for this token
-    @dev Implemented as a view method to reduce gas costs
-    @return uint8 decimal places
-    """
-    return 18
 
 
 @external
