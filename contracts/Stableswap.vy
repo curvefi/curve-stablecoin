@@ -487,7 +487,7 @@ def _ma_price() -> uint256:
     ma_last_time: uint256 = self.ma_last_time
 
     pp: uint256 = self.last_prices_packed
-    last_price: uint256 = pp & (2**128 - 1)
+    last_price: uint256 = min(pp & (2**128 - 1), 2 * 10**18)
     last_ema_price: uint256 = shift(pp, -128)
 
     if ma_last_time < block.timestamp:
