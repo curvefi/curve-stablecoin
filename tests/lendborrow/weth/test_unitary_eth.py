@@ -1,5 +1,7 @@
 import boa
 import pytest
+from hypothesis import given
+from hypothesis import strategies as st
 from ...conftest import approx
 
 
@@ -48,6 +50,25 @@ def test_create_loan(stablecoin, weth, market_controller, market_amm, accounts):
 
             h = market_controller.health(user, True) / 1e18 + 0.02
             assert approx(h, c_amount * 3000 / l_amount - 1, 0.02)
+
+
+@given(
+    collateral_amount=st.integers(min_value=10**9, max_value=10**20),
+    n=st.integers(min_value=5, max_value=50),
+    f=st.floats(min_value=0, max_value=1)
+)
+def test_max_borrow_eth_weth(weth, market_controller, accounts, collateral_amount, n, f):
+    user = accounts[0]
+    max_borrowable = market_controller.max_borrowable(collateral_amount, n)
+    with boa.reverts('Debt too high'):
+        market_controller.calculate_debt_n1(collateral_amount, int(max_borrowable * 1.001), n)
+    weth_amount = min(int(f * collateral_amount), collateral_amount)
+    eth_amount = collateral_amount - weth_amount
+    boa.env.set_balance(user, collateral_amount)
+    with boa.env.prank(user):
+        weth.deposit(value=weth_amount)
+        weth.approve(market_controller.address, 2**256 - 1)
+        market_controller.create_loan(collateral_amount, max_borrowable, n, value=eth_amount)
 
 
 @pytest.fixture(scope="module")

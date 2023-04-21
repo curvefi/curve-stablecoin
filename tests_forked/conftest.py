@@ -197,6 +197,7 @@ def peg_keepers(project, forked_admin, forked_fee_receiver, rtokens_pools, contr
             2 * 10**4,
             controller_factory,
             agg_stable_price,
+            forked_admin.address,
         )
         peg_keepers.append(peg_keeper)
 
@@ -244,4 +245,5 @@ def price_oracle_with_chainlink(project, forked_admin, rtokens_pools, agg_stable
         agg_stable_price,
         chainlink_aggregator.address,
         600,
+        1
     )

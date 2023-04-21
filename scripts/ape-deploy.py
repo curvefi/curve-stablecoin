@@ -30,12 +30,30 @@ GAUGE_IMPL = "0x5aE854b098727a9f1603A1E21c50D52DC834D846"
 ADDRESS_PROVIDER = "0x0000000022D53366457F9d5E68Ec105046FC4383"
 FEE_RECEIVER = "0xeCb456EA5365865EbAb8a2661B0c503410e9B347"
 
+WETH = "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2"
+
 TRICRYPTO = "0xD51a44d3FaE010294C616388b506AcdA1bfAAE46"
+
+CHAINLINK_ETH = "0x5f4eC3Df9cbd43714FE2740f5E3616155c5b8419"
 
 stable_A = 500  # initially, can go higher later
 stable_fee = 1000000  # 0.01%
 stable_asset_type = 0
 stable_ma_exp_time = 866  # 10 min / ln(2)
+
+policy_rate = 627954226  # 2%
+policy_sigma = 2 * 10**16  # 2% when at target debt fraction
+policy_debt_fraction = 5 * 10**16  # 5%
+
+oracle_bound_size = 1  # %
+oracle_ema = 600  # s
+
+market_A = 100
+market_fee = 10**16  # 1%
+market_admin_fee = 0
+market_loan_discount = 5 * 10**16  # 5%
+market_liquidation_discount = 2 * 10**16  # 2%
+market_debt_ceiling = 10**7 * 10**18  # 10M
 
 
 def deploy_blueprint(contract, account):
@@ -52,9 +70,7 @@ def deploy_blueprint(contract, account):
         gas_price=project.provider.gas_price,
         nonce=account.nonce,
     )
-    tx.gas_limit = project.provider.estimate_gas_cost(tx)
-    tx = account.sign_transaction(tx)
-    receipt = project.provider.send_transaction(tx)
+    receipt = account.call(tx)
     click.echo(f"blueprint deployed at: {receipt.contract_address}")
     return receipt.contract_address
 
@@ -74,7 +90,12 @@ def deploy(network):
     # Deployer address
     if ':local:' in network:
         account = accounts.test_accounts[0]
-    elif 'mainnet' in network:
+    elif ':mainnet-fork:' in network:
+        account = "0xbabe61887f1de2713c6f97e567623453d3C79f67"
+        if account in accounts:
+            account = accounts.load('babe')
+            account.set_autosign(True)
+    elif ':mainnet:' in network:
         account = accounts.load('babe')
         account.set_autosign(True)
 
@@ -85,16 +106,16 @@ def deploy(network):
         admin = account
         fee_receiver = account
     elif 'mainnet' in network:
-        admin = '0x40907540d8a6C65c637785e8f8B742ae6b0b9968'  # Ownership admin
-        fee_receiver = '0xeCb456EA5365865EbAb8a2661B0c503410e9B347'  # 0xECB for fee collection
+        admin = OWNERSHIP_ADMIN  # Ownership admin
+        fee_receiver = FEE_RECEIVER  # 0xECB for fee collection
 
-    # Real or fake wETH
-    if ':local:' in network:
-        weth = account.deploy(project.WETH)
-    elif 'mainnet' in network:
-        weth = Contract("0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2")
+    with accounts.use_sender(account) as account:
+        # Real or fake wETH
+        if ':local:' in network:
+            weth = account.deploy(project.WETH)
+        elif 'mainnet' in network:
+            weth = Contract(WETH)
 
-    with accounts.use_sender(account):
         # Common deployment steps - stablecoin, factory and implementations
         print("Deploying stablecoin")
         stablecoin = account.deploy(project.Stablecoin, FULL_NAME, SHORT_NAME)
@@ -116,7 +137,7 @@ def deploy(network):
 
             # Ownership admin is account temporarily, will need to become OWNERSHIP_ADMIN
             owner_proxy = account.deploy(project.OwnerProxy,
-                                         account, PARAMETER_ADMIN, EMERGENCY_ADMIN,
+                                         temporary_admin, PARAMETER_ADMIN, EMERGENCY_ADMIN,
                                          swap_factory, ZERO_ADDRESS)
             swap_factory.commit_transfer_ownership(owner_proxy)
             owner_proxy.accept_transfer_ownership(swap_factory)
@@ -157,19 +178,20 @@ def deploy(network):
                 print(f"Stablecoin pool crvUSD/{name} is deployed at {pool.address}")
                 pools[name] = pool
 
-        # Price aggregator
-        print("Deploying stable price aggregator")
-        agg = account.deploy(project.AggregateStablePrice, stablecoin, 10**15, account)
-        for pool in pools.values():
-            agg.add_price_pair(pool)
-        agg.set_admin(OWNERSHIP_ADMIN)  # Alternatively, we can make it ZERO_ADDRESS
+            # Price aggregator
+            print("Deploying stable price aggregator")
+            agg = account.deploy(project.AggregateStablePrice, stablecoin, 10**15, temporary_admin)
+            for pool in pools.values():
+                agg.add_price_pair(pool)
+            agg.set_admin(admin)  # Alternatively, we can make it ZERO_ADDRESS
 
-        # PegKeepers
-        peg_keepers = []
-        for pool in pools.values():
-            print(f"Deploying a PegKeeper for {pool.name()}")
-            peg_keeper = account.deploy(project.PegKeeper, pool, 1, FEE_RECEIVER, 2 * 10**4, factory, agg)
-            peg_keepers.append(peg_keeper)
+            # PegKeepers
+            peg_keepers = []
+            for pool in pools.values():
+                print(f"Deploying a PegKeeper for {pool.name()}")
+                peg_keeper = account.deploy(project.PegKeeper, pool, 1, FEE_RECEIVER, 2 * 10**4, factory, agg,
+                                            admin)
+                peg_keepers.append(peg_keeper)
 
         if 'local' in network:
             policy = account.deploy(project.ConstantMonetaryPolicy, temporary_admin)
@@ -180,25 +202,25 @@ def deploy(network):
         elif 'mainnet' in network:
             policy = account.deploy(project.AggMonetaryPolicy, admin, agg, factory,
                                     peg_keepers + [ZERO_ADDRESS],
-                                    627954226,   # rate = 2%
-                                    2 * 10**16,  # sigma
-                                    5 * 10**16)  # Target debt fraction
+                                    policy_rate, policy_sigma, policy_debt_fraction)
 
             price_oracle = account.deploy(
-                project.CryptoWithStablePrice,
+                project.CryptoWithStablePriceAndChainlink,
                 TRICRYPTO,
                 1,  # price index with ETH
-                pools['USDT'],
+                pools['USDT'],  # tricrypto is vs USDT
                 agg,
-                600)
+                CHAINLINK_ETH,
+                oracle_ema,
+                oracle_bound_size)
 
             print('Price oracle price: {:.2f}'.format(price_oracle.price() / 1e18))
 
         factory.add_market(
-            weth, 100, 10**16, 0,
-            price_oracle,
-            policy, 5 * 10**16, 2 * 10**16,
-            10**6 * 10**18
+            weth, market_A, market_fee, market_admin_fee,
+            price_oracle, policy,
+            market_loan_discount, market_liquidation_discount,
+            market_debt_ceiling
         )
 
         if admin != temporary_admin:

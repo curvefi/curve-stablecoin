@@ -150,7 +150,8 @@ def crypto_agg_with_external_oracle(dummy_tricrypto, agg, stableswap_a, chainlin
             stableswap_a,
             agg,
             chainlink_price_oracle.address,
-            5000
+            5000,
+            1
         )
         crypto_agg.price_w()
         return crypto_agg
@@ -165,7 +166,7 @@ def peg_keepers(stablecoin_a, stablecoin_b, stableswap_a, stableswap_b, controll
                     boa.load(
                         'contracts/stabilizer/PegKeeper.vy',
                         pool.address, 1, receiver, 2 * 10**4,
-                        controller_factory.address, agg.address)
+                        controller_factory.address, agg.address, admin)
             )
     return pks
 

@@ -5,13 +5,13 @@ from .utils import mint_tokens_for_testing
 
 class TestLendAndSwaps:
     @pytest.fixture()
-    def factory_with_market(self, forked_admin, controller_factory, weth, price_oracle, policy):
+    def factory_with_market(self, forked_admin, controller_factory, weth, price_oracle_with_chainlink, policy):
         controller_factory.add_market(
             weth,
             100,
             10**16,
             0,
-            price_oracle,
+            price_oracle_with_chainlink,
             policy,
             5 * 10**16,
             2 * 10**16,

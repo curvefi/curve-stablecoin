@@ -201,6 +201,7 @@ def __init__(
 def __default__():
     if msg.value > 0:
         assert USE_ETH
+    assert len(msg.data) == 0
 
 
 @internal
