@@ -231,6 +231,20 @@ def coins(i: uint256) -> address:
 @internal
 @view
 def limit_p_o(p: uint256) -> uint256[2]:
+    """
+    @notice Limits oracle price to avoid losses at abrupt changes, as well as calculates a dynamic fee.
+        If we consider oracle_change such as:
+            ratio = p_new / p_old
+        (let's take for simplicity p_new < p_old, otherwise we compute p_old / p_new)
+        Then if the minimal AMM fee will be:
+            fee = (1 - ratio**3),
+        AMM will not have a loss associated with the price change.
+        However, over time fee should still go down (over PREV_P_O_DELAY), and also ratio should be limited
+        because we don't want the fee to become too large (say, 50%) which is achieved by limiting the instantaneous
+        change in oracle price.
+
+    @return (limited_price_oracle, dynamic_fee)
+    """
     p_new: uint256 = p
     dt: uint256 = unsafe_sub(PREV_P_O_DELAY, min(PREV_P_O_DELAY, block.timestamp - self.prev_p_o_time))
     ratio: uint256 = 0
@@ -809,7 +823,7 @@ def calc_swap_out(pump: bool, in_amount: uint256, p_o: uint256[2], in_precision:
             This function is core to the AMM functionality.
     @param pump Indicates whether the trade buys or sells collateral
     @param in_amount Amount of token going in
-    @param p_o Current oracle price and ratio (p_o, (r**3 - 1) / (r**3 + 1))
+    @param p_o Current oracle price and ratio (p_o, dynamic_fee)
     @return Amounts spent and given out, initial and final bands of the AMM, new
             amounts of coins in bands in the AMM, as well as admin fee charged,
             all in one data structure
@@ -1108,7 +1122,7 @@ def calc_swap_in(pump: bool, out_amount: uint256, p_o: uint256[2], in_precision:
             Also returns other parameters related to state after swap.
     @param pump Indicates whether the trade buys or sells collateral
     @param out_amount Desired amount of token going out
-    @param p_o Current oracle price and antisandwich fee (p_o, (r**3 - 1) / (r**3 + 1))
+    @param p_o Current oracle price and antisandwich fee (p_o, dynamic_fee)
     @return Amounts required and given out, initial and final bands of the AMM, new
             amounts of coins in bands in the AMM, as well as admin fee charged,
             all in one data structure
