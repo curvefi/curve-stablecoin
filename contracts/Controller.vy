@@ -33,6 +33,7 @@ interface ERC20:
     def transfer(_to: address, _value: uint256) -> bool: nonpayable
     def decimals() -> uint256: view
     def approve(_spender: address, _value: uint256) -> bool: nonpayable
+    def balanceOf(_from: address) -> uint256: view
 
 interface WETH:
     def deposit(): payable
@@ -465,7 +466,8 @@ def max_borrowable(collateral: uint256, N: uint256) -> uint256:
     y_effective: uint256 = self.get_y_effective(collateral * COLLATERAL_PRECISION, N, self.loan_discount)
 
     x: uint256 = unsafe_sub(max(unsafe_div(y_effective * self.max_p_base(), 10**18), 1), 1)
-    return unsafe_div(x * (10**18 - 10**14), 10**18)  # Make it a bit smaller
+    x = unsafe_div(x * (10**18 - 10**14), 10**18)  # Make it a bit smaller
+    return min(x, STABLECOIN.balanceOf(self))  # Cannot borrow beyond the amount of coins Controller has
 
 
 @external
