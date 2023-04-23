@@ -36,6 +36,9 @@ TRICRYPTO = "0xD51a44d3FaE010294C616388b506AcdA1bfAAE46"
 
 CHAINLINK_ETH = "0x5f4eC3Df9cbd43714FE2740f5E3616155c5b8419"
 
+FRXETH_POOL = "0xa1f8a6807c402e4a15ef4eba36528a3fed24e577"
+SFRXETH = "0xac3E018457B222d93114458476f3E3416Abbe38F"
+
 stable_A = 500  # initially, can go higher later
 stable_fee = 1000000  # 0.01%
 stable_asset_type = 0
@@ -113,8 +116,10 @@ def deploy(network):
         # Real or fake wETH
         if ':local:' in network:
             weth = account.deploy(project.WETH)
+            collateral = weth
         elif 'mainnet' in network:
             weth = Contract(WETH)
+            collateral = SFRXETH
 
         # Common deployment steps - stablecoin, factory and implementations
         print("Deploying stablecoin")
@@ -204,20 +209,34 @@ def deploy(network):
                                     peg_keepers + [ZERO_ADDRESS],
                                     policy_rate, policy_sigma, policy_debt_fraction)
 
+            # Pure ETH
+            # price_oracle = account.deploy(
+            #     project.CryptoWithStablePriceAndChainlink,
+            #     TRICRYPTO,
+            #     1,  # price index with ETH
+            #     pools['USDT'],  # tricrypto is vs USDT
+            #     agg,
+            #     CHAINLINK_ETH,
+            #     oracle_ema,
+            #     oracle_bound_size)
+
+            # sFrxETH
             price_oracle = account.deploy(
-                project.CryptoWithStablePriceAndChainlink,
-                TRICRYPTO,
-                1,  # price index with ETH
-                pools['USDT'],  # tricrypto is vs USDT
-                agg,
-                CHAINLINK_ETH,
-                oracle_ema,
-                oracle_bound_size)
+                    project.CryptoWithStablePriceAndChainlinkFrxeth,
+                    TRICRYPTO,  # Tricrypto
+                    1,  # price index with ETH
+                    pools["USDT"],
+                    FRXETH_POOL,  # staked swap (frxeth/eth)
+                    agg,
+                    CHAINLINK_ETH,  # ETH/USD Chainlink aggregator
+                    SFRXETH,  # sFrxETH
+                    600,
+                    1)  # 1% bound
 
             print('Price oracle price: {:.2f}'.format(price_oracle.price() / 1e18))
 
         factory.add_market(
-            weth, market_A, market_fee, market_admin_fee,
+            collateral, market_A, market_fee, market_admin_fee,
             price_oracle, policy,
             market_loan_discount, market_liquidation_discount,
             market_debt_ceiling
@@ -226,8 +245,8 @@ def deploy(network):
         if admin != temporary_admin:
             factory.set_admin(admin)
 
-    amm = project.AMM.at(factory.get_amm(weth))
-    controller = project.Controller.at(factory.get_controller(weth))
+    amm = project.AMM.at(factory.get_amm(collateral))
+    controller = project.Controller.at(factory.get_controller(collateral))
 
     print('========================')
     print('Stablecoin:        ', stablecoin.address)
