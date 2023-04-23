@@ -21,7 +21,7 @@ def test_create_loan(stablecoin, weth, market_controller, market_amm, accounts):
 
             l_amount = 5 * 10**5 * 10**18
             with boa.reverts('Need more ticks'):
-                market_controller.create_loan(c_amount, l_amount, 4, value=c_amount)
+                market_controller.create_loan(c_amount, l_amount, 3, value=c_amount)
             with boa.reverts('Need less ticks'):
                 market_controller.create_loan(c_amount, l_amount, 400, value=c_amount)
 

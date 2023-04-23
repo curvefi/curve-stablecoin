@@ -117,7 +117,7 @@ MAX_LOAN_DISCOUNT: constant(uint256) = 5 * 10**17
 MIN_LIQUIDATION_DISCOUNT: constant(uint256) = 10**16 # Start liquidating when threshold reached
 MAX_TICKS: constant(int256) = 50
 MAX_TICKS_UINT: constant(uint256) = 50
-MIN_TICKS: constant(int256) = 5
+MIN_TICKS: constant(int256) = 4
 MAX_SKIP_TICKS: constant(uint256) = 1024
 MAX_P_BASE_BANDS: constant(int256) = 5
 

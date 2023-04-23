@@ -19,7 +19,7 @@ def test_create_loan(controller_factory, stablecoin, collateral_token, market_co
 
             l_amount = 5 * 10**5 * 10**18
             with boa.reverts('Need more ticks'):
-                market_controller.create_loan(c_amount, l_amount, 4)
+                market_controller.create_loan(c_amount, l_amount, 3)
             with boa.reverts('Need less ticks'):
                 market_controller.create_loan(c_amount, l_amount, 400)
 

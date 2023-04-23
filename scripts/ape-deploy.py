@@ -52,10 +52,10 @@ oracle_bound_size = 1  # %
 oracle_ema = 600  # s
 
 market_A = 100
-market_fee = 10**16  # 1%
+market_fee = 3 * 10**15  # 0.3%
 market_admin_fee = 0
-market_loan_discount = 5 * 10**16  # 5%
-market_liquidation_discount = 2 * 10**16  # 2%
+market_loan_discount = 9 * 10**16  # 9%; +2% from 4x 1% bands = 100% - 11% = 89% LTV
+market_liquidation_discount = 6 * 10**16  # 6%
 market_debt_ceiling = 10**7 * 10**18  # 10M
 
 
