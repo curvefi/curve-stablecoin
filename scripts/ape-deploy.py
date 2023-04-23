@@ -251,7 +251,7 @@ def deploy(network):
     print('========================')
     print('Stablecoin:        ', stablecoin.address)
     print('Factory:           ', factory.address)
-    print('Collateral (WETH): ', weth.address)
+    print('Collateral:        ', collateral)
     print('AMM:               ', amm.address)
     print('Controller:        ', controller.address)
     print('Price Oracle:      ', price_oracle.address)
