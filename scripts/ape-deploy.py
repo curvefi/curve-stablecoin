@@ -1,4 +1,4 @@
-from ape import project, accounts, Contract
+from ape import project, accounts, Contract, networks
 from ape.cli import NetworkBoundCommand, network_option
 # account_option could be used when in prod?
 import click
@@ -59,7 +59,7 @@ market_liquidation_discount = 6 * 10**16  # 6%
 market_debt_ceiling = 10**7 * 10**18  # 10M
 
 
-def deploy_blueprint(contract, account):
+def deploy_blueprint(contract, account, **kw):
     initcode = contract.contract_type.deployment_bytecode.bytecode
     if isinstance(initcode, str):
         initcode = bytes.fromhex(initcode.removeprefix("0x"))
@@ -67,11 +67,13 @@ def deploy_blueprint(contract, account):
     initcode = (
         b"\x61" + len(initcode).to_bytes(2, "big") + b"\x3d\x81\x60\x0a\x3d\x39\xf3" + initcode
     )
+    if not kw:
+        kw = {'gas_price': project.provider.gas_price}
     tx = project.provider.network.ecosystem.create_transaction(
         chain_id=project.provider.chain_id,
         data=initcode,
-        gas_price=project.provider.gas_price,
         nonce=account.nonce,
+        **kw
     )
     receipt = account.call(tx)
     click.echo(f"blueprint deployed at: {receipt.contract_address}")
@@ -90,6 +92,8 @@ def cli():
 )
 @network_option()
 def deploy(network):
+    kw = {}
+
     # Deployer address
     if ':local:' in network:
         account = accounts.test_accounts[0]
@@ -101,6 +105,9 @@ def deploy(network):
     elif ':mainnet:' in network:
         account = accounts.load('babe')
         account.set_autosign(True)
+        kw = {
+            'max_fee': networks.active_provider.base_fee * 2,
+            'max_priority_fee': int(0.5e9)}
 
     temporary_admin = account
 
@@ -123,45 +130,46 @@ def deploy(network):
 
         # Common deployment steps - stablecoin, factory and implementations
         print("Deploying stablecoin")
-        stablecoin = account.deploy(project.Stablecoin, FULL_NAME, SHORT_NAME)
+        stablecoin = account.deploy(project.Stablecoin, FULL_NAME, SHORT_NAME, **kw)
         print("Deploying factory")
-        factory = account.deploy(project.ControllerFactory, stablecoin, temporary_admin, weth, fee_receiver)
+        factory = account.deploy(project.ControllerFactory, stablecoin, temporary_admin, weth, fee_receiver, **kw)
 
         print("Deploying Controller and AMM implementations")
-        controller_impl = deploy_blueprint(project.Controller, account)
-        amm_impl = deploy_blueprint(project.AMM, account)
+        controller_impl = deploy_blueprint(project.Controller, account, **kw)
+        amm_impl = deploy_blueprint(project.AMM, account, **kw)
 
         print("Setting implementations in the factory")
-        factory.set_implementations(controller_impl, amm_impl)
-        stablecoin.set_minter(factory)
+        factory.set_implementations(controller_impl, amm_impl, **kw)
+        stablecoin.set_minter(factory, **kw)
 
         # Deploy plain pools and stabilizer
         if 'mainnet' in network:
-            swap_factory = account.deploy(project.StableswapFactory, FEE_RECEIVER)
-            swap_factory.add_token_to_whitelist(stablecoin, True)
+            swap_factory = account.deploy(project.StableswapFactory, FEE_RECEIVER, **kw)
+            swap_factory.add_token_to_whitelist(stablecoin, True, **kw)
 
             # Ownership admin is account temporarily, will need to become OWNERSHIP_ADMIN
             owner_proxy = account.deploy(project.OwnerProxy,
                                          temporary_admin, PARAMETER_ADMIN, EMERGENCY_ADMIN,
-                                         swap_factory, ZERO_ADDRESS)
-            swap_factory.commit_transfer_ownership(owner_proxy)
-            owner_proxy.accept_transfer_ownership(swap_factory)
+                                         swap_factory, ZERO_ADDRESS, **kw)
+            swap_factory.commit_transfer_ownership(owner_proxy, **kw)
+            owner_proxy.accept_transfer_ownership(swap_factory, **kw)
 
             # Set implementations
-            stableswap_impl = account.deploy(project.Stableswap)
-            owner_proxy.set_plain_implementations(swap_factory, 2, [stableswap_impl.address] + [ZERO_ADDRESS] * 9)
-            owner_proxy.set_gauge_implementation(swap_factory, GAUGE_IMPL)
+            stableswap_impl = account.deploy(project.Stableswap, **kw)
+            owner_proxy.set_plain_implementations(swap_factory, 2, [stableswap_impl.address] + [ZERO_ADDRESS] * 9, **kw)
+            owner_proxy.set_gauge_implementation(swap_factory, GAUGE_IMPL, **kw)
 
             # Set all admins to the DAO
-            owner_proxy.commit_set_admins(OWNERSHIP_ADMIN, PARAMETER_ADMIN, EMERGENCY_ADMIN)
-            owner_proxy.apply_set_admins()
+            owner_proxy.commit_set_admins(OWNERSHIP_ADMIN, PARAMETER_ADMIN, EMERGENCY_ADMIN, **kw)
+            owner_proxy.apply_set_admins(**kw)
 
             # Put factory in address provider / registry
             address_provider = Contract(ADDRESS_PROVIDER)
             address_provider_admin = Contract(address_provider.admin())
             address_provider_admin.execute(
                     address_provider,
-                    address_provider.add_new_id.encode_input(swap_factory, 'crvUSD plain pools'))
+                    address_provider.add_new_id.encode_input(swap_factory, 'crvUSD plain pools'),
+                    **kw)
 
             pools = {}
 
@@ -176,7 +184,8 @@ def deploy(network):
                     stable_fee,
                     stable_asset_type,
                     0,  # implentation_idx
-                    stable_ma_exp_time)
+                    stable_ma_exp_time,
+                    **kw)
                 # This is a workaround: instead of getting return_value we parse events to get the pool address
                 # This is because reading return_value in ape is broken
                 pool = project.Stableswap.at(tx.events.filter(swap_factory.PlainPoolDeployed)[0].pool)
@@ -185,17 +194,17 @@ def deploy(network):
 
             # Price aggregator
             print("Deploying stable price aggregator")
-            agg = account.deploy(project.AggregateStablePrice, stablecoin, 10**15, temporary_admin)
+            agg = account.deploy(project.AggregateStablePrice, stablecoin, 10**15, temporary_admin, **kw)
             for pool in pools.values():
-                agg.add_price_pair(pool)
-            agg.set_admin(admin)  # Alternatively, we can make it ZERO_ADDRESS
+                agg.add_price_pair(pool, **kw)
+            agg.set_admin(admin, **kw)  # Alternatively, we can make it ZERO_ADDRESS
 
             # PegKeepers
             peg_keepers = []
             for pool in pools.values():
                 print(f"Deploying a PegKeeper for {pool.name()}")
                 peg_keeper = account.deploy(project.PegKeeper, pool, 1, FEE_RECEIVER, 2 * 10**4, factory, agg,
-                                            admin)
+                                            admin, **kw)
                 peg_keepers.append(peg_keeper)
 
         if 'local' in network:
@@ -207,7 +216,8 @@ def deploy(network):
         elif 'mainnet' in network:
             policy = account.deploy(project.AggMonetaryPolicy, admin, agg, factory,
                                     peg_keepers + [ZERO_ADDRESS],
-                                    policy_rate, policy_sigma, policy_debt_fraction)
+                                    policy_rate, policy_sigma, policy_debt_fraction,
+                                    **kw)
 
             # Pure ETH
             # price_oracle = account.deploy(
@@ -231,7 +241,8 @@ def deploy(network):
                     CHAINLINK_ETH,  # ETH/USD Chainlink aggregator
                     SFRXETH,  # sFrxETH
                     600,
-                    1)  # 1% bound
+                    1,  # 1% bound
+                    **kw)
 
             print('Price oracle price: {:.2f}'.format(price_oracle.price() / 1e18))
 
@@ -239,11 +250,12 @@ def deploy(network):
             collateral, market_A, market_fee, market_admin_fee,
             price_oracle, policy,
             market_loan_discount, market_liquidation_discount,
-            market_debt_ceiling
+            market_debt_ceiling,
+            **kw
         )
 
         if admin != temporary_admin:
-            factory.set_admin(admin)
+            factory.set_admin(admin, **kw)
 
     amm = project.AMM.at(factory.get_amm(collateral))
     controller = project.Controller.at(factory.get_controller(collateral))
