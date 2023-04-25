@@ -97,36 +97,36 @@ def deploy(network):
     # Deployer address
     if ':local:' in network:
         account = accounts.test_accounts[0]
-    elif ':mainnet-fork:' in network:
-        account = "0xbabe61887f1de2713c6f97e567623453d3C79f67"
-        if account in accounts:
-            account = accounts.load('babe')
-            account.set_autosign(True)
     elif ':mainnet:' in network:
         account = accounts.load('babe')
         account.set_autosign(True)
         kw = {
             'max_fee': networks.active_provider.base_fee * 2,
             'max_priority_fee': int(0.5e9)}
+    else:
+        account = "0xbabe61887f1de2713c6f97e567623453d3C79f67"
+        if account in accounts:
+            account = accounts.load('babe')
+            account.set_autosign(True)
 
     temporary_admin = account
 
     # Admin and fee receiver <- DAO if in prod or mainnet-fork
-    if ':local:' in network:
-        admin = account
-        fee_receiver = account
-    elif 'mainnet' in network:
+    if 'mainnet' in network:
         admin = OWNERSHIP_ADMIN  # Ownership admin
         fee_receiver = FEE_RECEIVER  # 0xECB for fee collection
+    else:
+        admin = account
+        fee_receiver = account
 
     with accounts.use_sender(account) as account:
         # Real or fake wETH
-        if ':local:' in network:
-            weth = account.deploy(project.WETH)
-            collateral = weth
-        elif 'mainnet' in network:
+        if 'mainnet' in network:
             weth = Contract(WETH)
             collateral = SFRXETH
+        else:
+            weth = account.deploy(project.WETH)
+            collateral = weth
 
         # Common deployment steps - stablecoin, factory and implementations
         print("Deploying stablecoin")
@@ -207,13 +207,7 @@ def deploy(network):
                                             admin, **kw)
                 peg_keepers.append(peg_keeper)
 
-        if 'local' in network:
-            policy = account.deploy(project.ConstantMonetaryPolicy, temporary_admin)
-            policy.set_rate(0)  # 0%
-            policy.set_admin(admin)
-            price_oracle = account.deploy(project.DummyPriceOracle, admin, 3000 * 10**18)
-
-        elif 'mainnet' in network:
+        if 'mainnet' in network:
             policy = account.deploy(project.AggMonetaryPolicy, admin, agg, factory,
                                     peg_keepers + [ZERO_ADDRESS],
                                     policy_rate, policy_sigma, policy_debt_fraction,
@@ -246,6 +240,12 @@ def deploy(network):
 
             print('Price oracle price: {:.2f}'.format(price_oracle.price() / 1e18))
 
+        else:
+            policy = account.deploy(project.ConstantMonetaryPolicy, temporary_admin)
+            policy.set_rate(0)  # 0%
+            policy.set_admin(admin)
+            price_oracle = account.deploy(project.DummyPriceOracle, admin, 3000 * 10**18)
+
         factory.add_market(
             collateral, market_A, market_fee, market_admin_fee,
             price_oracle, policy,
@@ -268,3 +268,8 @@ def deploy(network):
     print('Controller:        ', controller.address)
     print('Price Oracle:      ', price_oracle.address)
     print('Monetary policy:   ', policy.address)
+    if 'mainnet' in network:
+        print('Swap factory:      ', swap_factory.address)
+        print('Owner proxy:       ', owner_proxy.address)
+        print('Price Aggregator:  ', agg.address)
+        print('PegKeepers:        ', [pk.address for pk in peg_keepers])
