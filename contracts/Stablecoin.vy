@@ -10,7 +10,8 @@ implements: ERC20
 
 
 interface ERC1271:
-    def isValidSignature(_hash: bytes32, _signature: Bytes[65]) -> bytes32: view
+    def isValidSignature(_hash: bytes32, _signature: Bytes[65]) -> bytes4: view
+
 
 event Approval:
     owner: indexed(address)
@@ -22,19 +23,14 @@ event Transfer:
     receiver: indexed(address)
     value: uint256
 
-event SetAdmin:
-    admin: indexed(address)
-
-event AddMinter:
-    minter: indexed(address)
-
-event RemoveMinter:
+event SetMinter:
     minter: indexed(address)
 
 
 decimals: public(constant(uint8)) = 18
-version: public(constant(String[8])) = "1"
+version: public(constant(String[8])) = "v1.0.0"
 
+ERC1271_MAGIC_VAL: constant(bytes4) = 0x1626ba7e
 EIP712_TYPEHASH: constant(bytes32) = keccak256(
     "EIP712Domain(string name,string version,uint256 chainId,address verifyingContract,bytes32 salt)"
 )
@@ -46,10 +42,10 @@ VERSION_HASH: constant(bytes32) = keccak256(version)
 
 name: public(immutable(String[64]))
 symbol: public(immutable(String[32]))
+salt: public(immutable(bytes32))
 
 NAME_HASH: immutable(bytes32)
 CACHED_CHAIN_ID: immutable(uint256)
-salt: public(immutable(bytes32))
 CACHED_DOMAIN_SEPARATOR: immutable(bytes32)
 
 
@@ -58,18 +54,7 @@ balanceOf: public(HashMap[address, uint256])
 totalSupply: public(uint256)
 
 nonces: public(HashMap[address, uint256])
-
-admin: public(address)
-_is_minter: HashMap[address, bool]
-
-CACHED_CHAIN_ID: public(immutable(uint256))
-CACHED_DOMAIN_SEPARATOR: public(immutable(bytes32))
-nonces: public(HashMap[address, uint256])
-
-EIP712_TYPEHASH: constant(bytes32) = keccak256("EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)")
-PERMIT_TYPEHASH: constant(bytes32) = keccak256("Permit(address owner,address spender,uint256 value,uint256 nonce,uint256 deadline)")
-ERC1271_MAGIC_VAL: constant(bytes32) = 0x1626ba7e00000000000000000000000000000000000000000000000000000000
-VERSION: constant(String[8]) = "v1.0.0"
+minter: public(address)
 
 
 @external
@@ -91,8 +76,8 @@ def __init__(_name: String[64], _symbol: String[32]):
         )
     )
 
-    self.admin = msg.sender
-    log SetAdmin(msg.sender)
+    self.minter = msg.sender
+    log SetMinter(msg.sender)
 
 
 @internal
@@ -213,7 +198,12 @@ def permit(
             keccak256(_abi_encode(EIP2612_TYPEHASH, _owner, _spender, _value, nonce, _deadline)),
         )
     )
-    assert ecrecover(digest, _v, _r, _s) == _owner
+
+    if _owner.is_contract:
+        sig: Bytes[65] = concat(_abi_encode(_r, _s), slice(convert(_v, bytes32), 31, 1))
+        assert ERC1271(_owner).isValidSignature(digest, sig) == ERC1271_MAGIC_VAL
+    else:
+        assert ecrecover(digest, _v, _r, _s) == _owner
 
     self.nonces[_owner] = nonce + 1
     self._approve(_owner, _spender, _value)
@@ -299,7 +289,7 @@ def mint(_to: address, _value: uint256) -> bool:
     @param _to The account newly minted tokens are credited to.
     @param _value The amount of tokens to mint.
     """
-    assert self._is_minter[msg.sender] or msg.sender == self.admin
+    assert msg.sender == self.minter
     assert _to not in [self, empty(address)]
 
     self.balanceOf[_to] += _value
@@ -310,42 +300,11 @@ def mint(_to: address, _value: uint256) -> bool:
 
 
 @external
-def add_minter(_minter: address):
-    """
-    @notice Allow an account to mint new tokens.
-    @dev Only callable by the admin.
-    @param _minter The account to grant minter privileges to.
-    """
-    assert msg.sender == self.admin
+def set_minter(_minter: address):
+    assert msg.sender == self.minter
 
-    self._is_minter[_minter] = True
-    log AddMinter(_minter)
-
-
-@external
-def remove_minter(_minter: address):
-    """
-    @notice Revoke an account's ability to mint new tokens.
-    @dev Only callable by the admin.
-    @param _minter The account to revoke minter privileges from.
-    """
-    assert msg.sender == self.admin
-
-    self._is_minter[_minter] = False
-    log RemoveMinter(_minter)
-
-
-@external
-def set_admin(_new_admin: address):
-    """
-    @notice Set `_new_admin` as the admin.
-    @dev Only callable by the current admin.
-    @param _new_admin The account to set as the admin.
-    """
-    assert msg.sender == self.admin
-
-    self.admin = _new_admin
-    log SetAdmin(_new_admin)
+    self.minter = _minter
+    log SetMinter(_minter)
 
 
 @view
@@ -355,13 +314,3 @@ def DOMAIN_SEPARATOR() -> bytes32:
     @notice EIP712 domain separator.
     """
     return self._domain_separator()
-
-
-@view
-@external
-def is_minter(_account: address) -> bool:
-    """
-    @notice Query whether an account is allowed to mint new tokens.
-    @param _account The account to check the minter privileges of.
-    """
-    return self._is_minter[_account] or _account == self.admin
