@@ -10,6 +10,10 @@ from vyper.interfaces import ERC20
 implements: ERC20
 
 
+interface ERC1271:
+    def isValidSignature(_hash: bytes32, _signature: Bytes[65]) -> bytes32: view
+
+
 event Transfer:
     _from: indexed(address)
     _to: indexed(address)
@@ -30,13 +34,25 @@ totalSupply: public(uint256)
 
 minter: public(address)
 
+DOMAIN_SEPARATOR: public(bytes32)
+nonces: public(HashMap[address, uint256])
+
+EIP712_TYPEHASH: constant(bytes32) = keccak256("EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)")
+PERMIT_TYPEHASH: constant(bytes32) = keccak256("Permit(address owner,address spender,uint256 value,uint256 nonce,uint256 deadline)")
+ERC1271_MAGIC_VAL: constant(bytes32) = 0x1626ba7e00000000000000000000000000000000000000000000000000000000
+VERSION: constant(String[8]) = "v1.0.0"
+
 
 @external
 def __init__(_name: String[64], _symbol: String[32]):
     self.name = _name
     self.symbol = _symbol
     self.minter = msg.sender
-    log Transfer(ZERO_ADDRESS, msg.sender, 0)
+    log Transfer(empty(address), msg.sender, 0)
+
+    self.DOMAIN_SEPARATOR = keccak256(
+        _abi_encode(EIP712_TYPEHASH, keccak256(_name), keccak256(VERSION), chain.id, self)
+    )
 
 
 @view
@@ -78,7 +94,7 @@ def transferFrom(_from : address, _to : address, _value : uint256) -> bool:
     self.balanceOf[_to] += _value
 
     _allowance: uint256 = self.allowance[_from][msg.sender]
-    if _allowance != MAX_UINT256:
+    if _allowance != max_value(uint256):
         self.allowance[_from][msg.sender] = _allowance - _value
 
     log Transfer(_from, _to, _value)
@@ -153,7 +169,7 @@ def mint(_to: address, _value: uint256) -> bool:
     self.totalSupply += _value
     self.balanceOf[_to] += _value
 
-    log Transfer(ZERO_ADDRESS, _to, _value)
+    log Transfer(empty(address), _to, _value)
     return True
 
 
@@ -169,7 +185,7 @@ def burnFrom(_to: address, _value: uint256) -> bool:
     self.totalSupply -= _value
     self.balanceOf[_to] -= _value
 
-    log Transfer(_to, ZERO_ADDRESS, _value)
+    log Transfer(_to, empty(address), _value)
     return True
 
 
@@ -177,3 +193,54 @@ def burnFrom(_to: address, _value: uint256) -> bool:
 def set_minter(_minter: address):
     assert self.minter == msg.sender
     self.minter = _minter
+
+
+@external
+def permit(
+    _owner: address,
+    _spender: address,
+    _value: uint256,
+    _deadline: uint256,
+    _v: uint8,
+    _r: bytes32,
+    _s: bytes32
+) -> bool:
+    """
+    @notice Approves spender by owner's signature to expend owner's tokens.
+        See https://eips.ethereum.org/EIPS/eip-2612.
+    @dev Inspired by https://github.com/yearn/yearn-vaults/blob/main/contracts/Vault.vy#L753-L793
+    @dev Supports smart contract wallets which implement ERC1271
+        https://eips.ethereum.org/EIPS/eip-1271
+    @param _owner The address which is a source of funds and has signed the Permit.
+    @param _spender The address which is allowed to spend the funds.
+    @param _value The amount of tokens to be spent.
+    @param _deadline The timestamp after which the Permit is no longer valid.
+    @param _v The bytes[64] of the valid secp256k1 signature of permit by owner
+    @param _r The bytes[0:32] of the valid secp256k1 signature of permit by owner
+    @param _s The bytes[32:64] of the valid secp256k1 signature of permit by owner
+    @return True, if transaction completes successfully
+    """
+    assert _owner != empty(address)
+    assert block.timestamp <= _deadline
+
+    nonce: uint256 = self.nonces[_owner]
+    digest: bytes32 = keccak256(
+        concat(
+            b"\x19\x01",
+            self.DOMAIN_SEPARATOR,
+            keccak256(_abi_encode(PERMIT_TYPEHASH, _owner, _spender, _value, nonce, _deadline))
+        )
+    )
+
+    if _owner.is_contract:
+        sig: Bytes[65] = concat(_abi_encode(_r, _s), slice(convert(_v, bytes32), 31, 1))
+        # reentrancy not a concern since this is a staticcall
+        assert ERC1271(_owner).isValidSignature(digest, sig) == ERC1271_MAGIC_VAL
+    else:
+        assert ecrecover(digest, convert(_v, uint256), convert(_r, uint256), convert(_s, uint256)) == _owner
+
+    self.allowance[_owner][_spender] = _value
+    self.nonces[_owner] = nonce + 1
+
+    log Approval(_owner, _spender, _value)
+    return True
