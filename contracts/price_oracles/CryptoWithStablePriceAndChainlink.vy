@@ -1,4 +1,9 @@
 # @version 0.3.7
+"""
+@title CryptoWithStablePriceAndChainlink - price oracle for tricrypto with Chainlink limits for crvUSD
+@author Curve.Fi
+@license MIT
+"""
 
 interface Tricrypto:
     def price_oracle(k: uint256) -> uint256: view

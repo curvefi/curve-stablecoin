@@ -1,4 +1,9 @@
 # @version 0.3.7
+"""
+@title AggregatorStablePrice - aggregator of stablecoin prices for crvUSD
+@author Curve.Fi
+@license Copyright (c) Curve.Fi, 2020-2023 - all rights reserved
+"""
 # Returns price of stablecoin in "dollars" based on multiple redeemable stablecoins
 # Recommended to use 3+ price sources
 

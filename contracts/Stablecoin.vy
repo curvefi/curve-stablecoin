@@ -1,11 +1,8 @@
 # @version 0.3.7
 """
-@title Curve LP Token
+@title crvUSD Stablecoin
 @author Curve.Fi
-@notice Base implementation for an LP token provided for
-        supplying liquidity to `StableSwap`
-@dev Follows the ERC-20 token standard as defined at
-     https://eips.ethereum.org/EIPS/eip-20
+@license Copyright (c) Curve.Fi, 2020-2023 - all rights reserved
 """
 
 from vyper.interfaces import ERC20

@@ -2,7 +2,7 @@
 """
 @title StableSwap
 @author Curve.Fi
-@license Copyright (c) Curve.Fi, 2020-2021 - all rights reserved
+@license Copyright (c) Curve.Fi, 2020-2023 - all rights reserved
 @notice 2 coin pool implementation with no lending
 @dev ERC20 support for return True/revert, return True/False, return None
 """

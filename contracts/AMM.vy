@@ -1,4 +1,9 @@
 # @version 0.3.7
+"""
+@title LLAMMA - crvUSD AMM
+@author Curve.Fi
+@license Copyright (c) Curve.Fi, 2020-2023 - all rights reserved
+"""
 
 # Glossary of variables and terms
 # =======================

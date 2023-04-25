@@ -1,4 +1,9 @@
 # @version 0.3.7
+"""
+@title crvUSD ControllerFactory
+@author Curve.Fi
+@license Copyright (c) Curve.Fi, 2020-2023 - all rights reserved
+"""
 
 interface ERC20:
     def mint(_to: address, _value: uint256) -> bool: nonpayable

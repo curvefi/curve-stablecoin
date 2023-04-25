@@ -1,4 +1,9 @@
 # @version 0.3.7
+"""
+@title AggMonetaryPolicy - monetary policy based on aggregated prices for crvUSD
+@author Curve.Fi
+@license Copyright (c) Curve.Fi, 2020-2023 - all rights reserved
+"""
 
 interface PegKeeper:
     def debt() -> uint256: view

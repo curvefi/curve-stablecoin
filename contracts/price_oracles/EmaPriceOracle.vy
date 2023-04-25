@@ -1,4 +1,9 @@
 # @version 0.3.7
+"""
+@title EMAPriceOracle - wrapper which adds EMA to a price source for crvUSD
+@author Curve.Fi
+@license MIT
+"""
 
 last_prices_packed: uint256
 last_timestamp: uint256
