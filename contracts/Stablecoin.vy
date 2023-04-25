@@ -34,7 +34,8 @@ totalSupply: public(uint256)
 
 minter: public(address)
 
-DOMAIN_SEPARATOR: public(bytes32)
+CACHED_CHAIN_ID: public(immutable(uint256))
+CACHED_DOMAIN_SEPARATOR: public(immutable(bytes32))
 nonces: public(HashMap[address, uint256])
 
 EIP712_TYPEHASH: constant(bytes32) = keccak256("EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)")
@@ -50,9 +51,20 @@ def __init__(_name: String[64], _symbol: String[32]):
     self.minter = msg.sender
     log Transfer(empty(address), msg.sender, 0)
 
-    self.DOMAIN_SEPARATOR = keccak256(
+    CACHED_CHAIN_ID = chain.id
+    CACHED_DOMAIN_SEPARATOR = keccak256(
         _abi_encode(EIP712_TYPEHASH, keccak256(_name), keccak256(VERSION), chain.id, self)
     )
+
+
+@view
+@internal
+def _domain_separator() -> bytes32:
+    if chain.id != CACHED_CHAIN_ID:
+        return keccak256(
+            _abi_encode(EIP712_TYPEHASH, keccak256(self.name), keccak256(VERSION), chain.id, self)
+        )
+    return CACHED_DOMAIN_SEPARATOR
 
 
 @view
@@ -227,7 +239,7 @@ def permit(
     digest: bytes32 = keccak256(
         concat(
             b"\x19\x01",
-            self.DOMAIN_SEPARATOR,
+            self._domain_separator(),
             keccak256(_abi_encode(PERMIT_TYPEHASH, _owner, _spender, _value, nonce, _deadline))
         )
     )
@@ -244,3 +256,9 @@ def permit(
 
     log Approval(_owner, _spender, _value)
     return True
+
+
+@view
+@external
+def DOMAIN_SEPARATOR() -> bytes32:
+    return self._domain_separator()
