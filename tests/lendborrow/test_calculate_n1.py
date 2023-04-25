@@ -1,7 +1,6 @@
 from math import log2
-from hypothesis import given, settings
+from hypothesis import given
 from hypothesis import strategies as st
-from datetime import timedelta
 
 
 @given(
@@ -9,7 +8,6 @@ from datetime import timedelta
     debt=st.integers(min_value=10**6, max_value=2 * 10**6 * 10**18),
     collateral=st.integers(min_value=10**6, max_value=10**9 * 10**18 // 3000),
 )
-@settings(deadline=timedelta(seconds=1000))
 def test_n1(market_amm, market_controller, collateral, debt, n):
     n0 = market_amm.active_band()
     A = market_amm.A()

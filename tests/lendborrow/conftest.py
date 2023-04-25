@@ -1,5 +1,10 @@
 import boa
 import pytest
+from vyper.utils import abi_method_id
+
+
+def get_method_id(desc):
+    return abi_method_id(desc).to_bytes(4, 'big') + b'\x00' * 28
 
 
 @pytest.fixture(scope="module")
@@ -9,9 +14,15 @@ def stablecoin(admin):
 
 
 @pytest.fixture(scope="module")
-def controller_prefactory(stablecoin, admin, accounts):
+def weth(admin):
     with boa.env.prank(admin):
-        return boa.load('contracts/ControllerFactory.vy', stablecoin.address, admin, accounts[0])
+        return boa.load('contracts/testing/WETH.vy')
+
+
+@pytest.fixture(scope="module")
+def controller_prefactory(stablecoin, weth, admin, accounts):
+    with boa.env.prank(admin):
+        return boa.load('contracts/ControllerFactory.vy', stablecoin.address, admin, accounts[0], weth.address)
 
 
 @pytest.fixture(scope="module")
@@ -47,7 +58,7 @@ def controller_factory(controller_prefactory, amm_impl, controller_impl, stablec
 @pytest.fixture(scope="module")
 def monetary_policy(admin):
     with boa.env.prank(admin):
-        policy = boa.load('contracts/mpolicies/ConstantMonetaryPolicy.vy', admin)
+        policy = boa.load('contracts/testing/ConstantMonetaryPolicy.vy', admin)
         policy.set_rate(0)
         return policy
 
@@ -82,3 +93,13 @@ def market_controller(market, stablecoin, collateral_token, controller_impl, con
             collateral_token.approve(controller.address, 2**256-1)
             stablecoin.approve(controller.address, 2**256-1)
     return controller
+
+
+@pytest.fixture(scope="module")
+def fake_leverage(stablecoin, collateral_token, market_controller, admin):
+    # Fake leverage testing contract can also be used to liquidate via the callback
+    with boa.env.prank(admin):
+        leverage = boa.load('contracts/testing/FakeLeverage.vy', stablecoin.address, collateral_token.address,
+                            market_controller.address, 3000 * 10**18)
+        collateral_token._mint_for_testing(leverage.address, 1000 * 10**18)
+        return leverage

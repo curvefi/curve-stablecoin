@@ -21,6 +21,7 @@ interface CurvePool:
 
 interface ERC20:
     def approve(_spender: address, _amount: uint256): nonpayable
+    def decimals() -> uint256: view
 
 
 event Provide:
@@ -60,6 +61,7 @@ POOL: immutable(CurvePool)
 I: immutable(uint256)  # index of pegged in pool
 PEGGED: immutable(address)
 IS_INVERSE: immutable(bool)
+PEG_MUL: immutable(uint256)
 
 AGGREGATOR: immutable(StableAggregator)
 
@@ -83,7 +85,7 @@ FACTORY: immutable(address)
 
 
 @external
-def __init__(_pool: CurvePool, _index: uint256, _receiver: address, _caller_share: uint256, _factory: address, _aggregator: StableAggregator):
+def __init__(_pool: CurvePool, _index: uint256, _receiver: address, _caller_share: uint256, _factory: address, _aggregator: StableAggregator, _admin: address):
     """
     @notice Contract constructor
     @param _pool Contract pool address
@@ -92,6 +94,7 @@ def __init__(_pool: CurvePool, _index: uint256, _receiver: address, _caller_shar
     @param _caller_share Caller's share of profit
     @param _factory Factory which should be able to take coins away
     @param _aggregator Price aggregator which shows the price of pegged in real "dollars"
+    @param _admin Admin account
     """
     assert _index < 2
     POOL = _pool
@@ -101,11 +104,15 @@ def __init__(_pool: CurvePool, _index: uint256, _receiver: address, _caller_shar
     ERC20(pegged).approve(_pool.address, max_value(uint256))
     ERC20(pegged).approve(_factory, max_value(uint256))
 
-    self.admin = msg.sender
+    PEG_MUL = 10 ** (18 - ERC20(_pool.coins(1 - _index)).decimals())
+
+    self.admin = _admin
+    assert _receiver != empty(address)
     self.receiver = _receiver
     log ApplyNewAdmin(msg.sender)
     log ApplyNewReceiver(_receiver)
 
+    assert _caller_share <= SHARE_PRECISION  # dev: bad part value
     self.caller_share = _caller_share
     log SetNewCallerShare(_caller_share)
 
@@ -155,9 +162,7 @@ def _provide(_amount: uint256):
 @internal
 def _withdraw(_amount: uint256):
     debt: uint256 = self.debt
-    amount: uint256 = _amount
-    if amount > debt:
-        amount = debt
+    amount: uint256 = min(_amount, debt)
 
     amounts: uint256[2] = empty(uint256[2])
     amounts[I] = amount
@@ -175,22 +180,12 @@ def _calc_profit() -> uint256:
     lp_balance: uint256 = POOL.balanceOf(self)
 
     virtual_price: uint256 = POOL.get_virtual_price()
-    lp_debt: uint256 = self.debt * PRECISION / virtual_price
+    lp_debt: uint256 = self.debt * PRECISION / virtual_price + PROFIT_THRESHOLD
 
-    if lp_balance <= lp_debt + PROFIT_THRESHOLD:
+    if lp_balance <= lp_debt:
         return 0
     else:
-        return lp_balance - lp_debt - PROFIT_THRESHOLD
-
-
-@internal
-@view
-def _pool_price() -> uint256:
-    p: uint256 = POOL.get_p()
-    if IS_INVERSE:
-        return 10**36 / p
-    else:
-        return p
+        return lp_balance - lp_debt
 
 
 @external
@@ -215,22 +210,22 @@ def update(_beneficiary: address = msg.sender) -> uint256:
         return 0
 
     balance_pegged: uint256 = POOL.balances(I)
-    balance_peg: uint256 = POOL.balances(1 - I)
+    balance_peg: uint256 = POOL.balances(1 - I) * PEG_MUL
 
     initial_profit: uint256 = self._calc_profit()
 
     p_agg: uint256 = AGGREGATOR.price()  # Current USD per stablecoin
-    p0: uint256 = self._pool_price()  # USDT per stablecoin
+
+    # Checking the balance will ensure no-loss of the stabilizer, but to ensure stabilization
+    # we need to exclude "bad" p_agg, so we add an extra check for it
 
     if balance_peg > balance_pegged:
-        self._provide((balance_peg - balance_pegged) / 5)
-        # self._pool_price() >= p0 * 10**18 / p_agg
-        assert self._pool_price() * p_agg >= p0 * 10**18
+        assert p_agg >= 10**18
+        self._provide((balance_peg - balance_pegged) / 5)  # this dumps stablecoin
 
     else:
-        self._withdraw((balance_pegged - balance_peg) / 5)
-        # self._pool_price() <= p0 * 10**18 / p_agg
-        assert self._pool_price() * p_agg <= p0 * 10**18
+        assert p_agg <= 10**18
+        self._withdraw((balance_pegged - balance_peg) / 5)  # this pumps stablecoin
 
     # Send generated profit
     new_profit: uint256 = self._calc_profit()

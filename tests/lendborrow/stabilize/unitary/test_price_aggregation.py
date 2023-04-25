@@ -1,4 +1,4 @@
-from ...conftest import approx
+from ....conftest import approx
 import boa
 
 
@@ -33,7 +33,10 @@ def test_crypto_agg(dummy_tricrypto, crypto_agg, stableswap_a, stablecoin_a, adm
             assert crypto_agg.price() == 3000 * 10**18
 
             with boa.env.prank(admin):
+                crypto_agg.price_w()
                 dummy_tricrypto.set_price(0, 1000 * 10**18)
+                crypto_agg.price_w()
+
             assert dummy_tricrypto.price_oracle(0) == 1000 * 10**18
             assert crypto_agg.price() == 3000 * 10**18
             assert crypto_agg.raw_price() == 1000 * 10**18

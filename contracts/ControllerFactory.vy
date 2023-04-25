@@ -1,4 +1,9 @@
 # @version 0.3.7
+"""
+@title crvUSD ControllerFactory
+@author Curve.Fi
+@license Copyright (c) Curve.Fi, 2020-2023 - all rights reserved
+"""
 
 interface ERC20:
     def mint(_to: address, _value: uint256) -> bool: nonpayable
@@ -8,27 +13,39 @@ interface ERC20:
 
 interface PriceOracle:
     def price() -> uint256: view
+    def price_w() -> uint256: nonpayable
 
 interface AMM:
     def set_admin(_admin: address): nonpayable
 
 interface Controller:
     def total_debt() -> uint256: view
+    def minted() -> uint256: view
+    def redeemed() -> uint256: view
+    def collect_fees() -> uint256: nonpayable
 
 interface MonetaryPolicy:
     def rate_write() -> uint256: nonpayable
 
 
 event AddMarket:
-    collateral: address
+    collateral: indexed(address)
     controller: address
     amm: address
     monetary_policy: address
     ix: uint256
 
 event SetDebtCeiling:
-    addr: address
+    addr: indexed(address)
     debt_ceiling: uint256
+
+event MintForMarket:
+    addr: indexed(address)
+    amount: uint256
+
+event RemoveFromMarket:
+    addr: indexed(address)
+    amount: uint256
 
 event SetImplementations:
     amm: address
@@ -65,20 +82,25 @@ MAX_ADMIN_FEE: constant(uint256) = 10**18  # 100%
 MAX_LOAN_DISCOUNT: constant(uint256) = 5 * 10**17
 MIN_LIQUIDATION_DISCOUNT: constant(uint256) = 10**16
 
+WETH: public(immutable(address))
+
 
 @external
 def __init__(stablecoin: ERC20,
              admin: address,
-             fee_receiver: address):
+             fee_receiver: address,
+             weth: address):
     """
     @notice Factory which creates both controllers and AMMs from blueprints
     @param stablecoin Stablecoin address
     @param admin Admin of the factory (ideally DAO)
     @param fee_receiver Receiver of interest and admin fees
+    @param weth Address of WETH contract address
     """
     STABLECOIN = stablecoin
     self.admin = admin
     self.fee_receiver = fee_receiver
+    WETH = weth
 
 
 @internal
@@ -128,13 +150,16 @@ def _set_debt_ceiling(addr: address, debt_ceiling: uint256, update: bool):
     old_debt_residual: uint256 = self.debt_ceiling_residual[addr]
 
     if debt_ceiling > old_debt_residual:
-        STABLECOIN.mint(addr, debt_ceiling - old_debt_residual)
+        to_mint: uint256 = debt_ceiling - old_debt_residual
+        STABLECOIN.mint(addr, to_mint)
         self.debt_ceiling_residual[addr] = debt_ceiling
+        log MintForMarket(addr, to_mint)
 
     if debt_ceiling < old_debt_residual:
         diff: uint256 = min(old_debt_residual - debt_ceiling, STABLECOIN.balanceOf(addr))
         STABLECOIN.burnFrom(addr, diff)
         self.debt_ceiling_residual[addr] = old_debt_residual - diff
+        log RemoveFromMarket(addr, diff)
 
     if update:
         self.debt_ceiling[addr] = debt_ceiling
@@ -169,7 +194,9 @@ def add_market(token: address, A: uint256, fee: uint256, admin_fee: uint256,
     assert loan_discount > liquidation_discount, "need loan_discount>liquidation_discount"
     MonetaryPolicy(monetary_policy).rate_write()  # Test that MonetaryPolicy has correct ABI
 
-    p: uint256 = PriceOracle(_price_oracle_contract).price()  # This also valudates price oracle ABI
+    p: uint256 = PriceOracle(_price_oracle_contract).price()  # This also validates price oracle ABI
+    assert p > 0
+    assert PriceOracle(_price_oracle_contract).price_w() == p
     A_ratio: uint256 = 10**18 * A / (A - 1)
 
     amm: address = create_from_blueprint(
@@ -299,3 +326,24 @@ def rug_debt_ceiling(_to: address):
     @param _to Address to remove stablecoins from
     """
     self._set_debt_ceiling(_to, self.debt_ceiling[_to], False)
+
+
+@external
+@nonreentrant('lock')
+def collect_fees_above_ceiling(_to: address):
+    """
+    @notice If the receiver is the controller - increase the debt ceiling if it's not enough to claim admin fees
+            and claim them
+    @param _to Address of the controller
+    """
+    assert msg.sender == self.admin
+    old_debt_residual: uint256 = self.debt_ceiling_residual[_to]
+    assert self.debt_ceiling[_to] > 0 or old_debt_residual > 0
+
+    admin_fees: uint256 = Controller(_to).total_debt() + Controller(_to).redeemed() - Controller(_to).minted()
+    b: uint256 = STABLECOIN.balanceOf(_to)
+    if admin_fees > b:
+        to_mint: uint256 = admin_fees - b
+        STABLECOIN.mint(_to, to_mint)
+        self.debt_ceiling_residual[_to] = old_debt_residual + to_mint
+    Controller(_to).collect_fees()

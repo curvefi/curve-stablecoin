@@ -1,5 +1,5 @@
 from brownie import accounts, network
-from brownie import ControllerFactory, Controller, AMM, Stablecoin
+from brownie import ControllerFactory, Controller, AMM, Stablecoin, WETH
 from brownie import ConstantMonetaryPolicy, DummyPriceOracle
 from brownie import ERC20Mock
 
@@ -24,8 +24,9 @@ def main():
         admin = accounts[0]
         fee_receiver = accounts[0]
 
+    weth = WETH.deploy(txparams)
     stablecoin = Stablecoin.deploy(FULL_NAME, SHORT_NAME, txparams)
-    factory = ControllerFactory.deploy(stablecoin, admin, fee_receiver, txparams)
+    factory = ControllerFactory.deploy(stablecoin, admin, fee_receiver, weth, txparams)
     controller_impl = deploy_blueprint(Controller, accounts[0], txparams)
     amm_impl = deploy_blueprint(AMM, accounts[0], txparams)
 

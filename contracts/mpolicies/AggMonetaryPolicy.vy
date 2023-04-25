@@ -1,4 +1,9 @@
 # @version 0.3.7
+"""
+@title AggMonetaryPolicy - monetary policy based on aggregated prices for crvUSD
+@author Curve.Fi
+@license Copyright (c) Curve.Fi, 2020-2023 - all rights reserved
+"""
 
 interface PegKeeper:
     def debt() -> uint256: view
@@ -14,10 +19,10 @@ event SetAdmin:
     admin: address
 
 event AddPegKeeper:
-    peg_keeper: address
+    peg_keeper: indexed(address)
 
 event RemovePegKeeper:
-    peg_keeper: address
+    peg_keeper: indexed(address)
 
 event SetRate:
     rate: uint256
@@ -36,8 +41,8 @@ sigma: public(int256)  # 2 * 10**16 for example
 target_debt_fraction: public(uint256)
 
 peg_keepers: public(PegKeeper[1001])
-PRICE_ORACLE: immutable(PriceOracle)
-CONTROLLER_FACTORY: immutable(ControllerFactory)
+PRICE_ORACLE: public(immutable(PriceOracle))
+CONTROLLER_FACTORY: public(immutable(ControllerFactory))
 
 MAX_TARGET_DEBT_FRACTION: constant(uint256) = 10**18
 MAX_SIGMA: constant(uint256) = 10**18

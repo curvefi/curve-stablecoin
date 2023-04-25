@@ -1,4 +1,10 @@
 # @version 0.3.7
+
+"""
+This contract is for testing only.
+If you see it on mainnet - it won't be used for anything except testing the actual deployment
+"""
+
 price: public(uint256)
 ADMIN: immutable(address)
 

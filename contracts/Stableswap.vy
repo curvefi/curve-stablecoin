@@ -2,7 +2,7 @@
 """
 @title StableSwap
 @author Curve.Fi
-@license Copyright (c) Curve.Fi, 2020-2021 - all rights reserved
+@license Copyright (c) Curve.Fi, 2020-2023 - all rights reserved
 @notice 2 coin pool implementation with no lending
 @dev ERC20 support for return True/revert, return True/False, return None
 """
@@ -70,15 +70,23 @@ event StopRampA:
     A: uint256
     t: uint256
 
+event CommitNewFee:
+    new_fee: uint256
+
+event ApplyNewFee:
+    fee: uint256
+
 
 N_COINS: constant(uint256) = 2
 N_COINS_128: constant(int128) = 2
 PRECISION: constant(uint256) = 10 ** 18
+ADMIN_ACTIONS_DEADLINE_DT: constant(uint256) = 86400 * 3
 
 FEE_DENOMINATOR: constant(uint256) = 10 ** 10
 ADMIN_FEE: constant(uint256) = 5000000000
 
 A_PRECISION: constant(uint256) = 100
+MAX_FEE: constant(uint256) = 5 * 10 ** 9
 MAX_A: constant(uint256) = 10 ** 6
 MAX_A_CHANGE: constant(uint256) = 10
 MIN_RAMP_TIME: constant(uint256) = 86400
@@ -90,14 +98,14 @@ PERMIT_TYPEHASH: constant(bytes32) = keccak256("Permit(address owner,address spe
 ERC1271_MAGIC_VAL: constant(bytes32) = 0x1626ba7e00000000000000000000000000000000000000000000000000000000
 VERSION: constant(String[8]) = "v6.0.0"
 
-EXP_PRECISION: constant(uint256) = 10**10
 
-
-factory: address
+factory: public(address)
 
 coins: public(address[N_COINS])
 balances: public(uint256[N_COINS])
 fee: public(uint256)  # fee * 1e10
+future_fee: public(uint256)
+admin_action_deadline: public(uint256)
 
 initial_A: public(uint256)
 future_A: public(uint256)
@@ -116,8 +124,8 @@ totalSupply: public(uint256)
 DOMAIN_SEPARATOR: public(bytes32)
 nonces: public(HashMap[address, uint256])
 
-ma_price: uint256
-ma_half_time: public(uint256)
+last_prices_packed: uint256  #  [last_price, ma_price]
+ma_exp_time: public(uint256)
 ma_last_time: public(uint256)
 
 
@@ -161,8 +169,8 @@ def initialize(
     self.future_A = A
     self.fee = _fee
     self.factory = msg.sender
-    self.ma_half_time = 866  # = 600 / ln(2)
-    self.ma_price = 10**18
+    self.ma_exp_time = 866  # = 600 / ln(2)
+    self.last_prices_packed = self.pack_prices(10**18, 10**18)
     self.ma_last_time = block.timestamp
 
     name: String[64] = concat("Curve.fi Factory Plain Pool: ", _name)
@@ -298,6 +306,26 @@ def permit(
 
 
 ### StableSwap Functionality ###
+
+@pure
+@internal
+def pack_prices(p1: uint256, p2: uint256) -> uint256:
+    assert p1 < 2**128
+    assert p2 < 2**128
+    return p1 | shift(p2, 128)
+
+
+@view
+@external
+def last_price() -> uint256:
+    return self.last_prices_packed & (2**128 - 1)
+
+
+@view
+@external
+def ema_price() -> uint256:
+    return shift(self.last_prices_packed, -128)
+
 
 @view
 @external
@@ -455,19 +483,38 @@ def exp(power: int256) -> uint256:
 
 @internal
 @view
-def _ma_price(xp: uint256[N_COINS], amp: uint256, D: uint256) -> uint256:
-    p: uint256 = self._get_p(xp, amp, D)
-    ema_mul: uint256 = self.exp(-convert((block.timestamp - self.ma_last_time) * 10**18 / self.ma_half_time, int256))
-    return (self.ma_price * ema_mul + p * (10**18 - ema_mul)) / 10**18
+def _ma_price() -> uint256:
+    ma_last_time: uint256 = self.ma_last_time
+
+    pp: uint256 = self.last_prices_packed
+    last_price: uint256 = min(pp & (2**128 - 1), 2 * 10**18)
+    last_ema_price: uint256 = shift(pp, -128)
+
+    if ma_last_time < block.timestamp:
+        alpha: uint256 = self.exp(- convert((block.timestamp - ma_last_time) * 10**18 / self.ma_exp_time, int256))
+        return (last_price * (10**18 - alpha) + last_ema_price * alpha) / 10**18
+
+    else:
+        return last_ema_price
 
 
 @external
 @view
 def price_oracle() -> uint256:
-    amp: uint256 = self._A()
-    xp: uint256[N_COINS] = self._xp_mem(self.rate_multipliers, self.balances)
-    D: uint256 = self.get_D(xp, amp)
-    return self._ma_price(xp, amp, D)
+    return self._ma_price()
+
+
+@internal
+def save_p_from_price(last_price: uint256):
+    """
+    Saves current price and its EMA
+    """
+    # XXX reminder: put an upper limit on last_price (2.0?) to prevent manipulation
+    # (separately)
+    if last_price != 0:
+        self.last_prices_packed = self.pack_prices(last_price, self._ma_price())
+        if self.ma_last_time < block.timestamp:
+            self.ma_last_time = block.timestamp
 
 
 @internal
@@ -475,8 +522,7 @@ def save_p(xp: uint256[N_COINS], amp: uint256, D: uint256):
     """
     Saves current price and its EMA
     """
-    self.ma_price = self._ma_price(xp, amp, D)
-    self.ma_last_time = block.timestamp
+    self.save_p_from_price(self._get_p(xp, amp, D))
 
 
 @view
@@ -803,6 +849,7 @@ def remove_liquidity_imbalance(
         if amount != 0:
             new_balances[i] -= amount
             assert ERC20(self.coins[i]).transfer(_receiver, amount, default_return_value=True)  # dev: failed transfer
+
     D1: uint256 = self.get_D_mem(rates, new_balances, amp)
 
     fees: uint256[N_COINS] = empty(uint256[N_COINS])
@@ -917,11 +964,11 @@ def _calc_withdraw_one_coin(_burn_amount: uint256, i: int128) -> uint256[3]:
     dy = (dy - 1) * PRECISION / rates[i]  # Withdraw less to account for rounding errors
 
     xp[i] = new_y
-    ma_p: uint256 = 0
+    last_p: uint256 = 0
     if new_y > 0:
-        ma_p = self._ma_price(xp, amp, D1)
+        last_p = self._get_p(xp, amp, D1)
 
-    return [dy, dy_0 - dy, ma_p]
+    return [dy, dy_0 - dy, last_p]
 
 
 @view
@@ -964,8 +1011,7 @@ def remove_liquidity_one_coin(
     assert ERC20(self.coins[i]).transfer(_receiver, dy[0], default_return_value=True)  # dev: failed transfer
     log RemoveLiquidityOne(msg.sender, _burn_amount, dy[0], total_supply)
 
-    self.ma_price = dy[2]
-    self.ma_last_time = block.timestamp
+    self.save_p_from_price(dy[2])
 
     return dy[0]
 
@@ -1007,10 +1053,41 @@ def stop_ramp_A():
     log StopRampA(current_A, block.timestamp)
 
 
+@external
+def set_ma_exp_time(_ma_exp_time: uint256):
+    assert msg.sender == Factory(self.factory).admin()  # dev: only owner
+    assert _ma_exp_time != 0
+
+    self.ma_exp_time = _ma_exp_time
+
+
 @view
 @external
 def admin_balances(i: uint256) -> uint256:
     return ERC20(self.coins[i]).balanceOf(self) - self.balances[i]
+
+
+@external
+def commit_new_fee(_new_fee: uint256):
+    assert msg.sender == Factory(self.factory).admin()
+    assert _new_fee <= MAX_FEE
+    assert self.admin_action_deadline == 0
+
+    self.future_fee = _new_fee
+    self.admin_action_deadline = block.timestamp + ADMIN_ACTIONS_DEADLINE_DT
+    log CommitNewFee(_new_fee)
+
+
+@external
+def apply_new_fee():
+    assert msg.sender == Factory(self.factory).admin()
+    deadline: uint256 = self.admin_action_deadline
+    assert deadline != 0 and block.timestamp >= deadline
+
+    fee: uint256 = self.future_fee
+    self.fee = fee
+    self.admin_action_deadline = 0
+    log ApplyNewFee(fee)
 
 
 @external

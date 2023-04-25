@@ -1,14 +1,13 @@
 import boa
 from hypothesis import given, settings
 from hypothesis import strategies as st
-from datetime import timedelta
 from ..conftest import approx
 
 
 @given(
     collateral_amount=st.integers(min_value=100, max_value=10**20),
     n=st.integers(min_value=5, max_value=50))
-@settings(max_examples=1000, deadline=timedelta(seconds=1000))
+@settings(max_examples=1000)
 def test_max_borrowable(market_controller, collateral_amount, n):
     max_borrowable = market_controller.max_borrowable(collateral_amount, n)
     with boa.reverts():
@@ -22,7 +21,7 @@ def test_max_borrowable(market_controller, collateral_amount, n):
 @given(
     debt_amount=st.integers(min_value=100, max_value=10**20),
     n=st.integers(min_value=5, max_value=50))
-@settings(max_examples=1000, deadline=timedelta(seconds=1000))
+@settings(max_examples=1000)
 def test_min_collateral(market_controller, debt_amount, n):
     min_collateral = market_controller.min_collateral(debt_amount, n)
     market_controller.calculate_debt_n1(min_collateral, debt_amount, n)

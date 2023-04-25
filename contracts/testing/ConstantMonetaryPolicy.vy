@@ -1,4 +1,7 @@
 # @version 0.3.7
+"""
+Although this monetary policy works, it's only intended to be used in tests
+"""
 
 admin: public(address)
 rate: public(uint256)

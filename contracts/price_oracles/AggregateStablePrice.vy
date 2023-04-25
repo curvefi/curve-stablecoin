@@ -1,4 +1,9 @@
 # @version 0.3.7
+"""
+@title AggregatorStablePrice - aggregator of stablecoin prices for crvUSD
+@author Curve.Fi
+@license Copyright (c) Curve.Fi, 2020-2023 - all rights reserved
+"""
 # Returns price of stablecoin in "dollars" based on multiple redeemable stablecoins
 # Recommended to use 3+ price sources
 
@@ -26,26 +31,35 @@ event MovePricePair:
     n_from: uint256
     n_to: uint256
 
+event SetAdmin:
+    admin: address
+
+
 MAX_PAIRS: constant(uint256) = 20
+MIN_LIQUIDITY: constant(uint256) = 100_000 * 10**18  # Only take into account pools with enough liquidity
 
 STABLECOIN: immutable(address)
 SIGMA: immutable(uint256)
 price_pairs: public(PricePair[MAX_PAIRS])
 n_price_pairs: uint256
-ADMIN: immutable(address)
+
+admin: public(address)
 
 
 @external
 def __init__(stablecoin: address, sigma: uint256, admin: address):
     STABLECOIN = stablecoin
     SIGMA = sigma  # The change is so rare that we can change the whole thing altogether
-    ADMIN = admin
+    self.admin = admin
 
 
 @external
-@view
-def admin() -> address:
-    return ADMIN
+def set_admin(_admin: address):
+    # We are not doing commit / apply because the owner will be a voting DAO anyway
+    # which has vote delays
+    assert msg.sender == self.admin
+    self.admin = _admin
+    log SetAdmin(_admin)
 
 
 @external
@@ -62,7 +76,7 @@ def stablecoin() -> address:
 
 @external
 def add_price_pair(_pool: Stableswap):
-    assert msg.sender == ADMIN
+    assert msg.sender == self.admin
     price_pair: PricePair = empty(PricePair)
     price_pair.pool = _pool
     coins: address[2] = [_pool.coins(0), _pool.coins(1)]
@@ -78,7 +92,7 @@ def add_price_pair(_pool: Stableswap):
 
 @external
 def remove_price_pair(n: uint256):
-    assert msg.sender == ADMIN
+    assert msg.sender == self.admin
     n_max: uint256 = self.n_price_pairs - 1
     assert n <= n_max
 
@@ -138,7 +152,7 @@ def price() -> uint256:
             break
         price_pair: PricePair = self.price_pairs[i]
         pool_supply: uint256 = price_pair.pool.totalSupply()
-        if pool_supply > 0:
+        if pool_supply >= MIN_LIQUIDITY:
             p: uint256 = price_pair.pool.price_oracle()
             if price_pair.is_inverse:
                 p = 10**36 / p

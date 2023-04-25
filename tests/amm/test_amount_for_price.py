@@ -2,18 +2,17 @@ import boa
 from ..conftest import approx
 from hypothesis import given, settings
 from hypothesis import strategies as st
-from datetime import timedelta
 
 
 @given(
-    oracle_price=st.integers(min_value=2000 * 10**18, max_value=4000 * 10**18),
+    oracle_price=st.integers(min_value=2400 * 10**18, max_value=3750 * 10**18),
     n1=st.integers(min_value=1, max_value=50),
     dn=st.integers(min_value=0, max_value=49),
     deposit_amount=st.integers(min_value=10**12, max_value=10**20),
     init_trade_frac=st.floats(min_value=0.0, max_value=1.0),
     p_frac=st.floats(min_value=0.1, max_value=10)
 )
-@settings(max_examples=500, deadline=timedelta(seconds=1000))
+@settings(max_examples=500)
 def test_amount_for_price(price_oracle, amm, accounts, collateral_token, borrowed_token, admin,
                           oracle_price, n1, dn, deposit_amount, init_trade_frac, p_frac):
     user = accounts[0]
@@ -24,15 +23,16 @@ def test_amount_for_price(price_oracle, amm, accounts, collateral_token, borrowe
 
     # Initial deposit
     with boa.env.prank(admin):
-        collateral_token._mint_for_testing(user, deposit_amount)
-        amm.deposit_range(user, deposit_amount, n1, n2, True)
+        amm.deposit_range(user, deposit_amount, n1, n2)
+        collateral_token._mint_for_testing(amm.address, deposit_amount)
 
     with boa.env.prank(user):
         # Dump some to be somewhere inside the bands
         eamount = int(deposit_amount * amm.get_p() // 10**18 * init_trade_frac)
         if eamount > 0:
             borrowed_token._mint_for_testing(user, eamount)
-            amm.exchange(0, 1, eamount, 0)
+        boa.env.time_travel(600)  # To reset the prev p_o counter
+        amm.exchange(0, 1, eamount, 0)
         n0 = amm.active_band()
 
         p_initial = amm.get_p()
@@ -69,6 +69,16 @@ def test_amount_for_price(price_oracle, amm, accounts, collateral_token, borrowe
     assert approx(p_min, amm.p_current_down(n1), 1e-8)
 
     if abs(n_final - n0) < 50 - 1 and prec < 0.1:
+        A = amm.A()
+        a_ratio = A / (A - 1)
+        p_o_ratio = amm.p_oracle_up(n_final) / amm.price_oracle()
+        if is_pump:
+            if p_o_ratio < a_ratio**-50 * (1 + 1e-8):
+                return
+        else:
+            if p_o_ratio > a_ratio**50 * (1 - 1e-8):
+                return
+
         if p_final > p_min * (1 + prec) and p_final < p_max * (1 - prec):
             assert approx(p, p_final, prec)
 

@@ -1,8 +1,7 @@
 import boa
 from ..conftest import approx
-from hypothesis import given, settings
+from hypothesis import given
 from hypothesis import strategies as st
-from datetime import timedelta
 
 
 @given(
@@ -10,13 +9,12 @@ from datetime import timedelta
         ns=st.lists(st.integers(min_value=1, max_value=20), min_size=5, max_size=5),
         dns=st.lists(st.integers(min_value=0, max_value=20), min_size=5, max_size=5),
 )
-@settings(deadline=timedelta(seconds=1000))
 def test_dxdy_limits(amm, amounts, accounts, ns, dns, collateral_token, admin):
     with boa.env.prank(admin):
         for user, amount, n1, dn in zip(accounts[1:6], amounts, ns, dns):
             n2 = n1 + dn
-            collateral_token._mint_for_testing(user, amount)
-            amm.deposit_range(user, amount, n1, n2, True)
+            amm.deposit_range(user, amount, n1, n2)
+            collateral_token._mint_for_testing(amm.address, amount)
 
     # Swap 0
     dx, dy = amm.get_dxdy(0, 1, 0)
@@ -47,7 +45,6 @@ def test_dxdy_limits(amm, amounts, accounts, ns, dns, collateral_token, admin):
         dns=st.lists(st.integers(min_value=0, max_value=20), min_size=5, max_size=5),
         amount=st.integers(min_value=0, max_value=10**9 * 10**6)
 )
-@settings(deadline=timedelta(seconds=1000))
 def test_exchange_down_up(amm, amounts, accounts, ns, dns, amount,
                           borrowed_token, collateral_token, admin):
     u = accounts[6]
@@ -55,12 +52,12 @@ def test_exchange_down_up(amm, amounts, accounts, ns, dns, amount,
     with boa.env.prank(admin):
         for user, amount, n1, dn in zip(accounts[1:6], amounts, ns, dns):
             n2 = n1 + dn
-            collateral_token._mint_for_testing(user, amount)
             if amount // (dn + 1) <= 100:
                 with boa.reverts("Amount too low"):
-                    amm.deposit_range(user, amount, n1, n2, True)
+                    amm.deposit_range(user, amount, n1, n2)
             else:
-                amm.deposit_range(user, amount, n1, n2, True)
+                amm.deposit_range(user, amount, n1, n2)
+                collateral_token._mint_for_testing(amm.address, amount)
 
     dx, dy = amm.get_dxdy(0, 1, amount)
     assert dx <= amount
@@ -92,5 +89,5 @@ def test_exchange_down_up(amm, amounts, accounts, ns, dns, amount,
         amm.exchange(1, 0, in_amount, 0)
     dy_measured = borrowed_token.balanceOf(u) - dy_measured
     dx_measured -= collateral_token.balanceOf(u)
-    dy == dy_measured
-    assert approx(dx_measured, dx, 5e-5)
+    assert dy == dy_measured
+    assert dx == dx_measured

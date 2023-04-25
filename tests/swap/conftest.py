@@ -18,19 +18,19 @@ def swap_deployer(swap_impl, admin):
         return deployer
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture(scope="session")
 def redeemable_coin(admin):
     with boa.env.prank(admin):
         return boa.load('contracts/testing/ERC20Mock.vy', "Unbranded Redeemable USD", "urUSD", 6)
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture(scope="session")
 def volatile_coin(admin):
     with boa.env.prank(admin):
         return boa.load('contracts/testing/ERC20Mock.vy', "Volatile USD", "vUSD", 18)
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture(scope="session")
 def swap(swap_deployer, swap_impl, redeemable_coin, volatile_coin, admin):
     with boa.env.prank(admin):
         n = swap_deployer.n()
@@ -43,7 +43,7 @@ def swap(swap_deployer, swap_impl, redeemable_coin, volatile_coin, admin):
         return swap
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture(scope="session")
 def swap_w_d(swap, redeemable_coin, volatile_coin, accounts, admin):
     with boa.env.prank(admin):
         redeemable_coin._mint_for_testing(admin, 10**6 * 10**6)

@@ -17,9 +17,9 @@ def test_flip(amm, price_oracle, collateral_token, borrowed_token, accounts, adm
     with boa.env.anchor():
         # Current band is 0
         # We deposit to bands 1..5
-        collateral_token._mint_for_testing(depositor, AMOUNT_D)
         with boa.env.prank(admin):
-            amm.deposit_range(depositor, AMOUNT_D, 1, 5, True)
+            amm.deposit_range(depositor, AMOUNT_D, 1, 5)
+            collateral_token._mint_for_testing(amm.address, AMOUNT_D)
         p = amm.price_oracle()
 
         initial_y = sum(amm.bands_y(n) for n in range(1, 6))

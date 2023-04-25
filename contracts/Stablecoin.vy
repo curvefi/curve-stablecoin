@@ -1,12 +1,16 @@
 # @version 0.3.7
 """
-@title Curve USD Stablecoin
-@author CurveFi
+@title crvUSD Stablecoin
+@author Curve.Fi
+@license Copyright (c) Curve.Fi, 2020-2023 - all rights reserved
 """
 from vyper.interfaces import ERC20
 
 implements: ERC20
 
+
+interface ERC1271:
+    def isValidSignature(_hash: bytes32, _signature: Bytes[65]) -> bytes32: view
 
 event Approval:
     owner: indexed(address)
@@ -57,6 +61,15 @@ nonces: public(HashMap[address, uint256])
 
 admin: public(address)
 _is_minter: HashMap[address, bool]
+
+CACHED_CHAIN_ID: public(immutable(uint256))
+CACHED_DOMAIN_SEPARATOR: public(immutable(bytes32))
+nonces: public(HashMap[address, uint256])
+
+EIP712_TYPEHASH: constant(bytes32) = keccak256("EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)")
+PERMIT_TYPEHASH: constant(bytes32) = keccak256("Permit(address owner,address spender,uint256 value,uint256 nonce,uint256 deadline)")
+ERC1271_MAGIC_VAL: constant(bytes32) = 0x1626ba7e00000000000000000000000000000000000000000000000000000000
+VERSION: constant(String[8]) = "v1.0.0"
 
 
 @external

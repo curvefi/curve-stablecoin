@@ -1,0 +1,25 @@
+[tool.poetry]
+name = "curve-stablecoin"
+version = "0.1.0"
+description = ""
+authors = ["Michael Egorov <michael@curve.fi>"]
+readme = "README.md"
+packages = []
+
+[tool.poetry.dependencies]
+python = ">=3.9,<3.11"
+vyper = "0.3.7"
+poetry = "1.4.1"
+python-dotenv = "^1.0.0"
+
+[tool.poetry.group.ape.dependencies]
+eth-ape = "^0.6.7"
+ape-vyper = "^0.6.2"
+ape-etherscan = "^0.6.3"
+ape-ledger = "^0.6.0"
+ape-hardhat = "^0.6.2"
+ape-alchemy = "^0.6.1"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

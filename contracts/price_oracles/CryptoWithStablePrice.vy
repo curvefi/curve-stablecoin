@@ -1,4 +1,9 @@
 # @version 0.3.7
+"""
+@title CryptoWithStablePrice - price oracle for tricrypto for crvUSD
+@author Curve.Fi
+@license MIT
+"""
 
 interface Tricrypto:
     def price_oracle(k: uint256) -> uint256: view
@@ -25,7 +30,7 @@ MA_EXP_TIME: immutable(uint256)
 MIN_MA_EXP_TIME: constant(uint256) = 30
 MAX_MA_EXP_TIME: constant(uint256) = 365 * 86400
 
-last_price: public(uint256)
+last_prices_packed: uint256
 last_timestamp: public(uint256)
 
 
@@ -56,6 +61,26 @@ def __init__(
     assert ma_exp_time <= MAX_MA_EXP_TIME
     assert ma_exp_time >= MIN_MA_EXP_TIME
     MA_EXP_TIME = ma_exp_time
+
+
+@pure
+@internal
+def pack_prices(p1: uint256, p2: uint256) -> uint256:
+    assert p1 < 2**128
+    assert p2 < 2**128
+    return p1 | shift(p2, 128)
+
+
+@view
+@external
+def last_price() -> uint256:
+    return self.last_prices_packed & (2**128 - 1)
+
+
+@view
+@external
+def last_ema_price() -> uint256:
+    return shift(self.last_prices_packed, -128)
 
 
 @internal
@@ -151,17 +176,19 @@ def raw_price() -> uint256:
 @view
 def ema_price() -> uint256:
     last_timestamp: uint256 = self.last_timestamp
+    if last_timestamp == 0:
+        return self._raw_price()
+
+    pp: uint256 = self.last_prices_packed
+    last_price: uint256 = pp & (2**128 - 1)
+    last_ema_price: uint256 = shift(pp, -128)
 
     if last_timestamp < block.timestamp:
-        current_price: uint256 = self._raw_price()
-        if last_timestamp == 0:
-            return current_price
-        last_price: uint256 = self.last_price
         alpha: uint256 = self.exp(- convert((block.timestamp - last_timestamp) * 10**18 / MA_EXP_TIME, int256))
-        return (current_price * (10**18 - alpha) + last_price * alpha) / 10**18
+        return (last_price * (10**18 - alpha) + last_ema_price * alpha) / 10**18
 
     else:
-        return self.last_price
+        return last_ema_price
 
 
 @external
@@ -173,7 +200,7 @@ def price() -> uint256:
 @external
 def price_w() -> uint256:
     p: uint256 = self.ema_price()
+    self.last_prices_packed = self.pack_prices(self._raw_price(), p)
     if self.last_timestamp < block.timestamp:
-        self.last_price = p
         self.last_timestamp = block.timestamp
     return p

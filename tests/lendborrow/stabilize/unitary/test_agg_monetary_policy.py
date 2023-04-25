@@ -2,7 +2,6 @@ from hypothesis import settings
 from hypothesis import strategies as st
 from hypothesis.stateful import RuleBasedStateMachine, run_state_machine_as_test, initialize, rule, invariant
 from boa.vyper.contract import VyperContract
-from datetime import timedelta
 import boa
 
 
@@ -65,7 +64,7 @@ class AggMonetaryPolicyCreation(RuleBasedStateMachine):
             # Deploy a peg keeper
             pk = boa.load('contracts/stabilizer/PegKeeper.vy',
                           swap.address, 1, self.admin, 5 * 10**4,
-                          self.controller_factory.address, self.agg.address)
+                          self.controller_factory.address, self.agg.address, self.admin)
         self.stablecoins.append(fedUSD)
         self.swaps.append(swap)
         self.peg_keepers.append(pk)
@@ -129,7 +128,7 @@ class AggMonetaryPolicyCreation(RuleBasedStateMachine):
 
 
 def test_agg_mp(unsafe_factory, swap_deployer, swap_impl, stablecoin, admin):
-    AggMonetaryPolicyCreation.TestCase.settings = settings(max_examples=30, stateful_step_count=20, deadline=timedelta(seconds=1000))
+    AggMonetaryPolicyCreation.TestCase.settings = settings(max_examples=30, stateful_step_count=20)
     for k, v in locals().items():
         setattr(AggMonetaryPolicyCreation, k, v)
     run_state_machine_as_test(AggMonetaryPolicyCreation)
