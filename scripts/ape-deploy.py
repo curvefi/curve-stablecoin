@@ -57,6 +57,7 @@ market_admin_fee = 0
 market_loan_discount = 9 * 10**16  # 9%; +2% from 4x 1% bands = 100% - 11% = 89% LTV
 market_liquidation_discount = 6 * 10**16  # 6%
 market_debt_ceiling = 10**7 * 10**18  # 10M
+initial_pk_funds = market_debt_ceiling // len(rtokens)
 
 
 def deploy_blueprint(contract, account, **kw):
@@ -206,6 +207,7 @@ def deploy(network):
                 peg_keeper = account.deploy(project.PegKeeper, pool, 1, FEE_RECEIVER, 2 * 10**4, factory, agg,
                                             admin, **kw)
                 peg_keepers.append(peg_keeper)
+                factory.set_debt_ceiling(peg_keeper, initial_pk_funds, **kw)
 
         if 'mainnet' in network:
             policy = account.deploy(project.AggMonetaryPolicy, admin, agg, factory,
