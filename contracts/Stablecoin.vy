@@ -4,57 +4,105 @@
 @author Curve.Fi
 @license Copyright (c) Curve.Fi, 2020-2023 - all rights reserved
 """
-
 from vyper.interfaces import ERC20
 
 implements: ERC20
 
 
 interface ERC1271:
-    def isValidSignature(_hash: bytes32, _signature: Bytes[65]) -> bytes32: view
+    def isValidSignature(_hash: bytes32, _signature: Bytes[65]) -> bytes4: view
 
-
-event Transfer:
-    _from: indexed(address)
-    _to: indexed(address)
-    _value: uint256
 
 event Approval:
-    _owner: indexed(address)
-    _spender: indexed(address)
-    _value: uint256
+    owner: indexed(address)
+    spender: indexed(address)
+    value: uint256
+
+event Transfer:
+    sender: indexed(address)
+    receiver: indexed(address)
+    value: uint256
+
+event SetMinter:
+    minter: indexed(address)
 
 
-name: public(String[64])
-symbol: public(String[32])
+decimals: public(constant(uint8)) = 18
+version: public(constant(String[8])) = "v1.0.0"
 
-balanceOf: public(HashMap[address, uint256])
+ERC1271_MAGIC_VAL: constant(bytes4) = 0x1626ba7e
+EIP712_TYPEHASH: constant(bytes32) = keccak256(
+    "EIP712Domain(string name,string version,uint256 chainId,address verifyingContract,bytes32 salt)"
+)
+EIP2612_TYPEHASH: constant(bytes32) = keccak256(
+    "Permit(address owner,address spender,uint256 value,uint256 nonce,uint256 deadline)"
+)
+VERSION_HASH: constant(bytes32) = keccak256(version)
+
+
+name: public(immutable(String[64]))
+symbol: public(immutable(String[32]))
+salt: public(immutable(bytes32))
+
+NAME_HASH: immutable(bytes32)
+CACHED_CHAIN_ID: immutable(uint256)
+CACHED_DOMAIN_SEPARATOR: immutable(bytes32)
+
+
 allowance: public(HashMap[address, HashMap[address, uint256]])
+balanceOf: public(HashMap[address, uint256])
 totalSupply: public(uint256)
 
-minter: public(address)
-
-CACHED_CHAIN_ID: public(immutable(uint256))
-CACHED_DOMAIN_SEPARATOR: public(immutable(bytes32))
 nonces: public(HashMap[address, uint256])
-
-EIP712_TYPEHASH: constant(bytes32) = keccak256("EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)")
-PERMIT_TYPEHASH: constant(bytes32) = keccak256("Permit(address owner,address spender,uint256 value,uint256 nonce,uint256 deadline)")
-ERC1271_MAGIC_VAL: constant(bytes32) = 0x1626ba7e00000000000000000000000000000000000000000000000000000000
-VERSION: constant(String[8]) = "v1.0.0"
+minter: public(address)
 
 
 @external
 def __init__(_name: String[64], _symbol: String[32]):
-    self.name = _name
-    self.symbol = _symbol
-    self.minter = msg.sender
-    log Transfer(empty(address), msg.sender, 0)
+    name = _name
+    symbol = _symbol
 
+    NAME_HASH = keccak256(_name)
     CACHED_CHAIN_ID = chain.id
+    salt = block.prevhash
     CACHED_DOMAIN_SEPARATOR = keccak256(
-        _abi_encode(EIP712_TYPEHASH, keccak256(_name), keccak256(VERSION), chain.id, self)
+        _abi_encode(
+            EIP712_TYPEHASH,
+            keccak256(_name),
+            VERSION_HASH,
+            chain.id,
+            self,
+            block.prevhash,
+        )
     )
+
+    self.minter = msg.sender
+    log SetMinter(msg.sender)
+
+
+@internal
+def _approve(_owner: address, _spender: address, _value: uint256):
+    self.allowance[_owner][_spender] = _value
+
+    log Approval(_owner, _spender, _value)
+
+
+@internal
+def _burn(_from: address, _value: uint256):
+    self.balanceOf[_from] -= _value
+    self.totalSupply -= _value
+
+    log Transfer(_from, empty(address), _value)
+
+
+@internal
+def _transfer(_from: address, _to: address, _value: uint256):
+    assert _to not in [self, empty(address)]
+
+    self.balanceOf[_from] -= _value
+    self.balanceOf[_to] += _value
+
+    log Transfer(_from, _to, _value)
 
 
 @view
@@ -62,149 +110,60 @@ def __init__(_name: String[64], _symbol: String[32]):
 def _domain_separator() -> bytes32:
     if chain.id != CACHED_CHAIN_ID:
         return keccak256(
-            _abi_encode(EIP712_TYPEHASH, keccak256(self.name), keccak256(VERSION), chain.id, self)
+            _abi_encode(
+                EIP712_TYPEHASH,
+                NAME_HASH,
+                VERSION_HASH,
+                chain.id,
+                self,
+                salt,
+            )
         )
     return CACHED_DOMAIN_SEPARATOR
 
 
-@view
 @external
-def decimals() -> uint8:
+def transferFrom(_from: address, _to: address, _value: uint256) -> bool:
     """
-    @notice Get the number of decimals for this token
-    @dev Implemented as a view method to reduce gas costs
-    @return uint8 decimal places
+    @notice Transfer tokens from one account to another.
+    @dev The caller needs to have an allowance from account `_from` greater than or
+        equal to the value being transferred. An allowance equal to the uint256 type's
+        maximum, is considered infinite and does not decrease.
+    @param _from The account which tokens will be spent from.
+    @param _to The account which tokens will be sent to.
+    @param _value The amount of tokens to be transferred.
     """
-    return 18
+    allowance: uint256 = self.allowance[_from][msg.sender]
+    if allowance != max_value(uint256):
+        self._approve(_from, msg.sender, allowance - _value)
 
-
-@external
-def transfer(_to : address, _value : uint256) -> bool:
-    """
-    @dev Transfer token for a specified address
-    @param _to The address to transfer to.
-    @param _value The amount to be transferred.
-    """
-    # NOTE: vyper does not allow underflows
-    #       so the following subtraction would revert on insufficient balance
-    self.balanceOf[msg.sender] -= _value
-    self.balanceOf[_to] += _value
-
-    log Transfer(msg.sender, _to, _value)
+    self._transfer(_from, _to, _value)
     return True
 
 
 @external
-def transferFrom(_from : address, _to : address, _value : uint256) -> bool:
+def transfer(_to: address, _value: uint256) -> bool:
     """
-     @dev Transfer tokens from one address to another.
-     @param _from address The address which you want to send tokens from
-     @param _to address The address which you want to transfer to
-     @param _value uint256 the amount of tokens to be transferred
+    @notice Transfer tokens to `_to`.
+    @param _to The account to transfer tokens to.
+    @param _value The amount of tokens to transfer.
     """
-    self.balanceOf[_from] -= _value
-    self.balanceOf[_to] += _value
-
-    _allowance: uint256 = self.allowance[_from][msg.sender]
-    if _allowance != max_value(uint256):
-        self.allowance[_from][msg.sender] = _allowance - _value
-
-    log Transfer(_from, _to, _value)
+    self._transfer(msg.sender, _to, _value)
     return True
 
 
 @external
-def approve(_spender : address, _value : uint256) -> bool:
+def approve(_spender: address, _value: uint256) -> bool:
     """
-    @notice Approve the passed address to transfer the specified amount of
-            tokens on behalf of msg.sender
-    @dev Beware that changing an allowance via this method brings the risk
-         that someone may use both the old and new allowance by unfortunate
-         transaction ordering. This may be mitigated with the use of
-         {increaseAllowance} and {decreaseAllowance}.
-         https://github.com/ethereum/EIPs/issues/20#issuecomment-263524729
-    @param _spender The address which will transfer the funds
-    @param _value The amount of tokens that may be transferred
-    @return bool success
+    @notice Allow `_spender` to transfer up to `_value` amount of tokens from the caller's account.
+    @dev Non-zero to non-zero approvals are allowed, but should be used cautiously. The methods
+        increaseAllowance + decreaseAllowance are available to prevent any front-running that
+        may occur.
+    @param _spender The account permitted to spend up to `_value` amount of caller's funds.
+    @param _value The amount of tokens `_spender` is allowed to spend.
     """
-    self.allowance[msg.sender][_spender] = _value
-
-    log Approval(msg.sender, _spender, _value)
+    self._approve(msg.sender, _spender, _value)
     return True
-
-
-@external
-def increaseAllowance(_spender: address, _added_value: uint256) -> bool:
-    """
-    @notice Increase the allowance granted to `_spender` by the caller
-    @dev This is alternative to {approve} that can be used as a mitigation for
-         the potential race condition
-    @param _spender The address which will transfer the funds
-    @param _added_value The amount of to increase the allowance
-    @return bool success
-    """
-    allowance: uint256 = self.allowance[msg.sender][_spender] + _added_value
-    self.allowance[msg.sender][_spender] = allowance
-
-    log Approval(msg.sender, _spender, allowance)
-    return True
-
-
-@external
-def decreaseAllowance(_spender: address, _subtracted_value: uint256) -> bool:
-    """
-    @notice Decrease the allowance granted to `_spender` by the caller
-    @dev This is alternative to {approve} that can be used as a mitigation for
-         the potential race condition
-    @param _spender The address which will transfer the funds
-    @param _subtracted_value The amount of to decrease the allowance
-    @return bool success
-    """
-    allowance: uint256 = self.allowance[msg.sender][_spender] - _subtracted_value
-    self.allowance[msg.sender][_spender] = allowance
-
-    log Approval(msg.sender, _spender, allowance)
-    return True
-
-
-@external
-def mint(_to: address, _value: uint256) -> bool:
-    """
-    @dev Mint an amount of the token and assigns it to an account.
-         This encapsulates the modification of balances such that the
-         proper events are emitted.
-    @param _to The account that will receive the created tokens.
-    @param _value The amount that will be created.
-    """
-    assert self.minter == msg.sender
-
-    self.totalSupply += _value
-    self.balanceOf[_to] += _value
-
-    log Transfer(empty(address), _to, _value)
-    return True
-
-
-@external
-def burnFrom(_to: address, _value: uint256) -> bool:
-    """
-    @dev Burn an amount of the token from a given account.
-    @param _to The account whose tokens will be burned.
-    @param _value The amount that will be burned.
-    """
-    assert self.minter == msg.sender
-
-    self.totalSupply -= _value
-    self.balanceOf[_to] -= _value
-
-    log Transfer(_to, empty(address), _value)
-    return True
-
-
-@external
-def set_minter(_minter: address):
-    assert self.minter == msg.sender
-    self.minter = _minter
 
 
 @external
@@ -215,50 +174,143 @@ def permit(
     _deadline: uint256,
     _v: uint8,
     _r: bytes32,
-    _s: bytes32
+    _s: bytes32,
 ) -> bool:
     """
-    @notice Approves spender by owner's signature to expend owner's tokens.
-        See https://eips.ethereum.org/EIPS/eip-2612.
-    @dev Inspired by https://github.com/yearn/yearn-vaults/blob/main/contracts/Vault.vy#L753-L793
-    @dev Supports smart contract wallets which implement ERC1271
-        https://eips.ethereum.org/EIPS/eip-1271
-    @param _owner The address which is a source of funds and has signed the Permit.
-    @param _spender The address which is allowed to spend the funds.
-    @param _value The amount of tokens to be spent.
-    @param _deadline The timestamp after which the Permit is no longer valid.
-    @param _v The bytes[64] of the valid secp256k1 signature of permit by owner
-    @param _r The bytes[0:32] of the valid secp256k1 signature of permit by owner
-    @param _s The bytes[32:64] of the valid secp256k1 signature of permit by owner
-    @return True, if transaction completes successfully
+    @notice Permit `_spender` to spend up to `_value` amount of `_owner`'s tokens via a signature.
+    @dev In the event of a chain fork, replay attacks are prevented as domain separator is recalculated.
+        However, this is only if the resulting chains update their chainId.
+    @param _owner The account which generated the signature and is granting an allowance.
+    @param _spender The account which will be granted an allowance.
+    @param _value The approval amount.
+    @param _deadline The deadline by which the signature must be submitted.
+    @param _v The last byte of the ECDSA signature.
+    @param _r The first 32 bytes of the ECDSA signature.
+    @param _s The second 32 bytes of the ECDSA signature.
     """
-    assert _owner != empty(address)
-    assert block.timestamp <= _deadline
+    assert _owner != empty(address) and block.timestamp <= _deadline
 
     nonce: uint256 = self.nonces[_owner]
     digest: bytes32 = keccak256(
         concat(
             b"\x19\x01",
             self._domain_separator(),
-            keccak256(_abi_encode(PERMIT_TYPEHASH, _owner, _spender, _value, nonce, _deadline))
+            keccak256(_abi_encode(EIP2612_TYPEHASH, _owner, _spender, _value, nonce, _deadline)),
         )
     )
 
     if _owner.is_contract:
         sig: Bytes[65] = concat(_abi_encode(_r, _s), slice(convert(_v, bytes32), 31, 1))
-        # reentrancy not a concern since this is a staticcall
         assert ERC1271(_owner).isValidSignature(digest, sig) == ERC1271_MAGIC_VAL
     else:
-        assert ecrecover(digest, convert(_v, uint256), convert(_r, uint256), convert(_s, uint256)) == _owner
+        assert ecrecover(digest, _v, _r, _s) == _owner
 
-    self.allowance[_owner][_spender] = _value
     self.nonces[_owner] = nonce + 1
-
-    log Approval(_owner, _spender, _value)
+    self._approve(_owner, _spender, _value)
     return True
+
+
+@external
+def increaseAllowance(_spender: address, _add_value: uint256) -> bool:
+    """
+    @notice Increase the allowance granted to `_spender`.
+    @dev This function will never overflow, and instead will bound
+        allowance to MAX_UINT256. This has the potential to grant an
+        infinite approval.
+    @param _spender The account to increase the allowance of.
+    @param _add_value The amount to increase the allowance by.
+    """
+    cached_allowance: uint256 = self.allowance[msg.sender][_spender]
+    allowance: uint256 = unsafe_add(cached_allowance, _add_value)
+
+    # check for an overflow
+    if allowance < cached_allowance:
+        allowance = max_value(uint256)
+    
+    if allowance != cached_allowance:
+        self._approve(msg.sender, _spender, allowance)
+
+    return True
+
+
+@external
+def decreaseAllowance(_spender: address, _sub_value: uint256) -> bool:
+    """
+    @notice Decrease the allowance granted to `_spender`.
+    @dev This function will never underflow, and instead will bound
+        allowance to 0.
+    @param _spender The account to decrease the allowance of.
+    @param _sub_value The amount to decrease the allowance by.
+    """
+    cached_allowance: uint256 = self.allowance[msg.sender][_spender]
+    allowance: uint256 = unsafe_sub(cached_allowance, _sub_value)
+
+    # check for an underflow
+    if cached_allowance < allowance:
+        allowance = 0
+
+    if allowance != cached_allowance:
+        self._approve(msg.sender, _spender, allowance)
+
+    return True
+
+
+@external
+def burnFrom(_from: address, _value: uint256) -> bool:
+    """
+    @notice Burn `_value` amount of tokens from `_from`.
+    @dev The caller must have previously been given an allowance by `_from`.
+    @param _from The account to burn the tokens from.
+    @param _value The amount of tokens to burn.
+    """
+    allowance: uint256 = self.allowance[_from][msg.sender]
+    if allowance != max_value(uint256):
+        self._approve(_from, msg.sender, allowance - _value)
+
+    self._burn(_from, _value)
+    return True
+
+
+@external
+def burn(_value: uint256) -> bool:
+    """
+    @notice Burn `_value` amount of tokens.
+    @param _value The amount of tokens to burn.
+    """
+    self._burn(msg.sender, _value)
+    return True
+
+
+@external
+def mint(_to: address, _value: uint256) -> bool:
+    """
+    @notice Mint `_value` amount of tokens to `_to`.
+    @dev Only callable by an account with minter privileges.
+    @param _to The account newly minted tokens are credited to.
+    @param _value The amount of tokens to mint.
+    """
+    assert msg.sender == self.minter
+    assert _to not in [self, empty(address)]
+
+    self.balanceOf[_to] += _value
+    self.totalSupply += _value
+
+    log Transfer(empty(address), _to, _value)
+    return True
+
+
+@external
+def set_minter(_minter: address):
+    assert msg.sender == self.minter
+
+    self.minter = _minter
+    log SetMinter(_minter)
 
 
 @view
 @external
 def DOMAIN_SEPARATOR() -> bytes32:
+    """
+    @notice EIP712 domain separator.
+    """
     return self._domain_separator()
