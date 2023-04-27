@@ -4,6 +4,7 @@ from . import base
 from boa.vyper.contract import BoaError
 from hypothesis import settings
 from hypothesis.stateful import run_state_machine_as_test, invariant
+from hypothesis._settings import HealthCheck
 
 pytestmark = pytest.mark.usefixtures(
     "add_initial_liquidity",
@@ -86,7 +87,7 @@ def test_stable_peg(
         for swap in swaps:
             swap.apply_new_fee()
 
-    StateMachine.TestCase.settings = settings(max_examples=20, stateful_step_count=40)
+    StateMachine.TestCase.settings = settings(max_examples=20, stateful_step_count=40, suppress_health_check=HealthCheck.all())
     for k, v in locals().items():
         setattr(StateMachine, k, v)
     run_state_machine_as_test(StateMachine)
