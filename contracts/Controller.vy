@@ -533,6 +533,12 @@ def _withdraw_collateral(_for: address, amount: uint256, use_eth: bool):
 def execute_callback(callbacker: address, callback_sig: bytes32,
                      user: address, stablecoins: uint256, collateral: uint256, debt: uint256,
                      callback_args: DynArray[uint256, 5]) -> CallbackData:
+    assert callbacker != AMM.address
+    assert callbacker != STABLECOIN.address
+    assert callbacker != COLLATERAL_TOKEN.address
+    assert callbacker != FACTORY.address
+    assert callbacker != self
+
     data: CallbackData = empty(CallbackData)
     data.active_band = AMM.active_band()
     band_x: uint256 = AMM.bands_x(data.active_band)
