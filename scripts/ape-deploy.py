@@ -84,7 +84,7 @@ def deploy_blueprint(contract, account, **kw):
 @click.group()
 def cli():
     """
-    Script for test deployment of crvUSD
+    Script for production deployment of crvUSD
     """
 
 
@@ -101,9 +101,10 @@ def deploy(network):
     elif ':mainnet:' in network:
         account = accounts.load('babe')
         account.set_autosign(True)
+        max_base_fee = networks.active_provider.base_fee * 2
         kw = {
-            'max_fee': networks.active_provider.base_fee * 2,
-            'max_priority_fee': int(0.5e9)}
+            'max_fee': max_base_fee,
+            'max_priority_fee': min(int(0.5e9), max_base_fee)}
     else:
         account = "0xbabe61887f1de2713c6f97e567623453d3C79f67"
         if account in accounts:
