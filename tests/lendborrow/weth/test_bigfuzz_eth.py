@@ -1,5 +1,6 @@
 import boa
 import pytest
+from math import log2, ceil
 from boa.vyper.contract import BoaError
 from hypothesis import settings
 from hypothesis import strategies as st
@@ -78,6 +79,9 @@ class BigFuzz(RuleBasedStateMachine):
 
     def check_debt_ceiling(self, amount):
         return self.market_controller.total_debt() + amount <= self.debt_ceiling
+
+    def get_max_good_band(self):
+        return ceil(log2(self.market_amm.get_base_price() / self.market_amm.price_oracle()) / log2(self.A / (self.A - 1)) + 5)
 
     def mint_eth(self, amount, use_eth):
         boa.env.set_balance(boa.env.eoa, boa.env.get_balance(boa.env.eoa) + amount)
@@ -233,7 +237,12 @@ class BigFuzz(RuleBasedStateMachine):
                             with boa.reverts():
                                 self.market_controller.borrow_more(y, amount, **kw)
                     else:
-                        self.market_controller.borrow_more(y, amount, **kw)
+                        try:
+                            self.market_controller.borrow_more(y, amount, **kw)
+                        except Exception:
+                            if self.get_max_good_band() > self.market_amm.active_band_with_skip():
+                                # Otherwise (if price desync is too large) - this fail is to be expected
+                                raise
 
                 else:
                     with boa.reverts():

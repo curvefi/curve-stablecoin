@@ -1,5 +1,6 @@
 import boa
 import pytest
+from math import log2, ceil
 from boa.vyper.contract import BoaError
 from hypothesis import settings
 from hypothesis import strategies as st
@@ -76,6 +77,9 @@ class BigFuzz(RuleBasedStateMachine):
 
     def check_debt_ceiling(self, amount):
         return self.market_controller.total_debt() + amount <= self.debt_ceiling
+
+    def get_max_good_band(self):
+        return ceil(log2(self.market_amm.get_base_price() / self.market_amm.price_oracle()) / log2(self.A / (self.A - 1)) + 5)
 
     # Borrowing and returning #
     @rule(y=collateral_amount, n=n, uid=user_id, ratio=ratio)
@@ -216,7 +220,12 @@ class BigFuzz(RuleBasedStateMachine):
                             with boa.reverts():
                                 self.market_controller.borrow_more(y, amount)
                     else:
-                        self.market_controller.borrow_more(y, amount)
+                        try:
+                            self.market_controller.borrow_more(y, amount)
+                        except Exception:
+                            if self.get_max_good_band() > self.market_amm.active_band_with_skip():
+                                # Otherwise (if price desync is too large) - this fail is to be expected
+                                raise
 
                 else:
                     with boa.reverts():
@@ -686,3 +695,26 @@ def test_loan_doesnt_exist(
     state.debt_supply()
     state.minted_redeemed()
     state.self_liquidate_and_health(emode=1, frac=0)
+
+
+def test_debt_too_high_2_users(
+        controller_factory, market_amm, market_controller, monetary_policy, collateral_token, stablecoin, price_oracle, accounts, fake_leverage, admin):
+    for k, v in locals().items():
+        setattr(BigFuzz, k, v)
+    state = BigFuzz()
+    state.debt_supply()
+    state.minted_redeemed()
+    state.change_debt_ceiling(d_ceil=0)
+    state.debt_supply()
+    state.minted_redeemed()
+    state.deposit(n=5, ratio=0.25, uid=4, y=5050000)
+    state.debt_supply()
+    state.minted_redeemed()
+    state.deposit(n=14, ratio=0.5, uid=0, y=1784)
+    state.debt_supply()
+    state.minted_redeemed()
+    state.trade(is_pump=True, r=1.0, uid=0)
+    state.debt_supply()
+    state.minted_redeemed()
+    state.borrow_more(ratio=0.5, uid=4, y=0)
+    state.teardown()
