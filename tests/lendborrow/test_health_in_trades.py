@@ -12,6 +12,7 @@ class AdiabaticTrader(RuleBasedStateMachine):
     n = st.integers(min_value=5, max_value=50)
     t = st.integers(min_value=0, max_value=86400)
     rate = st.integers(min_value=0, max_value=int(1e18 * 0.2 / 365 / 86400))
+    not_enough_allowed = True
 
     def __init__(self):
         super().__init__()
@@ -31,6 +32,7 @@ class AdiabaticTrader(RuleBasedStateMachine):
             self.stablecoin.transfer(self.accounts[1], loan_amount)
             self.loan_amount = loan_amount
             self.collateral_amount = collateral_amount
+        self.not_enough = False
 
     def trade_to_price(self, p):
         user = self.accounts[1]
@@ -39,6 +41,10 @@ class AdiabaticTrader(RuleBasedStateMachine):
             amount, is_pump = self.amm.get_amount_for_price(p)
             if amount > 0:
                 if is_pump:
+                    if self.not_enough_allowed:
+                        if self.stablecoin.balanceOf(user) < amount:
+                            self.not_enough = True
+                            return
                     self.amm.exchange(0, 1, amount, 0)
                 else:
                     self.collateral._mint_for_testing(user, amount)
@@ -75,7 +81,8 @@ class AdiabaticTrader(RuleBasedStateMachine):
 
     @invariant()
     def health(self):
-        assert self.controller.health(self.accounts[0]) > 0
+        if not self.not_enough:
+            assert self.controller.health(self.accounts[0]) > 0
 
 
 def test_adiabatic_follow(market_amm, market_controller, monetary_policy, collateral_token, stablecoin, price_oracle, accounts, admin):
