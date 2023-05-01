@@ -132,7 +132,7 @@ loan: HashMap[address, Loan]
 liquidation_discounts: public(HashMap[address, uint256])
 _total_debt: Loan
 
-loans: public(address[10**20])  # Enumerate existing loans
+loans: public(address[2**64 - 1])  # Enumerate existing loans
 loan_ix: public(HashMap[address, uint256])  # Position of the loan in the list
 n_loans: public(uint256)  # Number of nonzero loans
 
