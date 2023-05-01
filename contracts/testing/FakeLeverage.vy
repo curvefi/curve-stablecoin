@@ -28,7 +28,7 @@ def approve_all():
 
 
 @external
-def leverage(user: address, stablecoins_no_use: uint256, collateral: uint256, debt: uint256, extra_args: DynArray[uint256, 5]) -> uint256[2]:
+def callback_deposit(user: address, stablecoins_no_use: uint256, collateral: uint256, debt: uint256, extra_args: DynArray[uint256, 5]) -> uint256[2]:
     min_amount: uint256 = extra_args[0]
     assert STABLECOIN.balanceOf(self) >= debt
     amount_out: uint256 = debt * 10**18 / self.price
@@ -37,7 +37,7 @@ def leverage(user: address, stablecoins_no_use: uint256, collateral: uint256, de
 
 
 @external
-def deleverage(user: address, stablecoins: uint256, collateral: uint256, debt: uint256, extra_args: DynArray[uint256, 5]) -> uint256[2]:
+def callback_repay(user: address, stablecoins: uint256, collateral: uint256, debt: uint256, extra_args: DynArray[uint256, 5]) -> uint256[2]:
     frac: uint256 = extra_args[0]
     s_diff: uint256 = (debt - stablecoins) * frac / 10**18
     # Instead of returning collateral - what_was_spent we could unwrap and send
@@ -46,5 +46,5 @@ def deleverage(user: address, stablecoins: uint256, collateral: uint256, debt: u
 
 
 @external
-def liquidate(sender: address, stablecoins: uint256, collateral: uint256, debt: uint256, extra_args: DynArray[uint256, 5]) -> uint256[2]:
+def callback_liquidate(sender: address, stablecoins: uint256, collateral: uint256, debt: uint256, extra_args: DynArray[uint256, 5]) -> uint256[2]:
     return [STABLECOIN.balanceOf(self), collateral]

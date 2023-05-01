@@ -3,7 +3,6 @@ import boa
 from boa.vyper.contract import BoaError
 from hypothesis import given, settings
 from hypothesis import strategies as st
-from .conftest import get_method_id
 from ..conftest import approx
 
 
@@ -77,7 +76,6 @@ def test_liquidate(accounts, admin, controller_for_liquidation, market_amm):
 def test_liquidate_callback(accounts, admin, stablecoin, collateral_token, controller_for_liquidation, market_amm, fake_leverage, frac):
     user = admin
     fee_receiver = accounts[0]
-    liquidate_method = get_method_id("liquidate(address,uint256,uint256,uint256,uint256[])")  # min_amount for stablecoins
     ld = int(0.02 * 1e18)
     if frac < 10**18:
         # f = ((1 + h/2) / (1 + h) * (1 - frac) + frac) * frac
@@ -112,7 +110,7 @@ def test_liquidate_callback(accounts, admin, stablecoin, collateral_token, contr
         try:
             dy = collateral_token.balanceOf(fee_receiver)
             controller.liquidate_extended(user, int(0.999 * f * x / 1e18), frac, True,
-                                          fake_leverage.address, liquidate_method, [])
+                                          fake_leverage.address, [])
             dy = collateral_token.balanceOf(fee_receiver) - dy
             dx = stablecoin.balanceOf(fee_receiver) - b
             if f > 0:
@@ -160,7 +158,7 @@ def test_tokens_to_liquidate(accounts, admin, controller_for_liquidation, market
         tokens_to_liquidate = controller.tokens_to_liquidate(user, frac)
 
         with boa.env.prank(fee_receiver):
-            controller.liquidate_extended(user, 0, frac, True, "0x0000000000000000000000000000000000000000", b'', [])
+            controller.liquidate_extended(user, 0, frac, True, "0x0000000000000000000000000000000000000000", [])
 
         balance = stablecoin.balanceOf(fee_receiver)
 

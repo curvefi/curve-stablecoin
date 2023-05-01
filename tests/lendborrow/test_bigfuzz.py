@@ -4,7 +4,6 @@ from boa.vyper.contract import BoaError
 from hypothesis import settings
 from hypothesis import strategies as st
 from hypothesis.stateful import RuleBasedStateMachine, run_state_machine_as_test, rule, invariant
-from .conftest import get_method_id
 
 
 # Variables and methods to check
@@ -41,8 +40,6 @@ class BigFuzz(RuleBasedStateMachine):
 
     extended_mode = st.integers(min_value=0, max_value=2)
     liquidate_frac = st.integers(min_value=0, max_value=10**18 + 1)
-
-    liquidate_method = get_method_id("liquidate(address,uint256,uint256,uint256,uint256[])")
 
     def __init__(self):
         super().__init__()
@@ -276,12 +273,12 @@ class BigFuzz(RuleBasedStateMachine):
                 with boa.env.prank(user):
                     if emode == USE_FRACTION:
                         self.market_controller.liquidate_extended(
-                                user, 0, frac, True, ZERO_ADDRESS, b'\x00'*32, [])
+                                user, 0, frac, True, ZERO_ADDRESS, [])
                     elif emode == USE_CALLBACKS:
                         self.stablecoin.transfer(self.fake_leverage.address, self.stablecoin.balanceOf(user))
                         self.market_controller.liquidate_extended(
                                 user, 0, frac, True,
-                                self.fake_leverage.address, self.liquidate_method, [])
+                                self.fake_leverage.address, [])
                     else:
                         self.market_controller.liquidate(user, 0)
                 self.remove_stablecoins(user)
@@ -303,12 +300,12 @@ class BigFuzz(RuleBasedStateMachine):
                 with boa.reverts():
                     if emode == USE_FRACTION:
                         self.market_controller.liquidate_extended(
-                                user, 0, frac, True, ZERO_ADDRESS, b'\x00'*32, [])
+                                user, 0, frac, True, ZERO_ADDRESS, [])
                     elif emode == USE_CALLBACKS:
                         self.stablecoin.transfer(self.fake_leverage.address, self.stablecoin.balanceOf(user))
                         self.market_controller.liquidate_extended(
                                 user, 0, frac, True,
-                                self.fake_leverage.address, self.liquidate_method, [])
+                                self.fake_leverage.address, [])
                     else:
                         self.market_controller.liquidate(user, 0)
                     if emode == USE_CALLBACKS:
@@ -325,12 +322,12 @@ class BigFuzz(RuleBasedStateMachine):
                     with boa.reverts():
                         if emode == USE_FRACTION:
                             self.market_controller.liquidate_extended(
-                                    user, 0, frac, True, ZERO_ADDRESS, b'\x00'*32, [])
+                                    user, 0, frac, True, ZERO_ADDRESS, [])
                         elif emode == USE_CALLBACKS:
                             self.stablecoin.transfer(self.fake_leverage.address, self.stablecoin.balanceOf(user))
                             self.market_controller.liquidate_extended(
                                     user, 0, frac, True,
-                                    self.fake_leverage.address, self.liquidate_method, [])
+                                    self.fake_leverage.address, [])
                         else:
                             self.market_controller.liquidate(user, 0)
                     if emode == USE_CALLBACKS:
@@ -339,12 +336,12 @@ class BigFuzz(RuleBasedStateMachine):
                 else:
                     if emode == USE_FRACTION:
                         self.market_controller.liquidate_extended(
-                                user, 0, frac, True, ZERO_ADDRESS, b'\x00'*32, [])
+                                user, 0, frac, True, ZERO_ADDRESS, [])
                     elif emode == USE_CALLBACKS:
                         self.stablecoin.transfer(self.fake_leverage.address, self.stablecoin.balanceOf(user))
                         self.market_controller.liquidate_extended(
                                 user, 0, frac, True,
-                                self.fake_leverage.address, self.liquidate_method, [])
+                                self.fake_leverage.address, [])
                     else:
                         self.market_controller.liquidate(user, 0)
                     if emode == 0 or frac == 10**18:
