@@ -26,6 +26,9 @@ class StateMachine(RuleBasedStateMachine):
         """
         amounts = [0, 0]
         amounts[idx] = int(self.dmul[pool_idx][idx] * BASE_AMOUNT * pct)
+        coins = [self.redeemable_tokens[pool_idx], self.stablecoin]
+        if coins[idx].balanceOf(self.alice) < amounts[idx]:
+            return
         with boa.env.prank(self.alice):
             self.swaps[pool_idx].add_liquidity(amounts, 0)
 
@@ -38,6 +41,10 @@ class StateMachine(RuleBasedStateMachine):
             int(self.dmul[pool_idx][0] * BASE_AMOUNT * amount_0),
             int(self.dmul[pool_idx][1] * BASE_AMOUNT * amount_1),
         ]
+        coins = [self.redeemable_tokens[pool_idx], self.stablecoin]
+        for idx in [0, 1]:
+            if coins[idx].balanceOf(self.alice) < amounts[idx]:
+                return
         with boa.env.prank(self.alice):
             self.swaps[pool_idx].add_liquidity(amounts, 0)
 
@@ -82,6 +89,9 @@ class StateMachine(RuleBasedStateMachine):
         Perform a swap.
         """
         amount_in = int(self.dmul[pool_idx][idx] * BASE_AMOUNT * pct)
+        coins = [self.redeemable_tokens[pool_idx], self.stablecoin]
+        if coins[idx].balanceOf(self.alice) < amount_in:
+            return
         with boa.env.prank(self.alice):
             self.swaps[pool_idx].exchange(idx, 1 - idx, amount_in, 0)
 
