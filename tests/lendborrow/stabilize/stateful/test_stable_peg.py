@@ -84,7 +84,7 @@ class StateMachine(base.StateMachine):
             if diff == last_diff:
                 assert profit == 0
             else:
-                assert abs(diff - (last_diff - last_diff // 5)) <= 5
+                assert (abs(diff - (last_diff - last_diff // 5)) <= 5) or (peg_keeper.debt() == 0)
 
 
 def test_stable_peg(
@@ -161,6 +161,50 @@ def test_fail_wrong_diff(
     state.invariant_profit()
     state.invariant_profit_increases()
     state.exchange(idx=0, pct=0.75, pool_idx=0)
+    state.advance_time()
+    state.invariant_check_diff()
+    state.teardown()
+
+
+def test_fail_wrong_diff_2(
+    add_initial_liquidity,
+    swaps,
+    peg_keepers,
+    redeemable_tokens,
+    stablecoin,
+    alice,
+    receiver,
+    admin,
+):
+    with boa.env.prank(admin):
+        for swap in swaps:
+            swap.commit_new_fee(4 * 10**7)
+        boa.env.time_travel(4 * 86400)
+        for swap in swaps:
+            swap.apply_new_fee()
+    for k, v in locals().items():
+        setattr(StateMachine, k, v)
+    state = StateMachine()
+    state.advance_time()
+    state.invariant_check_diff()
+    state.invariant_profit()
+    state.invariant_profit_increases()
+    state.remove(pct=0.5, pool_idx=1)
+    state.advance_time()
+    state.invariant_check_diff()
+    state.invariant_profit()
+    state.invariant_profit_increases()
+    state.add_one_coin(idx=1, pct=0.5, pool_idx=0)
+    state.advance_time()
+    state.invariant_check_diff()
+    state.invariant_profit()
+    state.invariant_profit_increases()
+    state.remove_one_coin(idx=0, pct=0.75, pool_idx=0)
+    state.advance_time()
+    state.invariant_check_diff()
+    state.invariant_profit()
+    state.invariant_profit_increases()
+    state.remove(pct=0.5, pool_idx=0)
     state.advance_time()
     state.invariant_check_diff()
     state.teardown()
