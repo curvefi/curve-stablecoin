@@ -1,10 +1,12 @@
 import pytest
 import boa
-from . import base
 from boa.vyper.contract import BoaError
 from hypothesis import settings
 from hypothesis.stateful import run_state_machine_as_test, invariant
 from hypothesis._settings import HealthCheck
+
+from . import base
+from ....conftest import approx
 
 pytestmark = pytest.mark.usefixtures(
     "add_initial_liquidity",
@@ -18,6 +20,15 @@ class StateMachine(base.StateMachine):
     Stateful test that performs a series of deposits, swaps and withdrawals
     and confirms that profit is calculated right.
     """
+
+    def __init__(self):
+        super().__init__()
+        with boa.env.prank(self.admin):
+            for swap in self.swaps:
+                swap.commit_new_fee(0)
+            boa.env.time_travel(7 * 86400)
+            for swap in self.swaps:
+                swap.apply_new_fee()
 
     @invariant()
     def invariant_profit_increases(self):
@@ -56,19 +67,26 @@ class StateMachine(base.StateMachine):
         Verify that Peg Keeper decreased diff of balances by 1/5.
         """
         for idx, (peg_keeper, swap, dmul) in enumerate(zip(self.peg_keepers, self.swaps, self.dmul)):
+            balances_before = [swap.balances(i) for i in range(2)]
+            profit = 0
+
             try:
                 with boa.env.prank(self.alice):
-                    peg_keeper.update()
-            except BoaError:
-                continue
+                    profit = peg_keeper.update()
+            except BoaError as e:
+                if 'peg unprofitable' in str(e):
+                    continue
 
             balances = [swap.balances(i) for i in range(2)]
+
             diff = balances[1] * 10**18 // dmul[1] - balances[0] * 10**18 // dmul[0]
-            last_diff = balances[1] * 10**18 // dmul[1] - balances[0] * 10**18 // dmul[0]
-            # Negative diff can make error of +-1
-            last_diff = abs(last_diff)
-            assert abs(diff) == last_diff - last_diff // 5
-            self.balances[idx] = [swap.balances(0), swap.balances(1)]
+            last_diff = balances_before[1] * 10**18 // dmul[1] - balances_before[0] * 10**18 // dmul[0]
+
+            if diff == last_diff:
+                assert profit == 0
+            else:
+                # assert approx(diff, last_diff - last_diff // 5, swap.fee() / 1e10)
+                assert abs(diff - (last_diff - last_diff // 5)) <= 5
 
 
 def test_stable_peg(
@@ -92,3 +110,59 @@ def test_stable_peg(
     for k, v in locals().items():
         setattr(StateMachine, k, v)
     run_state_machine_as_test(StateMachine)
+
+
+def test_fail_remove(
+    add_initial_liquidity,
+    swaps,
+    peg_keepers,
+    redeemable_tokens,
+    stablecoin,
+    alice,
+    receiver,
+    admin,
+):
+    with boa.env.prank(admin):
+        for swap in swaps:
+            swap.commit_new_fee(4 * 10**7)
+        boa.env.time_travel(4 * 86400)
+        for swap in swaps:
+            swap.apply_new_fee()
+    for k, v in locals().items():
+        setattr(StateMachine, k, v)
+    state = StateMachine()
+    state.advance_time()
+    state.invariant_check_diff()
+    state.invariant_profit()
+    state.invariant_profit_increases()
+    state.remove(pct=0.75, pool_idx=0)
+    state.teardown()
+
+
+def test_fail_wrong_diff(
+    add_initial_liquidity,
+    swaps,
+    peg_keepers,
+    redeemable_tokens,
+    stablecoin,
+    alice,
+    receiver,
+    admin,
+):
+    with boa.env.prank(admin):
+        for swap in swaps:
+            swap.commit_new_fee(4 * 10**7)
+        boa.env.time_travel(4 * 86400)
+        for swap in swaps:
+            swap.apply_new_fee()
+    for k, v in locals().items():
+        setattr(StateMachine, k, v)
+    state = StateMachine()
+    state.advance_time()
+    state.invariant_check_diff()
+    state.invariant_profit()
+    state.invariant_profit_increases()
+    state.exchange(idx=0, pct=0.75, pool_idx=0)
+    state.advance_time()
+    state.invariant_check_diff()
+    state.teardown()
