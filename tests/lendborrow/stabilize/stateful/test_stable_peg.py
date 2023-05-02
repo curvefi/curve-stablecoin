@@ -6,7 +6,6 @@ from hypothesis.stateful import run_state_machine_as_test, invariant
 from hypothesis._settings import HealthCheck
 
 from . import base
-from ....conftest import approx
 
 pytestmark = pytest.mark.usefixtures(
     "add_initial_liquidity",
@@ -85,7 +84,6 @@ class StateMachine(base.StateMachine):
             if diff == last_diff:
                 assert profit == 0
             else:
-                # assert approx(diff, last_diff - last_diff // 5, swap.fee() / 1e10)
                 assert abs(diff - (last_diff - last_diff // 5)) <= 5
 
 
