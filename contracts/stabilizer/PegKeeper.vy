@@ -149,6 +149,8 @@ def aggregator() -> StableAggregator:
 def _provide(_amount: uint256):
     # We already have all reserves here
     # ERC20(PEGGED).mint(self, _amount)
+    if _amount == 0:
+        return
 
     amounts: uint256[2] = empty(uint256[2])
     amounts[I] = _amount
@@ -161,6 +163,9 @@ def _provide(_amount: uint256):
 
 @internal
 def _withdraw(_amount: uint256):
+    if _amount == 0:
+        return
+
     debt: uint256 = self.debt
     amount: uint256 = min(_amount, debt)
 
@@ -232,7 +237,8 @@ def update(_beneficiary: address = msg.sender) -> uint256:
     assert new_profit >= initial_profit  # dev: peg was unprofitable
     lp_amount: uint256 = new_profit - initial_profit
     caller_profit: uint256 = lp_amount * self.caller_share / SHARE_PRECISION
-    POOL.transfer(_beneficiary, caller_profit)
+    if caller_profit > 0:
+        POOL.transfer(_beneficiary, caller_profit)
 
     return caller_profit
 
