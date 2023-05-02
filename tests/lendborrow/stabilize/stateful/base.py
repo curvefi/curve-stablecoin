@@ -67,9 +67,11 @@ class StateMachine(RuleBasedStateMachine):
             int(self.dmul[pool_idx][1] * BASE_AMOUNT * amount_1),
         ]
         for i in range(2):
-            if amounts[i] >= self.swaps[pool_idx].balances(i):
+            if amounts[i] > self.swaps[pool_idx].balances(i):
                 # Don't remove more than we have
                 return
+        if self.swaps[pool_idx].calc_token_amount(amounts, False) > self.swaps[pool_idx].balanceOf(self.alice):
+            return
         with boa.env.prank(self.alice):
             self.swaps[pool_idx].remove_liquidity_imbalance(
                 amounts, 2**256 - 1)
