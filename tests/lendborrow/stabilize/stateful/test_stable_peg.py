@@ -38,8 +38,9 @@ class StateMachine(base.StateMachine):
             try:
                 with boa.env.prank(self.alice):
                     peg_keeper.update()
-            except BoaError:
-                continue
+            except BoaError as e:
+                if 'peg unprofitable' in str(e):
+                    continue
 
             profit = peg_keeper.calc_profit()
             virtual_price = swap.get_virtual_price()
@@ -54,7 +55,7 @@ class StateMachine(base.StateMachine):
         """
         Verify that Peg Keeper decreased diff of balances by 1/5.
         """
-        for peg_keeper, swap, dmul in zip(self.peg_keepers, self.swaps, self.dmul):
+        for idx, (peg_keeper, swap, dmul) in enumerate(zip(self.peg_keepers, self.swaps, self.dmul)):
             try:
                 with boa.env.prank(self.alice):
                     peg_keeper.update()
@@ -67,7 +68,7 @@ class StateMachine(base.StateMachine):
             # Negative diff can make error of +-1
             last_diff = abs(last_diff)
             assert abs(diff) == last_diff - last_diff // 5
-            self.balances = [swap.balances(0), swap.balances(1)]
+            self.balances[idx] = [swap.balances(0), swap.balances(1)]
 
 
 def test_stable_peg(
