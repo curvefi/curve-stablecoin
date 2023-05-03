@@ -47,6 +47,8 @@ class StateMachine(base.StateMachine):
 
                 debt = peg_keeper.debt()
                 amount = 5 * (debt + 1) + swap.balances(0) * 10**18 // dmul[0] - swap.balances(1)
+                if amount < 0:
+                    return
                 StateMachine._mint(self.alice, [self.stablecoin], [amount])
                 with boa.env.prank(self.alice):
                     swap.add_liquidity([0, amount], 0)

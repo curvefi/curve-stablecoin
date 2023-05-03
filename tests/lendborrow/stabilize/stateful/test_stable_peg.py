@@ -22,12 +22,6 @@ class StateMachine(base.StateMachine):
 
     def __init__(self):
         super().__init__()
-        with boa.env.prank(self.admin):
-            for swap in self.swaps:
-                swap.commit_new_fee(0)
-            boa.env.time_travel(7 * 86400)
-            for swap in self.swaps:
-                swap.apply_new_fee()
 
     @invariant()
     def invariant_profit_increases(self):

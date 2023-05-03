@@ -18,6 +18,12 @@ class StateMachine(RuleBasedStateMachine):
         self.profit = [pk.calc_profit() for pk in self.peg_keepers]
         stablecoin_decimals = self.stablecoin.decimals()
         self.dmul = [[10 ** r.decimals(), 10 ** stablecoin_decimals] for r in self.redeemable_tokens]
+        with boa.env.prank(self.admin):
+            for swap in self.swaps:
+                swap.commit_new_fee(0)
+            boa.env.time_travel(7 * 86400)
+            for swap in self.swaps:
+                swap.apply_new_fee()
 
     @rule(idx=st_idx, pct=st_pct, pool_idx=st_pool)
     def add_one_coin(self, idx, pct, pool_idx):
