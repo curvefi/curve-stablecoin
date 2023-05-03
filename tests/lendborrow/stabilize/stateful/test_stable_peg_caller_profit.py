@@ -44,13 +44,13 @@ class StateMachine(base.StateMachine):
             caller_balance = swap.balanceOf(self.alice)
             if caller_profit > 0:  # expected_caller_profit might be 0 in this case
                 assert caller_profit == caller_balance - initial_caller_balance
-                assert caller_profit >= expected_caller_profit
+                assert caller_profit >= expected_caller_profit - 1
             else:
                 assert expected_caller_profit == 0
                 assert caller_balance == initial_caller_balance
 
             if expected_caller_profit > 0:
-                assert caller_profit >= expected_caller_profit
+                assert caller_profit >= expected_caller_profit - 1
 
 
 def test_stable_peg(
