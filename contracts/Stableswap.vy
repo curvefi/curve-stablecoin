@@ -546,29 +546,56 @@ def get_virtual_price() -> uint256:
 def calc_token_amount(_amounts: uint256[N_COINS], _is_deposit: bool) -> uint256:
     """
     @notice Calculate addition or reduction in token supply from a deposit or withdrawal
-    @dev This calculation accounts for slippage, but not fees.
-         Needed to prevent front-running, not for precise calculations!
     @param _amounts Amount of each coin being deposited
     @param _is_deposit set True for deposits, False for withdrawals
     @return Expected amount of LP tokens received
     """
     amp: uint256 = self._A()
-    balances: uint256[N_COINS] = self.balances
+    old_balances: uint256[N_COINS] = self.balances
+    rates: uint256[N_COINS] = self.rate_multipliers
 
-    D0: uint256 = self.get_D_mem(self.rate_multipliers, balances, amp)
+    # Initial invariant
+    D0: uint256 = self.get_D_mem(rates, old_balances, amp)
+
+    total_supply: uint256 = self.totalSupply
+    new_balances: uint256[N_COINS] = old_balances
     for i in range(N_COINS):
         amount: uint256 = _amounts[i]
         if _is_deposit:
-            balances[i] += amount
+            new_balances[i] += amount
         else:
-            balances[i] -= amount
-    D1: uint256 = self.get_D_mem(self.rate_multipliers, balances, amp)
+            new_balances[i] -= amount
+
+    # Invariant after change
+    D1: uint256 = self.get_D_mem(rates, new_balances, amp)
+
+    # We need to recalculate the invariant accounting for fees
+    # to calculate fair user's share
+    D2: uint256 = D1
+    if total_supply > 0:
+        # Only account for fees if we are not the first to deposit
+        base_fee: uint256 = self.fee * N_COINS / (4 * (N_COINS - 1))
+        for i in range(N_COINS):
+            ideal_balance: uint256 = D1 * old_balances[i] / D0
+            difference: uint256 = 0
+            new_balance: uint256 = new_balances[i]
+            if ideal_balance > new_balance:
+                difference = ideal_balance - new_balance
+            else:
+                difference = new_balance - ideal_balance
+            new_balances[i] -= base_fee * difference / FEE_DENOMINATOR
+        xp: uint256[N_COINS] = self._xp_mem(rates, new_balances)
+        D2 = self.get_D(xp, amp)
+    else:
+        return D1  # Take the dust if there was any
+
+
     diff: uint256 = 0
     if _is_deposit:
-        diff = D1 - D0
+        diff = D2 - D0
     else:
-        diff = D0 - D1
-    return diff * self.totalSupply / D0
+        diff = D0 - D2
+    return diff * total_supply / D0
 
 
 @external
