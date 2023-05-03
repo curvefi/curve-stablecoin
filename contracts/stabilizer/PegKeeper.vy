@@ -12,6 +12,7 @@ interface StableAggregator:
 interface CurvePool:
     def balances(i_coin: uint256) -> uint256: view
     def coins(i: uint256) -> address: view
+    def calc_token_amount(_amounts: uint256[2], _is_deposit: bool) -> uint256: view
     def add_liquidity(_amounts: uint256[2], _min_mint_amount: uint256) -> uint256: nonpayable
     def remove_liquidity_imbalance(_amounts: uint256[2], _max_burn_amount: uint256) -> uint256: nonpayable
     def get_virtual_price() -> uint256: view
@@ -193,6 +194,35 @@ def _calc_profit() -> uint256:
         return lp_balance - lp_debt
 
 
+@internal
+@view
+def _calc_future_profit(_amount: uint256, _is_deposit: bool) -> uint256:
+    lp_balance: uint256 = POOL.balanceOf(self)
+    debt: uint256 = self.debt
+    amount: uint256 = _amount
+    if not _is_deposit:
+        amount = min(_amount, debt)
+
+    amounts: uint256[2] = empty(uint256[2])
+    amounts[I] = amount
+    lp_balance_diff: uint256 = POOL.calc_token_amount(amounts, _is_deposit)
+
+    if _is_deposit:
+        lp_balance += lp_balance_diff
+        debt += amount
+    else:
+        lp_balance -= lp_balance_diff
+        debt -= amount
+
+    virtual_price: uint256 = POOL.get_virtual_price()
+    lp_debt: uint256 = debt * PRECISION / virtual_price + PROFIT_THRESHOLD
+
+    if lp_balance <= lp_debt:
+        return 0
+    else:
+        return lp_balance - lp_debt
+
+
 @external
 @view
 def calc_profit() -> uint256:
@@ -201,6 +231,45 @@ def calc_profit() -> uint256:
     @return Amount of generated profit
     """
     return self._calc_profit()
+
+
+@external
+@view
+def estimate_caller_profit() -> uint256:
+    """
+    @notice Estimate profit from calling update()
+    @dev This method is not precise, real profit is always more because of increasing virtual price
+    @return Expected amount of profit going to beneficiary
+    """
+    if self.last_change + ACTION_DELAY > block.timestamp:
+        return 0
+
+    balance_pegged: uint256 = POOL.balances(I)
+    balance_peg: uint256 = POOL.balances(1 - I) * PEG_MUL
+
+    initial_profit: uint256 = self._calc_profit()
+
+    p_agg: uint256 = AGGREGATOR.price()  # Current USD per stablecoin
+
+    # Checking the balance will ensure no-loss of the stabilizer, but to ensure stabilization
+    # we need to exclude "bad" p_agg, so we add an extra check for it
+
+    new_profit: uint256 = 0
+    if balance_peg > balance_pegged:
+        if p_agg < 10**18:
+            return 0
+        new_profit = self._calc_future_profit((balance_peg - balance_pegged) / 5, True)  # this dumps stablecoin
+
+    else:
+        if p_agg > 10**18:
+            return 0
+        new_profit = self._calc_future_profit((balance_pegged - balance_peg) / 5, False)  # this pumps stablecoin
+
+    if new_profit < initial_profit:
+        return 0
+    lp_amount: uint256 = new_profit - initial_profit
+
+    return lp_amount * self.caller_share / SHARE_PRECISION
 
 
 @external
