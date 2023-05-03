@@ -44,13 +44,13 @@ class StateMachine(base.StateMachine):
             caller_balance = swap.balanceOf(self.alice)
             if caller_profit > 0:  # expected_caller_profit might be 0 in this case
                 assert caller_profit == caller_balance - initial_caller_balance
-                assert caller_profit > expected_caller_profit
+                assert caller_profit >= expected_caller_profit
             else:
                 assert expected_caller_profit == 0
                 assert caller_balance == initial_caller_balance
 
             if expected_caller_profit > 0:
-                assert caller_profit > expected_caller_profit
+                assert caller_profit >= expected_caller_profit
 
 
 def test_stable_peg(
@@ -74,3 +74,45 @@ def test_stable_peg(
     for k, v in locals().items():
         setattr(StateMachine, k, v)
     run_state_machine_as_test(StateMachine)
+
+
+def test_expected_profit_amount(
+    add_initial_liquidity,
+    swaps,
+    peg_keepers,
+    redeemable_tokens,
+    stablecoin,
+    alice,
+    receiver,
+    admin,
+):
+    with boa.env.prank(admin):
+        for swap in swaps:
+            swap.commit_new_fee(4 * 10**7)
+        boa.env.time_travel(4 * 86400)
+        for swap in swaps:
+            swap.apply_new_fee()
+    for k, v in locals().items():
+        setattr(StateMachine, k, v)
+    state = StateMachine()
+    state.advance_time()
+    state.invariant_expected_caller_profit()
+    state.add_coins(amount_0=0.4586551720385922, amount_1=0.2753979563491829, pool_idx=1)
+    state.advance_time()
+    state.invariant_expected_caller_profit()
+    state.remove_imbalance(amount_0=0.2708333333333333, amount_1=6.103515625e-05, pool_idx=1)
+    state.advance_time()
+    state.invariant_expected_caller_profit()
+    state.remove_one_coin(idx=0, pct=0.5, pool_idx=1)
+    state.advance_time()
+    state.invariant_expected_caller_profit()
+    state.remove_imbalance(amount_0=0.5, amount_1=0.0625, pool_idx=0)
+    state.advance_time()
+    state.invariant_expected_caller_profit()
+    state.remove_one_coin(idx=0, pct=0.5, pool_idx=0)
+    state.advance_time()
+    state.invariant_expected_caller_profit()
+    state.add_one_coin(idx=0, pct=0.9, pool_idx=0)
+    state.advance_time()
+    state.invariant_expected_caller_profit()
+    state.teardown()
