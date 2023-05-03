@@ -509,8 +509,6 @@ def save_p_from_price(last_price: uint256):
     """
     Saves current price and its EMA
     """
-    # XXX reminder: put an upper limit on last_price (2.0?) to prevent manipulation
-    # (separately)
     if last_price != 0:
         self.last_prices_packed = self.pack_prices(last_price, self._ma_price())
         if self.ma_last_time < block.timestamp:
@@ -755,7 +753,23 @@ def get_dy(i: int128, j: int128, dx: uint256) -> uint256:
     return (dy - fee) * PRECISION / rates[j]
 
 
-# get_dx XXX
+@view
+@external
+def get_dx(i: int128, j: int128, dy: uint256) -> uint256:
+    """
+    @notice Calculate the current input dx given output dy
+    @dev Index values can be found via the `coins` public getter method
+    @param i Index value for the coin to send
+    @param j Index valie of the coin to recieve
+    @param dy Amount of `j` being received after exchange
+    @return Amount of `i` predicted
+    """
+    rates: uint256[N_COINS] = self.rate_multipliers
+    xp: uint256[N_COINS] = self._xp_mem(rates, self.balances)
+
+    y: uint256 = xp[j] - (dy * rates[j] / PRECISION + 1) * FEE_DENOMINATOR / (FEE_DENOMINATOR - self.fee)
+    x: uint256 = self.get_y(j, i, y, xp, 0, 0)
+    return (x - xp[i]) * PRECISION / rates[i]
 
 
 @external
