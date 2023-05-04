@@ -134,7 +134,7 @@ def deploy(network):
         print("Deploying stablecoin")
         stablecoin = account.deploy(project.Stablecoin, FULL_NAME, SHORT_NAME, **kw)
         print("Deploying factory")
-        factory = account.deploy(project.ControllerFactory, stablecoin, temporary_admin, fee_receiver, WETH, **kw)
+        factory = account.deploy(project.ControllerFactory, stablecoin, temporary_admin, fee_receiver, weth, **kw)
 
         print("Deploying Controller and AMM implementations")
         controller_impl = deploy_blueprint(project.Controller, account, **kw)
