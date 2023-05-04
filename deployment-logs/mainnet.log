@@ -1,242 +1,240 @@
 Deploying stablecoin
-INFO: Compiling 'Stableswap.vy'.
-INFO: Compiling 'Stablecoin.vy'.
-INFO: Compiling 'stabilizer/PegKeeper.vy'.
 Using cached key for 'babe'
-INFO: Submitted 0xc99669415ba171a8422fd2cc038b7e64b1ff7fa4a659036c33660b74d7f5cd8b
-etherscan URL: https://etherscan.io/tx/0xc99669415ba171a8422fd2cc038b7e64b1ff7fa4a659036c33660b74d7f5cd8b
-Confirmations (2/2): 100%|██████████████████████████████████████████████████████████████████████████████████████████████████████████| 2/2 [00:24<00:00, 12.15s/it]
-INFO: Confirmed 0xc99669415ba171a8422fd2cc038b7e64b1ff7fa4a659036c33660b74d7f5cd8b (total fees paid = 81677583094608560)
-SUCCESS: Contract 'Stablecoin' deployed to: 0x95ECDC6caAf7E4805FCeF2679A92338351D24297
+INFO: Submitted 0xc89390c1e8f566dd2672e6d770247fe46b80f49eba2d66aa730978bc7e048bee
+etherscan URL: https://etherscan.io/tx/0xc89390c1e8f566dd2672e6d770247fe46b80f49eba2d66aa730978bc7e048bee
+Confirmations (2/2): 100%|██████████████████████████████████████████████████████████████████████████████████████████████████████████| 2/2 [00:24<00:00, 12.50s/it]
+INFO: Confirmed 0xc89390c1e8f566dd2672e6d770247fe46b80f49eba2d66aa730978bc7e048bee (total fees paid = 66086815834152859)
+SUCCESS: Contract 'Stablecoin' deployed to: 0x5aa00dce91409B58B6A1338639B9Daa63EB22BE7
 Deploying factory
 Using cached key for 'babe'
-INFO: Submitted 0xb2544cb845c44476b9646d8a87fb1685dd70d48df9497a2184ce05829ac2711f
-etherscan URL: https://etherscan.io/tx/0xb2544cb845c44476b9646d8a87fb1685dd70d48df9497a2184ce05829ac2711f
-Confirmations (2/2): 100%|██████████████████████████████████████████████████████████████████████████████████████████████████████████| 2/2 [00:24<00:00, 12.37s/it]
-INFO: Confirmed 0xb2544cb845c44476b9646d8a87fb1685dd70d48df9497a2184ce05829ac2711f (total fees paid = 129861841909447418)
-SUCCESS: Contract 'ControllerFactory' deployed to: 0x818709B85052dDC521fAe9C78737B27316337e3A
+INFO: Submitted 0xd10198fa674e3effc4aa24cbb17c515ad22cc77ec0d5eab00eafe4f9b909e78d
+etherscan URL: https://etherscan.io/tx/0xd10198fa674e3effc4aa24cbb17c515ad22cc77ec0d5eab00eafe4f9b909e78d
+Confirmations (2/2): 100%|██████████████████████████████████████████████████████████████████████████████████████████████████████████| 2/2 [00:24<00:00, 12.30s/it]
+INFO: Confirmed 0xd10198fa674e3effc4aa24cbb17c515ad22cc77ec0d5eab00eafe4f9b909e78d (total fees paid = 114031564287921549)
+SUCCESS: Contract 'ControllerFactory' deployed to: 0x30a2F3c3AA6D12C0a36Bed210dCF1B32EF6228Cc
 Deploying Controller and AMM implementations
 Using cached key for 'babe'
-INFO: Submitted 0xed4234987501f037128534ac41687a19b96e2343c54fa97087218657702c2814
-etherscan URL: https://etherscan.io/tx/0xed4234987501f037128534ac41687a19b96e2343c54fa97087218657702c2814
-Confirmations (2/2): 100%|██████████████████████████████████████████████████████████████████████████████████████████████████████████| 2/2 [00:24<00:00, 12.36s/it]
-INFO: Confirmed 0xed4234987501f037128534ac41687a19b96e2343c54fa97087218657702c2814 (total fees paid = 517807683069299888)
-blueprint deployed at: 0xb960C386ECa71D28c95Cb064D2F4720FBAd1f8Fd
+INFO: Submitted 0x7d9bc43bd10099b96c00cc8966495b4a58421d50d3b917201ee7c54ae430c35b
+etherscan URL: https://etherscan.io/tx/0x7d9bc43bd10099b96c00cc8966495b4a58421d50d3b917201ee7c54ae430c35b
+Confirmations (2/2): 100%|██████████████████████████████████████████████████████████████████████████████████████████████████████████| 2/2 [00:30<00:00, 15.37s/it]
+INFO: Confirmed 0x7d9bc43bd10099b96c00cc8966495b4a58421d50d3b917201ee7c54ae430c35b (total fees paid = 451978460778406792)
+blueprint deployed at: 0x42B9dea10b51A696949715797bDfD69489fC3b32
 Using cached key for 'babe'
-INFO: Submitted 0x022105bc0ec96ffb8f477e18cfe9fa14e1e1bc8d88898a1ba1206d863d96a820
-etherscan URL: https://etherscan.io/tx/0x022105bc0ec96ffb8f477e18cfe9fa14e1e1bc8d88898a1ba1206d863d96a820
-Confirmations (2/2): 100%|██████████████████████████████████████████████████████████████████████████████████████████████████████████| 2/2 [00:24<00:00, 12.49s/it]
-INFO: Confirmed 0x022105bc0ec96ffb8f477e18cfe9fa14e1e1bc8d88898a1ba1206d863d96a820 (total fees paid = 562763553415296475)
-blueprint deployed at: 0x1d9e59364785EBF00e8Ef2c15e132D0f661585cA
+INFO: Submitted 0x61fb39f9c5002edc9b3cfca2381c9b56825c31272412af20eb2c48f0196b0feb
+etherscan URL: https://etherscan.io/tx/0x61fb39f9c5002edc9b3cfca2381c9b56825c31272412af20eb2c48f0196b0feb
+Confirmations (2/2): 100%|██████████████████████████████████████████████████████████████████████████████████████████████████████████| 2/2 [00:24<00:00, 12.48s/it]
+INFO: Confirmed 0x61fb39f9c5002edc9b3cfca2381c9b56825c31272412af20eb2c48f0196b0feb (total fees paid = 436986918159365915)
+blueprint deployed at: 0x9bD5B13f51e27B58174968A8983b450a300cDA05
 Setting implementations in the factory
 Using cached key for 'babe'
-INFO: Submitted 0xef3f2f9046431a5d16bf6570cecd527cae358209222d9d854cce8bb022d541ed
-etherscan URL: https://etherscan.io/tx/0xef3f2f9046431a5d16bf6570cecd527cae358209222d9d854cce8bb022d541ed
-Confirmations (2/2): 100%|██████████████████████████████████████████████████████████████████████████████████████████████████████████| 2/2 [00:24<00:00, 12.31s/it]
-INFO: Confirmed 0xef3f2f9046431a5d16bf6570cecd527cae358209222d9d854cce8bb022d541ed (total fees paid = 9415419996565034)
+INFO: Submitted 0x1179e908e66a2c92a9a5c7fbdf29141335cf4a10e7940742414aaf050c3caa2a
+etherscan URL: https://etherscan.io/tx/0x1179e908e66a2c92a9a5c7fbdf29141335cf4a10e7940742414aaf050c3caa2a
+Confirmations (2/2): 100%|██████████████████████████████████████████████████████████████████████████████████████████████████████████| 2/2 [00:24<00:00, 12.32s/it]
+INFO: Confirmed 0x1179e908e66a2c92a9a5c7fbdf29141335cf4a10e7940742414aaf050c3caa2a (total fees paid = 7535221853983696)
 Using cached key for 'babe'
-INFO: Submitted 0xc531a3489a97696e9fa60abf77829be3d5f88823c7b10815b8b1008eb28b7d18
-etherscan URL: https://etherscan.io/tx/0xc531a3489a97696e9fa60abf77829be3d5f88823c7b10815b8b1008eb28b7d18
-Confirmations (2/2): 100%|██████████████████████████████████████████████████████████████████████████████████████████████████████████| 2/2 [00:24<00:00, 12.39s/it]
-INFO: Confirmed 0xc531a3489a97696e9fa60abf77829be3d5f88823c7b10815b8b1008eb28b7d18 (total fees paid = 2800467764686928)
+INFO: Submitted 0x24768f17ead332afc5f90ac5b4c8ae1102b04867ec570848f859bdce70572779
+etherscan URL: https://etherscan.io/tx/0x24768f17ead332afc5f90ac5b4c8ae1102b04867ec570848f859bdce70572779
+Confirmations (2/2): 100%|██████████████████████████████████████████████████████████████████████████████████████████████████████████| 2/2 [00:24<00:00, 12.48s/it]
+INFO: Confirmed 0x24768f17ead332afc5f90ac5b4c8ae1102b04867ec570848f859bdce70572779 (total fees paid = 2319471196165928)
 Using cached key for 'babe'
-INFO: Submitted 0x64e49f058d01ba095d033abce5bf1ecc121993bfc4b61b7992f740d01effc35d
-etherscan URL: https://etherscan.io/tx/0x64e49f058d01ba095d033abce5bf1ecc121993bfc4b61b7992f740d01effc35d
-Confirmations (2/2): 100%|██████████████████████████████████████████████████████████████████████████████████████████████████████████| 2/2 [00:24<00:00, 12.46s/it]
-INFO: Confirmed 0x64e49f058d01ba095d033abce5bf1ecc121993bfc4b61b7992f740d01effc35d (total fees paid = 288320789935172400)
-SUCCESS: Contract 'StableswapFactory' deployed to: 0x528bAca578523855a64eE9C276826f934c86a54c
-Using cached key for 'babe'
-INFO: Submitted 0x6ecaef6642727e94c405d2e515a3585f661a4bfa5ca3c2a39165846acd947cb8
-etherscan URL: https://etherscan.io/tx/0x6ecaef6642727e94c405d2e515a3585f661a4bfa5ca3c2a39165846acd947cb8
-Confirmations (2/2): 100%|██████████████████████████████████████████████████████████████████████████████████████████████████████████| 2/2 [00:36<00:00, 18.47s/it]
-INFO: Confirmed 0x6ecaef6642727e94c405d2e515a3585f661a4bfa5ca3c2a39165846acd947cb8 (total fees paid = 4628416203904959)
-Using cached key for 'babe'
-INFO: Submitted 0x9e098fdac69ec31c922942693218f997346d90524c04d2f31da7a0739cd0f245
-etherscan URL: https://etherscan.io/tx/0x9e098fdac69ec31c922942693218f997346d90524c04d2f31da7a0739cd0f245
-Confirmations (2/2): 100%|██████████████████████████████████████████████████████████████████████████████████████████████████████████| 2/2 [00:24<00:00, 12.36s/it]
-INFO: Confirmed 0x9e098fdac69ec31c922942693218f997346d90524c04d2f31da7a0739cd0f245 (total fees paid = 143494150910823096)
-SUCCESS: Contract 'OwnerProxy' deployed to: 0xc7BAB672806932FcaF918b4318796b02B0832856
-Using cached key for 'babe'
-INFO: Submitted 0x49bc0ef0570dcf593e966744101b46f84af1485681fd63e97cc004cfe148ba35
-etherscan URL: https://etherscan.io/tx/0x49bc0ef0570dcf593e966744101b46f84af1485681fd63e97cc004cfe148ba35
-Confirmations (2/2): 100%|██████████████████████████████████████████████████████████████████████████████████████████████████████████| 2/2 [00:25<00:00, 12.52s/it]
-INFO: Confirmed 0x49bc0ef0570dcf593e966744101b46f84af1485681fd63e97cc004cfe148ba35 (total fees paid = 4693068474169397)
-Using cached key for 'babe'
-INFO: Submitted 0xc4351375e572c81215f17fa441038ac9702e64514522ffd4829812299ec23ed3
-etherscan URL: https://etherscan.io/tx/0xc4351375e572c81215f17fa441038ac9702e64514522ffd4829812299ec23ed3
-Confirmations (2/2): 100%|██████████████████████████████████████████████████████████████████████████████████████████████████████████| 2/2 [00:24<00:00, 12.40s/it]
-INFO: Confirmed 0xc4351375e572c81215f17fa441038ac9702e64514522ffd4829812299ec23ed3 (total fees paid = 3061106463388145)
-Using cached key for 'babe'
-INFO: Submitted 0x5b6adc5780cf18123084ae62b4049eeac1d71898b745897d622a347a4e09f0ff
-etherscan URL: https://etherscan.io/tx/0x5b6adc5780cf18123084ae62b4049eeac1d71898b745897d622a347a4e09f0ff
-Confirmations (2/2): 100%|██████████████████████████████████████████████████████████████████████████████████████████████████████████| 2/2 [00:24<00:00, 12.39s/it]
-INFO: Confirmed 0x5b6adc5780cf18123084ae62b4049eeac1d71898b745897d622a347a4e09f0ff (total fees paid = 390508313301447299)
-SUCCESS: Contract 'Stableswap' deployed to: 0xbC4d0f452b347cF25eE84509Ed99BD478Ac96B5D
-Using cached key for 'babe'
-INFO: Submitted 0xcdfc9def26d338f15167825abf68f1455bf162baeeca3a8d65c8eb9c4d878e8e
-etherscan URL: https://etherscan.io/tx/0xcdfc9def26d338f15167825abf68f1455bf162baeeca3a8d65c8eb9c4d878e8e
-Confirmations (2/2): 100%|██████████████████████████████████████████████████████████████████████████████████████████████████████████| 2/2 [00:24<00:00, 12.43s/it]
-INFO: Confirmed 0xcdfc9def26d338f15167825abf68f1455bf162baeeca3a8d65c8eb9c4d878e8e (total fees paid = 5925421792801601)
-Using cached key for 'babe'
-INFO: Submitted 0x2032d4cc47d378d7d474996df19b40cb8a91e64d64c3d300fe7b9032322b2ab0
-etherscan URL: https://etherscan.io/tx/0x2032d4cc47d378d7d474996df19b40cb8a91e64d64c3d300fe7b9032322b2ab0
-Confirmations (2/2): 100%|██████████████████████████████████████████████████████████████████████████████████████████████████████████| 2/2 [00:24<00:00, 12.33s/it]
-INFO: Confirmed 0x2032d4cc47d378d7d474996df19b40cb8a91e64d64c3d300fe7b9032322b2ab0 (total fees paid = 5232551277932800)
-Using cached key for 'babe'
-INFO: Submitted 0x754ea1c352cf1ffd2480c29bd9bc69fab5baae448f94cb2948a9a9ae1fc274b8
-etherscan URL: https://etherscan.io/tx/0x754ea1c352cf1ffd2480c29bd9bc69fab5baae448f94cb2948a9a9ae1fc274b8
-Confirmations (2/2): 100%|██████████████████████████████████████████████████████████████████████████████████████████████████████████| 2/2 [00:24<00:00, 12.47s/it]
-INFO: Confirmed 0x754ea1c352cf1ffd2480c29bd9bc69fab5baae448f94cb2948a9a9ae1fc274b8 (total fees paid = 8890376608174967)
-Using cached key for 'babe'
-INFO: Submitted 0x193feaddf173b42e88ee0743e868a5e2159ad75ba0943639df514124c50fae7a
-etherscan URL: https://etherscan.io/tx/0x193feaddf173b42e88ee0743e868a5e2159ad75ba0943639df514124c50fae7a
-Confirmations (2/2): 100%|██████████████████████████████████████████████████████████████████████████████████████████████████████████| 2/2 [00:24<00:00, 12.35s/it]
-INFO: Confirmed 0x193feaddf173b42e88ee0743e868a5e2159ad75ba0943639df514124c50fae7a (total fees paid = 3696952254386089)
-Using cached key for 'babe'
-INFO: Submitted 0xd5bdaaea7272f48675540a2c65d1c67f20829d067c4bf02512f5e66d6e0cf021
-etherscan URL: https://etherscan.io/tx/0xd5bdaaea7272f48675540a2c65d1c67f20829d067c4bf02512f5e66d6e0cf021
+INFO: Submitted 0xc0cd2436c5c6b28586552365a7bc2918a674af79805a472fee3447514d139925
+etherscan URL: https://etherscan.io/tx/0xc0cd2436c5c6b28586552365a7bc2918a674af79805a472fee3447514d139925
 Confirmations (2/2): 100%|██████████████████████████████████████████████████████████████████████████████████████████████████████████| 2/2 [00:24<00:00, 12.37s/it]
-INFO: Confirmed 0xd5bdaaea7272f48675540a2c65d1c67f20829d067c4bf02512f5e66d6e0cf021 (total fees paid = 20781918582421444)
+INFO: Confirmed 0xc0cd2436c5c6b28586552365a7bc2918a674af79805a472fee3447514d139925 (total fees paid = 234074222657051625)
+SUCCESS: Contract 'StableswapFactory' deployed to: 0x3be09DEA9ca8B6205D05f196e9c68FC35190a514
+Using cached key for 'babe'
+INFO: Submitted 0x51706df81b9d44fd67a73798661f9e32424a0ca115e042ec9860857183a57bd4
+etherscan URL: https://etherscan.io/tx/0x51706df81b9d44fd67a73798661f9e32424a0ca115e042ec9860857183a57bd4
+Confirmations (2/2): 100%|██████████████████████████████████████████████████████████████████████████████████████████████████████████| 2/2 [00:24<00:00, 12.37s/it]
+INFO: Confirmed 0x51706df81b9d44fd67a73798661f9e32424a0ca115e042ec9860857183a57bd4 (total fees paid = 3561462390748734)
+Using cached key for 'babe'
+INFO: Submitted 0xf60798d7b767ad329d5e419feac2c85e95a90d1cb99b7754d0f104f405416b72
+etherscan URL: https://etherscan.io/tx/0xf60798d7b767ad329d5e419feac2c85e95a90d1cb99b7754d0f104f405416b72
+Confirmations (2/2): 100%|██████████████████████████████████████████████████████████████████████████████████████████████████████████| 2/2 [00:30<00:00, 15.36s/it]
+INFO: Confirmed 0xf60798d7b767ad329d5e419feac2c85e95a90d1cb99b7754d0f104f405416b72 (total fees paid = 101822433448539664)
+SUCCESS: Contract 'OwnerProxy' deployed to: 0xD0E6bc02657451Fe16CDDD7CAB8cd55e39d25D2f
+Using cached key for 'babe'
+INFO: Submitted 0x3c6115d57a6fd02476110891afc7519089949081b6841b6a36cd95d2972968af
+etherscan URL: https://etherscan.io/tx/0x3c6115d57a6fd02476110891afc7519089949081b6841b6a36cd95d2972968af
+Confirmations (2/2): 100%|██████████████████████████████████████████████████████████████████████████████████████████████████████████| 2/2 [00:24<00:00, 12.40s/it]
+INFO: Confirmed 0x3c6115d57a6fd02476110891afc7519089949081b6841b6a36cd95d2972968af (total fees paid = 3424065869275954)
+Using cached key for 'babe'
+INFO: Submitted 0x14d2bc96db5197d8f438a2c74ff64ba3564e344783a928b2263c5310a3d177a4
+etherscan URL: https://etherscan.io/tx/0x14d2bc96db5197d8f438a2c74ff64ba3564e344783a928b2263c5310a3d177a4
+Confirmations (2/2): 100%|██████████████████████████████████████████████████████████████████████████████████████████████████████████| 2/2 [00:30<00:00, 15.37s/it]
+INFO: Confirmed 0x14d2bc96db5197d8f438a2c74ff64ba3564e344783a928b2263c5310a3d177a4 (total fees paid = 2131521544083540)
+Using cached key for 'babe'
+INFO: Submitted 0x1ce52275e35f8be6207a62114abb4656ba95292530aa670c304b49f9fcb0ba5e
+etherscan URL: https://etherscan.io/tx/0x1ce52275e35f8be6207a62114abb4656ba95292530aa670c304b49f9fcb0ba5e
+Confirmations (2/2): 100%|██████████████████████████████████████████████████████████████████████████████████████████████████████████| 2/2 [00:24<00:00, 12.43s/it]
+INFO: Confirmed 0x1ce52275e35f8be6207a62114abb4656ba95292530aa670c304b49f9fcb0ba5e (total fees paid = 306931785238382724)
+SUCCESS: Contract 'Stableswap' deployed to: 0x41d5d78049d44444aC6d5E1eC67990F24eFaCD58
+Using cached key for 'babe'
+INFO: Submitted 0x841802183c14de227c3548eca798bd9f121c8e7ef5c9f653afd94847c7da788d
+etherscan URL: https://etherscan.io/tx/0x841802183c14de227c3548eca798bd9f121c8e7ef5c9f653afd94847c7da788d
+Confirmations (2/2): 100%|██████████████████████████████████████████████████████████████████████████████████████████████████████████| 2/2 [00:24<00:00, 12.36s/it]
+INFO: Confirmed 0x841802183c14de227c3548eca798bd9f121c8e7ef5c9f653afd94847c7da788d (total fees paid = 4634646931604679)
+Using cached key for 'babe'
+INFO: Submitted 0xadfd852a6050ba1ec137afa8a0bdbba23c5a08eba18965da53e30ece3caac049
+etherscan URL: https://etherscan.io/tx/0xadfd852a6050ba1ec137afa8a0bdbba23c5a08eba18965da53e30ece3caac049
+Confirmations (2/2): 100%|██████████████████████████████████████████████████████████████████████████████████████████████████████████| 2/2 [00:24<00:00, 12.31s/it]
+INFO: Confirmed 0xadfd852a6050ba1ec137afa8a0bdbba23c5a08eba18965da53e30ece3caac049 (total fees paid = 4070535232785920)
+Using cached key for 'babe'
+INFO: Submitted 0x42089addd2d2265793ad588adf7416c69d873402ace4c799505137e7b970c622
+etherscan URL: https://etherscan.io/tx/0x42089addd2d2265793ad588adf7416c69d873402ace4c799505137e7b970c622
+Confirmations (2/2): 100%|██████████████████████████████████████████████████████████████████████████████████████████████████████████| 2/2 [00:24<00:00, 12.30s/it]
+INFO: Confirmed 0x42089addd2d2265793ad588adf7416c69d873402ace4c799505137e7b970c622 (total fees paid = 7311737142936925)
+Using cached key for 'babe'
+INFO: Submitted 0x789d12d1c5ea6e4ec953ef77f404c15a6aa86e531ff0c2f466947f3c641b1ae9
+etherscan URL: https://etherscan.io/tx/0x789d12d1c5ea6e4ec953ef77f404c15a6aa86e531ff0c2f466947f3c641b1ae9
+Confirmations (2/2): 100%|██████████████████████████████████████████████████████████████████████████████████████████████████████████| 2/2 [00:24<00:00, 12.33s/it]
+INFO: Confirmed 0x789d12d1c5ea6e4ec953ef77f404c15a6aa86e531ff0c2f466947f3c641b1ae9 (total fees paid = 3033883931288230)
+Using cached key for 'babe'
+INFO: Submitted 0xfe7f8965fa441eb3c508ba3166b879b45fca323483a69b57de36175bd0e80811
+etherscan URL: https://etherscan.io/tx/0xfe7f8965fa441eb3c508ba3166b879b45fca323483a69b57de36175bd0e80811
+Confirmations (2/2): 100%|██████████████████████████████████████████████████████████████████████████████████████████████████████████| 2/2 [00:24<00:00, 12.37s/it]
+INFO: Confirmed 0xfe7f8965fa441eb3c508ba3166b879b45fca323483a69b57de36175bd0e80811 (total fees paid = 16787822184010564)
 Deploying a stablecoin pool with USDC (0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48)
 Using cached key for 'babe'
-INFO: Submitted 0xca2102a9162757e94c15b0ee5953f22d26f82e8cab2fbbd8a1aa484fb09a1658
-etherscan URL: https://etherscan.io/tx/0xca2102a9162757e94c15b0ee5953f22d26f82e8cab2fbbd8a1aa484fb09a1658
-Confirmations (2/2): 100%|██████████████████████████████████████████████████████████████████████████████████████████████████████████| 2/2 [00:24<00:00, 12.32s/it]
-INFO: Confirmed 0xca2102a9162757e94c15b0ee5953f22d26f82e8cab2fbbd8a1aa484fb09a1658 (total fees paid = 87016899040896829)
-Stablecoin pool crvUSD/USDC is deployed at 0x0F88D57233941c42E5C53f27e2261FD8fA16127c
+INFO: Submitted 0x9b2b584a6de9fc904820c92bc336fc8213910534e8d868e105733e51a9d6db38
+etherscan URL: https://etherscan.io/tx/0x9b2b584a6de9fc904820c92bc336fc8213910534e8d868e105733e51a9d6db38
+Confirmations (2/2): 100%|██████████████████████████████████████████████████████████████████████████████████████████████████████████| 2/2 [00:24<00:00, 12.42s/it]
+INFO: Confirmed 0x9b2b584a6de9fc904820c92bc336fc8213910534e8d868e105733e51a9d6db38 (total fees paid = 67145293002895090)
+Stablecoin pool crvUSD/USDC is deployed at 0xE21c1084d62A77Fe5CD9a9Cf5321d5d30aC399B1
 Deploying a stablecoin pool with USDT (0xdAC17F958D2ee523a2206206994597C13D831ec7)
 Using cached key for 'babe'
-INFO: Submitted 0x3c2ecb9d5050a4757f25bded53d1dc42f0b4fd803164a8d421d7a42a9eabe79e
-etherscan URL: https://etherscan.io/tx/0x3c2ecb9d5050a4757f25bded53d1dc42f0b4fd803164a8d421d7a42a9eabe79e
-Confirmations (2/2): 100%|██████████████████████████████████████████████████████████████████████████████████████████████████████████| 2/2 [00:24<00:00, 12.41s/it]
-INFO: Confirmed 0x3c2ecb9d5050a4757f25bded53d1dc42f0b4fd803164a8d421d7a42a9eabe79e (total fees paid = 82053054743913870)
-Stablecoin pool crvUSD/USDT is deployed at 0x2Ee91a9818351dEa1b6606E5688c8e425CA21700
+INFO: Submitted 0x478df2da6f341b0040d41d766a4f5f0c5f96f785b78e4123d90d79a0ce8207a7
+etherscan URL: https://etherscan.io/tx/0x478df2da6f341b0040d41d766a4f5f0c5f96f785b78e4123d90d79a0ce8207a7
+Confirmations (2/2): 100%|██████████████████████████████████████████████████████████████████████████████████████████████████████████| 2/2 [00:24<00:00, 12.32s/it]
+INFO: Confirmed 0x478df2da6f341b0040d41d766a4f5f0c5f96f785b78e4123d90d79a0ce8207a7 (total fees paid = 61916139549674475)
+Stablecoin pool crvUSD/USDT is deployed at 0x672d4f13a5e1100D053e2943Cf3B17757253e01F
 Deploying a stablecoin pool with USDP (0x8E870D67F660D95d5be530380D0eC0bd388289E1)
 Using cached key for 'babe'
-INFO: Submitted 0x53c5ce40717b7887a6624b7d55f76b768bf284a4e25724a4188f26d5b700d986
-etherscan URL: https://etherscan.io/tx/0x53c5ce40717b7887a6624b7d55f76b768bf284a4e25724a4188f26d5b700d986
-Confirmations (2/2): 100%|██████████████████████████████████████████████████████████████████████████████████████████████████████████| 2/2 [00:24<00:00, 12.40s/it]
-INFO: Confirmed 0x53c5ce40717b7887a6624b7d55f76b768bf284a4e25724a4188f26d5b700d986 (total fees paid = 83460066038601220)
-Stablecoin pool crvUSD/USDP is deployed at 0x9aCB0C00B983AD1806663afdA2f494C45e274E4F
+INFO: Submitted 0x8445ac1c79e5583656e2a44242865a21b42ae1c8318b66427a0ba1576fd25096
+etherscan URL: https://etherscan.io/tx/0x8445ac1c79e5583656e2a44242865a21b42ae1c8318b66427a0ba1576fd25096
+Confirmations (2/2): 100%|██████████████████████████████████████████████████████████████████████████████████████████████████████████| 2/2 [00:30<00:00, 15.37s/it]
+INFO: Confirmed 0x8445ac1c79e5583656e2a44242865a21b42ae1c8318b66427a0ba1576fd25096 (total fees paid = 61033302980390600)
+Stablecoin pool crvUSD/USDP is deployed at 0xeE0247D31026934D7f91585C4756f275E422f1d1
 Deploying a stablecoin pool with TUSD (0x0000000000085d4780B73119b644AE5ecd22b376)
 Using cached key for 'babe'
-INFO: Submitted 0xd777277b608f6b5e2600b5aa8f755a3b5de35d198b248ac50288b7e7de631e9b
-etherscan URL: https://etherscan.io/tx/0xd777277b608f6b5e2600b5aa8f755a3b5de35d198b248ac50288b7e7de631e9b
+INFO: Submitted 0x9fcf3d867b33f7fdc2212ac257f5c6fbb9b088f07a08492f3fc584c839014d14
+etherscan URL: https://etherscan.io/tx/0x9fcf3d867b33f7fdc2212ac257f5c6fbb9b088f07a08492f3fc584c839014d14
 Confirmations (2/2): 100%|██████████████████████████████████████████████████████████████████████████████████████████████████████████| 2/2 [00:24<00:00, 12.46s/it]
-INFO: Confirmed 0xd777277b608f6b5e2600b5aa8f755a3b5de35d198b248ac50288b7e7de631e9b (total fees paid = 81627877916778680)
-Stablecoin pool crvUSD/TUSD is deployed at 0x9bf3B4504CbE2Fd255e8c4700b7b827da25CF106
+INFO: Confirmed 0x9fcf3d867b33f7fdc2212ac257f5c6fbb9b088f07a08492f3fc584c839014d14 (total fees paid = 64033326339296200)
+Stablecoin pool crvUSD/TUSD is deployed at 0x49d9E999258f1146FF7129319C27F941c1Fd7539
 Deploying stable price aggregator
 Using cached key for 'babe'
-INFO: Submitted 0xaf1fe9082f094cc3fee889fd7329581d29c45676024efdd24d175b08cf8570bb
-etherscan URL: https://etherscan.io/tx/0xaf1fe9082f094cc3fee889fd7329581d29c45676024efdd24d175b08cf8570bb
-Confirmations (2/2): 100%|██████████████████████████████████████████████████████████████████████████████████████████████████████████| 2/2 [00:24<00:00, 12.34s/it]
-INFO: Confirmed 0xaf1fe9082f094cc3fee889fd7329581d29c45676024efdd24d175b08cf8570bb (total fees paid = 65633756539127784)
-SUCCESS: Contract 'AggregateStablePrice' deployed to: 0xe55Be4c8F2d3c11536f61C8977dac4ad58446059
+INFO: Submitted 0x4d41e07b4d4be344607c40d2b51dfd1c0c5be2004ecbfbdac041ef818a33bcdf
+etherscan URL: https://etherscan.io/tx/0x4d41e07b4d4be344607c40d2b51dfd1c0c5be2004ecbfbdac041ef818a33bcdf
+Confirmations (2/2): 100%|██████████████████████████████████████████████████████████████████████████████████████████████████████████| 2/2 [00:24<00:00, 12.31s/it]
+INFO: Confirmed 0x4d41e07b4d4be344607c40d2b51dfd1c0c5be2004ecbfbdac041ef818a33bcdf (total fees paid = 49203647045752983)
+SUCCESS: Contract 'AggregateStablePrice' deployed to: 0xa402F9E5015BE2DE7AED695e47F2729246cC9434
 Using cached key for 'babe'
-INFO: Submitted 0x6dfd234b124a2926d83c21da368596986f17e1f00a33c3ec763a5e4294ef6261
-etherscan URL: https://etherscan.io/tx/0x6dfd234b124a2926d83c21da368596986f17e1f00a33c3ec763a5e4294ef6261
-Confirmations (2/2): 100%|██████████████████████████████████████████████████████████████████████████████████████████████████████████| 2/2 [00:24<00:00, 12.37s/it]
-INFO: Confirmed 0x6dfd234b124a2926d83c21da368596986f17e1f00a33c3ec763a5e4294ef6261 (total fees paid = 7364686905132396)
+INFO: Submitted 0x6c261bd84e31622d13466ed906796994d9b924c534d950080d7f8fc7bc462cc6
+etherscan URL: https://etherscan.io/tx/0x6c261bd84e31622d13466ed906796994d9b924c534d950080d7f8fc7bc462cc6
+Confirmations (2/2): 100%|██████████████████████████████████████████████████████████████████████████████████████████████████████████| 2/2 [00:24<00:00, 12.49s/it]
+INFO: Confirmed 0x6c261bd84e31622d13466ed906796994d9b924c534d950080d7f8fc7bc462cc6 (total fees paid = 5889716556123750)
 Using cached key for 'babe'
-INFO: Submitted 0xc9f72476a5d00e598b6d280c104985990a24620f677272e97dd17b1cf8e77487
-etherscan URL: https://etherscan.io/tx/0xc9f72476a5d00e598b6d280c104985990a24620f677272e97dd17b1cf8e77487
-Confirmations (2/2): 100%|██████████████████████████████████████████████████████████████████████████████████████████████████████████| 2/2 [00:37<00:00, 18.67s/it]
-INFO: Confirmed 0xc9f72476a5d00e598b6d280c104985990a24620f677272e97dd17b1cf8e77487 (total fees paid = 6114077768800377)
+INFO: Submitted 0x8abd9e1371774596fc19463d4f9cece209c44cf19ddc9e9656dde6132237f05a
+etherscan URL: https://etherscan.io/tx/0x8abd9e1371774596fc19463d4f9cece209c44cf19ddc9e9656dde6132237f05a
+Confirmations (2/2): 100%|██████████████████████████████████████████████████████████████████████████████████████████████████████████| 2/2 [00:24<00:00, 12.33s/it]
+INFO: Confirmed 0x8abd9e1371774596fc19463d4f9cece209c44cf19ddc9e9656dde6132237f05a (total fees paid = 4559610404103237)
 Using cached key for 'babe'
-INFO: Submitted 0x5e114c5e0799493d7ae8071c92b9874f506cfe3d635bf1913001db7d7f67f72e
-etherscan URL: https://etherscan.io/tx/0x5e114c5e0799493d7ae8071c92b9874f506cfe3d635bf1913001db7d7f67f72e
-Confirmations (2/2): 100%|██████████████████████████████████████████████████████████████████████████████████████████████████████████| 2/2 [00:24<00:00, 12.34s/it]
-INFO: Confirmed 0x5e114c5e0799493d7ae8071c92b9874f506cfe3d635bf1913001db7d7f67f72e (total fees paid = 6203212754712531)
+INFO: Submitted 0xeb878dfb5bc8fd642752dd275c6ae71b297cc83627aa7a57c1681c9612bc578c
+etherscan URL: https://etherscan.io/tx/0xeb878dfb5bc8fd642752dd275c6ae71b297cc83627aa7a57c1681c9612bc578c
+Confirmations (2/2): 100%|██████████████████████████████████████████████████████████████████████████████████████████████████████████| 2/2 [00:24<00:00, 12.31s/it]
+INFO: Confirmed 0xeb878dfb5bc8fd642752dd275c6ae71b297cc83627aa7a57c1681c9612bc578c (total fees paid = 4512160231938951)
 Using cached key for 'babe'
-INFO: Submitted 0xc7fa19c4587b4f7a7f9a0e32ea840e599dcf07e1672789f9e1a475c7e7e84b24
-etherscan URL: https://etherscan.io/tx/0xc7fa19c4587b4f7a7f9a0e32ea840e599dcf07e1672789f9e1a475c7e7e84b24
-Confirmations (2/2): 100%|██████████████████████████████████████████████████████████████████████████████████████████████████████████| 2/2 [00:24<00:00, 12.43s/it]
-INFO: Confirmed 0xc7fa19c4587b4f7a7f9a0e32ea840e599dcf07e1672789f9e1a475c7e7e84b24 (total fees paid = 5817453105726393)
+INFO: Submitted 0x45102c380d5ba21a0da832b98b6ecad5973c3fc6b482c60d94a303d296704e5b
+etherscan URL: https://etherscan.io/tx/0x45102c380d5ba21a0da832b98b6ecad5973c3fc6b482c60d94a303d296704e5b
+Confirmations (2/2): 100%|██████████████████████████████████████████████████████████████████████████████████████████████████████████| 2/2 [00:25<00:00, 12.58s/it]
+INFO: Confirmed 0x45102c380d5ba21a0da832b98b6ecad5973c3fc6b482c60d94a303d296704e5b (total fees paid = 4660769538102096)
 Using cached key for 'babe'
-INFO: Submitted 0xa9dfe9784a188f01e6226684241aca70fa303b9483a8e445c3e9104cd33163a8
-etherscan URL: https://etherscan.io/tx/0xa9dfe9784a188f01e6226684241aca70fa303b9483a8e445c3e9104cd33163a8
-Confirmations (2/2): 100%|██████████████████████████████████████████████████████████████████████████████████████████████████████████| 2/2 [00:30<00:00, 15.41s/it]
-INFO: Confirmed 0xa9dfe9784a188f01e6226684241aca70fa303b9483a8e445c3e9104cd33163a8 (total fees paid = 2345018516702712)
+INFO: Submitted 0xbc7f36b664390c7a6accc3e1c9a67a9bdf46f1188ad665c7e6700e3d0f82d58f
+etherscan URL: https://etherscan.io/tx/0xbc7f36b664390c7a6accc3e1c9a67a9bdf46f1188ad665c7e6700e3d0f82d58f
+Confirmations (2/2): 100%|██████████████████████████████████████████████████████████████████████████████████████████████████████████| 2/2 [00:30<00:00, 15.40s/it]
+INFO: Confirmed 0xbc7f36b664390c7a6accc3e1c9a67a9bdf46f1188ad665c7e6700e3d0f82d58f (total fees paid = 1963446981304413)
 Deploying a PegKeeper for Curve.fi Factory Plain Pool: crvUSD/USDC
 Using cached key for 'babe'
-INFO: Submitted 0x9c986d27f2a1a976f26a2d4b132fa435fb7c4bac7e7c0be270a1fe41e5448c0c
-etherscan URL: https://etherscan.io/tx/0x9c986d27f2a1a976f26a2d4b132fa435fb7c4bac7e7c0be270a1fe41e5448c0c
-Confirmations (2/2): 100%|██████████████████████████████████████████████████████████████████████████████████████████████████████████| 2/2 [00:24<00:00, 12.38s/it]
-INFO: Confirmed 0x9c986d27f2a1a976f26a2d4b132fa435fb7c4bac7e7c0be270a1fe41e5448c0c (total fees paid = 94671258579333267)
-SUCCESS: Contract 'PegKeeper' deployed to: 0xe96a9BDB549F4cc4eE8DeB7085Bd6fFE4b273b1B
+INFO: Submitted 0x2e74b0a43b592329ed8788f9af695b23e1a930e67e2d462d84a5e5f0fa5d10b2
+etherscan URL: https://etherscan.io/tx/0x2e74b0a43b592329ed8788f9af695b23e1a930e67e2d462d84a5e5f0fa5d10b2
+Confirmations (2/2): 100%|██████████████████████████████████████████████████████████████████████████████████████████████████████████| 2/2 [00:36<00:00, 18.43s/it]
+INFO: Confirmed 0x2e74b0a43b592329ed8788f9af695b23e1a930e67e2d462d84a5e5f0fa5d10b2 (total fees paid = 79733696504739147)
+SUCCESS: Contract 'PegKeeper' deployed to: 0xdd05247d34d85BcC145c74e2f1d070352Fef83F9
 Using cached key for 'babe'
-INFO: Submitted 0x0ee85788028533425c738aca17b045f084964d8755f41b9d6f9dd23c13f796ee
-etherscan URL: https://etherscan.io/tx/0x0ee85788028533425c738aca17b045f084964d8755f41b9d6f9dd23c13f796ee
-Confirmations (2/2): 100%|██████████████████████████████████████████████████████████████████████████████████████████████████████████| 2/2 [00:24<00:00, 12.42s/it]
-INFO: Confirmed 0x0ee85788028533425c738aca17b045f084964d8755f41b9d6f9dd23c13f796ee (total fees paid = 10385846201392653)
+INFO: Submitted 0x50f7bd7ee796495cab145da57633a122f0a5c3e68d790685e1c2fad0cab13b43
+etherscan URL: https://etherscan.io/tx/0x50f7bd7ee796495cab145da57633a122f0a5c3e68d790685e1c2fad0cab13b43
+Confirmations (2/2): 100%|██████████████████████████████████████████████████████████████████████████████████████████████████████████| 2/2 [00:24<00:00, 12.36s/it]
+INFO: Confirmed 0x50f7bd7ee796495cab145da57633a122f0a5c3e68d790685e1c2fad0cab13b43 (total fees paid = 11042194914933159)
 Deploying a PegKeeper for Curve.fi Factory Plain Pool: crvUSD/USDT
 Using cached key for 'babe'
-INFO: Submitted 0x22ba0d337706fe2c0da584a2cb353c696640dc94c698fb8c16012112aabd78e0
-etherscan URL: https://etherscan.io/tx/0x22ba0d337706fe2c0da584a2cb353c696640dc94c698fb8c16012112aabd78e0
-Confirmations (2/2): 100%|██████████████████████████████████████████████████████████████████████████████████████████████████████████| 2/2 [00:24<00:00, 12.33s/it]
-INFO: Confirmed 0x22ba0d337706fe2c0da584a2cb353c696640dc94c698fb8c16012112aabd78e0 (total fees paid = 89957948840156515)
-SUCCESS: Contract 'PegKeeper' deployed to: 0x15282D93b1f2c92A034936f6F56a55c0D423E8D4
+INFO: Submitted 0xb4a9c52c5d4c193c743a2036be7069f51c9c89c24a38e0f42ec55b80e82cd8d2
+etherscan URL: https://etherscan.io/tx/0xb4a9c52c5d4c193c743a2036be7069f51c9c89c24a38e0f42ec55b80e82cd8d2
+Confirmations (2/2): 100%|██████████████████████████████████████████████████████████████████████████████████████████████████████████| 2/2 [00:24<00:00, 12.31s/it]
+INFO: Confirmed 0xb4a9c52c5d4c193c743a2036be7069f51c9c89c24a38e0f42ec55b80e82cd8d2 (total fees paid = 95876864105494497)
+SUCCESS: Contract 'PegKeeper' deployed to: 0x89ea1e4232680a66470A725ffd399082a375d1ed
 Using cached key for 'babe'
-INFO: Submitted 0xbc7d8bdb7635d3370f07a4727ccfddf95106a5d94475b03fcd60e6a75a5d9b51
-etherscan URL: https://etherscan.io/tx/0xbc7d8bdb7635d3370f07a4727ccfddf95106a5d94475b03fcd60e6a75a5d9b51
-Confirmations (2/2): 100%|██████████████████████████████████████████████████████████████████████████████████████████████████████████| 2/2 [00:24<00:00, 12.44s/it]
-INFO: Confirmed 0xbc7d8bdb7635d3370f07a4727ccfddf95106a5d94475b03fcd60e6a75a5d9b51 (total fees paid = 8845869370347070)
+INFO: Submitted 0x18b3ef0afbd1a1d7a317781306c917f109999371b737fd64fa8851180bfce5f0
+etherscan URL: https://etherscan.io/tx/0x18b3ef0afbd1a1d7a317781306c917f109999371b737fd64fa8851180bfce5f0
+Confirmations (2/2): 100%|██████████████████████████████████████████████████████████████████████████████████████████████████████████| 2/2 [00:24<00:00, 12.31s/it]
+INFO: Confirmed 0x18b3ef0afbd1a1d7a317781306c917f109999371b737fd64fa8851180bfce5f0 (total fees paid = 8569943784450087)
 Deploying a PegKeeper for Curve.fi Factory Plain Pool: crvUSD/USDP
 Using cached key for 'babe'
-INFO: Submitted 0x6097b639cb7da97b33009c0c7d1f53fbd6971193660935508a14c8cca830b540
-etherscan URL: https://etherscan.io/tx/0x6097b639cb7da97b33009c0c7d1f53fbd6971193660935508a14c8cca830b540
-Confirmations (2/2): 100%|██████████████████████████████████████████████████████████████████████████████████████████████████████████| 2/2 [00:24<00:00, 12.36s/it]
-INFO: Confirmed 0x6097b639cb7da97b33009c0c7d1f53fbd6971193660935508a14c8cca830b540 (total fees paid = 92191515152514602)
-SUCCESS: Contract 'PegKeeper' deployed to: 0x4316416f429B04FB12dF8952fa1434e6b9d77C3F
+INFO: Submitted 0x8867c90b8731f425e03348fc129f7074fb91847120f2cc9b27be66c8d0a6d276
+etherscan URL: https://etherscan.io/tx/0x8867c90b8731f425e03348fc129f7074fb91847120f2cc9b27be66c8d0a6d276
+Confirmations (2/2): 100%|██████████████████████████████████████████████████████████████████████████████████████████████████████████| 2/2 [00:24<00:00, 12.33s/it]
+INFO: Confirmed 0x8867c90b8731f425e03348fc129f7074fb91847120f2cc9b27be66c8d0a6d276 (total fees paid = 86577628873501240)
+SUCCESS: Contract 'PegKeeper' deployed to: 0xf5e9eB18B3ECDFDa07Ea55133F427d47ADD6884f
 Using cached key for 'babe'
-INFO: Submitted 0xee7765de165055353bb68bb6c4d4ca27dccaf8aeecff14fb01ddc56ef0a85db4
-etherscan URL: https://etherscan.io/tx/0xee7765de165055353bb68bb6c4d4ca27dccaf8aeecff14fb01ddc56ef0a85db4
-Confirmations (2/2): 100%|██████████████████████████████████████████████████████████████████████████████████████████████████████████| 2/2 [00:24<00:00, 12.36s/it]
-INFO: Confirmed 0xee7765de165055353bb68bb6c4d4ca27dccaf8aeecff14fb01ddc56ef0a85db4 (total fees paid = 8515896042860761)
+INFO: Submitted 0x99435c31790b7be81ed335df6303233480117106e942a066726b35ee6a451a34
+etherscan URL: https://etherscan.io/tx/0x99435c31790b7be81ed335df6303233480117106e942a066726b35ee6a451a34
+Confirmations (2/2): 100%|██████████████████████████████████████████████████████████████████████████████████████████████████████████| 2/2 [00:24<00:00, 12.31s/it]
+INFO: Confirmed 0x99435c31790b7be81ed335df6303233480117106e942a066726b35ee6a451a34 (total fees paid = 8768547621122565)
 Deploying a PegKeeper for Curve.fi Factory Plain Pool: crvUSD/TUSD
 Using cached key for 'babe'
-INFO: Submitted 0xbb0fbb97b39bd32beca1bf542d4de8a20e3f1d9a96b37cb2a7c3ba85164b7047
-etherscan URL: https://etherscan.io/tx/0xbb0fbb97b39bd32beca1bf542d4de8a20e3f1d9a96b37cb2a7c3ba85164b7047
-Confirmations (2/2): 100%|██████████████████████████████████████████████████████████████████████████████████████████████████████████| 2/2 [00:24<00:00, 12.37s/it]
-INFO: Confirmed 0xbb0fbb97b39bd32beca1bf542d4de8a20e3f1d9a96b37cb2a7c3ba85164b7047 (total fees paid = 96352372118859595)
-SUCCESS: Contract 'PegKeeper' deployed to: 0x4C1d4aD2fa2Ba5510acbb0f428eC861e1f7Ea3A4
-Using cached key for 'babe'
-INFO: Submitted 0x03247707aff3e075969abb4bbb2c7a32e769cc0f0f3ed3774a4e91f1bd4c2e4f
-etherscan URL: https://etherscan.io/tx/0x03247707aff3e075969abb4bbb2c7a32e769cc0f0f3ed3774a4e91f1bd4c2e4f
-Confirmations (2/2): 100%|██████████████████████████████████████████████████████████████████████████████████████████████████████████| 2/2 [00:24<00:00, 12.37s/it]
-INFO: Confirmed 0x03247707aff3e075969abb4bbb2c7a32e769cc0f0f3ed3774a4e91f1bd4c2e4f (total fees paid = 9068258598929357)
-Using cached key for 'babe'
-INFO: Submitted 0x226134e6904a31c656d3ee81fe81e785f62e55e91641dd4dadf9ecaa6fa0b115
-etherscan URL: https://etherscan.io/tx/0x226134e6904a31c656d3ee81fe81e785f62e55e91641dd4dadf9ecaa6fa0b115
-Confirmations (2/2): 100%|██████████████████████████████████████████████████████████████████████████████████████████████████████████| 2/2 [00:24<00:00, 12.38s/it]
-INFO: Confirmed 0x226134e6904a31c656d3ee81fe81e785f62e55e91641dd4dadf9ecaa6fa0b115 (total fees paid = 64363866334719185)
-SUCCESS: Contract 'AggMonetaryPolicy' deployed to: 0xCceBbF77C3eEb298113392363E0C9863b37111B2
-Using cached key for 'babe'
-INFO: Submitted 0xd79ef06950f4f63b566f54d44bd873ee82127444a93bcfc03ac74ebc49ea6fc2
-etherscan URL: https://etherscan.io/tx/0xd79ef06950f4f63b566f54d44bd873ee82127444a93bcfc03ac74ebc49ea6fc2
-Confirmations (2/2): 100%|██████████████████████████████████████████████████████████████████████████████████████████████████████████| 2/2 [00:24<00:00, 12.50s/it]
-INFO: Confirmed 0xd79ef06950f4f63b566f54d44bd873ee82127444a93bcfc03ac74ebc49ea6fc2 (total fees paid = 67559979041823996)
-SUCCESS: Contract 'CryptoWithStablePriceAndChainlinkFrxeth' deployed to: 0x3910dcE33441360e4c1d2749AFA08e1A59af2546
-Price oracle price: 1950.74
-Using cached key for 'babe'
-INFO: Submitted 0xf24ba8192a87359c63f158aa3cb3cb516ff9caf3bc282e8785c6b4c1a1d3f0c5
-etherscan URL: https://etherscan.io/tx/0xf24ba8192a87359c63f158aa3cb3cb516ff9caf3bc282e8785c6b4c1a1d3f0c5
+INFO: Submitted 0xd408f3913927e371416ce5151a81176f7cddc616628c6921810f0fb1e1d776ba
+etherscan URL: https://etherscan.io/tx/0xd408f3913927e371416ce5151a81176f7cddc616628c6921810f0fb1e1d776ba
 Confirmations (2/2): 100%|██████████████████████████████████████████████████████████████████████████████████████████████████████████| 2/2 [00:24<00:00, 12.34s/it]
-INFO: Confirmed 0xf24ba8192a87359c63f158aa3cb3cb516ff9caf3bc282e8785c6b4c1a1d3f0c5 (total fees paid = 781586714514265720)
+INFO: Confirmed 0xd408f3913927e371416ce5151a81176f7cddc616628c6921810f0fb1e1d776ba (total fees paid = 85023261357459220)
+SUCCESS: Contract 'PegKeeper' deployed to: 0x368440b3121F32dF336D393834EaFD8fa787c4EC
 Using cached key for 'babe'
-INFO: Submitted 0x2d573260400aa7a8cf83115471007cdb57d05ab6d28d6b4119728ede2041b809
-etherscan URL: https://etherscan.io/tx/0x2d573260400aa7a8cf83115471007cdb57d05ab6d28d6b4119728ede2041b809
-Confirmations (2/2): 100%|██████████████████████████████████████████████████████████████████████████████████████████████████████████| 2/2 [00:31<00:00, 15.57s/it]
-INFO: Confirmed 0x2d573260400aa7a8cf83115471007cdb57d05ab6d28d6b4119728ede2041b809 (total fees paid = 2377101242025855)
+INFO: Submitted 0x424e185accf37638b340c4d848e904d4ab53c53c0d40637bdc825ed71296e1fb
+etherscan URL: https://etherscan.io/tx/0x424e185accf37638b340c4d848e904d4ab53c53c0d40637bdc825ed71296e1fb
+Confirmations (2/2): 100%|██████████████████████████████████████████████████████████████████████████████████████████████████████████| 2/2 [00:24<00:00, 12.43s/it]
+INFO: Confirmed 0x424e185accf37638b340c4d848e904d4ab53c53c0d40637bdc825ed71296e1fb (total fees paid = 8192552902822631)
+Using cached key for 'babe'
+INFO: Submitted 0x96984dcc87a1efb3f2588deaafeae6192f41b2e4348e3a89cc61be5bdeae65f7
+etherscan URL: https://etherscan.io/tx/0x96984dcc87a1efb3f2588deaafeae6192f41b2e4348e3a89cc61be5bdeae65f7
+Confirmations (2/2): 100%|██████████████████████████████████████████████████████████████████████████████████████████████████████████| 2/2 [00:24<00:00, 12.29s/it]
+INFO: Confirmed 0x96984dcc87a1efb3f2588deaafeae6192f41b2e4348e3a89cc61be5bdeae65f7 (total fees paid = 62676551759847402)
+SUCCESS: Contract 'AggMonetaryPolicy' deployed to: 0x70A1151e0bB32484E25C107e3a69886A8361482e
+Using cached key for 'babe'
+INFO: Submitted 0x4e911dd1ff06cfbfb81754cd2d088facbc54c7a1766eef65fac861e20420a4a6
+etherscan URL: https://etherscan.io/tx/0x4e911dd1ff06cfbfb81754cd2d088facbc54c7a1766eef65fac861e20420a4a6
+Confirmations (2/2): 100%|██████████████████████████████████████████████████████████████████████████████████████████████████████████| 2/2 [00:24<00:00, 12.31s/it]
+INFO: Confirmed 0x4e911dd1ff06cfbfb81754cd2d088facbc54c7a1766eef65fac861e20420a4a6 (total fees paid = 62077251666354938)
+SUCCESS: Contract 'CryptoWithStablePriceAndChainlinkFrxeth' deployed to: 0xc95bD7460eCe4007973458d1c0f8cCC46C1880DF
+Price oracle price: 1976.05
+Using cached key for 'babe'
+INFO: Submitted 0x832e039966ea1b1e493e15940fad859a454ea9c851b06d2f445fbecf906a7f93
+etherscan URL: https://etherscan.io/tx/0x832e039966ea1b1e493e15940fad859a454ea9c851b06d2f445fbecf906a7f93
+Confirmations (2/2): 100%|██████████████████████████████████████████████████████████████████████████████████████████████████████████| 2/2 [00:24<00:00, 12.43s/it]
+INFO: Confirmed 0x832e039966ea1b1e493e15940fad859a454ea9c851b06d2f445fbecf906a7f93 (total fees paid = 743071532790889200)
+Using cached key for 'babe'
+INFO: Submitted 0xb8c1416eba5a2074fef73b473c9dfc908df073583781e02420a953dbb6b0ead6
+etherscan URL: https://etherscan.io/tx/0xb8c1416eba5a2074fef73b473c9dfc908df073583781e02420a953dbb6b0ead6
+Confirmations (2/2): 100%|██████████████████████████████████████████████████████████████████████████████████████████████████████████| 2/2 [00:24<00:00, 12.35s/it]
+INFO: Confirmed 0xb8c1416eba5a2074fef73b473c9dfc908df073583781e02420a953dbb6b0ead6 (total fees paid = 2145530481197435)
 ========================
-Stablecoin:         0x95ECDC6caAf7E4805FCeF2679A92338351D24297
-Factory:            0x818709B85052dDC521fAe9C78737B27316337e3A
+Stablecoin:         0x5aa00dce91409B58B6A1338639B9Daa63EB22BE7
+Factory:            0x30a2F3c3AA6D12C0a36Bed210dCF1B32EF6228Cc
 Collateral:         0xac3E018457B222d93114458476f3E3416Abbe38F
-AMM:                0x13560198cc76C1d402B4f30bB0C7Cd74757e21f1
-Controller:         0x73b20D8111db999700Cc12a08B15fD013EbA7e0D
-Price Oracle:       0x3910dcE33441360e4c1d2749AFA08e1A59af2546
-Monetary policy:    0xCceBbF77C3eEb298113392363E0C9863b37111B2
-Swap factory:       0x528bAca578523855a64eE9C276826f934c86a54c
-Owner proxy:        0xc7BAB672806932FcaF918b4318796b02B0832856
-Price Aggregator:   0xe55Be4c8F2d3c11536f61C8977dac4ad58446059
-PegKeepers:         ['0xe96a9BDB549F4cc4eE8DeB7085Bd6fFE4b273b1B', '0x15282D93b1f2c92A034936f6F56a55c0D423E8D4', '0x4316416f429B04FB12dF8952fa1434e6b9d77C3F', '0x4C1d4aD2fa2Ba5510acbb0f428eC861e1f7Ea3A4']
+AMM:                0x8111d2670F187c6d292AAB65dD23E9147f216b4a
+Controller:         0x00BF1E78eC8668680AD2C5e2ab7EAA28c0B713fD
+Price Oracle:       0xc95bD7460eCe4007973458d1c0f8cCC46C1880DF
+Monetary policy:    0x70A1151e0bB32484E25C107e3a69886A8361482e
+Swap factory:       0x3be09DEA9ca8B6205D05f196e9c68FC35190a514
+Owner proxy:        0xD0E6bc02657451Fe16CDDD7CAB8cd55e39d25D2f
+Price Aggregator:   0xa402F9E5015BE2DE7AED695e47F2729246cC9434
+PegKeepers:         ['0xdd05247d34d85BcC145c74e2f1d070352Fef83F9', '0x89ea1e4232680a66470A725ffd399082a375d1ed', '0xf5e9eB18B3ECDFDa07Ea55133F427d47ADD6884f', '0x368440b3121F32dF336D393834EaFD8fa787c4EC']
+Stablecoin pools:   ['USDC:0xE21c1084d62A77Fe5CD9a9Cf5321d5d30aC399B1', 'USDT:0x672d4f13a5e1100D053e2943Cf3B17757253e01F', 'USDP:0xeE0247D31026934D7f91585C4756f275E422f1d1', 'TUSD:0x49d9E999258f1146FF7129319C27F941c1Fd7539']
