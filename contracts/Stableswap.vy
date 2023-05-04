@@ -96,7 +96,7 @@ PERMIT_TYPEHASH: constant(bytes32) = keccak256("Permit(address owner,address spe
 
 # keccak256("isValidSignature(bytes32,bytes)")[:4] << 224
 ERC1271_MAGIC_VAL: constant(bytes32) = 0x1626ba7e00000000000000000000000000000000000000000000000000000000
-VERSION: constant(String[8]) = "v6.0.0"
+VERSION: constant(String[8]) = "v6.0.1"
 
 
 factory: public(address)
