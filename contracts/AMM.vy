@@ -620,8 +620,13 @@ def can_skip_bands(n_end: int256) -> bool:
 @view
 @nonreentrant('lock')
 def active_band_with_skip() -> int256:
-    n: int256 = self.active_band
+    n0: int256 = self.active_band
+    n: int256 = n0
+    min_band: int256 = self.min_band
     for i in range(MAX_SKIP_TICKS):
+        if n < min_band:
+            n = n0 - MAX_SKIP_TICKS
+            break
         if self.bands_x[n] != 0:
             break
         n -= 1
