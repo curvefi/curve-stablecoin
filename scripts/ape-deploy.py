@@ -276,3 +276,4 @@ def deploy(network):
         print('Owner proxy:       ', owner_proxy.address)
         print('Price Aggregator:  ', agg.address)
         print('PegKeepers:        ', [pk.address for pk in peg_keepers])
+        print('Stablecoin pools:  ', ['%s:%s' % (name, pool.address) for name, pool in pools.items()])
