@@ -235,9 +235,9 @@ def _raw_price() -> uint256:
 
     crv_p = p_staked * crv_p / 10**18
 
-    uni_price: uint256 = self._uni_price() * price_per_share / 10**18
-    upper = uni_price * (100 + UNI_DEVIATION) / 100
-    crv_p = min(crv_p, upper)
+    uni_price: uint256 = self._uni_price()
+    uni_price = min(uni_price * (100 - UNI_DEVIATION) / 100, chainlink_p) * price_per_share / 10**18
+    crv_p = max(crv_p, uni_price)
 
     return crv_p
 
