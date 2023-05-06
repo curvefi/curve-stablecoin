@@ -34,10 +34,14 @@ def pytest_configure():
     pytest.initial_pool_coin_balance = 500_000  # of both coins
     pytest.initial_eth_balance = 1000  # both eth and weth
     
-    # address provider integration:
+    # registry integration:
     pytest.base_pool_registry = "0xDE3eAD9B2145bBA2EB74007e58ED07308716B725"
+    pytest.metaregistry = "0xF98B45FA17DE75FB1aD0e7aFD971b0ca00e379fC"
+    pytest.address_provider = "0x0000000022D53366457F9d5E68Ec105046FC4383"
+    pytest.registry_name = "crvUSD plain pools"
     pytest.new_id_created = False
     pytest.max_id_before = 0
+    pytest.handler_index = None
     
     # record stablecoin address:
     pytest.stablecoin = pytest.ZERO_ADDRESS
@@ -158,22 +162,17 @@ def address_provider(stableswap_factory):
         address_provider_admin = Contract(address_provider.admin())
         pytest.max_id_before = address_provider.max_id()
         
-        id_info = address_provider.get_id_info(pytest.STABLESWAP_FACTORY_ADDRESS_PROVIDER_ID)
-        
         if address_provider.get_address(pytest.STABLESWAP_FACTORY_ADDRESS_PROVIDER_ID) == pytest.ZERO_ADDRESS:
             
+            # this branch should not never be executed since the registry slot exists.
+            # we test this later.
             address_provider_admin.execute(
                 address_provider,
-                address_provider.add_new_id.encode_input(stableswap_factory, "crvUSD plain pools"),
+                address_provider.add_new_id.encode_input(stableswap_factory, pytest.registry_name),
             )
             pytest.new_id_created = True
-            pytest.max
         
         else:
-            
-            assert id_info.addr != stableswap_factory.address
-            assert id_info.is_active
-            assert id_info.description == 'crvUSD plain pools'
             
             address_provider_admin.execute(
                 address_provider,
@@ -221,7 +220,7 @@ def factory_handler(project, stableswap_factory, forked_admin):
 def metaregistry(address_provider, rtokens_pools, factory_handler):
     
     address_provider_admin = Contract(address_provider.admin())
-    _metaregistry = Contract("0xF98B45FA17DE75FB1aD0e7aFD971b0ca00e379fC")
+    _metaregistry = Contract(pytest.metaregistry)
     
     previous_factory_handler = _metaregistry.find_pool_for_coins(
         pytest.stablecoin, pytest.rtokens[0], 0
@@ -230,14 +229,15 @@ def metaregistry(address_provider, rtokens_pools, factory_handler):
     
     with accounts.use_sender("0x7EeAC6CDdbd1D0B8aF061742D41877D7F707289a"):
         
-        if not factory_handler_integrated:  # first metaregistry integration
+        if not factory_handler_integrated:
         
+            # first integration into metaregistry:
             address_provider_admin.execute(
                 _metaregistry.address,
                 _metaregistry.add_registry_handler.encode_input(factory_handler),
             )
             
-        else:
+        else:  # redeployment, which means update handler index in metaregistry.
             
             # get index of previous factory handler first:
             for idx in range(1000):
