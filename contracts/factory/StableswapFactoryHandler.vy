@@ -30,6 +30,19 @@ interface BaseRegistry:
     def pool_list(pool_id: uint256) -> address: view
 
 
+interface BasePoolRegistry:
+    def get_base_pool_for_lp_token(_lp_token: address) -> address: view
+    def get_n_coins(_pool: address) -> uint256: view
+    def get_coins(_pool: address) -> address[MAX_METAREGISTRY_COINS]: view
+    def get_lp_token(_pool: address) -> address: view
+    def is_legacy(_pool: address) -> bool: view
+    def base_pool_list(i: uint256) -> address: view
+
+
+interface CurveLegacyPool:
+    def balances(i: int128) -> uint256: view
+
+
 interface CurvePool:
     def admin_balances(i: uint256) -> uint256: view
     def balances(i: uint256) -> uint256: view
