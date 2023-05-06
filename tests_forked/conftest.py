@@ -33,6 +33,10 @@ def pytest_configure():
 
     pytest.initial_pool_coin_balance = 500_000  # of both coins
     pytest.initial_eth_balance = 1000  # both eth and weth
+    
+    # address provider integration:
+    pytest.new_id_created = False
+    pytest.max_id_before = 0
 
 
 """
@@ -140,11 +144,15 @@ def stableswap_impl(project, forked_admin, stableswap_factory, owner_proxy):
 
 @pytest.fixture(scope="module", autouse=True)
 def address_provider(forked_admin, stableswap_factory):
-    # Put factory in address provider / registry
+    
     address_provider = Contract("0x0000000022D53366457F9d5E68Ec105046FC4383")
-
+    
+    # Put factory in address provider / registry
     with accounts.use_sender("0x7EeAC6CDdbd1D0B8aF061742D41877D7F707289a"):
         address_provider_admin = Contract(address_provider.admin())
+        pytest.max_id_before = address_provider.max_id()
+        
+        id_info = address_provider.get_id_info(pytest.STABLESWAP_FACTORY_ADDRESS_PROVIDER_ID)
         
         if address_provider.get_address(pytest.STABLESWAP_FACTORY_ADDRESS_PROVIDER_ID) == pytest.ZERO_ADDRESS:
             
@@ -152,8 +160,14 @@ def address_provider(forked_admin, stableswap_factory):
                 address_provider,
                 address_provider.add_new_id.encode_input(stableswap_factory, "crvUSD plain pools"),
             )
+            pytest.new_id_created = True
+            pytest.max
         
         else:
+            
+            assert id_info.addr != stableswap_factory.address
+            assert id_info.is_active
+            assert id_info.description == 'crvUSD plain pools'
             
             address_provider_admin.execute(
                 address_provider,

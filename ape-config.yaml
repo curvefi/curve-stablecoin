@@ -1,4 +1,4 @@
-name: curve-dao-operations
+name: curve-stablecoin
 
 plugins:
   - name: vyper
