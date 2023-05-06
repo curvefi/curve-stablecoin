@@ -169,17 +169,15 @@ def deploy(network):
             # Put factory in address provider / registry
             address_provider = Contract(ADDRESS_PROVIDER)
             address_provider_admin = Contract(address_provider.admin())
-            
+
             if address_provider.get_address(STABLESWAP_FACTORY_ADDRESS_PROVIDER_ID) == ZERO_ADDRESS:
-            
                 address_provider_admin.execute(
                         address_provider,
                         address_provider.add_new_id.encode_input(swap_factory, 'crvUSD plain pools'),
                         **kw
                 )
-                
+
             else:
-                
                 address_provider_admin.execute(
                     address_provider,
                     address_provider.set_address.encode_input(
@@ -187,7 +185,7 @@ def deploy(network):
                         swap_factory,
                         **kw
                     ),
-                ) 
+                )
 
             pools = {}
 
