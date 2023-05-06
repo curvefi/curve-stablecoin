@@ -205,6 +205,30 @@ def rtokens_pools(project, forked_admin, owner_proxy, stablecoin, stableswap_imp
 
 
 @pytest.fixture(scope="module", autouse=True)
+def metaregistry(project, stableswap_factory, address_provider, rtokens_pools, forked_admin):
+    
+    _metaregistry = Contract("0xF98B45FA17DE75FB1aD0e7aFD971b0ca00e379fC")
+    base_pool_registry = "0xDE3eAD9B2145bBA2EB74007e58ED07308716B725"
+    
+    factory_handler = project.StableswapFactoryHander.deploy(
+        stableswap_factory.address, base_pool_registry, sender=forked_admin
+    )
+    
+    num_registry_handlers = _metaregistry.registry_length()
+    
+    with accounts.use_sender("0x7EeAC6CDdbd1D0B8aF061742D41877D7F707289a"):
+        
+        address_provider_admin = Contract(address_provider.admin())
+        address_provider_admin.execute(
+            _metaregistry.address,
+            _metaregistry.add_registry_handler.encode_input(factory_handler),
+        )
+        
+    assert _metaregistry.registry_length() == num_registry_handlers + 1
+    assert _metaregistry.get_registry(num_registry_handlers+1) == factory_handler.address
+
+
+@pytest.fixture(scope="module", autouse=True)
 def agg_stable_price(project, forked_admin, stablecoin, rtokens_pools):
     agg = forked_admin.deploy(project.AggregateStablePrice, stablecoin, 10**15, forked_admin)
     for pool in rtokens_pools.values():
