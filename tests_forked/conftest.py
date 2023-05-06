@@ -21,6 +21,7 @@ def pytest_configure():
     pytest.ZERO_ADDRESS = "0x0000000000000000000000000000000000000000"
     pytest.POOL_NAME = "crvUSD/{name}"
     pytest.POOL_SYMBOL = "crvUSD{name}"
+    pytest.STABLESWAP_FACTORY_ADDRESS_PROVIDER_ID = 8
 
     pytest.stable_A = 500  # initially, can go higher later
     pytest.stable_fee = 1000000  # 0.01%
@@ -144,10 +145,24 @@ def address_provider(forked_admin, stableswap_factory):
 
     with accounts.use_sender("0x7EeAC6CDdbd1D0B8aF061742D41877D7F707289a"):
         address_provider_admin = Contract(address_provider.admin())
-        address_provider_admin.execute(
-            address_provider,
-            address_provider.add_new_id.encode_input(stableswap_factory, "crvUSD plain pools"),
-        )
+        
+        if address_provider.get_address(pytest.STABLESWAP_FACTORY_ADDRESS_PROVIDER_ID) == pytest.ZERO_ADDRESS:
+            
+            address_provider_admin.execute(
+                address_provider,
+                address_provider.add_new_id.encode_input(stableswap_factory, "crvUSD plain pools"),
+            )
+        
+        else:
+            
+            address_provider_admin.execute(
+                address_provider,
+                address_provider.set_address.encode_input(
+                    pytest.STABLESWAP_FACTORY_ADDRESS_PROVIDER_ID,
+                    stableswap_factory
+                ),
+            )    
+        
     return address_provider
 
 
