@@ -21,6 +21,7 @@ rtokens = {
 ZERO_ADDRESS = "0x0000000000000000000000000000000000000000"
 POOL_NAME = "crvUSD/{name}"
 POOL_SYMBOL = "crvUSD{name}"
+STABLESWAP_FACTORY_ADDRESS_PROVIDER_ID = 8
 
 OWNERSHIP_ADMIN = "0x40907540d8a6C65c637785e8f8B742ae6b0b9968"
 PARAMETER_ADMIN = "0x4EEb3bA4f221cA16ed4A0cC7254E2E32DF948c5f"
@@ -168,10 +169,25 @@ def deploy(network):
             # Put factory in address provider / registry
             address_provider = Contract(ADDRESS_PROVIDER)
             address_provider_admin = Contract(address_provider.admin())
-            address_provider_admin.execute(
+            
+            if address_provider.get_address(STABLESWAP_FACTORY_ADDRESS_PROVIDER_ID) == ZERO_ADDRESS:
+            
+                address_provider_admin.execute(
+                        address_provider,
+                        address_provider.add_new_id.encode_input(swap_factory, 'crvUSD plain pools'),
+                        **kw
+                )
+                
+            else:
+                
+                address_provider_admin.execute(
                     address_provider,
-                    address_provider.add_new_id.encode_input(swap_factory, 'crvUSD plain pools'),
-                    **kw)
+                    address_provider.set_address.encode_input(
+                        STABLESWAP_FACTORY_ADDRESS_PROVIDER_ID,
+                        swap_factory,
+                        **kw
+                    ),
+                ) 
 
             pools = {}
 
