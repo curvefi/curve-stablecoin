@@ -5,8 +5,8 @@
 @license MIT
 """
 
-last_prices_packed: uint256
-last_timestamp: uint256
+last_price: public(uint256)
+last_timestamp: public(uint256)
 
 MA_EXP_TIME: immutable(uint256)
 SIG_ADDRESS: immutable(address)
@@ -32,29 +32,8 @@ def __init__(ma_exp_time: uint256,
         is_static_call=True,
         max_outsize=32
     )
-    p: uint256 = convert(response, uint256)
-    self.last_prices_packed = self.pack_prices(p, p)
+    self.last_price = convert(response, uint256)
     self.last_timestamp = block.timestamp
-
-
-@pure
-@internal
-def pack_prices(p1: uint256, p2: uint256) -> uint256:
-    assert p1 < 2**128
-    assert p2 < 2**128
-    return p1 | shift(p2, 128)
-
-
-@view
-@external
-def last_price() -> uint256:
-    return self.last_prices_packed & (2**128 - 1)
-
-
-@view
-@external
-def last_ema_price() -> uint256:
-    return shift(self.last_prices_packed, -128)
 
 
 @view
@@ -127,16 +106,15 @@ def exp(power: int256) -> uint256:
 @view
 def ema_price() -> uint256:
     last_timestamp: uint256 = self.last_timestamp
-    pp: uint256 = self.last_prices_packed
-    last_price: uint256 = pp & (2**128 - 1)
-    last_ema_price: uint256 = shift(pp, -128)
+    last_price: uint256 = self.last_price
 
     if last_timestamp < block.timestamp:
+        current_price: uint256 = self._price_oracle()
         alpha: uint256 = self.exp(- convert((block.timestamp - last_timestamp) * 10**18 / MA_EXP_TIME, int256))
-        return (last_price * (10**18 - alpha) + last_ema_price * alpha) / 10**18
+        return (current_price * (10**18 - alpha) + last_price * alpha) / 10**18
 
     else:
-        return last_ema_price
+        return last_price
 
 
 @external
@@ -148,7 +126,7 @@ def price() -> uint256:
 @external
 def price_w() -> uint256:
     p: uint256 = self.ema_price()
-    self.last_prices_packed = self.pack_prices(self._price_oracle(), p)
     if self.last_timestamp < block.timestamp:
+        self.last_price = p
         self.last_timestamp = block.timestamp
     return p
