@@ -92,3 +92,56 @@ def test_withdraw_profit(
     for k, v in locals().items():
         setattr(StateMachine, k, v)
     run_state_machine_as_test(StateMachine)
+
+
+def test_withdraw_profit_example_1(
+    add_initial_liquidity,
+    swaps,
+    peg_keepers,
+    redeemable_tokens,
+    stablecoin,
+    alice,
+    receiver,
+    admin,
+    _mint
+):
+    always_withdraw = False
+
+    with boa.env.prank(admin):
+        for swap in swaps:
+            swap.commit_new_fee(4 * 10**7)
+        boa.env.time_travel(4 * 86400)
+        for swap in swaps:
+            swap.apply_new_fee()
+
+    StateMachine.TestCase.settings = settings(max_examples=20, stateful_step_count=40)
+    for k, v in locals().items():
+        setattr(StateMachine, k, v)
+    state = StateMachine()
+    state.advance_time()
+    state.invariant_withdraw_profit()
+    state.add_one_coin(idx=0, pct=1e-06, pool_idx=0)
+    state.advance_time()
+    state.invariant_withdraw_profit()
+    state.add_coins(amount_0=0.4500005000000001, amount_1=0.3333333333333333, pool_idx=1)
+    state.advance_time()
+    state.invariant_withdraw_profit()
+    state.add_coins(amount_0=0.03125, amount_1=1e-06, pool_idx=0)
+    state.advance_time()
+    state.invariant_withdraw_profit()
+    state.remove_imbalance(amount_0=0.8979001429580658, amount_1=0.9, pool_idx=0)
+    state.advance_time()
+    state.invariant_withdraw_profit()
+    state.remove_one_coin(idx=0, pct=0.5, pool_idx=0)
+    state.advance_time()
+    state.invariant_withdraw_profit()
+    state.remove_one_coin(idx=0, pct=0.5, pool_idx=0)
+    state.advance_time()
+    state.invariant_withdraw_profit()
+    state.remove_one_coin(idx=0, pct=0.8999999999999999, pool_idx=1)
+    state.advance_time()
+    state.invariant_withdraw_profit()
+    state.add_one_coin(idx=0, pct=0.001953125, pool_idx=0)
+    state.advance_time()
+    state.invariant_withdraw_profit()
+    state.teardown()

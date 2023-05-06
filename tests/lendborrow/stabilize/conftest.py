@@ -233,7 +233,7 @@ def _mint(stablecoin, collateral_token, market_controller_agg):
             for coin, amount in zip(coins, amounts):
                 if amount > 0:
                     if coin == stablecoin:
-                        collateral_amount = amount * 5 // 3000
+                        collateral_amount = amount * 50 // 3000
                         collateral_token._mint_for_testing(acct, collateral_amount)
                         if market_controller_agg.debt(acct) == 0:
                             collateral_token.approve(market_controller_agg.address, 2**256 - 1)
