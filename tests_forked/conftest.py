@@ -21,7 +21,7 @@ def pytest_configure():
     pytest.ZERO_ADDRESS = "0x0000000000000000000000000000000000000000"
     pytest.POOL_NAME = "crvUSD/{name}"
     pytest.POOL_SYMBOL = "crvUSD{name}"
-    pytest.STABLESWAP_FACTORY_ADDRESS_PROVIDER_ID = 8
+    pytest.STABLESWAP_FACTORY_ADDRESS_PROVIDER_ID = 8  # reserve slot for crvusd plain pools factory
 
     pytest.stable_A = 500  # initially, can go higher later
     pytest.stable_fee = 1000000  # 0.01%
