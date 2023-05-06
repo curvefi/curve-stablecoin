@@ -241,6 +241,8 @@ def deploy(network):
                     1,  # 1% bound
                     **kw)
 
+            price_oracle.price_w(**kw)
+
             print('Price oracle price: {:.2f}'.format(price_oracle.price() / 1e18))
 
         else:
