@@ -241,7 +241,6 @@ def metaregistry(address_provider, rtokens_pools, factory_handler):
             
             # get index of previous factory handler first:
             for idx in range(1000):
-                
                 if metaregistry.get_registry(idx) == previous_factory_handler:
                     break
             
