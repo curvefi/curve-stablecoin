@@ -21,14 +21,12 @@ rtokens = {
 ZERO_ADDRESS = "0x0000000000000000000000000000000000000000"
 POOL_NAME = "crvUSD/{name}"
 POOL_SYMBOL = "crvUSD{name}"
-STABLESWAP_FACTORY_ADDRESS_PROVIDER_ID = 8
 
 OWNERSHIP_ADMIN = "0x40907540d8a6C65c637785e8f8B742ae6b0b9968"
 PARAMETER_ADMIN = "0x4EEb3bA4f221cA16ed4A0cC7254E2E32DF948c5f"
 EMERGENCY_ADMIN = "0x467947EE34aF926cF1DCac093870f613C96B1E0c"
 
 GAUGE_IMPL = "0x5aE854b098727a9f1603A1E21c50D52DC834D846"
-ADDRESS_PROVIDER = "0x0000000022D53366457F9d5E68Ec105046FC4383"
 FEE_RECEIVER = "0xeCb456EA5365865EbAb8a2661B0c503410e9B347"
 
 WETH = "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2"
@@ -165,29 +163,6 @@ def deploy(network):
             # Set all admins to the DAO
             owner_proxy.commit_set_admins(OWNERSHIP_ADMIN, PARAMETER_ADMIN, EMERGENCY_ADMIN, **kw)
             owner_proxy.apply_set_admins(**kw)
-
-            # Put factory in address provider / registry
-            address_provider = Contract(ADDRESS_PROVIDER)
-            address_provider_admin = Contract(address_provider.admin())
-            
-            if address_provider.get_address(STABLESWAP_FACTORY_ADDRESS_PROVIDER_ID) == ZERO_ADDRESS:
-            
-                address_provider_admin.execute(
-                        address_provider,
-                        address_provider.add_new_id.encode_input(swap_factory, 'crvUSD plain pools'),
-                        **kw
-                )
-                
-            else:
-                
-                address_provider_admin.execute(
-                    address_provider,
-                    address_provider.set_address.encode_input(
-                        STABLESWAP_FACTORY_ADDRESS_PROVIDER_ID,
-                        swap_factory,
-                        **kw
-                    ),
-                ) 
 
             pools = {}
 
