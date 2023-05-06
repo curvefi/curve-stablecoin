@@ -166,28 +166,30 @@ def deploy(network):
             owner_proxy.commit_set_admins(OWNERSHIP_ADMIN, PARAMETER_ADMIN, EMERGENCY_ADMIN, **kw)
             owner_proxy.apply_set_admins(**kw)
 
+            # ------------------ SET REGISTRIES ------------------
+            # 
             # Put factory in address provider / registry
-            address_provider = Contract(ADDRESS_PROVIDER)
-            address_provider_admin = Contract(address_provider.admin())
+            # address_provider = Contract(ADDRESS_PROVIDER)
+            # address_provider_admin = Contract(address_provider.admin())
             
-            if address_provider.get_address(STABLESWAP_FACTORY_ADDRESS_PROVIDER_ID) == ZERO_ADDRESS:
+            # if address_provider.get_address(STABLESWAP_FACTORY_ADDRESS_PROVIDER_ID) == ZERO_ADDRESS:
             
-                address_provider_admin.execute(
-                        address_provider,
-                        address_provider.add_new_id.encode_input(swap_factory, 'crvUSD plain pools'),
-                        **kw
-                )
+            #     address_provider_admin.execute(
+            #             address_provider,
+            #             address_provider.add_new_id.encode_input(swap_factory, 'crvUSD plain pools'),
+            #             **kw
+            #     )
                 
-            else:
+            # else:
                 
-                address_provider_admin.execute(
-                    address_provider,
-                    address_provider.set_address.encode_input(
-                        STABLESWAP_FACTORY_ADDRESS_PROVIDER_ID,
-                        swap_factory,
-                        **kw
-                    ),
-                ) 
+            #     address_provider_admin.execute(
+            #         address_provider,
+            #         address_provider.set_address.encode_input(
+            #             STABLESWAP_FACTORY_ADDRESS_PROVIDER_ID,
+            #             swap_factory,
+            #             **kw
+            #         ),
+            #     ) 
 
             pools = {}
 
