@@ -119,9 +119,6 @@ class TestLendAndSwaps:
                 controller.address, 20 * pytest.initial_pool_coin_balance * 10**18, sender=forked_admin
             )
 
-            controller_factory.set_debt_ceiling(
-                controller.address, 20 * pytest.initial_pool_coin_balance * 10**18, sender=forked_admin
-            )
             # borrow more without collateral
             max_borrowable = controller.max_borrowable(pytest.initial_eth_balance * 10**18, 30)
             borrow_amount = (max_borrowable - state[2]) // 2  # half of maximum
