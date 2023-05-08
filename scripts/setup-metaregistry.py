@@ -91,8 +91,9 @@ def setup(network):
     
     account, kw = _get_deployment_kw(network=network)
     
-    assert STABLESWAP_FACTORY
-    assert STABLECOIN
+    if not STABLESWAP_FACTORY or STABLECOIN:
+        logger.error("Addresses for stableswap factory and stablecoin not set.")
+        raise
     
     # ----------------- write to the chain -----------------
     
@@ -106,7 +107,7 @@ def setup(network):
         occupied_slot = address_provider.get_address(STABLESWAP_FACTORY_ADDRESS_PROVIDER_ID)
         if occupied_slot == ZERO_ADDRESS:
             # we should not be in this branch, since slot is already registered for factory
-            raise "Empty slot for crvusd plain pools factory"
+            logger.error("Empty slot for crvusd plain pools factory")
         
         logger.info(f"Registry at AddressProvider Registry ID: {STABLESWAP_FACTORY_ADDRESS_PROVIDER_ID}: {occupied_slot}")
         logger.info("Updating to new registry ...")
@@ -127,7 +128,7 @@ def setup(network):
         
         # deploy factory handler:
         logger.info("Deploying new factory handler for stableswap factory ...")
-        factory_handler = project.StableswapFactoryHander.deploy(STABLESWAP_FACTORY, BASE_POOL_REGISTRY)
+        factory_handler = account.deploy(project.StableswapFactoryHandler, STABLESWAP_FACTORY, BASE_POOL_REGISTRY)
         
         # integrate into metaregistry:
         metaregistry = Contract("0xF98B45FA17DE75FB1aD0e7aFD971b0ca00e379fC")
@@ -163,6 +164,7 @@ def setup(network):
             
             assert metaregistry.get_registry(idx) == factory_handler.address
 
-        # sanity check to ensure we ha
+        # sanity check:
         factory = Contract(STABLESWAP_FACTORY)
-        assert metaregistry.find_pool_for_coins(STABLECOIN, USDP, 0) == factory.find_pool_for_coins(STABLECOIN, USDP, 0)
+        pool_addr = factory.find_pool_for_coins(STABLECOIN, USDP, 0)
+        assert metaregistry.find_pool_for_coins(STABLECOIN, USDP, 0) == pool_addr

@@ -211,7 +211,7 @@ def rtokens_pools(project, forked_admin, owner_proxy, stablecoin, stableswap_imp
 
 @pytest.fixture(scope="module", autouse=True)
 def factory_handler(project, stableswap_factory, forked_admin):
-    return project.StableswapFactoryHander.deploy(
+    return project.StableswapFactoryHandler.deploy(
         stableswap_factory.address, pytest.base_pool_registry, sender=forked_admin
     )
 
@@ -223,7 +223,7 @@ def metaregistry(address_provider, rtokens_pools, factory_handler):
     _metaregistry = Contract(pytest.metaregistry)
     
     previous_factory_handler = _metaregistry.find_pool_for_coins(
-        pytest.stablecoin, pytest.rtokens[0], 0
+        pytest.stablecoin, pytest.rtokens["USDP"], 0
     )
     factory_handler_integrated = previous_factory_handler != pytest.ZERO_ADDRESS
     

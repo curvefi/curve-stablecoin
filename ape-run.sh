@@ -18,7 +18,7 @@ case $1 in
         ape run scripts/setup-metaregistry.py clean --network ethereum:"$NETWORK_TYPE"
         ;;
     setup-registry)
-        ape run scripts/setup-metaregistry.py setup-registry --network ethereum:"$NETWORK_TYPE"
+        ape run scripts/setup-metaregistry.py setup --network ethereum:"$NETWORK_TYPE"
         ;;
     *)
         echo "Invalid argument. Please use 'test' or 'deploy'"
