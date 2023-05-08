@@ -34,9 +34,17 @@ def pytest_configure():
     pytest.initial_pool_coin_balance = 500_000  # of both coins
     pytest.initial_eth_balance = 1000  # both eth and weth
     
-    # address provider integration:
+    # registry integration:
+    pytest.base_pool_registry = "0xDE3eAD9B2145bBA2EB74007e58ED07308716B725"
+    pytest.metaregistry = "0xF98B45FA17DE75FB1aD0e7aFD971b0ca00e379fC"
+    pytest.address_provider = "0x0000000022D53366457F9d5E68Ec105046FC4383"
+    pytest.registry_name = "crvUSD plain pools"
     pytest.new_id_created = False
     pytest.max_id_before = 0
+    pytest.handler_index = None
+    
+    # record stablecoin address:
+    pytest.stablecoin = pytest.ZERO_ADDRESS
 
 
 """
@@ -68,7 +76,9 @@ def forked_user(project, accounts, weth):
 
 @pytest.fixture(scope="module", autouse=True)
 def stablecoin(project, forked_admin):
-    return forked_admin.deploy(project.Stablecoin, pytest.FULL_NAME, pytest.SHORT_NAME)
+    _stablecoin = forked_admin.deploy(project.Stablecoin, pytest.FULL_NAME, pytest.SHORT_NAME)
+    pytest.stablecoin = _stablecoin.address
+    return _stablecoin
 
 
 @pytest.fixture(scope="module", autouse=True)
@@ -143,7 +153,7 @@ def stableswap_impl(project, forked_admin, stableswap_factory, owner_proxy):
 
 
 @pytest.fixture(scope="module", autouse=True)
-def address_provider(forked_admin, stableswap_factory):
+def address_provider(stableswap_factory):
     
     address_provider = Contract("0x0000000022D53366457F9d5E68Ec105046FC4383")
     
@@ -152,22 +162,17 @@ def address_provider(forked_admin, stableswap_factory):
         address_provider_admin = Contract(address_provider.admin())
         pytest.max_id_before = address_provider.max_id()
         
-        id_info = address_provider.get_id_info(pytest.STABLESWAP_FACTORY_ADDRESS_PROVIDER_ID)
-        
         if address_provider.get_address(pytest.STABLESWAP_FACTORY_ADDRESS_PROVIDER_ID) == pytest.ZERO_ADDRESS:
             
+            # this branch should not never be executed since the registry slot exists.
+            # we test this later.
             address_provider_admin.execute(
                 address_provider,
-                address_provider.add_new_id.encode_input(stableswap_factory, "crvUSD plain pools"),
+                address_provider.add_new_id.encode_input(stableswap_factory, pytest.registry_name),
             )
             pytest.new_id_created = True
-            pytest.max
         
         else:
-            
-            assert id_info.addr != stableswap_factory.address
-            assert id_info.is_active
-            assert id_info.description == 'crvUSD plain pools'
             
             address_provider_admin.execute(
                 address_provider,
@@ -202,6 +207,54 @@ def rtokens_pools(project, forked_admin, owner_proxy, stablecoin, stableswap_imp
         pool = project.Stableswap.at(tx.events.filter(stableswap_factory.PlainPoolDeployed)[0].pool)
         pools[name] = pool
     return pools
+
+
+@pytest.fixture(scope="module", autouse=True)
+def factory_handler(project, stableswap_factory, forked_admin):
+    return project.StableswapFactoryHandler.deploy(
+        stableswap_factory.address, pytest.base_pool_registry, sender=forked_admin
+    )
+
+
+@pytest.fixture(scope="module", autouse=True)
+def metaregistry(address_provider, rtokens_pools, factory_handler):
+    
+    address_provider_admin = Contract(address_provider.admin())
+    _metaregistry = Contract(pytest.metaregistry)
+    
+    previous_factory_handler = _metaregistry.find_pool_for_coins(
+        pytest.stablecoin, pytest.rtokens["USDP"], 0
+    )
+    factory_handler_integrated = previous_factory_handler != pytest.ZERO_ADDRESS
+    
+    with accounts.use_sender("0x7EeAC6CDdbd1D0B8aF061742D41877D7F707289a"):
+        
+        if not factory_handler_integrated:
+        
+            # first integration into metaregistry:
+            address_provider_admin.execute(
+                _metaregistry.address,
+                _metaregistry.add_registry_handler.encode_input(factory_handler),
+            )
+            
+        else:  # redeployment, which means update handler index in metaregistry.
+            
+            # get index of previous factory handler first:
+            for idx in range(1000):
+                if metaregistry.get_registry(idx) == previous_factory_handler:
+                    break
+            
+            # update that idx with newly deployed factory handler:
+            address_provider_admin.execute(
+                _metaregistry.address,
+                _metaregistry.update_registry_handler.encode_input(
+                    idx, factory_handler.address
+                )
+            )
+            
+            assert metaregistry.get_registry(idx) == factory_handler.address
+            
+    return _metaregistry
 
 
 @pytest.fixture(scope="module", autouse=True)
