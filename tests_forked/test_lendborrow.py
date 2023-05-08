@@ -119,6 +119,9 @@ class TestLendAndSwaps:
                 controller.address, 20 * pytest.initial_pool_coin_balance * 10**18, sender=forked_admin
             )
 
+            controller_factory.set_debt_ceiling(
+                controller.address, 20 * pytest.initial_pool_coin_balance * 10**18, sender=forked_admin
+            )
             # borrow more without collateral
             max_borrowable = controller.max_borrowable(pytest.initial_eth_balance * 10**18, 30)
             borrow_amount = (max_borrowable - state[2]) // 2  # half of maximum
@@ -126,9 +129,6 @@ class TestLendAndSwaps:
             assert stablecoin.balanceOf(forked_user) == 2 * pytest.initial_pool_coin_balance * 10**18 + borrow_amount
 
             # borrow more with collateral
-            controller_factory.set_debt_ceiling(
-                controller.address, 8 * pytest.initial_pool_coin_balance * 10**18, sender=forked_admin
-            )
             resulting_balance = 2 * pytest.initial_pool_coin_balance * 10**18 + 3 * borrow_amount
             controller.borrow_more(pytest.initial_eth_balance * 10**18, 2 * borrow_amount)
             assert stablecoin.balanceOf(forked_user) == resulting_balance

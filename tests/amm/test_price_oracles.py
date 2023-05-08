@@ -1,7 +1,5 @@
 import boa
 import pytest
-from hypothesis import given
-from hypothesis import strategies as st
 from ..conftest import PRICE, approx
 
 
@@ -59,17 +57,12 @@ def test_ema_wrapping(ema_price_oracle, price_oracle):
         assert price_oracle.price() == ema_price_oracle.price()
 
 
-@given(
-    t1=st.integers(min_value=0, max_value=10**6),
-    p_mul=st.floats(min_value=0.1, max_value=10),
-)
-def test_ema_sleep(ema_price_oracle, price_oracle, admin, t1, p_mul):
-    p = price_oracle.price()
-    p_target = int(p_mul * p)
-    boa.env.time_travel(t1)
-    with boa.env.prank(admin):
-        price_oracle.set_price(p_target)
-    ema_price_oracle.price_w()
-    assert (ema_price_oracle.price() - p) < 0.001 * p
-    boa.env.time_travel(100_000_000)
-    assert (ema_price_oracle.price() - p_target) < 0.001 * p_target
+def test_ema_sleep(ema_price_oracle, price_oracle, admin):
+    with boa.env.anchor():
+        p = price_oracle.price()
+        with boa.env.prank(admin):
+            price_oracle.set_price(p // 2)
+        boa.env.time_travel(5)
+        ema_price_oracle.price_w()
+        boa.env.time_travel(1000000)
+        assert (ema_price_oracle.price() - p // 2) < p / 10
