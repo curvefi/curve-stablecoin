@@ -791,7 +791,7 @@ def withdraw(user: address, frac: uint256) -> uint256[2]:
             if x > 0:
                 self.admin_fees_x += x
             if y > 0:
-                self.admin_fees_y += y
+                self.admin_fees_y += y / COLLATERAL_PRECISION
             x = 0
             y = 0
 

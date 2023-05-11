@@ -1290,7 +1290,7 @@ def collect_fees() -> uint256:
     _to: address = FACTORY.fee_receiver()
     # AMM-based fees
     borrowed_fees: uint256 = AMM.admin_fees_x()
-    collateral_fees: uint256 = unsafe_div(AMM.admin_fees_y(), COLLATERAL_PRECISION)
+    collateral_fees: uint256 = AMM.admin_fees_y()
     if borrowed_fees > 0:
         STABLECOIN.transferFrom(AMM.address, _to, borrowed_fees)
     if collateral_fees > 0:
