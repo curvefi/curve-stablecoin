@@ -3,7 +3,7 @@ from hypothesis import strategies as st
 
 
 SHARE_PRICE = 10**18
-VIRTUAL_SHARES = 100000  # Amounts close to this numbers of shares will experience a small loss (down)
+DEAD_SHARES = 1000  # Amounts close to this numbers of shares will experience a small loss (down)
 
 
 @given(
@@ -12,13 +12,14 @@ VIRTUAL_SHARES = 100000  # Amounts close to this numbers of shares will experien
 )
 @settings(max_examples=15000)
 def test_no_steal(q1, q2):
+    # Protection based on Mixbytes, implemented in an OpenZeppelin audit elsewhere recently
     # Deposit
-    s1 = q1 // SHARE_PRICE
-    s2 = q2 * s1 // q1
+    s1 = q1 // SHARE_PRICE  # Doesn't matter how we've got to this one - could have been pumping
+    s2 = (q2 + DEAD_SHARES) * s1 // (q1 + 1)
     if s1 == 0:
         return
     # Withdraw
-    q2_out = s2 * (q1 + q2) // (s1 + s2 + VIRTUAL_SHARES)
+    q2_out = s2 * (q1 + q2 + 1) // (s1 + s2 + DEAD_SHARES)
     qq = q1 + q2 - q2_out
-    q1_out = s1 * qq // (s1 + VIRTUAL_SHARES)
+    q1_out = s1 * (qq + 1) // (s1 + DEAD_SHARES)
     assert q1_out <= q1, "Attacker made money"
