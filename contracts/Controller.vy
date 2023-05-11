@@ -161,6 +161,8 @@ CALLBACK_DEPOSIT: constant(bytes4) = method_id("callback_deposit(address,uint256
 CALLBACK_REPAY: constant(bytes4) = method_id("callback_repay(address,uint256,uint256,uint256,uint256[])", output_type=bytes4)
 CALLBACK_LIQUIDATE: constant(bytes4) = method_id("callback_liquidate(address,uint256,uint256,uint256,uint256[])", output_type=bytes4)
 
+DEAD_SHARES: constant(uint256) = 100_000
+
 
 @external
 def __init__(
@@ -365,7 +367,11 @@ def get_y_effective(collateral: uint256, N: uint256, discount: uint256) -> uint2
     # = y / N * p_oracle_up(n1) * sqrt((A - 1) / A) * sum_{0..N-1}(((A-1) / A)**k)
     # === d_y_effective * p_oracle_up(n1) * sum(...) === y_effective * p_oracle_up(n1)
     # d_y_effective = y / N / sqrt(A / (A - 1))
-    d_y_effective: uint256 = collateral * unsafe_sub(10**18, discount) / (SQRT_BAND_RATIO * N)
+    # d_y_effective: uint256 = collateral * unsafe_sub(10**18, discount) / (SQRT_BAND_RATIO * N)
+    # Make some extra discount to always deposit lower when we have DEAD_SHARES rounding
+    d_y_effective: uint256 = collateral * unsafe_sub(
+        10**18, min(discount + 2 * DEAD_SHARES * 10**18 / max(collateral / N, DEAD_SHARES), 10**18)
+    ) / (SQRT_BAND_RATIO * N)
     y_effective: uint256 = d_y_effective
     for i in range(1, MAX_TICKS_UINT):
         if i == N:
@@ -1284,7 +1290,7 @@ def collect_fees() -> uint256:
     _to: address = FACTORY.fee_receiver()
     # AMM-based fees
     borrowed_fees: uint256 = AMM.admin_fees_x()
-    collateral_fees: uint256 = AMM.admin_fees_y()
+    collateral_fees: uint256 = unsafe_div(AMM.admin_fees_y(), COLLATERAL_PRECISION)
     if borrowed_fees > 0:
         STABLECOIN.transferFrom(AMM.address, _to, borrowed_fees)
     if collateral_fees > 0:

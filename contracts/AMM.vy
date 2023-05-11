@@ -136,6 +136,7 @@ bands_y: public(HashMap[int256, uint256])
 
 total_shares: HashMap[int256, uint256]
 user_shares: HashMap[address, UserTicks]
+DEAD_SHARES: constant(uint256) = 100_000
 
 liquidity_mining_callback: public(LMGauge)
 
@@ -776,12 +777,24 @@ def withdraw(user: address, frac: uint256) -> uint256[2]:
         ds: uint256 = unsafe_div(frac * user_shares[i], 10**18)  # Can ONLY zero out when frac == 10**18
         user_shares[i] = unsafe_sub(user_shares[i], ds)
         s: uint256 = self.total_shares[n]
+        new_shares: uint256 = s - ds
+        self.total_shares[n] = new_shares
+        s += DEAD_SHARES
         dx: uint256 = x * ds / s
         dy: uint256 = unsafe_div(y * ds, s)
 
-        self.total_shares[n] = s - ds
         x -= dx
         y -= dy
+
+        # If withdrawal is the last one - tranfer dust to admin fees
+        if new_shares == 0:
+            if x > 0:
+                self.admin_fees_x += x
+            if y > 0:
+                self.admin_fees_y += y
+            x = 0
+            y = 0
+
         if n == min_band:
             if x == 0:
                 if y == 0:
@@ -1378,6 +1391,7 @@ def get_xy_up(user: address, use_y: bool) -> uint256:
             continue
         if user_share == 0:
             continue
+        total_share += DEAD_SHARES
 
         # Also this will revert if p_o_down is 0, and p_o_down is 0 if p_o_up is 0
         p_current_mid: uint256 = unsafe_div(unsafe_div(p_o**2 / p_o_down * p_o, p_o_down) * Aminus1, A)
