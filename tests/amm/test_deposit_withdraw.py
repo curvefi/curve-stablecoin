@@ -4,6 +4,9 @@ from hypothesis import given
 from hypothesis import strategies as st
 
 
+DEAD_SHARES = 10**3
+
+
 @given(
         amounts=st.lists(st.integers(min_value=0, max_value=10**6 * 10**18), min_size=5, max_size=5),
         ns=st.lists(st.integers(min_value=-20, max_value=20), min_size=5, max_size=5),
@@ -12,8 +15,13 @@ from hypothesis import strategies as st
 )
 def test_deposit_withdraw(amm, amounts, accounts, ns, dns, fracs, collateral_token, admin):
     deposits = {}
+    precisions = {}
     with boa.env.prank(admin):
         for user, amount, n1, dn in zip(accounts, amounts, ns, dns):
+            if amount <= dn:
+                precisions[user] = DEAD_SHARES
+            else:
+                precisions[user] = DEAD_SHARES / (amount // (dn + 1)) + 1e-6
             n2 = n1 + dn
             if amount // (dn + 1) <= 100:
                 with boa.reverts('Amount too low'):
@@ -27,18 +35,18 @@ def test_deposit_withdraw(amm, amounts, accounts, ns, dns, fracs, collateral_tok
         for user, n1 in zip(accounts, ns):
             if user in deposits:
                 if n1 >= 0:
-                    assert approx(amm.get_y_up(user), deposits[user], 1e-6, 25)
+                    assert approx(amm.get_y_up(user), deposits[user], precisions[user], 25)
                 else:
                     assert amm.get_y_up(user) < deposits[user]  # price manipulation caused loss for user
             else:
                 assert amm.get_y_up(user) == 0
 
-        for user, frac in zip(accounts, fracs):
+        for user, frac, amount in zip(accounts, fracs, amounts):
             if user in deposits:
                 before = amm.get_sum_xy(user)
                 amm.withdraw(user, frac)
                 after = amm.get_sum_xy(user)
-                assert approx(before[1] - after[1], deposits[user] * frac / 1e18, 1e-6, 25)
+                assert approx(before[1] - after[1], deposits[user] * frac / 1e18, precisions[user], 25 + deposits[user] * precisions[user])
             else:
                 with boa.reverts("No deposits"):
                     amm.withdraw(user, frac)

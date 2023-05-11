@@ -15,7 +15,7 @@ def test_no_steal(q1, q2):
     # Protection based on Mixbytes, implemented in an OpenZeppelin audit elsewhere recently
     # Deposit
     s1 = q1 // SHARE_PRICE  # Doesn't matter how we've got to this one - could have been pumping
-    s2 = (q2 + DEAD_SHARES) * s1 // (q1 + 1)
+    s2 = q2 * (s1 + DEAD_SHARES) // (q1 + 1)
     if s1 == 0:
         return
     # Withdraw

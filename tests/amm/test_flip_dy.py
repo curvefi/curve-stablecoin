@@ -56,8 +56,8 @@ def test_flip(amm, price_oracle, collateral_token, borrowed_token, accounts, adm
                 borrowed_token._mint_for_testing(trader, dx)
                 n1 = amm.active_band()
                 p1 = amm.get_p()
-                assert amm.get_y_up(depositor) >= sum(amm.bands_y(n) for n in range(1, 6))
-                assert amm.get_x_down(depositor) >= 5 * 0.95 * 3000 * 10**borrowed_decimals
+                assert amm.get_y_up(depositor) * (1 + 1e-13) >= sum(amm.bands_y(n) for n in range(1, 6))
+                assert amm.get_x_down(depositor) * (1 + 1e-13) >= 5 * 0.95 * 3000 * 10**borrowed_decimals
                 with boa.env.prank(trader):
                     amm.exchange_dy(0, 1, dy, dx)
                 n2 = amm.active_band()
@@ -86,8 +86,8 @@ def test_flip(amm, price_oracle, collateral_token, borrowed_token, accounts, adm
                     collateral_token._mint_for_testing(trader, dy)
                 n1 = amm.active_band()
                 p1 = amm.get_p()
-                assert amm.get_y_up(depositor) >= sum(amm.bands_y(n) for n in range(1, 6))
-                assert amm.get_x_down(depositor) >= 5 * 0.95 * 3000 * 10**borrowed_decimals
+                assert amm.get_y_up(depositor) * (1 + 1e-13) >= sum(amm.bands_y(n) for n in range(1, 6))
+                assert amm.get_x_down(depositor) * (1 + 1e-13) >= 5 * 0.95 * 3000 * 10**borrowed_decimals
                 with boa.env.prank(trader):
                     amm.exchange_dy(1, 0, dx, dy)
                 n2 = amm.active_band()
@@ -110,5 +110,5 @@ def test_flip(amm, price_oracle, collateral_token, borrowed_token, accounts, adm
         # That actually wouldn't necessarily happen: could be a loss easily
         # But this time, AMM made more money than lost
         # We wanted to check if the loss is not too small, but in reality got a gain
-        assert amm.get_x_down(depositor) >= converted_x
+        assert amm.get_x_down(depositor) * (1 + 1e-13) >= converted_x
         assert sum(amm.bands_y(n) for n in range(1, 6)) >= initial_y

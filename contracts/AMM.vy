@@ -136,7 +136,7 @@ bands_y: public(HashMap[int256, uint256])
 
 total_shares: HashMap[int256, uint256]
 user_shares: HashMap[address, UserTicks]
-DEAD_SHARES: constant(uint256) = 100_000
+DEAD_SHARES: constant(uint256) = 1000
 
 liquidity_mining_callback: public(LMGauge)
 
@@ -713,12 +713,11 @@ def deposit_range(user: address, amount: uint256, n1: int256, n2: int256):
 
         # Total / user share
         s: uint256 = self.total_shares[band]
-        ds: uint256 = y
+        ds: uint256 = 0
         if s == 0:
-            assert y < 2**128
-        else:
-            ds = s * y / total_y
-            assert ds > 0, "Amount too low"
+            assert y <= (2**128 - 1) / DEAD_SHARES
+        ds = (s + DEAD_SHARES) * y / (total_y + 1)
+        assert ds > 0, "Amount too low"
         user_shares.append(ds)
         s += ds
         self.total_shares[band] = s
@@ -780,8 +779,8 @@ def withdraw(user: address, frac: uint256) -> uint256[2]:
         new_shares: uint256 = s - ds
         self.total_shares[n] = new_shares
         s += DEAD_SHARES
-        dx: uint256 = x * ds / s
-        dy: uint256 = unsafe_div(y * ds, s)
+        dx: uint256 = (x + 1) * ds / s
+        dy: uint256 = unsafe_div((y + 1) * ds, s)
 
         x -= dx
         y -= dy
@@ -1392,6 +1391,9 @@ def get_xy_up(user: address, use_y: bool) -> uint256:
         if user_share == 0:
             continue
         total_share += DEAD_SHARES
+        # Also ideally we'd want to add +1 to all quantities when calculating with shares
+        # but we choose to save bytespace and slightly under-estimate the result of this call
+        # which is also more conservative
 
         # Also this will revert if p_o_down is 0, and p_o_down is 0 if p_o_up is 0
         p_current_mid: uint256 = unsafe_div(unsafe_div(p_o**2 / p_o_down * p_o, p_o_down) * Aminus1, A)

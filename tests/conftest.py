@@ -20,6 +20,8 @@ settings.load_profile(os.getenv(u"HYPOTHESIS_PROFILE", "default"))
 
 
 def approx(x1: int, x2: int, precision: int, abs_precision=None):
+    if precision >= 1:
+        return True
     result = False
     if abs_precision is not None:
         result = abs(x2 - x1) <= abs_precision
