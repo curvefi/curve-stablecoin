@@ -657,7 +657,7 @@ def _add_collateral_borrow(d_collateral: uint256, d_debt: uint256, _for: address
     assert debt > 0, "Loan doesn't exist"
     debt += d_debt
     ns: int256[2] = AMM.read_user_tick_numbers(_for)
-    size: uint256 = convert(ns[1] - ns[0] + 1, uint256)
+    size: uint256 = convert(unsafe_sub(unsafe_add(ns[1], ns[0]), 1), uint256)
 
     xy: uint256[2] = AMM.withdraw(_for, 10**18)
     assert xy[0] == 0, "Already in underwater mode"
@@ -666,7 +666,7 @@ def _add_collateral_borrow(d_collateral: uint256, d_debt: uint256, _for: address
     else:
         xy[1] += d_collateral
     n1: int256 = self._calculate_debt_n1(xy[1], debt, size)
-    n2: int256 = n1 + ns[1] - ns[0]
+    n2: int256 = n1 + unsafe_sub(ns[1], ns[0])
 
     AMM.deposit_range(_for, xy[1], n1, n2)
     self.loan[_for] = Loan({initial_debt: debt, rate_mul: rate_mul})
@@ -748,10 +748,11 @@ def _remove_from_list(_for: address):
 @payable
 @external
 @nonreentrant('lock')
-def repay(_d_debt: uint256, _for: address = msg.sender, use_eth: bool = True):
+def repay(_d_debt: uint256, max_active_band: int256 = 2**255-1, _for: address = msg.sender, use_eth: bool = True):
     """
     @notice Repay debt (partially or fully)
     @param _d_debt The amount of debt to repay. If higher than the current debt - will do full repayment
+    @param max_active_band Don't allow active band to be higher than this (to prevent front-running the repay)
     @param _for The user to repay the debt for
     @param use_eth Use wrapping/unwrapping if collateral is ETH
     """
@@ -764,7 +765,7 @@ def repay(_d_debt: uint256, _for: address = msg.sender, use_eth: bool = True):
     debt, rate_mul = self._debt(_for)
     assert debt > 0, "Loan doesn't exist"
     d_debt: uint256 = min(debt, _d_debt)
-    debt -= d_debt
+    debt = unsafe_sub(debt, d_debt)
 
     if debt == 0:
         # Allow to withdraw all assets even when underwater
@@ -781,15 +782,17 @@ def repay(_d_debt: uint256, _for: address = msg.sender, use_eth: bool = True):
 
     else:
         active_band: int256 = AMM.active_band_with_skip()
+        assert active_band <= max_active_band
+
         ns: int256[2] = AMM.read_user_tick_numbers(_for)
-        size: uint256 = convert(ns[1] - ns[0] + 1, uint256)
+        size: uint256 = convert(unsafe_add(unsafe_sub(ns[1], ns[0]), 1), uint256)
 
 
         if ns[0] > active_band:
             # Not in liquidation - can move bands
             xy: uint256[2] = AMM.withdraw(_for, 10**18)
             n1: int256 = self._calculate_debt_n1(xy[1], debt, size)
-            n2: int256 = n1 + ns[1] - ns[0]
+            n2: int256 = n1 + unsafe_sub(ns[1], ns[0])
             AMM.deposit_range(_for, xy[1], n1, n2)
             liquidation_discount: uint256 = self.liquidation_discount
             self.liquidation_discounts[_for] = liquidation_discount
@@ -806,7 +809,7 @@ def repay(_d_debt: uint256, _for: address = msg.sender, use_eth: bool = True):
 
     self.loan[_for] = Loan({initial_debt: debt, rate_mul: rate_mul})
     total_debt: uint256 = self._total_debt.initial_debt * rate_mul / self._total_debt.rate_mul
-    self._total_debt.initial_debt = max(total_debt, d_debt) - d_debt
+    self._total_debt.initial_debt = unsafe_sub(max(total_debt, d_debt), d_debt)
     self._total_debt.rate_mul = rate_mul
 
 
@@ -857,14 +860,14 @@ def repay_extended(callbacker: address, callback_args: DynArray[uint256,5]):
 
     # Else - partial repayment -> deleverage, but only if we are not underwater
     else:
-        size: uint256 = convert(ns[1] - ns[0] + 1, uint256)
+        size: uint256 = convert(unsafe_add(unsafe_sub(ns[1], ns[0]), 1), uint256)
         assert ns[0] > cb.active_band
         d_debt = cb.stablecoins  # cb.stablecoins <= total_stablecoins < debt
         debt = unsafe_sub(debt, cb.stablecoins)
 
         # Not in liquidation - can move bands
         n1: int256 = self._calculate_debt_n1(cb.collateral, debt, size)
-        n2: int256 = n1 + ns[1] - ns[0]
+        n2: int256 = n1 + unsafe_sub(ns[1], ns[0])
         AMM.deposit_range(msg.sender, cb.collateral, n1, n2)
         liquidation_discount: uint256 = self.liquidation_discount
         self.liquidation_discounts[msg.sender] = liquidation_discount
@@ -936,7 +939,7 @@ def health_calculator(user: address, d_collateral: int256, d_debt: int256, full:
     ld: int256 = 0
     if debt != 0:
         ld = convert(self.liquidation_discounts[user], int256)
-        n = convert(ns[1] - ns[0] + 1, uint256)
+        n = convert(unsafe_add(unsafe_sub(ns[1], ns[0]), 1), uint256)
     else:
         ld = convert(self.liquidation_discount, int256)
         ns[0] = max_value(int256)  # This will trigger a "re-deposit"
@@ -1202,7 +1205,7 @@ def user_state(user: address) -> uint256[4]:
     """
     xy: uint256[2] = AMM.get_sum_xy(user)
     ns: int256[2] = AMM.read_user_tick_numbers(user) # ns[1] > ns[0]
-    return [xy[1], xy[0], self._debt_ro(user), convert(ns[1] - ns[0] + 1, uint256)]
+    return [xy[1], xy[0], self._debt_ro(user), convert(unsafe_add(unsafe_sub(ns[1], ns[0]), 1), uint256)]
 
 
 # AMM has nonreentrant decorator
