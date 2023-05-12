@@ -1005,6 +1005,7 @@ def _liquidate(user: address, min_x: uint256, health_limit: uint256, frac: uint2
 
     final_debt: uint256 = debt
     debt = unsafe_div(debt * frac, 10**18)
+    assert debt > 0
     final_debt = unsafe_sub(final_debt, debt)
 
     # Withdraw sender's stablecoin and collateral to our contract

@@ -134,6 +134,8 @@ def test_liquidate_callback(accounts, admin, stablecoin, collateral_token, contr
         except BoaError as e:
             if frac == 0 and "Loan doesn't exist" in str(e):
                 pass
+            elif frac * controller.debt(user) // 10**18 == 0:
+                pass
             else:
                 raise
 
