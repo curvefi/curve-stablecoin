@@ -153,6 +153,7 @@ LOG2_A_RATIO: immutable(int256)  # log(A / (A - 1))
 SQRT_BAND_RATIO: immutable(uint256)
 
 MAX_ADMIN_FEE: constant(uint256) = 10**18  # 100%
+MIN_FEE: constant(uint256) = 10**6  # 1e-12, still needs to be above 0
 MAX_FEE: constant(uint256) = 10**17  # 10%
 
 USE_ETH: immutable(bool)
@@ -1212,7 +1213,7 @@ def set_amm_fee(fee: uint256):
     @param fee The fee which should be no higher than MAX_FEE
     """
     assert msg.sender == FACTORY.admin()
-    assert fee <= MAX_FEE, "High fee"
+    assert fee <= MAX_FEE and fee >= MIN_FEE, "Fee"
     AMM.set_fee(fee)
 
 

@@ -18,7 +18,7 @@ def controller_for_liquidation(stablecoin, collateral_token, market_controller, 
         fee_receiver = accounts[0]  # same as liquidator
         collateral_amount = 10**18
         with boa.env.prank(admin):
-            market_controller.set_amm_fee(0)
+            market_controller.set_amm_fee(10**6)
             monetary_policy.set_rate(int(1e18 * 1.0 / 365 / 86400))  # 100% APY
             collateral_token._mint_for_testing(user, collateral_amount)
             collateral_token._mint_for_testing(user2, collateral_amount)

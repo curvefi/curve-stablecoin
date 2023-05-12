@@ -77,6 +77,7 @@ debt_ceiling_residual: public(HashMap[address, uint256])
 # Limits
 MIN_A: constant(uint256) = 2
 MAX_A: constant(uint256) = 10000
+MIN_FEE: constant(uint256) = 10**6  # 1e-12, still needs to be above 0
 MAX_FEE: constant(uint256) = 10**17  # 10%
 MAX_ADMIN_FEE: constant(uint256) = 10**18  # 100%
 MAX_LOAN_DISCOUNT: constant(uint256) = 5 * 10**17
@@ -187,7 +188,8 @@ def add_market(token: address, A: uint256, fee: uint256, admin_fee: uint256,
     """
     assert msg.sender == self.admin, "Only admin"
     assert A >= MIN_A and A <= MAX_A, "Wrong A"
-    assert fee < MAX_FEE, "Fee too high"
+    assert fee <= MAX_FEE, "Fee too high"
+    assert fee >= MIN_FEE, "Fee too low"
     assert admin_fee < MAX_ADMIN_FEE, "Admin fee too high"
     assert liquidation_discount >= MIN_LIQUIDATION_DISCOUNT, "Liquidation discount too low"
     assert loan_discount <= MAX_LOAN_DISCOUNT, "Loan discount too high"
