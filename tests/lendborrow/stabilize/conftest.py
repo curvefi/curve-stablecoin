@@ -196,7 +196,7 @@ def market_agg(controller_factory, collateral_token, agg_monetary_policy, crypto
             agg_monetary_policy.address, 5 * 10**16, 2 * 10**16,
             10**8 * 10**18)
         for pk in peg_keepers:
-            controller_factory.set_debt_ceiling(pk.address, 10**7 * 10**18)
+            controller_factory.set_debt_ceiling(pk.address, 10**8 * 10**18)
         return controller_factory
 
 
