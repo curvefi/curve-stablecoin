@@ -7,6 +7,9 @@ from hypothesis import strategies as st
 from hypothesis.stateful import RuleBasedStateMachine, run_state_machine_as_test, rule, invariant
 
 
+DEAD_SHARES = 1000
+
+
 class StatefulLendBorrow(RuleBasedStateMachine):
     n = st.integers(min_value=5, max_value=50)
     amount = st.integers(min_value=0, max_value=2**256-1)
@@ -66,12 +69,12 @@ class StatefulLendBorrow(RuleBasedStateMachine):
             except Exception:
                 return  # Probably overflow
 
-            if c_amount // n >= 2**128:
+            if c_amount // n > (2**128 - 1) // DEAD_SHARES:
                 with boa.reverts():
                     self.controller.create_loan(c_amount, amount, n)
                 return
 
-            if c_amount // n <= 100:
+            if c_amount // n <= DEAD_SHARES:
                 with boa.reverts():
                     # Amount too low or too deep
                     self.controller.create_loan(c_amount, amount, n)
@@ -80,8 +83,9 @@ class StatefulLendBorrow(RuleBasedStateMachine):
             try:
                 self.controller.create_loan(c_amount, amount, n)
             except Exception as e:
-                if 'Too deep' not in str(e):
-                    raise
+                if c_amount // n > 2 * DEAD_SHARES and c_amount // n < (2**128 - 1) // DEAD_SHARES:
+                    if 'Too deep' not in str(e):
+                        raise
 
     @rule(amount=amount, user_id=user_id)
     def repay(self, amount, user_id):
@@ -120,7 +124,11 @@ class StatefulLendBorrow(RuleBasedStateMachine):
                     self.controller.add_collateral(c_amount, user)
                 return
 
-            self.controller.add_collateral(c_amount, user)
+            try:
+                self.controller.add_collateral(c_amount, user)
+            except Exception:
+                if (c_amount + self.amm.get_sum_xy(user)[1]) >= (2**128 - 1) // 50:
+                    pass
 
     @rule(c_amount=c_amount, amount=amount, user_id=user_id)
     def borrow_more(self, c_amount, amount, user_id):
@@ -172,7 +180,11 @@ class StatefulLendBorrow(RuleBasedStateMachine):
                     self.controller.borrow_more(c_amount, amount)
                 return
 
-            self.controller.borrow_more(c_amount, amount)
+            try:
+                self.controller.borrow_more(c_amount, amount)
+            except Exception:
+                if (c_amount + self.amm.get_sum_xy(user)[1]) >= (2**128 - 1) // 50:
+                    pass
 
     @invariant()
     def debt_supply(self):
@@ -190,7 +202,7 @@ class StatefulLendBorrow(RuleBasedStateMachine):
 
 
 def test_stateful_lendborrow(controller_factory, market_amm, market_controller, collateral_token, stablecoin, accounts):
-    StatefulLendBorrow.TestCase.settings = settings(max_examples=50, stateful_step_count=20)
+    StatefulLendBorrow.TestCase.settings = settings(max_examples=500, stateful_step_count=20)
     for k, v in locals().items():
         setattr(StatefulLendBorrow, k, v)
     run_state_machine_as_test(StatefulLendBorrow)

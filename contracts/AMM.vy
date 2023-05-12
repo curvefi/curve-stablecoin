@@ -713,13 +713,11 @@ def deposit_range(user: address, amount: uint256, n1: int256, n2: int256):
 
         # Total / user share
         s: uint256 = self.total_shares[band]
-        ds: uint256 = 0
-        if s == 0:
-            assert y <= (2**128 - 1) / DEAD_SHARES
-        ds = (s + DEAD_SHARES) * y / (total_y + 1)
+        ds: uint256 = unsafe_div((s + DEAD_SHARES) * y, total_y + 1)
         assert ds > 0, "Amount too low"
         user_shares.append(ds)
         s += ds
+        assert s <= 2**128 - 1
         self.total_shares[band] = s
 
         total_y += y
@@ -727,7 +725,7 @@ def deposit_range(user: address, amount: uint256, n1: int256, n2: int256):
 
         if lm.address != empty(address):
             # If initial s == 0 - s becomes equal to y which is > 100 => nonzero
-            collateral_shares.append(total_y * 10**18 / s)
+            collateral_shares.append(unsafe_div(total_y * 10**18, s))
 
     self.min_band = min(self.min_band, n1)
     self.max_band = max(self.max_band, n2)

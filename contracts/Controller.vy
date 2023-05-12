@@ -161,7 +161,7 @@ CALLBACK_DEPOSIT: constant(bytes4) = method_id("callback_deposit(address,uint256
 CALLBACK_REPAY: constant(bytes4) = method_id("callback_repay(address,uint256,uint256,uint256,uint256[])", output_type=bytes4)
 CALLBACK_LIQUIDATE: constant(bytes4) = method_id("callback_liquidate(address,uint256,uint256,uint256,uint256[])", output_type=bytes4)
 
-DEAD_SHARES: constant(uint256) = 100_000
+DEAD_SHARES: constant(uint256) = 1000
 
 
 @external
@@ -370,7 +370,7 @@ def get_y_effective(collateral: uint256, N: uint256, discount: uint256) -> uint2
     # d_y_effective: uint256 = collateral * unsafe_sub(10**18, discount) / (SQRT_BAND_RATIO * N)
     # Make some extra discount to always deposit lower when we have DEAD_SHARES rounding
     d_y_effective: uint256 = collateral * unsafe_sub(
-        10**18, min(discount + 2 * DEAD_SHARES * 10**18 / max(collateral / N, DEAD_SHARES), 10**18)
+        10**18, min(discount + (DEAD_SHARES * 10**18) / max(collateral / N, DEAD_SHARES), 10**18)
     ) / (SQRT_BAND_RATIO * N)
     y_effective: uint256 = d_y_effective
     for i in range(1, MAX_TICKS_UINT):
@@ -496,7 +496,7 @@ def min_collateral(debt: uint256, N: uint256) -> uint256:
     @return Minimal collateral required
     """
     # Add N**2 to account for precision loss in multiple bands, e.g. N * 1 / (y/N) = N**2 / y
-    return unsafe_div(unsafe_div(debt * 10**18 / self.max_p_base() * 10**18 / self.get_y_effective(10**18, N, self.loan_discount) + N**2, COLLATERAL_PRECISION) * 10**18, 10**18 - 10**14)
+    return unsafe_div(unsafe_div(debt * 10**18 / self.max_p_base() * 10**18 / self.get_y_effective(10**18, N, self.loan_discount) + N * (N + 2 * DEAD_SHARES), COLLATERAL_PRECISION) * 10**18, 10**18 - 10**14)
 
 
 @external

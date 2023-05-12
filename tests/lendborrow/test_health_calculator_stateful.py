@@ -9,6 +9,9 @@ from hypothesis.stateful import RuleBasedStateMachine, run_state_machine_as_test
 from ..conftest import approx
 
 
+DEAD_SHARES = 1000
+
+
 class AllGood(Exception):
     pass
 
@@ -16,7 +19,7 @@ class AllGood(Exception):
 class StatefulLendBorrow(RuleBasedStateMachine):
     n = st.integers(min_value=5, max_value=50)
     amount_frac = st.floats(min_value=0.01, max_value=2)
-    c_amount = st.integers(min_value=10**10, max_value=2**128-1)
+    c_amount = st.integers(min_value=10**13, max_value=2**128-1)
     user_id = st.integers(min_value=0, max_value=9)
 
     def __init__(self):
@@ -100,7 +103,7 @@ class StatefulLendBorrow(RuleBasedStateMachine):
             except Exception:
                 return  # Probably overflow
 
-            if c_amount // n >= 2**128:
+            if c_amount // n >= (2**128 - 1) // DEAD_SHARES:
                 with boa.reverts():
                     self.controller.create_loan(c_amount, amount, n)
                 return
@@ -114,8 +117,9 @@ class StatefulLendBorrow(RuleBasedStateMachine):
             try:
                 self.controller.create_loan(c_amount, amount, n)
             except Exception as e:
-                if 'Too deep' not in str(e):
-                    raise
+                if c_amount // n > 2 * DEAD_SHARES and c_amount // n < (2**128 - 1) // DEAD_SHARES:
+                    if 'Too deep' not in str(e):
+                        raise
 
     @rule(amount_frac=amount_frac, user_id=user_id)
     def repay(self, amount_frac, user_id):
@@ -161,7 +165,12 @@ class StatefulLendBorrow(RuleBasedStateMachine):
                         self.controller.add_collateral(c_amount, user)
                     raise AllGood()
 
-                self.controller.add_collateral(c_amount, user)
+                try:
+                    self.controller.add_collateral(c_amount, user)
+                except Exception:
+                    # Tick overflow = ok
+                    assert (c_amount + self.amm.get_sum_xy(user)[1]) > (2**128 - 1) // (50 * DEAD_SHARES)
+                    raise AllGood()
 
     @rule(c_amount=c_amount, amount_frac=amount_frac, user_id=user_id)
     def borrow_more(self, c_amount, amount_frac, user_id):

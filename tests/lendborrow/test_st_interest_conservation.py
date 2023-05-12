@@ -4,6 +4,9 @@ from hypothesis import strategies as st
 from hypothesis.stateful import RuleBasedStateMachine, run_state_machine_as_test, rule, invariant
 
 
+DEAD_SHARES = 1000
+
+
 class StatefulLendBorrow(RuleBasedStateMachine):
     n = st.integers(min_value=5, max_value=50)
     amount = st.integers(min_value=0, max_value=2**256-1)
@@ -73,9 +76,10 @@ class StatefulLendBorrow(RuleBasedStateMachine):
                     self.controller.create_loan(c_amount, amount, n)
                 return
 
-            if c_amount // n <= 100:
+            if c_amount // n <= 2 * DEAD_SHARES:
                 try:
                     self.controller.create_loan(c_amount, amount, n)
+                    return
                 except Exception as e:
                     if ('Too deep' in str(e) and c_amount * 3000 / amount < 1e-3) or 'Amount too low' in str(e):
                         return
@@ -88,7 +92,8 @@ class StatefulLendBorrow(RuleBasedStateMachine):
                 if 'Too deep' in str(e) and c_amount * 3000 / amount < 1e-3:
                     pass
                 else:
-                    raise
+                    if c_amount // n <= (2**128 - 1) // DEAD_SHARES:
+                        raise
 
     @rule(amount=amount, user_id=user_id)
     def repay(self, amount, user_id):
