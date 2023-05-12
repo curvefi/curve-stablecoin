@@ -748,12 +748,12 @@ def _remove_from_list(_for: address):
 @payable
 @external
 @nonreentrant('lock')
-def repay(_d_debt: uint256, max_active_band: int256 = 2**255-1, _for: address = msg.sender, use_eth: bool = True):
+def repay(_d_debt: uint256, _for: address = msg.sender, max_active_band: int256 = 2**255-1, use_eth: bool = True):
     """
     @notice Repay debt (partially or fully)
     @param _d_debt The amount of debt to repay. If higher than the current debt - will do full repayment
-    @param max_active_band Don't allow active band to be higher than this (to prevent front-running the repay)
     @param _for The user to repay the debt for
+    @param max_active_band Don't allow active band to be higher than this (to prevent front-running the repay)
     @param use_eth Use wrapping/unwrapping if collateral is ETH
     """
     if _d_debt == 0:

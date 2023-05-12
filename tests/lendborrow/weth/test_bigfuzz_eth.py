@@ -140,15 +140,15 @@ class BigFuzz(RuleBasedStateMachine):
         with boa.env.prank(user):
             if debt == 0 and amount > 0:
                 with boa.reverts(fail="insufficient funds"):
-                    self.market_controller.repay(amount, user, use_eth)
+                    self.market_controller.repay(amount, user, 2**255-1, use_eth)
             else:
                 if amount > 0 and (
                         (amount >= debt and (debt > self.stablecoin.balanceOf(user) + self.market_amm.get_sum_xy(user)[0]))
                         or (amount < debt and (amount > self.stablecoin.balanceOf(user)))):
                     with boa.reverts(fail="insufficient funds"):
-                        self.market_controller.repay(amount, user, use_eth)
+                        self.market_controller.repay(amount, user, 2**255-1, use_eth)
                 else:
-                    self.market_controller.repay(amount, user, use_eth)
+                    self.market_controller.repay(amount, user, 2**255-1, use_eth)
         self.remove_stablecoins(user)
 
     @rule(y=collateral_amount, uid=user_id, use_eth=use_eth)
