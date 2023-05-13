@@ -164,7 +164,7 @@ CALLBACK_LIQUIDATE: constant(bytes4) = method_id("callback_liquidate(address,uin
 
 DEAD_SHARES: constant(uint256) = 1000
 
-MAX_ETH_GAS: constant(uint256) = 25000
+MAX_ETH_GAS: constant(uint256) = 10000  # Forward this much gas to ETH transfers (2300 is what send() does)
 
 
 @external
