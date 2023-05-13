@@ -46,9 +46,9 @@ stable_fee = 1000000  # 0.01%
 stable_asset_type = 0
 stable_ma_exp_time = 866  # 10 min / ln(2)
 
-policy_rate = 627954226  # 2%
+policy_rate = int((1.1**(1 / (365 * 86400)) - 1) * 1e18)  # 10% if PegKeepers are empty, 4% when at target fraction
 policy_sigma = 2 * 10**16  # 2% when at target debt fraction
-policy_debt_fraction = 5 * 10**16  # 5%
+policy_debt_fraction = 10 * 10**16  # 10%
 
 oracle_bound_size = 1  # %
 oracle_ema = 600  # s
