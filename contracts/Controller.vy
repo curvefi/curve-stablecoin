@@ -164,6 +164,8 @@ CALLBACK_LIQUIDATE: constant(bytes4) = method_id("callback_liquidate(address,uin
 
 DEAD_SHARES: constant(uint256) = 1000
 
+MAX_ETH_GAS: constant(uint256) = 25000
+
 
 @external
 def __init__(
@@ -535,7 +537,7 @@ def _withdraw_collateral(_for: address, amount: uint256, use_eth: bool):
     if use_eth and USE_ETH:
         assert COLLATERAL_TOKEN.transferFrom(AMM.address, self, amount)
         WETH(COLLATERAL_TOKEN.address).withdraw(amount)
-        raw_call(_for, b"", value=amount)
+        raw_call(_for, b"", value=amount, gas=MAX_ETH_GAS)
     else:
         assert COLLATERAL_TOKEN.transferFrom(AMM.address, _for, amount, default_return_value=True)
 
