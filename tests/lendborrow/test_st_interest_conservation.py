@@ -143,7 +143,11 @@ class StatefulLendBorrow(RuleBasedStateMachine):
                     self.controller.add_collateral(c_amount, user)
                 return
 
-            self.controller.add_collateral(c_amount, user)
+            try:
+                self.controller.add_collateral(c_amount, user)
+            except Exception:
+                if (c_amount + self.amm.get_sum_xy(user)[1]) < (2**128 - 1) // DEAD_SHARES:
+                    raise
 
     @rule(c_amount=c_amount, amount=amount, user_id=user_id)
     def borrow_more(self, c_amount, amount, user_id):
@@ -264,3 +268,28 @@ def test_too_deep(controller_factory, market_amm, market_controller, monetary_po
         state.create_loan(amount=13119, c_amount=48, n=43, user_id=0)
         state.create_loan(amount=34049, c_amount=48388, n=18, user_id=1)
         state.create_loan(amount=10161325728155098164, c_amount=4156800770, n=50, user_id=2)
+
+
+def test_overflow(controller_factory, market_amm, market_controller, monetary_policy, collateral_token, stablecoin, accounts, admin):
+    for k, v in locals().items():
+        setattr(StatefulLendBorrow, k, v)
+    state = StatefulLendBorrow()
+    state.debt_payable()
+    state.sum_of_debts()
+    state.time_travel(t=0)
+    state.debt_payable()
+    state.sum_of_debts()
+    state.time_travel(t=0)
+    state.debt_payable()
+    state.sum_of_debts()
+    state.borrow_more(amount=102598604287098624639570500830661495567, c_amount=12171265979771193868, user_id=0)
+    state.debt_payable()
+    state.sum_of_debts()
+    state.create_loan(amount=1, c_amount=5295, n=5, user_id=0)
+    state.debt_payable()
+    state.sum_of_debts()
+    state.create_loan(amount=1, c_amount=180378547575685118, n=5, user_id=1)
+    state.debt_payable()
+    state.sum_of_debts()
+    state.add_collateral(c_amount=1701411834604692317136494489587668075, user_id=0)
+    state.teardown()
