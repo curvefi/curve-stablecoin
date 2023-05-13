@@ -158,12 +158,12 @@ def test_unprofitable_peg(swaps, peg_keepers, redeemable_tokens, stablecoin, ali
             imbalance_pool(swap, 0, 5 * able_to_add, add_diff=True)
 
             with boa.env.prank(admin):
-                swap.commit_new_fee(10**9)
+                swap.commit_new_fee(5 * 10**9)
                 boa.env.time_travel(4 * 86400)
                 swap.apply_new_fee()
 
             boa.env.time_travel(15 * 60)
-            with boa.reverts():  # dev: peg was unprofitable
+            with boa.reverts('peg unprofitable'):  # dev: peg was unprofitable
                 with boa.env.prank(alice):
                     peg_keeper.update()
 
