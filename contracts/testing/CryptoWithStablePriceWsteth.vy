@@ -2,7 +2,7 @@
 """
 @title CryptoWithStablePriceWsteth
 @notice Price oracle for tricrypto+wsteth for crvUSD. Not limiting the price with chainlink - relying on tricrypto-ng
-@notice With old tricrypto2 it is UNSAFE to use. Should be tricrypto-ng + steth-ng
+        With old tricrypto2 it is UNSAFE to use. Should be tricrypto-ng + steth-ng
 @author Curve.Fi
 @license MIT
 """
