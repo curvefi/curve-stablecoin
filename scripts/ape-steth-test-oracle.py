@@ -16,6 +16,10 @@ CRVUSD_USDT = "0x390f3595bca2df7d23783dfd126427cceb997bf4"
 STETH_POOL = "0x21e27a5e5513d6e65c4f830167390997aa84843a"
 WSTETH = "0x7f39C581F595B53c5cb19bD0b3f8dA6c935E2Ca0"
 AGG = "0xe5Afcf332a5457E8FafCD668BcE3dF953762Dfe7"
+FACTORY = "0xC9332fdCB1C491Dcc683bAe86Fe3cb70360738BC"
+CHAINLINK_ETH = "0x5f4eC3Df9cbd43714FE2740f5E3616155c5b8419"
+CHAINLINK_STETH = "0x86392dC19c0b719886221c78AB11eb8Cf5c52812"
+BOUND_SIZE = int(0.015 * 1e18)
 
 
 @click.group()
@@ -45,5 +49,9 @@ def deploy(network):
                 CRVUSD_USDT,  # CRVUSD/USDT
                 STETH_POOL,  # staked swap (steth/eth)
                 AGG,
+                FACTORY,
                 WSTETH,
+                CHAINLINK_ETH,
+                CHAINLINK_STETH,
+                BOUND_SIZE,
                 **kw)

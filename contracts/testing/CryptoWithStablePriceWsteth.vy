@@ -22,29 +22,74 @@ interface Stableswap:
 interface wstETH:
     def stEthPerToken() -> uint256: view
 
+interface ControllerFactory:
+    def admin() -> address: view
 
-TRICRYPTO: immutable(Tricrypto)
-TRICRYPTO_IX: immutable(uint256)
-STABLESWAP_AGGREGATOR: immutable(StableAggregator)
-STABLESWAP: immutable(Stableswap)
-STABLECOIN: immutable(address)
-REDEEMABLE: immutable(address)
+
+struct ChainlinkAnswer:
+    round_id: uint80
+    answer: int256
+    started_at: uint256
+    updated_at: uint256
+    answered_in_round: uint80
+
+interface ChainlinkAggregator:
+    # Returns: (roundId, answer, startedAt, updatedAt, answeredInRound)
+    # answer
+    # is the answer for the given round
+    # answeredInRound
+    # is the round ID of the round in which the answer was computed. (Only some AggregatorV3Interface implementations return meaningful values)
+    # roundId
+    # is the round ID from the aggregator for which the data was retrieved combined with a phase to ensure that round IDs get larger as time moves forward.
+    # startedAt
+    # is the timestamp when the round was started. (Only some AggregatorV3Interface implementations return meaningful values)
+    # updatedAt
+    # is the timestamp when the round last was updated (i.e. answer was last computed)
+    def latestRoundData() -> ChainlinkAnswer: view
+    def decimals() -> uint8: view
+
+
+TRICRYPTO: public(immutable(Tricrypto))
+TRICRYPTO_IX: public(immutable(uint256))
+STABLESWAP_AGGREGATOR: public(immutable(StableAggregator))
+STABLESWAP: public(immutable(Stableswap))
+STABLECOIN: public(immutable(address))
+REDEEMABLE: public(immutable(address))
 IS_INVERSE: immutable(bool)
+FACTORY: public(immutable(ControllerFactory))
 
-STAKEDSWAP: immutable(Stableswap)
-WSTETH: immutable(wstETH)
+CHAINLINK_AGGREGATOR_ETH: immutable(ChainlinkAggregator)
+CHAINLINK_PRICE_PRECISION_ETH: immutable(uint256)
+CHAINLINK_AGGREGATOR_STETH: immutable(ChainlinkAggregator)
+CHAINLINK_PRICE_PRECISION_STETH: immutable(uint256)
+BOUND_SIZE: public(immutable(uint256))
+CHAINLINK_STALE_THRESHOLD: constant(uint256) = 86400
+
+STAKEDSWAP: public(immutable(Stableswap))
+WSTETH: public(immutable(wstETH))
+
+use_chainlink: public(bool)
 
 
 @external
 def __init__(
-        tricrypto: Tricrypto, ix: uint256, stableswap: Stableswap, staked_swap: Stableswap, stable_aggregator: StableAggregator,
-        wsteth: wstETH
+        tricrypto: Tricrypto,
+        ix: uint256,
+        stableswap: Stableswap,
+        staked_swap: Stableswap,
+        stable_aggregator: StableAggregator,
+        factory: ControllerFactory,
+        wsteth: wstETH,
+        chainlink_aggregator_eth: ChainlinkAggregator,
+        chainlink_aggregator_steth: ChainlinkAggregator,
+        bound_size: uint256
     ):
     TRICRYPTO = tricrypto
     TRICRYPTO_IX = ix
     STABLESWAP_AGGREGATOR = stable_aggregator
     STABLESWAP = stableswap
     STAKEDSWAP = staked_swap
+    FACTORY = factory
     WSTETH = wsteth
     _stablecoin: address = stable_aggregator.stablecoin()
     _redeemable: address = empty(address)
@@ -60,6 +105,13 @@ def __init__(
     IS_INVERSE = is_inverse
     REDEEMABLE = _redeemable
     assert tricrypto.coins(0) == _redeemable
+
+    self.use_chainlink = True
+    CHAINLINK_AGGREGATOR_ETH = chainlink_aggregator_eth
+    CHAINLINK_PRICE_PRECISION_ETH = 10**convert(chainlink_aggregator_eth.decimals(), uint256)
+    CHAINLINK_AGGREGATOR_STETH = chainlink_aggregator_steth
+    CHAINLINK_PRICE_PRECISION_STETH = 10**convert(chainlink_aggregator_steth.decimals(), uint256)
+    BOUND_SIZE = bound_size
 
 
 @external
@@ -107,8 +159,30 @@ def _raw_price() -> uint256:
     if IS_INVERSE:
         p_stable_r = 10**36 / p_stable_r
     crv_p: uint256 = p_crypto_r * p_stable_agg / p_stable_r     # d_usd/d_eth
-    price_per_share: uint256 = WSTETH.stEthPerToken()
-    p_staked: uint256 = min(STAKEDSWAP.price_oracle(), 10**18) * price_per_share / 10**18  # d_eth / d_steth
+
+    use_chainlink: bool = self.use_chainlink
+
+    # Limit ETH price
+    if use_chainlink:
+        chainlink_lrd: ChainlinkAnswer = CHAINLINK_AGGREGATOR_ETH.latestRoundData()
+        if block.timestamp - min(chainlink_lrd.updated_at, block.timestamp) <= CHAINLINK_STALE_THRESHOLD:
+            chainlink_p: uint256 = convert(chainlink_lrd.answer, uint256) * 10**18 / CHAINLINK_PRICE_PRECISION_ETH
+            lower: uint256 = chainlink_p * (10**18 - BOUND_SIZE) / 10**18
+            upper: uint256 = chainlink_p * (10**18 + BOUND_SIZE) / 10**18
+            crv_p = min(max(crv_p, lower), upper)
+
+    p_staked: uint256 = STAKEDSWAP.price_oracle()  # d_eth / d_steth
+
+    # Limit STETH price
+    if use_chainlink:
+        chainlink_lrd: ChainlinkAnswer = CHAINLINK_AGGREGATOR_STETH.latestRoundData()
+        if block.timestamp - min(chainlink_lrd.updated_at, block.timestamp) <= CHAINLINK_STALE_THRESHOLD:
+            chainlink_p: uint256 = convert(chainlink_lrd.answer, uint256) * 10**18 / CHAINLINK_PRICE_PRECISION_STETH
+            lower: uint256 = chainlink_p * (10**18 - BOUND_SIZE) / 10**18
+            upper: uint256 = chainlink_p * (10**18 + BOUND_SIZE) / 10**18
+            p_staked = min(max(p_staked, lower), upper)
+
+    p_staked = min(p_staked, 10**18) * WSTETH.stEthPerToken() / 10**18  # d_eth / d_wsteth
 
     return p_staked * crv_p / 10**18
 
@@ -128,3 +202,9 @@ def price() -> uint256:
 @external
 def price_w() -> uint256:
     return self._raw_price()
+
+
+@external
+def set_use_chainlink(do_it: bool):
+    assert msg.sender == FACTORY.admin()
+    self.use_chainlink = do_it
