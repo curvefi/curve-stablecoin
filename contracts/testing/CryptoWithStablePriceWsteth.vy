@@ -34,17 +34,6 @@ struct ChainlinkAnswer:
     answered_in_round: uint80
 
 interface ChainlinkAggregator:
-    # Returns: (roundId, answer, startedAt, updatedAt, answeredInRound)
-    # answer
-    # is the answer for the given round
-    # answeredInRound
-    # is the round ID of the round in which the answer was computed. (Only some AggregatorV3Interface implementations return meaningful values)
-    # roundId
-    # is the round ID from the aggregator for which the data was retrieved combined with a phase to ensure that round IDs get larger as time moves forward.
-    # startedAt
-    # is the timestamp when the round was started. (Only some AggregatorV3Interface implementations return meaningful values)
-    # updatedAt
-    # is the timestamp when the round last was updated (i.e. answer was last computed)
     def latestRoundData() -> ChainlinkAnswer: view
     def decimals() -> uint8: view
 
@@ -62,8 +51,8 @@ CHAINLINK_AGGREGATOR_ETH: immutable(ChainlinkAggregator)
 CHAINLINK_PRICE_PRECISION_ETH: immutable(uint256)
 CHAINLINK_AGGREGATOR_STETH: immutable(ChainlinkAggregator)
 CHAINLINK_PRICE_PRECISION_STETH: immutable(uint256)
-BOUND_SIZE: public(immutable(uint256))
 CHAINLINK_STALE_THRESHOLD: constant(uint256) = 86400
+BOUND_SIZE: public(immutable(uint256))
 
 STAKEDSWAP: public(immutable(Stableswap))
 WSTETH: public(immutable(wstETH))
