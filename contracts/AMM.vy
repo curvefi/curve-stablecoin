@@ -1514,9 +1514,10 @@ def _get_xy(user: address, is_sum: bool) -> DynArray[uint256, MAX_TICKS_UINT][2]
     ticks: DynArray[uint256, MAX_TICKS_UINT] = self._read_user_ticks(user, ns)
     if ticks[0] != 0:
         for i in range(MAX_TICKS):
-            total_shares: uint256 = self.total_shares[ns[0]]
-            dx: uint256 = self.bands_x[ns[0]] * ticks[i] / total_shares
-            dy: uint256 = unsafe_div(self.bands_y[ns[0]] * ticks[i], total_shares)
+            total_shares: uint256 = self.total_shares[ns[0]] + DEAD_SHARES
+            ds: uint256 = ticks[i]
+            dx: uint256 = unsafe_div((self.bands_x[ns[0]] + 1) * ds, total_shares)
+            dy: uint256 = unsafe_div((self.bands_y[ns[0]] + 1) * ds, total_shares)
             if is_sum:
                 xs[0] += dx
                 ys[0] += dy
