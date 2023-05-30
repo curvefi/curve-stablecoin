@@ -323,7 +323,7 @@ def _rate_mul() -> uint256:
     @notice Rate multiplier which is 1.0 + integral(rate, dt)
     @return Rate multiplier in units where 1.0 == 1e18
     """
-    return self.rate_mul + self.rate * (block.timestamp - self.rate_time)
+    return unsafe_div(self.rate_mul * (10**18 + self.rate * (block.timestamp - self.rate_time)), 10**18)
 
 
 @external
