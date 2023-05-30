@@ -491,7 +491,7 @@ def _get_y0(x: uint256, y: uint256, p_o: uint256, p_o_up: uint256) -> uint256:
         D: uint256 = b**2 + unsafe_div(((4 * A) * p_o) * y, 10**18) * x
         return unsafe_div((b + self.sqrt_int(D)) * 10**18, unsafe_mul(2 * A, p_o))
     else:
-        return unsafe_div(b * 10**18, A * p_o)
+        return unsafe_div(b * 10**18, unsafe_mul(A, p_o))
 
 
 @internal
@@ -506,14 +506,15 @@ def _get_p(n: int256, x: uint256, y: uint256) -> uint256:
     """
     p_o_up: uint256 = self._p_oracle_up(n)
     p_o: uint256 = self._price_oracle_ro()[0]
+    assert p_o_up != 0
 
     # Special cases
     if x == 0:
         if y == 0:  # x and y are 0
             # Return mid-band
-            return unsafe_div((unsafe_div(p_o**2 / p_o_up * p_o, p_o_up) * A), Aminus1)
+            return unsafe_div((unsafe_div(unsafe_div(p_o**2, p_o_up) * p_o, p_o_up) * A), Aminus1)
         # if x == 0: # Lowest point of this band -> p_current_down
-        return unsafe_div(p_o**2 / p_o_up * p_o, p_o_up)
+        return unsafe_div(unsafe_div(p_o**2, p_o_up) * p_o, p_o_up)
     if y == 0: # Highest point of this band -> p_current_up
         p_o_up = unsafe_div(p_o_up * Aminus1, A)  # now this is _actually_ p_o_down
         return unsafe_div(p_o**2 / p_o_up * p_o, p_o_up)
@@ -522,7 +523,7 @@ def _get_p(n: int256, x: uint256, y: uint256) -> uint256:
     # ^ that call also checks that p_o != 0
 
     # (f(y0) + x) / (g(y0) + y)
-    f: uint256 = A * y0 * p_o / p_o_up * p_o
+    f: uint256 = unsafe_div(A * y0 * p_o, p_o_up) * p_o
     g: uint256 = unsafe_div(Aminus1 * y0 * p_o_up, p_o)
     return (f + x * 10**18) / (g + y)
 
