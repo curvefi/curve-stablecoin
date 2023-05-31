@@ -46,6 +46,7 @@ n_price_pairs: uint256
 last_timestamp: public(uint256)
 last_tvl: public(uint256[MAX_PAIRS])
 TVL_MA_TIME: public(constant(uint256)) = 50000  # s
+last_price: public(uint256)
 
 admin: public(address)
 
@@ -55,6 +56,8 @@ def __init__(stablecoin: address, sigma: uint256, admin: address):
     STABLECOIN = stablecoin
     SIGMA = sigma  # The change is so rare that we can change the whole thing altogether
     self.admin = admin
+    self.last_price = 10**18
+    self.last_timestamp = block.timestamp
 
 
 @external
@@ -225,11 +228,15 @@ def price() -> uint256:
 
 @external
 def price_w() -> uint256:
-    ema_tvl: DynArray[uint256, MAX_PAIRS] = self._ema_tvl()
-    if self.last_timestamp < block.timestamp:
+    if self.last_timestamp == block.timestamp:
+        return self.last_price
+    else:
+        ema_tvl: DynArray[uint256, MAX_PAIRS] = self._ema_tvl()
         self.last_timestamp = block.timestamp
         for i in range(MAX_PAIRS):
             if i == len(ema_tvl):
                 break
             self.last_tvl[i] = ema_tvl[i]
-    return self._price(ema_tvl)
+        p: uint256 = self._price(ema_tvl)
+        self.last_price = p
+        return p
