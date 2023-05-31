@@ -1,0 +1,5 @@
+INFO: Submitted 0x0aa991b9b0a3be97d1b51fd3dc5d67b6bfe381a0764be895880fcc4d58f10c4d
+etherscan URL: https://etherscan.io/tx/0x0aa991b9b0a3be97d1b51fd3dc5d67b6bfe381a0764be895880fcc4d58f10c4d
+Confirmations (2/2): 100%|███████████████████████████████████████████████████████████████████████████████████| 2/2 [00:24<00:00, 12.35s/it]
+INFO: Confirmed 0x0aa991b9b0a3be97d1b51fd3dc5d67b6bfe381a0764be895880fcc4d58f10c4d (total fees paid = 77762125082366490)
+SUCCESS: Contract 'CryptoWithStablePriceWstethN' deployed to: 0x21f5F6d3F90D0f56A6dE307A3Bd359d0a151b304
