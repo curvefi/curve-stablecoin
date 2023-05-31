@@ -36,7 +36,7 @@ def test_leverage(collateral_token, stablecoin, market_controller, market_amm, f
     amount=st.integers(min_value=10 * 10**8, max_value=10**18),
     loan_mul=st.floats(min_value=0, max_value=10.0),
     repay_mul=st.floats(min_value=0, max_value=1.0))
-@settings(max_examples=200)
+@settings(max_examples=2000)
 def test_leverage_property(collateral_token, stablecoin, market_controller, market_amm, fake_leverage, accounts,
                            amount, loan_mul, repay_mul):
     user = accounts[0]
@@ -62,7 +62,7 @@ def test_leverage_property(collateral_token, stablecoin, market_controller, mark
 
         s0 = stablecoin.balanceOf(market_controller.address)
 
-        if int(debt * repay_mul) > 0:
+        if debt * int(repay_mul * 1e18) // 10**18 >= 1:
             market_controller.repay_extended(fake_leverage.address, [int(repay_mul * 1e18)])
         else:
             with boa.reverts():
@@ -84,3 +84,9 @@ def test_leverage_property(collateral_token, stablecoin, market_controller, mark
 def test_deleverage_error(collateral_token, stablecoin, market_controller, market_amm, fake_leverage, accounts):
     test_leverage_property.hypothesis.inner_test(
             collateral_token, stablecoin, market_controller, market_amm, fake_leverage, accounts, 1000000000, 1.0, 0.5)
+
+
+def test_no_coins_to_repay(collateral_token, stablecoin, market_controller, market_amm, fake_leverage, accounts):
+    test_leverage_property.hypothesis.inner_test(
+            collateral_token, stablecoin, market_controller, market_amm, fake_leverage, accounts, 128102389400761, 2.0,
+            1.3010426069826053e-18)
