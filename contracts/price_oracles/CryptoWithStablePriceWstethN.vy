@@ -16,6 +16,7 @@ interface Tricrypto:
 
 interface StableAggregator:
     def price() -> uint256: view
+    def price_w() -> uint256: nonpayable
     def stablecoin() -> address: view
 
 interface Stableswap:
@@ -176,13 +177,13 @@ def ema_tvl() -> uint256[N_POOLS]:
 
 @internal
 @view
-def _raw_price(tvls: uint256[N_POOLS]) -> uint256:
+def _raw_price(tvls: uint256[N_POOLS], agg_price: uint256) -> uint256:
     weighted_price: uint256 = 0
     weights: uint256 = 0
     for i in range(N_POOLS):
-        p_crypto_r: uint256 = TRICRYPTO[i].price_oracle(TRICRYPTO_IX[i])  # d_usdt/d_eth
-        p_stable_r: uint256 = STABLESWAP[i].price_oracle()             # d_usdt/d_st
-        p_stable_agg: uint256 = STABLESWAP_AGGREGATOR.price()       # d_usd/d_st
+        p_crypto_r: uint256 = TRICRYPTO[i].price_oracle(TRICRYPTO_IX[i])   # d_usdt/d_eth
+        p_stable_r: uint256 = STABLESWAP[i].price_oracle()                 # d_usdt/d_st
+        p_stable_agg: uint256 = agg_price                                  # d_usd/d_st
         if IS_INVERSE[i]:
             p_stable_r = 10**36 / p_stable_r
         weight: uint256 = tvls[i]
@@ -221,13 +222,13 @@ def _raw_price(tvls: uint256[N_POOLS]) -> uint256:
 @external
 @view
 def raw_price() -> uint256:
-    return self._raw_price(self._ema_tvl())
+    return self._raw_price(self._ema_tvl(), STABLESWAP_AGGREGATOR.price())
 
 
 @external
 @view
 def price() -> uint256:
-    return self._raw_price(self._ema_tvl())
+    return self._raw_price(self._ema_tvl(), STABLESWAP_AGGREGATOR.price())
 
 
 @external
@@ -236,7 +237,7 @@ def price_w() -> uint256:
     if self.last_timestamp < block.timestamp:
         self.last_timestamp = block.timestamp
         self.last_tvl = tvls
-    return self._raw_price(tvls)
+    return self._raw_price(tvls, STABLESWAP_AGGREGATOR.price_w())
 
 
 @external
