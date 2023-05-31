@@ -12,6 +12,7 @@ interface Tricrypto:
     def price_oracle(k: uint256) -> uint256: view
     def coins(i: uint256) -> address: view
     def totalSupply() -> uint256: view
+    def virtual_price() -> uint256: view
 
 interface StableAggregator:
     def price() -> uint256: view
@@ -102,7 +103,7 @@ def __init__(
             _is_inverse[i] = False
             assert coins[1] == _stablecoin
         assert tricrypto[i].coins(0) == _redeemable[i]
-        self.last_tvl[i] = tricrypto[i].totalSupply()
+        self.last_tvl[i] = tricrypto[i].totalSupply() * tricrypto[i].virtual_price() / 10**18
     IS_INVERSE = _is_inverse
     REDEEMABLE = _redeemable
 
@@ -159,7 +160,7 @@ def _ema_tvl() -> uint256[N_POOLS]:
     if last_timestamp < block.timestamp:
         alpha: uint256 = self.exp(- convert((block.timestamp - last_timestamp) * 10**18 / TVL_MA_TIME, int256))
         for i in range(N_POOLS):
-            tvl: uint256 = TRICRYPTO[i].totalSupply()
+            tvl: uint256 = TRICRYPTO[i].totalSupply() * TRICRYPTO[i].virtual_price() / 10**18
             last_tvl[i] = (last_tvl[i] * (10**18 - alpha) + tvl * alpha) / 10**18
 
     return last_tvl
