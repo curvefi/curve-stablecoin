@@ -338,6 +338,9 @@ class BigFuzz(RuleBasedStateMachine):
         if user == liquidator:
             return  # self-liquidate tested separately
 
+        with boa.env.prank(liquidator):
+            self.fake_leverage.approve_all()
+
         self.get_stablecoins(liquidator)
         if not self.market_controller.loan_exists(user):
             with boa.env.prank(liquidator):
@@ -471,3 +474,50 @@ def test_big_fuzz(
     for k, v in locals().items():
         setattr(BigFuzz, k, v)
     run_state_machine_as_test(BigFuzz)
+
+
+def test_liquidate_no_coins(
+        controller_factory, market_amm, market_controller, monetary_policy, weth, stablecoin, price_oracle, accounts, fake_leverage, admin):
+    for k, v in locals().items():
+        setattr(BigFuzz, k, v)
+    state = BigFuzz()
+    state.debt_supply()
+    state.minted_redeemed()
+    state.rug_debt_ceiling()
+    state.debt_supply()
+    state.minted_redeemed()
+    state.rug_debt_ceiling()
+    state.debt_supply()
+    state.minted_redeemed()
+    state.rug_debt_ceiling()
+    state.debt_supply()
+    state.minted_redeemed()
+    state.rug_debt_ceiling()
+    state.debt_supply()
+    state.minted_redeemed()
+    state.rug_debt_ceiling()
+    state.debt_supply()
+    state.minted_redeemed()
+    state.rule_change_rate(rate=0)
+    state.debt_supply()
+    state.minted_redeemed()
+    state.rug_debt_ceiling()
+    state.debt_supply()
+    state.minted_redeemed()
+    state.add_collateral(uid=0, use_eth=False, y=0)
+    state.debt_supply()
+    state.minted_redeemed()
+    state.rug_debt_ceiling()
+    state.debt_supply()
+    state.minted_redeemed()
+    state.deposit(n=5, ratio=0.5, uid=1, use_eth=False, y=14458)
+    state.debt_supply()
+    state.minted_redeemed()
+    state.borrow_more(ratio=0.25, uid=1, use_eth=False, y=14457)
+    state.debt_supply()
+    state.minted_redeemed()
+    state.rug_debt_ceiling()
+    state.debt_supply()
+    state.minted_redeemed()
+    state.liquidate(emode=2, frac=0, luid=0, uid=1, use_eth=False)
+    state.teardown()
