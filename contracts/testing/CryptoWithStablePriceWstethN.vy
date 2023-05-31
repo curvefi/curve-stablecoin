@@ -102,6 +102,7 @@ def __init__(
             _is_inverse[i] = False
             assert coins[1] == _stablecoin
         assert tricrypto[i].coins(0) == _redeemable[i]
+        self.last_tvl[i] = tricrypto[i].totalSupply()
     IS_INVERSE = _is_inverse
     REDEEMABLE = _redeemable
 
@@ -151,7 +152,28 @@ def exp(power: int256) -> uint256:
 
 @internal
 @view
-def _raw_price() -> uint256:
+def _ema_tvl() -> uint256[N_POOLS]:
+    last_timestamp: uint256 = self.last_timestamp
+    last_tvl: uint256[N_POOLS] = self.last_tvl
+
+    if last_timestamp < block.timestamp:
+        alpha: uint256 = self.exp(- convert((block.timestamp - last_timestamp) * 10**18 / TVL_MA_TIME, int256))
+        for i in range(N_POOLS):
+            tvl: uint256 = TRICRYPTO[i].totalSupply()
+            last_tvl[i] = (last_tvl[i] * (10**18 - alpha) + tvl * alpha) / 10**18
+
+    return last_tvl
+
+
+@external
+@view
+def ema_tvl() -> uint256[N_POOLS]:
+    return self._ema_tvl()
+
+
+@internal
+@view
+def _raw_price(tvls: uint256[N_POOLS]) -> uint256:
     weighted_price: uint256 = 0
     weights: uint256 = 0
     for i in range(N_POOLS):
@@ -160,7 +182,7 @@ def _raw_price() -> uint256:
         p_stable_agg: uint256 = STABLESWAP_AGGREGATOR.price()       # d_usd/d_st
         if IS_INVERSE[i]:
             p_stable_r = 10**36 / p_stable_r
-        weight: uint256 = TRICRYPTO[i].totalSupply()
+        weight: uint256 = tvls[i]
         # Prices are already EMA but weights - not so much
         weights += weight
         weighted_price += p_crypto_r * p_stable_agg / p_stable_r * weight     # d_usd/d_eth
@@ -196,18 +218,22 @@ def _raw_price() -> uint256:
 @external
 @view
 def raw_price() -> uint256:
-    return self._raw_price()
+    return self._raw_price(self._ema_tvl())
 
 
 @external
 @view
 def price() -> uint256:
-    return self._raw_price()
+    return self._raw_price(self._ema_tvl())
 
 
 @external
 def price_w() -> uint256:
-    return self._raw_price()
+    tvls: uint256[N_POOLS] = self._ema_tvl()
+    if self.last_timestamp < block.timestamp:
+        self.last_timestamp = block.timestamp
+        self.last_tvl = tvls
+    return self._raw_price(tvls)
 
 
 @external
