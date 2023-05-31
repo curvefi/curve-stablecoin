@@ -41,7 +41,7 @@ def deploy(network):
 
     with accounts.use_sender(account):
         account.deploy(
-                project.CryptoWithStablePriceWsteth,
+                project.CryptoWithStablePriceWstethN,
                 TRICRYPTO,
                 [1, 1],  # price index with ETH
                 CRVUSD_POOLS,  # CRVUSD stableswaps
