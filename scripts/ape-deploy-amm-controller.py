@@ -16,11 +16,11 @@ def deploy_blueprint(contract, account, just_bytecode=False, **kw):
     if isinstance(initcode, str):
         initcode = bytes.fromhex(initcode.removeprefix("0x"))
     initcode = b"\xfe\x71\x00" + initcode  # eip-5202 preamble version 0
+    if just_bytecode:
+        return initcode
     initcode = (
         b"\x61" + len(initcode).to_bytes(2, "big") + b"\x3d\x81\x60\x0a\x3d\x39\xf3" + initcode
     )
-    if just_bytecode:
-        return initcode
     if not kw:
         kw = {'gas_price': project.provider.gas_price}
     tx = project.provider.network.ecosystem.create_transaction(
@@ -70,6 +70,6 @@ def deploy(network):
 def verify(network):
     controller_bytes = api.Address('0x9DFbf2b2aF574cA8Ba6dD3fD397287944269f720').code
     amm_bytes = api.Address('0x23208cA4F2B30d8f7D54bf2D5A822D1a2F876501').code
-    assert controller_bytes == deploy_blueprint(project.Controller, None, just_bytecode=True)[10:]
-    assert amm_bytes == deploy_blueprint(project.AMM, None, just_bytecode=True)[10:]
+    assert controller_bytes == deploy_blueprint(project.Controller, None, just_bytecode=True)
+    assert amm_bytes == deploy_blueprint(project.AMM, None, just_bytecode=True)
     print('Blueprints match the ones deployed on chain')
