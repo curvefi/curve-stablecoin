@@ -52,10 +52,10 @@ def deploy(network):
     kw = {'max_fee': max_fee, 'max_priority_fee': max_priority_fee}
 
     with accounts.use_sender(account):
-        amm_impl = deploy_blueprint(project.AMM, account, **kw)
         controller_impl = deploy_blueprint(project.Controller, account, **kw)
+        amm_impl = deploy_blueprint(project.AMM, account, **kw)
 
     print()
 
-    print('AMM implementation:', amm_impl)
     print('Controller implementation:', controller_impl)
+    print('AMM implementation:', amm_impl)
