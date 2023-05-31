@@ -57,5 +57,5 @@ def deploy(network):
 
     print()
 
-    print('AMM implenentation:', amm_impl)
+    print('AMM implementation:', amm_impl)
     print('Controller implementation:', controller_impl)
