@@ -1,0 +1,14 @@
+INFO: Submitted 0x0ccd65d4209284f13b2add0409faa829b41cf8388431bc38bd31af87b9ffdd6e
+etherscan URL: https://etherscan.io/tx/0x0ccd65d4209284f13b2add0409faa829b41cf8388431bc38bd31af87b9ffdd6e
+Confirmations (2/2): 100%|███████████████████████████████████████████████████████████████████████████████████| 2/2 [00:25<00:00, 12.52s/it]
+INFO: Confirmed 0x0ccd65d4209284f13b2add0409faa829b41cf8388431bc38bd31af87b9ffdd6e (total fees paid = 240972699711670536)
+blueprint deployed at: 0x9DFbf2b2aF574cA8Ba6dD3fD397287944269f720
+Using cached key for 'babe'
+INFO: Submitted 0xf9364bb8a8d4567003e66aea2bd1ac2711332e950ac02162479c8a306ddb7625
+etherscan URL: https://etherscan.io/tx/0xf9364bb8a8d4567003e66aea2bd1ac2711332e950ac02162479c8a306ddb7625
+Confirmations (2/2): 100%|███████████████████████████████████████████████████████████████████████████████████| 2/2 [00:24<00:00, 12.37s/it]
+INFO: Confirmed 0xf9364bb8a8d4567003e66aea2bd1ac2711332e950ac02162479c8a306ddb7625 (total fees paid = 238867528080068756)
+blueprint deployed at: 0x23208cA4F2B30d8f7D54bf2D5A822D1a2F876501
+
+Controller implementation: 0x9DFbf2b2aF574cA8Ba6dD3fD397287944269f720
+AMM implementation: 0x23208cA4F2B30d8f7D54bf2D5A822D1a2F876501
