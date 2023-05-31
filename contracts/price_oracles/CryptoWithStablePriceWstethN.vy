@@ -159,9 +159,11 @@ def _ema_tvl() -> uint256[N_POOLS]:
 
     if last_timestamp < block.timestamp:
         alpha: uint256 = self.exp(- convert((block.timestamp - last_timestamp) * 10**18 / TVL_MA_TIME, int256))
+        # alpha = 1.0 when dt = 0
+        # alpha = 0.0 when dt = inf
         for i in range(N_POOLS):
             tvl: uint256 = TRICRYPTO[i].totalSupply() * TRICRYPTO[i].virtual_price() / 10**18
-            last_tvl[i] = (last_tvl[i] * (10**18 - alpha) + tvl * alpha) / 10**18
+            last_tvl[i] = (tvl * (10**18 - alpha) + last_tvl[i] * alpha) / 10**18
 
     return last_tvl
 
