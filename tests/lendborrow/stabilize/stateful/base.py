@@ -1,6 +1,7 @@
 import boa
 from hypothesis import strategies as st
 from hypothesis.stateful import RuleBasedStateMachine, rule, invariant
+from boa.vyper.contract import BoaError
 from ..conftest import BASE_AMOUNT
 
 
@@ -77,7 +78,13 @@ class StateMachine(RuleBasedStateMachine):
             if amounts[i] > self.swaps[pool_idx].balances(i):
                 # Don't remove more than we have
                 return
-        if self.swaps[pool_idx].calc_token_amount(amounts, False) > self.swaps[pool_idx].balanceOf(self.alice):
+        try:
+            token_amount = self.swaps[pool_idx].calc_token_amount(amounts, False)
+        except BoaError:
+            # Most likely we want to withdraw more than the pool has
+            return
+
+        if token_amount > self.swaps[pool_idx].balanceOf(self.alice):
             return
         with boa.env.prank(self.alice):
             self.swaps[pool_idx].remove_liquidity_imbalance(

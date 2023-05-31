@@ -788,7 +788,7 @@ def repay(_d_debt: uint256, _for: address = msg.sender, max_active_band: int256 
 
         ns: int256[2] = AMM.read_user_tick_numbers(_for)
         size: uint256 = convert(unsafe_add(unsafe_sub(ns[1], ns[0]), 1), uint256)
-
+        liquidation_discount: uint256 = 0
 
         if ns[0] > active_band:
             # Not in liquidation - can move bands
@@ -796,14 +796,20 @@ def repay(_d_debt: uint256, _for: address = msg.sender, max_active_band: int256 
             n1: int256 = self._calculate_debt_n1(xy[1], debt, size)
             n2: int256 = n1 + unsafe_sub(ns[1], ns[0])
             AMM.deposit_range(_for, xy[1], n1, n2)
-            liquidation_discount: uint256 = self.liquidation_discount
+            liquidation_discount = self.liquidation_discount
             self.liquidation_discounts[_for] = liquidation_discount
             log UserState(_for, xy[1], debt, n1, n2, liquidation_discount)
             log Repay(_for, 0, d_debt)
         else:
             # Underwater - cannot move band but can avoid a bad liquidation
-            log UserState(_for, max_value(uint256), debt, ns[0], ns[1], self.liquidation_discounts[_for])
+            liquidation_discount = self.liquidation_discounts[_for]
+            log UserState(_for, max_value(uint256), debt, ns[0], ns[1], liquidation_discount)
             log Repay(_for, 0, d_debt)
+
+        if _for != msg.sender:
+            # Doesn't allow non-sender to repay in a way which ends with unhealthy state
+            # full = False to make this condition non-manipulatable (and also cheaper on gas)
+            assert self._health(_for, debt, False, liquidation_discount) > 0
 
     # If we withdrew already - will burn less!
     STABLECOIN.transferFrom(msg.sender, self, d_debt)  # fail: insufficient funds
@@ -881,6 +887,8 @@ def repay_extended(callbacker: address, callback_args: DynArray[uint256,5]):
 
         log UserState(msg.sender, cb.collateral, debt, n1, n2, liquidation_discount)
         xy[1] = 0
+
+        # No need to check _health() because it's the sender
 
     # Common calls which we will do regardless of whether it's a full repay or not
     log Repay(msg.sender, xy[1], d_debt)

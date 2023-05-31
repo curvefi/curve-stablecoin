@@ -313,6 +313,9 @@ class BigFuzz(RuleBasedStateMachine):
         if user == liquidator:
             return  # self-liquidate tested separately
 
+        with boa.env.prank(liquidator):
+            self.fake_leverage.approve_all()
+
         self.get_stablecoins(liquidator)
         if not self.market_controller.loan_exists(user):
             with boa.env.prank(liquidator):

@@ -53,8 +53,9 @@ def controller_for_liquidation(stablecoin, collateral_token, market_controller, 
             monetary_policy.set_rate(0)
 
             market_controller.collect_fees()
-            # Check that we earned exactly the same in admin fees as we need to liquidate
-            assert stablecoin.balanceOf(fee_receiver) == market_controller.tokens_to_liquidate(user)
+            # Check that we earned the same in admin fees as we need to liquidate
+            # Calculation is not precise because of dead shares, but the last withdrawal will put dust in admin fees
+            assert approx(stablecoin.balanceOf(fee_receiver), market_controller.tokens_to_liquidate(user), 1e-10)
 
         # Borrow some more funds to repay for our overchargings with DEAD_SHARES
         with boa.env.prank(user2):
