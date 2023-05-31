@@ -10,6 +10,7 @@ interface PegKeeper:
 
 interface PriceOracle:
     def price() -> uint256: view
+    def price_w() -> uint256: nonpayable
 
 interface ControllerFactory:
     def total_debt() -> uint256: view
@@ -157,11 +158,11 @@ def exp(power: int256) -> uint256:
 
 @internal
 @view
-def calculate_rate(_for: address) -> uint256:
+def calculate_rate(_for: address, _price: uint256) -> uint256:
     sigma: int256 = self.sigma
     target_debt_fraction: uint256 = self.target_debt_fraction
 
-    p: int256 = convert(PRICE_ORACLE.price(), int256)
+    p: int256 = convert(_price, int256)
     pk_debt: uint256 = 0
     for pk in self.peg_keepers:
         if pk.address == empty(address):
@@ -191,14 +192,14 @@ def calculate_rate(_for: address) -> uint256:
 @view
 @external
 def rate(_for: address = msg.sender) -> uint256:
-    return self.calculate_rate(_for)
+    return self.calculate_rate(_for, PRICE_ORACLE.price())
 
 
 @external
 def rate_write(_for: address = msg.sender) -> uint256:
     # Not needed here but useful for more automated policies
     # which change rate0 - for example rate0 targeting some fraction pl_debt/total_debt
-    return self.calculate_rate(_for)
+    return self.calculate_rate(_for, PRICE_ORACLE.price_w())
 
 
 @external
