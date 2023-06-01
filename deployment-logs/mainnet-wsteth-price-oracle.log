@@ -1,5 +1,67 @@
-INFO: Submitted 0x0aa991b9b0a3be97d1b51fd3dc5d67b6bfe381a0764be895880fcc4d58f10c4d
-etherscan URL: https://etherscan.io/tx/0x0aa991b9b0a3be97d1b51fd3dc5d67b6bfe381a0764be895880fcc4d58f10c4d
+INFO: Compiling 'price_oracles/CryptoWithStablePriceWstethN.vy'.
+INFO: Compiling 'price_oracles/AggregateStablePrice2.vy'.
+INFO: Compiling 'mpolicies/AggMonetaryPolicy2.vy'.
+Using cached key for 'babe'
+INFO: Submitted 0x426bf42547455981a38b23fb9d9c38847ee0ea3ba22727dd91db214b53451580
+etherscan URL: https://etherscan.io/tx/0x426bf42547455981a38b23fb9d9c38847ee0ea3ba22727dd91db214b53451580
+Confirmations (2/2): 100%|███████████████████████████████████████████████████████████████████████████████████| 2/2 [00:24<00:00, 12.36s/it]
+INFO: Confirmed 0x426bf42547455981a38b23fb9d9c38847ee0ea3ba22727dd91db214b53451580 (total fees paid = 24270372429493092)
+SUCCESS: Contract 'AggregateStablePrice2' deployed to: 0x18672b1b0c623a30089A280Ed9256379fb0E4E62
+Using cached key for 'babe'
+INFO: Submitted 0xad1791dfdfca03ab94956ef81c4fb0fb795f5895a1d0f3013bf003ba541e3cc4
+etherscan URL: https://etherscan.io/tx/0xad1791dfdfca03ab94956ef81c4fb0fb795f5895a1d0f3013bf003ba541e3cc4
+Confirmations (2/2): 100%|███████████████████████████████████████████████████████████████████████████████████| 2/2 [00:24<00:00, 12.37s/it]
+INFO: Confirmed 0xad1791dfdfca03ab94956ef81c4fb0fb795f5895a1d0f3013bf003ba541e3cc4 (total fees paid = 2648468880289280)
+Using cached key for 'babe'
+INFO: Submitted 0x8562a1bb1c8bf75c74e2f40e6190c63258eba2581f45094b75546bcbeabc0c33
+etherscan URL: https://etherscan.io/tx/0x8562a1bb1c8bf75c74e2f40e6190c63258eba2581f45094b75546bcbeabc0c33
+Confirmations (2/2): 100%|███████████████████████████████████████████████████████████████████████████████████| 2/2 [00:24<00:00, 12.50s/it]
+INFO: Confirmed 0x8562a1bb1c8bf75c74e2f40e6190c63258eba2581f45094b75546bcbeabc0c33 (total fees paid = 2092360412461532)
+Using cached key for 'babe'
+INFO: Submitted 0x6bf8b60859994aa014fe5d83ed46018bc946ba674e9180a056f84f4ac67027f5
+etherscan URL: https://etherscan.io/tx/0x6bf8b60859994aa014fe5d83ed46018bc946ba674e9180a056f84f4ac67027f5
+Confirmations (2/2): 100%|███████████████████████████████████████████████████████████████████████████████████| 2/2 [00:24<00:00, 12.38s/it]
+INFO: Confirmed 0x6bf8b60859994aa014fe5d83ed46018bc946ba674e9180a056f84f4ac67027f5 (total fees paid = 2083730308401188)
+Using cached key for 'babe'
+INFO: Submitted 0xfc8ff23d6ec9c6a6e5cade1912117b07e6b55ec5bb3edd0f5ebd4341f73e7530
+etherscan URL: https://etherscan.io/tx/0xfc8ff23d6ec9c6a6e5cade1912117b07e6b55ec5bb3edd0f5ebd4341f73e7530
+Confirmations (2/2): 100%|███████████████████████████████████████████████████████████████████████████████████| 2/2 [00:30<00:00, 15.43s/it]
+INFO: Confirmed 0xfc8ff23d6ec9c6a6e5cade1912117b07e6b55ec5bb3edd0f5ebd4341f73e7530 (total fees paid = 2381084797546504)
+Using cached key for 'babe'
+INFO: Submitted 0xc0e0a897223e0be00a57c93bb402774b8177b80af3e87a295a73eef0fe8c0b23
+etherscan URL: https://etherscan.io/tx/0xc0e0a897223e0be00a57c93bb402774b8177b80af3e87a295a73eef0fe8c0b23
+Confirmations (2/2): 100%|███████████████████████████████████████████████████████████████████████████████████| 2/2 [00:24<00:00, 12.37s/it]
+INFO: Confirmed 0xc0e0a897223e0be00a57c93bb402774b8177b80af3e87a295a73eef0fe8c0b23 (total fees paid = 742829854415712)
+Using cached key for 'babe'
+INFO: Submitted 0x8ba46056b420655096e355aa278d9dbc5ab47c1567823212c84d9e7b605080af
+etherscan URL: https://etherscan.io/tx/0x8ba46056b420655096e355aa278d9dbc5ab47c1567823212c84d9e7b605080af
+Confirmations (2/2): 100%|███████████████████████████████████████████████████████████████████████████████████| 2/2 [00:24<00:00, 12.38s/it]
+INFO: Confirmed 0x8ba46056b420655096e355aa278d9dbc5ab47c1567823212c84d9e7b605080af (total fees paid = 23872723109622090)
+SUCCESS: Contract 'AggMonetaryPolicy2' deployed to: 0x1E7d3bf98d3f8D8CE193236c3e0eC4b00e32DaaE
+Using cached key for 'babe'
+INFO: Submitted 0xd16aa3da49bbf79044111b8ac0a4fb12217f1875e27243d0526a08a3bd22b476
+etherscan URL: https://etherscan.io/tx/0xd16aa3da49bbf79044111b8ac0a4fb12217f1875e27243d0526a08a3bd22b476
+Confirmations (2/2): 100%|███████████████████████████████████████████████████████████████████████████████████| 2/2 [00:25<00:00, 12.51s/it]
+INFO: Confirmed 0xd16aa3da49bbf79044111b8ac0a4fb12217f1875e27243d0526a08a3bd22b476 (total fees paid = 32738237784392576)
+SUCCESS: Contract 'CryptoWithStablePriceWstethN' deployed to: 0xc1793A29609ffFF81f10139fa0A7A444c9e106Ad
+Using cached key for 'babe'
+INFO: Submitted 0x9160a66e35901ce3c0b6f14469a1899230b79dddbed0780970a73701ca6b1eb9
+etherscan URL: https://etherscan.io/tx/0x9160a66e35901ce3c0b6f14469a1899230b79dddbed0780970a73701ca6b1eb9
 Confirmations (2/2): 100%|███████████████████████████████████████████████████████████████████████████████████| 2/2 [00:24<00:00, 12.35s/it]
-INFO: Confirmed 0x0aa991b9b0a3be97d1b51fd3dc5d67b6bfe381a0764be895880fcc4d58f10c4d (total fees paid = 77762125082366490)
-SUCCESS: Contract 'CryptoWithStablePriceWstethN' deployed to: 0x21f5F6d3F90D0f56A6dE307A3Bd359d0a151b304
+INFO: Confirmed 0x9160a66e35901ce3c0b6f14469a1899230b79dddbed0780970a73701ca6b1eb9 (total fees paid = 3526850637963735)
+Using cached key for 'babe'
+INFO: Submitted 0x9ec3bce64d5e60465f50056d37debe958167d9b3f8ea19ff8378ac69aed548f9
+etherscan URL: https://etherscan.io/tx/0x9ec3bce64d5e60465f50056d37debe958167d9b3f8ea19ff8378ac69aed548f9
+Confirmations (2/2): 100%|███████████████████████████████████████████████████████████████████████████████████| 2/2 [00:24<00:00, 12.49s/it]
+INFO: Confirmed 0x9ec3bce64d5e60465f50056d37debe958167d9b3f8ea19ff8378ac69aed548f9 (total fees paid = 8531151085082328)
+Using cached key for 'babe'
+INFO: Submitted 0x5a25b3225931a42377e5702e8be71d8dc2eee8d78a113d3ec0eca06a9990e708
+etherscan URL: https://etherscan.io/tx/0x5a25b3225931a42377e5702e8be71d8dc2eee8d78a113d3ec0eca06a9990e708
+Confirmations (2/2): 100%|███████████████████████████████████████████████████████████████████████████████████| 2/2 [00:24<00:00, 12.36s/it]
+INFO: Confirmed 0x5a25b3225931a42377e5702e8be71d8dc2eee8d78a113d3ec0eca06a9990e708 (total fees paid = 5387572393635316)
+========================
+Price Aggregator:   0x18672b1b0c623a30089A280Ed9256379fb0E4E62
+Aggregator price:   0.9999092668171728
+Monetary policy:    0x1E7d3bf98d3f8D8CE193236c3e0eC4b00e32DaaE
+Sample rate:        2373305708
+Price Oracle:       0xc1793A29609ffFF81f10139fa0A7A444c9e106Ad
