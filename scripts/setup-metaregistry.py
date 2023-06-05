@@ -1,5 +1,5 @@
 from ape import project, accounts, Contract, networks
-from ape.cli import NetworkBoundCommand, network_option
+from ape.cli import NetworkBoundCommand, network_option, account_option
 from ape.logging import logger
 # account_option could be used when in prod?
 import click
@@ -18,11 +18,11 @@ STABLESWAP_FACTORY_ADDRESS_PROVIDER_ID = 8
 USDP = "0x8E870D67F660D95d5be530380D0eC0bd388289E1"
 
 # set before executing
-STABLESWAP_FACTORY = ""
-STABLECOIN = ""
+STABLESWAP_FACTORY = "0x4F8846Ae9380B90d2E71D5e3D042dff3E7ebb40d"
+STABLECOIN = "0xf939e0a03fb07f59a73314e73794be0e57ac1b4e"
 
 
-def _get_deployment_kw(network):
+def _get_deployment_kw(network, account):
     
     kw = {}
 
@@ -33,13 +33,11 @@ def _get_deployment_kw(network):
     
     if not is_sim:
         
-        account = accounts.load('babe')
         max_base_fee = networks.active_provider.base_fee * 2
         kw = {
             'max_fee': max_base_fee,
             'max_priority_fee': min(int(0.5e9), max_base_fee)
         }
-        account.set_autosign(True)
 
     else:
         
@@ -57,9 +55,10 @@ def cli():
     
 @cli.command(cls=NetworkBoundCommand)
 @network_option()
-def clean(network):
+@account_option()
+def clean(network, account):
     
-    account, kw = _get_deployment_kw(network=network)
+    account, kw = _get_deployment_kw(network=network, account=account)
     
     address_provider = Contract(ADDRESS_PROVIDER)
     address_provider_admin = Contract(address_provider.admin())
@@ -76,22 +75,27 @@ def clean(network):
                 address_provider,
                 address_provider.unset_address.encode_input(
                     registry_id,
-                    **kw
                 ),
+                **kw
             )
         
             # sanity check:
-            assert address_provider.get_address(registry_id) == ZERO_ADDRESS
+            assert address_provider.get_address(registry_id) == ZERO_ADDRESS            
             logger.info(f"Cleaned AddressProvider Registry ID: {registry_id}")
+            
+    # more sanity checks:
+    for registry_id in range(9):
+        assert address_provider.get_address(registry_id) != ZERO_ADDRESS
 
 
 @cli.command(cls=NetworkBoundCommand)
 @network_option()
-def setup(network):
+@account_option()
+def setup(network, account):
     
-    account, kw = _get_deployment_kw(network=network)
+    account, kw = _get_deployment_kw(network=network, account=account)
     
-    if not STABLESWAP_FACTORY or STABLECOIN:
+    if not STABLESWAP_FACTORY or not STABLECOIN:
         logger.error("Addresses for stableswap factory and stablecoin not set.")
         raise
     
@@ -118,8 +122,8 @@ def setup(network):
             address_provider.set_address.encode_input(
                 STABLESWAP_FACTORY_ADDRESS_PROVIDER_ID,
                 STABLESWAP_FACTORY,
-                **kw
             ),
+            **kw,
         )
         assert address_provider.get_address(STABLESWAP_FACTORY_ADDRESS_PROVIDER_ID) == STABLESWAP_FACTORY
         logger.info(f"Updated AddressProvider Registry ID: {STABLESWAP_FACTORY_ADDRESS_PROVIDER_ID} with {STABLESWAP_FACTORY}")
@@ -128,7 +132,9 @@ def setup(network):
         
         # deploy factory handler:
         logger.info("Deploying new factory handler for stableswap factory ...")
-        factory_handler = account.deploy(project.StableswapFactoryHandler, STABLESWAP_FACTORY, BASE_POOL_REGISTRY)
+        factory_handler = account.deploy(
+            project.StableswapFactoryHandler, STABLESWAP_FACTORY, BASE_POOL_REGISTRY, **kw
+        )
         
         # integrate into metaregistry:
         metaregistry = Contract("0xF98B45FA17DE75FB1aD0e7aFD971b0ca00e379fC")
@@ -143,6 +149,7 @@ def setup(network):
             address_provider_admin.execute(
                 metaregistry.address,
                 metaregistry.add_registry_handler.encode_input(factory_handler),
+                **kw,
             )
             
         else:  # redeployment, which means update handler index in metaregistry.
@@ -159,7 +166,8 @@ def setup(network):
                 metaregistry.address,
                 metaregistry.update_registry_handler.encode_input(
                     idx, factory_handler.address
-                )
+                ),
+                **kw
             )
             
             assert metaregistry.get_registry(idx) == factory_handler.address
