@@ -885,7 +885,7 @@ def repay_extended(callbacker: address, callback_args: DynArray[uint256,5]):
         # We are above active band, so xy[0] is 0 anyway
 
         log UserState(msg.sender, cb.collateral, debt, n1, n2, liquidation_discount)
-        xy[1] = 0
+        xy[1] -= cb.collateral
 
         # No need to check _health() because it's the sender
 
