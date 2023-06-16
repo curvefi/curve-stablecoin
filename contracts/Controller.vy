@@ -911,9 +911,7 @@ def _health(user: address, debt: uint256, full: bool, liquidation_discount: uint
     @return Health: > 0 = good.
     """
     assert debt > 0, "Loan doesn't exist"
-    health: int256 = 10**18
-    if liquidation_discount > 0:
-        health -= convert(liquidation_discount, int256)
+    health: int256 = 10**18 - convert(liquidation_discount, int256)
     health = unsafe_div(convert(AMM.get_x_down(user), int256) * health, convert(debt, int256)) - 10**18
 
     if full:
@@ -922,7 +920,7 @@ def _health(user: address, debt: uint256, full: bool, liquidation_discount: uint
             p: uint256 = AMM.price_oracle()
             p_up: uint256 = AMM.p_oracle_up(ns[0])
             if p > p_up:
-                health += convert(unsafe_div((p - p_up) * AMM.get_sum_xy(user)[1] * COLLATERAL_PRECISION, debt), int256)
+                health += convert(unsafe_div(unsafe_sub(p, p_up) * AMM.get_sum_xy(user)[1] * COLLATERAL_PRECISION, debt), int256)
 
     return health
 
