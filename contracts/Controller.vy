@@ -747,7 +747,6 @@ def _remove_from_list(_for: address):
     self.n_loans = last_loan_ix
 
 
-@payable
 @external
 @nonreentrant('lock')
 def repay(_d_debt: uint256, _for: address = msg.sender, max_active_band: int256 = 2**255-1, use_eth: bool = True):
