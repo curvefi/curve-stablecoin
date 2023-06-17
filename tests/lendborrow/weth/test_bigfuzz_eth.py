@@ -218,7 +218,8 @@ class BigFuzz(RuleBasedStateMachine):
                 n1, n2 = self.market_amm.read_user_tick_numbers(user)
                 n = n2 - n1 + 1
                 amount = int(self.market_amm.price_oracle() * (sy + y) / 1e18 * ratio)
-                final_debt = self.market_controller.debt(user) + amount
+                current_debt = self.market_controller.debt(user)
+                final_debt = current_debt + amount
 
                 if not self.check_debt_ceiling(amount) and amount > 0:
                     with boa.reverts():
@@ -226,7 +227,7 @@ class BigFuzz(RuleBasedStateMachine):
                     return
 
                 if sx == 0 or amount == 0:
-                    max_debt = self.market_controller.max_borrowable(sy + y, n)
+                    max_debt = self.market_controller.max_borrowable(sy + y, n, current_debt)
                     if final_debt > max_debt and amount > 0:
                         if final_debt < max_debt / (0.9999 - 20/(y + 40) - 1e-9):
                             try:
@@ -520,4 +521,14 @@ def test_liquidate_no_coins(
     state.debt_supply()
     state.minted_redeemed()
     state.liquidate(emode=2, frac=0, luid=0, uid=1, use_eth=False)
+    state.teardown()
+
+
+def test_borrow_more_norevert(
+        controller_factory, market_amm, market_controller, monetary_policy, weth, stablecoin, price_oracle, accounts, fake_leverage, admin):
+    for k, v in locals().items():
+        setattr(BigFuzz, k, v)
+    state = BigFuzz()
+    state.deposit(n=5, ratio=0.7509803920984268, uid=1, use_eth=False, y=243336147608757338369)
+    state.borrow_more(ratio=0.125, uid=1, use_eth=False, y=29)
     state.teardown()
