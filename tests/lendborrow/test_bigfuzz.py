@@ -449,7 +449,7 @@ class BigFuzz(RuleBasedStateMachine):
 def test_big_fuzz(
         controller_factory, get_market, monetary_policy, get_collateral_token, collateral_digits, stablecoin, price_oracle,
         accounts, get_fake_leverage, admin, amm_interface, controller_interface, _tmp):
-    collateral_token = get_collateral_token(18)
+    collateral_token = get_collateral_token(collateral_digits)
     market = get_market(collateral_token)
     market_amm = amm_interface.at(market.get_amm(collateral_token.address))
     market_controller = controller_interface.at(market.get_controller(collateral_token.address))
