@@ -48,7 +48,7 @@ def admin() -> AddressT:
 def get_collateral_token(admin) -> Callable[[int], Any]:
     def f(digits):
         with boa.env.prank(admin):
-            return boa.load('contracts/testing/ERC20Mock.vy', "Colalteral", "ETH", digits)
+            return boa.load('contracts/testing/ERC20Mock.vy', "Collateral", "ETH", digits)
     return f
 
 
