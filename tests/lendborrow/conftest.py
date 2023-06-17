@@ -64,42 +64,54 @@ def monetary_policy(admin):
 
 
 @pytest.fixture(scope="module")
-def market(controller_factory, collateral_token, monetary_policy, price_oracle, admin):
-    with boa.env.prank(admin):
-        if controller_factory.n_collaterals() == 0:
-            controller_factory.add_market(
-                collateral_token.address, 100, 10**16, 0,
-                price_oracle.address,
-                monetary_policy.address, 5 * 10**16, 2 * 10**16,
-                10**6 * 10**18)
-        return controller_factory
+def get_market(controller_factory, monetary_policy, price_oracle, stablecoin, accounts, admin):
+    def f(collateral_token):
+        with boa.env.prank(admin):
+            if controller_factory.n_collaterals() == 0:
+                controller_factory.add_market(
+                    collateral_token.address, 100, 10**16, 0,
+                    price_oracle.address,
+                    monetary_policy.address, 5 * 10**16, 2 * 10**16,
+                    10**6 * 10**18)
+                amm = controller_factory.get_amm(collateral_token.address)
+                controller = controller_factory.get_controller(collateral_token.address)
+                for acc in accounts:
+                    with boa.env.prank(acc):
+                        collateral_token.approve(amm, 2**256-1)
+                        stablecoin.approve(amm, 2**256-1)
+                        collateral_token.approve(controller, 2**256-1)
+                        stablecoin.approve(controller, 2**256-1)
+            return controller_factory
+    return f
 
 
 @pytest.fixture(scope="module")
-def market_amm(market, collateral_token, stablecoin, amm_impl, amm_interface, accounts):
-    amm = amm_interface.at(market.get_amm(collateral_token.address))
-    for acc in accounts:
-        with boa.env.prank(acc):
-            collateral_token.approve(amm.address, 2**256-1)
-            stablecoin.approve(amm.address, 2**256-1)
-    return amm
+def market(get_market, collateral_token):
+    return get_market(collateral_token)
 
 
 @pytest.fixture(scope="module")
-def market_controller(market, stablecoin, collateral_token, controller_impl, controller_interface, controller_factory, accounts):
-    controller = controller_interface.at(market.get_controller(collateral_token.address))
-    for acc in accounts:
-        with boa.env.prank(acc):
-            collateral_token.approve(controller.address, 2**256-1)
-            stablecoin.approve(controller.address, 2**256-1)
-    return controller
+def market_amm(market, collateral_token, stablecoin, amm_interface, accounts):
+    return amm_interface.at(market.get_amm(collateral_token.address))
 
 
 @pytest.fixture(scope="module")
-def fake_leverage(stablecoin, collateral_token, market_controller, admin):
-    # Fake leverage testing contract can also be used to liquidate via the callback
-    with boa.env.prank(admin):
-        leverage = boa.load('contracts/testing/FakeLeverage.vy', stablecoin.address, collateral_token.address,
-                            market_controller.address, 3000 * 10**18)
-        collateral_token._mint_for_testing(leverage.address, 1000 * 10**18)
-        return leverage
+def market_controller(market, stablecoin, collateral_token, controller_interface, controller_factory, accounts):
+    return controller_interface.at(market.get_controller(collateral_token.address))
+
+
+@pytest.fixture(scope="module")
+def get_fake_leverage(stablecoin, admin):
+    def f(collateral_token, market_controller):
+        # Fake leverage testing contract can also be used to liquidate via the callback
+        with boa.env.prank(admin):
+            leverage = boa.load('contracts/testing/FakeLeverage.vy', stablecoin.address, collateral_token.address,
+                                market_controller.address, 3000 * 10**18)
+            collateral_token._mint_for_testing(leverage.address, 1000 * 10**collateral_token.decimals())
+            return leverage
+    return f
+
+
+@pytest.fixture(scope="module")
+def fake_leverage(get_fake_leverage, collateral_token, market_controller):
+    return get_fake_leverage(collateral_token, market_controller)

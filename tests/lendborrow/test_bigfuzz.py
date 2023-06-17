@@ -47,6 +47,7 @@ class BigFuzz(RuleBasedStateMachine):
         self.A = self.market_amm.A()
         self.debt_ceiling = self.controller_factory.debt_ceiling(self.market_controller.address)
         self.fees = 0
+        self.collateral_mul = 10**(18 - self.collateral_token.decimals())
 
     # Auxiliary methods #
     def collect_fees(self):
@@ -84,8 +85,9 @@ class BigFuzz(RuleBasedStateMachine):
     # Borrowing and returning #
     @rule(y=collateral_amount, n=n, uid=user_id, ratio=ratio)
     def deposit(self, y, n, ratio, uid):
-        user = self.accounts[uid]
         debt = int(ratio * 3000 * y)
+        y = y // self.collateral_mul
+        user = self.accounts[uid]
         with boa.env.prank(user):
             self.collateral_token._mint_for_testing(user, y)
             max_debt = self.market_controller.max_borrowable(y, n)
@@ -93,9 +95,9 @@ class BigFuzz(RuleBasedStateMachine):
                 with boa.reverts():
                     self.market_controller.create_loan(y, debt, n)
                 return
-            if (debt > max_debt or y // n <= 100 or debt == 0
+            if (debt > max_debt or y * self.collateral_mul // n <= 100 or debt == 0
                     or self.market_controller.loan_exists(user)):
-                if debt < max_debt / (0.9999 - 20/(y + 40)):
+                if debt < max_debt / (0.9999 - 20/(y * self.collateral_mul + 40)):
                     try:
                         self.market_controller.create_loan(y, debt, n)
                     except Exception:
@@ -117,7 +119,7 @@ class BigFuzz(RuleBasedStateMachine):
                     p_o = self.market_amm.price_oracle()
                     p = self.market_amm.get_p()
                     # Another reason - price increase being too large to handle without oracle following it
-                    assert y * ratio < n * 500 or p > p_o
+                    assert y * ratio * self.collateral_mul < n * 500 or p > p_o
                     return
             self.stablecoin.transfer(self.accounts[0], debt)
 
@@ -143,6 +145,7 @@ class BigFuzz(RuleBasedStateMachine):
 
     @rule(y=collateral_amount, uid=user_id)
     def add_collateral(self, y, uid):
+        y = y // self.collateral_mul
         user = self.accounts[uid]
         exists = self.market_controller.loan_exists(user)
         if exists:
@@ -159,6 +162,7 @@ class BigFuzz(RuleBasedStateMachine):
 
     @rule(y=collateral_amount, uid=user_id)
     def remove_collateral(self, y, uid):
+        y = y // self.collateral_mul
         user = self.accounts[uid]
         user_collateral, user_stablecoin, debt, N = self.market_controller.user_state(user)
         if debt > 0:
@@ -174,7 +178,7 @@ class BigFuzz(RuleBasedStateMachine):
                 except Exception:
                     if user_stablecoin > 0:
                         return
-                    if (user_collateral - y) // N <= 100:
+                    if (user_collateral - y) * self.collateral_mul // N <= 100:
                         return
                     if user_collateral - y > min_collateral:
                         raise
@@ -188,6 +192,7 @@ class BigFuzz(RuleBasedStateMachine):
 
     @rule(y=collateral_amount, uid=user_id, ratio=ratio)
     def borrow_more(self, y, ratio, uid):
+        y = y // self.collateral_mul
         user = self.accounts[uid]
         self.collateral_token._mint_for_testing(user, y)
 
@@ -200,8 +205,9 @@ class BigFuzz(RuleBasedStateMachine):
                 sx, sy = self.market_amm.get_sum_xy(user)
                 n1, n2 = self.market_amm.read_user_tick_numbers(user)
                 n = n2 - n1 + 1
-                amount = int(self.market_amm.price_oracle() * (sy + y) / 1e18 * ratio)
-                final_debt = self.market_controller.debt(user) + amount
+                amount = int(self.market_amm.price_oracle() * (sy + y) * self.collateral_mul / 1e18 * ratio)
+                current_debt = self.market_controller.debt(user)
+                final_debt = current_debt + amount
 
                 if not self.check_debt_ceiling(amount) and amount > 0:
                     with boa.reverts():
@@ -209,9 +215,9 @@ class BigFuzz(RuleBasedStateMachine):
                     return
 
                 if sx == 0 or amount == 0:
-                    max_debt = self.market_controller.max_borrowable(sy + y, n)
+                    max_debt = self.market_controller.max_borrowable(sy + y, n, current_debt)
                     if final_debt > max_debt and amount > 0:
-                        if final_debt < max_debt / (0.9999 - 20/(y + 40) - 1e-9):
+                        if final_debt < max_debt / (0.9999 - 20/(y * self.collateral_mul + 40) - 1e-9):
                             try:
                                 self.market_controller.borrow_more(y, amount)
                             except Exception:
@@ -438,10 +444,17 @@ class BigFuzz(RuleBasedStateMachine):
             assert self.stablecoin.balanceOf(self.market_controller.address) == ceiling
 
 
-@pytest.mark.parametrize("_tmp", range(8))  # This splits the test into 8 small chunks which are easier to parallelize
+@pytest.mark.parametrize("_tmp", range(4))  # This splits the test into 8 small chunks which are easier to parallelize
+@pytest.mark.parametrize("collateral_digits", [8, 18])
 def test_big_fuzz(
-        controller_factory, market_amm, market_controller, monetary_policy, collateral_token, stablecoin, price_oracle,
-        accounts, fake_leverage, admin, _tmp):
+        controller_factory, get_market, monetary_policy, get_collateral_token, collateral_digits, stablecoin, price_oracle,
+        accounts, get_fake_leverage, admin, amm_interface, controller_interface, _tmp):
+    collateral_token = get_collateral_token(18)
+    market = get_market(collateral_token)
+    market_amm = amm_interface.at(market.get_amm(collateral_token.address))
+    market_controller = controller_interface.at(market.get_controller(collateral_token.address))
+    fake_leverage = get_fake_leverage(collateral_token, market_controller)
+
     BigFuzz.TestCase.settings = settings(max_examples=313, stateful_step_count=20)
     # Or quick check
     # BigFuzz.TestCase.settings = settings(max_examples=25, stateful_step_count=20)
@@ -740,4 +753,24 @@ def test_debt_too_high_2_users(
     state.debt_supply()
     state.minted_redeemed()
     state.borrow_more(ratio=0.5, uid=4, y=0)
+    state.teardown()
+
+
+def test_cannot_create_loan(
+        controller_factory, get_market, amm_interface, controller_interface, monetary_policy, get_collateral_token, stablecoin, price_oracle,
+        accounts, get_fake_leverage, admin):
+    collateral_token = get_collateral_token(18)
+    market = get_market(collateral_token)
+    market_amm = amm_interface.at(market.get_amm(collateral_token.address))
+    market_controller = controller_interface.at(market.get_controller(collateral_token.address))
+    fake_leverage = get_fake_leverage(collateral_token, market_controller)
+    for k, v in locals().items():
+        setattr(BigFuzz, k, v)
+    state = BigFuzz()
+    state.debt_supply()
+    state.minted_redeemed()
+    state.shift_oracle(dp=-0.005859375)
+    state.debt_supply()
+    state.minted_redeemed()
+    state.deposit(n=5, ratio=0.5, uid=0, y=11585)
     state.teardown()
