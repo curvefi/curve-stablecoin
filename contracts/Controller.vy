@@ -460,11 +460,12 @@ def max_p_base() -> uint256:
 @external
 @view
 @nonreentrant('lock')
-def max_borrowable(collateral: uint256, N: uint256) -> uint256:
+def max_borrowable(collateral: uint256, N: uint256, current_debt: uint256 = 0) -> uint256:
     """
     @notice Calculation of maximum which can be borrowed (details in comments)
     @param collateral Collateral amount against which to borrow
     @param N number of bands to have the deposit into
+    @param current_debt Current debt of the user (if any)
     @return Maximum amount of stablecoin to borrow
     """
     # Calculation of maximum which can be borrowed.
@@ -485,7 +486,7 @@ def max_borrowable(collateral: uint256, N: uint256) -> uint256:
 
     x: uint256 = unsafe_sub(max(unsafe_div(y_effective * self.max_p_base(), 10**18), 1), 1)
     x = unsafe_div(x * (10**18 - 10**14), 10**18)  # Make it a bit smaller
-    return min(x, STABLECOIN.balanceOf(self))  # Cannot borrow beyond the amount of coins Controller has
+    return min(x, STABLECOIN.balanceOf(self) + current_debt)  # Cannot borrow beyond the amount of coins Controller has
 
 
 @external
@@ -915,10 +916,10 @@ def _health(user: address, debt: uint256, full: bool, liquidation_discount: uint
     health = unsafe_div(convert(AMM.get_x_down(user), int256) * health, convert(debt, int256)) - 10**18
 
     if full:
-        ns: int256[2] = AMM.read_user_tick_numbers(user) # ns[1] > ns[0]
-        if ns[0] > AMM.active_band():  # We are not in liquidation mode
+        ns0: int256 = AMM.read_user_tick_numbers(user)[0] # ns[1] > ns[0]
+        if ns0 > AMM.active_band():  # We are not in liquidation mode
             p: uint256 = AMM.price_oracle()
-            p_up: uint256 = AMM.p_oracle_up(ns[0])
+            p_up: uint256 = AMM.p_oracle_up(ns0)
             if p > p_up:
                 health += convert(unsafe_div(unsafe_sub(p, p_up) * AMM.get_sum_xy(user)[1] * COLLATERAL_PRECISION, debt), int256)
 
@@ -938,8 +939,6 @@ def health_calculator(user: address, d_collateral: int256, d_debt: int256, full:
     @param N Number of bands in case loan doesn't yet exist
     @return Signed health value
     """
-    xy: uint256[2] = AMM.get_sum_xy(user)
-    xy[1] *= COLLATERAL_PRECISION
     ns: int256[2] = AMM.read_user_tick_numbers(user)
     debt: int256 = convert(self._debt_ro(user), int256)
     n: uint256 = N
@@ -960,7 +959,7 @@ def health_calculator(user: address, d_collateral: int256, d_debt: int256, full:
     active_band: int256 = AMM.active_band_with_skip()
 
     if ns[0] > active_band and (d_collateral != 0 or d_debt != 0):  # re-deposit
-        collateral = convert(xy[1], int256) + d_collateral
+        collateral = convert(AMM.get_sum_xy(user)[1] * COLLATERAL_PRECISION, int256) + d_collateral
         n1 = self._calculate_debt_n1(convert(collateral, uint256), convert(debt, uint256), n)
 
     else:
@@ -1024,8 +1023,7 @@ def _liquidate(user: address, min_x: uint256, health_limit: uint256, frac: uint2
     # f_remove = ((1 + h/2) / (1 + h) * (1 - frac) + frac) * frac
     # where h is health limit.
     # This is less than full h discount but more than no discount
-    f_remove: uint256 = self._get_f_remove(frac, health_limit)
-    xy: uint256[2] = AMM.withdraw(user, f_remove)  # [stable, collateral]
+    xy: uint256[2] = AMM.withdraw(user, self._get_f_remove(frac, health_limit))  # [stable, collateral]
 
     # x increase in same block -> price up -> good
     # x decrease in same block -> price down -> bad
@@ -1123,8 +1121,7 @@ def tokens_to_liquidate(user: address, frac: uint256 = 10 ** 18) -> uint256:
     health_limit: uint256 = 0
     if user != msg.sender:
         health_limit = self.liquidation_discounts[user]
-    f_remove: uint256 = self._get_f_remove(frac, health_limit)
-    stablecoins: uint256 = unsafe_div(AMM.get_sum_xy(user)[0] * f_remove, 10 ** 18)
+    stablecoins: uint256 = unsafe_div(AMM.get_sum_xy(user)[0] * self._get_f_remove(frac, health_limit), 10 ** 18)
     debt: uint256 = unsafe_div(self._debt_ro(user) * frac, 10 ** 18)
 
     return unsafe_sub(max(debt, stablecoins), stablecoins)
