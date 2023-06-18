@@ -1,14 +1,15 @@
+INFO: Compiling 'price_oracles/CryptoWithStablePriceETH.vy'.
 Using cached key for 'babe'
-INFO: Submitted 0x49be2b181c7c81ba064ac0d8915025417dab874ac9d2841edff40e16ab40b6f3
-etherscan URL: https://etherscan.io/tx/0x49be2b181c7c81ba064ac0d8915025417dab874ac9d2841edff40e16ab40b6f3
-Confirmations (2/2): 100%|████████████████████████████████████████████████████████████████████████| 2/2 [00:24<00:00, 12.37s/it]
-INFO: Confirmed 0x49be2b181c7c81ba064ac0d8915025417dab874ac9d2841edff40e16ab40b6f3 (total fees paid = 18053979162521104)
-SUCCESS: Contract 'CryptoWithStablePriceETH' deployed to: 0x07374B547cAE235227635C13266c69847a3E46fA
+INFO: Submitted 0x2000981ed29ebfa10b36f2147fd13a7c30f81da3149ad43857247a55cee99dca
+etherscan URL: https://etherscan.io/tx/0x2000981ed29ebfa10b36f2147fd13a7c30f81da3149ad43857247a55cee99dca
+Confirmations (2/2): 100%|████████████████████████████████████████████████████████████████████████| 2/2 [00:24<00:00, 12.35s/it]
+INFO: Confirmed 0x2000981ed29ebfa10b36f2147fd13a7c30f81da3149ad43857247a55cee99dca (total fees paid = 15442120117027640)
+SUCCESS: Contract 'CryptoWithStablePriceETH' deployed to: 0x966cBDeceFB60A289b0460F7638f4A75F432cA06
 Using cached key for 'babe'
-INFO: Submitted 0x4cd190da1dc3fd6d136c56aeb47adbf3f130b33771b55dbaa74a62f5156154e2
-etherscan URL: https://etherscan.io/tx/0x4cd190da1dc3fd6d136c56aeb47adbf3f130b33771b55dbaa74a62f5156154e2
-Confirmations (2/2): 100%|████████████████████████████████████████████████████████████████████████| 2/2 [00:24<00:00, 12.37s/it]
-INFO: Confirmed 0x4cd190da1dc3fd6d136c56aeb47adbf3f130b33771b55dbaa74a62f5156154e2 (total fees paid = 3905433761774588)
+INFO: Submitted 0xcf8ca7b02654c511aff8ccbad2f19db83d9025f4219de7e67ad787f3a57ecb51
+etherscan URL: https://etherscan.io/tx/0xcf8ca7b02654c511aff8ccbad2f19db83d9025f4219de7e67ad787f3a57ecb51
+Confirmations (2/2): 100%|████████████████████████████████████████████████████████████████████████| 2/2 [00:24<00:00, 12.38s/it]
+INFO: Confirmed 0xcf8ca7b02654c511aff8ccbad2f19db83d9025f4219de7e67ad787f3a57ecb51 (total fees paid = 3587231152680860)
 ========================
-Price Oracle:       0x07374B547cAE235227635C13266c69847a3E46fA
-Price:              1729.4795960398053
+Price Oracle:       0x966cBDeceFB60A289b0460F7638f4A75F432cA06
+Price:              1729.5995131053003
