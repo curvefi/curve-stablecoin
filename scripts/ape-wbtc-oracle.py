@@ -45,7 +45,7 @@ def deploy(network):
 
     with accounts.use_sender(account):
         oracle = account.deploy(
-                project.CryptoWithStablePriceWstethN,
+                project.CryptoWithStablePriceWBTC,
                 TRICRYPTO,
                 [0, 0],  # price index with WBTC
                 CRVUSD_POOLS,  # CRVUSD stableswaps
@@ -59,3 +59,4 @@ def deploy(network):
 
     print('========================')
     print('Price Oracle:      ', oracle.address)
+    print('Price:             ', oracle.price() / 1e18)
