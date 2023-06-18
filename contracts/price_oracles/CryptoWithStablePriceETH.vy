@@ -57,8 +57,8 @@ BOUND_SIZE: public(immutable(uint256))
 
 use_chainlink: public(bool)
 
-last_timestamp: public(uint256)
 last_tvl: public(uint256[N_POOLS])
+last_timestamp: public(uint256)
 TVL_MA_TIME: public(constant(uint256)) = 50000  # s
 
 
