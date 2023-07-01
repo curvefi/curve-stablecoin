@@ -589,8 +589,7 @@ def _create_loan(mvalue: uint256, collateral: uint256, debt: uint256, N: uint256
     self.loan_ix[msg.sender] = n_loans
     self.n_loans = unsafe_add(n_loans, 1)
 
-    total_debt: uint256 = self._total_debt.initial_debt * rate_mul / self._total_debt.rate_mul + debt
-    self._total_debt.initial_debt = total_debt
+    self._total_debt.initial_debt = self._total_debt.initial_debt * rate_mul / self._total_debt.rate_mul + debt
     self._total_debt.rate_mul = rate_mul
 
     AMM.deposit_range(msg.sender, collateral, n1, n2)
@@ -677,8 +676,7 @@ def _add_collateral_borrow(d_collateral: uint256, d_debt: uint256, _for: address
     self.liquidation_discounts[_for] = liquidation_discount
 
     if d_debt != 0:
-        total_debt: uint256 = self._total_debt.initial_debt * rate_mul / self._total_debt.rate_mul + d_debt
-        self._total_debt.initial_debt = total_debt
+        self._total_debt.initial_debt = self._total_debt.initial_debt * rate_mul / self._total_debt.rate_mul + d_debt
         self._total_debt.rate_mul = rate_mul
 
     if remove_collateral:
@@ -958,10 +956,10 @@ def health_calculator(user: address, d_collateral: int256, d_debt: int256, full:
 
     active_band: int256 = AMM.active_band_with_skip()
 
-    if ns[0] > active_band and (d_collateral != 0 or d_debt != 0):  # re-deposit
-        collateral = convert(AMM.get_sum_xy(user)[1] * COLLATERAL_PRECISION, int256) + d_collateral
+    if ns[0] > active_band:  # re-deposit
+        collateral = convert(AMM.get_sum_xy(user)[1], int256) + d_collateral
         n1 = self._calculate_debt_n1(convert(collateral, uint256), convert(debt, uint256), n)
-
+        collateral *= convert(COLLATERAL_PRECISION, int256)  # now has 18 decimals
     else:
         n1 = ns[0]
         x_eff = convert(AMM.get_x_down(user) * 10**18, int256)
@@ -1284,8 +1282,7 @@ def admin_fees() -> uint256:
     """
     rate_mul: uint256 = AMM.get_rate_mul()
     loan: Loan = self._total_debt
-    loan.initial_debt = loan.initial_debt * rate_mul / loan.rate_mul
-    loan.initial_debt += self.redeemed
+    loan.initial_debt = loan.initial_debt * rate_mul / loan.rate_mul + self.redeemed
     minted: uint256 = self.minted
     return unsafe_sub(max(loan.initial_debt, minted), minted)
 
