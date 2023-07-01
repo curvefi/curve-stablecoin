@@ -1,20 +1,20 @@
 Using cached key for 'babe'
-INFO: Submitted 0x845b765ca01b011b9fd99edc5dc94301c016431f0b08d6a4549c5712a66b8b7c
-etherscan URL: https://etherscan.io/tx/0x845b765ca01b011b9fd99edc5dc94301c016431f0b08d6a4549c5712a66b8b7c
-Confirmations (2/2): 100%|████████████████████████████████████████████████████████████████████████| 2/2 [00:24<00:00, 12.35s/it]
-INFO: Confirmed 0x845b765ca01b011b9fd99edc5dc94301c016431f0b08d6a4549c5712a66b8b7c (total fees paid = 15648290905640379)
-SUCCESS: Contract 'AggMonetaryPolicy2' deployed to: 0xbAc8459641f765B26E8984f29082629359f084C8
+INFO: Submitted 0x1bed01d7dad50a6575786ca9c1cd04495cba223107d8d2e839dc0b36362b01d9
+etherscan URL: https://etherscan.io/tx/0x1bed01d7dad50a6575786ca9c1cd04495cba223107d8d2e839dc0b36362b01d9
+Confirmations (2/2): 100%|████████████████████████████████████████████████████████████████████████| 2/2 [00:30<00:00, 15.49s/it]
+INFO: Confirmed 0x1bed01d7dad50a6575786ca9c1cd04495cba223107d8d2e839dc0b36362b01d9 (total fees paid = 13368677910853177)
+SUCCESS: Contract 'AggMonetaryPolicy2' deployed to: 0xb8687d7dc9d8fa32fabde63E19b2dBC9bB8B2138
 Market: WBTC
-Policy: 0xbAc8459641f765B26E8984f29082629359f084C8
-Rate: 0.02485379310405378
+Policy: 0xb8687d7dc9d8fa32fabde63E19b2dBC9bB8B2138
+Rate: 0.024827520512927803
 
 Using cached key for 'babe'
-INFO: Submitted 0x9b3393b078ae7b24fb77dd517f3a79f620e8fa606312e8bbe06431a9d61e7c99
-etherscan URL: https://etherscan.io/tx/0x9b3393b078ae7b24fb77dd517f3a79f620e8fa606312e8bbe06431a9d61e7c99
-Confirmations (2/2): 100%|████████████████████████████████████████████████████████████████████████| 2/2 [00:24<00:00, 12.36s/it]
-INFO: Confirmed 0x9b3393b078ae7b24fb77dd517f3a79f620e8fa606312e8bbe06431a9d61e7c99 (total fees paid = 15684651337836942)
-SUCCESS: Contract 'AggMonetaryPolicy2' deployed to: 0x480af6D9ABE851E2FC4162B2B93fFf8cf84dDEe7
+INFO: Submitted 0x2fa9131d627d6cac48e58eb0d533b088d3ac2bf978a1af338f6f19bfe51de4d9
+etherscan URL: https://etherscan.io/tx/0x2fa9131d627d6cac48e58eb0d533b088d3ac2bf978a1af338f6f19bfe51de4d9
+Confirmations (2/2): 100%|████████████████████████████████████████████████████████████████████████| 2/2 [00:24<00:00, 12.38s/it]
+INFO: Confirmed 0x2fa9131d627d6cac48e58eb0d533b088d3ac2bf978a1af338f6f19bfe51de4d9 (total fees paid = 14441456807286329)
+SUCCESS: Contract 'AggMonetaryPolicy2' deployed to: 0xBB3fda661149f6E45D829D5dd54a1608577c5Fa1
 Market: ETH
-Policy: 0x480af6D9ABE851E2FC4162B2B93fFf8cf84dDEe7
-Rate: 0.024822669378833817
+Policy: 0xBB3fda661149f6E45D829D5dd54a1608577c5Fa1
+Rate: 0.02479623253683494
 
