@@ -38,10 +38,11 @@ total_collateral_for_boost: public(uint256)
 working_supply: public(uint256)
 working_balances: public(HashMap[address, uint256])
 
-staked_collateral: public(uint256)
+boosted_collateral: public(uint256)
 collateral_per_share: public(HashMap[int256, uint256])
-user_shares: public(HashMap[address, HashMap[int256, uint256]])
 shares_per_band: public(HashMap[int256, uint256])  # This only counts staked shares
+
+boosted_shares: public(HashMap[address, HashMap[int256, uint256]])
 
 
 @external
@@ -88,21 +89,52 @@ def callback_collateral_shares(n: int256, collateral_per_share: DynArray[uint256
     # At the moment - just record the collateral per share values
     i: int256 = n
     if len(collateral_per_share) > 0:
-        staked_collateral: uint256 = self.staked_collateral
+        boosted_collateral: uint256 = self.boosted_collateral
 
         for cps in collateral_per_share:
             old_cps: uint256 = self.collateral_per_share[i]
             self.collateral_per_share[i] = cps
             spb: uint256 = self.shares_per_band[i]
             if spb > 0 and cps != old_cps:
-                # It could be that we need to make this line not reverting in underflows
-                staked_collateral = staked_collateral + spb * cps / 10**18 - spb * old_cps / 10**18
+                # boosted_collateral += spb * (cps - old_cps) / 10**18
+                old_value: uint256 = spb * old_cps / 10**18
+                boosted_collateral = max(boosted_collateral + spb * cps / 10**18, old_value) - old_value
             i += 1
 
-        self.staked_collateral = staked_collateral
+        self.boosted_collateral = boosted_collateral
 
 @external
 def callback_user_shares(user: address, n: int256, user_shares: DynArray[uint256, MAX_TICKS_UINT]):
     assert msg.sender == AMM
 
-    # boost: uint256 = self._update_boost(user, total_collateral)
+    if len(user_shares) > 0:
+        boosted_collateral: uint256 = self.boosted_collateral
+
+        # Calculate the amount of real collateral for the user
+        i: int256 = n
+        collateral_amount: uint256 = 0
+        user_cps: DynArray[uint256, MAX_TICKS_UINT] = []
+        for s in user_shares:
+            cps: uint256 = self.collateral_per_share[i]
+            user_cps.append(cps)
+            collateral_amount += s * cps / 10**18
+            i += 1
+
+        boost: uint256 = self._update_boost(user, collateral_amount)
+
+        i = n
+        j: uint256 = 0
+        for unboosted_s in user_shares:
+            old_s: uint256 = self.boosted_shares[user][i]
+            cps: uint256 = user_cps[j]
+            s: uint256 = unboosted_s * boost / 10**18
+            self.boosted_shares[user][i] = s
+            if s != old_s:
+                self.shares_per_band[i] = self.shares_per_band[i] + s - old_s
+                # boosted_collateral += cps * (s - old_s) / 10**18
+                old_value: uint256 = cps * old_s / 10**18
+                boosted_collateral = max(boosted_collateral + cps * s / 10**18, old_value) - old_value
+            i += 1
+            j += 1
+
+        self.boosted_collateral = boosted_collateral
