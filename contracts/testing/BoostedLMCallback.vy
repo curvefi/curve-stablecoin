@@ -38,6 +38,11 @@ total_collateral_for_boost: public(uint256)
 working_supply: public(uint256)
 working_balances: public(HashMap[address, uint256])
 
+staked_collateral: public(uint256)
+collateral_per_share: public(HashMap[int256, uint256])
+user_shares: public(HashMap[address, HashMap[int256, uint256]])
+shares_per_band: public(HashMap[int256, uint256])  # This only counts staked shares
+
 
 @external
 def __init__(amm: address, vecrv: ERC20, veboost_proxy: VotingEscrowBoost):
@@ -77,13 +82,27 @@ def _update_boost(user: address, collateral_amount: uint256) -> uint256:
 
 @external
 def callback_collateral_shares(n: int256, collateral_per_share: DynArray[uint256, MAX_TICKS_UINT]):
+    # It is important that this callback is called every time before callback_user_shares
     assert msg.sender == AMM
 
-    pass
+    # At the moment - just record the collateral per share values
+    i: int256 = n
+    if len(collateral_per_share) > 0:
+        staked_collateral: uint256 = self.staked_collateral
 
+        for cps in collateral_per_share:
+            old_cps: uint256 = self.collateral_per_share[i]
+            self.collateral_per_share[i] = cps
+            spb: uint256 = self.shares_per_band[i]
+            if spb > 0 and cps != old_cps:
+                # It could be that we need to make this line not reverting in underflows
+                staked_collateral = staked_collateral + spb * cps / 10**18 - spb * old_cps / 10**18
+            i += 1
+
+        self.staked_collateral = staked_collateral
 
 @external
 def callback_user_shares(user: address, n: int256, user_shares: DynArray[uint256, MAX_TICKS_UINT]):
     assert msg.sender == AMM
 
-    pass
+    # boost: uint256 = self._update_boost(user, total_collateral)
