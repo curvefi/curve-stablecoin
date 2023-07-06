@@ -1,13 +1,5 @@
 # @version 0.3.7
 """
-This contract is a draft version of liquidity mining gauge for LLAMMa. It doesn't
-account for rate changes for simplicity but it could already be suitable for
-rewards streamed with constant rate, as well as for testing the method.
-
-In production version, one needs to make rate variable with checkpoints for the
-times rate changes (every week), as well as as gas optimizations are needed.
-This contract focuses on readability.
-
 WARNING:
 At the moment this contract is unfinished, so not recommended to be used
 without understanding.
@@ -20,6 +12,10 @@ interface LLAMMA:
 interface VotingEscrowBoost:
     def adjusted_balance_of(_account: address) -> uint256: view
 
+interface CRV20:
+    def future_epoch_time_write() -> uint256: nonpayable
+    def rate() -> uint256: view
+
 event UpdateBoost:
     user: indexed(address)
     boost: uint256
@@ -31,6 +27,7 @@ TOKENLESS_PRODUCTION: constant(uint256) = 40
 AMM: public(immutable(address))
 COLLATERAL_TOKEN: public(immutable(ERC20))
 VECRV: public(immutable(ERC20))
+CRV: public(immutable(CRV20))
 VEBOOST_PROXY: public(immutable(VotingEscrowBoost))
 
 collateral_for_boost: public(HashMap[address, uint256])
@@ -44,13 +41,30 @@ shares_per_band: public(HashMap[int256, uint256])  # This only counts staked sha
 
 boosted_shares: public(HashMap[address, HashMap[int256, uint256]])
 
+# Tracking of mining period
+inflation_rate: public(uint256)
+last_timestamp: public(uint256)
+future_epoch_time: public(uint256)
+
+# Running integrals
+integrate_rewards_per_collateral: public(uint256)
+timestamp_rewards_per_collateral: public(uint256)
+integrate_rewards_per_share: public(HashMap[int256, uint256])
+timestamp_rewards_per_share: public(HashMap[int256, uint256])
+
 
 @external
-def __init__(amm: address, vecrv: ERC20, veboost_proxy: VotingEscrowBoost):
+def __init__(amm: address, crv: CRV20, vecrv: ERC20, veboost_proxy: VotingEscrowBoost):
+    # XXX change amm to factory+collateral+index
     AMM = amm
     COLLATERAL_TOKEN = ERC20(LLAMMA(amm).coins(1))
     VECRV = vecrv
     VEBOOST_PROXY = veboost_proxy
+    CRV = crv
+
+    self.last_timestamp = block.timestamp
+    self.inflation_rate = crv.rate()
+    self.future_epoch_time = crv.future_epoch_time_write()
 
 
 @internal
@@ -86,7 +100,18 @@ def callback_collateral_shares(n: int256, collateral_per_share: DynArray[uint256
     # It is important that this callback is called every time before callback_user_shares
     assert msg.sender == AMM
 
-    # At the moment - just record the collateral per share values
+    # Read current and new rate; update the new rate if needed
+    last_time: uint256 = self.last_timestamp
+    rate: uint256 = self.inflation_rate
+    new_rate: uint256 = rate
+    prev_future_epoch: uint256 = self.future_epoch_time
+    if prev_future_epoch >= last_time:
+        self.future_epoch_time = CRV.future_epoch_time_write()
+        new_rate = CRV.rate()
+        self.inflation_rate = new_rate
+
+    # * Record the collateral per share values
+    # * Record integrals of rewards per share
     i: int256 = n
     if len(collateral_per_share) > 0:
         boosted_collateral: uint256 = self.boosted_collateral
