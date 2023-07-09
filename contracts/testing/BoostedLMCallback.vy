@@ -62,13 +62,32 @@ future_epoch_time: public(uint256)
 # Rewards per collateral (integral):
 # I_rpc = integral(rrpc * dt)
 # t_rpc - time of the last I_rpc value
-#
+
+struct IntegralRPC:
+    rpc: uint256
+    t: uint256
+
+I_rpc: public(IntegralRPC)
+
 # Rewards per share:
 # I_rps[i] = integral(cs[i] * rrpc * dt) = sum(cs[i] * delta(I_rpc))
-#
+
+struct IntegralRPS:
+    rps: uint256
+    rpc: uint256
+
+I_rps: public(HashMap[int256, IntegralRPS])
+
 # Rewards per user:
 # I_rpu[u,i] = sum(s[u,i] * delta(I_rps[i]))
 # I_rpu[u] = sum_i(I_rpu[u,i])
+
+struct IntegralRPU:
+    rpu: uint256
+    rps: uint256
+
+I_rpu: public(HashMap[address, HashMap[int256, IntegralRPU]])
+rpu: public(HashMap[address, uint256])
 
 
 @external
