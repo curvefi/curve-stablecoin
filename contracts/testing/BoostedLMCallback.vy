@@ -20,15 +20,26 @@ event UpdateBoost:
     user: indexed(address)
     boost: uint256
 
+interface GaugeController:
+    def period() -> int128: view
+    def period_write() -> int128: nonpayable
+    def period_timestamp(p: int128) -> uint256: view
+    def gauge_relative_weight(addr: address, time: uint256) -> uint256: view
+    def voting_escrow() -> address: view
+    def checkpoint(): nonpayable
+    def checkpoint_gauge(addr: address): nonpayable
+
 
 MAX_TICKS_UINT: constant(uint256) = 50
 TOKENLESS_PRODUCTION: constant(uint256) = 40
+WEEK: constant(uint256) = 604800
 
 AMM: public(immutable(address))
 COLLATERAL_TOKEN: public(immutable(ERC20))
 VECRV: public(immutable(ERC20))
 CRV: public(immutable(CRV20))
 VEBOOST_PROXY: public(immutable(VotingEscrowBoost))
+GAUGE_CONTROLLER: public(immutable(GaugeController))
 
 collateral_for_boost: public(HashMap[address, uint256])
 total_collateral_for_boost: public(uint256)
@@ -91,15 +102,16 @@ rpu: public(HashMap[address, uint256])
 
 
 @external
-def __init__(amm: address, crv: CRV20, vecrv: ERC20, veboost_proxy: VotingEscrowBoost):
+def __init__(amm: address, crv: CRV20, vecrv: ERC20, veboost_proxy: VotingEscrowBoost, gc: GaugeController):
     # XXX change amm to factory+collateral+index
     AMM = amm
     COLLATERAL_TOKEN = ERC20(LLAMMA(amm).coins(1))
     VECRV = vecrv
     VEBOOST_PROXY = veboost_proxy
     CRV = crv
+    GAUGE_CONTROLLER = gc
 
-    self.last_timestamp = block.timestamp
+    self.last_timestamp = block.timestamp  # XXX needed at all??
     self.inflation_rate = crv.rate()
     self.future_epoch_time = crv.future_epoch_time_write()
 
@@ -138,11 +150,11 @@ def callback_collateral_shares(n: int256, collateral_per_share: DynArray[uint256
     assert msg.sender == AMM
 
     # Read current and new rate; update the new rate if needed
-    last_time: uint256 = self.last_timestamp
+    I_rpc: IntegralRPC = self.I_rpc
     rate: uint256 = self.inflation_rate
     new_rate: uint256 = rate
     prev_future_epoch: uint256 = self.future_epoch_time
-    if prev_future_epoch >= last_time:
+    if prev_future_epoch >= I_rpc.t:
         self.future_epoch_time = CRV.future_epoch_time_write()
         new_rate = CRV.rate()
         self.inflation_rate = new_rate
@@ -153,6 +165,19 @@ def callback_collateral_shares(n: int256, collateral_per_share: DynArray[uint256
     if len(collateral_per_share) > 0:
         boosted_collateral: uint256 = self.boosted_collateral
 
+        if boosted_collateral > 0 and block.timestamp > I_rpc.t:
+            GAUGE_CONTROLLER.checkpoint_gauge(self)
+            prev_week_time: uint256 = I_rpc.t
+            week_time: uint256 = min((I_rpc.t + WEEK) / WEEK * WEEK, block.timestamp)
+
+            for week_iter in range(500):
+                dt: uint256 = week_time - prev_week_time
+                w: uint256 = GAUGE_CONTROLLER.gauge_relative_weight(self, prev_week_time / WEEK * WEEK)
+
+        I_rpc.t = block.timestamp
+        self.I_rpc = I_rpc
+
+        # Update boosted_collateral
         for cps in collateral_per_share:
             old_cps: uint256 = self.collateral_per_share[i]
             self.collateral_per_share[i] = cps
@@ -162,7 +187,6 @@ def callback_collateral_shares(n: int256, collateral_per_share: DynArray[uint256
                 old_value: uint256 = spb * old_cps / 10**18
                 boosted_collateral = max(boosted_collateral + spb * cps / 10**18, old_value) - old_value
             i += 1
-
         self.boosted_collateral = boosted_collateral
 
 @external
