@@ -164,8 +164,9 @@ def callback_collateral_shares(n: int256, collateral_per_share: DynArray[uint256
     i: int256 = n
     if len(collateral_per_share) > 0:
         boosted_collateral: uint256 = self.boosted_collateral
+        delta_rpc: uint256 = 0
 
-        if boosted_collateral > 0 and block.timestamp > I_rpc.t:
+        if boosted_collateral > 0 and block.timestamp > I_rpc.t:  # XXX should we not loop when boosted collateral == 0?
             GAUGE_CONTROLLER.checkpoint_gauge(self)
             prev_week_time: uint256 = I_rpc.t
             week_time: uint256 = min((I_rpc.t + WEEK) / WEEK * WEEK, block.timestamp)
@@ -174,12 +175,30 @@ def callback_collateral_shares(n: int256, collateral_per_share: DynArray[uint256
                 dt: uint256 = week_time - prev_week_time
                 w: uint256 = GAUGE_CONTROLLER.gauge_relative_weight(self, prev_week_time / WEEK * WEEK)
 
+                if prev_future_epoch >= prev_week_time and prev_future_epoch < week_time:
+                    # If we went across one or multiple epochs, apply the rate
+                    # of the first epoch until it ends, and then the rate of
+                    # the last epoch.
+                    # If more than one epoch is crossed - the gauge gets less,
+                    # but that'd meen it wasn't called for more than 1 year
+                    delta_rpc += rate * w * (prev_future_epoch - prev_week_time) / boosted_collateral
+                    rate = new_rate
+                    delta_rpc += rate * w * (week_time - prev_future_epoch) / boosted_collateral
+                else:
+                    delta_rpc += rate * w * dt / boosted_collateral
+
         I_rpc.t = block.timestamp
+        I_rpc.rpc += delta_rpc
         self.I_rpc = I_rpc
 
         # Update boosted_collateral
         for cps in collateral_per_share:
+            I_rps: IntegralRPS = self.I_rps[i]
+            # XXX may need to save previous
             old_cps: uint256 = self.collateral_per_share[i]
+            I_rps.rps += old_cps * delta_rpc / 10**18
+            I_rps.rpc = I_rpc.rpc
+            self.I_rps[i] = I_rps
             self.collateral_per_share[i] = cps
             spb: uint256 = self.shares_per_band[i]
             if spb > 0 and cps != old_cps:
@@ -187,6 +206,7 @@ def callback_collateral_shares(n: int256, collateral_per_share: DynArray[uint256
                 old_value: uint256 = spb * old_cps / 10**18
                 boosted_collateral = max(boosted_collateral + spb * cps / 10**18, old_value) - old_value
             i += 1
+
         self.boosted_collateral = boosted_collateral
 
 @external
