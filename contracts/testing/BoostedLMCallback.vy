@@ -47,10 +47,28 @@ last_timestamp: public(uint256)
 future_epoch_time: public(uint256)
 
 # Running integrals
-integrate_rewards_per_collateral: public(uint256)
-timestamp_rewards_per_collateral: public(uint256)
-integrate_rewards_per_share: public(HashMap[int256, uint256])
-timestamp_rewards_per_share: public(HashMap[int256, uint256])
+# ------------------
+# Definitions:
+#
+# r - reward rate
+# w - gauge relative weight
+# s[i] - shares per band i
+# cs[i] - collateral per share in band i
+# s[u,i] - shares per user in band
+#
+# Reward rate per collateral:
+# rrpc = (r * w) / sum(s[i] * cs[i])
+#
+# Rewards per collateral (integral):
+# I_rpc = integral(rrpc * dt)
+# t_rpc - time of the last I_rpc value
+#
+# Rewards per share:
+# I_rps[i] = integral(cs[i] * rrpc * dt) = sum(cs[i] * delta(I_rpc))
+#
+# Rewards per user:
+# I_rpu[u,i] = sum(s[u,i] * delta(I_rps[i]))
+# I_rpu[u] = sum_i(I_rpu[u,i])
 
 
 @external
