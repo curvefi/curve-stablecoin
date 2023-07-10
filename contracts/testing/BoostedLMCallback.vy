@@ -54,7 +54,6 @@ boosted_shares: public(HashMap[address, HashMap[int256, uint256]])
 
 # Tracking of mining period
 inflation_rate: public(uint256)
-last_timestamp: public(uint256)
 future_epoch_time: public(uint256)
 
 # Running integrals
@@ -111,7 +110,6 @@ def __init__(amm: address, crv: CRV20, vecrv: ERC20, veboost_proxy: VotingEscrow
     CRV = crv
     GAUGE_CONTROLLER = gc
 
-    self.last_timestamp = block.timestamp  # XXX needed at all??
     self.inflation_rate = crv.rate()
     self.future_epoch_time = crv.future_epoch_time_write()
 
@@ -194,9 +192,8 @@ def callback_collateral_shares(n: int256, collateral_per_share: DynArray[uint256
         # Update boosted_collateral
         for cps in collateral_per_share:
             I_rps: IntegralRPS = self.I_rps[i]
-            # XXX may need to save previous
             old_cps: uint256 = self.collateral_per_share[i]
-            I_rps.rps += old_cps * delta_rpc / 10**18
+            I_rps.rps += old_cps * (I_rpc.rpc - I_rps.rpc) / 10**18
             I_rps.rpc = I_rpc.rpc
             self.I_rps[i] = I_rps
             self.collateral_per_share[i] = cps
@@ -227,6 +224,7 @@ def callback_user_shares(user: address, n: int256, user_shares: DynArray[uint256
             i += 1
 
         boost: uint256 = self._update_boost(user, collateral_amount)
+        rpu: uint256 = self.rpu[user]
 
         i = n
         j: uint256 = 0
@@ -235,6 +233,15 @@ def callback_user_shares(user: address, n: int256, user_shares: DynArray[uint256
             cps: uint256 = user_cps[j]
             s: uint256 = unboosted_s * boost / 10**18
             self.boosted_shares[user][i] = s
+
+            I_rpu: IntegralRPU = self.I_rpu[user][i]
+            I_rps: uint256 = self.I_rps[i].rps
+            d_rpu: uint256 = old_s * (I_rps - I_rpu.rps) / 10**18
+            I_rpu.rpu += d_rpu
+            rpu += d_rpu
+            I_rpu.rps = I_rps
+            self.I_rpu[user][i] = I_rpu
+
             if s != old_s:
                 self.shares_per_band[i] = self.shares_per_band[i] + s - old_s
                 # boosted_collateral += cps * (s - old_s) / 10**18
@@ -244,3 +251,4 @@ def callback_user_shares(user: address, n: int256, user_shares: DynArray[uint256
             j += 1
 
         self.boosted_collateral = boosted_collateral
+        self.rpu[user] = rpu
