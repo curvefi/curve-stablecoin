@@ -29,8 +29,14 @@ interface GaugeController:
     def checkpoint(): nonpayable
     def checkpoint_gauge(addr: address): nonpayable
 
+interface Minter:
+    def token() -> address: view
+    def controller() -> address: view
+    def minted(user: address, gauge: address) -> uint256: view
+
 
 MAX_TICKS_UINT: constant(uint256) = 50
+MAX_TICKS_INT: constant(int256) = 50
 TOKENLESS_PRODUCTION: constant(uint256) = 40
 WEEK: constant(uint256) = 604800
 
@@ -40,6 +46,7 @@ VECRV: public(immutable(ERC20))
 CRV: public(immutable(CRV20))
 VEBOOST_PROXY: public(immutable(VotingEscrowBoost))
 GAUGE_CONTROLLER: public(immutable(GaugeController))
+MINTER: public(immutable(Minter))
 
 collateral_for_boost: public(HashMap[address, uint256])
 total_collateral_for_boost: public(uint256)
@@ -97,11 +104,12 @@ struct IntegralRPU:
     rps: uint256
 
 I_rpu: public(HashMap[address, HashMap[int256, IntegralRPU]])
-rpu: public(HashMap[address, uint256])
+integrate_fraction: public(HashMap[address, uint256])
 
 
 @external
-def __init__(amm: address, crv: CRV20, vecrv: ERC20, veboost_proxy: VotingEscrowBoost, gc: GaugeController):
+def __init__(amm: address, crv: CRV20, vecrv: ERC20, veboost_proxy: VotingEscrowBoost, gc: GaugeController,
+             minter: Minter):
     # XXX change amm to factory+collateral+index
     AMM = amm
     COLLATERAL_TOKEN = ERC20(LLAMMA(amm).coins(1))
@@ -109,6 +117,7 @@ def __init__(amm: address, crv: CRV20, vecrv: ERC20, veboost_proxy: VotingEscrow
     VEBOOST_PROXY = veboost_proxy
     CRV = crv
     GAUGE_CONTROLLER = gc
+    MINTER = minter
 
     self.inflation_rate = crv.rate()
     self.future_epoch_time = crv.future_epoch_time_write()
@@ -142,10 +151,13 @@ def _update_boost(user: address, collateral_amount: uint256) -> uint256:
     return boost
 
 
-@external
-def callback_collateral_shares(n: int256, collateral_per_share: DynArray[uint256, MAX_TICKS_UINT]):
-    # It is important that this callback is called every time before callback_user_shares
-    assert msg.sender == AMM
+@internal
+def _checkpoint_collateral_shares(n: int256, collateral_per_share: DynArray[uint256, MAX_TICKS_UINT], n2: int256):
+    n_shares: int256 = 0
+    if len(collateral_per_share) > 0:
+        n_shares = convert(len(collateral_per_share), int256)
+    else:
+        n_shares = n2 - n + 1
 
     # Read current and new rate; update the new rate if needed
     I_rpc: IntegralRPC = self.I_rpc
@@ -159,56 +171,72 @@ def callback_collateral_shares(n: int256, collateral_per_share: DynArray[uint256
 
     # * Record the collateral per share values
     # * Record integrals of rewards per share
-    i: int256 = n
-    if len(collateral_per_share) > 0:
-        boosted_collateral: uint256 = self.boosted_collateral
-        delta_rpc: uint256 = 0
+    boosted_collateral: uint256 = self.boosted_collateral
+    delta_rpc: uint256 = 0
 
-        if boosted_collateral > 0 and block.timestamp > I_rpc.t:  # XXX should we not loop when boosted collateral == 0?
-            GAUGE_CONTROLLER.checkpoint_gauge(self)
-            prev_week_time: uint256 = I_rpc.t
-            week_time: uint256 = min((I_rpc.t + WEEK) / WEEK * WEEK, block.timestamp)
+    if boosted_collateral > 0 and block.timestamp > I_rpc.t:  # XXX should we not loop when boosted collateral == 0?
+        GAUGE_CONTROLLER.checkpoint_gauge(self)
+        prev_week_time: uint256 = I_rpc.t
+        week_time: uint256 = min((I_rpc.t + WEEK) / WEEK * WEEK, block.timestamp)
 
-            for week_iter in range(500):
-                dt: uint256 = week_time - prev_week_time
-                w: uint256 = GAUGE_CONTROLLER.gauge_relative_weight(self, prev_week_time / WEEK * WEEK)
+        for week_iter in range(500):
+            dt: uint256 = week_time - prev_week_time
+            w: uint256 = GAUGE_CONTROLLER.gauge_relative_weight(self, prev_week_time / WEEK * WEEK)
 
-                if prev_future_epoch >= prev_week_time and prev_future_epoch < week_time:
-                    # If we went across one or multiple epochs, apply the rate
-                    # of the first epoch until it ends, and then the rate of
-                    # the last epoch.
-                    # If more than one epoch is crossed - the gauge gets less,
-                    # but that'd meen it wasn't called for more than 1 year
-                    delta_rpc += rate * w * (prev_future_epoch - prev_week_time) / boosted_collateral
-                    rate = new_rate
-                    delta_rpc += rate * w * (week_time - prev_future_epoch) / boosted_collateral
-                else:
-                    delta_rpc += rate * w * dt / boosted_collateral
+            if prev_future_epoch >= prev_week_time and prev_future_epoch < week_time:
+                # If we went across one or multiple epochs, apply the rate
+                # of the first epoch until it ends, and then the rate of
+                # the last epoch.
+                # If more than one epoch is crossed - the gauge gets less,
+                # but that'd meen it wasn't called for more than 1 year
+                delta_rpc += rate * w * (prev_future_epoch - prev_week_time) / boosted_collateral
+                rate = new_rate
+                delta_rpc += rate * w * (week_time - prev_future_epoch) / boosted_collateral
+            else:
+                delta_rpc += rate * w * dt / boosted_collateral
 
         I_rpc.t = block.timestamp
         I_rpc.rpc += delta_rpc
         self.I_rpc = I_rpc
 
         # Update boosted_collateral
-        for cps in collateral_per_share:
-            I_rps: IntegralRPS = self.I_rps[i]
-            old_cps: uint256 = self.collateral_per_share[i]
+        for i in range(MAX_TICKS_INT):
+            _n: int256 = n + i
+            old_cps: uint256 = self.collateral_per_share[_n]
+            cps: uint256 = old_cps
+            if len(collateral_per_share) == 0:
+                cps = old_cps
+            else:
+                cps = collateral_per_share[i]
+                self.collateral_per_share[_n] = cps
+            I_rps: IntegralRPS = self.I_rps[_n]
             I_rps.rps += old_cps * (I_rpc.rpc - I_rps.rpc) / 10**18
             I_rps.rpc = I_rpc.rpc
-            self.I_rps[i] = I_rps
-            self.collateral_per_share[i] = cps
-            spb: uint256 = self.shares_per_band[i]
-            if spb > 0 and cps != old_cps:
-                # boosted_collateral += spb * (cps - old_cps) / 10**18
-                old_value: uint256 = spb * old_cps / 10**18
-                boosted_collateral = max(boosted_collateral + spb * cps / 10**18, old_value) - old_value
-            i += 1
+            self.I_rps[_n] = I_rps
+            if cps != old_cps:
+                spb: uint256 = self.shares_per_band[_n]
+                if spb > 0:
+                    # boosted_collateral += spb * (cps - old_cps) / 10**18
+                    old_value: uint256 = spb * old_cps / 10**18
+                    boosted_collateral = max(boosted_collateral + spb * cps / 10**18, old_value) - old_value
+            if i == n_shares:
+                break
 
         self.boosted_collateral = boosted_collateral
+
+
+@external
+def callback_collateral_shares(n: int256, collateral_per_share: DynArray[uint256, MAX_TICKS_UINT]):
+    # It is important that this callback is called every time before callback_user_shares
+    assert msg.sender == AMM
+
+    self._checkpoint_collateral_shares(n, collateral_per_share, 0)
+
 
 @external
 def callback_user_shares(user: address, n: int256, user_shares: DynArray[uint256, MAX_TICKS_UINT]):
     assert msg.sender == AMM
+    # XXX Important!! collateral_shares could be non-updated
 
     if len(user_shares) > 0:
         boosted_collateral: uint256 = self.boosted_collateral
@@ -224,7 +252,7 @@ def callback_user_shares(user: address, n: int256, user_shares: DynArray[uint256
             i += 1
 
         boost: uint256 = self._update_boost(user, collateral_amount)
-        rpu: uint256 = self.rpu[user]
+        rpu: uint256 = self.integrate_fraction[user]
 
         i = n
         j: uint256 = 0
@@ -251,4 +279,34 @@ def callback_user_shares(user: address, n: int256, user_shares: DynArray[uint256
             j += 1
 
         self.boosted_collateral = boosted_collateral
-        self.rpu[user] = rpu
+        self.integrate_fraction[user] = rpu
+
+        # To save: boosted_collateral, integrate_fraction[user], I_rpu[user][*], boosted_shares[user][*],
+        # shares_per_band[*]
+
+
+@external
+def user_checkpoint(addr: address) -> bool:
+    """
+    @notice Record a checkpoint for `addr`
+    @param addr User address
+    @return bool success
+    """
+    assert msg.sender in [addr, MINTER.address]  # dev: unauthorized
+    # self._checkpoint(addr)
+    # XXX
+    # self._update_liquidity_limit(addr, self.balanceOf[addr], self.totalSupply)
+    return True
+
+
+@external
+@view
+def claimable_tokens(addr: address) -> uint256:
+    """
+    @notice Get the number of claimable tokens per user
+    @dev This function should be manually changed to "view" in the ABI
+    @return uint256 number of claimable tokens per user
+    """
+    # self._checkpoint(addr)
+    # XXX
+    return self.integrate_fraction[addr] - MINTER.minted(addr, self)
