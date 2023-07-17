@@ -16,6 +16,7 @@ poetry = "1.4.1"
 [tool.poetry.group.dev.dependencies]
 brownie = "^0.5.1"
 titanoboa = {git = "https://github.com/vyperlang/titanoboa.git", rev = "6ffcfa724023fb2b9f8ed02221c8bcbf4511712c"}
+pycryptodome = "^3.18.0"
 pytest = "^7.2.2"
 hypothesis = "^6.70.1"
 pdbpp = "^0.10.3"
