@@ -229,60 +229,65 @@ def _checkpoint_collateral_shares(n: int256, collateral_per_share: DynArray[uint
 def callback_collateral_shares(n: int256, collateral_per_share: DynArray[uint256, MAX_TICKS_UINT]):
     # It is important that this callback is called every time before callback_user_shares
     assert msg.sender == AMM
-
     self._checkpoint_collateral_shares(n, collateral_per_share, 0)
+
+
+@internal
+def _checkpoint_user_shares(user: address, n: int256, user_shares: DynArray[uint256, MAX_TICKS_UINT], n2: int256):
+    boosted_collateral: uint256 = self.boosted_collateral
+
+    # Calculate the amount of real collateral for the user
+    size: int256 = n2 - n + 1
+    if len(user_shares) > 0:
+        size = convert(len(user_shares), int256)
+    collateral_amount: uint256 = 0
+    user_cps: DynArray[uint256, MAX_TICKS_UINT] = []
+    for i in range(MAX_TICKS_INT):
+        if i == size:
+            break
+        cps: uint256 = self.collateral_per_share[n + i]
+        user_cps.append(cps)
+        if len(user_shares) > 0:
+            collateral_amount += user_shares[i] * cps / 10**18
+    if len(user_shares) == 0:
+        collateral_amount = self.collateral_for_boost[user]
+
+    boost: uint256 = self._update_boost(user, collateral_amount)
+    rpu: uint256 = self.integrate_fraction[user]
+
+    for j in range(MAX_TICKS_INT):
+        i: int256 = n + j
+        if j == size:
+            break
+        old_s: uint256 = self.boosted_shares[user][i]
+        cps: uint256 = user_cps[j]
+        s: uint256 = old_s
+        if len(user_shares) > 0:
+            s = user_shares[j] * boost / 10**18
+            self.boosted_shares[user][i] = s
+
+        I_rpu: IntegralRPU = self.I_rpu[user][i]
+        I_rps: uint256 = self.I_rps[i].rps
+        d_rpu: uint256 = old_s * (I_rps - I_rpu.rps) / 10**18
+        I_rpu.rpu += d_rpu
+        rpu += d_rpu
+        I_rpu.rps = I_rps
+        self.I_rpu[user][i] = I_rpu
+
+        if s != old_s:
+            self.shares_per_band[i] = self.shares_per_band[i] + s - old_s
+            # boosted_collateral += cps * (s - old_s) / 10**18
+            old_value: uint256 = cps * old_s / 10**18
+            boosted_collateral = max(boosted_collateral + cps * s / 10**18, old_value) - old_value
+
+    self.boosted_collateral = boosted_collateral
+    self.integrate_fraction[user] = rpu
 
 
 @external
 def callback_user_shares(user: address, n: int256, user_shares: DynArray[uint256, MAX_TICKS_UINT]):
     assert msg.sender == AMM
-    # XXX Important!! collateral_shares could be non-updated
-
-    if len(user_shares) > 0:
-        boosted_collateral: uint256 = self.boosted_collateral
-
-        # Calculate the amount of real collateral for the user
-        i: int256 = n
-        collateral_amount: uint256 = 0
-        user_cps: DynArray[uint256, MAX_TICKS_UINT] = []
-        for s in user_shares:
-            cps: uint256 = self.collateral_per_share[i]
-            user_cps.append(cps)
-            collateral_amount += s * cps / 10**18
-            i += 1
-
-        boost: uint256 = self._update_boost(user, collateral_amount)
-        rpu: uint256 = self.integrate_fraction[user]
-
-        i = n
-        j: uint256 = 0
-        for unboosted_s in user_shares:
-            old_s: uint256 = self.boosted_shares[user][i]
-            cps: uint256 = user_cps[j]
-            s: uint256 = unboosted_s * boost / 10**18
-            self.boosted_shares[user][i] = s
-
-            I_rpu: IntegralRPU = self.I_rpu[user][i]
-            I_rps: uint256 = self.I_rps[i].rps
-            d_rpu: uint256 = old_s * (I_rps - I_rpu.rps) / 10**18
-            I_rpu.rpu += d_rpu
-            rpu += d_rpu
-            I_rpu.rps = I_rps
-            self.I_rpu[user][i] = I_rpu
-
-            if s != old_s:
-                self.shares_per_band[i] = self.shares_per_band[i] + s - old_s
-                # boosted_collateral += cps * (s - old_s) / 10**18
-                old_value: uint256 = cps * old_s / 10**18
-                boosted_collateral = max(boosted_collateral + cps * s / 10**18, old_value) - old_value
-            i += 1
-            j += 1
-
-        self.boosted_collateral = boosted_collateral
-        self.integrate_fraction[user] = rpu
-
-        # To save: boosted_collateral, integrate_fraction[user], I_rpu[user][*], boosted_shares[user][*],
-        # shares_per_band[*]
+    self._checkpoint_user_shares(user, n, user_shares, 0)
 
 
 @external
