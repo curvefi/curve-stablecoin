@@ -14,6 +14,7 @@ interface Router:
 interface Controller:
     def loan_discount() -> uint256: view
     def amm() -> address: view
+    def calculate_debt_n1(collateral: uint256, debt: uint256, N: uint256) -> int256: view
 
 interface LLAMMA:
     def A() -> uint256: view
@@ -149,6 +150,12 @@ def _calc_collateral_and_avg_price(debt: uint256, route_idx: uint256) -> uint256
     return [collateral, debt * 10**18 / (collateral * COLLATERAL_PRECISION)]
 
 
+@view
+@internal
+def _calc_output(debt: uint256, route_idx: uint256) -> uint256:
+    return ROUTER.get_exchange_multiple_amount(self.routes[route_idx], self.route_params[route_idx], debt, self.route_pools[route_idx])
+
+
 @external
 @view
 def calculate_leverage_n1(collateral: uint256, debt: uint256, N: uint256, route_idx: uint256) -> int256:
@@ -160,46 +167,8 @@ def calculate_leverage_n1(collateral: uint256, debt: uint256, N: uint256, route_
         @param N Number of bands to deposit into
         @return Upper band n1 (n1 <= n2) to deposit into. Signed integer
         """
-    assert debt > 0, "No loan"
-    n0: int256 = AMM.active_band()
-    p_base: uint256 = AMM.p_oracle_up(n0)
-    user_collateral: uint256 = collateral * COLLATERAL_PRECISION
-
-    res: uint256[2] = self._calc_collateral_and_avg_price(debt, route_idx)
-    leverage_collateral: uint256 = res[0] * COLLATERAL_PRECISION
-    p_avg: uint256 = res[1]
-    k_effective: uint256 = self._get_k_effective(user_collateral + leverage_collateral, N)
-    # p_oracle_up(n1) = base_price * ((A - 1) / A)**n1
-
-    # We borrow up until min band touches p_oracle,
-    # or it touches non-empty bands which cannot be skipped.
-    # We calculate required n1 for given (collateral, debt),
-    # and if n1 corresponds to price_oracle being too high, or unreachable band
-    # - we revert.
-
-
-    # p_base * ((A - 1) / A)**n1 = 1 / k_effective * 1 / (collateral/debt + 1/p_avg) =>
-    # => n1 = floor(log2((collateral * p_base / debt + p_base / p_avg) / k_effective) / LOG2_A_RATIO)
-
-    # n1 is band number based on adiabatic trading, e.g. when p_oracle ~ p
-
-    # n1 = floor(log2(y_effective) / self.logAratio)
-    # EVM semantics is not doing floor unlike Python, so we do this
-    assert k_effective > 0, "Amount too low"
-    n1: int256 = self.log2((user_collateral * p_base / debt + p_base * 10**18 / p_avg) * k_effective / 10**18)
-    if n1 < 0:
-        n1 -= LOG2_A_RATIO - 1  # This is to deal with vyper's rounding of negative numbers
-    n1 /= LOG2_A_RATIO
-
-    n1 = min(n1, 1024 - convert(N, int256)) + n0
-    if n1 <= n0:
-        assert AMM.can_skip_bands(n1 - 1), "Debt too high"
-
-    # Let's not rely on active_band corresponding to price_oracle:
-    # this will be not correct if we are in the area of empty bands
-    assert AMM.p_oracle_up(n1) < AMM.price_oracle(), "Debt too high"
-
-    return n1
+    leverage_collateral: uint256 = self._calc_output(debt, route_idx)
+    return Controller(CONTROLLER_ADDRESS).calculate_debt_n1(collateral + leverage_collateral, debt, N)
 
 
 @view
