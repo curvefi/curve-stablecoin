@@ -23,12 +23,15 @@ interface LLAMMA:
     def get_base_price() -> uint256: view
     def price_oracle() -> uint256: view
     def p_oracle_up(n: int256) -> uint256: view
+    def active_band_with_skip() -> int256: view
 
 
 DEAD_SHARES: constant(uint256) = 1000
 MAX_TICKS_UINT: constant(uint256) = 50
+MAX_P_BASE_BANDS: constant(int256) = 5
+MAX_SKIP_TICKS: constant(uint256) = 1024
 
-CONTROLLER_ADDRESS: immutable(address)
+CONTROLLER: immutable(address)
 ROUTER: immutable(Router)
 AMM: immutable(LLAMMA)
 A: immutable(uint256)
@@ -55,7 +58,7 @@ def __init__(
         _route_pools: DynArray[address[4], 20],
         _route_names: DynArray[String[64], 20],
 ):
-    CONTROLLER_ADDRESS = _controller
+    CONTROLLER = _controller
     ROUTER = Router(_router)
 
     amm: address = Controller(_controller).amm()
@@ -130,7 +133,7 @@ def _get_k_effective(collateral: uint256, N: uint256) -> uint256:
     # d_k_effective = N / sqrt(A / (A - 1))
     # d_k_effective: uint256 = 10**18 * unsafe_sub(10**18, discount) / (SQRT_BAND_RATIO * N)
     # Make some extra discount to always deposit lower when we have DEAD_SHARES rounding
-    discount: uint256 = Controller(CONTROLLER_ADDRESS).loan_discount()
+    discount: uint256 = Controller(CONTROLLER).loan_discount()
     d_k_effective: uint256 = 10**18 * unsafe_sub(
         10**18, min(discount + (DEAD_SHARES * 10**18) / max(collateral / N, DEAD_SHARES), 10**18)
     ) / (SQRT_BAND_RATIO * N)
@@ -143,45 +146,107 @@ def _get_k_effective(collateral: uint256, N: uint256) -> uint256:
     return k_effective
 
 
-@view
 @internal
-def _calc_collateral_and_avg_price(debt: uint256, route_idx: uint256) -> uint256[2]:
-    collateral: uint256 = ROUTER.get_exchange_multiple_amount(self.routes[route_idx], self.route_params[route_idx], debt, self.route_pools[route_idx])
-    return [collateral, debt * 10**18 / (collateral * COLLATERAL_PRECISION)]
-
-
 @view
-@internal
-def _calc_output(debt: uint256, route_idx: uint256) -> uint256:
-    return ROUTER.get_exchange_multiple_amount(self.routes[route_idx], self.route_params[route_idx], debt, self.route_pools[route_idx])
-
-
-@external
-@view
-def calculate_leverage_n1(collateral: uint256, debt: uint256, N: uint256, route_idx: uint256) -> int256:
+def _max_p_base() -> uint256:
     """
-        @notice Calculate the upper band number for the deposit to sit in to support
-                the given debt. Reverts if requested debt is too high.
-        @param collateral Amount of collateral (at its native precision)
-        @param debt Amount of requested debt
-        @param N Number of bands to deposit into
-        @return Upper band n1 (n1 <= n2) to deposit into. Signed integer
-        """
-    leverage_collateral: uint256 = self._calc_output(debt, route_idx)
-    return Controller(CONTROLLER_ADDRESS).calculate_debt_n1(collateral + leverage_collateral, debt, N)
+    @notice Calculate max base price including skipping bands
+    """
+    p_oracle: uint256 = AMM.price_oracle()
+    # Should be correct unless price changes suddenly by MAX_P_BASE_BANDS+ bands
+    n1: int256 = unsafe_div(self.log2(AMM.get_base_price() * 10**18 / p_oracle), LOG2_A_RATIO) + MAX_P_BASE_BANDS
+    p_base: uint256 = AMM.p_oracle_up(n1)
+    n_min: int256 = AMM.active_band_with_skip()
+
+    for i in range(MAX_SKIP_TICKS + 1):
+        n1 -= 1
+        if n1 <= n_min:
+            break
+        p_base_prev: uint256 = p_base
+        p_base = unsafe_div(p_base * A, Aminus1)
+        if p_base > p_oracle:
+            return p_base_prev
+
+    return p_base
+
+
+@view
+@internal
+def _get_collateral(stablecoin: uint256, route_idx: uint256) -> uint256:
+    return ROUTER.get_exchange_multiple_amount(self.routes[route_idx], self.route_params[route_idx], stablecoin, self.route_pools[route_idx])
+
+
+@view
+@internal
+def _get_collateral_and_avg_price(stablecoin: uint256, route_idx: uint256) -> uint256[2]:
+    collateral: uint256 = self._get_collateral(stablecoin, route_idx)
+    return [collateral, stablecoin * 10**18 / (collateral * COLLATERAL_PRECISION)]
 
 
 @view
 @external
 @nonreentrant('lock')
-def calc_output(debt: uint256, route_idx: uint256) -> uint256:
-    return ROUTER.get_exchange_multiple_amount(self.routes[route_idx], self.route_params[route_idx], debt, self.route_pools[route_idx])
+def get_collateral(stablecoin: uint256, route_idx: uint256) -> uint256:
+    return ROUTER.get_exchange_multiple_amount(self.routes[route_idx], self.route_params[route_idx], stablecoin, self.route_pools[route_idx])
+
+
+@external
+@view
+def calculate_debt_n1(collateral: uint256, debt: uint256, N: uint256, route_idx: uint256) -> int256:
+    """
+        @notice Calculate the upper band number for the deposit to sit in to support
+                the given debt with full leverage, which means that all borrowed
+                stablecoin is converted to collateral coin and deposited in addition
+                to collateral provided by user. Reverts if requested debt is too high.
+        @param collateral Amount of collateral (at its native precision)
+        @param debt Amount of requested debt
+        @param N Number of bands to deposit into
+        @param route_idx Index of the route which should be use for exchange stablecoin to collateral
+        @return Upper band n1 (n1 <= n2) to deposit into. Signed integer
+        """
+    leverage_collateral: uint256 = self._get_collateral(debt, route_idx)
+    return Controller(CONTROLLER).calculate_debt_n1(collateral + leverage_collateral, debt, N)
+
+
+@external
+@view
+def max_borrowable(collateral: uint256, N: uint256, route_idx: uint256) -> uint256:
+    """
+        @notice Calculation of maximum which can be borrowed with leverage
+        @param collateral Amount of collateral (at its native precision)
+        @param N Number of bands to deposit into
+        @param route_idx Index of the route which should be use for exchange stablecoin to collateral
+        @return Maximum amount of stablecoin to borrow with leverage
+        """
+    # max_borrowable = collateral / (1 / (k_effective * max_p_base) - 1 / p_avg)
+    user_collateral: uint256 = collateral * COLLATERAL_PRECISION
+    leverage_collateral: uint256 = 0
+    k_effective: uint256 = self._get_k_effective(user_collateral + leverage_collateral, N)
+    max_p_base: uint256 = self._max_p_base()
+    p_avg: uint256 = AMM.price_oracle()
+    max_borrowable_prev: uint256 = 0
+    max_borrowable: uint256 = 0
+    for i in range(255):
+        max_borrowable_prev = max_borrowable
+        max_borrowable = user_collateral * 10**18 / (10**36 / k_effective * 10**18 / max_p_base - 10**36 / p_avg)
+        if max_borrowable > max_borrowable_prev:
+            if max_borrowable - max_borrowable_prev <= 1:
+                return max_borrowable
+        else:
+            if max_borrowable_prev - max_borrowable <= 1:
+                return max_borrowable
+        res: uint256[2] = self._get_collateral_and_avg_price(max_borrowable, route_idx)
+        leverage_collateral = res[0]
+        p_avg = res[1]
+        k_effective = self._get_k_effective(user_collateral + leverage_collateral, N)
+
+    return max_borrowable
 
 
 @external
 @nonreentrant('lock')
 def callback_deposit(user: address, stablecoins: uint256, collateral: uint256, debt: uint256, callback_args: DynArray[uint256, 5]) -> uint256[2]:
-    assert msg.sender == CONTROLLER_ADDRESS
+    assert msg.sender == CONTROLLER
 
     route_idx: uint256 = callback_args[0]
     min_recv: uint256 = callback_args[1]
