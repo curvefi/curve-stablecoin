@@ -6,6 +6,9 @@ without understanding.
 """
 from vyper.interfaces import ERC20
 
+interface Factory:
+    def get_amm(collateral: address, i: uint256) -> address: view
+
 interface LLAMMA:
     def coins(i: uint256) -> address: view
 
@@ -40,8 +43,11 @@ MAX_TICKS_INT: constant(int256) = 50
 TOKENLESS_PRODUCTION: constant(uint256) = 40
 WEEK: constant(uint256) = 604800
 
-AMM: public(immutable(address))
+amm: public(address)
+
+FACTORY: immutable(Factory)
 COLLATERAL_TOKEN: public(immutable(ERC20))
+COLLATERAL_INDEX: public(immutable(uint256))
 VECRV: public(immutable(ERC20))
 CRV: public(immutable(CRV20))
 VEBOOST_PROXY: public(immutable(VotingEscrowBoost))
@@ -110,19 +116,27 @@ integrate_fraction: public(HashMap[address, uint256])
 
 
 @external
-def __init__(amm: address, crv: CRV20, vecrv: ERC20, veboost_proxy: VotingEscrowBoost, gc: GaugeController,
-             minter: Minter):
-    # XXX change amm to factory+collateral+index
-    AMM = amm
-    COLLATERAL_TOKEN = ERC20(LLAMMA(amm).coins(1))
+def __init__(factory: Factory, collateral: ERC20, c_index: uint256,
+             crv: CRV20, vecrv: ERC20, veboost_proxy: VotingEscrowBoost, gc: GaugeController, minter: Minter):
+    # Init is done by deployer but the contract starts operating after creation of the market
+    # The actual initialization is done by the vote which creates the market just before
+    FACTORY = factory
+    COLLATERAL_TOKEN = collateral
+    COLLATERAL_INDEX = c_index
     VECRV = vecrv
     VEBOOST_PROXY = veboost_proxy
     CRV = crv
     GAUGE_CONTROLLER = gc
     MINTER = minter
 
-    self.inflation_rate = crv.rate()
-    self.future_epoch_time = crv.future_epoch_time_write()
+
+@external
+def initialize():
+    amm: address = FACTORY.get_amm(COLLATERAL_TOKEN.address, COLLATERAL_INDEX)
+    self.amm = amm
+    assert COLLATERAL_TOKEN == ERC20(LLAMMA(amm).coins(1))
+    self.inflation_rate = CRV.rate()
+    self.future_epoch_time = CRV.future_epoch_time_write()
 
 
 @internal
@@ -230,7 +244,7 @@ def _checkpoint_collateral_shares(n: int256, collateral_per_share: DynArray[uint
 @external
 def callback_collateral_shares(n: int256, collateral_per_share: DynArray[uint256, MAX_TICKS_UINT]):
     # It is important that this callback is called every time before callback_user_shares
-    assert msg.sender == AMM
+    assert msg.sender == self.amm
     self._checkpoint_collateral_shares(n, collateral_per_share, 0)
 
 
@@ -291,7 +305,7 @@ def _checkpoint_user_shares(user: address, n: int256, user_shares: DynArray[uint
 
 @external
 def callback_user_shares(user: address, n: int256, user_shares: DynArray[uint256, MAX_TICKS_UINT]):
-    assert msg.sender == AMM
+    assert msg.sender == self.amm
     self.user_band[user] = n
     self.user_range_size[user] = len(user_shares)
     self._checkpoint_user_shares(user, n, user_shares, 0)
@@ -304,6 +318,7 @@ def user_checkpoint(addr: address) -> bool:
     @param addr User address
     @return bool success
     """
+    assert self.amm != empty(address)  # dev: not initialized
     assert msg.sender in [addr, MINTER.address]  # dev: unauthorized
     n: int256 = self.user_band[addr]
     size: uint256 = self.user_range_size[addr]
@@ -313,13 +328,15 @@ def user_checkpoint(addr: address) -> bool:
 
 
 @external
-@view
 def claimable_tokens(addr: address) -> uint256:
     """
     @notice Get the number of claimable tokens per user
     @dev This function should be manually changed to "view" in the ABI
     @return uint256 number of claimable tokens per user
     """
-    # self._checkpoint(addr)
-    # XXX
+    assert self.amm != empty(address)  # dev: not initialized
+    n: int256 = self.user_band[addr]
+    size: uint256 = self.user_range_size[addr]
+    self._checkpoint_collateral_shares(n, [], size)
+    self._checkpoint_user_shares(addr, n, [], size)
     return self.integrate_fraction[addr] - MINTER.minted(addr, self)
