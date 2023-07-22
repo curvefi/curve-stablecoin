@@ -58,6 +58,7 @@ collateral_per_share: public(HashMap[int256, uint256])
 shares_per_band: public(HashMap[int256, uint256])  # This only counts staked shares
 
 boosted_shares: public(HashMap[address, HashMap[int256, uint256]])
+user_tick_numbers: public(HashMap[address,int256[2]])
 
 # Tracking of mining period
 inflation_rate: public(uint256)
@@ -152,12 +153,12 @@ def _update_boost(user: address, collateral_amount: uint256) -> uint256:
 
 
 @internal
-def _checkpoint_collateral_shares(n: int256, collateral_per_share: DynArray[uint256, MAX_TICKS_UINT], n2: int256):
+def _checkpoint_collateral_shares(n: int256, collateral_per_share: DynArray[uint256, MAX_TICKS_UINT], size: uint256):
     n_shares: int256 = 0
-    if len(collateral_per_share) > 0:
-        n_shares = convert(len(collateral_per_share), int256)
+    if len(collateral_per_share) == 0:
+        n_shares = convert(size, int256)
     else:
-        n_shares = n2 - n + 1
+        n_shares = convert(len(collateral_per_share), int256)
 
     # Read current and new rate; update the new rate if needed
     I_rpc: IntegralRPC = self.I_rpc
@@ -233,17 +234,20 @@ def callback_collateral_shares(n: int256, collateral_per_share: DynArray[uint256
 
 
 @internal
-def _checkpoint_user_shares(user: address, n: int256, user_shares: DynArray[uint256, MAX_TICKS_UINT], n2: int256):
+def _checkpoint_user_shares(user: address, n: int256, user_shares: DynArray[uint256, MAX_TICKS_UINT], size: uint256):
     boosted_collateral: uint256 = self.boosted_collateral
 
     # Calculate the amount of real collateral for the user
-    size: int256 = n2 - n + 1
-    if len(user_shares) > 0:
-        size = convert(len(user_shares), int256)
+    n_shares: int256 = 0
+    if len(user_shares) == 0:
+        n_shares = convert(size, int256)
+    else:
+        n_shares = convert(len(user_shares), int256)
+
     collateral_amount: uint256 = 0
     user_cps: DynArray[uint256, MAX_TICKS_UINT] = []
     for i in range(MAX_TICKS_INT):
-        if i == size:
+        if i == n_shares:
             break
         cps: uint256 = self.collateral_per_share[n + i]
         user_cps.append(cps)
@@ -257,7 +261,7 @@ def _checkpoint_user_shares(user: address, n: int256, user_shares: DynArray[uint
 
     for j in range(MAX_TICKS_INT):
         i: int256 = n + j
-        if j == size:
+        if j == n_shares:
             break
         old_s: uint256 = self.boosted_shares[user][i]
         cps: uint256 = user_cps[j]
