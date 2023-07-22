@@ -58,7 +58,8 @@ collateral_per_share: public(HashMap[int256, uint256])
 shares_per_band: public(HashMap[int256, uint256])  # This only counts staked shares
 
 boosted_shares: public(HashMap[address, HashMap[int256, uint256]])
-user_tick_numbers: public(HashMap[address,int256[2]])
+user_band: public(HashMap[address,int256])
+user_range_size: public(HashMap[address,uint256])
 
 # Tracking of mining period
 inflation_rate: public(uint256)
@@ -291,6 +292,8 @@ def _checkpoint_user_shares(user: address, n: int256, user_shares: DynArray[uint
 @external
 def callback_user_shares(user: address, n: int256, user_shares: DynArray[uint256, MAX_TICKS_UINT]):
     assert msg.sender == AMM
+    self.user_band[user] = n
+    self.user_range_size[user] = len(user_shares)
     self._checkpoint_user_shares(user, n, user_shares, 0)
 
 
@@ -302,9 +305,10 @@ def user_checkpoint(addr: address) -> bool:
     @return bool success
     """
     assert msg.sender in [addr, MINTER.address]  # dev: unauthorized
-    # self._checkpoint(addr)
-    # XXX
-    # self._update_liquidity_limit(addr, self.balanceOf[addr], self.totalSupply)
+    n: int256 = self.user_band[addr]
+    size: uint256 = self.user_range_size[addr]
+    self._checkpoint_collateral_shares(n, [], size)
+    self._checkpoint_user_shares(addr, n, [], size)
     return True
 
 
