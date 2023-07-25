@@ -240,7 +240,7 @@ def max_borrowable(collateral: uint256, N: uint256, route_idx: uint256) -> uint2
         p_avg = res[1]
         k_effective = self._get_k_effective(user_collateral + leverage_collateral, N)
 
-    return max_borrowable
+    return max_borrowable * 999 / 1000
 
 
 @external
