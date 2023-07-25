@@ -31,6 +31,8 @@ MAX_TICKS_UINT: constant(uint256) = 50
 MAX_P_BASE_BANDS: constant(int256) = 5
 MAX_SKIP_TICKS: constant(uint256) = 1024
 
+CRVUSD: constant(address) = 0xf939E0A03FB07F59A73314E73794Be0E57ac1b4E
+
 CONTROLLER: immutable(address)
 ROUTER: immutable(Router)
 AMM: immutable(LLAMMA)
@@ -50,7 +52,6 @@ routes_count: public(uint256)
 @external
 def __init__(
         _controller: address,
-        _crvusd: address,
         _collateral: address,
         _router: address,
         _routes: DynArray[address[9], 20],
@@ -79,7 +80,7 @@ def __init__(
         self.route_names[i] = _route_names[i]
     self.routes_count = len(_routes)
 
-    ERC20(_crvusd).approve(_router, max_value(uint256), default_return_value=True)
+    ERC20(CRVUSD).approve(_router, max_value(uint256), default_return_value=True)
     ERC20(_collateral).approve(_controller, max_value(uint256), default_return_value=True)
 
 
