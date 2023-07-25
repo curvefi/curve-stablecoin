@@ -63,7 +63,7 @@ def __init__(
         _route_names: DynArray[String[64], 20],
 ):
     CONTROLLER = _controller
-    COLLATERAL = ISFRXETH(_collateral)
+    SFRXETH = ISFRXETH(_collateral)
     ROUTER = Router(_router)
 
     amm: address = Controller(_controller).amm()
