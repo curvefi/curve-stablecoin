@@ -187,7 +187,7 @@ def _get_collateral_and_avg_price(stablecoin: uint256, route_idx: uint256) -> ui
 @external
 @nonreentrant('lock')
 def get_collateral(stablecoin: uint256, route_idx: uint256) -> uint256:
-    return ROUTER.get_exchange_multiple_amount(self.routes[route_idx], self.route_params[route_idx], stablecoin, self.route_pools[route_idx])
+    return self._get_collateral(stablecoin, route_idx)
 
 
 @external
