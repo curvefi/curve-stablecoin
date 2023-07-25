@@ -79,8 +79,8 @@ def __init__(
         self.route_names[i] = _route_names[i]
     self.routes_count = len(_routes)
 
-    ERC20(_crvusd).approve(_controller, max_value(uint256), default_return_value=True)
-    ERC20(_collateral).approve(_router, max_value(uint256), default_return_value=True)
+    ERC20(_crvusd).approve(_router, max_value(uint256), default_return_value=True)
+    ERC20(_collateral).approve(_controller, max_value(uint256), default_return_value=True)
 
 
 @internal
