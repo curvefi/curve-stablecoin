@@ -1,10 +1,8 @@
 # @version 0.3.7
 
 interface ERC20:
-    def transfer(_to: address, _value: uint256) -> bool: nonpayable
-    def transferFrom(_from: address, _to: address, _value: uint256) -> bool: nonpayable
-    def approve(_spender: address, _value: uint256) -> bool: nonpayable
     def balanceOf(_for: address) -> uint256: view
+    def approve(_spender: address, _value: uint256) -> bool: nonpayable
     def decimals() -> uint256: view
 
 interface Router:
@@ -241,7 +239,7 @@ def max_borrowable(collateral: uint256, N: uint256, route_idx: uint256) -> uint2
         p_avg = res[1]
         k_effective = self._get_k_effective(user_collateral + leverage_collateral, N)
 
-    return max_borrowable * 999 / 1000
+    return min(max_borrowable * 999 / 1000, ERC20(CRVUSD).balanceOf(CONTROLLER)) # Cannot borrow beyond the amount of coins Controller has
 
 
 @external
