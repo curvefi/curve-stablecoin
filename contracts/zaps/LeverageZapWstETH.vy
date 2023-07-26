@@ -86,7 +86,7 @@ def __init__(
 
     ERC20(CRVUSD).approve(_router, max_value(uint256), default_return_value=True)
     WSTETH.approve(_controller, max_value(uint256), default_return_value=True)
-    # ERC20(STETH).approve(WSTETH, max_value(uint256), default_return_value=True)
+    # ERC20(STETH).approve(WSTETH.address, max_value(uint256), default_return_value=True)
 
 
 @internal
@@ -208,16 +208,16 @@ def get_collateral_underlying(stablecoin: uint256, route_idx: uint256) -> uint25
 @view
 def calculate_debt_n1(collateral: uint256, debt: uint256, N: uint256, route_idx: uint256) -> int256:
     """
-        @notice Calculate the upper band number for the deposit to sit in to support
-                the given debt with full leverage, which means that all borrowed
-                stablecoin is converted to collateral coin and deposited in addition
-                to collateral provided by user. Reverts if requested debt is too high.
-        @param collateral Amount of collateral (at its native precision)
-        @param debt Amount of requested debt
-        @param N Number of bands to deposit into
-        @param route_idx Index of the route which should be use for exchange stablecoin to collateral
-        @return Upper band n1 (n1 <= n2) to deposit into. Signed integer
-        """
+    @notice Calculate the upper band number for the deposit to sit in to support
+            the given debt with full leverage, which means that all borrowed
+            stablecoin is converted to collateral coin and deposited in addition
+            to collateral provided by user. Reverts if requested debt is too high.
+    @param collateral Amount of collateral (at its native precision)
+    @param debt Amount of requested debt
+    @param N Number of bands to deposit into
+    @param route_idx Index of the route which should be use for exchange stablecoin to collateral
+    @return Upper band n1 (n1 <= n2) to deposit into. Signed integer
+    """
     leverage_collateral: uint256 = self._get_collateral(debt, route_idx)
     return Controller(CONTROLLER).calculate_debt_n1(collateral + leverage_collateral, debt, N)
 
@@ -226,12 +226,12 @@ def calculate_debt_n1(collateral: uint256, debt: uint256, N: uint256, route_idx:
 @view
 def max_borrowable(collateral: uint256, N: uint256, route_idx: uint256) -> uint256:
     """
-        @notice Calculation of maximum which can be borrowed with leverage
-        @param collateral Amount of collateral (at its native precision)
-        @param N Number of bands to deposit into
-        @param route_idx Index of the route which should be use for exchange stablecoin to collateral
-        @return Maximum amount of stablecoin to borrow with leverage
-        """
+    @notice Calculation of maximum which can be borrowed with leverage
+    @param collateral Amount of collateral (at its native precision)
+    @param N Number of bands to deposit into
+    @param route_idx Index of the route which should be use for exchange stablecoin to collateral
+    @return Maximum amount of stablecoin to borrow with leverage
+    """
     # max_borrowable = collateral / (1 / (k_effective * max_p_base) - 1 / p_avg)
     user_collateral: uint256 = collateral * COLLATERAL_PRECISION
     leverage_collateral: uint256 = 0
@@ -240,7 +240,7 @@ def max_borrowable(collateral: uint256, N: uint256, route_idx: uint256) -> uint2
     p_avg: uint256 = AMM.price_oracle()
     max_borrowable_prev: uint256 = 0
     max_borrowable: uint256 = 0
-    for i in range(255):
+    for i in range(10):
         max_borrowable_prev = max_borrowable
         max_borrowable = user_collateral * 10**18 / (10**36 / k_effective * 10**18 / max_p_base - 10**36 / p_avg)
         if max_borrowable > max_borrowable_prev:
