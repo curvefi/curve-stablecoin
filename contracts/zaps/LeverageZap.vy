@@ -189,6 +189,16 @@ def get_collateral(stablecoin: uint256, route_idx: uint256) -> uint256:
     return self._get_collateral(stablecoin, route_idx)
 
 
+@view
+@external
+@nonreentrant('lock')
+def get_collateral_underlying(stablecoin: uint256, route_idx: uint256) -> uint256:
+    """
+    @notice This method is needed just to make ABI the same as ABI for sfrxETH and wstETH
+    """
+    return self._get_collateral(stablecoin, route_idx)
+
+
 @external
 @view
 def calculate_debt_n1(collateral: uint256, debt: uint256, N: uint256, route_idx: uint256) -> int256:
