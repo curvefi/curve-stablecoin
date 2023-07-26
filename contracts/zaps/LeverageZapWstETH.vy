@@ -23,7 +23,6 @@ interface LLAMMA:
     def active_band_with_skip() -> int256: view
 
 interface IWSTETH:
-    def approve(_spender: address, _value: uint256) -> bool: nonpayable
     def getWstETHByStETH(_stETHAmount: uint256) -> uint256: view
     def wrap(_stETHAmount: uint256) -> uint256: nonpayable
 
@@ -86,8 +85,8 @@ def __init__(
     self.routes_count = len(_routes)
 
     ERC20(CRVUSD).approve(_router, max_value(uint256), default_return_value=True)
-    WSTETH.approve(_controller, max_value(uint256), default_return_value=True)
-    # ERC20(STETH).approve(WSTETH.address, max_value(uint256), default_return_value=True)
+    ERC20(_collateral).approve(_controller, max_value(uint256), default_return_value=True)
+    ERC20(STETH).approve(WSTETH.address, max_value(uint256), default_return_value=True)
 
 
 @internal
