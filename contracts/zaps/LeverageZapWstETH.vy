@@ -195,7 +195,7 @@ def _get_collateral_and_avg_price(stablecoin: uint256, route_idx: uint256) -> ui
 @nonreentrant('lock')
 def get_collateral(stablecoin: uint256, route_idx: uint256) -> uint256:
     """
-    @notice Calculate the expected amount of leverage wstETH
+    @notice Calculate the expected amount of wstETH by given stablecoin amount
     @param stablecoin Amount of stablecoin
     @param route_idx Index of the route to use
     @return Amount of wstETH
@@ -208,7 +208,7 @@ def get_collateral(stablecoin: uint256, route_idx: uint256) -> uint256:
 @nonreentrant('lock')
 def get_collateral_underlying(stablecoin: uint256, route_idx: uint256) -> uint256:
     """
-    @notice Calculate the expected amount of leverage stETH
+    @notice Calculate the expected amount of stETH by given stablecoin amount
     @param stablecoin Amount of stablecoin
     @param route_idx Index of the route to use
     @return Amount of stETH
@@ -234,9 +234,9 @@ def calculate_debt_n1(collateral: uint256, debt: uint256, N: uint256, route_idx:
     return Controller(CONTROLLER).calculate_debt_n1(collateral + leverage_collateral, debt, N)
 
 
-@external
+@internal
 @view
-def max_borrowable(collateral: uint256, N: uint256, route_idx: uint256) -> uint256:
+def _max_borrowable(collateral: uint256, N: uint256, route_idx: uint256) -> uint256:
     """
     @notice Calculation of maximum which can be borrowed with leverage
     @param collateral Amount of collateral (at its native precision)
@@ -267,6 +267,49 @@ def max_borrowable(collateral: uint256, N: uint256, route_idx: uint256) -> uint2
         k_effective = self._get_k_effective(user_collateral + leverage_collateral, N)
 
     return min(max_borrowable * 999 / 1000, ERC20(CRVUSD).balanceOf(CONTROLLER)) # Cannot borrow beyond the amount of coins Controller has
+
+
+@external
+@view
+def max_borrowable(collateral: uint256, N: uint256, route_idx: uint256) -> uint256:
+    """
+    @notice Calculation of maximum which can be borrowed with leverage
+    @param collateral Amount of collateral (at its native precision)
+    @param N Number of bands to deposit into
+    @param route_idx Index of the route which should be use for exchange stablecoin to collateral
+    @return Maximum amount of stablecoin to borrow with leverage
+    """
+    return self._max_borrowable(collateral, N ,route_idx)
+
+
+@external
+@view
+def max_collateral(collateral: uint256, N: uint256, route_idx: uint256) -> uint256:
+    """
+    @notice Calculation of maximum collateral position which can be created with leverage
+    @param collateral Amount of collateral (at its native precision)
+    @param N Number of bands to deposit into
+    @param route_idx Index of the route which should be use for exchange stablecoin to collateral
+    @return user_collateral + max_leverage_collateral
+    """
+    max_borrowable: uint256 = self._max_borrowable(collateral, N, route_idx)
+    max_leverage_collateral: uint256 = self._get_collateral(max_borrowable, route_idx)
+    return collateral + max_leverage_collateral
+
+
+@external
+@view
+def max_borrowable_and_collateral(collateral: uint256, N: uint256, route_idx: uint256) -> uint256[2]:
+    """
+    @notice Calculation of maximum which can be borrowed with leverage and maximum collateral position which can be created then
+    @param collateral Amount of collateral (at its native precision)
+    @param N Number of bands to deposit into
+    @param route_idx Index of the route which should be use for exchange stablecoin to collateral
+    @return [max_borrowable, user_collateral + max_leverage_collateral]
+    """
+    max_borrowable: uint256 = self._max_borrowable(collateral, N, route_idx)
+    max_leverage_collateral: uint256 = self._get_collateral(max_borrowable, route_idx)
+    return [max_borrowable, collateral + max_leverage_collateral]
 
 
 @external
