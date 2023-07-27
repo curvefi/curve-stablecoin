@@ -1,42 +1,9 @@
-from ape import Contract, Project, accounts
-
-
-def mint_tokens_for_testing(project: Project, account):
-    """
-    Provides given account with 100 WBTC and 1000 ETH, sfrxETH, wstETH
-    Can be used only on local forked mainnet
-
-    :return: None
-    """
-
-    # WBTC
-    token_contract = Contract("0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599")
-    token_owner = "0x9ff58f4fFB29fA2266Ab25e75e2A8b3503311656"
-    project.provider.set_balance(token_owner, 10**18)
-    amount = 100 * 10**8
-    token_contract.transfer(account, amount, sender=accounts[token_owner])
-    assert token_contract.balanceOf(account.address) >= amount
-
-    # ETH
-    # Set balance to twice amount + 1 - half will be wrapped + (potential) gas
-    project.provider.set_balance(account.address, 1000 * 10**18)
-    assert account.balance >= 1000 * 10**18
-
-    # sfrxETH
-    token_contract = Contract("0xac3e018457b222d93114458476f3e3416abbe38f")
-    token_owner = "0xBA12222222228d8Ba445958a75a0704d566BF2C8"
-    project.provider.set_balance(token_owner, 10**18)
-    amount = 1000 * 10**18
-    token_contract.transfer(account, amount, sender=accounts[token_owner])
-    assert token_contract.balanceOf(account.address) >= amount
-
-    # wstETH
-    token_contract = Contract("0x7f39C581F595B53c5cb19bD0b3f8dA6c935E2Ca0")
-    token_owner = "0x0B925eD163218f6662a35e0f0371Ac234f9E9371"
-    project.provider.set_balance(token_owner, 10 ** 18)
-    amount = 1000 * 10 ** 18
-    token_contract.transfer(account, amount, sender=accounts[token_owner])
-    assert token_contract.balanceOf(account.address) >= amount
+from time import sleep
+from ape import project, accounts, Contract
+from ape.cli import NetworkBoundCommand, network_option
+from ape import chain
+# account_option could be used when in prod?
+import click
 
 
 CRVUSD = "0xf939e0a03fb07f59a73314e73794be0e57ac1b4e"
@@ -57,13 +24,6 @@ CONTROLLERS = {
     "wstETH": "0x100daa78fc509db39ef7d04de0c1abd299f4c6ce",
     "WBTC": "0x4e59541306910ad6dc1dac0ac9dfb29bd9f15c67",
     "WETH": "0xa920de414ea4ab66b97da1bfe9e6eca7d4219635",
-}
-
-LLAMMAS = {
-    "sfrxETH": "0x136e783846ef68c8bd00a3369f787df8d683a696",
-    "wstETH": "0x37417b2238aa52d0dd2d6252d989e728e8f706e4",
-    "WBTC": "0xe0438eb3703bf871e31ce639bd351109c88666ea",
-    "WETH": "0x1681195c176239ac5e72d9aebacf5b2492e0c4ee",
 }
 
 CRVUSD_POOLS = {
@@ -504,3 +464,57 @@ ROUTER_PARAMS = {
         },
     }
 }
+
+
+@click.group()
+def cli():
+    """
+    Script for test leverage
+    """
+
+
+@cli.command(
+    cls=NetworkBoundCommand,
+)
+@network_option()
+def deploy(network):
+    account = accounts.test_accounts[0]
+
+    leverage_contracts = {}
+    for collateral in COLLATERALS.keys():
+        routes = []
+        route_params = []
+        route_pools = []
+        route_names = []
+        for route in ROUTER_PARAMS[collateral].values():
+            routes.append(route["route"])
+            route_params.append(route["swap_params"])
+            route_pools.append(route["factory_swap_addresses"])
+            route_names.append(route["name"])
+
+        contract = project.LeverageZap
+        if collateral == "sfrxETH":
+            contract = project.LeverageZapSfrxETH
+        if collateral == "wstETH":
+            contract = project.LeverageZapWstETH
+        leverage_contracts[collateral] = contract.deploy(
+            CONTROLLERS[collateral],
+            COLLATERALS[collateral],
+            ROUTER,
+            routes,
+            route_params,
+            route_pools,
+            route_names,
+            sender=account,
+        )
+
+
+    print('========================')
+    print('sfrxETH:           ', leverage_contracts["sfrxETH"].address)
+    print('wstETH:            ', leverage_contracts["wstETH"].address)
+    print('WBTC:              ', leverage_contracts["WBTC"].address)
+    print('WETH:              ', leverage_contracts["WETH"].address)
+
+
+    import IPython
+    IPython.embed()
