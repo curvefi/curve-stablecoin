@@ -194,6 +194,12 @@ def _get_collateral_and_avg_price(stablecoin: uint256, route_idx: uint256) -> ui
 @external
 @nonreentrant('lock')
 def get_collateral(stablecoin: uint256, route_idx: uint256) -> uint256:
+    """
+    @notice Calculate the expected amount of leverage sfrxETH
+    @param stablecoin Amount of stablecoin
+    @param route_idx Index of the route to use
+    @return Amount of sfrxETH
+    """
     return self._get_collateral(stablecoin, route_idx)
 
 
@@ -201,6 +207,12 @@ def get_collateral(stablecoin: uint256, route_idx: uint256) -> uint256:
 @external
 @nonreentrant('lock')
 def get_collateral_underlying(stablecoin: uint256, route_idx: uint256) -> uint256:
+    """
+    @notice Calculate the expected amount of leverage frxETH
+    @param stablecoin Amount of stablecoin
+    @param route_idx Index of the route to use
+    @return Amount of frxETH
+    """
     return ROUTER.get_exchange_multiple_amount(self.routes[route_idx], self.route_params[route_idx], stablecoin, self.route_pools[route_idx])
 
 
@@ -260,6 +272,15 @@ def max_borrowable(collateral: uint256, N: uint256, route_idx: uint256) -> uint2
 @external
 @nonreentrant('lock')
 def callback_deposit(user: address, stablecoins: uint256, collateral: uint256, debt: uint256, callback_args: DynArray[uint256, 5]) -> uint256[2]:
+    """
+    @notice Callback method which should be called by controller to create leveraged position
+    @param user Address of the user
+    @param stablecoins Amount of stablecoin (always = 0)
+    @param collateral Amount of collateral given by user
+    @param debt Borrowed amount
+    @param callback_args [route_idx, min_recv]
+    return [0, leverage_collateral], leverage_collateral is the amount of collateral got as a result of selling borrowed stablecoin
+    """
     assert msg.sender == CONTROLLER
 
     route_idx: uint256 = callback_args[0]
