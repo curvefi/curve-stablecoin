@@ -1,5 +1,5 @@
 from time import sleep
-from ape import project, accounts, Contract
+from ape import project, accounts, Contract, networks
 from ape.cli import NetworkBoundCommand, network_option
 from ape import chain
 # account_option could be used when in prod?
@@ -478,7 +478,25 @@ def cli():
 )
 @network_option()
 def deploy(network):
-    account = accounts.test_accounts[0]
+    kw = {}
+
+    # Deployer address
+    if ':local:' in network:
+        account = accounts.test_accounts[0]
+    elif ':mainnet:' in network:
+        account = accounts.load('babe')
+        account.set_autosign(True)
+        max_base_fee = networks.active_provider.base_fee * 2
+        kw = {
+            'max_fee': max_base_fee,
+            'max_priority_fee': min(int(0.5e9), max_base_fee)}
+    else:
+        account = "0xbabe61887f1de2713c6f97e567623453d3C79f67"
+        if account in accounts:
+            account = accounts.load('babe')
+            account.set_autosign(True)
+        else:
+            account = accounts.test_accounts[0]
 
     leverage_contracts = {}
     for collateral in COLLATERALS.keys():
@@ -497,7 +515,8 @@ def deploy(network):
             contract = project.LeverageZapSfrxETH
         if collateral == "wstETH":
             contract = project.LeverageZapWstETH
-        leverage_contracts[collateral] = contract.deploy(
+        leverage_contracts[collateral] = account.deploy(
+            contract,
             CONTROLLERS[collateral],
             COLLATERALS[collateral],
             ROUTER,
@@ -505,7 +524,7 @@ def deploy(network):
             route_params,
             route_pools,
             route_names,
-            sender=account,
+            **kw,
         )
 
 
