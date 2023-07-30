@@ -401,6 +401,7 @@ def _p_oracle_up(n: int256) -> uint256:
         unsafe_mul(convert(unsafe_div(p, q), uint256), 3822833074963236453042738258902158003155416615667),
         unsafe_sub(k, 195))
     ## End exp
+    assert exp_result > 1000  # dev: limit precision of the multiplier
     return unsafe_div(self._base_price() * exp_result, 10**18)
 
 
