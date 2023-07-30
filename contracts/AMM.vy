@@ -748,7 +748,7 @@ def deposit_range(user: address, amount: uint256, n1: int256, n2: int256):
 @nonreentrant('lock')
 def withdraw(user: address, frac: uint256) -> uint256[2]:
     """
-    @notice Withdraw all liquidity for the user. Only admin contract can do it
+    @notice Withdraw liquidity for the user. Only admin contract can do it
     @param user User who owns liquidity
     @param frac Fraction to withdraw (1e18 being 100%)
     @return Amount of [stablecoins, collateral] withdrawn
@@ -992,7 +992,7 @@ def _get_dxdy(i: uint256, j: uint256, amount: uint256, is_in: bool) -> DetailedT
     @notice Method to use to calculate out amount and spent in amount
     @param i Input coin index
     @param j Output coin index
-    @param amount Amount of input coin to swap
+    @param amount Amount of input or output coin to swap
     @param is_in Whether IN our OUT amount is known
     @return DetailedTrade with all swap results
     """
