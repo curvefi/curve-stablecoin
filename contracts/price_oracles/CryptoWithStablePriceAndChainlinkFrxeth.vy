@@ -1,4 +1,4 @@
-# @version 0.3.7
+# @version 0.3.9
 """
 @title CryptoWithStablePriceAndChainlinkFrxeth - price oracle for tricrypto+sfrxeth with Chainlink limits for crvUSD
 @author Curve.Fi

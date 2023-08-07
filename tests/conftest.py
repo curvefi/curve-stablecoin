@@ -1,15 +1,11 @@
 import os
 from datetime import timedelta
 from math import log
-from typing import Any, Callable, List
+from typing import Any, Callable
 
 import boa
 import pytest
-from boa.environment import AddressT
 from hypothesis import settings
-
-boa.interpret.set_cache_dir()
-boa.reset_env()
 
 
 PRICE = 3000
@@ -35,12 +31,12 @@ def approx(x1: int, x2: int, precision: int, abs_precision=None):
 
 
 @pytest.fixture(scope="session")
-def accounts() -> List[AddressT]:
+def accounts():
     return [boa.env.generate_address() for _ in range(10)]
 
 
 @pytest.fixture(scope="session")
-def admin() -> AddressT:
+def admin():
     return boa.env.generate_address()
 
 

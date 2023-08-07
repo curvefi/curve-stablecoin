@@ -1,4 +1,4 @@
-# @version 0.3.7
+# @version 0.3.9
 
 interface ERC20:
     def balanceOf(_for: address) -> uint256: view

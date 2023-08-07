@@ -1,10 +1,10 @@
 import boa
 import pytest
-from vyper.utils import abi_method_id
+from vyper.utils import method_id
 
 
 def get_method_id(desc):
-    return abi_method_id(desc).to_bytes(4, 'big') + b'\x00' * 28
+    return method_id(desc).to_bytes(4, 'big') + b'\x00' * 28
 
 
 @pytest.fixture(scope="module")

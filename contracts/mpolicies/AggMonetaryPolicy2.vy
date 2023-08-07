@@ -1,4 +1,4 @@
-# @version 0.3.7
+# @version 0.3.9
 """
 @title AggMonetaryPolicy - monetary policy based on aggregated prices for crvUSD
 @author Curve.Fi

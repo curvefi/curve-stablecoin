@@ -7,23 +7,23 @@ readme = "README.md"
 packages = []
 
 [tool.poetry.dependencies]
-python = ">=3.9,<3.11"
-vyper = "0.3.7"
-eth-abi = "3.0.1"
-poetry = "1.4.1"
+python = ">=3.10,<4"
+vyper = "0.3.9"
+poetry = "1.5.1"
+eth-abi = "4.1.0"
+eth-stdlib = {git = "https://github.com/skellet0r/eth-stdlib.git", rev = "afaafd459feee30b9e7e67a6e712117b8f5b7cf5"}
 
 
 [tool.poetry.group.dev.dependencies]
-brownie = "^0.5.1"
-titanoboa = {git = "https://github.com/vyperlang/titanoboa.git", rev = "6ffcfa724023fb2b9f8ed02221c8bcbf4511712c"}
+titanoboa = {git = "https://github.com/vyperlang/titanoboa.git", rev = "b406c76e4ebf0d3144563ad579f8a0c00fa1c7c2"}
 pycryptodome = "^3.18.0"
-pytest = "^7.2.2"
-hypothesis = "^6.70.1"
+pytest = "^7.4.0"
+hypothesis = "^6.82.0"
 pdbpp = "^0.10.3"
-jedi = "^0.18.2"
-pytest-xdist = "^3.2.1"
+jedi = "^0.19.0"
+pytest-xdist = "^3.3.1"
 pytest-forked = "^1.6.0"
-ipython = "^8.11.0"
+ipython = "^8.14.0"
 
 
 [build-system]

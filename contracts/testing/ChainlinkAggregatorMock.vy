@@ -1,4 +1,4 @@
-# @version ^0.3.7
+# @version ^0.3.9
 """
 @notice Chainlink Aggregator Mock for testing
 """

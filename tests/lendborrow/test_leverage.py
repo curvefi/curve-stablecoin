@@ -17,7 +17,7 @@ def test_leverage(collateral_token, stablecoin, market_controller, market_amm, f
         market_controller.create_loan_extended(amount, amount * 2 * 3000, 5, fake_leverage.address, [int(amount * 1.5)])
         assert collateral_token.balanceOf(user) == 0
         assert collateral_token.balanceOf(market_amm.address) == 3 * amount
-        assert market_amm.get_sum_xy(user) == (0, 3 * amount)
+        assert market_amm.get_sum_xy(user) == [0, 3 * amount]
         assert market_controller.debt(user) == amount * 2 * 3000
         assert stablecoin.balanceOf(user) == 0
 
@@ -25,7 +25,7 @@ def test_leverage(collateral_token, stablecoin, market_controller, market_amm, f
         assert market_controller.debt(user) == 0
         assert collateral_token.balanceOf(market_amm.address) == 0
         assert stablecoin.balanceOf(market_amm.address) == 0
-        assert market_amm.get_sum_xy(user) == (0, 0)
+        assert market_amm.get_sum_xy(user) == [0, 0]
         assert collateral_token.balanceOf(market_controller.address) == 0
         assert stablecoin.balanceOf(market_controller.address) == controller_mint
         assert collateral_token.balanceOf(user) == amount
@@ -72,7 +72,7 @@ def test_leverage_property(collateral_token, stablecoin, market_controller, mark
         if repay_mul == 1.0:
             assert collateral_token.balanceOf(market_amm.address) == 0
             assert stablecoin.balanceOf(market_amm.address) == 0
-            assert market_amm.get_sum_xy(user) == (0, 0)
+            assert market_amm.get_sum_xy(user) == [0, 0]
         assert collateral_token.balanceOf(market_controller.address) == 0
         assert stablecoin.balanceOf(market_controller.address) - s0 == debt * int(repay_mul * 1e18) // 10**18
         if repay_mul == 1.0:
