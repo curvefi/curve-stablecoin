@@ -1,4 +1,5 @@
-# This script simply tests the deployment process
+# Deploy new OwnerProxy
+# done at 0x768caA20Cf1921772B6F56950e23Bafd94aF5CFF
 
 from ape import project, accounts, networks
 from ape.cli import NetworkBoundCommand, network_option
