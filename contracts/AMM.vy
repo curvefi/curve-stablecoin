@@ -767,8 +767,8 @@ def withdraw(user: address, frac: uint256) -> uint256[2]:
     total_y: uint256 = 0
     min_band: int256 = self.min_band
     old_min_band: int256 = min_band
-    max_band: int256 = self.max_band
-    old_max_band: int256 = max_band
+    old_max_band: int256 = self.max_band
+    max_band: int256 = n
 
     for i in range(MAX_TICKS):
         x: uint256 = self.bands_x[n]
