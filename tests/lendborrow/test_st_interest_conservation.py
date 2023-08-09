@@ -115,7 +115,8 @@ class StatefulLendBorrow(RuleBasedStateMachine):
             diff = self.controller.debt(user) - self.stablecoin.balanceOf(user)
             if diff > 0:
                 with boa.env.prank(self.accounts[0]):
-                    self.stablecoin.transfer(user, diff)
+                    bal = self.stablecoin.balanceOf(self.accounts[0])
+                    self.stablecoin.transfer(user, min(diff, bal))
 
             self.controller.repay(amount, user)
 
@@ -292,4 +293,26 @@ def test_overflow(controller_factory, market_amm, market_controller, monetary_po
     state.debt_payable()
     state.sum_of_debts()
     state.add_collateral(c_amount=1701411834604692317136494489587668075, user_id=0)
+    state.teardown()
+
+
+def test_cannot_repay_1(controller_factory, market_amm, market_controller, monetary_policy, collateral_token, stablecoin, accounts, admin):
+    for k, v in locals().items():
+        setattr(StatefulLendBorrow, k, v)
+    state = StatefulLendBorrow()
+    state.debt_payable()
+    state.sum_of_debts()
+    state.time_travel(t=0)
+    state.debt_payable()
+    state.sum_of_debts()
+    state.create_loan(amount=10327, c_amount=5280, n=5, user_id=3)
+    state.debt_payable()
+    state.sum_of_debts()
+    state.time_travel(t=23244)
+    state.debt_payable()
+    state.sum_of_debts()
+    state.time_travel(t=53098)
+    state.debt_payable()
+    state.sum_of_debts()
+    state.repay(amount=1, user_id=3)
     state.teardown()

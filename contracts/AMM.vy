@@ -1396,7 +1396,7 @@ def get_xy_up(user: address, use_y: bool) -> uint256:
         # which is also more conservative
 
         # Also this will revert if p_o_down is 0, and p_o_down is 0 if p_o_up is 0
-        p_current_mid: uint256 = unsafe_div(unsafe_div(p_o**2 / p_o_down * p_o, p_o_down) * Aminus1, A)
+        p_current_mid: uint256 = unsafe_div(p_o**2 / p_o_down * p_o, p_o_up)
 
         # if p_o > p_o_up - we "trade" everything to y and then convert to the result
         # if p_o < p_o_down - "trade" to x, then convert to result
