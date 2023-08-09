@@ -1096,9 +1096,6 @@ def _exchange(i: uint256, j: uint256, amount: uint256, minmax_amount: uint256, _
     else:
         self.admin_fees_y += out.admin_fee
 
-    assert in_coin.transferFrom(msg.sender, self, in_amount_done, default_return_value=True)
-    assert out_coin.transfer(_for, out_amount_done, default_return_value=True)
-
     n: int256 = min(out.n1, out.n2)
     n_start: int256 = n
     n_diff: int256 = abs(unsafe_sub(out.n2, out.n1))
@@ -1131,6 +1128,9 @@ def _exchange(i: uint256, j: uint256, amount: uint256, minmax_amount: uint256, _
 
     if lm.address != empty(address):
         lm.callback_collateral_shares(n_start, collateral_shares)
+
+    assert in_coin.transferFrom(msg.sender, self, in_amount_done, default_return_value=True)
+    assert out_coin.transfer(_for, out_amount_done, default_return_value=True)
 
     return [in_amount_done, out_amount_done]
 

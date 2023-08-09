@@ -639,9 +639,9 @@ def create_loan_extended(collateral: uint256, debt: uint256, N: uint256, callbac
         callbacker, CALLBACK_DEPOSIT, msg.sender, 0, collateral, debt, callback_args).collateral
 
     # After callback
+    self._create_loan(0, collateral + more_collateral, debt, N, False)
     self._deposit_collateral(collateral, msg.value)
     assert COLLATERAL_TOKEN.transferFrom(callbacker, AMM.address, more_collateral, default_return_value=True)
-    self._create_loan(0, collateral + more_collateral, debt, N, False)
 
 
 @internal
@@ -727,10 +727,10 @@ def borrow_more(collateral: uint256, debt: uint256):
     if debt == 0:
         return
     self._add_collateral_borrow(collateral, debt, msg.sender, False)
+    self.minted += debt
     if collateral != 0:
         self._deposit_collateral(collateral, msg.value)
     STABLECOIN.transfer(msg.sender, debt)
-    self.minted += debt
 
 
 @internal
