@@ -786,7 +786,7 @@ def repay(_d_debt: uint256, _for: address = msg.sender, max_active_band: int256 
 
         ns: int256[2] = AMM.read_user_tick_numbers(_for)
         size: uint256 = convert(unsafe_add(unsafe_sub(ns[1], ns[0]), 1), uint256)
-        liquidation_discount: uint256 = 0
+        liquidation_discount: uint256 = self.liquidation_discounts[_for]
 
         if ns[0] > active_band:
             # Not in liquidation - can move bands
@@ -794,13 +794,14 @@ def repay(_d_debt: uint256, _for: address = msg.sender, max_active_band: int256 
             n1: int256 = self._calculate_debt_n1(xy[1], debt, size)
             n2: int256 = n1 + unsafe_sub(ns[1], ns[0])
             AMM.deposit_range(_for, xy[1], n1, n2)
-            liquidation_discount = self.liquidation_discount
-            self.liquidation_discounts[_for] = liquidation_discount
+            if _for == msg.sender:
+                # Update liquidation discount only if we are that same user. No rugs
+                liquidation_discount = self.liquidation_discount
+                self.liquidation_discounts[_for] = liquidation_discount
             log UserState(_for, xy[1], debt, n1, n2, liquidation_discount)
             log Repay(_for, 0, d_debt)
         else:
             # Underwater - cannot move band but can avoid a bad liquidation
-            liquidation_discount = self.liquidation_discounts[_for]
             log UserState(_for, max_value(uint256), debt, ns[0], ns[1], liquidation_discount)
             log Repay(_for, 0, d_debt)
 
