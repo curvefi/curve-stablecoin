@@ -124,7 +124,7 @@ max_band: public(int256)
 admin_fees_x: public(uint256)
 admin_fees_y: public(uint256)
 
-price_oracle_contract: public(PriceOracle)
+price_oracle_contract: public(immutable(PriceOracle))
 old_p_o: uint256
 old_dfee: uint256
 prev_p_o_time: uint256
@@ -182,9 +182,9 @@ def __init__(
 
     self.fee = fee
     self.admin_fee = admin_fee
-    self.price_oracle_contract = PriceOracle(_price_oracle_contract)
+    price_oracle_contract = PriceOracle(_price_oracle_contract)
     self.prev_p_o_time = block.timestamp
-    self.old_p_o = self.price_oracle_contract.price()
+    self.old_p_o = price_oracle_contract.price()
 
     self.rate_mul = 10**18
 
@@ -286,12 +286,12 @@ def limit_p_o(p: uint256) -> uint256[2]:
 @internal
 @view
 def _price_oracle_ro() -> uint256[2]:
-    return self.limit_p_o(self.price_oracle_contract.price())
+    return self.limit_p_o(price_oracle_contract.price())
 
 
 @internal
 def _price_oracle_w() -> uint256[2]:
-    p: uint256[2] = self.limit_p_o(self.price_oracle_contract.price_w())
+    p: uint256[2] = self.limit_p_o(price_oracle_contract.price_w())
     self.prev_p_o_time = block.timestamp
     self.old_p_o = p[0]
     self.old_dfee = p[1]
