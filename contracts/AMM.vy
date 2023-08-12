@@ -1459,8 +1459,13 @@ def get_xy_up(user: address, use_y: bool) -> uint256:
                 XY += unsafe_div(x_o * user_share, total_share)
 
         else:
-            y_o = unsafe_sub(max(self.sqrt_int(unsafe_div(Inv * 10**18, p_o)), g), g)
+            # Equivalent from Chainsecurity (which also has less numerical errors):
+            y_o = unsafe_div(A * y0 * unsafe_sub(p_o, p_o_down), p_o)
+            # x_o = unsafe_div(A * y0 * p_o, p_o_up) * unsafe_sub(p_o_up, p_o)
+            # Old math
+            # y_o = unsafe_sub(max(self.sqrt_int(unsafe_div(Inv * 10**18, p_o)), g), g)
             x_o = unsafe_sub(max(Inv / (g + y_o), f), f)
+
             # Now adiabatic conversion from definitely in-band
             if use_y:
                 XY += unsafe_div((y_o + x_o * 10**18 / self.sqrt_int(p_o_up * p_o)) * user_share, total_share)
