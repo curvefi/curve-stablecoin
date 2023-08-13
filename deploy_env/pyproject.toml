@@ -11,8 +11,6 @@ python = ">=3.10,<4"
 vyper = "0.3.9"
 poetry = "1.5.1"
 python-dotenv = "^1.0.0"
-
-[tool.poetry.group.ape.dependencies]
 eth-ape = "^0.6.15"
 ape-vyper = "^0.6.9"
 ape-etherscan = "^0.6.8"
