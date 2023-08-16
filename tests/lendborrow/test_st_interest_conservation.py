@@ -195,7 +195,7 @@ class StatefulLendBorrow(RuleBasedStateMachine):
                         self.controller.borrow_more(c_amount, amount)
                 return
 
-            if final_collateral * self.amm.get_p() > 2**256 - 1:
+            if final_collateral * self.amm.get_p() > 2**128 - 1:
                 with boa.reverts():
                     self.controller.borrow_more(c_amount, amount)
                 return
