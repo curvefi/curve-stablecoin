@@ -1,7 +1,7 @@
 # @version 0.3.9
 """
-@title CryptoWithStablePriceWsteth
-@notice Price oracle for tricrypto+frxeth for crvUSD
+@title CryptoWithStablePriceSfrxeth
+@notice Price oracle for tricrypto+sfrxeth for crvUSD
 @author Curve.Fi
 @license MIT
 """
