@@ -1,5 +1,12 @@
 # @version 0.3.9
 
+"""
+@title wstETH crvUSD leverage zap
+@author Curve.Fi
+@license Copyright (c) Curve.Fi, 2020-2023 - all rights reserved
+@notice Creates leverage on crvUSD via CurveRouter. Does calculations for leverage.
+"""
+
 interface ERC20:
     def balanceOf(_for: address) -> uint256: view
     def approve(_spender: address, _value: uint256) -> bool: nonpayable
