@@ -7,7 +7,10 @@
 @notice Creates leverage on crvUSD via CurveRouter. Does calculations for leverage.
 """
 
-from vyper.interfaces import ERC20
+interface ERC20:
+    def balanceOf(_for: address) -> uint256: view
+    def approve(_spender: address, _value: uint256) -> bool: nonpayable
+    def decimals() -> uint256: view
 
 interface Router:
     def exchange(_route: address[11], _swap_params: uint256[5][5], _amount: uint256, _expected: uint256, _pools: address[5]) -> uint256: payable
@@ -47,8 +50,8 @@ COLLATERAL_PRECISION: immutable(uint256)
 routes: public(HashMap[uint256, address[11]])
 route_params: public(HashMap[uint256, uint256[5][5]])
 route_pools: public(HashMap[uint256, address[5]])
-route_names: public(HashMap[uint256, String[64]])
-routes_count: public(uint256)
+route_names: public(HashMap[uint256, String[100]])
+routes_count: public(constant(uint256)) = 5
 
 
 @external
@@ -59,7 +62,7 @@ def __init__(
         _routes: DynArray[address[11], 5],
         _route_params: DynArray[uint256[5][5], 5],
         _route_pools: DynArray[address[5], 5],
-        _route_names: DynArray[String[64], 5],
+        _route_names: DynArray[String[100], 5],
 ):
     CONTROLLER = _controller
     ROUTER = Router(_router)
@@ -80,7 +83,6 @@ def __init__(
         self.route_params[i] = _route_params[i]
         self.route_pools[i] = _route_pools[i]
         self.route_names[i] = _route_names[i]
-    self.routes_count = len(_routes)
 
     ERC20(CRVUSD).approve(_router, max_value(uint256), default_return_value=True)
     ERC20(_collateral).approve(_controller, max_value(uint256), default_return_value=True)
@@ -176,7 +178,7 @@ def _max_p_base() -> uint256:
 @view
 @internal
 def _get_collateral(stablecoin: uint256, route_idx: uint256) -> uint256:
-    return ROUTER.get_exchange_multiple_amount(self.routes[route_idx], self.route_params[route_idx], stablecoin, self.route_pools[route_idx])
+    return ROUTER.get_dy(self.routes[route_idx], self.route_params[route_idx], stablecoin, self.route_pools[route_idx])
 
 
 @view
@@ -321,6 +323,6 @@ def callback_deposit(user: address, stablecoins: uint256, collateral: uint256, d
 
     route_idx: uint256 = callback_args[0]
     min_recv: uint256 = callback_args[1]
-    leverage_collateral: uint256 = ROUTER.exchange_multiple(self.routes[route_idx], self.route_params[route_idx], debt, min_recv, self.route_pools[route_idx])
+    leverage_collateral: uint256 = ROUTER.exchange(self.routes[route_idx], self.route_params[route_idx], debt, min_recv, self.route_pools[route_idx])
 
     return [0, leverage_collateral]
