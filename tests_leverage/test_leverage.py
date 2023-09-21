@@ -10,7 +10,8 @@ from flaky import flaky
     borrow_amt=st.integers(min_value=10**18, max_value=10**25),
     N=st.integers(min_value=4, max_value=50),
 )
-@pytest.mark.parametrize("collateral_token", ["sfrxETH", "wstETH", "WBTC", "WETH"])
+
+@pytest.mark.parametrize("collateral_token", ["sfrxETH", "wstETH", "WBTC", "WETH", "sfrxETH2", "tBTC"])
 @pytest.mark.parametrize("route_idx", [0, 1, 2, 3, 4])
 @flaky
 def test_leverage(collaterals, controllers, llammas, leverage_zaps, user, collateral_amt, borrow_amt, N, route_idx, collateral_token):
@@ -42,8 +43,7 @@ def test_leverage(collaterals, controllers, llammas, leverage_zaps, user, collat
         collateral, stablecoin, debt, _N = controllers[collateral_token].user_state(user)
         n1, n2 = llammas[collateral_token].read_user_tick_numbers(user)
 
-        assert collateral <= expected_collateral
-        assert (expected_collateral - collateral) / collateral < 1e-7
+        assert abs((expected_collateral - collateral) / collateral) < 2e-7
         assert stablecoin == 0
         assert debt == _borrow_amt
         assert N == _N

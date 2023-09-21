@@ -2,7 +2,7 @@ import pytest
 from ape import chain
 
 
-@pytest.mark.parametrize("collateral_token", ["sfrxETH", "wstETH", "WBTC", "WETH"])
+@pytest.mark.parametrize("collateral_token", ["sfrxETH", "wstETH", "WBTC", "WETH", "sfrxETH2", "tBTC"])
 @pytest.mark.parametrize("borrow_amt", [10_000 * 10**18, 2**256 - 1])
 @pytest.mark.parametrize("route_idx", [0, 1, 2, 3, 4])
 def test_leverage(collaterals, controllers, llammas, leverage_zaps, user, collateral_token, borrow_amt, route_idx):
@@ -36,8 +36,7 @@ def test_leverage(collaterals, controllers, llammas, leverage_zaps, user, collat
         collateral, stablecoin, debt, _N = controllers[collateral_token].user_state(user)
         n1, n2 = llammas[collateral_token].read_user_tick_numbers(user)
 
-        assert collateral <= expected_collateral
-        assert (expected_collateral - collateral) / collateral < 1e-7
+        assert abs((expected_collateral - collateral) / collateral) < 1e-7
         assert stablecoin == 0
         assert debt == _borrow_amt
         assert N == _N

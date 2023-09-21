@@ -12,8 +12,16 @@ def mint_tokens_for_testing(project: Project, account):
     # WBTC
     token_contract = Contract("0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599")
     token_owner = "0x9ff58f4fFB29fA2266Ab25e75e2A8b3503311656"
-    project.provider.set_balance(token_owner, 10**18)
+    project.provider.set_balance(token_owner, 10**20)
     amount = 100 * 10**8
+    token_contract.transfer(account, amount, sender=accounts[token_owner])
+    assert token_contract.balanceOf(account.address) >= amount
+
+    # tBTC
+    token_contract = Contract("0x18084fbA666a33d37592fA2633fD49a74DD93a88")
+    token_owner = "0x3ee18B2214AFF97000D974cf647E7C347E8fa585"  # Wormhole: Portal Token Bridge
+    project.provider.set_balance(token_owner, 10**20)
+    amount = 100 * 10 ** 18
     token_contract.transfer(account, amount, sender=accounts[token_owner])
     assert token_contract.balanceOf(account.address) >= amount
 
@@ -25,7 +33,7 @@ def mint_tokens_for_testing(project: Project, account):
     # sfrxETH
     token_contract = Contract("0xac3e018457b222d93114458476f3e3416abbe38f")
     token_owner = "0xBA12222222228d8Ba445958a75a0704d566BF2C8"
-    project.provider.set_balance(token_owner, 10**18)
+    project.provider.set_balance(token_owner, 10**20)
     amount = 1000 * 10**18
     token_contract.transfer(account, amount, sender=accounts[token_owner])
     assert token_contract.balanceOf(account.address) >= amount
@@ -33,14 +41,13 @@ def mint_tokens_for_testing(project: Project, account):
     # wstETH
     token_contract = Contract("0x7f39C581F595B53c5cb19bD0b3f8dA6c935E2Ca0")
     token_owner = "0x0B925eD163218f6662a35e0f0371Ac234f9E9371"
-    project.provider.set_balance(token_owner, 10 ** 18)
+    project.provider.set_balance(token_owner, 10**20)
     amount = 1000 * 10 ** 18
     token_contract.transfer(account, amount, sender=accounts[token_owner])
     assert token_contract.balanceOf(account.address) >= amount
 
 
 CRVUSD = "0xf939e0a03fb07f59a73314e73794be0e57ac1b4e"
-ROUTER = "0x99a58482bd75cbab83b27ec03ca68ff489b5788f"
 
 frxETH = "0x5E8422345238F34275888049021821E8E08CAa1f"
 stETH = "0xae7ab96520DE3A18E5e111B5EaAb095312D7fE84"
@@ -70,6 +77,15 @@ LLAMMAS = {
     "WETH": "0x1681195c176239ac5e72d9aebacf5b2492e0c4ee",
     "sfrxETH2": "0xfa96ad0a9e64261db86950e2da362f5572c5c6fd",
     "tBTC": "0xf9bd9da2427a50908c4c6d1599d8e62837c2bcb0",
+}
+
+ROUTERS = {
+    "sfrxETH": "0x99a58482bd75cbab83b27ec03ca68ff489b5788f",
+    "wstETH": "0x99a58482bd75cbab83b27ec03ca68ff489b5788f",
+    "WBTC": "0x99a58482bd75cbab83b27ec03ca68ff489b5788f",
+    "WETH": "0x99a58482bd75cbab83b27ec03ca68ff489b5788f",
+    "sfrxETH2": "0xF0d4c12A5768D806021F80a262B4d39d26C58b8D",
+    "tBTC": "0xF0d4c12A5768D806021F80a262B4d39d26C58b8D",
 }
 
 CRVUSD_POOLS = {
@@ -671,7 +687,7 @@ ROUTER_PARAMS = {
                 '0x0000000000000000000000000000000000000000',
                 '0x0000000000000000000000000000000000000000',
             ],
-            "swap_params": [[1, 0, 1, 2], [1, 2, 1, 1, 3], [0, 1, 1, 3, 3], [0, 1, 1, 1, 2], [0, 0, 0, 0, 0]],
+            "swap_params": [[1, 0, 1, 1, 2], [1, 2, 1, 1, 3], [0, 1, 1, 3, 3], [0, 1, 1, 1, 2], [0, 0, 0, 0, 0]],
             "factory_swap_addresses": [
                 CRVUSD_POOLS["USDC"],
                 '0xbebc44782c7db0a1a60cb6fe97d0b483032ff1c7',

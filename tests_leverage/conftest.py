@@ -5,7 +5,7 @@ from datetime import timedelta
 from hypothesis import settings
 from ape import project, accounts, Contract
 from dotenv import load_dotenv
-from .utils import mint_tokens_for_testing, ROUTER_PARAMS, COLLATERALS, CONTROLLERS, LLAMMAS, ROUTER
+from .utils import mint_tokens_for_testing, ROUTER_PARAMS, COLLATERALS, CONTROLLERS, LLAMMAS, ROUTERS
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 load_dotenv(Path(BASE_DIR, ".env"))
@@ -77,10 +77,12 @@ def leverage_zaps(project, admin):
             contract = project.LeverageZapSfrxETH
         if collateral == "wstETH":
             contract = project.LeverageZapWstETH
+        if collateral in ["sfrxETH2", "tBTC"]:
+            contract = project.LeverageZapNewRouter
         leverage_contracts[collateral] = contract.deploy(
             CONTROLLERS[collateral],
             COLLATERALS[collateral],
-            ROUTER,
+            ROUTERS[collateral],
             routes,
             route_params,
             route_pools,
