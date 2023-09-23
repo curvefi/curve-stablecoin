@@ -14,6 +14,7 @@ class StatefulExchange(RuleBasedStateMachine):
     amount = st.floats(min_value=0, max_value=10**9)
     pump = st.booleans()
     user_id = st.integers(min_value=0, max_value=4)
+    admin_fee = st.integers(min_value=0, max_value=10**18)
 
     def __init__(self):
         super().__init__()
@@ -56,6 +57,11 @@ class StatefulExchange(RuleBasedStateMachine):
             in_token._mint_for_testing(u, required_amount - u_amount)
         with boa.env.prank(u):
             self.amm.exchange_dy(i, j, amount, required_amount)
+
+    @rule(fee=admin_fee)
+    def set_admin_fee(self, fee):
+        with boa.env.prank(self.admin):
+            self.amm.set_admin_fee(fee)
 
     @invariant()
     def amm_solvent(self):
