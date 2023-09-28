@@ -15,6 +15,10 @@ interface Router:
     def exchange(_route: address[11], _swap_params: uint256[5][5], _amount: uint256, _expected: uint256, _pools: address[5]) -> uint256: payable
     def get_dy(_route: address[11], _swap_params: uint256[5][5], _amount: uint256, _pools: address[5]) -> uint256: view
 
+interface Controller:
+    def calculate_debt_n1(collateral: uint256, debt: uint256, N: uint256) -> int256: view
+    def user_state(user: address) -> uint256[4]: view
+
 
 CRVUSD: constant(address) = 0xf939E0A03FB07F59A73314E73794Be0E57ac1b4E
 
@@ -50,6 +54,7 @@ def __init__(
         self.route_names[i] = _route_names[i]
 
     ERC20(_collateral).approve(_router, max_value(uint256), default_return_value=True)
+    ERC20(_collateral).approve(_controller, max_value(uint256), default_return_value=True)
     ERC20(CRVUSD).approve(_controller, max_value(uint256), default_return_value=True)
 
 
@@ -57,6 +62,24 @@ def __init__(
 @external
 def get_stablecoins(collateral: uint256, route_idx: uint256) -> uint256:
     return Router(ROUTER).get_dy(self.routes[route_idx], self.route_params[route_idx], collateral, self.route_pools[route_idx])
+
+
+@external
+@view
+def calculate_debt_n1(collateral: uint256, route_idx: uint256, user: address) -> int256:
+    """
+    @notice Calculate the upper band number after deleverage repay, which means that
+            collateral from user's position is converted to stablecoins to repay the debt.
+    @param collateral Amount of collateral (at its native precision).
+    @param route_idx Index of the route which should be use for exchange stablecoin to collateral.
+    @return Upper band n1 (n1 <= n2) to deposit into. Signed integer.
+    """
+    deleverage_collateral: uint256 = Router(ROUTER).get_dy(self.routes[route_idx], self.route_params[route_idx], collateral, self.route_pools[route_idx])
+    state: uint256[4] = Controller(CONTROLLER).user_state(user)  #collateral, stablecoin, debt, N
+    assert state[1] == 0, "Underwater, only full repayment is allowed"
+    assert deleverage_collateral < state[2], "Full repayment, position will be closed"
+
+    return Controller(CONTROLLER).calculate_debt_n1(state[0] - collateral, state[2] - deleverage_collateral, state[3])
 
 
 @external
