@@ -10,7 +10,6 @@ from flaky import flaky
     borrow_amt=st.integers(min_value=10**18, max_value=10**25),
     N=st.integers(min_value=4, max_value=50),
 )
-
 @pytest.mark.parametrize("collateral_token", ["sfrxETH", "wstETH", "WBTC", "WETH", "sfrxETH2", "tBTC"])
 @pytest.mark.parametrize("route_idx", [0, 1, 2, 3, 4])
 @flaky

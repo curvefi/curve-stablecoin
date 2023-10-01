@@ -47,6 +47,23 @@ def mint_tokens_for_testing(project: Project, account):
     assert token_contract.balanceOf(account.address) >= amount
 
 
+def mint_crvusd_tokens_for_testing(project: Project, account):
+    """
+    Provides given account with 100M crvUSD
+    Can be used only on local forked mainnet
+
+    :return: None
+    """
+
+    # crvUSD
+    token_contract = Contract("0xf939e0a03fb07f59a73314e73794be0e57ac1b4e")
+    token_owner = "0xA920De414eA4Ab66b97dA1bFE9e6EcA7d4219635"  # WETH controller
+    project.provider.set_balance(token_owner, 10**20)
+    amount = 100_000_000 * 10 ** 18
+    token_contract.transfer(account, amount, sender=accounts[token_owner])
+    assert token_contract.balanceOf(account.address) >= amount
+
+
 CRVUSD = "0xf939e0a03fb07f59a73314e73794be0e57ac1b4e"
 
 frxETH = "0x5E8422345238F34275888049021821E8E08CAa1f"
@@ -1235,15 +1252,15 @@ ROUTER_PARAMS_DELEVERAGE = {
                 '0x0000000000000000000000000000000000000000',
             ],
         },
-        "usdp": {
-            "name": "tricrypto2 -> factory-v2-59 (USDP) -> crvUSD/USDP",
+        "frax": {
+            "name": "tricrypto2 -> frax -> crvUSD/FRAX",
             "route": [
                 COLLATERALS["WETH"],
                 '0xd51a44d3fae010294c616388b506acda1bfaae46',
                 '0xdac17f958d2ee523a2206206994597c13d831ec7',
-                '0xc270b3b858c335b6ba5d5b10e2da8a09976005ad',
-                '0x8e870d67f660d95d5be530380d0ec0bd388289e1',
-                CRVUSD_POOLS["USDP"],
+                '0xd632f22692fac7611d2aa1c0d552930d43caed3b',
+                '0x853d955acef822db058eb8505911ed77f175b99e',
+                CRVUSD_POOLS["FRAX"],
                 CRVUSD,
                 '0x0000000000000000000000000000000000000000',
                 '0x0000000000000000000000000000000000000000',
@@ -1253,8 +1270,8 @@ ROUTER_PARAMS_DELEVERAGE = {
             "swap_params": [[2, 0, 1, 3, 3], [3, 0, 2, 1, 4], [0, 1, 1, 1, 2], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0]],
             "factory_swap_addresses": [
                 '0xd51a44d3fae010294c616388b506acda1bfaae46',
-                '0xc270b3b858c335b6ba5d5b10e2da8a09976005ad',
-                CRVUSD_POOLS["USDP"],
+                '0xd632f22692fac7611d2aa1c0d552930d43caed3b',
+                CRVUSD_POOLS["FRAX"],
                 '0x0000000000000000000000000000000000000000',
                 '0x0000000000000000000000000000000000000000',
             ],
@@ -1479,17 +1496,17 @@ ROUTER_PARAMS_DELEVERAGE = {
                 '0x0000000000000000000000000000000000000000',
             ],
         },
-        "usdp": {
-            "name": "factory-crvusd-16 (tBTC/WBTC) -> tricrypto2 -> factory-v2-59 (USDP) -> crvUSD/USDP",
+        "frax": {
+            "name": "factory-crvusd-16 (tBTC/WBTC) -> tricrypto2 -> frax -> crvUSD/FRAX",
             "route": [
                 COLLATERALS["tBTC"],
                 '0xb7ecb2aa52aa64a717180e030241bc75cd946726',
                 '0x2260fac5e5542a773aa44fbcfedf7c193bc2c599',
                 '0xd51a44d3fae010294c616388b506acda1bfaae46',
                 '0xdac17f958d2ee523a2206206994597c13d831ec7',
-                '0xc270b3b858c335b6ba5d5b10e2da8a09976005ad',
-                '0x8e870d67f660d95d5be530380d0ec0bd388289e1',
-                CRVUSD_POOLS["USDP"],
+                '0xd632f22692fac7611d2aa1c0d552930d43caed3b',
+                '0x853d955acef822db058eb8505911ed77f175b99e',
+                CRVUSD_POOLS["FRAX"],
                 CRVUSD,
                 '0x0000000000000000000000000000000000000000',
                 '0x0000000000000000000000000000000000000000',
@@ -1498,8 +1515,8 @@ ROUTER_PARAMS_DELEVERAGE = {
             "factory_swap_addresses": [
                 '0xb7ecb2aa52aa64a717180e030241bc75cd946726',
                 '0xd51a44d3fae010294c616388b506acda1bfaae46',
-                '0xc270b3b858c335b6ba5d5b10e2da8a09976005ad',
-                CRVUSD_POOLS["USDP"],
+                '0xd632f22692fac7611d2aa1c0d552930d43caed3b',
+                CRVUSD_POOLS["FRAX"],
                 '0x0000000000000000000000000000000000000000',
             ],
         },
