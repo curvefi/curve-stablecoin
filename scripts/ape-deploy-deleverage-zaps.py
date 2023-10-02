@@ -1,7 +1,5 @@
-from time import sleep
-from ape import project, accounts, Contract, networks
+from ape import project, accounts, networks
 from ape.cli import NetworkBoundCommand, network_option
-from ape import chain
 # account_option could be used when in prod?
 import click
 
@@ -815,7 +813,8 @@ def deploy(network):
             route_pools.append(route["factory_swap_addresses"])
             route_names.append(route["name"])
 
-        deleverage_contracts[collateral] = project.DeleverageZap.deploy(
+        deleverage_contracts[collateral] = account.deploy(
+            project.DeleverageZap,
             CONTROLLERS[collateral],
             COLLATERALS[collateral],
             ROUTER,
@@ -826,7 +825,6 @@ def deploy(network):
             **kw,
         )
 
-
     print('========================')
     print('sfrxETH:           ', deleverage_contracts["sfrxETH"].address)
     print('wstETH:            ', deleverage_contracts["wstETH"].address)
@@ -834,7 +832,6 @@ def deploy(network):
     print('WETH:              ', deleverage_contracts["WETH"].address)
     print('sfrxETH2:          ', deleverage_contracts["sfrxETH2"].address)
     print('tBTC:              ', deleverage_contracts["tBTC"].address)
-
 
     import IPython
     IPython.embed()
