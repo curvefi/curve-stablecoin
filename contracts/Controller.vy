@@ -197,8 +197,8 @@ def __init__(
     AMM = LLAMMA(amm)
     _A: uint256 = LLAMMA(amm).A()
     A = _A
-    Aminus1 = _A - 1
-    LOG2_A_RATIO = self.log2(_A * 10**18 / unsafe_sub(_A, 1))
+    Aminus1 = unsafe_sub(_A, 1)
+    LOG2_A_RATIO = self.log2(unsafe_div(_A * 10**18, unsafe_sub(_A, 1)))
 
     COLLATERAL_TOKEN = ERC20(collateral_token)
     COLLATERAL_PRECISION = pow_mod256(10, 18 - ERC20(collateral_token).decimals())
@@ -373,7 +373,7 @@ def get_y_effective(collateral: uint256, N: uint256, discount: uint256) -> uint2
     # d_y_effective: uint256 = collateral * unsafe_sub(10**18, discount) / (SQRT_BAND_RATIO * N)
     # Make some extra discount to always deposit lower when we have DEAD_SHARES rounding
     d_y_effective: uint256 = collateral * unsafe_sub(
-        10**18, min(discount + (DEAD_SHARES * 10**18) / max(collateral / N, DEAD_SHARES), 10**18)
+        10**18, min(discount + unsafe_div((DEAD_SHARES * 10**18), max(collateral / N, DEAD_SHARES)), 10**18)
     ) / (SQRT_BAND_RATIO * N)
     y_effective: uint256 = d_y_effective
     for i in range(1, MAX_TICKS_UINT):
@@ -412,7 +412,7 @@ def _calculate_debt_n1(collateral: uint256, debt: uint256, N: uint256) -> int256
     # - we revert.
 
     # n1 is band number based on adiabatic trading, e.g. when p_oracle ~ p
-    y_effective = y_effective * p_base / (debt + 1)  # Now it's a ratio
+    y_effective = unsafe_div(y_effective * p_base, debt + 1)  # Now it's a ratio
 
     # n1 = floor(log2(y_effective) / self.logAratio)
     # EVM semantics is not doing floor unlike Python, so we do this

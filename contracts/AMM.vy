@@ -272,13 +272,15 @@ def limit_p_o(p: uint256) -> uint256[2]:
                 p_new = unsafe_div(old_p_o * 10**18, MAX_P_O_CHG)
                 ratio = 10**36 / MAX_P_O_CHG
 
-        # ratio is guaranteed to be less than 1e18
+        # ratio is lower than 1e18
         # Also guaranteed to be limited, therefore can have all ops unsafe
-        ratio = unsafe_div(
-            unsafe_mul(
-                unsafe_sub(unsafe_add(10**18, old_ratio), unsafe_div(pow_mod256(ratio, 3), 10**36)),  # (f' + (1 - r**3))
-                dt),                                                                                  # * dt / T
-            PREV_P_O_DELAY)
+        ratio = min(
+            unsafe_div(
+                unsafe_mul(
+                    unsafe_sub(unsafe_add(10**18, old_ratio), unsafe_div(pow_mod256(ratio, 3), 10**36)),  # (f' + (1 - r**3))
+                    dt),                                                                                  # * dt / T
+            PREV_P_O_DELAY),
+        10**18 - 1)
 
     return [p_new, ratio]
 
@@ -778,8 +780,8 @@ def withdraw(user: address, frac: uint256) -> uint256[2]:
         s: uint256 = self.total_shares[n]
         new_shares: uint256 = s - ds
         self.total_shares[n] = new_shares
-        s += DEAD_SHARES
-        dx: uint256 = (x + 1) * ds / s
+        s += DEAD_SHARES  # after this s is guaranteed to be bigger than 0
+        dx: uint256 = unsafe_div((x + 1) * ds, s)
         dy: uint256 = unsafe_div((y + 1) * ds, s)
 
         x -= dx
@@ -790,7 +792,7 @@ def withdraw(user: address, frac: uint256) -> uint256[2]:
             if x > 0:
                 self.admin_fees_x += x
             if y > 0:
-                self.admin_fees_y += y / COLLATERAL_PRECISION
+                self.admin_fees_y += unsafe_div(y, COLLATERAL_PRECISION)
             x = 0
             y = 0
 
