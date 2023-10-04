@@ -9,7 +9,7 @@ DEAD_SHARES = 1000
 
 @given(
     collateral_amount=st.integers(min_value=100, max_value=10**20),
-    n=st.integers(min_value=5, max_value=50),
+    n=st.integers(min_value=4, max_value=50),
     f_p_o=st.floats(min_value=0.7, max_value=1.3))
 @settings(max_examples=1000)
 def test_max_borrowable(market_controller, price_oracle, admin, collateral_amount, n, f_p_o):
@@ -30,7 +30,7 @@ def test_max_borrowable(market_controller, price_oracle, admin, collateral_amoun
 
 @given(
     debt_amount=st.integers(min_value=100, max_value=10**20),
-    n=st.integers(min_value=5, max_value=50),
+    n=st.integers(min_value=4, max_value=50),
     f_p_o=st.floats(min_value=0.7, max_value=1.3))
 @settings(max_examples=1000)
 def test_min_collateral(market_controller, price_oracle, admin, debt_amount, n, f_p_o):
