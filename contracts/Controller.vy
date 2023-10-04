@@ -442,8 +442,9 @@ def max_p_base() -> uint256:
     p_oracle: uint256 = AMM.price_oracle()
     # Should be correct unless price changes suddenly by MAX_P_BASE_BANDS+ bands
     n1: int256 = unsafe_div(self.log2(AMM.get_base_price() * 10**18 / p_oracle), LOG2_A_RATIO) + MAX_P_BASE_BANDS
-    p_base: uint256 = AMM.p_oracle_up(n1)
     n_min: int256 = AMM.active_band_with_skip()
+    n1 = max(n1, n_min)
+    p_base: uint256 = AMM.p_oracle_up(n1)
 
     for i in range(MAX_SKIP_TICKS + 1):
         n1 -= 1
