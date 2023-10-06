@@ -158,16 +158,38 @@ def crypto_agg_with_external_oracle(dummy_tricrypto, agg, stableswap_a, chainlin
 
 
 @pytest.fixture(scope="module")
-def peg_keepers(stablecoin_a, stablecoin_b, stableswap_a, stableswap_b, controller_factory, agg, admin, receiver):
+def mock_price_pairs(stablecoin):
+    """ Make Regulator always pass order of prices check """
+    return [
+        boa.load('contracts/testing/MockPricePair.vy', price, stablecoin) for price in [0, 2 ** 256 - 1]
+    ]
+
+
+@pytest.fixture(scope="module")
+def reg(agg, stablecoin, mock_price_pairs, admin):
+    regulator = boa.load(
+        'contracts/stabilizer/PegKeeperRegulator.vy',
+        stablecoin, agg, admin, admin
+    )
+    with boa.env.prank(admin):
+        regulator.set_price_deviation(1000 * 10 ** 18)
+        for mock in mock_price_pairs:
+            regulator.add_price_pair(mock)
+    return regulator
+
+
+@pytest.fixture(scope="module")
+def peg_keepers(stablecoin_a, stablecoin_b, stableswap_a, stableswap_b, controller_factory, reg, admin, receiver):
     pks = []
     with boa.env.prank(admin):
         for (coin, pool) in [(stablecoin_a, stableswap_a), (stablecoin_b, stableswap_b)]:
             pks.append(
                     boa.load(
-                        'contracts/stabilizer/PegKeeper.vy',
-                        pool.address, 1, receiver, 2 * 10**4,
-                        controller_factory.address, agg.address, admin)
+                        'contracts/stabilizer/PegKeeperV2.vy',
+                        pool.address, receiver, 2 * 10**4,
+                        controller_factory.address, reg.address, admin)
             )
+            reg.add_price_pair(pool)
     return pks
 
 

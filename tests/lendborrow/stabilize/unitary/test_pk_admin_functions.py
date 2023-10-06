@@ -6,7 +6,7 @@ ZERO_ADDRESS = "0x0000000000000000000000000000000000000000"
 ADMIN_ACTIONS_DEADLINE = 3 * 86400
 
 
-def test_parameters(peg_keepers, swaps, stablecoin, admin, receiver):
+def test_parameters(peg_keepers, swaps, stablecoin, admin, receiver, reg):
     for peg_keeper, swap in zip(peg_keepers, swaps):
         assert peg_keeper.pegged() == stablecoin.address
         assert peg_keeper.pool() == swap.address
@@ -18,6 +18,7 @@ def test_parameters(peg_keepers, swaps, stablecoin, admin, receiver):
         assert peg_keeper.future_receiver() == ZERO_ADDRESS
 
         assert peg_keeper.caller_share() == 2 * 10**4
+        assert peg_keeper.regulator() == reg.address
 
 
 def test_update_access(peg_keepers, peg_keeper_updater,
@@ -50,6 +51,21 @@ def test_set_new_caller_share_only_admin(peg_keepers, alice):
         for pk in peg_keepers:
             with boa.reverts():  # dev: only admin
                 pk.set_new_caller_share(5 * 10**4)
+
+
+def test_set_new_regulator(peg_keepers, admin):
+    new_regulator = ZERO_ADDRESS
+    with boa.env.prank(admin):
+        for pk in peg_keepers:
+            pk.set_new_regulator(new_regulator)
+            assert pk.regulator() == new_regulator
+
+
+def test_set_new_regulator_only_admin(peg_keepers, alice):
+    with boa.env.prank(alice):
+        for pk in peg_keepers:
+            with boa.reverts():  # dev: only admin
+                pk.set_new_regulator(ZERO_ADDRESS)
 
 
 def test_commit_new_admin(peg_keepers, admin, alice):
