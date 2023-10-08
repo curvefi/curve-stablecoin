@@ -38,7 +38,7 @@ class AggMonetaryPolicyCreation(RuleBasedStateMachine):
             with boa.env.prank(self.admin):
                 self.agg.add_price_pair(self.swaps[-1].address)
         self.mp = boa.load(
-            'contracts/mpolicies/AggMonetaryPolicy.vy',
+            'contracts/mpolicies/AggMonetaryPolicy2.vy',
             self.admin,
             self.agg.address,
             self.controller_factory.address,

@@ -175,7 +175,7 @@ def peg_keepers(stablecoin_a, stablecoin_b, stableswap_a, stableswap_b, controll
 def agg_monetary_policy(peg_keepers, agg, controller_factory, admin):
     with boa.env.prank(admin):
         mp = boa.load(
-                'contracts/mpolicies/AggMonetaryPolicy.vy',
+                'contracts/mpolicies/AggMonetaryPolicy2.vy',
                 admin,
                 agg.address,
                 controller_factory.address,
