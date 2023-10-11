@@ -96,7 +96,7 @@ def _get_price_oracle(_pair: PricePair) -> uint256:
 @view
 def _price_in_range(_p: uint256, _price_oracle: uint256) -> bool:
     """
-    @notice Check that the price is in accepted range using absolute percentage error
+    @notice Check that the price is in accepted range using relative error
     @dev Needed for spam-attack protection
     """
     if _p <= _price_oracle:
