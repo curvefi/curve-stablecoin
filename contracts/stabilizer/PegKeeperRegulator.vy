@@ -55,7 +55,7 @@ emergency_admin: public(address)
 @external
 def __init__(_stablecoin: address, _agg: Aggregator, _admin: address, _emergency_admin: address):
     STABLECOIN = _stablecoin
-    self.aggregator = _agg  # TODO should we use?
+    self.aggregator = _agg
     self.admin = _admin
     self.emergency_admin = _emergency_admin
 
@@ -112,8 +112,12 @@ def provide_allowed(_pk: address=msg.sender) -> bool:
     @dev Checks
         1) current price in range of oracle in case of spam-attack
         2) current price location among other pools in case of contrary coin depeg
+        3) stablecoin price is above 1
     """
     if self.is_killed in Killed.Provide:
+        return False
+
+    if self.aggregator.price() < 10 ** 18:
         return False
 
     pool: StableSwap = StableSwap(PegKeeper(_pk).pool())
@@ -141,8 +145,12 @@ def withdraw_allowed(_pk: address=msg.sender) -> bool:
     @dev Checks
         1) current price in range of oracle in case of spam-attack
         2) current price location among other pools in case of contrary coin depeg
+        3) stablecoin price is below 1
     """
     if self.is_killed in Killed.Withdraw:
+        return False
+
+    if self.aggregator.price() > 10 ** 18:
         return False
 
     pool: StableSwap = StableSwap(PegKeeper(_pk).pool())
