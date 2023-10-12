@@ -173,8 +173,7 @@ def reg(agg, stablecoin, mock_price_pairs, admin):
     )
     with boa.env.prank(admin):
         regulator.set_price_deviation(1000 * 10 ** 18)
-        for mock in mock_price_pairs:
-            regulator.add_price_pair(mock)
+        regulator.add_price_pairs([mock.address for mock in mock_price_pairs])
     return regulator
 
 
@@ -189,7 +188,7 @@ def peg_keepers(stablecoin_a, stablecoin_b, stableswap_a, stableswap_b, controll
                         pool.address, receiver, 2 * 10**4,
                         controller_factory.address, reg.address, admin)
             )
-            reg.add_price_pair(pool)
+            reg.add_price_pairs([pool.address])
     return pks
 
 

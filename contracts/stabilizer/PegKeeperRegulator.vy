@@ -171,39 +171,45 @@ def withdraw_allowed(_pk: address=msg.sender) -> bool:
 
 
 @external
-def add_price_pair(_pool: StableSwap):
+def add_price_pairs(_pools: DynArray[StableSwap, MAX_PAIRS]):
     assert msg.sender == self.admin
 
-    price_pair: PricePair = empty(PricePair)
-    price_pair.pool = _pool
-    coins: address[2] = [_pool.coins(0), _pool.coins(1)]
-    if coins[0] == STABLECOIN:
-        price_pair.is_inverse = True
-    else:
-        assert coins[1] == STABLECOIN
-    self.price_pairs.append(price_pair)  # Should revert if too many pairs
+    for pool in _pools:
+        price_pair: PricePair = empty(PricePair)
+        price_pair.pool = pool
+        coins: address[2] = [pool.coins(0), pool.coins(1)]
+        if coins[0] == STABLECOIN:
+            price_pair.is_inverse = True
+        else:
+            assert coins[1] == STABLECOIN
+        self.price_pairs.append(price_pair)  # Should revert if too many pairs
 
-    log AddPricePair(_pool, price_pair.is_inverse)
+        log AddPricePair(pool, price_pair.is_inverse)
 
 
 @external
-def remove_price_pair(_pool: StableSwap):
+def remove_price_pairs(_pools: DynArray[StableSwap, MAX_PAIRS]):
+    """
+    @dev Most gas efficient will be sort pools reversely
+    """
     assert msg.sender == self.admin
 
-    i: uint256 = 0
-    for price_pair in self.price_pairs:
-        if self.price_pairs[i].pool == _pool:
-            break
-        i += 1
+    price_pairs: DynArray[PricePair, MAX_PAIRS] = self.price_pairs
+    max_n: uint256 = len(price_pairs) - 1
+    for pool in _pools:
+        i: uint256 = max_n
+        for _ in range(MAX_PAIRS + 1):
+            if price_pairs[i].pool == pool:
+                break
+            i -= 1  # dev: pool not found
+        if i < max_n:
+            price_pairs[i] = price_pairs[len(price_pairs) - 1]
 
-    n_max: uint256 = len(self.price_pairs) - 1
-    if i < n_max:
-        self.price_pairs[i] = self.price_pairs[n_max]
-    elif i > n_max:
-        raise "Pool not found"
+        price_pairs.pop()
+        log RemovePricePair(pool)
+        max_n -= 1
 
-    self.price_pairs.pop()
-    log RemovePricePair(_pool)
+    self.price_pairs = price_pairs
 
 
 @external

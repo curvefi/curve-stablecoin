@@ -22,8 +22,7 @@ def test_price_range(peg_keepers, swaps, stablecoin, admin, receiver, reg):
 
 def test_price_order(peg_keepers, mock_price_pairs, swaps, stablecoin, admin, receiver, reg):
     with boa.env.prank(admin):
-        for price_pair in mock_price_pairs:
-            reg.remove_price_pair(price_pair)
+        reg.remove_price_pairs([mock.address for mock in mock_price_pairs])
 
     for peg_keeper, swap in zip(peg_keepers, swaps):
         # note: assuming swaps' prices are close enough
