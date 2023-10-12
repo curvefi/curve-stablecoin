@@ -30,7 +30,7 @@ def test_price_order(peg_keepers, mock_price_pairs, swaps, stablecoin, admin, re
         rate_mul_mul = 2
         swap.eval(f"self.rate_multipliers[0] *= {rate_mul_mul}")
         assert reg.provide_allowed(peg_keeper)
-        assert not reg.withdraw_allowed(peg_keeper)
+        assert reg.withdraw_allowed(peg_keeper)  # no such check for withdraw
 
         # and small one
         swap.eval(f"self.rate_multipliers[0] /= {rate_mul_mul ** 2}")

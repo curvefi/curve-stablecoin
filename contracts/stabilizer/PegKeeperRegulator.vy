@@ -144,8 +144,7 @@ def withdraw_allowed(_pk: address=msg.sender) -> bool:
     @notice Allow Peg Keeper to withdraw stablecoin from the pool
     @dev Checks
         1) current price in range of oracle in case of spam-attack
-        2) current price location among other pools in case of contrary coin depeg
-        3) stablecoin price is below 1
+        2) stablecoin price is below 1
     """
     if self.is_killed in Killed.Withdraw:
         return False
@@ -154,20 +153,10 @@ def withdraw_allowed(_pk: address=msg.sender) -> bool:
         return False
 
     pool: StableSwap = StableSwap(PegKeeper(_pk).pool())
-    price: uint256 = max_value(uint256)  # Will fail if PegKeeper is not in self.price_pairs
-
-    largest_price: uint256 = min_value(uint256)
     for pair in self.price_pairs:
-        pair_price: uint256 = self._get_price(pair)
         if pair.pool == pool:
-            price = pair_price
-            if not self._price_in_range(price, self._get_price_oracle(pair)):
-                return False
-            continue
-
-        if largest_price < pair_price:
-            largest_price = pair_price
-    return largest_price > price
+            return self._price_in_range(self._get_price(pair), self._get_price_oracle(pair))
+    return False  # dev: not found
 
 
 @external
