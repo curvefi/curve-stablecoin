@@ -30,3 +30,14 @@ def get_p() -> uint256:
 @external
 def set_price(price: uint256):
     self.price = price
+
+@external
+@view
+def get_virtual_price() -> uint256:
+    return 10 ** 18  # 1.0
+
+
+@external
+@view
+def totalSupply() -> uint256:
+    return 10 ** 9 * 10 ** 18  # 1B
