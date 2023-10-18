@@ -58,7 +58,7 @@ def __init__(_stablecoin: address, _agg: Aggregator, _admin: address, _emergency
     self.admin = _admin
     self.emergency_admin = _emergency_admin
 
-    self.price_deviation = 10 ** 18 / 10  # 10%
+    self.price_deviation = 5 * 10 ** (18 - 4) # 0.0005 = 0.05%
 
 
 @external
