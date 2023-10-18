@@ -25,26 +25,30 @@ def test_price_range(peg_keepers, swaps, stablecoin, admin, receiver, reg):
         assert not reg.withdraw_allowed(peg_keeper)
 
 
-def test_price_order(peg_keepers, mock_price_pairs, swaps, stablecoin, admin, receiver, reg):
+def test_price_order(peg_keepers, mock_price_pairs, swaps, initial_amounts, stablecoin, admin, alice, mint_alice, reg, agg):
     with boa.env.prank(admin):
         reg.remove_price_pairs([mock.address for mock in mock_price_pairs])
 
-    for peg_keeper, swap in zip(peg_keepers, swaps):
-        # note: assuming swaps' prices are close enough
-        # Make sure big price works
-        rate_mul_mul = 2
-        swap.eval(f"self.rate_multipliers[0] *= {rate_mul_mul}")
-        assert reg.provide_allowed(peg_keeper)
-        assert reg.withdraw_allowed(peg_keeper)  # no such check for withdraw
+    # note: assuming swaps' prices are close enough
+    for i, (peg_keeper, swap, (initial_amount, _)) in enumerate(zip(peg_keepers, swaps, initial_amounts)):
+        with boa.env.anchor():
+            with boa.env.prank(admin):
+                # Price change break aggregator.price() check
+                agg.remove_price_pair(i)
 
-        # and small one
-        swap.eval(f"self.rate_multipliers[0] /= {rate_mul_mul ** 2}")
+            with boa.env.prank(alice):
+                amount = 7 * initial_amount // 1000  # Just in
+                # Make sure small decline still works
+                swap.exchange(0, 1, amount, 0)
+                boa.env.time_travel(seconds=6000)  # Update EMA
+                assert reg.provide_allowed(peg_keeper)
+                assert reg.withdraw_allowed(peg_keeper)  # no such check for withdraw
 
-        assert not reg.provide_allowed(peg_keeper)
-        assert reg.withdraw_allowed(peg_keeper)
-
-        # Return to initial
-        swap.eval(f"self.rate_multipliers[0] *= {rate_mul_mul}")
+                # and a bigger one
+                swap.exchange(0, 1, amount, 0)
+                boa.env.time_travel(seconds=6000)  # Update EMA
+                assert not reg.provide_allowed(peg_keeper)
+                assert reg.withdraw_allowed(peg_keeper)
 
 
 def test_set_killed(reg, peg_keepers, admin):

@@ -68,7 +68,7 @@ def stablecoin() -> address:
 
 
 @internal
-@view
+@pure
 def _get_price(_pair: PricePair) -> uint256:
     """
     @return Price of the coin in STABLECOIN
@@ -123,20 +123,19 @@ def provide_allowed(_pk: address=msg.sender) -> bool:
         return False
 
     pool: StableSwap = StableSwap(PegKeeper(_pk).pool())
-    price: uint256 = 0  # Will fail if PegKeeper is not in self.price_pairs
+    price: uint256 = max_value(uint256)  # Will fail if PegKeeper is not in self.price_pairs
 
-    smallest_price: uint256 = max_value(uint256)
+    largest_price: uint256 = 0
     for pair in self.price_pairs:
-        pair_price: uint256 = self._get_price(pair)
+        pair_price: uint256 = self._get_price_oracle(pair)
         if pair.pool.address == pool.address:
             price = pair_price
-            if not self._price_in_range(price, self._get_price_oracle(pair)):
+            if not self._price_in_range(price, self._get_price(pair)):
                 return False
             continue
-
-        if smallest_price > pair_price:
-            smallest_price = pair_price
-    return smallest_price < price
+        elif largest_price < pair_price:
+            largest_price = pair_price
+    return largest_price >= unsafe_sub(price, 3 * 10 ** (18 - 4))
 
 
 @external
