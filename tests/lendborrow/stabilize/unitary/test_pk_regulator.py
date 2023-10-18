@@ -56,14 +56,11 @@ def test_aggregator_price(peg_keepers, mock_price_pairs, reg, agg, admin, stable
     with boa.env.prank(admin):
         agg.add_price_pair(mock_pair)
         for price in [0.95, 1.05]:
-            with boa.env.anchor():
-                print(agg.price())
-                mock_pair.set_price(int(price * 10 ** 18))
-                boa.env.time_travel(seconds=50000)
-                print(agg.price())
-                for peg_keeper in peg_keepers:
-                    assert reg.provide_allowed(peg_keeper) == (price > 1)
-                    assert reg.withdraw_allowed(peg_keeper) == (price < 1)
+            mock_pair.set_price(int(price * 10 ** 18))
+            boa.env.time_travel(seconds=50000)
+            for peg_keeper in peg_keepers:
+                assert reg.provide_allowed(peg_keeper) == (price > 1)
+                assert reg.withdraw_allowed(peg_keeper) == (price < 1)
 
 
 def test_set_killed(reg, peg_keepers, admin):
