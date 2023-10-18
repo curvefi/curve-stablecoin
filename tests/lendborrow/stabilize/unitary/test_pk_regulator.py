@@ -13,8 +13,13 @@ def test_price_range(peg_keepers, swaps, stablecoin, admin, receiver, reg):
         assert reg.provide_allowed(peg_keeper)
         assert reg.withdraw_allowed(peg_keeper)
 
-        # Move current price (get_p)
-        swap.eval("self.rate_multipliers[0] *= 10")
+        # Move current price (get_p) a little
+        swap.eval("self.rate_multipliers[0] *= 2")
+        assert reg.provide_allowed(peg_keeper)
+        assert reg.withdraw_allowed(peg_keeper)
+
+        # Move further
+        swap.eval("self.rate_multipliers[0] *= 5")
 
         assert not reg.provide_allowed(peg_keeper)
         assert not reg.withdraw_allowed(peg_keeper)
