@@ -1,9 +1,8 @@
 # @version 0.3.9
 """
-@title Peg Keeper Controller
+@title Peg Keeper Regulator
 @author Curve.Fi
-@notice Conditions for Peg Keeper
-@dev Checks that current price is in range of oracle and in top-3 of all kept pools.
+@notice Regulations for Peg Keeper
 @license MIT
 """
 
@@ -96,12 +95,12 @@ def _get_price_oracle(_pair: PricePair) -> uint256:
 @view
 def _price_in_range(_p: uint256, _price_oracle: uint256) -> bool:
     """
-    @notice Check that the price is in accepted range using relative error
+    @notice Check that the price is in accepted range using absolute error
     @dev Needed for spam-attack protection
     """
     if _p <= _price_oracle:
-        return unsafe_sub(_price_oracle, _p) < _price_oracle * self.price_deviation / 10 ** 18
-    return unsafe_sub(_p, _price_oracle) < _price_oracle * self.price_deviation / 10 ** 18
+        return unsafe_sub(_price_oracle, _p) < self.price_deviation
+    return unsafe_sub(_p, _price_oracle) < self.price_deviation
 
 
 @external
