@@ -93,14 +93,17 @@ def _get_price_oracle(_pair: PricePair) -> uint256:
 
 @internal
 @view
-def _price_in_range(_p: uint256, _price_oracle: uint256) -> bool:
+def _price_in_range(_p0: uint256, _p1: uint256) -> bool:
     """
     @notice Check that the price is in accepted range using absolute error
     @dev Needed for spam-attack protection
     """
-    if _p <= _price_oracle:
-        return unsafe_sub(_price_oracle, _p) < self.price_deviation
-    return unsafe_sub(_p, _price_oracle) < self.price_deviation
+    # |p1 - p0| <= deviation
+    # -deviation <= p1 - p0 <= deviation
+    # 0 < deviation + p1 - p0 <= 2 * deviation
+    # can use unsafe
+    deviation: uint256 = self.price_deviation
+    return unsafe_sub(unsafe_add(deviation, _p0), _p1) < deviation << 1
 
 
 @external
@@ -204,9 +207,10 @@ def remove_price_pairs(_pools: DynArray[StableSwap, MAX_PAIRS]):
 def set_price_deviation(_deviation: uint256):
     """
     @notice Set acceptable deviation of current price from oracle's
-    @param _deviation Deviation of price with base 10 ** 18 (100% = 10 ** 18)
+    @param _deviation Deviation of price with base 10 ** 18 (1.0 = 10 ** 18)
     """
     assert msg.sender == self.admin
+    assert _deviation <= 10 ** 20
     self.price_deviation = _deviation
 
 

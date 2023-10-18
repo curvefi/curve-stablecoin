@@ -172,7 +172,7 @@ def reg(agg, stablecoin, mock_price_pairs, admin):
         stablecoin, agg, admin, admin
     )
     with boa.env.prank(admin):
-        regulator.set_price_deviation(1000 * 10 ** 18)
+        regulator.set_price_deviation(100 * 10 ** 18)
         regulator.add_price_pairs([mock.address for mock in mock_price_pairs])
     return regulator
 

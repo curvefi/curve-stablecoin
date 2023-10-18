@@ -71,7 +71,7 @@ def test_set_killed(reg, peg_keepers, admin):
 
 def test_admin(reg, admin, alice):
     # initial parameters
-    assert reg.price_deviation() == 1000 * 10 ** 18
+    assert reg.price_deviation() == 100 * 10 ** 18
     assert reg.emergency_admin() == admin
     assert reg.is_killed() == 0
     assert reg.admin() == admin
