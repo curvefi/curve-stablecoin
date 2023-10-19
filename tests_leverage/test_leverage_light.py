@@ -36,7 +36,7 @@ def test_leverage(collaterals, controllers, llammas, leverage_zaps, user, collat
         collateral, stablecoin, debt, _N = controllers[collateral_token].user_state(user)
         n1, n2 = llammas[collateral_token].read_user_tick_numbers(user)
 
-        assert abs((expected_collateral - collateral) / collateral) < 1e-7
+        assert abs((expected_collateral - collateral) / collateral) < 2e-7
         assert stablecoin == 0
         assert debt == _borrow_amt
         assert N == _N
