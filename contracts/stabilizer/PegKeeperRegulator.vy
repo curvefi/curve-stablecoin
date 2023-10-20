@@ -197,7 +197,8 @@ def remove_price_pairs(_pools: DynArray[StableSwap, MAX_PAIRS]):
 
         price_pairs.pop()
         log RemovePricePair(pool)
-        max_n -= 1
+        if max_n > 0:
+            max_n -= 1
 
     self.price_pairs = price_pairs
 
