@@ -36,10 +36,7 @@ event Withdraw:
 event Profit:
     lp_amount: uint256
 
-event CommitNewReceiver:
-    receiver: address
-
-event ApplyNewReceiver:
+event NewReceiver:
     receiver: address
 
 event CommitNewAdmin:
@@ -79,13 +76,10 @@ caller_share: public(uint256)
 
 admin: public(address)
 future_admin: public(address)
+new_admin_deadline: public(uint256)
 
 # Receiver of profit
 receiver: public(address)
-future_receiver: public(address)
-
-new_admin_deadline: public(uint256)
-new_receiver_deadline: public(uint256)
 
 FACTORY: immutable(address)
 
@@ -123,7 +117,7 @@ def __init__(
 
     assert _receiver != empty(address)
     self.receiver = _receiver
-    log ApplyNewReceiver(_receiver)
+    log NewReceiver(_receiver)
 
     self.regulator = _regulator
     log SetNewRegulator(_regulator.address)
@@ -359,13 +353,12 @@ def withdraw_profit() -> uint256:
 def commit_new_admin(_new_admin: address):
     """
     @notice Commit new admin of the Peg Keeper
+    @dev In order to revert, commit_new_admin(current_admin) may be called
     @param _new_admin Address of the new admin
     """
     assert msg.sender == self.admin  # dev: only admin
-    assert self.new_admin_deadline == 0 # dev: active action
 
-    deadline: uint256 = block.timestamp + ADMIN_ACTIONS_DELAY
-    self.new_admin_deadline = deadline
+    self.new_admin_deadline = block.timestamp + ADMIN_ACTIONS_DELAY
     self.future_admin = _new_admin
 
     log CommitNewAdmin(_new_admin)
@@ -391,48 +384,11 @@ def apply_new_admin():
 
 @external
 @nonpayable
-def commit_new_receiver(_new_receiver: address):
+def set_new_receiver(_new_receiver: address):
     """
     @notice Commit new receiver of profit
     @param _new_receiver Address of the new receiver
     """
     assert msg.sender == self.admin  # dev: only admin
-    assert self.new_receiver_deadline == 0 # dev: active action
-
-    deadline: uint256 = block.timestamp + ADMIN_ACTIONS_DELAY
-    self.new_receiver_deadline = deadline
-    self.future_receiver = _new_receiver
-
-    log CommitNewReceiver(_new_receiver)
-
-
-@external
-@nonpayable
-def apply_new_receiver():
-    """
-    @notice Apply new receiver of profit
-    """
-    assert block.timestamp >= self.new_receiver_deadline  # dev: insufficient time
-    assert self.new_receiver_deadline != 0  # dev: no active action
-
-    new_receiver: address = self.future_receiver
-    self.receiver = new_receiver
-    self.new_receiver_deadline = 0
-
-    log ApplyNewReceiver(new_receiver)
-
-
-@external
-@nonpayable
-def revert_new_options():
-    """
-    @notice Revert new admin of the Peg Keeper or new receiver
-    @dev Should be executed from admin
-    """
-    assert msg.sender == self.admin  # dev: only admin
-
-    self.new_admin_deadline = 0
-    self.new_receiver_deadline = 0
-
-    log ApplyNewAdmin(self.admin)
-    log ApplyNewReceiver(self.receiver)
+    self.receiver = _new_receiver
+    log NewReceiver(_new_receiver)
