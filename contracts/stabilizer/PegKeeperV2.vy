@@ -24,6 +24,7 @@ interface CurvePool:
 
 interface ERC20:
     def approve(_spender: address, _amount: uint256): nonpayable
+    def balanceOf(_owner: address) -> uint256: view
     def decimals() -> uint256: view
 
 
@@ -154,13 +155,15 @@ def _provide(_amount: uint256):
     if _amount == 0:
         return
 
+    amount: uint256 = min(_amount, PEGGED.balanceOf(self))
+
     amounts: uint256[2] = empty(uint256[2])
-    amounts[I] = _amount
+    amounts[I] = amount
     POOL.add_liquidity(amounts, 0)
 
     self.last_change = block.timestamp
-    self.debt += _amount
-    log Provide(_amount)
+    self.debt += amount
+    log Provide(amount)
 
 
 @internal
@@ -201,7 +204,9 @@ def _calc_future_profit(_amount: uint256, _is_deposit: bool) -> uint256:
     lp_balance: uint256 = POOL.balanceOf(self)
     debt: uint256 = self.debt
     amount: uint256 = _amount
-    if not _is_deposit:
+    if _is_deposit:
+        amount = min(_amount, PEGGED.balanceOf(self))
+    else:
         amount = min(_amount, debt)
 
     amounts: uint256[2] = empty(uint256[2])
