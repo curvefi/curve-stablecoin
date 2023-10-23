@@ -66,8 +66,7 @@ controllers: public(address[MAX_CONTROLLERS])
 struct DebtCandle:
     short_candle: uint256  # 1/2 day candle
     long_candle: uint256   # 1 day candle
-    short_timestamp: uint256
-    long_timestamp: uint256
+    timestamp: uint256
 
 DEBT_CANDLE_TIME: constant(uint256) = 86400
 min_debt_candles: public(HashMap[address, DebtCandle])
@@ -208,9 +207,9 @@ def get_total_debt(_for: address) -> (uint256, uint256):
 def read_candle(_for: address) -> uint256:
     out: uint256 = 0
 
-    if block.timestamp < self.min_debt_candles[_for].long_timestamp + DEBT_CANDLE_TIME:
+    if block.timestamp < self.min_debt_candles[_for].timestamp / DEBT_CANDLE_TIME * DEBT_CANDLE_TIME + DEBT_CANDLE_TIME:
         out = self.min_debt_candles[_for].long_candle
-    elif block.timestamp < self.min_debt_candles[_for].short_timestamp + DEBT_CANDLE_TIME:
+    elif block.timestamp < self.min_debt_candles[_for].timestamp / (DEBT_CANDLE_TIME/2) * (DEBT_CANDLE_TIME/2) + DEBT_CANDLE_TIME:
         out = self.min_debt_candles[_for].short_candle
 
     return out
@@ -220,21 +219,20 @@ def read_candle(_for: address) -> uint256:
 def save_candle(_for: address, _value: uint256):
     candle: DebtCandle = self.min_debt_candles[_for]
 
-    if block.timestamp >= candle.long_timestamp + DEBT_CANDLE_TIME:
-        if block.timestamp < candle.short_timestamp + DEBT_CANDLE_TIME:
+    if block.timestamp >= candle.timestamp / DEBT_CANDLE_TIME * DEBT_CANDLE_TIME + DEBT_CANDLE_TIME:
+        if block.timestamp < candle.timestamp / (DEBT_CANDLE_TIME/2) * (DEBT_CANDLE_TIME/2) + DEBT_CANDLE_TIME:
             candle.long_candle = min(candle.short_candle, _value)
         else:
             candle.long_candle = _value
-        candle.long_timestamp = block.timestamp / DEBT_CANDLE_TIME * DEBT_CANDLE_TIME
     else:
         candle.long_candle = min(candle.long_candle, _value)
 
-    if block.timestamp >= candle.short_timestamp + DEBT_CANDLE_TIME / 2:
-        candle.short_timestamp = block.timestamp / (DEBT_CANDLE_TIME / 2) * (DEBT_CANDLE_TIME / 2)
+    if block.timestamp >= candle.timestamp / (DEBT_CANDLE_TIME/2) * (DEBT_CANDLE_TIME/2) + DEBT_CANDLE_TIME/2:
         candle.short_candle = _value
     else:
         candle.short_candle = min(candle.short_candle, _value)
 
+    candle.timestamp = block.timestamp
     self.min_debt_candles[_for] = candle
 
 
