@@ -243,10 +243,10 @@ def save_candle(_for: address, _value: uint256):
 def read_debt(_for: address, ro: bool) -> (uint256, uint256):
     debt_total: uint256 = self.read_candle(empty(address))
     debt_for: uint256 = self.read_candle(_for)
+    fresh_total: uint256 = 0
+    fresh_for: uint256 = 0
 
     if ro:
-        fresh_total: uint256 = 0
-        fresh_for: uint256 = 0
         fresh_total, fresh_for = self.get_total_debt(_for)
         if debt_total > 0:
             debt_total = min(debt_total, fresh_total)
@@ -256,6 +256,14 @@ def read_debt(_for: address, ro: bool) -> (uint256, uint256):
             debt_for = min(debt_for, fresh_for)
         else:
             debt_for = fresh_for
+
+    else:
+        if debt_total == 0 or debt_for == 0:
+            fresh_total, fresh_for = self.get_total_debt(_for)
+            if debt_total == 0:
+                debt_total = fresh_total
+            if debt_for == 0:
+                debt_for = fresh_for
 
     return debt_total, debt_for
 

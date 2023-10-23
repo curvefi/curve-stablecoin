@@ -1,5 +1,6 @@
 import boa
 import pytest
+from collections import defaultdict
 
 RATE0 = 634195839  # 2%
 ZERO_ADDRESS = "0x0000000000000000000000000000000000000000"
@@ -64,4 +65,31 @@ def test_broken_markets(mp, mock_factory, admin):
 
 
 def test_candles(mp, mock_factory, admin):
-    pass
+    with boa.env.prank(admin):
+        points_per_day = 25
+
+        mp.rate_write()  # Saving cache of controllers - they never change in this test afterwards
+        controllers = [mock_factory.controllers(i) for i in range(3)]
+        max_diff_for = defaultdict(int)
+
+        for t in range(1000):
+            controller = controllers[t % 3]
+            new_debt = t * 10**4 * 10**18
+            mock_factory.set_debt(controller, new_debt)
+            d_total_0, d_for_0 = mp.internal.read_debt(controller, True)
+            mp.rate_write(controller)
+            d_total_1, d_for_1 = mp.internal.read_debt(controller, False)
+            current_total = mock_factory.total_debt()
+            assert d_total_0 == d_total_1 <= current_total
+            assert d_for_0 == d_for_1
+            max_diff_for[controller] = max(max_diff_for[controller], new_debt - d_for_1)
+
+            boa.env.time_travel(86400 // points_per_day)
+
+        for c in controllers:
+            assert max_diff_for[c] > 0
+            assert max_diff_for[c] < 1.5 * (points_per_day * 10**4 * 10**18)  # XXX think why 1.5 and not 1.0
+
+
+# def test_add_controllers():
+#     pass
