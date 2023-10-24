@@ -83,6 +83,7 @@ def test_candles(mp, mock_factory, admin):
             assert d_total_0 == d_total_1 <= current_total
             assert d_for_0 == d_for_1
             max_diff_for[controller] = max(max_diff_for[controller], new_debt - d_for_1)
+            print(t, (new_debt - d_for_1) / (points_per_day * 10**4 * 10**18))
 
             boa.env.time_travel(86400 // points_per_day)
 
