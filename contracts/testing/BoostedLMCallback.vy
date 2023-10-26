@@ -220,30 +220,30 @@ def _checkpoint_collateral_shares(n: int256, collateral_per_share: DynArray[uint
         I_rpc.rpc += delta_rpc
         self.I_rpc = I_rpc
 
-        # Update boosted_collateral
-        for i in range(MAX_TICKS_INT):
-            _n: int256 = n + i
-            old_cps: uint256 = self.collateral_per_share[_n]
-            cps: uint256 = old_cps
-            if len(collateral_per_share) == 0:
-                cps = old_cps
-            else:
-                cps = collateral_per_share[i]
-                self.collateral_per_share[_n] = cps
-            I_rps: IntegralRPS = self.I_rps[_n]
-            I_rps.rps += old_cps * (I_rpc.rpc - I_rps.rpc) / 10**18
-            I_rps.rpc = I_rpc.rpc
-            self.I_rps[_n] = I_rps
-            if cps != old_cps:
-                spb: uint256 = self.shares_per_band[_n]
-                if spb > 0:
-                    # boosted_collateral += spb * (cps - old_cps) / 10**18
-                    old_value: uint256 = spb * old_cps / 10**18
-                    boosted_collateral = max(boosted_collateral + spb * cps / 10**18, old_value) - old_value
-            if i == n_shares:
-                break
+    # Update boosted_collateral
+    for i in range(MAX_TICKS_INT):
+        _n: int256 = n + i
+        old_cps: uint256 = self.collateral_per_share[_n]
+        cps: uint256 = old_cps
+        if len(collateral_per_share) == 0:
+            cps = old_cps
+        else:
+            cps = collateral_per_share[i]
+            self.collateral_per_share[_n] = cps
+        I_rps: IntegralRPS = self.I_rps[_n]
+        I_rps.rps += old_cps * (I_rpc.rpc - I_rps.rpc) / 10**18
+        I_rps.rpc = I_rpc.rpc
+        self.I_rps[_n] = I_rps
+        if cps != old_cps:
+            spb: uint256 = self.shares_per_band[_n]
+            if spb > 0:
+                # boosted_collateral += spb * (cps - old_cps) / 10**18
+                old_value: uint256 = spb * old_cps / 10**18
+                boosted_collateral = max(boosted_collateral + spb * cps / 10**18, old_value) - old_value
+        if i == n_shares:
+            break
 
-        self.boosted_collateral = boosted_collateral
+    self.boosted_collateral = boosted_collateral
 
 
 @external
