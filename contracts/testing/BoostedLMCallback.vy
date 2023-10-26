@@ -204,12 +204,17 @@ def _checkpoint_collateral_shares(n: int256, collateral_per_share: DynArray[uint
                 # of the first epoch until it ends, and then the rate of
                 # the last epoch.
                 # If more than one epoch is crossed - the gauge gets less,
-                # but that'd meen it wasn't called for more than 1 year
+                # but that'd mean it wasn't called for more than 1 year
                 delta_rpc += rate * w * (prev_future_epoch - prev_week_time) / boosted_collateral
                 rate = new_rate
                 delta_rpc += rate * w * (week_time - prev_future_epoch) / boosted_collateral
             else:
                 delta_rpc += rate * w * dt / boosted_collateral
+
+            if week_time == block.timestamp:
+                break
+            prev_week_time = week_time
+            week_time = min(week_time + WEEK, block.timestamp)
 
         I_rpc.t = block.timestamp
         I_rpc.rpc += delta_rpc
