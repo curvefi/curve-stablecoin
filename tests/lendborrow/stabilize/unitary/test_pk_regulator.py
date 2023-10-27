@@ -71,13 +71,15 @@ def test_debt_limit(peg_keepers, mock_peg_keepers, reg, agg, admin, stablecoin):
     alpha, beta = 10 ** 18 // 2, 10 ** 18 // 4
     with boa.env.prank(admin):
         reg.set_debt_parameters(alpha, beta)
+        for mock in mock_peg_keepers:
+            mock.set_price(10 ** 18)
     all_pks = mock_peg_keepers + peg_keepers
 
     # First peg keeper debt limit
     for pk in all_pks:
         pk.eval("self.debt = 0")
         stablecoin.eval(f"self.balanceOf[{pk.address}] = {10 ** 18}")
-    for pk in all_pks[2:]:
+    for pk in all_pks:
         assert reg.provide_allowed(pk.address) == alpha ** 2 // 10 ** 18
 
     # Three peg keepers debt limits
@@ -89,7 +91,7 @@ def test_debt_limit(peg_keepers, mock_peg_keepers, reg, agg, admin, stablecoin):
 
 
 @given(
-    a=st.integers(min_value=0, max_value=10 ** 18 // 2),
+    a=st.integers(min_value=0, max_value=10 ** 18),
     b=st.integers(min_value=0, max_value=10 ** 18 // 2),
     debts=st.lists(st.integers(min_value=0, max_value=10 ** 18), min_size=3, max_size=3),
 )
