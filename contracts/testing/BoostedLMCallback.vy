@@ -19,10 +19,6 @@ interface CRV20:
     def future_epoch_time_write() -> uint256: nonpayable
     def rate() -> uint256: view
 
-event UpdateBoost:
-    user: indexed(address)
-    boost: uint256
-
 interface GaugeController:
     def period() -> int128: view
     def period_write() -> int128: nonpayable
@@ -36,6 +32,14 @@ interface Minter:
     def token() -> address: view
     def controller() -> address: view
     def minted(user: address, gauge: address) -> uint256: view
+
+
+event UpdateLiquidityLimit:
+    user: address
+    original_balance: uint256
+    original_supply: uint256
+    working_balance: uint256
+    working_supply: uint256
 
 
 MAX_TICKS_UINT: constant(uint256) = 50
@@ -54,16 +58,15 @@ VEBOOST_PROXY: public(immutable(VotingEscrowBoost))
 GAUGE_CONTROLLER: public(immutable(GaugeController))
 MINTER: public(immutable(Minter))
 
-collateral_for_boost: public(HashMap[address, uint256])
-total_collateral_for_boost: public(uint256)
+user_collateral: public(HashMap[address, uint256])
+total_collateral: public(uint256)
 working_supply: public(uint256)
 working_balances: public(HashMap[address, uint256])
 
-boosted_collateral: public(uint256)
 collateral_per_share: public(HashMap[int256, uint256])
-shares_per_band: public(HashMap[int256, uint256])  # This only counts staked shares
+working_shares_per_band: public(HashMap[int256, uint256])  # This only counts staked shares
 
-boosted_shares: public(HashMap[address, HashMap[int256, uint256]])
+working_shares: public(HashMap[address, HashMap[int256, uint256]])
 user_band: public(HashMap[address,int256])
 user_range_size: public(HashMap[address,uint256])
 
@@ -140,16 +143,16 @@ def initialize():
 
 
 @internal
-def _update_boost(user: address, collateral_amount: uint256) -> uint256:
+def _update_liquidity_limit(user: address, collateral_amount: uint256) -> uint256:
     # To be called after totalSupply is updated
     voting_balance: uint256 = VEBOOST_PROXY.adjusted_balance_of(user)
     voting_total: uint256 = VECRV.totalSupply()
 
     # collateral_amount and total are used to calculate boosts
-    old_amount: uint256 = self.collateral_for_boost[user]
-    self.collateral_for_boost[user] = collateral_amount
-    L: uint256 = self.total_collateral_for_boost + collateral_amount - old_amount
-    self.total_collateral_for_boost = L
+    old_amount: uint256 = self.user_collateral[user]
+    self.user_collateral[user] = collateral_amount
+    L: uint256 = self.total_collateral + collateral_amount - old_amount
+    self.total_collateral = L
 
     lim: uint256 = collateral_amount * TOKENLESS_PRODUCTION / 100
     if voting_total > 0:
@@ -161,10 +164,9 @@ def _update_boost(user: address, collateral_amount: uint256) -> uint256:
     _working_supply: uint256 = self.working_supply + lim - old_bal
     self.working_supply = _working_supply
 
-    boost: uint256 = lim * 10**18 / _working_supply
-    log UpdateBoost(user, boost)
+    log UpdateLiquidityLimit(user, collateral_amount, L, lim, _working_supply)
 
-    return boost
+    return lim
 
 
 @internal
@@ -187,10 +189,10 @@ def _checkpoint_collateral_shares(n: int256, collateral_per_share: DynArray[uint
 
     # * Record the collateral per share values
     # * Record integrals of rewards per share
-    boosted_collateral: uint256 = self.boosted_collateral
+    working_supply: uint256 = self.working_supply
     delta_rpc: uint256 = 0
 
-    if boosted_collateral > 0 and block.timestamp > I_rpc.t:  # XXX should we not loop when boosted collateral == 0?
+    if working_supply > 0 and block.timestamp > I_rpc.t:  # XXX should we not loop when boosted collateral == 0?
         GAUGE_CONTROLLER.checkpoint_gauge(self)
         prev_week_time: uint256 = I_rpc.t
         week_time: uint256 = min((I_rpc.t + WEEK) / WEEK * WEEK, block.timestamp)
@@ -205,11 +207,17 @@ def _checkpoint_collateral_shares(n: int256, collateral_per_share: DynArray[uint
                 # the last epoch.
                 # If more than one epoch is crossed - the gauge gets less,
                 # but that'd mean it wasn't called for more than 1 year
-                delta_rpc += rate * w * (prev_future_epoch - prev_week_time) / boosted_collateral
+                delta_rpc += rate * w * (prev_future_epoch - prev_week_time) / working_supply
                 rate = new_rate
-                delta_rpc += rate * w * (week_time - prev_future_epoch) / boosted_collateral
+                delta_rpc += rate * w * (week_time - prev_future_epoch) / working_supply
             else:
-                delta_rpc += rate * w * dt / boosted_collateral
+                delta_rpc += rate * w * dt / working_supply
+            # On precisions of the calculation
+            # rate ~= 10e18
+            # last_weight > 0.01 * 1e18 = 1e16 (if pool weight is 1%)
+            # _working_supply ~= TVL * 1e18 ~= 1e26 ($100M for example)
+            # The largest loss is at dt = 1
+            # Loss is 1e-9 - acceptable
 
             if week_time == block.timestamp:
                 break
@@ -220,7 +228,7 @@ def _checkpoint_collateral_shares(n: int256, collateral_per_share: DynArray[uint
         I_rpc.rpc += delta_rpc
         self.I_rpc = I_rpc
 
-    # Update boosted_collateral
+    # Update working_supply
     for i in range(MAX_TICKS_INT):
         _n: int256 = n + i
         old_cps: uint256 = self.collateral_per_share[_n]
@@ -235,15 +243,15 @@ def _checkpoint_collateral_shares(n: int256, collateral_per_share: DynArray[uint
         I_rps.rpc = I_rpc.rpc
         self.I_rps[_n] = I_rps
         if cps != old_cps:
-            spb: uint256 = self.shares_per_band[_n]
-            if spb > 0:
-                # boosted_collateral += spb * (cps - old_cps) / 10**18
-                old_value: uint256 = spb * old_cps / 10**18
-                boosted_collateral = max(boosted_collateral + spb * cps / 10**18, old_value) - old_value
+            wspb: uint256 = self.working_shares_per_band[_n]
+            if wspb > 0:
+                # working_supply += wspb * (cps - old_cps) / 10**18
+                old_value: uint256 = wspb * old_cps / 10**18
+                working_supply = max(working_supply + wspb * cps / 10**18, old_value) - old_value
         if i == n_shares:
             break
 
-    self.boosted_collateral = boosted_collateral
+    self.working_supply = working_supply
 
 
 @external
@@ -255,8 +263,6 @@ def callback_collateral_shares(n: int256, collateral_per_share: DynArray[uint256
 
 @internal
 def _checkpoint_user_shares(user: address, n: int256, user_shares: DynArray[uint256, MAX_TICKS_UINT], size: uint256):
-    boosted_collateral: uint256 = self.boosted_collateral
-
     # Calculate the amount of real collateral for the user
     n_shares: int256 = 0
     if len(user_shares) == 0:
@@ -265,46 +271,41 @@ def _checkpoint_user_shares(user: address, n: int256, user_shares: DynArray[uint
         n_shares = convert(len(user_shares), int256)
 
     collateral_amount: uint256 = 0
-    user_cps: DynArray[uint256, MAX_TICKS_UINT] = []
-    for i in range(MAX_TICKS_INT):
-        if i == n_shares:
-            break
-        cps: uint256 = self.collateral_per_share[n + i]
-        user_cps.append(cps)
-        if len(user_shares) > 0:
-            collateral_amount += user_shares[i] * cps / 10**18
     if len(user_shares) == 0:
-        collateral_amount = self.collateral_for_boost[user]
+        collateral_amount = self.user_collateral[user]
+    else:
+        for i in range(MAX_TICKS_INT):
+            if i == n_shares:
+                break
+            collateral_amount += user_shares[i] * self.collateral_per_share[n + i] / 10**18
 
-    boost: uint256 = self._update_boost(user, collateral_amount)
+    # Get working balance
+    working_balance: uint256 = self._update_liquidity_limit(user, collateral_amount)
     rpu: uint256 = self.integrate_fraction[user]
 
     for j in range(MAX_TICKS_INT):
         i: int256 = n + j
         if j == n_shares:
             break
-        old_s: uint256 = self.boosted_shares[user][i]
-        cps: uint256 = user_cps[j]
-        s: uint256 = old_s
+        old_ws: uint256 = self.working_shares[user][i]
+        # Transition from working_balance to working_shares:
+        # 1. working_balance * real_shares == real_balance * working_shares
+        # 2. collateral_per_share * working_shares = working_balance
+        #
+        # It's needed to update working supply during soft-liquidation
         if len(user_shares) > 0:
-            s = user_shares[j] * boost / 10**18
-            self.boosted_shares[user][i] = s
+            ws: uint256 = user_shares[j] * working_balance / collateral_amount
+            self.working_shares[user][i] = ws
+            self.working_shares_per_band[i] = self.working_shares_per_band[i] + ws - old_ws
 
         I_rpu: IntegralRPU = self.I_rpu[user][i]
         I_rps: uint256 = self.I_rps[i].rps
-        d_rpu: uint256 = old_s * (I_rps - I_rpu.rps) / 10**18
+        d_rpu: uint256 = old_ws * (I_rps - I_rpu.rps) / 10**18
         I_rpu.rpu += d_rpu
         rpu += d_rpu
         I_rpu.rps = I_rps
         self.I_rpu[user][i] = I_rpu
 
-        if s != old_s:
-            self.shares_per_band[i] = self.shares_per_band[i] + s - old_s
-            # boosted_collateral += cps * (s - old_s) / 10**18
-            old_value: uint256 = cps * old_s / 10**18
-            boosted_collateral = max(boosted_collateral + cps * s / 10**18, old_value) - old_value
-
-    self.boosted_collateral = boosted_collateral
     self.integrate_fraction[user] = rpu
 
 
