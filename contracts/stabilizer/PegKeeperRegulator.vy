@@ -132,7 +132,7 @@ def _get_max_ratio(_debt_ratios: DynArray[uint256, MAX_LEN]) -> uint256:
     rsum: uint256 = 0
     for r in _debt_ratios:
         rsum += isqrt(r * ONE)
-    return min(self.alpha + self.beta * rsum / ONE, ONE) ** 2 / ONE
+    return (self.alpha + self.beta * rsum / ONE) ** 2 / ONE
 
 
 @external
@@ -140,6 +140,7 @@ def _get_max_ratio(_debt_ratios: DynArray[uint256, MAX_LEN]) -> uint256:
 def provide_allowed(_pk: address=msg.sender) -> uint256:
     """
     @notice Allow PegKeeper to provide stablecoin into the pool
+    @dev Can return more amount than available
     @dev Checks
         1) current price in range of oracle in case of spam-attack
         2) current price location among other pools in case of contrary coin depeg
@@ -164,7 +165,7 @@ def provide_allowed(_pk: address=msg.sender) -> uint256:
             continue
         elif largest_price < price_oracle:
             largest_price = price_oracle
-            debt_ratios.append(self._get_ratio(info.peg_keeper))
+        debt_ratios.append(self._get_ratio(info.peg_keeper))
 
     if largest_price < unsafe_sub(price, LAST_PRICE_THRESHOLD):
         return 0
@@ -180,6 +181,7 @@ def provide_allowed(_pk: address=msg.sender) -> uint256:
 def withdraw_allowed(_pk: address=msg.sender) -> uint256:
     """
     @notice Allow Peg Keeper to withdraw stablecoin from the pool
+    @dev Can return more amount than available
     @dev Checks
         1) current price in range of oracle in case of spam-attack
         2) stablecoin price is below 1

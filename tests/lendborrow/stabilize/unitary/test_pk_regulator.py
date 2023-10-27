@@ -1,7 +1,6 @@
 import boa
 import pytest
-from hypothesis import strategies as st
-from hypothesis import given
+from hypothesis import strategies as st, given
 
 
 ZERO_ADDRESS = "0x0000000000000000000000000000000000000000"
@@ -66,6 +65,54 @@ def test_aggregator_price(peg_keepers, mock_peg_keepers, reg, agg, admin, stable
             for peg_keeper in peg_keepers:
                 assert (reg.provide_allowed(peg_keeper) > 0) == (price > 1)
                 assert (reg.withdraw_allowed(peg_keeper) > 0) == (price < 1)
+
+
+def test_debt_limit(peg_keepers, mock_peg_keepers, reg, agg, admin, stablecoin):
+    alpha, beta = 10 ** 18 // 2, 10 ** 18 // 4
+    with boa.env.prank(admin):
+        reg.set_debt_parameters(alpha, beta)
+    all_pks = mock_peg_keepers + peg_keepers
+
+    # First peg keeper debt limit
+    for pk in all_pks:
+        pk.eval("self.debt = 0")
+        stablecoin.eval(f"self.balanceOf[{pk.address}] = {10 ** 18}")
+    for pk in all_pks[2:]:
+        assert reg.provide_allowed(pk.address) == alpha ** 2 // 10 ** 18
+
+    # Three peg keepers debt limits
+    for pk in all_pks[:2]:
+        pk.eval("self.debt = 10 ** 18")
+        stablecoin.eval(f"self.balanceOf[{pk.address}] = 0")
+    for pk in all_pks[2:]:
+        assert reg.provide_allowed(pk.address) == pytest.approx(10 ** 18, abs=5)
+
+
+@given(
+    a=st.integers(min_value=0, max_value=10 ** 18 // 2),
+    b=st.integers(min_value=0, max_value=10 ** 18 // 2),
+    debts=st.lists(st.integers(min_value=0, max_value=10 ** 18), min_size=3, max_size=3),
+)
+def test_debt_limit_formula(peg_keepers, mock_peg_keepers, reg, admin, stablecoin, a, b, debts):
+    def sqrt(_debt):
+        return int((_debt * 10 ** 18) ** .5)
+
+    a = min(a, 10 ** 18 - b)
+    alpha, beta = a * 10 ** 18 // (10 ** 18 - b), b * 10 ** 18 // (10 ** 18 - b)
+    with boa.env.prank(admin):
+        reg.set_debt_parameters(alpha, beta)
+    for peg_keeper, debt in zip((mock_peg_keepers + peg_keepers)[:3], debts):
+        peg_keeper.eval(f"self.debt = {debt}")
+        stablecoin.eval(f"self.balanceOf[{peg_keeper.address}] = {10 ** 18 - debt}")
+
+    peg_keeper = peg_keepers[-1]
+    peg_keeper.eval(f"self.debt = 0")
+    stablecoin.eval(f"self.balanceOf[{peg_keeper.address}] = {10 ** 18}")
+    sqrt_new_debt = sqrt(reg.provide_allowed(peg_keeper))
+    assert sqrt_new_debt == pytest.approx(
+        a + b * sum([sqrt(debt) for debt in debts] + [sqrt_new_debt]) // 10 ** 18,
+        abs=10 ** 9,
+    )
 
 
 def test_set_killed(reg, peg_keepers, admin):
