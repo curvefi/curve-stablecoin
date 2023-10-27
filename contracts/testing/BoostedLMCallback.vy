@@ -68,7 +68,7 @@ working_shares_per_band: public(HashMap[int256, uint256])  # This only counts st
 
 working_shares: public(HashMap[address, HashMap[int256, uint256]])
 user_band: public(HashMap[address,int256])
-user_range_size: public(HashMap[address,uint256])
+user_range_size: public(HashMap[address,int256])
 
 # Tracking of mining period
 inflation_rate: public(uint256)
@@ -170,13 +170,7 @@ def _update_liquidity_limit(user: address, collateral_amount: uint256) -> uint25
 
 
 @internal
-def _checkpoint_collateral_shares(n: int256, collateral_per_share: DynArray[uint256, MAX_TICKS_UINT], size: uint256):
-    n_shares: int256 = 0
-    if len(collateral_per_share) == 0:
-        n_shares = convert(size, int256)
-    else:
-        n_shares = convert(len(collateral_per_share), int256)
-
+def _checkpoint_collateral_shares(n: int256, collateral_per_share: DynArray[uint256, MAX_TICKS_UINT], size: int256):
     # Read current and new rate; update the new rate if needed
     I_rpc: IntegralRPC = self.I_rpc
     rate: uint256 = self.inflation_rate
@@ -230,6 +224,8 @@ def _checkpoint_collateral_shares(n: int256, collateral_per_share: DynArray[uint
 
     # Update working_supply
     for i in range(MAX_TICKS_INT):
+        if i == size:
+            break
         _n: int256 = n + i
         old_cps: uint256 = self.collateral_per_share[_n]
         cps: uint256 = old_cps
@@ -248,28 +244,13 @@ def _checkpoint_collateral_shares(n: int256, collateral_per_share: DynArray[uint
                 # working_supply += wspb * (cps - old_cps) / 10**18
                 old_value: uint256 = wspb * old_cps / 10**18
                 working_supply = max(working_supply + wspb * cps / 10**18, old_value) - old_value
-        if i == n_shares:
-            break
 
     self.working_supply = working_supply
 
 
-@external
-def callback_collateral_shares(n: int256, collateral_per_share: DynArray[uint256, MAX_TICKS_UINT]):
-    # It is important that this callback is called every time before callback_user_shares
-    assert msg.sender == self.amm
-    self._checkpoint_collateral_shares(n, collateral_per_share, 0)
-
-
 @internal
-def _checkpoint_user_shares(user: address, n: int256, user_shares: DynArray[uint256, MAX_TICKS_UINT], size: uint256):
+def _checkpoint_user_shares(user: address, n: int256, user_shares: DynArray[uint256, MAX_TICKS_UINT], size: int256):
     # Calculate the amount of real collateral for the user
-    n_shares: int256 = 0
-    if len(user_shares) == 0:
-        n_shares = convert(size, int256)
-    else:
-        n_shares = convert(len(user_shares), int256)
-
     collateral_amount: uint256 = 0
     if len(user_shares) == 0:
         collateral_amount = self.user_collateral[user]
@@ -284,9 +265,9 @@ def _checkpoint_user_shares(user: address, n: int256, user_shares: DynArray[uint
     rpu: uint256 = self.integrate_fraction[user]
 
     for j in range(MAX_TICKS_INT):
-        i: int256 = n + j
-        if j == n_shares:
+        if j == size:
             break
+        i: int256 = n + j
         old_ws: uint256 = self.working_shares[user][i]
         # Transition from working_balance to working_shares:
         # 1. working_balance * real_shares == real_balance * working_shares
@@ -310,11 +291,20 @@ def _checkpoint_user_shares(user: address, n: int256, user_shares: DynArray[uint
 
 
 @external
+def callback_collateral_shares(n: int256, collateral_per_share: DynArray[uint256, MAX_TICKS_UINT]):
+    # It is important that this callback is called every time before callback_user_shares
+    assert msg.sender == self.amm
+    size: int256 = convert(len(collateral_per_share), int256)
+    self._checkpoint_collateral_shares(n, collateral_per_share, size)
+
+
+@external
 def callback_user_shares(user: address, n: int256, user_shares: DynArray[uint256, MAX_TICKS_UINT]):
     assert msg.sender == self.amm
     self.user_band[user] = n
-    self.user_range_size[user] = len(user_shares)
-    self._checkpoint_user_shares(user, n, user_shares, 0)
+    size: int256 = convert(len(user_shares), int256)
+    self.user_range_size[user] = size
+    self._checkpoint_user_shares(user, n, user_shares, size)
 
 
 @external
@@ -327,7 +317,7 @@ def user_checkpoint(addr: address) -> bool:
     assert self.amm != empty(address)  # dev: not initialized
     assert msg.sender in [addr, MINTER.address]  # dev: unauthorized
     n: int256 = self.user_band[addr]
-    size: uint256 = self.user_range_size[addr]
+    size: int256 = self.user_range_size[addr]
     self._checkpoint_collateral_shares(n, [], size)
     self._checkpoint_user_shares(addr, n, [], size)
     return True
@@ -342,7 +332,7 @@ def claimable_tokens(addr: address) -> uint256:
     """
     assert self.amm != empty(address)  # dev: not initialized
     n: int256 = self.user_band[addr]
-    size: uint256 = self.user_range_size[addr]
+    size: int256 = self.user_range_size[addr]
     self._checkpoint_collateral_shares(n, [], size)
     self._checkpoint_user_shares(addr, n, [], size)
     return self.integrate_fraction[addr] - MINTER.minted(addr, self)
