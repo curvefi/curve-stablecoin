@@ -83,13 +83,12 @@ def test_candles(mp, mock_factory, admin):
             assert d_total_0 == d_total_1 <= current_total
             assert d_for_0 == d_for_1
             max_diff_for[controller] = max(max_diff_for[controller], new_debt - d_for_1)
-            print(t, (new_debt - d_for_1) / (points_per_day * 10**4 * 10**18))
 
             boa.env.time_travel(86400 // points_per_day)
 
         for c in controllers:
             assert max_diff_for[c] > 0
-            assert max_diff_for[c] < 1.5 * (points_per_day * 10**4 * 10**18)  # XXX think why 1.5 and not 1.0
+            assert max_diff_for[c] < (points_per_day * 10**4 * 10**18)
 
 
 # def test_add_controllers():
