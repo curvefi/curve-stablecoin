@@ -5,6 +5,9 @@
 @license Copyright (c) Curve.Fi, 2020-2023 - all rights reserved
 """
 
+# This version uses min(last day) debt when calculating per-market rates
+
+
 interface PegKeeper:
     def debt() -> uint256: view
 
