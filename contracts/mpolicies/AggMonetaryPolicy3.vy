@@ -209,7 +209,10 @@ def read_candle(_for: address) -> uint256:
     candle: DebtCandle = self.min_debt_candles[_for]
 
     if block.timestamp < candle.timestamp / DEBT_CANDLE_TIME * DEBT_CANDLE_TIME + DEBT_CANDLE_TIME:
-        out = min(candle.candle0, candle.candle1)
+        if candle.candle0 > 0:
+            out = min(candle.candle0, candle.candle1)
+        else:
+            out = candle.candle1
     elif block.timestamp < candle.timestamp / DEBT_CANDLE_TIME * DEBT_CANDLE_TIME + DEBT_CANDLE_TIME * 2:
         out = candle.candle1
 
@@ -308,9 +311,6 @@ def rate(_for: address = msg.sender) -> uint256:
 
 @external
 def rate_write(_for: address = msg.sender) -> uint256:
-    # Not needed here but useful for more automated policies
-    # which change rate0 - for example rate0 targeting some fraction pl_debt/total_debt
-
     # Update controller list
     n_controllers: uint256 = self.n_controllers
     n_factory_controllers: uint256 = CONTROLLER_FACTORY.n_collaterals()

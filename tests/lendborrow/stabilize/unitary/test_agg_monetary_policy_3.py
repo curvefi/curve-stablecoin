@@ -67,14 +67,16 @@ def test_broken_markets(mp, mock_factory, admin):
 def test_candles(mp, mock_factory, admin):
     with boa.env.prank(admin):
         points_per_day = 25
+        MAX_RATE = 43959106799
 
         mp.rate_write()  # Saving cache of controllers - they never change in this test afterwards
         controllers = [mock_factory.controllers(i) for i in range(3)]
         max_diff_for = defaultdict(int)
+        rates = {c: mp.rate(c) for c in controllers}
 
-        for t in range(1000):
+        for t in range(1, 500):
             controller = controllers[t % 3]
-            new_debt = t * 10**4 * 10**18
+            new_debt = t * 10**5 * 10**18
             mock_factory.set_debt(controller, new_debt)
             d_total_0, d_for_0 = mp.internal.read_debt(controller, True)
             mp.rate_write(controller)
@@ -84,11 +86,18 @@ def test_candles(mp, mock_factory, admin):
             assert d_for_0 == d_for_1
             max_diff_for[controller] = max(max_diff_for[controller], new_debt - d_for_1)
 
+            new_rate = mp.rate(controller)
+            assert new_rate >= rates[controller]
+            assert new_rate > 0
+            assert new_rate <= MAX_RATE
+            rates[controller] = new_rate
+
             boa.env.time_travel(86400 // points_per_day)
 
         for c in controllers:
             assert max_diff_for[c] > 0
-            assert max_diff_for[c] < (points_per_day * 10**4 * 10**18)
+            assert max_diff_for[c] < (points_per_day * 10**5 * 10**18)
+            assert rates[c] == MAX_RATE
 
 
 # def test_add_controllers():
