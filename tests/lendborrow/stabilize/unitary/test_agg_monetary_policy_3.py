@@ -100,5 +100,21 @@ def test_candles(mp, mock_factory, admin):
             assert rates[c] == MAX_RATE
 
 
-# def test_add_controllers():
-#     pass
+def test_add_controllers(mp, mock_factory, admin):
+    additional_debts = [10**6, 3 * 10**6, 5 * 10**6]
+    additional_ceilings = [10**7, 10**8, 10**9]
+    added_debt = 0
+
+    initial_debt, _ = mp.internal.get_total_debt(ZERO_ADDRESS)
+
+    with boa.env.prank(admin):
+        for ceiling, debt in zip(additional_ceilings, additional_debts):
+            market = boa.load('contracts/testing/MockMarket.vy')
+            mock_factory.add_market(market.address, ceiling)
+            mp.rate_write()
+            controller = mock_factory.controllers(mock_factory.n_collaterals() - 1)
+            added_debt += debt
+            mock_factory.set_debt(controller, debt)
+            total_debt, debt_for = mp.internal.get_total_debt(controller)
+            assert total_debt == initial_debt + added_debt
+            assert debt_for == debt
