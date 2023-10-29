@@ -226,6 +226,10 @@ def read_candle(_for: address) -> uint256:
 def save_candle(_for: address, _value: uint256):
     candle: DebtCandle = self.min_debt_candles[_for]
 
+    if candle.timestamp == 0 and _value == 0:
+        # This record did not exist before, and value is zero -> not recording anything
+        return
+
     if block.timestamp >= candle.timestamp / DEBT_CANDLE_TIME * DEBT_CANDLE_TIME + DEBT_CANDLE_TIME:
         if block.timestamp < candle.timestamp / DEBT_CANDLE_TIME * DEBT_CANDLE_TIME + DEBT_CANDLE_TIME * 2:
             candle.candle0 = candle.candle1
