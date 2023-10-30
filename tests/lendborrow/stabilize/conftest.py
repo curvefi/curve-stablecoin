@@ -90,7 +90,7 @@ def redeemable_tokens(stablecoin_a, stablecoin_b):
 @pytest.fixture(scope="module")
 def price_aggregator(stablecoin, stableswap_a, stableswap_b, admin):
     with boa.env.prank(admin):
-        agg = boa.load('contracts/price_oracles/AggregateStablePrice.vy', stablecoin.address, 10**15, admin)
+        agg = boa.load('contracts/price_oracles/AggregateStablePrice2.vy', stablecoin.address, 10**15, admin)
         agg.add_price_pair(stableswap_a.address)
         agg.add_price_pair(stableswap_b.address)
         return agg
@@ -183,7 +183,7 @@ def agg_monetary_policy(peg_keepers, agg, controller_factory, admin):
                 0,  # Rate
                 2 * 10**16,  # Sigma 2%
                 5 * 10**16)  # Target debt fraction 5%
-        mp.rate()
+        mp.rate_write()
         return mp
 
 
