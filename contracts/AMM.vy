@@ -683,6 +683,15 @@ def deposit_range(user: address, amount: uint256, n1: int256, n2: int256):
     assert n2 < 2**127
     assert n1 > -2**127
 
+    n_bands: uint256 = unsafe_add(convert(unsafe_sub(n2, n1), uint256), 1)
+    assert n_bands <= MAX_TICKS_UINT
+
+    y_per_band: uint256 = unsafe_div(amount * COLLATERAL_PRECISION, n_bands)
+    assert y_per_band > 100, "Amount too low"
+
+    assert self.user_shares[user].ticks[0] == 0  # dev: User must have no liquidity
+    self.user_shares[user].ns = unsafe_add(n1, unsafe_mul(n2, 2**128))
+
     lm: LMGauge = self.liquidity_mining_callback
 
     # Autoskip bands if we can
@@ -693,15 +702,6 @@ def deposit_range(user: address, amount: uint256, n1: int256, n2: int256):
             break
         assert self.bands_x[n0] == 0 and i < MAX_SKIP_TICKS, "Deposit below current band"
         n0 -= 1
-
-    n_bands: uint256 = unsafe_add(convert(unsafe_sub(n2, n1), uint256), 1)
-    assert n_bands <= MAX_TICKS_UINT
-
-    y_per_band: uint256 = unsafe_div(amount * COLLATERAL_PRECISION, n_bands)
-    assert y_per_band > 100, "Amount too low"
-
-    assert self.user_shares[user].ticks[0] == 0  # dev: User must have no liquidity
-    self.user_shares[user].ns = unsafe_add(n1, unsafe_mul(n2, 2**128))
 
     for i in range(MAX_TICKS):
         band: int256 = unsafe_add(n1, i)
