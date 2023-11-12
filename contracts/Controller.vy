@@ -1053,7 +1053,7 @@ def _liquidate(user: address, min_x: uint256, health_limit: uint256, frac: uint2
                 STABLECOIN.transferFrom(callbacker, msg.sender, unsafe_sub(cb.stablecoins, to_repay))
             STABLECOIN.transferFrom(callbacker, self, to_repay)
             if cb.collateral > 0:
-                assert COLLATERAL_TOKEN.transferFrom(callbacker, msg.sender, cb.collateral)
+                assert COLLATERAL_TOKEN.transferFrom(callbacker, msg.sender, cb.collateral, default_return_value=True)
 
     else:
         # Withdraw collateral
