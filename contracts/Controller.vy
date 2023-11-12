@@ -358,7 +358,7 @@ def get_y_effective(collateral: uint256, N: uint256, discount: uint256) -> uint2
     # d_y_effective: uint256 = collateral * unsafe_sub(10**18, discount) / (SQRT_BAND_RATIO * N)
     # Make some extra discount to always deposit lower when we have DEAD_SHARES rounding
     d_y_effective: uint256 = collateral * unsafe_sub(
-        10**18, min(discount + unsafe_div((DEAD_SHARES * 10**18), max(collateral / N, DEAD_SHARES)), 10**18)
+        10**18, min(discount + unsafe_div((DEAD_SHARES * 10**18), max(unsafe_div(collateral, N), DEAD_SHARES)), 10**18)
     ) / (SQRT_BAND_RATIO * N)
     y_effective: uint256 = d_y_effective
     for i in range(1, MAX_TICKS_UINT):
