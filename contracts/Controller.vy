@@ -832,7 +832,7 @@ def repay_extended(callbacker: address, callback_args: DynArray[uint256,5]):
     debt: uint256 = 0
     rate_mul: uint256 = 0
     debt, rate_mul = self._debt(msg.sender)
-    COLLATERAL_TOKEN.transferFrom(AMM.address, callbacker, xy[1], default_return_value=True)
+    assert COLLATERAL_TOKEN.transferFrom(AMM.address, callbacker, xy[1], default_return_value=True)
 
     cb: CallbackData = self.execute_callback(
         callbacker, CALLBACK_REPAY, msg.sender, xy[0], xy[1], debt, callback_args)
