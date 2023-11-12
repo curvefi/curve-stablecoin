@@ -76,7 +76,7 @@ def __init__(
 def _raw_price(agg_price: uint256) -> uint256:
     p_crypto_stable: uint256 = TRICRYPTO.price_oracle(TRICRYPTO_IX)          # d_crvusd/d_tbtc
     p_stable_agg: uint256 = agg_price                                        # d_usd/d_crvusd
-    price: uint256 = p_crypto_stable * p_stable_agg / 10**18    # d_usd/d_btc
+    price: uint256 = p_crypto_stable * p_stable_agg / 10**18    # d_usd/d_tbtc
 
     # Limit BTC price
     if self.use_chainlink:

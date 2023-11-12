@@ -372,7 +372,7 @@ def _p_oracle_up(n: int256) -> uint256:
 
     power: int256 = -n * LOG_A_RATIO
 
-    # ((A - 1) / A) ** n = exp(-n * A / (A - 1)) = exp(-n * LOG_A_RATIO)
+    # ((A - 1) / A) ** n = exp(-n * ln(A / (A - 1))) = exp(-n * LOG_A_RATIO)
     ## Exp implementation based on solmate's
     assert power > -42139678854452767551
     assert power < 135305999368893231589
@@ -775,8 +775,8 @@ def withdraw(user: address, frac: uint256) -> uint256[2]:
     for i in range(MAX_TICKS):
         x: uint256 = self.bands_x[n]
         y: uint256 = self.bands_y[n]
-        ds: uint256 = unsafe_div(frac * user_shares[i], 10**18)  # Can ONLY zero out when frac == 10**18
-        user_shares[i] = unsafe_sub(user_shares[i], ds)
+        ds: uint256 = unsafe_div(frac * user_shares[i], 10**18)
+        user_shares[i] = unsafe_sub(user_shares[i], ds)  # Can ONLY zero out when frac == 10**18
         s: uint256 = self.total_shares[n]
         new_shares: uint256 = s - ds
         self.total_shares[n] = new_shares
@@ -787,7 +787,7 @@ def withdraw(user: address, frac: uint256) -> uint256[2]:
         x -= dx
         y -= dy
 
-        # If withdrawal is the last one - tranfer dust to admin fees
+        # If withdrawal is the last one - transfer dust to admin fees
         if new_shares == 0:
             if x > 0:
                 self.admin_fees_x += x
