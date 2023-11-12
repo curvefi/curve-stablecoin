@@ -660,8 +660,13 @@ def _add_collateral_borrow(d_collateral: uint256, d_debt: uint256, _for: address
 
     AMM.deposit_range(_for, xy[1], n1, n2)
     self.loan[_for] = Loan({initial_debt: debt, rate_mul: rate_mul})
-    liquidation_discount: uint256 = self.liquidation_discount
-    self.liquidation_discounts[_for] = liquidation_discount
+
+    liquidation_discount: uint256 = 0
+    if _for == msg.sender:
+        liquidation_discount = self.liquidation_discount
+        self.liquidation_discounts[_for] = liquidation_discount
+    else:
+        liquidation_discount = self.liquidation_discounts[_for]
 
     if d_debt != 0:
         self._total_debt.initial_debt = self._total_debt.initial_debt * rate_mul / self._total_debt.rate_mul + d_debt
