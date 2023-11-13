@@ -740,9 +740,6 @@ def deposit_range(user: address, amount: uint256, n1: int256, n2: int256):
 
     self.save_user_shares(user, user_shares)
 
-    self.rate_mul = self._rate_mul()
-    self.rate_time = block.timestamp
-
     log Deposit(user, amount, n1, n2)
 
     if lm.address != empty(address):
