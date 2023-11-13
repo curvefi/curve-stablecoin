@@ -81,7 +81,7 @@ MAX_SIGMA: constant(int256) = 10**18
 MIN_SIGMA: constant(int256) = 10**14
 MAX_EXP: constant(uint256) = 1000 * 10**18
 MAX_RATE: constant(uint256) = 43959106799  # 300% APY
-TARGET_REMAINDER: constant(uint256) = 10**17  # rate is x2 when 10% left before ceiling
+TARGET_REMAINDER: constant(uint256) = 10**17  # rate is x1.9 when 10% left before ceiling
 
 
 @external
@@ -307,6 +307,18 @@ def calculate_rate(_for: address, _price: uint256, ro: bool) -> uint256:
     if ceiling > 0:
         f: uint256 = min(debt_for * 10**18 / ceiling, 10**18 - TARGET_REMAINDER / 1000)
         rate = min(rate * ((10**18 - TARGET_REMAINDER) + TARGET_REMAINDER * 10**18 / (10**18 - f)) / 10**18, MAX_RATE)
+
+    # Rate multiplication at different ceilings (target = 0.1):
+    # debt = 0:
+    #   new_rate = rate * ((1.0 - target) + target) = rate
+    #
+    # debt = ceiling:
+    #   f = 1.0 - 0.1 / 1000 = 0.9999  # instead of infinity to avoid /0
+    #   new_rate = min(rate * ((1.0 - target) + target / (1.0 - 0.9999)), max_rate) = max_rate
+    #
+    # debt = 0.9 * ceiling, target = 0.1
+    #   f = 0.9
+    #   new_rate = rate * ((1.0 - 0.1) + 0.1 / (1.0 - 0.9)) = rate * (1.0 + 1.0 - 0.1) = 1.9 * rate
 
     return rate
 
