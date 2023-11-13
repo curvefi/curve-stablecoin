@@ -194,7 +194,11 @@ def __init__(
     LOG_A_RATIO = _log_A_ratio
 
     # (A / (A - 1)) ** 50
-    MAX_ORACLE_DN_POW = unsafe_div(pow_mod256(unsafe_div(A**25 * 10**18, pow_mod256(Aminus1, 25)), 2), 10**18)
+    # This is not gas-optimal but good with bytecode size and does not overflow
+    pow: uint256 = 10**18
+    for i in range(50):
+        pow = unsafe_div(pow * A, Aminus1)
+    MAX_ORACLE_DN_POW = pow
 
 
 @internal
