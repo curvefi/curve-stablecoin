@@ -17,7 +17,7 @@ class AggMonetaryPolicyCreation(RuleBasedStateMachine):
     pool_number = st.integers(min_value=0, max_value=10000)
     rate = st.integers(min_value=0, max_value=43959106799)
     sigma = st.integers(min_value=10**14, max_value=10**18)
-    target_debt_fraction = st.integers(min_value=0, max_value=10**18)
+    target_debt_fraction = st.integers(min_value=1, max_value=10**18)
     MPOLICY = boa.load_partial('contracts/mpolicies/AggMonetaryPolicy2.vy')
     ERC20 = boa.load_partial('contracts/testing/ERC20Mock.vy')
     PK = boa.load_partial('contracts/stabilizer/PegKeeper.vy')

@@ -374,6 +374,7 @@ def set_sigma(sigma: int256):
 def set_target_debt_fraction(target_debt_fraction: uint256):
     assert msg.sender == self.admin
     assert target_debt_fraction <= MAX_TARGET_DEBT_FRACTION
+    assert target_debt_fraction > 0
 
     self.target_debt_fraction = target_debt_fraction
     log SetTargetDebtFraction(target_debt_fraction)
