@@ -126,7 +126,7 @@ MIN_TICKS: constant(int256) = 4
 MAX_SKIP_TICKS: constant(uint256) = 1024
 MAX_P_BASE_BANDS: constant(int256) = 5
 
-MAX_RATE: constant(uint256) = 43959106799  # 400% APY
+MAX_RATE: constant(uint256) = 43959106799  # 300% APY
 
 loan: HashMap[address, Loan]
 liquidation_discounts: public(HashMap[address, uint256])

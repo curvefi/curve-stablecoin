@@ -48,7 +48,7 @@ MAX_TARGET_DEBT_FRACTION: constant(uint256) = 10**18
 MAX_SIGMA: constant(uint256) = 10**18
 MIN_SIGMA: constant(uint256) = 10**14
 MAX_EXP: constant(uint256) = 1000 * 10**18
-MAX_RATE: constant(uint256) = 43959106799  # 400% APY
+MAX_RATE: constant(uint256) = 43959106799  # 300% APY
 
 
 @external
