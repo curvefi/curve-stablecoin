@@ -405,7 +405,7 @@ def _calculate_debt_n1(collateral: uint256, debt: uint256, N: uint256) -> int256
     n1: int256 = self.log2(y_effective)  # <- switch to faster ln() XXX?
     if n1 < 0:
         n1 -= LOG2_A_RATIO - 1  # This is to deal with vyper's rounding of negative numbers
-    n1 /= LOG2_A_RATIO
+    n1 = unsafe_div(n1, LOG2_A_RATIO)
 
     n1 = min(n1, 1024 - convert(N, int256)) + n0
     if n1 <= n0:
@@ -426,7 +426,10 @@ def max_p_base() -> uint256:
     """
     p_oracle: uint256 = AMM.price_oracle()
     # Should be correct unless price changes suddenly by MAX_P_BASE_BANDS+ bands
-    n1: int256 = unsafe_div(self.log2(AMM.get_base_price() * 10**18 / p_oracle), LOG2_A_RATIO) + MAX_P_BASE_BANDS
+    n1: int256 = self.log2(AMM.get_base_price() * 10**18 / p_oracle)
+    if n1 < 0:
+        n1 -= LOG2_A_RATIO - 1  # This is to deal with vyper's rounding of negative numbers
+    n1 = unsafe_div(n1, LOG2_A_RATIO) + MAX_P_BASE_BANDS
     n_min: int256 = AMM.active_band_with_skip()
     n1 = max(n1, n_min + 1)
     p_base: uint256 = AMM.p_oracle_up(n1)
