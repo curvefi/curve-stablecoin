@@ -35,7 +35,7 @@ event SetRate:
     rate: uint256
 
 event SetSigma:
-    sigma: uint256
+    sigma: int256
 
 event SetTargetDebtFraction:
     target_debt_fraction: uint256
@@ -57,8 +57,8 @@ n_controllers: public(uint256)
 controllers: public(address[MAX_CONTROLLERS])
 
 MAX_TARGET_DEBT_FRACTION: constant(uint256) = 10**18
-MAX_SIGMA: constant(uint256) = 10**18
-MIN_SIGMA: constant(uint256) = 10**14
+MAX_SIGMA: constant(int256) = 10**18
+MIN_SIGMA: constant(int256) = 10**14
 MAX_EXP: constant(uint256) = 1000 * 10**18
 MAX_RATE: constant(uint256) = 43959106799  # 300% APY
 TARGET_REMAINDER: constant(uint256) = 10**17  # rate is x2 when 10% left before ceiling
@@ -70,7 +70,7 @@ def __init__(admin: address,
              controller_factory: ControllerFactory,
              peg_keepers: PegKeeper[5],
              rate: uint256,
-             sigma: uint256,
+             sigma: int256,
              target_debt_fraction: uint256):
     self.admin = admin
     PRICE_ORACLE = price_oracle
@@ -85,7 +85,7 @@ def __init__(admin: address,
     assert target_debt_fraction <= MAX_TARGET_DEBT_FRACTION
     assert rate <= MAX_RATE
     self.rate0 = rate
-    self.sigma = convert(sigma, int256)
+    self.sigma = sigma
     self.target_debt_fraction = target_debt_fraction
 
 
@@ -252,12 +252,12 @@ def set_rate(rate: uint256):
 
 
 @external
-def set_sigma(sigma: uint256):
+def set_sigma(sigma: int256):
     assert msg.sender == self.admin
     assert sigma >= MIN_SIGMA
     assert sigma <= MAX_SIGMA
 
-    self.sigma = convert(sigma, int256)
+    self.sigma = sigma
     log SetSigma(sigma)
 
 
