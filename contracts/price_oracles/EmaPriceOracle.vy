@@ -69,7 +69,7 @@ def ext_price_oracle() -> uint256:
 @internal
 @pure
 def exp(power: int256) -> uint256:
-    if power <= -42139678854452767551:
+    if power <= -41446531673892821376:
         return 0
 
     if power >= 135305999368893231589:

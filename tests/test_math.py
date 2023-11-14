@@ -67,7 +67,7 @@ def test_exp(optimized_math, power):
     if power >= 135305999368893231589:
         with boa.reverts("exp overflow"):
             optimized_math.optimized_exp(power)
-    elif power <= -42139678854452767551:
+    elif power <= -41446531673892821376:
         assert optimized_math.optimized_exp(power) == 0
     else:
         pow_int = optimized_math.optimized_exp(power)

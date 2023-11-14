@@ -34,7 +34,7 @@ def _spot_tvl() -> uint256:
 @internal
 @view
 def exp(power: int256) -> uint256:
-    if power <= -42139678854452767551:
+    if power <= -41446531673892821376:
         return 0
 
     if power >= 135305999368893231589:

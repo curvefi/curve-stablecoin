@@ -378,7 +378,7 @@ def _p_oracle_up(n: int256) -> uint256:
 
     # ((A - 1) / A) ** n = exp(-n * ln(A / (A - 1))) = exp(-n * LOG_A_RATIO)
     ## Exp implementation based on solmate's
-    assert power > -42139678854452767551
+    assert power > -41446531673892821376
     assert power < 135305999368893231589
 
     x: int256 = unsafe_div(unsafe_mul(power, 2**96), 10**18)
