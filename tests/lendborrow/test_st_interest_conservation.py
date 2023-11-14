@@ -195,7 +195,7 @@ class StatefulLendBorrow(RuleBasedStateMachine):
                         self.controller.borrow_more(c_amount, amount)
                 return
 
-            if final_collateral * self.amm.get_p() > 2**128 - 1:
+            if final_collateral * self.amm.get_p() // 10**18 > 2**128 - 1:
                 with boa.reverts():
                     self.controller.borrow_more(c_amount, amount)
                 return
@@ -315,4 +315,21 @@ def test_cannot_repay_1(controller_factory, market_amm, market_controller, monet
     state.debt_payable()
     state.sum_of_debts()
     state.repay(amount=1, user_id=3)
+    state.teardown()
+
+
+def test_borrow_more_0(controller_factory, market_amm, market_controller, monetary_policy, collateral_token, stablecoin, accounts, admin):
+    for k, v in locals().items():
+        setattr(StatefulLendBorrow, k, v)
+    state = StatefulLendBorrow()
+    state = StatefulLendBorrow()
+    state.debt_payable()
+    state.sum_of_debts()
+    state.change_rate(rate=0)
+    state.debt_payable()
+    state.sum_of_debts()
+    state.create_loan(amount=1, c_amount=112293181083909693, n=5, user_id=0)
+    state.debt_payable()
+    state.sum_of_debts()
+    state.borrow_more(amount=1, c_amount=0, user_id=0)
     state.teardown()
