@@ -63,13 +63,13 @@ def set_admin(_admin: address):
 
 
 @external
-@view
+@pure
 def sigma() -> uint256:
     return SIGMA
 
 
 @external
-@view
+@pure
 def stablecoin() -> address:
     return STABLECOIN
 
@@ -104,7 +104,7 @@ def remove_price_pair(n: uint256):
 
 
 @internal
-@view
+@pure
 def exp(power: int256) -> uint256:
     if power <= -42139678854452767551:
         return 0

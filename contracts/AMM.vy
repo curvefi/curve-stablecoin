@@ -473,7 +473,7 @@ def p_oracle_down(n: int256) -> uint256:
 
 
 @internal
-@view
+@pure
 def _get_y0(x: uint256, y: uint256, p_o: uint256, p_o_up: uint256) -> uint256:
     """
     @notice Calculate y0 for the invariant based on current liquidity in band.

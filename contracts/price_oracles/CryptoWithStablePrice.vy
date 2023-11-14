@@ -64,7 +64,7 @@ def __init__(
 
 
 @internal
-@view
+@pure
 def exp(power: int256) -> uint256:
     if power <= -42139678854452767551:
         return 0
@@ -100,37 +100,37 @@ def exp(power: int256) -> uint256:
 
 
 @external
-@view
+@pure
 def tricrypto() -> Tricrypto:
     return TRICRYPTO
 
 
 @external
-@view
+@pure
 def stableswap_aggregator() -> StableAggregator:
     return STABLESWAP_AGGREGATOR
 
 
 @external
-@view
+@pure
 def stableswap() -> Stableswap:
     return STABLESWAP
 
 
 @external
-@view
+@pure
 def stablecoin() -> address:
     return STABLECOIN
 
 
 @external
-@view
+@pure
 def redeemable() -> address:
     return REDEEMABLE
 
 
 @external
-@view
+@pure
 def ma_exp_time() -> uint256:
     return MA_EXP_TIME
 

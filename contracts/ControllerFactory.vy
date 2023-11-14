@@ -135,7 +135,7 @@ def ln_int(_x: uint256) -> int256:
 
 
 @external
-@view
+@pure
 def stablecoin() -> ERC20:
     return STABLECOIN
 

@@ -254,7 +254,7 @@ def log2(_x: uint256) -> int256:
 
 
 @external
-@view
+@pure
 def factory() -> Factory:
     """
     @notice Address of the factory
@@ -263,7 +263,7 @@ def factory() -> Factory:
 
 
 @external
-@view
+@pure
 def amm() -> LLAMMA:
     """
     @notice Address of the AMM
@@ -272,7 +272,7 @@ def amm() -> LLAMMA:
 
 
 @external
-@view
+@pure
 def collateral_token() -> ERC20:
     """
     @notice Address of the collateral token
@@ -340,7 +340,7 @@ def total_debt() -> uint256:
 
 
 @internal
-@view
+@pure
 def get_y_effective(collateral: uint256, N: uint256, discount: uint256) -> uint256:
     """
     @notice Intermediary method which calculates y_effective defined as x_effective / p_base,
@@ -985,7 +985,7 @@ def health_calculator(user: address, d_collateral: int256, d_debt: int256, full:
 
 
 @internal
-@view
+@pure
 def _get_f_remove(frac: uint256, health_limit: uint256) -> uint256:
     # f_remove = ((1 + h / 2) / (1 + h) * (1 - frac) + frac) * frac
     f_remove: uint256 = 10 ** 18

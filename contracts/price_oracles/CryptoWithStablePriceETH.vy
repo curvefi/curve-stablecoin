@@ -102,7 +102,7 @@ def __init__(
 
 
 @internal
-@view
+@pure
 def exp(power: int256) -> uint256:
     if power <= -42139678854452767551:
         return 0
