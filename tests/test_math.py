@@ -61,12 +61,14 @@ def test_halfpow(optimized_math, power):
     assert abs(pow_int - pow_ideal) < max(5 * 1e10 / 1e18, 5e-16)
 
 
-@given(st.integers(min_value=0, max_value=2**255-1))
+@given(st.integers(min_value=-2**255, max_value=2**254-1))
 @settings(**SETTINGS)
 def test_exp(optimized_math, power):
     if power >= 135305999368893231589:
         with boa.reverts("exp overflow"):
             optimized_math.optimized_exp(power)
+    elif power <= -42139678854452767551:
+        assert optimized_math.optimized_exp(power) == 0
     else:
         pow_int = optimized_math.optimized_exp(power)
         pow_ideal = int(exp(power / 1e18) * 1e18)
