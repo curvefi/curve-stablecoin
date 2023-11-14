@@ -1,4 +1,4 @@
-# @version 0.3.9
+# @version 0.3.10
 
 EXP_PRECISION: constant(uint256) = 10**10
 

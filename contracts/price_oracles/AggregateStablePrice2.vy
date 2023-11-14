@@ -1,4 +1,4 @@
-# @version 0.3.9
+# @version 0.3.10
 """
 @title AggregatorStablePrice - aggregator of stablecoin prices for crvUSD
 @author Curve.Fi

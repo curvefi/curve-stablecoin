@@ -1,4 +1,4 @@
-# @version 0.3.9
+# @version 0.3.10
 """
 @title CryptoWithStablePriceTBTC
 @notice Price oracle for tricryptoLLAMA for crvUSD. Optional Chainlink included
