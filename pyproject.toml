@@ -11,7 +11,7 @@ python = ">=3.10,<4"
 vyper = "0.3.10"
 poetry = "1.5.1"
 eth-abi = "4.1.0"
-titanoboa = {git = "https://github.com/vyperlang/titanoboa.git", rev = "b5e9fb96d1424ed5cc5a6af03391d885439c83e5"}
+titanoboa = {git = "https://github.com/vyperlang/titanoboa.git", rev = "b4e66665612ea0b27c1a286dd598bb02a6a973ff"}
 pycryptodome = "^3.18.0"
 pytest = "^7.4.0"
 hypothesis = "^6.82.0"
@@ -20,6 +20,8 @@ jedi = "^0.19.0"
 pytest-xdist = "^3.3.1"
 pytest-forked = "^1.6.0"
 ipython = "^8.14.0"
+eth_account = "^0.10"
+cytoolz = "^0.12"
 
 
 [build-system]
