@@ -3,6 +3,7 @@
 import boa
 import json
 import os
+import sys
 from getpass import getpass
 from eth_account import account
 from boa.network import NetworkEnv
@@ -30,9 +31,13 @@ def account_load(fname):
 
 
 if __name__ == '__main__':
-    boa.set_env(NetworkEnv(NETWORK))
-    boa.env.add_account(account_load('babe'))
-    boa.env._fork_try_prefetch_state = False
+    if '--fork' in sys.argv[1:]:
+        boa.env.fork(NETWORK)
+        boa.env.eoa = '0xbabe61887f1de2713c6f97e567623453d3C79f67'
+    else:
+        boa.set_env(NetworkEnv(NETWORK))
+        boa.env.add_account(account_load('babe'))
+        boa.env._fork_try_prefetch_state = False
 
     contract = boa.load(
         'contracts/mpolicies/AggMonetaryPolicy3.vy',
