@@ -253,12 +253,13 @@ def _checkpoint_user_shares(user: address, n: int256, user_shares: DynArray[uint
     # Calculate the amount of real collateral for the user
     collateral_amount: uint256 = 0
     if len(user_shares) == 0:
-        collateral_amount = self.user_collateral[user]
+        collateral_amount = self.user_collateral[user] * 10**18
     else:
         for i in range(MAX_TICKS_INT):
             if i == size:
                 break
-            collateral_amount += user_shares[i] * self.collateral_per_share[n + i] / 10**18
+            collateral_amount += user_shares[i] * self.collateral_per_share[n + i]
+    collateral_amount /= 10**18
 
     # Get working balance
     working_balance: uint256 = self._update_liquidity_limit(user, collateral_amount)
