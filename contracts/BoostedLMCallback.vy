@@ -256,7 +256,7 @@ def _checkpoint_user_shares(user: address, n: int256, user_shares: DynArray[uint
         collateral_amount = self.user_collateral[user]
     else:
         for i in range(MAX_TICKS_INT):
-            if i == n_shares:
+            if i == size:
                 break
             collateral_amount += user_shares[i] * self.collateral_per_share[n + i] / 10**18
 
@@ -275,7 +275,9 @@ def _checkpoint_user_shares(user: address, n: int256, user_shares: DynArray[uint
         #
         # It's needed to update working supply during soft-liquidation
         if len(user_shares) > 0:
-            ws: uint256 = user_shares[j] * working_balance / collateral_amount
+            ws: uint256 = 0
+            if collateral_amount > 0:
+                ws = user_shares[j] * working_balance / collateral_amount
             self.working_shares[user][i] = ws
             self.working_shares_per_band[i] = self.working_shares_per_band[i] + ws - old_ws
 
