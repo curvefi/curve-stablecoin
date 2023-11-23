@@ -74,6 +74,7 @@ user_range_size: public(HashMap[address,int256])
 inflation_rate: public(uint256)
 future_epoch_time: public(uint256)
 
+
 # Running integrals
 # ------------------
 # Definitions:
@@ -218,9 +219,9 @@ def _checkpoint_collateral_shares(n: int256, collateral_per_share: DynArray[uint
             prev_week_time = week_time
             week_time = min(week_time + WEEK, block.timestamp)
 
-        I_rpc.t = block.timestamp
-        I_rpc.rpc += delta_rpc
-        self.I_rpc = I_rpc
+    I_rpc.t = block.timestamp
+    I_rpc.rpc += delta_rpc
+    self.I_rpc = I_rpc
 
     # Update working_supply
     for i in range(MAX_TICKS_INT):
@@ -294,11 +295,10 @@ def _checkpoint_user_shares(user: address, n: int256, user_shares: DynArray[uint
 
 
 @external
-def callback_collateral_shares(n: int256, collateral_per_share: DynArray[uint256, MAX_TICKS_UINT]):
+def callback_collateral_shares(n: int256, collateral_per_share: DynArray[uint256, MAX_TICKS_UINT], size: uint256):
     # It is important that this callback is called every time before callback_user_shares
     assert msg.sender == self.amm
-    size: int256 = convert(len(collateral_per_share), int256)
-    self._checkpoint_collateral_shares(n, collateral_per_share, size)
+    self._checkpoint_collateral_shares(n, collateral_per_share, convert(size, int256))
 
 
 @external
