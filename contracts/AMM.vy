@@ -44,7 +44,7 @@ interface PriceOracle:
     def price_w() -> uint256: nonpayable
 
 interface LMGauge:
-    def callback_collateral_shares(n: int256, collateral_per_share: DynArray[uint256, MAX_TICKS_UINT]): nonpayable
+    def callback_collateral_shares(n: int256, collateral_per_share: DynArray[uint256, MAX_TICKS_UINT], size: uint256): nonpayable
     def callback_user_shares(user: address, n: int256, user_shares: DynArray[uint256, MAX_TICKS_UINT]): nonpayable
 
 
@@ -259,7 +259,6 @@ def limit_p_o(p: uint256) -> uint256[2]:
 
     if dt > 0:
         old_p_o: uint256 = self.old_p_o
-        old_ratio: uint256 = self.old_dfee
         # ratio = p_o_min / p_o_max
         if p > old_p_o:
             ratio = unsafe_div(old_p_o * 10**18, p)
@@ -276,7 +275,7 @@ def limit_p_o(p: uint256) -> uint256[2]:
         # Also guaranteed to be limited, therefore can have all ops unsafe
         ratio = unsafe_div(
             unsafe_mul(
-                unsafe_sub(unsafe_add(10**18, old_ratio), unsafe_div(pow_mod256(ratio, 3), 10**36)),  # (f' + (1 - r**3))
+                unsafe_sub(unsafe_add(10**18, self.old_dfee), unsafe_div(pow_mod256(ratio, 3), 10**36)),  # (f' + (1 - r**3))
                 dt),                                                                                  # * dt / T
             PREV_P_O_DELAY)
 
@@ -739,7 +738,7 @@ def deposit_range(user: address, amount: uint256, n1: int256, n2: int256):
     log Deposit(user, amount, n1, n2)
 
     if lm.address != empty(address):
-        lm.callback_collateral_shares(n1, collateral_shares)
+        lm.callback_collateral_shares(n1, collateral_shares, len(collateral_shares))
         lm.callback_user_shares(user, n1, user_shares)
 
 
@@ -828,7 +827,7 @@ def withdraw(user: address, frac: uint256) -> uint256[2]:
     self.rate_time = block.timestamp
 
     if lm.address != empty(address):
-        lm.callback_collateral_shares(0, [])  # collateral/shares ratio is unchanged
+        lm.callback_collateral_shares(ns[0], [], len(user_shares))  # collateral/shares ratio is unchanged
         lm.callback_user_shares(user, ns[0], user_shares)
 
     return [total_x, total_y]
@@ -1129,7 +1128,7 @@ def _exchange(i: uint256, j: uint256, amount: uint256, minmax_amount: uint256, _
     log TokenExchange(_for, i, in_amount_done, j, out_amount_done)
 
     if lm.address != empty(address):
-        lm.callback_collateral_shares(n_start, collateral_shares)
+        lm.callback_collateral_shares(n_start, collateral_shares, len(collateral_shares))
 
     return [in_amount_done, out_amount_done]
 
