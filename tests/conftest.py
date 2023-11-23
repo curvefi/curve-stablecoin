@@ -19,7 +19,7 @@ settings.register_profile("default", deadline=timedelta(seconds=1000))
 settings.load_profile(os.getenv(u"HYPOTHESIS_PROFILE", "default"))
 
 
-def approx(x1: int, x2: int, precision: int, abs_precision=None):
+def approx(x1: int, x2: int, precision: float, abs_precision=None):
     if precision >= 1:
         return True
     result = False
