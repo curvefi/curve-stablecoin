@@ -9,7 +9,7 @@ WEEK = 7 * 86400
 
 def test_gauge_integral_one_user(accounts, admin, collateral_token, crv, boosted_lm_callback, gauge_controller, market_controller, stablecoin):
     with boa.env.anchor():
-        alice, bob = accounts[:2]
+        alice = accounts[0]
 
         # Wire up Gauge to the controller to have proper rates and stuff
         with boa.env.prank(admin):
@@ -50,22 +50,33 @@ def test_gauge_integral_one_user(accounts, admin, collateral_token, crv, boosted
             dt = 3 * (i + 1) * 86400
             boa.env.time_travel(seconds=dt)
 
-            if i > -1:
-                with boa.env.prank(alice):
-                    collateral_in_amm = market_controller.user_state(alice)[0]
-                    collateral_alice = boosted_lm_callback.user_collateral(alice)
-                    assert collateral_in_amm == collateral_alice
-                    print("Alice deposits")
+            is_withdraw = (i > 0) * (random() < 0.5)
+            with boa.env.prank(alice):
+                collateral_in_amm, _, debt, __ = market_controller.user_state(alice)
+                collateral_alice = boosted_lm_callback.user_collateral(alice)
+                assert collateral_in_amm == collateral_alice
+                print("Alice", "withdraws" if is_withdraw else "deposits")
 
-                    amount_alice = collateral_token.balanceOf(alice) // 5
-                    collateral_token.approve(market_controller.address, amount_alice)
-                    if market_controller.loan_exists(alice):
-                        # market_controller.borrow_more(amount_alice, amount_alice * 1000)
-                        market_controller.add_collateral(amount_alice)
+                if is_withdraw:
+                    amount = randrange(1, collateral_in_amm + 1)
+                    if amount == collateral_in_amm:
+                        market_controller.repay(debt)
                     else:
-                        market_controller.create_loan(amount_alice, amount_alice * 1000, 10)
+                        repay_amount = int(debt * random() * 0.99)
+                        market_controller.repay(repay_amount)
+                        remove_amount = min(int(market_controller.min_collateral(debt - repay_amount, 10) * 0.99), amount)
+                        market_controller.remove_collateral(remove_amount)
                     update_integral()
-                    alice_staked += amount_alice
+                    alice_staked -= remove_amount
+                else:
+                    amount = collateral_token.balanceOf(alice) // 5
+                    collateral_token.approve(market_controller.address, amount)
+                    if market_controller.loan_exists(alice):
+                        market_controller.borrow_more(amount, int(amount * random() * 2000))
+                    else:
+                        market_controller.create_loan(amount, int(amount * random() * 2000), 10)
+                    update_integral()
+                    alice_staked += amount
 
             assert boosted_lm_callback.user_collateral(alice) == alice_staked
             assert boosted_lm_callback.total_collateral() == alice_staked
@@ -131,55 +142,59 @@ def test_gauge_integral(accounts, admin, collateral_token, crv, boosted_lm_callb
 
             # For Bob
             with boa.env.prank(bob):
-                is_withdraw = (i > 0) * (random() < 0.5)
-                print("Bob", "withdraws" if is_withdraw else "deposits")
-                if is_withdraw:
-                    collateral_in_amm, _, debt, __ = market_controller.user_state(bob)
+                is_withdraw_bob = (i > 0) * (random() < 0.5)
+                print("Bob", "withdraws" if is_withdraw_bob else "deposits")
+                if is_withdraw_bob:
+                    collateral_in_amm_bob, _, debt_bob, __ = market_controller.user_state(bob)
                     collateral_bob = boosted_lm_callback.user_collateral(bob)
-                    assert collateral_in_amm == collateral_bob
-                    amount = randrange(1, collateral_in_amm + 1)
-                    if amount == collateral_in_amm:
-                        market_controller.repay(debt)
+                    assert collateral_in_amm_bob == collateral_bob
+                    amount_bob = randrange(1, collateral_in_amm_bob + 1)
+                    if amount_bob == collateral_in_amm_bob:
+                        market_controller.repay(debt_bob)
                     else:
-                        market_controller.repay(amount * 1000)
-                        market_controller.remove_collateral(amount)
+                        repay_amount_bob = int(debt_bob * random() * 0.99)
+                        market_controller.repay(repay_amount_bob)
+                        remove_amount_bob = min(int(market_controller.min_collateral(debt_bob - repay_amount_bob, 10) * 0.99), amount_bob)
+                        market_controller.remove_collateral(remove_amount_bob)
                     update_integral()
-                    bob_staked -= amount
+                    bob_staked -= remove_amount_bob
                 else:
-                    amount = randrange(1, collateral_token.balanceOf(bob) // 10 + 1)
-                    collateral_token.approve(market_controller.address, amount)
+                    amount_bob = randrange(1, collateral_token.balanceOf(bob) // 10 + 1)
+                    collateral_token.approve(market_controller.address, amount_bob)
                     if market_controller.loan_exists(bob):
-                        market_controller.borrow_more(amount, amount * 1000)
+                        market_controller.borrow_more(amount_bob, int(amount_bob * random() * 2000))
                     else:
-                        market_controller.create_loan(amount, amount * 1000, 10)
+                        market_controller.create_loan(amount_bob, int(amount_bob * random() * 2000), 10)
                     update_integral()
-                    bob_staked += amount
+                    bob_staked += amount_bob
 
             if is_alice:
                 # For Alice
                 with boa.env.prank(alice):
-                    collateral_in_amm = market_controller.user_state(alice)[0]
+                    collateral_in_amm_alice, _, debt_alice, __ = market_controller.user_state(alice)
                     collateral_alice = boosted_lm_callback.user_collateral(alice)
-                    assert collateral_in_amm == collateral_alice
-                    is_withdraw_alice = (collateral_in_amm > 0) * (random() < 0.5)
+                    assert collateral_in_amm_alice == collateral_alice
+                    is_withdraw_alice = (collateral_in_amm_alice > 0) * (random() < 0.5)
                     print("Alice", "withdraws" if is_withdraw_alice else "deposits")
 
                     if is_withdraw_alice:
-                        amount_alice = randrange(1, collateral_in_amm + 1)
-                        if amount_alice == collateral_in_amm:
-                            market_controller.repay(debt)
+                        amount_alice = randrange(1, collateral_in_amm_alice + 1)
+                        if amount_alice == collateral_in_amm_alice:
+                            market_controller.repay(debt_alice)
                         else:
-                            market_controller.repay(amount_alice * 1000)
-                            market_controller.remove_collateral(amount_alice)
+                            repay_amount_alice = int(debt_alice * random() * 0.99)
+                            market_controller.repay(repay_amount_alice)
+                            remove_amount_bob = min(int(market_controller.min_collateral(debt_alice - repay_amount_alice, 10) * 0.99), amount_alice)
+                            market_controller.remove_collateral(remove_amount_bob)
                         update_integral()
-                        alice_staked -= amount_alice
+                        alice_staked -= remove_amount_bob
                     else:
                         amount_alice = randrange(1, collateral_token.balanceOf(alice) // 10 + 1)
                         collateral_token.approve(market_controller.address, amount_alice)
                         if market_controller.loan_exists(alice):
-                            market_controller.borrow_more(amount_alice, amount_alice * 1000)
+                            market_controller.borrow_more(amount_alice, int(amount_alice * random() * 2000))
                         else:
-                            market_controller.create_loan(amount_alice, amount_alice * 1000, 10)
+                            market_controller.create_loan(amount_alice, int(amount_alice * random() * 2000), 10)
                         update_integral()
                         alice_staked += amount_alice
 
