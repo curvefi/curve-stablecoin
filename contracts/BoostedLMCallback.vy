@@ -67,6 +67,7 @@ collateral_per_share: public(HashMap[int256, uint256])
 working_shares_per_band: public(HashMap[int256, uint256])  # This only counts staked shares
 
 working_shares: public(HashMap[address, HashMap[int256, uint256]])
+user_shares: public(HashMap[address, HashMap[int256, uint256]])
 user_band: public(HashMap[address,int256])
 user_range_size: public(HashMap[address,int256])
 
@@ -275,12 +276,17 @@ def _checkpoint_user_shares(user: address, n: int256, user_shares: DynArray[uint
         # 2. collateral_per_share * working_shares = working_balance
         #
         # It's needed to update working supply during soft-liquidation
-        if len(user_shares) > 0:
-            ws: uint256 = 0
-            if collateral_amount > 0:
+
+
+        ws: uint256 = 0
+        if collateral_amount > 0:
+            if len(user_shares) > 0:
                 ws = user_shares[j] * working_balance / collateral_amount
-            self.working_shares[user][i] = ws
-            self.working_shares_per_band[i] = self.working_shares_per_band[i] + ws - old_ws
+                self.user_shares[user][i] = user_shares[j]
+            else:
+                ws = self.user_shares[user][i] * working_balance / collateral_amount
+        self.working_shares[user][i] = ws
+        self.working_shares_per_band[i] = self.working_shares_per_band[i] + ws - old_ws
 
         I_rpu: IntegralRPU = self.I_rpu[user][i]
         I_rps: uint256 = self.I_rps[i].rps
