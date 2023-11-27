@@ -7,7 +7,7 @@ YEAR = 365 * 86400
 WEEK = 7 * 86400
 
 
-def test_gauge_integral_one_user(accounts, admin, collateral_token, crv, boosted_lm_callback, gauge_controller, market_controller, stablecoin):
+def test_gauge_integral_one_user(accounts, admin, collateral_token, crv, boosted_lm_callback, gauge_controller, market_controller):
     with boa.env.anchor():
         alice = accounts[0]
 
@@ -91,7 +91,7 @@ def test_gauge_integral_one_user(accounts, admin, collateral_token, crv, boosted
                 assert approx(boosted_lm_callback.integrate_fraction(alice), integral, 1e-15)
 
 
-def test_gauge_integral(accounts, admin, collateral_token, crv, boosted_lm_callback, gauge_controller, market_controller, stablecoin):
+def test_gauge_integral(accounts, admin, collateral_token, crv, boosted_lm_callback, gauge_controller, market_controller):
     with boa.env.anchor():
         alice, bob = accounts[:2]
 
@@ -149,6 +149,7 @@ def test_gauge_integral(accounts, admin, collateral_token, crv, boosted_lm_callb
                     collateral_bob = boosted_lm_callback.user_collateral(bob)
                     assert collateral_in_amm_bob == collateral_bob
                     amount_bob = randrange(1, collateral_in_amm_bob + 1)
+                    remove_amount_bob = amount_bob
                     if amount_bob == collateral_in_amm_bob:
                         market_controller.repay(debt_bob)
                     else:
@@ -179,15 +180,16 @@ def test_gauge_integral(accounts, admin, collateral_token, crv, boosted_lm_callb
 
                     if is_withdraw_alice:
                         amount_alice = randrange(1, collateral_in_amm_alice + 1)
+                        remove_amount_alice = amount_alice
                         if amount_alice == collateral_in_amm_alice:
                             market_controller.repay(debt_alice)
                         else:
                             repay_amount_alice = int(debt_alice * random() * 0.99)
                             market_controller.repay(repay_amount_alice)
-                            remove_amount_bob = min(int(market_controller.min_collateral(debt_alice - repay_amount_alice, 10) * 0.99), amount_alice)
-                            market_controller.remove_collateral(remove_amount_bob)
+                            remove_amount_alice = min(int(market_controller.min_collateral(debt_alice - repay_amount_alice, 10) * 0.99), amount_alice)
+                            market_controller.remove_collateral(remove_amount_alice)
                         update_integral()
-                        alice_staked -= remove_amount_bob
+                        alice_staked -= remove_amount_alice
                     else:
                         amount_alice = randrange(1, collateral_token.balanceOf(alice) // 10 + 1)
                         collateral_token.approve(market_controller.address, amount_alice)
