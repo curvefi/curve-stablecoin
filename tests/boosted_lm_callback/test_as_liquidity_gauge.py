@@ -1,7 +1,6 @@
 import boa
 from random import random, randrange
 from ..conftest import approx
-from math import log
 
 MAX_UINT256 = 2 ** 256 - 1
 YEAR = 365 * 86400
@@ -100,7 +99,7 @@ def test_gauge_integral(accounts, admin, collateral_token, crv, boosted_lm_callb
         checkpoint_supply = 0
         checkpoint_balance = 0
 
-        # Let Alice and Bob have about the same token amount
+        # Let Alice and Bob have about the same collateral token amount
         with boa.env.prank(admin):
             collateral_token._mint_for_testing(alice, 1000 * 10**18)
             collateral_token._mint_for_testing(bob, 1000 * 10**18)
@@ -167,10 +166,13 @@ def test_gauge_integral(accounts, admin, collateral_token, crv, boosted_lm_callb
 
                     if is_withdraw_alice:
                         amount_alice = randrange(1, collateral_in_amm + 1)
-                        market_controller.repay(amount_alice * 1000)
-                        # market_controller.remove_collateral(amount_alice)
+                        if amount_alice == collateral_in_amm:
+                            market_controller.repay(debt)
+                        else:
+                            market_controller.repay(amount_alice * 1000)
+                            market_controller.remove_collateral(amount_alice)
                         update_integral()
-                        # alice_staked -= amount_alice
+                        alice_staked -= amount_alice
                     else:
                         amount_alice = randrange(1, collateral_token.balanceOf(alice) // 10 + 1)
                         collateral_token.approve(market_controller.address, amount_alice)
@@ -202,109 +204,98 @@ def test_gauge_integral(accounts, admin, collateral_token, crv, boosted_lm_callb
             assert approx(boosted_lm_callback.integrate_fraction(alice), integral, 1e-15)
 
 
-# def test_mining_with_votelock(
-#     accounts,
-#     chain,
-#     history,
-#     collateral_token,
-#     token,
-#     gauge_v3,
-#     gauge_controller,
-#     voting_escrow,
-# ):
-#     alice, bob = accounts[:2]
-#     chain.sleep(2 * WEEK + 5)
-#
-#     # Wire up Gauge to the controller to have proper rates and stuff
-#     gauge_controller.add_type(b"Liquidity", {"from": alice})
-#     gauge_controller.change_type_weight(0, 10 ** 18, {"from": alice})
-#     gauge_controller.add_gauge(gauge_v3.address, 0, 10 ** 18, {"from": alice})
-#
-#     # Prepare tokens
-#     token.transfer(bob, 10 ** 20, {"from": alice})
-#     token.approve(voting_escrow, MAX_UINT256, {"from": alice})
-#     token.approve(voting_escrow, MAX_UINT256, {"from": bob})
-#     collateral_token.transfer(bob, collateral_token.balanceOf(alice) // 2, {"from": alice})
-#     collateral_token.approve(gauge_v3.address, MAX_UINT256, {"from": alice})
-#     collateral_token.approve(gauge_v3.address, MAX_UINT256, {"from": bob})
-#
-#     # Alice deposits to escrow. She now has a BOOST
-#     t = chain[-1].timestamp
-#     voting_escrow.create_lock(10 ** 20, t + 2 * WEEK, {"from": alice})
-#
-#     # Alice and Bob deposit some liquidity
-#     gauge_v3.deposit(10 ** 21, {"from": alice})
-#     gauge_v3.deposit(10 ** 21, {"from": bob})
-#
-#     # Time travel and checkpoint
-#     chain.sleep(4 * WEEK)
-#     alice.transfer(alice, 1)
-#     while True:
-#         gauge_v3.user_checkpoint(alice, {"from": alice})
-#         gauge_v3.user_checkpoint(bob, {"from": bob})
-#         if chain[-1].timestamp != chain[-2].timestamp:
-#             chain.undo(2)
-#         else:
-#             break
-#
-#     # 4 weeks down the road, balanceOf must be 0
-#     assert voting_escrow.balanceOf(alice) == 0
-#     assert voting_escrow.balanceOf(bob) == 0
-#
-#     # Alice earned 2.5 times more CRV because she vote-locked her CRV
-#     rewards_alice = gauge_v3.integrate_fraction(alice)
-#     rewards_bob = gauge_v3.integrate_fraction(bob)
-#     assert approx(rewards_alice / rewards_bob, 2.5, 1e-5)
-#
-#     # Time travel / checkpoint: no one has CRV vote-locked
-#     chain.sleep(4 * WEEK)
-#     alice.transfer(alice, 1)
-#     voting_escrow.withdraw({"from": alice})
-#     while True:
-#         gauge_v3.user_checkpoint(alice, {"from": alice})
-#         gauge_v3.user_checkpoint(bob, {"from": bob})
-#         if chain[-1].timestamp != chain[-2].timestamp:
-#             chain.undo(2)
-#         else:
-#             break
-#     old_rewards_alice = rewards_alice
-#     old_rewards_bob = rewards_bob
-#
-#     # Alice earned the same as Bob now
-#     rewards_alice = gauge_v3.integrate_fraction(alice)
-#     rewards_bob = gauge_v3.integrate_fraction(bob)
-#     d_alice = rewards_alice - old_rewards_alice
-#     d_bob = rewards_bob - old_rewards_bob
-#     assert d_alice == d_bob
-#
-#     # Both Alice and Bob votelock
-#     while True:
-#         t = chain[-1].timestamp
-#         voting_escrow.create_lock(10 ** 20, t + 2 * WEEK, {"from": alice})
-#         voting_escrow.create_lock(10 ** 20, t + 2 * WEEK, {"from": bob})
-#         if chain[-1].timestamp != chain[-2].timestamp:
-#             chain.undo(2)
-#         else:
-#             break
-#
-#     # Time travel / checkpoint: no one has CRV vote-locked
-#     chain.sleep(4 * WEEK)
-#     alice.transfer(alice, 1)
-#     voting_escrow.withdraw({"from": alice})
-#     voting_escrow.withdraw({"from": bob})
-#     while True:
-#         gauge_v3.user_checkpoint(alice, {"from": alice})
-#         gauge_v3.user_checkpoint(bob, {"from": bob})
-#         if chain[-1].timestamp != chain[-2].timestamp:
-#             chain.undo(2)
-#         else:
-#             break
-#     old_rewards_alice = rewards_alice
-#     old_rewards_bob = rewards_bob
-#
-#     # Alice earned the same as Bob now
-#     rewards_alice = gauge_v3.integrate_fraction(alice)
-#     rewards_bob = gauge_v3.integrate_fraction(bob)
-#     d_alice = rewards_alice - old_rewards_alice
-#     d_bob = rewards_bob - old_rewards_bob
-#     assert d_alice == d_bob
+def test_mining_with_votelock(
+        accounts,
+        admin,
+        collateral_token,
+        crv,
+        market_controller,
+        boosted_lm_callback,
+        gauge_controller,
+        voting_escrow,
+):
+    alice, bob = accounts[:2]
+    boa.env.time_travel(seconds=2 * WEEK + 5)
+
+    # Wire up Gauge to the controller to have proper rates and stuff
+    with boa.env.prank(admin):
+        gauge_controller.add_type("crvUSD Market")
+        gauge_controller.change_type_weight(0, 10 ** 18)
+        gauge_controller.add_gauge(boosted_lm_callback.address, 0, 10 ** 18)
+
+    # Let Alice and Bob have about the same collateral token amount
+    with boa.env.prank(admin):
+        crv.transfer(alice, 10 ** 20)
+        crv.transfer(bob, 10 ** 20)
+    crv.approve(voting_escrow, MAX_UINT256, sender=alice)
+    crv.approve(voting_escrow, MAX_UINT256, sender=bob)
+
+    # Let Alice and Bob have about the same collateral token amount
+    with boa.env.prank(admin):
+        collateral_token._mint_for_testing(alice, 1000 * 10 ** 18)
+        collateral_token._mint_for_testing(bob, 1000 * 10 ** 18)
+
+    collateral_token.approve(market_controller.address, MAX_UINT256, sender=alice)
+    collateral_token.approve(market_controller.address, MAX_UINT256, sender=bob)
+
+    # Alice deposits to escrow. She now has a BOOST
+    t = boa.env.vm.patch.timestamp
+    voting_escrow.create_lock(10 ** 20, t + 2 * WEEK, sender=alice)
+
+    # Alice and Bob create loan
+    market_controller.create_loan(10**21, 10**21 * 1000, 10, sender=alice)
+    market_controller.create_loan(10**21, 10**21 * 1000, 10, sender=bob)
+
+    # Time travel and checkpoint
+    boa.env.time_travel(4 * WEEK)
+    boosted_lm_callback.user_checkpoint(alice, sender=alice)
+    boosted_lm_callback.user_checkpoint(bob, sender=bob)
+
+    # 4 weeks down the road, balanceOf must be 0
+    assert voting_escrow.balanceOf(alice) == 0
+    assert voting_escrow.balanceOf(bob) == 0
+
+    # Alice earned 2.5 times more CRV because she vote-locked her CRV
+    rewards_alice = boosted_lm_callback.integrate_fraction(alice)
+    rewards_bob = boosted_lm_callback.integrate_fraction(bob)
+    assert approx(rewards_alice / rewards_bob, 2.5, 1e-5)
+
+    # Time travel / checkpoint: no one has CRV vote-locked
+    boa.env.time_travel(4 * WEEK)
+    voting_escrow.withdraw(sender=alice)
+    boosted_lm_callback.user_checkpoint(alice, sender=alice)
+    boosted_lm_callback.user_checkpoint(bob, sender=bob)
+    old_rewards_alice = rewards_alice
+    old_rewards_bob = rewards_bob
+
+    # Alice earned the same as Bob now
+    rewards_alice = boosted_lm_callback.integrate_fraction(alice)
+    rewards_bob = boosted_lm_callback.integrate_fraction(bob)
+    d_alice = rewards_alice - old_rewards_alice
+    d_bob = rewards_bob - old_rewards_bob
+    assert d_alice == d_bob
+
+    # Both Alice and Bob votelock
+    t = boa.env.vm.patch.timestamp
+    voting_escrow.create_lock(10 ** 20, t + 2 * WEEK, sender=alice)
+    voting_escrow.create_lock(10 ** 20, t + 2 * WEEK, sender=bob)
+
+    boosted_lm_callback.user_checkpoint(alice, sender=alice)
+    boosted_lm_callback.user_checkpoint(bob, sender=bob)
+
+    # Time travel / checkpoint: no one has CRV vote-locked
+    boa.env.time_travel(4 * WEEK)
+    voting_escrow.withdraw(sender=alice)
+    voting_escrow.withdraw(sender=bob)
+    boosted_lm_callback.user_checkpoint(alice, sender=alice)
+    boosted_lm_callback.user_checkpoint(bob, sender=bob)
+
+    old_rewards_alice = rewards_alice
+    old_rewards_bob = rewards_bob
+
+    # Alice earned the same as Bob now
+    rewards_alice = boosted_lm_callback.integrate_fraction(alice)
+    rewards_bob = boosted_lm_callback.integrate_fraction(bob)
+    d_alice = rewards_alice - old_rewards_alice
+    d_bob = rewards_bob - old_rewards_bob
+    assert d_alice == d_bob
