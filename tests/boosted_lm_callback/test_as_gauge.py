@@ -32,7 +32,6 @@ def test_gauge_integral_one_user(accounts, admin, collateral_token, crv, boosted
             nonlocal checkpoint, checkpoint_rate, integral, checkpoint_balance, checkpoint_supply
 
             t1 = boa.env.vm.patch.timestamp
-            # boa.env.time_travel(blocks=1)
             rate1 = crv.rate()
             t_epoch = crv.start_epoch_time_write(sender=admin)
             if checkpoint >= t_epoch:
@@ -119,7 +118,6 @@ def test_gauge_integral(accounts, admin, collateral_token, crv, boosted_lm_callb
             nonlocal checkpoint, checkpoint_rate, integral, checkpoint_balance, checkpoint_supply
 
             t1 = boa.env.vm.patch.timestamp
-            boa.env.time_travel(blocks=1)
             rate1 = crv.rate()
             t_epoch = crv.start_epoch_time()
             if checkpoint >= t_epoch:
@@ -240,7 +238,7 @@ def test_mining_with_votelock(
         gauge_controller.change_type_weight(0, 10 ** 18)
         gauge_controller.add_gauge(boosted_lm_callback.address, 0, 10 ** 18)
 
-    # Let Alice and Bob have about the same collateral token amount
+    # Let Alice and Bob have about the same amount of CRV
     with boa.env.prank(admin):
         crv.transfer(alice, 10 ** 20)
         crv.transfer(bob, 10 ** 20)
