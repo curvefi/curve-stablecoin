@@ -87,7 +87,7 @@ def test_gauge_integral_one_user(accounts, admin, collateral_token, crv, boosted
             boosted_lm_callback.user_checkpoint(alice, sender=alice)
             update_integral()
             print(i, dt / 86400, integral, boosted_lm_callback.integrate_fraction(alice))
-            if integral > 0 and boosted_lm_callback.integrate_fraction(alice) > 0:
+            if integral > 0:
                 assert approx(boosted_lm_callback.integrate_fraction(alice), integral, 1e-15)
 
 

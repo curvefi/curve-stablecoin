@@ -1,8 +1,9 @@
+import boa
 from hypothesis import settings
 from hypothesis import strategies as st
 from hypothesis.stateful import RuleBasedStateMachine, run_state_machine_as_test, rule, invariant
 from random import random
-import boa
+from ..conftest import approx
 
 
 class StateMachine(RuleBasedStateMachine):
@@ -12,7 +13,33 @@ class StateMachine(RuleBasedStateMachine):
 
     def __init__(self):
         super().__init__()
-        self.balances = {i: 0 for i in self.accounts[:5]}
+        self.balances = {addr: 0 for addr in self.accounts[:5]}
+        self.checkpoint_supply = 0
+        self.checkpoint_rate = self.crv.rate()
+        self.integrals = {addr: {
+            "checkpoint": boa.env.vm.patch.timestamp,
+            "integral": 0,
+            "checkpoint_balance": 0
+        } for addr in self.accounts[:5]}
+
+    def update_integrals(self):
+        rate1 = self.crv.rate()
+        t1 = boa.env.vm.patch.timestamp
+        t_epoch = self.crv.start_epoch_time_write(sender=self.admin)
+        for acct in self.accounts[:5]:
+
+            integral = self.integrals[acct]
+            print(t1, integral["checkpoint"], t1 - integral["checkpoint"], rate1)
+            if integral["checkpoint"] >= t_epoch:
+                rate_x_time = (t1 - integral["checkpoint"]) * rate1
+            else:
+                rate_x_time = (t_epoch - integral["checkpoint"]) * self.checkpoint_rate + (t1 - t_epoch) * rate1
+            if self.checkpoint_supply > 0:
+                integral["integral"] += rate_x_time * integral["checkpoint_balance"] // self.checkpoint_supply
+            integral["checkpoint"] = t1
+            integral["checkpoint_balance"] = self.boosted_lm_callback.user_collateral(acct)
+        self.checkpoint_rate = rate1
+        self.checkpoint_supply = self.boosted_lm_callback.total_collateral()
 
     @rule(uid=user_id, value=value)
     def deposit(self, uid, value):
@@ -26,13 +53,18 @@ class StateMachine(RuleBasedStateMachine):
         with boa.env.prank(user):
             balance = self.collateral_token.balanceOf(user)
 
+            print(self.integrals[user]["integral"], self.boosted_lm_callback.integrate_fraction(user))
             if self.market_controller.loan_exists(user):
                 self.market_controller.borrow_more(value, int(value * random() * 2000))
             else:
                 self.market_controller.create_loan(value, int(value * random() * 2000), 10)
             self.balances[user] += value
+            self.update_integrals()
+            print(self.integrals[user]["integral"], self.boosted_lm_callback.integrate_fraction(user))
 
             assert self.collateral_token.balanceOf(user) == balance - value
+            if self.integrals[user]["integral"] > 0 and self.boosted_lm_callback.integrate_fraction(user) > 0:
+                assert approx(self.boosted_lm_callback.integrate_fraction(user), self.integrals[user]["integral"], 1e-15)
 
     @rule(uid=user_id, value=value)
     def withdraw(self, uid, value):
@@ -57,8 +89,11 @@ class StateMachine(RuleBasedStateMachine):
                 remove_amount = min(int(self.market_controller.min_collateral(debt - repay_amount, 10) * 0.99), value)
                 self.market_controller.remove_collateral(remove_amount)
             self.balances[user] -= remove_amount
+            self.update_integrals()
 
             assert self.collateral_token.balanceOf(user) == balance + remove_amount
+            if self.integrals[user]["integral"] > 0 and self.boosted_lm_callback.integrate_fraction(user) > 0:
+                assert approx(self.boosted_lm_callback.integrate_fraction(user), self.integrals[user]["integral"], 1e-15)
 
     @rule(dt=time)
     def advance_time(self, dt):
@@ -75,9 +110,12 @@ class StateMachine(RuleBasedStateMachine):
         user = self.accounts[uid]
         with boa.env.prank(user):
             self.boosted_lm_callback.user_checkpoint(user)
+            self.update_integrals()
+            if self.integrals[user]["integral"] > 0 and self.boosted_lm_callback.integrate_fraction(user) > 0:
+                assert approx(self.boosted_lm_callback.integrate_fraction(user), self.integrals[user]["integral"], 1e-15)
 
     @invariant()
-    def balances(self):
+    def invariant_balances(self):
         """
         Validate expected balances against actual balances.
         """
@@ -85,7 +123,7 @@ class StateMachine(RuleBasedStateMachine):
             assert self.boosted_lm_callback.user_collateral(account) == balance
 
     @invariant()
-    def total_supply(self):
+    def invariant_total_supply(self):
         """
         Validate expected total supply against actual total supply.
         """
@@ -99,9 +137,13 @@ class StateMachine(RuleBasedStateMachine):
             initial = self.collateral_token.balanceOf(account)
             debt = self.market_controller.user_state(account)[2]
             self.market_controller.repay(debt, sender=account)
+            self.update_integrals()
 
             assert not self.market_controller.loan_exists(account)
             assert self.collateral_token.balanceOf(account) == initial + balance
+            assert (self.integrals[account]["integral"] > 0) == (self.boosted_lm_callback.integrate_fraction(account) > 0)
+            if self.integrals[account]["integral"] > 0:
+                assert approx(self.boosted_lm_callback.integrate_fraction(account), self.integrals[account]["integral"], 1e-14)
 
 
 def test_state_machine(accounts, admin, collateral_token, crv, boosted_lm_callback, gauge_controller, market_controller):
@@ -112,6 +154,14 @@ def test_state_machine(accounts, admin, collateral_token, crv, boosted_lm_callba
     # approve gauge_v3 from the funded accounts
     for acct in accounts[:5]:
         collateral_token.approve(market_controller, 2 ** 256 - 1, sender=acct)
+
+    # Wire up Gauge to the controller to have proper rates and stuff
+    with boa.env.prank(admin):
+        gauge_controller.add_type("crvUSD Market")
+        gauge_controller.change_type_weight(0, 10 ** 18)
+        gauge_controller.add_gauge(boosted_lm_callback.address, 0, 10 ** 18)
+
+    boa.env.time_travel(seconds=7 * 86400)
 
     StateMachine.TestCase.settings = settings(max_examples=30, stateful_step_count=25)
     for k, v in locals().items():
