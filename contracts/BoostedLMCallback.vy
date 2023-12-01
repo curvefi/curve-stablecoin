@@ -64,6 +64,7 @@ working_supply: public(uint256)
 working_balances: public(HashMap[address, uint256])
 
 collateral_per_share: public(HashMap[int256, uint256])
+shares_per_band: public(HashMap[int256, uint256])
 working_shares_per_band: public(HashMap[int256, uint256])  # This only counts staked shares
 
 working_shares: public(HashMap[address, HashMap[int256, uint256]])
@@ -186,6 +187,7 @@ def _checkpoint_collateral_shares(n: int256, collateral_per_share: DynArray[uint
     # * Record the collateral per share values
     # * Record integrals of rewards per share
     working_supply: uint256 = self.working_supply
+    total_collateral: uint256 = self.total_collateral
     delta_rpc: uint256 = 0
 
     if working_supply > 0 and block.timestamp > I_rpc.t:  # XXX should we not loop when boosted collateral == 0?
@@ -231,9 +233,7 @@ def _checkpoint_collateral_shares(n: int256, collateral_per_share: DynArray[uint
         _n: int256 = n + i
         old_cps: uint256 = self.collateral_per_share[_n]
         cps: uint256 = old_cps
-        if len(collateral_per_share) == 0:
-            cps = old_cps
-        else:
+        if len(collateral_per_share) > 0:
             cps = collateral_per_share[i]
             self.collateral_per_share[_n] = cps
         I_rps: IntegralRPS = self.I_rps[_n]
@@ -242,28 +242,30 @@ def _checkpoint_collateral_shares(n: int256, collateral_per_share: DynArray[uint
         self.I_rps[_n] = I_rps
         if cps != old_cps:
             wspb: uint256 = self.working_shares_per_band[_n]
+            spb: uint256 = self.shares_per_band[_n]
             if wspb > 0:
                 # working_supply += wspb * (cps - old_cps) / 10**18
-                old_value: uint256 = wspb * old_cps / 10**18
-                working_supply = max(working_supply + wspb * cps / 10**18, old_value) - old_value
+                old_working_supply: uint256 = wspb * old_cps / 10**18
+                working_supply = max(working_supply + wspb * cps / 10**18, old_working_supply) - old_working_supply
+                old_total_collateral: uint256 = spb * old_cps / 10 ** 18
+                total_collateral = max(total_collateral + spb * cps / 10**18, old_total_collateral) - old_total_collateral
 
     self.working_supply = working_supply
+    self.total_collateral = total_collateral
 
 
 @internal
 def _checkpoint_user_shares(user: address, n: int256, user_shares: DynArray[uint256, MAX_TICKS_UINT], size: int256):
     # Calculate the amount of real collateral for the user
     collateral_amount: uint256 = 0
-    if len(user_shares) == 0:
-        collateral_amount = self.user_collateral[user]
-    else:
+    working_balance: uint256 = 0
+    if len(user_shares) > 0:
         for i in range(MAX_TICKS_INT):
             if i == size:
                 break
             collateral_amount += user_shares[i] * self.collateral_per_share[n + i] / 10**18
+        working_balance = self._update_liquidity_limit(user, collateral_amount)
 
-    # Get working balance
-    working_balance: uint256 = self._update_liquidity_limit(user, collateral_amount)
     rpu: uint256 = self.integrate_fraction[user]
 
     for j in range(MAX_TICKS_INT):
@@ -271,22 +273,22 @@ def _checkpoint_user_shares(user: address, n: int256, user_shares: DynArray[uint
             break
         i: int256 = n + j
         old_ws: uint256 = self.working_shares[user][i]
-        # Transition from working_balance to working_shares:
-        # 1. working_balance * real_shares == real_balance * working_shares
-        # 2. collateral_per_share * working_shares = working_balance
-        #
-        # It's needed to update working supply during soft-liquidation
 
-
-        ws: uint256 = 0
-        if collateral_amount > 0:
-            if len(user_shares) > 0:
-                ws = user_shares[j] * working_balance / collateral_amount
-                self.user_shares[user][i] = user_shares[j]
-            else:
-                ws = self.user_shares[user][i] * working_balance / collateral_amount
-        self.working_shares[user][i] = ws
-        self.working_shares_per_band[i] = self.working_shares_per_band[i] + ws - old_ws
+        if len(user_shares) > 0:
+            # Transition from working_balance to working_shares:
+            # 1. working_balance * real_shares == real_balance * working_shares
+            # 2. collateral_per_share * working_shares = working_balance
+            #
+            # It's needed to update working supply during soft-liquidation
+            ws: uint256 = 0
+            if collateral_amount > 0:
+                if len(user_shares) > 0:
+                    ws = user_shares[j] * working_balance / collateral_amount
+                    self.shares_per_band[i] = self.shares_per_band[i] + user_shares[j] - self.user_shares[user][i]
+                else:
+                    ws = self.user_shares[user][i] * working_balance / collateral_amount
+            self.working_shares[user][i] = ws
+            self.working_shares_per_band[i] = self.working_shares_per_band[i] + ws - old_ws
 
         I_rpu: IntegralRPU = self.I_rpu[user][i]
         I_rps: uint256 = self.I_rps[i].rps
