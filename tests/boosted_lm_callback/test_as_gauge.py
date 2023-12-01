@@ -273,7 +273,7 @@ def test_mining_with_votelock(
     # Alice earned 2.5 times more CRV because she vote-locked her CRV
     rewards_alice = boosted_lm_callback.integrate_fraction(alice)
     rewards_bob = boosted_lm_callback.integrate_fraction(bob)
-    assert approx(rewards_alice / rewards_bob, 2.5, 1e-5)
+    assert approx(rewards_alice / rewards_bob, 2.5, 1e-15)
 
     # Time travel / checkpoint: no one has CRV vote-locked
     boa.env.time_travel(4 * WEEK)
