@@ -268,11 +268,11 @@ def _checkpoint_user_shares(user: address, n: int256, user_shares: DynArray[uint
 
     rpu: uint256 = self.integrate_fraction[user]
 
-    for j in range(MAX_TICKS_INT):
-        if j == size:
+    for i in range(MAX_TICKS_INT):
+        if i == size:
             break
-        i: int256 = n + j
-        old_ws: uint256 = self.working_shares[user][i]
+        _n: int256 = n + i
+        old_ws: uint256 = self.working_shares[user][_n]
 
         if len(user_shares) > 0:
             # Transition from working_balance to working_shares:
@@ -282,19 +282,19 @@ def _checkpoint_user_shares(user: address, n: int256, user_shares: DynArray[uint
             # It's needed to update working supply during soft-liquidation
             ws: uint256 = 0
             if collateral_amount > 0:
-                ws = user_shares[j] * working_balance / collateral_amount
-                self.shares_per_band[i] = self.shares_per_band[i] + user_shares[j] - self.user_shares[user][i]
-                self.user_shares[user][i] = user_shares[j]
-            self.working_shares[user][i] = ws
-            self.working_shares_per_band[i] = self.working_shares_per_band[i] + ws - old_ws
+                ws = user_shares[i] * working_balance / collateral_amount
+                self.shares_per_band[_n] = self.shares_per_band[_n] + user_shares[i] - self.user_shares[user][_n]
+                self.user_shares[user][_n] = user_shares[i]
+            self.working_shares[user][_n] = ws
+            self.working_shares_per_band[_n] = self.working_shares_per_band[_n] + ws - old_ws
 
-        I_rpu: IntegralRPU = self.I_rpu[user][i]
-        I_rps: uint256 = self.I_rps[i].rps
+        I_rpu: IntegralRPU = self.I_rpu[user][_n]
+        I_rps: uint256 = self.I_rps[_n].rps
         d_rpu: uint256 = old_ws * (I_rps - I_rpu.rps) / 10**18
         I_rpu.rpu += d_rpu
         rpu += d_rpu
         I_rpu.rps = I_rps
-        self.I_rpu[user][i] = I_rpu
+        self.I_rpu[user][_n] = I_rpu
 
     self.integrate_fraction[user] = rpu
 
