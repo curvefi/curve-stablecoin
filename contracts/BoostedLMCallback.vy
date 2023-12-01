@@ -60,7 +60,7 @@ MINTER: public(immutable(Minter))
 
 total_collateral: public(uint256)
 working_supply: public(uint256)
-working_balances: public(HashMap[address, uint256])
+user_boost: public(HashMap[address, uint256])
 
 collateral_per_share: public(HashMap[int256, uint256])
 shares_per_band: public(HashMap[int256, uint256])
@@ -159,14 +159,16 @@ def _update_liquidity_limit(user: address, collateral_amount: uint256, old_colla
         lim += L * voting_balance / voting_total * (100 - TOKENLESS_PRODUCTION) / 100
     lim = min(collateral_amount, lim)
 
-    old_bal: uint256 = self.working_balances[user]
-    self.working_balances[user] = lim
-    _working_supply: uint256 = self.working_supply + lim - old_bal
+    _working_supply: uint256 = self.working_supply + lim - old_collateral_amount * self.user_boost[user] / 10**18
     self.working_supply = _working_supply
+    boost: uint256 = 0
+    if collateral_amount > 0:
+        boost = lim * 10**18 / collateral_amount
+    self.user_boost[user] = boost
 
     log UpdateLiquidityLimit(user, collateral_amount, L, lim, _working_supply)
 
-    return lim
+    return boost
 
 
 @internal
@@ -256,7 +258,7 @@ def _checkpoint_user_shares(user: address, n: int256, user_shares: DynArray[uint
     # Calculate the amount of real collateral for the user
     old_collateral_amount: uint256 = 0
     collateral_amount: uint256 = 0
-    working_balance: uint256 = 0
+    boost: uint256 = 0 # [0.4, 1]
     if len(user_shares) > 0:
         for i in range(MAX_TICKS_INT):
             if i == size:
@@ -264,7 +266,7 @@ def _checkpoint_user_shares(user: address, n: int256, user_shares: DynArray[uint
             cps: uint256 = self.collateral_per_share[n + i]
             old_collateral_amount += self.user_shares[user][n + i] * cps / 10**18
             collateral_amount += user_shares[i] * cps / 10**18
-        working_balance = self._update_liquidity_limit(user, collateral_amount, old_collateral_amount)
+        boost = self._update_liquidity_limit(user, collateral_amount, old_collateral_amount)
 
     rpu: uint256 = self.integrate_fraction[user]
 
@@ -280,11 +282,10 @@ def _checkpoint_user_shares(user: address, n: int256, user_shares: DynArray[uint
             # 2. collateral_per_share * working_shares = working_balance
             #
             # It's needed to update working supply during soft-liquidation
-            ws: uint256 = 0
-            if collateral_amount > 0:
-                ws = user_shares[i] * working_balance / collateral_amount
-                self.shares_per_band[_n] = self.shares_per_band[_n] + user_shares[i] - self.user_shares[user][_n]
-                self.user_shares[user][_n] = user_shares[i]
+            self.shares_per_band[_n] = self.shares_per_band[_n] + user_shares[i] - self.user_shares[user][_n]
+            self.user_shares[user][_n] = user_shares[i]
+
+            ws: uint256 = user_shares[i] * boost / 10**18
             self.working_shares[user][_n] = ws
             self.working_shares_per_band[_n] = self.working_shares_per_band[_n] + ws - old_ws
 
