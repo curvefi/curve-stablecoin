@@ -58,7 +58,6 @@ VEBOOST_PROXY: public(immutable(VotingEscrowBoost))
 GAUGE_CONTROLLER: public(immutable(GaugeController))
 MINTER: public(immutable(Minter))
 
-user_collateral: public(HashMap[address, uint256])
 total_collateral: public(uint256)
 working_supply: public(uint256)
 working_balances: public(HashMap[address, uint256])
@@ -146,15 +145,13 @@ def initialize():
 
 
 @internal
-def _update_liquidity_limit(user: address, collateral_amount: uint256) -> uint256:
+def _update_liquidity_limit(user: address, collateral_amount: uint256, old_collateral_amount: uint256) -> uint256:
     # To be called after totalSupply is updated
     voting_balance: uint256 = VEBOOST_PROXY.adjusted_balance_of(user)
     voting_total: uint256 = VECRV.totalSupply()
 
     # collateral_amount and total are used to calculate boosts
-    old_amount: uint256 = self.user_collateral[user]
-    self.user_collateral[user] = collateral_amount
-    L: uint256 = self.total_collateral + collateral_amount - old_amount
+    L: uint256 = self.total_collateral + collateral_amount - old_collateral_amount
     self.total_collateral = L
 
     lim: uint256 = collateral_amount * TOKENLESS_PRODUCTION / 100
@@ -257,14 +254,17 @@ def _checkpoint_collateral_shares(n: int256, collateral_per_share: DynArray[uint
 @internal
 def _checkpoint_user_shares(user: address, n: int256, user_shares: DynArray[uint256, MAX_TICKS_UINT], size: int256):
     # Calculate the amount of real collateral for the user
+    old_collateral_amount: uint256 = 0
     collateral_amount: uint256 = 0
     working_balance: uint256 = 0
     if len(user_shares) > 0:
         for i in range(MAX_TICKS_INT):
             if i == size:
                 break
-            collateral_amount += user_shares[i] * self.collateral_per_share[n + i] / 10**18
-        working_balance = self._update_liquidity_limit(user, collateral_amount)
+            cps: uint256 = self.collateral_per_share[n + i]
+            old_collateral_amount += self.user_shares[user][n + i] * cps / 10**18
+            collateral_amount += user_shares[i] * cps / 10**18
+        working_balance = self._update_liquidity_limit(user, collateral_amount, old_collateral_amount)
 
     rpu: uint256 = self.integrate_fraction[user]
 
