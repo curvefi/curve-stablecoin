@@ -39,6 +39,8 @@ if __name__ == '__main__':
         boa.env.add_account(account_load('babe'))
         boa.env._fork_try_prefetch_state = False
 
+    factory = boa.load_partial('contracts/ControllerFactory.vy').at(FACTORY)
+
     contract = boa.load(
         'contracts/mpolicies/AggMonetaryPolicy3.vy',
         ADMIN,
@@ -50,5 +52,12 @@ if __name__ == '__main__':
         10 * 10**16)  # Target debt fraction 10%
 
     print('Deployed at:', contract.address)
+
+    for i in range(50000):
+        controller = factory.controllers(i)
+        if controller == "0x0000000000000000000000000000000000000000":
+            break
+        print('Saving candle for:', controller)
+        contract.rate_write(controller, gas=10**6)
 
     contract.rate_write(gas=10**6)
