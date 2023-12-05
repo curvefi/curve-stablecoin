@@ -82,6 +82,7 @@ def __init__(admin: address,
 
     assert sigma >= MIN_SIGMA
     assert sigma <= MAX_SIGMA
+    assert target_debt_fraction > 0
     assert target_debt_fraction <= MAX_TARGET_DEBT_FRACTION
     assert rate <= MAX_RATE
     self.rate0 = rate
