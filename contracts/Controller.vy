@@ -117,7 +117,6 @@ struct CallbackData:
 
 
 FACTORY: immutable(Factory)
-STABLECOIN: immutable(ERC20)
 MAX_LOAN_DISCOUNT: constant(uint256) = 5 * 10**17
 MIN_LIQUIDATION_DISCOUNT: constant(uint256) = 10**16 # Start liquidating when threshold reached
 MAX_TICKS: constant(int256) = 50
@@ -145,6 +144,9 @@ loan_discount: public(uint256)
 
 COLLATERAL_TOKEN: immutable(ERC20)
 COLLATERAL_PRECISION: immutable(uint256)
+
+STABLECOIN: immutable(ERC20)
+STABLECOIN_PRECISION: immutable(uint256)
 
 AMM: immutable(LLAMMA)
 A: immutable(uint256)
@@ -185,8 +187,6 @@ def __init__(
     """
     FACTORY = Factory(msg.sender)
     stablecoin: ERC20 = ERC20(Factory(msg.sender).stablecoin())
-    STABLECOIN = stablecoin
-    assert stablecoin.decimals() == 18
 
     self.monetary_policy = MonetaryPolicy(monetary_policy)
 
@@ -203,6 +203,9 @@ def __init__(
 
     COLLATERAL_TOKEN = ERC20(collateral_token)
     COLLATERAL_PRECISION = pow_mod256(10, 18 - ERC20(collateral_token).decimals())
+
+    STABLECOIN = stablecoin
+    STABLECOIN_PRECISION = pow_mod256(10, 18 - stablecoin.decimals())
 
     SQRT_BAND_RATIO = isqrt(unsafe_div(10**36 * _A, unsafe_sub(_A, 1)))
 
@@ -403,7 +406,7 @@ def _calculate_debt_n1(collateral: uint256, debt: uint256, N: uint256) -> int256
     # n1 = floor(log2(y_effective) / self.logAratio)
     # EVM semantics is not doing floor unlike Python, so we do this
     assert y_effective > 0, "Amount too low"
-    n1: int256 = self.log2(y_effective)  # <- switch to faster ln() XXX?
+    n1: int256 = self.log2(y_effective)
     if n1 < 0:
         n1 -= unsafe_sub(LOG2_A_RATIO, 1)  # This is to deal with vyper's rounding of negative numbers
     n1 = unsafe_div(n1, LOG2_A_RATIO)
