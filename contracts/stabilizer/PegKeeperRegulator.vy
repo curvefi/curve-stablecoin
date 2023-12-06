@@ -30,7 +30,21 @@ event AddPegKeeper:
 event RemovePegKeeper:
     peg_keeper: PegKeeper
 
+event PriceDeviation:
+    price_deviation: uint256
+
+event DebtParameters:
+    alpha: uint256
+    beta: uint256
+
+event SetKilled:
+    is_killed: Killed
+    by: address
+
 event SetAdmin:
+    admin: address
+
+event SetEmergencyAdmin:
     admin: address
 
 struct PegKeeperInfo:
@@ -65,10 +79,14 @@ def __init__(_stablecoin: ERC20, _agg: Aggregator, _admin: address, _emergency_a
     self.aggregator = _agg
     self.admin = _admin
     self.emergency_admin = _emergency_admin
+    log SetAdmin(_admin)
+    log SetEmergencyAdmin(_emergency_admin)
 
     self.price_deviation = 5 * 10 ** (18 - 4) # 0.0005 = 0.05%
     self.alpha = ONE / 2 # 1/2
     self.beta = ONE / 4  # 1/4
+    log PriceDeviation(self.price_deviation)
+    log DebtParameters(self.alpha, self.beta)
 
 
 @external
@@ -266,6 +284,7 @@ def set_debt_parameters(_alpha: uint256, _beta: uint256):
 
     self.alpha = _alpha
     self.beta = _beta
+    log DebtParameters(_alpha, _beta)
 
 
 @external
@@ -276,6 +295,7 @@ def set_killed(_is_killed: Killed):
     """
     assert msg.sender in [self.admin, self.emergency_admin]
     self.is_killed = _is_killed
+    log SetKilled(_is_killed, msg.sender)
 
 
 @external
@@ -291,3 +311,4 @@ def set_admin(_admin: address):
 def set_emergency_admin(_admin: address):
     assert msg.sender == self.admin
     self.emergency_admin = _admin
+    log SetEmergencyAdmin(_admin)
