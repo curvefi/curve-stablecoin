@@ -364,6 +364,7 @@ def set_new_regulator(_new_regulator: Regulator):
     @notice Set new peg keeper regulator
     """
     assert msg.sender == self.admin  # dev: only admin
+    assert _new_regulator.address != empty(address)  # dev: bad regulator
 
     self.regulator = _new_regulator
     log SetNewRegulator(_new_regulator.address)
@@ -378,6 +379,7 @@ def commit_new_admin(_new_admin: address):
     @param _new_admin Address of the new admin
     """
     assert msg.sender == self.admin  # dev: only admin
+    assert _new_admin != empty(address)  # dev: bad admin
 
     self.new_admin_deadline = block.timestamp + ADMIN_ACTIONS_DELAY
     self.future_admin = _new_admin
