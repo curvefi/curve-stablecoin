@@ -243,3 +243,5 @@ def test_peg_keepers_bad_values(reg, admin, preset_peg_keepers):
             reg.remove_peg_keepers(preset_peg_keepers[1:3])
         with boa.reverts():  # Duplicate
             reg.add_peg_keepers(preset_peg_keepers[1:3])
+        with boa.reverts():  # Duplicate
+            reg.add_peg_keepers([preset_peg_keepers[0]] * 2)
