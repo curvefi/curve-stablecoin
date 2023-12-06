@@ -182,14 +182,15 @@ def _withdraw(_amount: uint256):
     if _amount == 0:
         return
 
-    amount: uint256 = min(_amount, self.debt)
+    debt: uint256 = self.debt
+    amount: uint256 = min(_amount, debt)
 
     amounts: uint256[2] = empty(uint256[2])
     amounts[I] = amount
     POOL.remove_liquidity_imbalance(amounts, max_value(uint256))
 
     self.last_change = block.timestamp
-    self.debt -= amount
+    self.debt = debt - amount
 
     log Withdraw(amount)
 
@@ -395,9 +396,10 @@ def apply_new_admin():
     @dev Should be executed from new admin
     """
     new_admin: address = self.future_admin
+    new_admin_deadline: uint256 = self.new_admin_deadline
     assert msg.sender == new_admin  # dev: only new admin
-    assert block.timestamp >= self.new_admin_deadline  # dev: insufficient time
-    assert self.new_admin_deadline != 0  # dev: no active action
+    assert block.timestamp >= new_admin_deadline  # dev: insufficient time
+    assert new_admin_deadline != 0  # dev: no active action
 
     self.admin = new_admin
     self.new_admin_deadline = 0
