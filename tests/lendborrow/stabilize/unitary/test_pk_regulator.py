@@ -238,6 +238,8 @@ def test_peg_keepers_bad_values(reg, admin, preset_peg_keepers):
         with boa.reverts():  # Too many values
             reg.add_peg_keepers(preset_peg_keepers[:1])
 
-        reg.remove_peg_keepers(preset_peg_keepers[:1])
+        reg.remove_peg_keepers(preset_peg_keepers[:2])
         with boa.reverts():  # Could not find
-            reg.remove_peg_keepers(preset_peg_keepers[:1])
+            reg.remove_peg_keepers(preset_peg_keepers[1:3])
+        with boa.reverts():  # Duplicate
+            reg.add_peg_keepers(preset_peg_keepers[1:3])

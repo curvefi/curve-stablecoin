@@ -67,6 +67,7 @@ beta: public(uint256)  # Each PegKeeper's impact
 STABLECOIN: immutable(ERC20)
 aggregator: public(Aggregator)
 peg_keepers: public(DynArray[PegKeeperInfo, MAX_LEN])
+peg_keeper_i: HashMap[PegKeeper,  uint256]  # 1 + index of peg keeper in a list
 
 is_killed: public(Killed)
 admin: public(address)
@@ -211,26 +212,29 @@ def withdraw_allowed(_pk: address=msg.sender) -> uint256:
     if self.aggregator.price() > ONE:
         return 0
 
-    for info in self.peg_keepers:
-        if info.peg_keeper.address == _pk:
-            if self._price_in_range(self._get_price(info), self._get_price_oracle(info)):
-                return max_value(uint256)
-            else:
-                return 0
-    return 0  # dev: not found
+    i: uint256 = self.peg_keeper_i[PegKeeper(_pk)]
+    if i > 0:
+        info: PegKeeperInfo = self.peg_keepers[i - 1]
+        if self._price_in_range(self._get_price(info), self._get_price_oracle(info)):
+            return max_value(uint256)
+    return 0
 
 
 @external
 def add_peg_keepers(_peg_keepers: DynArray[PegKeeper, MAX_LEN]):
     assert msg.sender == self.admin
 
+    i: uint256 = len(self.peg_keepers)
     for pk in _peg_keepers:
+        assert self.peg_keeper_i[pk] == empty(uint256)  # dev: duplicate
         info: PegKeeperInfo = PegKeeperInfo({
             peg_keeper: pk,
             pool: pk.pool(),
             is_inverse: pk.IS_INVERSE(),
         })
-        self.peg_keepers.append(info)  # Should revert if too many pairs
+        self.peg_keepers.append(info)  # dev: too many pairs
+        i += 1
+        self.peg_keeper_i[pk] = i
 
         log AddPegKeeper(info.peg_keeper, info.pool, info.is_inverse)
 
@@ -243,20 +247,16 @@ def remove_peg_keepers(_peg_keepers: DynArray[PegKeeper, MAX_LEN]):
     assert msg.sender == self.admin
 
     peg_keepers: DynArray[PegKeeperInfo, MAX_LEN] = self.peg_keepers
-    max_n: uint256 = len(peg_keepers) - 1
     for pk in _peg_keepers:
-        i: uint256 = max_n
-        for _ in range(MAX_LEN + 1):
-            if peg_keepers[i].peg_keeper == pk:
-                break
-            i -= 1  # dev: pool not found
+        i: uint256 = self.peg_keeper_i[pk] - 1  # dev: pool not found
+        max_n: uint256 = len(peg_keepers) - 1
         if i < max_n:
-            peg_keepers[i] = peg_keepers[len(peg_keepers) - 1]
+            peg_keepers[i] = peg_keepers[max_n]
+            self.peg_keeper_i[peg_keepers[i].peg_keeper] = 1 + i
 
         peg_keepers.pop()
+        self.peg_keeper_i[pk] = empty(uint256)
         log RemovePegKeeper(pk)
-        if max_n > 0:
-            max_n -= 1
 
     self.peg_keepers = peg_keepers
 
