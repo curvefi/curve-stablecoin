@@ -51,15 +51,17 @@ def test_set_new_caller_share_only_admin(peg_keepers, alice):
                 pk.set_new_caller_share(5 * 10**4)
 
 
-def test_set_new_regulator(peg_keepers, admin, alice):
-    new_regulator = ZERO_ADDRESS
+def test_set_new_regulator(peg_keepers, admin, alice, bob):
+    new_regulator = bob
     for pk in peg_keepers:
         with boa.env.prank(alice):
             with boa.reverts():  # dev: only admin
-                pk.set_new_regulator(ZERO_ADDRESS)
+                pk.set_new_regulator(new_regulator)
         with boa.env.prank(admin):
             pk.set_new_regulator(new_regulator)
             assert pk.regulator() == new_regulator
+            with boa.reverts():  # dev: zero address
+                pk.set_new_regulator(ZERO_ADDRESS)
 
 
 def test_new_admin(peg_keepers, admin, alice, bob):

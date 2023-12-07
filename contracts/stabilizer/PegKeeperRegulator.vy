@@ -30,6 +30,9 @@ event AddPegKeeper:
 event RemovePegKeeper:
     peg_keeper: PegKeeper
 
+event WorstPriceThreshold:
+    threshold: uint256
+
 event PriceDeviation:
     price_deviation: uint256
 
@@ -59,7 +62,7 @@ enum Killed:
 MAX_LEN: constant(uint256) = 8
 ONE: constant(uint256) = 10 ** 18
 
-LAST_PRICE_THRESHOLD: constant(uint256) = 3 * 10 ** (18 - 4)  # 0.0003
+worst_price_threshold: public(uint256)
 price_deviation: public(uint256)
 alpha: public(uint256)  # Initial boundary
 beta: public(uint256)  # Each PegKeeper's impact
@@ -83,9 +86,11 @@ def __init__(_stablecoin: ERC20, _agg: Aggregator, _admin: address, _emergency_a
     log SetAdmin(_admin)
     log SetEmergencyAdmin(_emergency_admin)
 
+    self.worst_price_threshold = 3 * 10 ** (18 - 4)  # 0.0003
     self.price_deviation = 5 * 10 ** (18 - 4) # 0.0005 = 0.05%
     self.alpha = ONE / 2 # 1/2
     self.beta = ONE / 4  # 1/4
+    log WorstPriceThreshold(self.worst_price_threshold)
     log PriceDeviation(self.price_deviation)
     log DebtParameters(self.alpha, self.beta)
 
@@ -186,7 +191,7 @@ def provide_allowed(_pk: address=msg.sender) -> uint256:
             largest_price = price_oracle
         debt_ratios.append(self._get_ratio(info.peg_keeper))
 
-    if largest_price < unsafe_sub(price, LAST_PRICE_THRESHOLD):
+    if largest_price < unsafe_sub(price, self.worst_price_threshold):
         return 0
 
     debt: uint256 = PegKeeper(_pk).debt()
@@ -262,6 +267,18 @@ def remove_peg_keepers(_peg_keepers: DynArray[PegKeeper, MAX_LEN]):
 
 
 @external
+def set_worst_price_threshold(_threshold: uint256):
+    """
+    @notice Set threshold for the worst price that is still accepted
+    @param _threshold Price threshold with base 10 ** 18 (1.0 = 10 ** 18)
+    """
+    assert msg.sender == self.admin
+    assert _threshold <= 10 ** (18 - 2)  # 0.01
+    self.worst_price_threshold = _threshold
+    log WorstPriceThreshold(_threshold)
+
+
+@external
 def set_price_deviation(_deviation: uint256):
     """
     @notice Set acceptable deviation of current price from oracle's
@@ -270,6 +287,7 @@ def set_price_deviation(_deviation: uint256):
     assert msg.sender == self.admin
     assert _deviation <= 10 ** 20
     self.price_deviation = _deviation
+    log PriceDeviation(_deviation)
 
 
 @external

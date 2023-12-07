@@ -146,6 +146,7 @@ def test_set_killed(reg, peg_keepers, admin):
 
 def test_admin(reg, admin, alice):
     # initial parameters
+    assert reg.worst_price_threshold() == 3 * 10 ** (18 - 4)
     assert reg.price_deviation() == 100 * 10 ** 18
     assert (reg.alpha(), reg.beta()) == (10 ** 18, 10 ** 18)
     assert reg.emergency_admin() == admin
@@ -154,6 +155,8 @@ def test_admin(reg, admin, alice):
 
     # third party has no access
     with boa.env.prank(alice):
+        with boa.reverts():
+            reg.set_worst_price_threshold(10 ** (18 - 3))
         with boa.reverts():
             reg.set_price_deviation(10 ** 17)
         with boa.reverts():
@@ -167,6 +170,9 @@ def test_admin(reg, admin, alice):
 
     # admin has access
     with boa.env.prank(admin):
+        reg.set_worst_price_threshold(10 ** (18 - 3))
+        assert reg.worst_price_threshold() == 10 ** (18 - 3)
+
         reg.set_price_deviation(10 ** 17)
         assert reg.price_deviation() == 10 ** 17
 
