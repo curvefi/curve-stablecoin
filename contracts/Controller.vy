@@ -154,7 +154,7 @@ SQRT_BAND_RATIO: immutable(uint256)
 
 MAX_ADMIN_FEE: constant(uint256) = 10**18  # 100%
 MIN_FEE: constant(uint256) = 10**6  # 1e-12, still needs to be above 0
-MAX_FEE: constant(uint256) = 10**17  # 10%
+MAX_FEE: immutable(uint256)  # let's set to MIN_TICKS / A: for example, 4% max fee for A=100
 
 USE_ETH: immutable(bool)
 
@@ -199,6 +199,7 @@ def __init__(
     A = _A
     Aminus1 = unsafe_sub(_A, 1)
     LOG2_A_RATIO = self.log2(unsafe_div(_A * 10**18, unsafe_sub(_A, 1)))
+    MAX_FEE = min(unsafe_div(10**18 * MIN_TICKS, A), 10**17)
 
     COLLATERAL_TOKEN = ERC20(collateral_token)
     COLLATERAL_PRECISION = pow_mod256(10, 18 - ERC20(collateral_token).decimals())
