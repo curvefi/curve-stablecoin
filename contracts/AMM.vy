@@ -828,9 +828,6 @@ def withdraw(user: address, frac: uint256) -> uint256[2]:
     total_y = unsafe_div(total_y, COLLATERAL_PRECISION)
     log Withdraw(user, total_x, total_y)
 
-    self.rate_mul = self._rate_mul()
-    self.rate_time = block.timestamp
-
     if lm.address != empty(address):
         lm.callback_collateral_shares(0, [])  # collateral/shares ratio is unchanged
         lm.callback_user_shares(user, ns[0], user_shares)
