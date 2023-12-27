@@ -360,7 +360,7 @@ def get_y_effective(collateral: uint256, N: uint256, discount: uint256) -> uint2
     # Make some extra discount to always deposit lower when we have DEAD_SHARES rounding
     d_y_effective: uint256 = collateral * unsafe_sub(
         10**18, min(discount + unsafe_div((DEAD_SHARES * 10**18), max(unsafe_div(collateral, N), DEAD_SHARES)), 10**18)
-    ) / (SQRT_BAND_RATIO * N)
+    ) / unsafe_mul(SQRT_BAND_RATIO, N)
     y_effective: uint256 = d_y_effective
     for i in range(1, MAX_TICKS_UINT):
         if i == N:
@@ -405,7 +405,7 @@ def _calculate_debt_n1(collateral: uint256, debt: uint256, N: uint256) -> int256
     assert y_effective > 0, "Amount too low"
     n1: int256 = self.log2(y_effective)  # <- switch to faster ln() XXX?
     if n1 < 0:
-        n1 -= LOG2_A_RATIO - 1  # This is to deal with vyper's rounding of negative numbers
+        n1 -= unsafe_sub(LOG2_A_RATIO, 1)  # This is to deal with vyper's rounding of negative numbers
     n1 = unsafe_div(n1, LOG2_A_RATIO)
 
     n1 = min(n1, 1024 - convert(N, int256)) + n0

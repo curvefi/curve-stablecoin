@@ -495,8 +495,8 @@ def _get_y0(x: uint256, y: uint256, p_o: uint256, p_o_up: uint256) -> uint256:
     if y != 0:
         b += unsafe_div(A * p_o**2 / p_o_up * y, 10**18)
     if x > 0 and y > 0:
-        D: uint256 = b**2 + unsafe_div(((4 * A) * p_o) * y, 10**18) * x
-        return unsafe_div((b + self.sqrt_int(D)) * 10**18, unsafe_mul(2 * A, p_o))
+        D: uint256 = b**2 + unsafe_div((unsafe_mul(4, A) * p_o) * y, 10**18) * x
+        return unsafe_div((b + self.sqrt_int(D)) * 10**18, unsafe_mul(unsafe_mul(2, A), p_o))
     else:
         return unsafe_div(b * 10**18, unsafe_mul(A, p_o))
 
@@ -926,7 +926,7 @@ def calc_swap_out(pump: bool, in_amount: uint256, p_o: uint256[2], in_precision:
                     break
                 if j == MAX_TICKS_UINT - 1:
                     break
-                if p_ratio < 10**36 / MAX_ORACLE_DN_POW:
+                if p_ratio < unsafe_div(10**36, MAX_ORACLE_DN_POW):
                     # Don't allow to be away by more than ~50 ticks
                     break
                 out.n2 += 1
@@ -1223,7 +1223,7 @@ def calc_swap_in(pump: bool, out_amount: uint256, p_o: uint256[2], in_precision:
                     break
                 if j == MAX_TICKS_UINT - 1:
                     break
-                if p_ratio < 10**36 / MAX_ORACLE_DN_POW:
+                if p_ratio < unsafe_div(10**36, MAX_ORACLE_DN_POW):
                     # Don't allow to be away by more than ~50 ticks
                     break
                 out.n2 += 1
@@ -1624,7 +1624,7 @@ def get_amount_for_price(p: uint256) -> (uint256, bool):
                 break
             if j == MAX_TICKS_UINT - 1:
                 break
-            if p_ratio < 10**36 / MAX_ORACLE_DN_POW:
+            if p_ratio < unsafe_div(10**36, MAX_ORACLE_DN_POW):
                 # Don't allow to be away by more than ~50 ticks
                 break
             n += 1
