@@ -536,6 +536,18 @@ def calculate_debt_n1(collateral: uint256, debt: uint256, N: uint256) -> int256:
 
 
 @internal
+def transferFrom(token: ERC20, _from: address, _to: address, amount: uint256):
+    if amount > 0:
+        assert token.transferFrom(_from, _to, amount, default_return_value=True)
+
+
+@internal
+def transfer(token: ERC20, _to: address, amount: uint256):
+    if amount > 0:
+        assert token.transfer(_to, amount, default_return_value=True)
+
+
+@internal
 def _deposit_collateral(amount: uint256, mvalue: uint256):
     """
     Deposits raw ETH, WETH or both at the same time
@@ -545,19 +557,18 @@ def _deposit_collateral(amount: uint256, mvalue: uint256):
     diff: uint256 = amount - mvalue  # dev: Incorrect ETH amount
     if mvalue > 0:
         WETH(COLLATERAL_TOKEN.address).deposit(value=mvalue)
-        assert COLLATERAL_TOKEN.transfer(AMM.address, mvalue)
-    if diff > 0:
-        assert COLLATERAL_TOKEN.transferFrom(msg.sender, AMM.address, diff, default_return_value=True)
+        self.transfer(COLLATERAL_TOKEN, AMM.address, mvalue)
+    self.transferFrom(COLLATERAL_TOKEN, msg.sender, AMM.address, diff)
 
 
 @internal
 def _withdraw_collateral(_for: address, amount: uint256, use_eth: bool):
     if use_eth and USE_ETH:
-        assert COLLATERAL_TOKEN.transferFrom(AMM.address, self, amount)
+        self.transferFrom(COLLATERAL_TOKEN, AMM.address, self, amount)
         WETH(COLLATERAL_TOKEN.address).withdraw(amount)
         raw_call(_for, b"", value=amount, gas=MAX_ETH_GAS)
     else:
-        assert COLLATERAL_TOKEN.transferFrom(AMM.address, _for, amount, default_return_value=True)
+        self.transferFrom(COLLATERAL_TOKEN, AMM.address, _for, amount)
 
 
 @internal
@@ -614,7 +625,7 @@ def _create_loan(mvalue: uint256, collateral: uint256, debt: uint256, N: uint256
 
     if transfer_coins:
         self._deposit_collateral(collateral, mvalue)
-        BORROWED_TOKEN.transfer(msg.sender, debt)
+        self.transfer(BORROWED_TOKEN, msg.sender, debt)
 
     self._save_rate()
 
@@ -650,7 +661,7 @@ def create_loan_extended(collateral: uint256, debt: uint256, N: uint256, callbac
     @param callback_args Extra arguments for the callback (up to 5) such as min_amount etc
     """
     # Before callback
-    BORROWED_TOKEN.transfer(callbacker, debt)
+    self.transfer(BORROWED_TOKEN, callbacker, debt)
 
     # Callback
     # If there is any unused debt, callbacker can send it to the user
@@ -660,7 +671,7 @@ def create_loan_extended(collateral: uint256, debt: uint256, N: uint256, callbac
     # After callback
     self._create_loan(0, collateral + more_collateral, debt, N, False)
     self._deposit_collateral(collateral, msg.value)
-    assert COLLATERAL_TOKEN.transferFrom(callbacker, AMM.address, more_collateral, default_return_value=True)
+    self.transferFrom(COLLATERAL_TOKEN, callbacker, AMM.address, more_collateral)
 
 
 @internal
@@ -757,7 +768,7 @@ def borrow_more(collateral: uint256, debt: uint256):
     self.minted += debt
     if collateral != 0:
         self._deposit_collateral(collateral, msg.value)
-    BORROWED_TOKEN.transfer(msg.sender, debt)
+    self.transfer(BORROWED_TOKEN, msg.sender, debt)
 
 
 @internal
@@ -800,7 +811,7 @@ def repay(_d_debt: uint256, _for: address = msg.sender, max_active_band: int256 
         if xy[0] > 0:
             # Only allow full repayment when underwater for the sender to do
             assert _for == msg.sender
-            BORROWED_TOKEN.transferFrom(AMM.address, _for, xy[0])
+            self.transferFrom(BORROWED_TOKEN, AMM.address, _for, xy[0])
         if xy[1] > 0:
             self._withdraw_collateral(_for, xy[1], use_eth)
         log UserState(_for, 0, 0, 0, 0, 0)
@@ -838,7 +849,7 @@ def repay(_d_debt: uint256, _for: address = msg.sender, max_active_band: int256 
             assert self._health(_for, debt, False, liquidation_discount) > 0
 
     # If we withdrew already - will burn less!
-    BORROWED_TOKEN.transferFrom(msg.sender, self, d_debt)  # fail: insufficient funds
+    self.transferFrom(BORROWED_TOKEN, msg.sender, self, d_debt)  # fail: insufficient funds
     self.redeemed += d_debt
 
     self.loan[_for] = Loan({initial_debt: debt, rate_mul: rate_mul})
@@ -863,7 +874,7 @@ def repay_extended(callbacker: address, callback_args: DynArray[uint256,5]):
     debt: uint256 = 0
     rate_mul: uint256 = 0
     debt, rate_mul = self._debt(msg.sender)
-    assert COLLATERAL_TOKEN.transferFrom(AMM.address, callbacker, xy[1], default_return_value=True)
+    self.transferFrom(COLLATERAL_TOKEN, AMM.address, callbacker, xy[1])
 
     cb: CallbackData = self.execute_callback(
         callbacker, CALLBACK_REPAY, msg.sender, xy[0], xy[1], debt, callback_args)
@@ -883,14 +894,11 @@ def repay_extended(callbacker: address, callback_args: DynArray[uint256,5]):
         self._remove_from_list(msg.sender)
 
         # Transfer debt to self, everything else to sender
-        if cb.stablecoins > 0:
-            BORROWED_TOKEN.transferFrom(callbacker, self, cb.stablecoins)
-        if xy[0] > 0:
-            BORROWED_TOKEN.transferFrom(AMM.address, self, xy[0])
+        self.transferFrom(BORROWED_TOKEN, callbacker, self, cb.stablecoins)
+        self.transferFrom(BORROWED_TOKEN, AMM.address, self, xy[0])
         if total_stablecoins > d_debt:
-            BORROWED_TOKEN.transfer(msg.sender, unsafe_sub(total_stablecoins, d_debt))
-        if cb.collateral > 0:
-            assert COLLATERAL_TOKEN.transferFrom(callbacker, msg.sender, cb.collateral, default_return_value=True)
+            self.transfer(BORROWED_TOKEN, msg.sender, unsafe_sub(total_stablecoins, d_debt))
+        self.transferFrom(COLLATERAL_TOKEN, callbacker, msg.sender, cb.collateral)
 
         log UserState(msg.sender, 0, 0, 0, 0, 0)
 
@@ -908,9 +916,9 @@ def repay_extended(callbacker: address, callback_args: DynArray[uint256,5]):
         liquidation_discount: uint256 = self.liquidation_discount
         self.liquidation_discounts[msg.sender] = liquidation_discount
 
-        assert COLLATERAL_TOKEN.transferFrom(callbacker, AMM.address, cb.collateral, default_return_value=True)
+        self.transferFrom(COLLATERAL_TOKEN, callbacker, AMM.address, cb.collateral)
         # Stablecoin is all spent to repay debt -> all goes to self
-        BORROWED_TOKEN.transferFrom(callbacker, self, cb.stablecoins)
+        self.transferFrom(BORROWED_TOKEN, callbacker, self, cb.stablecoins)
         # We are above active band, so xy[0] is 0 anyway
 
         log UserState(msg.sender, cb.collateral, debt, n1, n2, liquidation_discount)
@@ -1060,8 +1068,7 @@ def _liquidate(user: address, min_x: uint256, health_limit: uint256, frac: uint2
     assert xy[0] >= min_x, "Slippage"
 
     min_amm_burn: uint256 = min(xy[0], debt)
-    if min_amm_burn != 0:
-        BORROWED_TOKEN.transferFrom(AMM.address, self, min_amm_burn)
+    self.transferFrom(BORROWED_TOKEN, AMM.address, self, min_amm_burn)
 
     if debt > xy[0]:
         to_repay: uint256 = unsafe_sub(debt, xy[0])
@@ -1070,28 +1077,26 @@ def _liquidate(user: address, min_x: uint256, health_limit: uint256, frac: uint2
             # Withdraw collateral if no callback is present
             self._withdraw_collateral(msg.sender, xy[1], use_eth)
             # Request what's left from user
-            BORROWED_TOKEN.transferFrom(msg.sender, self, to_repay)
+            self.transferFrom(BORROWED_TOKEN, msg.sender, self, to_repay)
 
         else:
             # Move collateral to callbacker, call it and remove everything from it back in
-            if xy[1] > 0:
-                assert COLLATERAL_TOKEN.transferFrom(AMM.address, callbacker, xy[1], default_return_value=True)
+            self.transferFrom(COLLATERAL_TOKEN, AMM.address, callbacker, xy[1])
             # Callback
             cb: CallbackData = self.execute_callback(
                 callbacker, CALLBACK_LIQUIDATE, user, xy[0], xy[1], debt, callback_args)
             assert cb.stablecoins >= to_repay, "not enough proceeds"
             if cb.stablecoins > to_repay:
-                BORROWED_TOKEN.transferFrom(callbacker, msg.sender, unsafe_sub(cb.stablecoins, to_repay))
-            BORROWED_TOKEN.transferFrom(callbacker, self, to_repay)
-            if cb.collateral > 0:
-                assert COLLATERAL_TOKEN.transferFrom(callbacker, msg.sender, cb.collateral, default_return_value=True)
+                self.transferFrom(BORROWED_TOKEN, callbacker, msg.sender, unsafe_sub(cb.stablecoins, to_repay))
+            self.transferFrom(BORROWED_TOKEN, callbacker, self, to_repay)
+            self.transferFrom(COLLATERAL_TOKEN, callbacker, msg.sender, cb.collateral)
 
     else:
         # Withdraw collateral
         self._withdraw_collateral(msg.sender, xy[1], use_eth)
         # Return what's left to user
         if xy[0] > debt:
-            BORROWED_TOKEN.transferFrom(AMM.address, msg.sender, unsafe_sub(xy[0], debt))
+            self.transferFrom(BORROWED_TOKEN, AMM.address, msg.sender, unsafe_sub(xy[0], debt))
 
     self.redeemed += debt
     self.loan[user] = Loan({initial_debt: final_debt, rate_mul: rate_mul})
@@ -1331,10 +1336,8 @@ def collect_fees() -> uint256:
     # AMM-based fees
     borrowed_fees: uint256 = AMM.admin_fees_x()
     collateral_fees: uint256 = AMM.admin_fees_y()
-    if borrowed_fees > 0:
-        BORROWED_TOKEN.transferFrom(AMM.address, _to, borrowed_fees)
-    if collateral_fees > 0:
-        assert COLLATERAL_TOKEN.transferFrom(AMM.address, _to, collateral_fees, default_return_value=True)
+    self.transferFrom(BORROWED_TOKEN, AMM.address, _to, borrowed_fees)
+    self.transferFrom(COLLATERAL_TOKEN, AMM.address, _to, collateral_fees)
     AMM.reset_admin_fees()
 
     # Borrowing-based fees
@@ -1354,7 +1357,7 @@ def collect_fees() -> uint256:
     if to_be_redeemed > minted:
         self.minted = to_be_redeemed
         to_be_redeemed = unsafe_sub(to_be_redeemed, minted)  # Now this is the fees to charge
-        BORROWED_TOKEN.transfer(_to, to_be_redeemed)
+        self.transfer(BORROWED_TOKEN, _to, to_be_redeemed)
         log CollectFees(to_be_redeemed, loan.initial_debt)
         return to_be_redeemed
     else:
