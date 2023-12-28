@@ -1,4 +1,4 @@
-# @version 0.3.9
+# @version 0.3.10
 """
 @title StableSwap
 @author Curve.Fi
@@ -187,7 +187,7 @@ def initialize(
 
 ### ERC20 Functionality ###
 
-@view
+@pure
 @external
 def decimals() -> uint8:
     """
@@ -355,7 +355,7 @@ def _A() -> uint256:
         return A1
 
 
-@view
+@pure
 @external
 def admin_fee() -> uint256:
     return ADMIN_FEE
@@ -418,7 +418,7 @@ def get_D(_xp: uint256[N_COINS], _amp: uint256) -> uint256:
     raise
 
 
-@view
+@pure
 @internal
 def get_D_mem(_rates: uint256[N_COINS], _balances: uint256[N_COINS], _amp: uint256) -> uint256:
     xp: uint256[N_COINS] = self._xp_mem(_rates, _balances)
@@ -426,7 +426,7 @@ def get_D_mem(_rates: uint256[N_COINS], _balances: uint256[N_COINS], _amp: uint2
 
 
 @internal
-@view
+@pure
 def _get_p(xp: uint256[N_COINS], amp: uint256, D: uint256) -> uint256:
     # dx_0 / dx_1 only, however can have any number of coins in pool
     ANN: uint256 = amp * N_COINS
@@ -446,9 +446,9 @@ def get_p() -> uint256:
 
 
 @internal
-@view
+@pure
 def exp(power: int256) -> uint256:
-    if power <= -42139678854452767551:
+    if power <= -41446531673892821376:
         return 0
 
     if power >= 135305999368893231589:

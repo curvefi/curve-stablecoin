@@ -5,6 +5,10 @@
 @license Copyright (c) Curve.Fi, 2020-2023 - all rights reserved
 """
 
+# This version uses min(last day) debt when calculating per-market rates
+# Should be used for Controllers which update borrow rate too early (not at the end of every call)
+
+
 interface PegKeeper:
     def debt() -> uint256: view
 
@@ -20,6 +24,12 @@ interface ControllerFactory:
 
 interface Controller:
     def total_debt() -> uint256: view
+
+
+struct TotalDebts:
+    total_debt: uint256
+    controller_debt: uint256
+    ceiling: uint256
 
 
 event SetAdmin:
@@ -55,6 +65,16 @@ CONTROLLER_FACTORY: public(immutable(ControllerFactory))
 MAX_CONTROLLERS: constant(uint256) = 50000
 n_controllers: public(uint256)
 controllers: public(address[MAX_CONTROLLERS])
+
+
+struct DebtCandle:
+    candle0: uint256  # earlier 1/2 day candle
+    candle1: uint256   # later 1/2 day candle
+    timestamp: uint256
+
+DEBT_CANDLE_TIME: constant(uint256) = 86400 / 2
+min_debt_candles: public(HashMap[address, DebtCandle])
+
 
 MAX_TARGET_DEBT_FRACTION: constant(uint256) = 10**18
 MAX_SIGMA: constant(int256) = 10**18
@@ -189,7 +209,76 @@ def get_total_debt(_for: address) -> (uint256, uint256):
 
 @internal
 @view
-def calculate_rate(_for: address, _price: uint256) -> uint256:
+def read_candle(_for: address) -> uint256:
+    out: uint256 = 0
+    candle: DebtCandle = self.min_debt_candles[_for]
+
+    if block.timestamp < candle.timestamp / DEBT_CANDLE_TIME * DEBT_CANDLE_TIME + DEBT_CANDLE_TIME:
+        if candle.candle0 > 0:
+            out = min(candle.candle0, candle.candle1)
+        else:
+            out = candle.candle1
+    elif block.timestamp < candle.timestamp / DEBT_CANDLE_TIME * DEBT_CANDLE_TIME + DEBT_CANDLE_TIME * 2:
+        out = candle.candle1
+
+    return out
+
+
+@internal
+def save_candle(_for: address, _value: uint256):
+    candle: DebtCandle = self.min_debt_candles[_for]
+
+    if candle.timestamp == 0 and _value == 0:
+        # This record did not exist before, and value is zero -> not recording anything
+        return
+
+    if block.timestamp >= candle.timestamp / DEBT_CANDLE_TIME * DEBT_CANDLE_TIME + DEBT_CANDLE_TIME:
+        if block.timestamp < candle.timestamp / DEBT_CANDLE_TIME * DEBT_CANDLE_TIME + DEBT_CANDLE_TIME * 2:
+            candle.candle0 = candle.candle1
+            candle.candle1 = _value
+        else:
+            candle.candle0 = _value
+            candle.candle1 = _value
+    else:
+        candle.candle1 = min(candle.candle1, _value)
+
+    candle.timestamp = block.timestamp
+    self.min_debt_candles[_for] = candle
+
+
+@internal
+@view
+def read_debt(_for: address, ro: bool) -> (uint256, uint256):
+    debt_total: uint256 = self.read_candle(empty(address))
+    debt_for: uint256 = self.read_candle(_for)
+    fresh_total: uint256 = 0
+    fresh_for: uint256 = 0
+
+    if ro:
+        fresh_total, fresh_for = self.get_total_debt(_for)
+        if debt_total > 0:
+            debt_total = min(debt_total, fresh_total)
+        else:
+            debt_total = fresh_total
+        if debt_for > 0:
+            debt_for = min(debt_for, fresh_for)
+        else:
+            debt_for = fresh_for
+
+    else:
+        if debt_total == 0 or debt_for == 0:
+            fresh_total, fresh_for = self.get_total_debt(_for)
+            if debt_total == 0:
+                debt_total = fresh_total
+            if debt_for == 0:
+                debt_for = fresh_for
+
+    return debt_total, debt_for
+
+
+@internal
+@view
+def calculate_rate(_for: address, _price: uint256, ro: bool) -> uint256:
     sigma: int256 = self.sigma
     target_debt_fraction: uint256 = self.target_debt_fraction
 
@@ -202,7 +291,7 @@ def calculate_rate(_for: address, _price: uint256) -> uint256:
 
     total_debt: uint256 = 0
     debt_for: uint256 = 0
-    total_debt, debt_for = self.get_total_debt(_for)
+    total_debt, debt_for = self.read_debt(_for, ro)
 
     power: int256 = (10**18 - p) * 10**18 / sigma  # high price -> negative pow -> low rate
     if pk_debt > 0:
@@ -219,6 +308,7 @@ def calculate_rate(_for: address, _price: uint256) -> uint256:
     if ceiling > 0:
         f: uint256 = min(debt_for * 10**18 / ceiling, 10**18 - TARGET_REMAINDER / 1000)
         rate = min(rate * ((10**18 - TARGET_REMAINDER) + TARGET_REMAINDER * 10**18 / (10**18 - f)) / 10**18, MAX_RATE)
+
     # Rate multiplication at different ceilings (target = 0.1):
     # debt = 0:
     #   new_rate = rate * ((1.0 - target) + target) = rate
@@ -237,7 +327,7 @@ def calculate_rate(_for: address, _price: uint256) -> uint256:
 @view
 @external
 def rate(_for: address = msg.sender) -> uint256:
-    return self.calculate_rate(_for, PRICE_ORACLE.price())
+    return self.calculate_rate(_for, PRICE_ORACLE.price(), True)
 
 
 @external
@@ -252,7 +342,15 @@ def rate_write(_for: address = msg.sender) -> uint256:
             n_controllers += 1
             if n_controllers >= n_factory_controllers:
                 break
-    return self.calculate_rate(_for, PRICE_ORACLE.price_w())
+
+    # Update candles
+    total_debt: uint256 = 0
+    debt_for: uint256 = 0
+    total_debt, debt_for = self.get_total_debt(_for)
+    self.save_candle(empty(address), total_debt)
+    self.save_candle(_for, debt_for)
+
+    return self.calculate_rate(_for, PRICE_ORACLE.price_w(), False)
 
 
 @external

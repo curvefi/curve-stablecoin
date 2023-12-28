@@ -1,4 +1,4 @@
-# @version 0.3.9
+# @version 0.3.10
 """
 @title CryptoWithStablePriceWsteth
 @notice Price oracle for tricrypto+wsteth for crvUSD. Not limiting the price with chainlink - relying on tricrypto-ng

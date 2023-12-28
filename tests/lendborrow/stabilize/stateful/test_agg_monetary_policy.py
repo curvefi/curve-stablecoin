@@ -17,7 +17,10 @@ class AggMonetaryPolicyCreation(RuleBasedStateMachine):
     pool_number = st.integers(min_value=0, max_value=10000)
     rate = st.integers(min_value=0, max_value=43959106799)
     sigma = st.integers(min_value=10**14, max_value=10**18)
-    target_debt_fraction = st.integers(min_value=0, max_value=10**18)
+    target_debt_fraction = st.integers(min_value=1, max_value=10**18)
+    MPOLICY = boa.load_partial('contracts/mpolicies/AggMonetaryPolicy2.vy')
+    ERC20 = boa.load_partial('contracts/testing/ERC20Mock.vy')
+    PK = boa.load_partial('contracts/stabilizer/PegKeeper.vy')
 
     def __init__(self):
         super().__init__()
@@ -37,8 +40,7 @@ class AggMonetaryPolicyCreation(RuleBasedStateMachine):
             self.add_stablecoin(d)
             with boa.env.prank(self.admin):
                 self.agg.add_price_pair(self.swaps[-1].address)
-        self.mp = boa.load(
-            'contracts/mpolicies/AggMonetaryPolicy.vy',
+        self.mp = self.MPOLICY.deploy(
             self.admin,
             self.agg.address,
             self.controller_factory.address,
@@ -50,7 +52,7 @@ class AggMonetaryPolicyCreation(RuleBasedStateMachine):
     def add_stablecoin(self, digits):
         with boa.env.prank(self.admin):
             # Deploy a stablecoin
-            fedUSD = boa.load('contracts/testing/ERC20Mock.vy', "USD%s" % digits, "USD%s" % digits, digits)
+            fedUSD = self.ERC20.deploy("USD%s" % digits, "USD%s" % digits, digits)
             # Deploy a swap
             n = self.swap_deployer.n()
             self.swap_deployer.deploy(fedUSD, self.stablecoin)
@@ -62,9 +64,9 @@ class AggMonetaryPolicyCreation(RuleBasedStateMachine):
             fedUSD.approve(swap.address, 2**256 - 1)
             self.stablecoin.approve(swap.address, 2**256 - 1)
             # Deploy a peg keeper
-            pk = boa.load('contracts/stabilizer/PegKeeper.vy',
-                          swap.address, 1, self.admin, 5 * 10**4,
-                          self.controller_factory.address, self.agg.address, self.admin)
+            pk = self.PK.deploy(
+                    swap.address, 1, self.admin, 5 * 10**4,
+                    self.controller_factory.address, self.agg.address, self.admin)
         self.stablecoins.append(fedUSD)
         self.swaps.append(swap)
         self.peg_keepers.append(pk)

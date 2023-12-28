@@ -1,4 +1,4 @@
-# @version 0.3.9
+# @version 0.3.10
 
 EXP_PRECISION: constant(uint256) = 10**10
 
@@ -191,7 +191,7 @@ def halfpow(power: uint256) -> uint256:
 @external
 @view
 def optimized_exp(power: int256) -> uint256:
-    if power <= -42139678854452767551:
+    if power <= -41446531673892821376:
         return 0
 
     if power >= 135305999368893231589:

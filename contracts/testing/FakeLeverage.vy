@@ -1,4 +1,4 @@
-# @version 0.3.9
+# @version 0.3.10
 from vyper.interfaces import ERC20
 
 STABLECOIN: immutable(ERC20)

@@ -1,4 +1,4 @@
-# @version 0.3.7
+# @version 0.3.10
 """
 @title CryptoWithStablePriceWBTC
 @notice Price oracle for tricrypto for crvUSD. Optional Chainlink included
@@ -102,9 +102,9 @@ def __init__(
 
 
 @internal
-@view
+@pure
 def exp(power: int256) -> uint256:
-    if power <= -42139678854452767551:
+    if power <= -41446531673892821376:
         return 0
 
     if power >= 135305999368893231589:

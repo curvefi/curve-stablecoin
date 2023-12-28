@@ -1,4 +1,4 @@
-# @version 0.3.9
+# @version 0.3.10
 """
 @title CryptoWithStablePriceSfrxeth
 @notice Price oracle for tricrypto+sfrxeth for crvUSD
@@ -120,9 +120,9 @@ def __init__(
 
 
 @internal
-@view
+@pure
 def exp(power: int256) -> uint256:
-    if power <= -42139678854452767551:
+    if power <= -41446531673892821376:
         return 0
 
     if power >= 135305999368893231589:
@@ -199,10 +199,8 @@ def _raw_price(tvls: TVL[N_POOLS], agg_price: uint256) -> uint256:
         weighted_price += p_crypto_r * p_stable_agg / p_stable_r * weight     # d_usd/d_eth
     crv_p: uint256 = weighted_price / weights
 
-    use_chainlink: bool = self.use_chainlink
-
     # Limit ETH price
-    if use_chainlink:
+    if self.use_chainlink:
         chainlink_lrd: ChainlinkAnswer = CHAINLINK_AGGREGATOR_ETH.latestRoundData()
         if block.timestamp - min(chainlink_lrd.updated_at, block.timestamp) <= CHAINLINK_STALE_THRESHOLD:
             chainlink_p: uint256 = convert(chainlink_lrd.answer, uint256) * 10**18 / CHAINLINK_PRICE_PRECISION_ETH
