@@ -330,7 +330,13 @@ def _debt(user: address) -> (uint256, uint256):
     if loan.initial_debt == 0:
         return (0, rate_mul)
     else:
-        return (loan.initial_debt * rate_mul / loan.rate_mul, rate_mul)
+        # Let user repay 1 smallest decimal more so that the system doesn't lose on precision
+        # Use ceil div
+        debt: uint256 = loan.initial_debt * rate_mul
+        if debt % loan.rate_mul > 0:
+            debt += loan.rate_mul
+        debt /= loan.rate_mul
+        return (debt, rate_mul)
 
 
 @external
@@ -425,7 +431,7 @@ def _calculate_debt_n1(collateral: uint256, debt: uint256, N: uint256) -> int256
     # - we revert.
 
     # n1 is band number based on adiabatic trading, e.g. when p_oracle ~ p
-    y_effective = unsafe_div(y_effective * p_base, debt + 1)  # Now it's a ratio
+    y_effective = unsafe_div(y_effective * p_base, debt * BORROWED_PRECISION + 1)  # Now it's a ratio
 
     # n1 = floor(log2(y_effective) / self.logAratio)
     # EVM semantics is not doing floor unlike Python, so we do this
@@ -502,7 +508,7 @@ def max_borrowable(collateral: uint256, N: uint256, current_debt: uint256 = 0) -
     y_effective: uint256 = self.get_y_effective(collateral * COLLATERAL_PRECISION, N, self.loan_discount)
 
     x: uint256 = unsafe_sub(max(unsafe_div(y_effective * self.max_p_base(), 10**18), 1), 1)
-    x = unsafe_div(x * (10**18 - 10**14), 10**18)  # Make it a bit smaller
+    x = unsafe_div(x * (10**18 - 10**14), unsafe_mul(10**18, BORROWED_PRECISION))  # Make it a bit smaller
     return min(x, BORROWED_TOKEN.balanceOf(self) + current_debt)  # Cannot borrow beyond the amount of coins Controller has
 
 
@@ -517,7 +523,7 @@ def min_collateral(debt: uint256, N: uint256) -> uint256:
     @return Minimal collateral required
     """
     # Add N**2 to account for precision loss in multiple bands, e.g. N / (y/N) = N**2 / y
-    return unsafe_div(unsafe_div(debt * 10**18 / self.max_p_base() * 10**18 / self.get_y_effective(10**18, N, self.loan_discount) + N * (N + 2 * DEAD_SHARES), COLLATERAL_PRECISION) * 10**18, 10**18 - 10**14)
+    return unsafe_div(unsafe_div(debt * unsafe_mul(10**18, BORROWED_PRECISION) / self.max_p_base() * 10**18 / self.get_y_effective(10**18, N, self.loan_discount) + N * (N + 2 * DEAD_SHARES), COLLATERAL_PRECISION) * 10**18, 10**18 - 10**14)
 
 
 @external
@@ -959,7 +965,7 @@ def _health(user: address, debt: uint256, full: bool, liquidation_discount: uint
             p: uint256 = AMM.price_oracle()
             p_up: uint256 = AMM.p_oracle_up(ns0)
             if p > p_up:
-                health += convert(unsafe_div(unsafe_sub(p, p_up) * AMM.get_sum_xy(user)[1] * COLLATERAL_PRECISION, debt), int256)
+                health += convert(unsafe_div(unsafe_sub(p, p_up) * AMM.get_sum_xy(user)[1] * COLLATERAL_PRECISION, debt * BORROWED_PRECISION), int256)
 
     return health
 
@@ -1002,7 +1008,9 @@ def health_calculator(user: address, d_collateral: int256, d_debt: int256, full:
         collateral *= convert(COLLATERAL_PRECISION, int256)  # now has 18 decimals
     else:
         n1 = ns[0]
-        x_eff = convert(AMM.get_x_down(user) * 10**18, int256)
+        x_eff = convert(AMM.get_x_down(user) * unsafe_mul(10**18, BORROWED_PRECISION), int256)
+
+    debt *= convert(BORROWED_PRECISION, int256)
 
     p0: int256 = convert(AMM.p_oracle_up(n1), int256)
     if ns[0] > active_band:
