@@ -333,8 +333,9 @@ def _debt(user: address) -> (uint256, uint256):
         # Let user repay 1 smallest decimal more so that the system doesn't lose on precision
         # Use ceil div
         debt: uint256 = loan.initial_debt * rate_mul
-        if debt % loan.rate_mul > 0:
-            debt += loan.rate_mul
+        if debt % loan.rate_mul > 0:  # if only one loan -> don't have to do it
+            if self.n_loans > 1:
+                debt += loan.rate_mul
         debt /= loan.rate_mul
         return (debt, rate_mul)
 

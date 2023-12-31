@@ -226,7 +226,7 @@ class StatefulLendBorrow(RuleBasedStateMachine):
 
 
 def test_stateful_lendborrow(controller_factory, market_amm, market_controller, monetary_policy, collateral_token, stablecoin, accounts, admin):
-    StatefulLendBorrow.TestCase.settings = settings(max_examples=100, stateful_step_count=10)
+    StatefulLendBorrow.TestCase.settings = settings(max_examples=200, stateful_step_count=10)
     for k, v in locals().items():
         setattr(StatefulLendBorrow, k, v)
     run_state_machine_as_test(StatefulLendBorrow)
