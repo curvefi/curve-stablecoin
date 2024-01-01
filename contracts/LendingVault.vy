@@ -4,8 +4,14 @@
 @author Curve.Fi
 @license Copyright (c) Curve.Fi, 2020-2024 - all rights reserved
 """
-from vyper.interfaces import ERC20Detailed
 
+interface ERC20:
+    def transferFrom(_from: address, _to: address, _value: uint256) -> bool: nonpayable
+    def transfer(_to: address, _value: uint256) -> bool: nonpayable
+    def decimals() -> uint8: view
+    def balanceOf(_from: address) -> uint256: view
+    def symbol() -> String[32]: view
+    def name() -> String[64]: view
 
 interface AMM:
     def set_admin(_admin: address): nonpayable
@@ -35,6 +41,21 @@ event Transfer:
     receiver: indexed(address)
     value: uint256
 
+# ERC4626 events
+
+event Deposit:
+    sender: indexed(address)
+    owner: indexed(address)
+    assets: uint256
+    shares: uint256
+
+event Withdraw:
+    sender: indexed(address)
+    receiver: indexed(address)
+    owner: indexed(address)
+    assets: uint256
+    shares: uint256
+
 
 # Limits
 MIN_A: constant(uint256) = 2
@@ -45,10 +66,10 @@ MAX_ADMIN_FEE: constant(uint256) = 10**18  # 100%
 MAX_LOAN_DISCOUNT: constant(uint256) = 5 * 10**17
 MIN_LIQUIDATION_DISCOUNT: constant(uint256) = 10**16
 
-STABLECOIN: public(immutable(ERC20Detailed))
+STABLECOIN: public(immutable(ERC20))
 
-borrowed_token: public(ERC20Detailed)
-collateral_token: public(ERC20Detailed)
+borrowed_token: public(ERC20)
+collateral_token: public(ERC20)
 
 monetary_policy: public(address)
 price_oracle_contract: public(address)
@@ -72,11 +93,11 @@ totalSupply: public(uint256)
 
 
 @external
-def __init__(stablecoin: ERC20Detailed):
+def __init__(stablecoin: ERC20):
     # The contract is made a "normal" template (not blueprint) so that we can get contract address before init
     # This is needed if we want to create a rehypothecation dual-market with two vaults
     # where vaults are collaterals of each other
-    self.borrowed_token = ERC20Detailed(0x0000000000000000000000000000000000000001)
+    self.borrowed_token = ERC20(0x0000000000000000000000000000000000000001)
     STABLECOIN = stablecoin
 
 
@@ -113,8 +134,8 @@ def ln_int(_x: uint256) -> int256:
 def initialize(
         amm_impl: address,
         controller_impl: address,
-        borrowed_token: ERC20Detailed,
-        collateral_token: ERC20Detailed,
+        borrowed_token: ERC20,
+        collateral_token: ERC20,
         A: uint256,
         fee: uint256,
         admin_fee: uint256,
@@ -174,11 +195,43 @@ def initialize(
 
 @external
 @view
-def asset() -> ERC20Detailed:
+def asset() -> ERC20:
     """
     Method returning borrowed asset address for ERC4626 compatibility
     """
     return self.borrowed_token
+
+
+@internal
+@view
+def _total_assets() -> uint256:
+    # admin fee should be accounted for here when enabled
+    return self.borrowed_token.balanceOf(self.controller.address) + self.controller.total_debt()
+
+
+@external
+@view
+def totalAssets() -> uint256:
+    return self._total_assets()
+
+
+@external
+@view
+def pricePerShare() -> uint256:
+    supply: uint256 = self.totalSupply
+    if supply == 0:
+        return 10**18
+    else:
+        return self._total_assets() / supply
+
+
+@external
+def deposit(assets: uint256, receiver: address = msg.sender) -> uint256:
+    to_mint: uint256 = assets * self.totalSupply / self._total_assets()
+    assert self.borrowed_token.transferFrom(msg.sender, self.controller.address, assets, default_return_value=True)
+    self._mint(receiver, to_mint)
+    log Deposit(msg.sender, receiver, assets, to_mint)
+    return to_mint
 
 
 # ERC20 methods
