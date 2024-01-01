@@ -20,6 +20,7 @@ interface Controller:
     def total_debt() -> uint256: view
     def minted() -> uint256: view
     def redeemed() -> uint256: view
+    def monetary_policy() -> address: view
 
 interface PriceOracle:
     def price() -> uint256: view
@@ -71,9 +72,7 @@ STABLECOIN: public(immutable(ERC20))
 borrowed_token: public(ERC20)
 collateral_token: public(ERC20)
 
-monetary_policy: public(address)
-price_oracle_contract: public(address)
-
+price_oracle: public(PriceOracle)
 amm: public(AMM)
 controller: public(Controller)
 
@@ -138,7 +137,7 @@ def initialize(
         collateral_token: ERC20,
         A: uint256,
         fee: uint256,
-        price_oracle_contract: address,  # Factory makes from template if needed, deploying with a from_pool()
+        price_oracle: PriceOracle,  # Factory makes from template if needed, deploying with a from_pool()
         monetary_policy: address,  # Standard monetary policy set in factory
         loan_discount: uint256,
         liquidation_discount: uint256
@@ -148,8 +147,7 @@ def initialize(
 
     self.borrowed_token = borrowed_token
     self.collateral_token = collateral_token
-    self.monetary_policy = monetary_policy
-    self.price_oracle_contract = price_oracle_contract
+    self.price_oracle = price_oracle
 
     assert A >= MIN_A and A <= MAX_A, "Wrong A"
     assert fee <= MAX_FEE, "Fee too high"
@@ -159,9 +157,9 @@ def initialize(
     assert loan_discount > liquidation_discount, "need loan_discount>liquidation_discount"
     MonetaryPolicy(monetary_policy).rate_write()  # Test that MonetaryPolicy has correct ABI
 
-    p: uint256 = PriceOracle(price_oracle_contract).price()  # This also validates price oracle ABI
+    p: uint256 = price_oracle.price()  # This also validates price oracle ABI
     assert p > 0
-    assert PriceOracle(price_oracle_contract).price_w() == p
+    assert price_oracle.price_w() == p
     A_ratio: uint256 = 10**18 * A / (A - 1)
 
     amm: address = create_from_blueprint(
@@ -169,7 +167,7 @@ def initialize(
         borrowed_token.address, 10**(18 - borrowed_token.decimals()),
         collateral_token.address, 10**(18 - collateral_token.decimals()),
         A, isqrt(A_ratio * 10**18), self.ln_int(A_ratio),
-        p, fee, ADMIN_FEE, price_oracle_contract,
+        p, fee, ADMIN_FEE, price_oracle.address,
         code_offset=3)
     controller: address = create_from_blueprint(
         controller_impl,
@@ -189,6 +187,12 @@ def initialize(
     # No events because it's the only market we would ever create in this contract
 
     return [controller, amm]
+
+
+@internal
+def _update_rates():
+    self.price_oracle.price_w()
+    MonetaryPolicy(self.controller.monetary_policy()).rate_write()
 
 
 @external
@@ -252,6 +256,7 @@ def deposit(assets: uint256, receiver: address = msg.sender) -> uint256:
     to_mint: uint256 = assets * self.totalSupply / self._total_assets()
     assert self.borrowed_token.transferFrom(msg.sender, self.controller.address, assets, default_return_value=True)
     self._mint(receiver, to_mint)
+    self._update_rates()
     log Deposit(msg.sender, receiver, assets, to_mint)
     return to_mint
 
@@ -276,6 +281,7 @@ def mint(shares: uint256, receiver: address = msg.sender) -> uint256:
     assets: uint256 = (shares * self._total_assets() + supply - 1) / supply
     assert self.borrowed_token.transferFrom(msg.sender, self.controller.address, assets, default_return_value=True)
     self._mint(receiver, shares)
+    self._update_rates()
     log Deposit(msg.sender, receiver, assets, shares)
     return assets
 
@@ -307,6 +313,7 @@ def withdraw(assets: uint256, receiver: address = msg.sender, owner: address = m
 
     assert self.borrowed_token.transferFrom(self.controller.address, receiver, assets, default_return_value=True)
     self._burn(owner, shares)
+    self._update_rates()
     log Withdraw(msg.sender, receiver, owner, assets, shares)
     return shares
 
@@ -336,6 +343,7 @@ def redeem(shares: uint256, receiver: address = msg.sender, owner: address = msg
     assets_to_redeem: uint256 = shares * self._total_assets() / self.totalSupply
     assert self.borrowed_token.transferFrom(self.controller.address, receiver, assets_to_redeem, default_return_value=True)
     self._burn(owner, shares)
+    self._update_rates()
     log Withdraw(msg.sender, receiver, owner, assets_to_redeem, shares)
     return assets_to_redeem
 
