@@ -179,3 +179,127 @@ def asset() -> ERC20Detailed:
     Method returning borrowed asset address for ERC4626 compatibility
     """
     return self.borrowed_token
+
+
+# ERC20 methods
+
+@internal
+def _approve(_owner: address, _spender: address, _value: uint256):
+    self.allowance[_owner][_spender] = _value
+
+    log Approval(_owner, _spender, _value)
+
+
+@internal
+def _burn(_from: address, _value: uint256):
+    self.balanceOf[_from] -= _value
+    self.totalSupply -= _value
+
+    log Transfer(_from, empty(address), _value)
+
+
+@internal
+def _mint(_to: address, _value: uint256):
+    self.balanceOf[_to] += _value
+    self.totalSupply += _value
+
+    log Transfer(empty(address), _to, _value)
+
+
+@internal
+def _transfer(_from: address, _to: address, _value: uint256):
+    assert _to not in [self, empty(address)]
+
+    self.balanceOf[_from] -= _value
+    self.balanceOf[_to] += _value
+
+    log Transfer(_from, _to, _value)
+
+
+@external
+def transferFrom(_from: address, _to: address, _value: uint256) -> bool:
+    """
+    @notice Transfer tokens from one account to another.
+    @dev The caller needs to have an allowance from account `_from` greater than or
+        equal to the value being transferred. An allowance equal to the uint256 type's
+        maximum, is considered infinite and does not decrease.
+    @param _from The account which tokens will be spent from.
+    @param _to The account which tokens will be sent to.
+    @param _value The amount of tokens to be transferred.
+    """
+    allowance: uint256 = self.allowance[_from][msg.sender]
+    if allowance != max_value(uint256):
+        self._approve(_from, msg.sender, allowance - _value)
+
+    self._transfer(_from, _to, _value)
+    return True
+
+
+@external
+def transfer(_to: address, _value: uint256) -> bool:
+    """
+    @notice Transfer tokens to `_to`.
+    @param _to The account to transfer tokens to.
+    @param _value The amount of tokens to transfer.
+    """
+    self._transfer(msg.sender, _to, _value)
+    return True
+
+
+@external
+def approve(_spender: address, _value: uint256) -> bool:
+    """
+    @notice Allow `_spender` to transfer up to `_value` amount of tokens from the caller's account.
+    @dev Non-zero to non-zero approvals are allowed, but should be used cautiously. The methods
+        increaseAllowance + decreaseAllowance are available to prevent any front-running that
+        may occur.
+    @param _spender The account permitted to spend up to `_value` amount of caller's funds.
+    @param _value The amount of tokens `_spender` is allowed to spend.
+    """
+    self._approve(msg.sender, _spender, _value)
+    return True
+
+
+@external
+def increaseAllowance(_spender: address, _add_value: uint256) -> bool:
+    """
+    @notice Increase the allowance granted to `_spender`.
+    @dev This function will never overflow, and instead will bound
+        allowance to MAX_UINT256. This has the potential to grant an
+        infinite approval.
+    @param _spender The account to increase the allowance of.
+    @param _add_value The amount to increase the allowance by.
+    """
+    cached_allowance: uint256 = self.allowance[msg.sender][_spender]
+    allowance: uint256 = unsafe_add(cached_allowance, _add_value)
+
+    # check for an overflow
+    if allowance < cached_allowance:
+        allowance = max_value(uint256)
+
+    if allowance != cached_allowance:
+        self._approve(msg.sender, _spender, allowance)
+
+    return True
+
+
+@external
+def decreaseAllowance(_spender: address, _sub_value: uint256) -> bool:
+    """
+    @notice Decrease the allowance granted to `_spender`.
+    @dev This function will never underflow, and instead will bound
+        allowance to 0.
+    @param _spender The account to decrease the allowance of.
+    @param _sub_value The amount to decrease the allowance by.
+    """
+    cached_allowance: uint256 = self.allowance[msg.sender][_spender]
+    allowance: uint256 = unsafe_sub(cached_allowance, _sub_value)
+
+    # check for an underflow
+    if cached_allowance < allowance:
+        allowance = 0
+
+    if allowance != cached_allowance:
+        self._approve(msg.sender, _spender, allowance)
+
+    return True
