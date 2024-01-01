@@ -62,9 +62,9 @@ MIN_A: constant(uint256) = 2
 MAX_A: constant(uint256) = 10000
 MIN_FEE: constant(uint256) = 10**6  # 1e-12, still needs to be above 0
 MAX_FEE: constant(uint256) = 10**17  # 10%
-MAX_ADMIN_FEE: constant(uint256) = 10**18  # 100%
 MAX_LOAN_DISCOUNT: constant(uint256) = 5 * 10**17
 MIN_LIQUIDATION_DISCOUNT: constant(uint256) = 10**16
+ADMIN_FEE: constant(uint256) = 0
 
 STABLECOIN: public(immutable(ERC20))
 
@@ -138,7 +138,6 @@ def initialize(
         collateral_token: ERC20,
         A: uint256,
         fee: uint256,
-        admin_fee: uint256,
         price_oracle_contract: address,  # Factory makes from template if needed, deploying with a from_pool()
         monetary_policy: address,  # Standard monetary policy set in factory
         loan_discount: uint256,
@@ -155,7 +154,6 @@ def initialize(
     assert A >= MIN_A and A <= MAX_A, "Wrong A"
     assert fee <= MAX_FEE, "Fee too high"
     assert fee >= MIN_FEE, "Fee too low"
-    assert admin_fee < MAX_ADMIN_FEE, "Admin fee too high"
     assert liquidation_discount >= MIN_LIQUIDATION_DISCOUNT, "Liquidation discount too low"
     assert loan_discount <= MAX_LOAN_DISCOUNT, "Loan discount too high"
     assert loan_discount > liquidation_discount, "need loan_discount>liquidation_discount"
@@ -171,7 +169,7 @@ def initialize(
         borrowed_token.address, 10**(18 - borrowed_token.decimals()),
         collateral_token.address, 10**(18 - collateral_token.decimals()),
         A, isqrt(A_ratio * 10**18), self.ln_int(A_ratio),
-        p, fee, admin_fee, price_oracle_contract,
+        p, fee, ADMIN_FEE, price_oracle_contract,
         code_offset=3)
     controller: address = create_from_blueprint(
         controller_impl,
