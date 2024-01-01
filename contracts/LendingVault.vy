@@ -164,7 +164,7 @@ def initialize(
     # ERC20 set up
     self.decimals = borrowed_token.decimals()
     borrowed_symbol: String[32] = borrowed_token.symbol()
-    self.name = concat(NAME_PREFIX, borrowed_symbol, '\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00')
+    self.name = concat(NAME_PREFIX, borrowed_symbol)
     self.symbol = concat(SYMBOL_PREFIX, slice(borrowed_symbol, 0, 30))
 
     # No events because it's the only market we would ever create in this contract
