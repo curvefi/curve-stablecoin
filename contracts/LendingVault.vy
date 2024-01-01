@@ -23,6 +23,19 @@ interface MonetaryPolicy:
     def rate_write() -> uint256: nonpayable
 
 
+# ERC20 events
+
+event Approval:
+    owner: indexed(address)
+    spender: indexed(address)
+    value: uint256
+
+event Transfer:
+    sender: indexed(address)
+    receiver: indexed(address)
+    value: uint256
+
+
 # Limits
 MIN_A: constant(uint256) = 2
 MAX_A: constant(uint256) = 10000
@@ -42,6 +55,20 @@ price_oracle_contract: public(address)
 
 amm: public(AMM)
 controller: public(Controller)
+
+
+# ERC20 publics
+
+decimals: public(uint8)
+name: public(String[64])
+symbol: public(String[32])
+
+NAME_PREFIX: constant(String[16]) = 'Curve Vault for '
+SYMBOL_PREFIX: constant(String[2]) = 'cv'
+
+allowance: public(HashMap[address, HashMap[address, uint256]])
+balanceOf: public(HashMap[address, uint256])
+totalSupply: public(uint256)
 
 
 @external
@@ -133,6 +160,12 @@ def initialize(
 
     self.amm = AMM(amm)
     self.controller = Controller(controller)
+
+    # ERC20 set up
+    self.decimals = borrowed_token.decimals()
+    borrowed_symbol: String[32] = borrowed_token.symbol()
+    self.name = concat(NAME_PREFIX, borrowed_symbol, '\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00')
+    self.symbol = concat(SYMBOL_PREFIX, slice(borrowed_symbol, 0, 30))
 
     # No events because it's the only market we would ever create in this contract
 
