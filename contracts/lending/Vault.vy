@@ -198,7 +198,6 @@ def initialize(
 
 @internal
 def _update_rates():
-    self.price_oracle.price_w()
     MonetaryPolicy(self.controller.monetary_policy()).rate_write()
 
 
