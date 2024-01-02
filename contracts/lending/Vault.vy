@@ -22,6 +22,7 @@ interface ERC20:
 
 interface AMM:
     def set_admin(_admin: address): nonpayable
+    def rate() -> uint256: view
 
 interface Controller:
     def total_debt() -> uint256: view
@@ -199,6 +200,18 @@ def initialize(
 @internal
 def _update_rates():
     MonetaryPolicy(self.controller.monetary_policy()).rate_write()
+
+
+@external
+@view
+def borrow_apr() -> uint256:
+    return self.amm.rate() * (365 * 86400)
+
+
+@external
+@view
+def lend_apr() -> uint256:
+    return self.amm.rate() * self.controller.total_debt() / self._total_assets()
 
 
 @external
