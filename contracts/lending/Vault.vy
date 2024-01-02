@@ -4,6 +4,13 @@
 @author Curve.Fi
 @license Copyright (c) Curve.Fi, 2020-2024 - all rights reserved
 """
+from vyper.interfaces import ERC20 as ERC20Spec
+from vyper.interfaces import ERC20Detailed
+
+
+implements: ERC20Spec
+implements: ERC20Detailed
+
 
 interface ERC20:
     def transferFrom(_from: address, _to: address, _value: uint256) -> bool: nonpayable
