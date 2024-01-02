@@ -22,7 +22,7 @@ interface Vault:
         monetary_policy: address,
         loan_discount: uint256,
         liquidation_discount: uint256
-    ) -> address[2]: view
+    ) -> (address, address): view
 
 interface Pool:
     def price_oracle(i: uint256 = 0) -> uint256: view  # Universal method!
@@ -35,6 +35,10 @@ event SetImplementations:
     vault: address
     price_oracle: address
     monetary_policy: address
+
+event SetDefaultRates:
+    min_rate: uint256
+    max_rate: uint256
 
 event SetAdmin:
     admin: address
@@ -51,6 +55,8 @@ event NewVault:
 
 
 STABLECOIN: public(immutable(address))
+MIN_RATE: public(constant(uint256)) = 10**15 / (365 * 86400)  # 0.1%
+MAX_RATE: public(constant(uint256)) = 10**19 / (365 * 86400)  # 1000%
 
 
 amm_impl: public(address)
@@ -89,9 +95,63 @@ def __init__(
     self.admin = admin
 
 
+@internal
+def _create(
+        borrowed_token: address,
+        collateral_token: address,
+        A: uint256,
+        fee: uint256,
+        loan_discount: uint256,
+        liquidation_discount: uint256,
+        price_oracle: address,
+        min_borrow_rate: uint256,
+        max_borrow_rate: uint256
+    ) -> Vault:
+    assert borrowed_token != collateral_token, "Same token"
+    vault: Vault = Vault(create_minimal_proxy_to(self.vault_impl))
+
+    min_rate: uint256 = self.min_default_borrow_rate
+    max_rate: uint256 = self.max_default_borrow_rate
+    if min_borrow_rate > 0:
+        min_rate = min_borrow_rate
+    if max_borrow_rate > 0:
+        max_rate = max_borrow_rate
+    assert min_borrow_rate >= MIN_RATE and max_borrow_rate >= MIN_RATE\
+        and min_borrow_rate <= MAX_RATE and max_borrow_rate <= MAX_RATE\
+        and min_borrow_rate <= max_borrow_rate, "Wrong rates"
+    monetary_policy: address = create_from_blueprint(
+        self.monetary_policy_impl, vault.address, min_rate, max_rate, code_offset=3)
+
+    controller: address = empty(address)
+    amm: address = empty(address)
+    controller, amm = vault.initialize(
+        self.amm_impl, self.controller_impl,
+        borrowed_token, collateral_token,
+        A, fee,
+        price_oracle,
+        monetary_policy,
+        loan_discount, liquidation_discount
+    )
+
+    log NewVault(0, collateral_token, borrowed_token, vault.address, controller, amm, price_oracle, monetary_policy)
+
+    return vault
+
+
 @external
-def create():
-    pass
+def create(
+        borrowed_token: address,
+        collateral_token: address,
+        A: uint256,
+        fee: uint256,
+        loan_discount: uint256,
+        liquidation_discount: uint256,
+        price_oracle: address,
+        min_borrow_rate: uint256 = 0,
+        max_borrow_rate: uint256 = 0
+    ) -> Vault:
+    return self._create(borrowed_token, collateral_token, A, fee, loan_discount, liquidation_discount,
+                        price_oracle, min_borrow_rate, max_borrow_rate)
 
 
 @external
@@ -106,9 +166,6 @@ def create_from_pool(
         min_borrow_rate: uint256 = 0,
         max_borrow_rate: uint256 = 0
     ) -> Vault:
-    assert borrowed_token != collateral_token, "Same token"
-    vault: Vault = Vault(create_minimal_proxy_to(self.vault_impl))
-
     # Find coins in the pool
     borrowed_ix: uint256 = 100
     collateral_ix: uint256 = 100
@@ -135,23 +192,11 @@ def create_from_pool(
         assert Pool(pool).price_oracle() > 0, "Pool has no oracle"
     else:
         assert Pool(pool).price_oracle(0) > 0, "Pool has no oracle"
-
     price_oracle: address = create_from_blueprint(
         self.pool_price_oracle_impl, pool, N, borrowed_ix, collateral_ix, code_offset=3)
-    monetary_policy: address = create_from_blueprint(self.monetary_policy_impl, vault.address, code_offset=3)
 
-    controller: address = empty(address)
-    amm: address = empty(address)
-    vault.initialize(
-        self.amm_impl, self.controller_impl,
-        borrowed_token, collateral_token,
-        A, fee,
-        price_oracle,
-        monetary_policy,
-        loan_discount, liquidation_discount
-    )
-
-    return vault
+    return self._create(borrowed_token, collateral_token, A, fee, loan_discount, liquidation_discount,
+                        price_oracle, min_borrow_rate, max_borrow_rate)
 
 
 @external
@@ -171,6 +216,22 @@ def set_implementations(controller: address, amm: address, vault: address,
         self.monetary_policy_impl = monetary_policy
 
     log SetImplementations(amm, controller, vault, pool_price_oracle, monetary_policy)
+
+
+@external
+def set_default_rates(min_rate: uint256, max_rate: uint256):
+    assert msg.sender == self.admin
+
+    assert min_rate >= MIN_RATE
+    assert max_rate >= MIN_RATE
+    assert min_rate <= MAX_RATE
+    assert max_rate <= MAX_RATE
+    assert max_rate >= min_rate
+
+    self.min_default_borrow_rate = min_rate
+    self.max_default_borrow_rate = max_rate
+
+    log SetDefaultRates(min_rate, max_rate)
 
 
 @external

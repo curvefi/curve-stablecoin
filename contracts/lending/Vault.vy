@@ -149,7 +149,7 @@ def initialize(
         monetary_policy: address,  # Standard monetary policy set in factory
         loan_discount: uint256,
         liquidation_discount: uint256
-    ) -> address[2]:
+    ) -> (address, address):
     assert self.borrowed_token.address == empty(address)
     assert STABLECOIN == borrowed_token or STABLECOIN == collateral_token
 
@@ -194,7 +194,7 @@ def initialize(
 
     # No events because it's the only market we would ever create in this contract
 
-    return [controller, amm]
+    return controller, amm
 
 
 @internal
