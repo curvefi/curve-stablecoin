@@ -1,6 +1,7 @@
 # @version 0.3.10
 """
-@title Factory of non-rehypothecated lending vaults: collateral is not being lent out.
+@title OneWayLendingFactory
+@notice Factory of non-rehypothecated lending vaults: collateral is not being lent out.
        Although Vault.vy allows both, we should have this simpler version and rehypothecating version.
 @author Curve.fi
 @license Copyright (c) Curve.Fi, 2020-2024 - all rights reserved
