@@ -121,7 +121,7 @@ def _create(
         and min_borrow_rate <= MAX_RATE and max_borrow_rate <= MAX_RATE\
         and min_borrow_rate <= max_borrow_rate, "Wrong rates"
     monetary_policy: address = create_from_blueprint(
-        self.monetary_policy_impl, vault.address, min_rate, max_rate, code_offset=3)
+        self.monetary_policy_impl, borrowed_token, min_rate, max_rate, code_offset=3)
 
     controller: address = empty(address)
     amm: address = empty(address)
