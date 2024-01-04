@@ -141,3 +141,32 @@ def rate(_for: address = msg.sender) -> uint256:
 @external
 def rate_write(_for: address = msg.sender) -> uint256:
     return self.calculate_rate(_for)
+
+
+@external
+def set_default_rates(min_rate: uint256, max_rate: uint256):
+    assert msg.sender == self.admin
+
+    assert min_rate >= MIN_RATE
+    assert max_rate >= MIN_RATE
+    assert min_rate <= MAX_RATE
+    assert max_rate <= MAX_RATE
+    assert max_rate >= min_rate
+
+    self.min_rate = min_rate
+    self.max_rate = max_rate
+    self.log_min_rate = self.ln_int(min_rate)
+    self.log_max_rate = self.ln_int(max_rate)
+
+    log SetRates(min_rate, max_rate)
+
+
+@external
+def set_admin(admin: address):
+    """
+    @notice Set admin of the factory (should end up with DAO)
+    @param admin Address of the admin
+    """
+    assert msg.sender == self.admin
+    self.admin = admin
+    log SetAdmin(admin)
