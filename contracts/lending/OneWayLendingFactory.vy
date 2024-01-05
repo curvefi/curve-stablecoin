@@ -23,7 +23,7 @@ interface Vault:
         monetary_policy: address,
         loan_discount: uint256,
         liquidation_discount: uint256
-    ) -> (address, address): view
+    ) -> (address, address): nonpayable
 
 interface Pool:
     def price_oracle(i: uint256 = 0) -> uint256: view  # Universal method!
