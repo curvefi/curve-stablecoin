@@ -107,3 +107,18 @@ def market_amm(vault, amm_interface):
 @pytest.fixture(scope="module")
 def market_mpolicy(market_controller, mpolicy_interface):
     return mpolicy_interface.at(market_controller.monetary_policy())
+
+
+@pytest.fixture(scope="module")
+def mock_token_interface():
+    return boa.load_partial('contracts/testing/ERC20Mock.vy')
+
+
+@pytest.fixture(scope="module")
+def borrowed_token(vault, mock_token_interface):
+    return mock_token_interface.at(vault.borrowed_token())
+
+
+@pytest.fixture(scope="module")
+def collateral_token(vault, mock_token_interface):
+    return mock_token_interface.at(vault.collateral_token())
