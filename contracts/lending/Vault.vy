@@ -245,7 +245,7 @@ def pricePerShare() -> uint256:
     if supply == 0:
         return 10**18
     else:
-        return self._total_assets() / supply
+        return 10**18 * self._total_assets() / supply
 
 
 @external
