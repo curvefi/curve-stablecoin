@@ -4,6 +4,12 @@ from itertools import product
 
 
 @pytest.fixture(scope="module")
+def weth(admin):
+    with boa.env.prank(admin):
+        return boa.load('contracts/testing/WETH.vy')
+
+
+@pytest.fixture(scope="module")
 def amm_interface():
     return boa.load_partial('contracts/AMM.vy')
 
@@ -31,9 +37,9 @@ def stablecoin(get_borrowed_token):
 
 
 @pytest.fixture(scope="module")
-def vault_impl(stablecoin, admin):
+def vault_impl(stablecoin, weth, admin):
     with boa.env.prank(admin):
-        return boa.load('contracts/lending/Vault.vy', stablecoin.address)
+        return boa.load('contracts/lending/Vault.vy', stablecoin.address, weth.address)
 
 
 @pytest.fixture(scope="module")

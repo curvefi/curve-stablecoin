@@ -76,6 +76,7 @@ MIN_LIQUIDATION_DISCOUNT: constant(uint256) = 10**16
 ADMIN_FEE: constant(uint256) = 0
 
 STABLECOIN: public(immutable(ERC20))
+WETH: public(immutable(address))
 
 borrowed_token: public(ERC20)
 collateral_token: public(ERC20)
@@ -89,7 +90,7 @@ controller: public(Controller)
 
 decimals: public(uint8)
 name: public(String[64])
-symbol: public(String[32])
+symbol: public(String[34])
 
 NAME_PREFIX: constant(String[16]) = 'Curve Vault for '
 SYMBOL_PREFIX: constant(String[2]) = 'cv'
@@ -100,12 +101,13 @@ totalSupply: public(uint256)
 
 
 @external
-def __init__(stablecoin: ERC20):
+def __init__(stablecoin: ERC20, weth: address):
     # The contract is made a "normal" template (not blueprint) so that we can get contract address before init
     # This is needed if we want to create a rehypothecation dual-market with two vaults
     # where vaults are collaterals of each other
     self.borrowed_token = ERC20(0x0000000000000000000000000000000000000001)
     STABLECOIN = stablecoin
+    WETH = weth
 
 
 @internal
@@ -178,7 +180,7 @@ def initialize(
         code_offset=3)
     controller: address = create_from_blueprint(
         controller_impl,
-        collateral_token.address, monetary_policy, loan_discount, liquidation_discount, amm,
+        empty(address), monetary_policy, loan_discount, liquidation_discount, amm,
         code_offset=3)
     AMM(amm).set_admin(controller)
 
@@ -189,7 +191,8 @@ def initialize(
     self.decimals = convert(borrowed_token.decimals(), uint8)
     borrowed_symbol: String[32] = borrowed_token.symbol()
     self.name = concat(NAME_PREFIX, borrowed_symbol)
-    self.symbol = concat(SYMBOL_PREFIX, slice(borrowed_symbol, 0, 30))
+    # XXX Symbol must be String[32], but we do String[34]. Will fix once we know how to slice properly
+    self.symbol = concat(SYMBOL_PREFIX, borrowed_symbol)
 
     # No events because it's the only market we would ever create in this contract
 
