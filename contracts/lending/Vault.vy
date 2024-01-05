@@ -15,7 +15,7 @@ implements: ERC20Detailed
 interface ERC20:
     def transferFrom(_from: address, _to: address, _value: uint256) -> bool: nonpayable
     def transfer(_to: address, _value: uint256) -> bool: nonpayable
-    def decimals() -> uint8: view
+    def decimals() -> uint256: view
     def balanceOf(_from: address) -> uint256: view
     def symbol() -> String[32]: view
     def name() -> String[64]: view
@@ -186,7 +186,7 @@ def initialize(
     self.controller = Controller(controller)
 
     # ERC20 set up
-    self.decimals = borrowed_token.decimals()
+    self.decimals = convert(borrowed_token.decimals(), uint8)
     borrowed_symbol: String[32] = borrowed_token.symbol()
     self.name = concat(NAME_PREFIX, borrowed_symbol)
     self.symbol = concat(SYMBOL_PREFIX, slice(borrowed_symbol, 0, 30))
