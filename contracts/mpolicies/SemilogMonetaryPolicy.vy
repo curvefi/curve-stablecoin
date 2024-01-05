@@ -29,7 +29,6 @@ MAX_EXP: constant(uint256) = 1000 * 10**18
 MIN_RATE: public(constant(uint256)) = 10**15 / (365 * 86400)  # 0.1%
 MAX_RATE: public(constant(uint256)) = 10**19 / (365 * 86400)  # 1000%
 
-FACTORY: public(immutable(address))
 BORROWED_TOKEN: public(immutable(ERC20))
 
 admin: public(address)
@@ -46,7 +45,6 @@ def __init__(borrowed_token: ERC20, min_rate: uint256, max_rate: uint256):
         and min_rate <= MAX_RATE and max_rate <= MAX_RATE\
         and min_rate <= max_rate, "Wrong rates"
 
-    FACTORY = msg.sender
     BORROWED_TOKEN = borrowed_token
     self.min_rate = min_rate
     self.max_rate = max_rate
@@ -126,10 +124,13 @@ def ln_int(_x: uint256) -> int256:
 @view
 def calculate_rate(_for: address) -> uint256:
     total_debt: uint256 = Controller(_for).total_debt()
-    utilization: int256 = convert(total_debt * 10**18 / (BORROWED_TOKEN.balanceOf(_for) + total_debt), int256)
-    log_min_rate: int256 = self.log_min_rate
-    log_max_rate: int256 = self.log_max_rate
-    return self.exp(utilization * (log_max_rate - log_min_rate) + log_min_rate)
+    if total_debt == 0:
+        return self.min_rate
+    else:
+        utilization: int256 = convert(total_debt * 10**18 / (BORROWED_TOKEN.balanceOf(_for) + total_debt), int256)
+        log_min_rate: int256 = self.log_min_rate
+        log_max_rate: int256 = self.log_max_rate
+        return self.exp(utilization * (log_max_rate - log_min_rate) + log_min_rate)
 
 
 @view
