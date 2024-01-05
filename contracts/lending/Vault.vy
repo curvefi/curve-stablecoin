@@ -35,7 +35,7 @@ interface PriceOracle:
     def price_w() -> uint256: nonpayable
 
 interface MonetaryPolicy:
-    def rate_write() -> uint256: nonpayable
+    def rate_write(controller: address) -> uint256: nonpayable
 
 
 # ERC20 events
@@ -200,8 +200,8 @@ def initialize(
 
 
 @internal
-def _update_rates():
-    MonetaryPolicy(self.controller.monetary_policy()).rate_write()
+def _update_rates(controller: address):
+    MonetaryPolicy(self.controller.monetary_policy()).rate_write(controller)
 
 
 @external
@@ -288,11 +288,12 @@ def previewDeposit(assets: uint256) -> uint256:
 def deposit(assets: uint256, receiver: address = msg.sender) -> uint256:
     supply: uint256 = self.totalSupply
     to_mint: uint256 = assets
+    controller: address = self.controller.address
     if supply > 0:
         to_mint = assets * supply / self._total_assets()
-    assert self.borrowed_token.transferFrom(msg.sender, self.controller.address, assets, default_return_value=True)
+    assert self.borrowed_token.transferFrom(msg.sender, controller, assets, default_return_value=True)
     self._mint(receiver, to_mint)
-    self._update_rates()
+    self._update_rates(controller)
     log Deposit(msg.sender, receiver, assets, to_mint)
     return to_mint
 
@@ -318,11 +319,12 @@ def previewMint(shares: uint256) -> uint256:
 def mint(shares: uint256, receiver: address = msg.sender) -> uint256:
     supply: uint256 = self.totalSupply
     assets: uint256 = shares
+    controller: address = self.controller.address
     if supply > 0:
         assets = (shares * self._total_assets() + supply - 1) / supply
-    assert self.borrowed_token.transferFrom(msg.sender, self.controller.address, assets, default_return_value=True)
+    assert self.borrowed_token.transferFrom(msg.sender, controller, assets, default_return_value=True)
     self._mint(receiver, shares)
-    self._update_rates()
+    self._update_rates(controller)
     log Deposit(msg.sender, receiver, assets, shares)
     return assets
 
@@ -362,14 +364,14 @@ def withdraw(assets: uint256, receiver: address = msg.sender, owner: address = m
     else:
         total_assets: uint256 = self._total_assets()
         shares: uint256 = (assets * supply + total_assets - 1) / total_assets
-
         allowance: uint256 = self.allowance[owner][msg.sender]
-        if allowance != max_value(uint256):
+        if allowance != max_value(uint256) and owner != msg.sender:
             self._approve(owner, msg.sender, allowance - shares)
 
-        assert self.borrowed_token.transferFrom(self.controller.address, receiver, assets, default_return_value=True)
+        controller: address = self.controller.address
+        assert self.borrowed_token.transferFrom(controller, receiver, assets, default_return_value=True)
         self._burn(owner, shares)
-        self._update_rates()
+        self._update_rates(controller)
         log Withdraw(msg.sender, receiver, owner, assets, shares)
         return shares
 
@@ -407,13 +409,14 @@ def redeem(shares: uint256, receiver: address = msg.sender, owner: address = msg
         return 0
     else:
         allowance: uint256 = self.allowance[owner][msg.sender]
-        if allowance != max_value(uint256):
+        if allowance != max_value(uint256) and owner != msg.sender:
             self._approve(owner, msg.sender, allowance - shares)
 
+        controller: address = self.controller.address
         assets_to_redeem: uint256 = shares * self._total_assets() / supply
-        assert self.borrowed_token.transferFrom(self.controller.address, receiver, assets_to_redeem, default_return_value=True)
+        assert self.borrowed_token.transferFrom(controller, receiver, assets_to_redeem, default_return_value=True)
         self._burn(owner, shares)
-        self._update_rates()
+        self._update_rates(controller)
         log Withdraw(msg.sender, receiver, owner, assets_to_redeem, shares)
         return assets_to_redeem
 
