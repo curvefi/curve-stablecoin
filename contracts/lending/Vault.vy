@@ -90,7 +90,7 @@ controller: public(Controller)
 
 decimals: public(uint8)
 name: public(String[64])
-symbol: public(String[34])
+symbol: public(String[32])
 
 NAME_PREFIX: constant(String[16]) = 'Curve Vault for '
 SYMBOL_PREFIX: constant(String[2]) = 'cv'
@@ -192,7 +192,7 @@ def initialize(
     borrowed_symbol: String[32] = borrowed_token.symbol()
     self.name = concat(NAME_PREFIX, borrowed_symbol)
     # XXX Symbol must be String[32], but we do String[34]. Will fix once we know how to slice properly
-    self.symbol = concat(SYMBOL_PREFIX, borrowed_symbol)
+    self.symbol = convert(raw_call(0x0000000000000000000000000000000000000004, convert(concat(SYMBOL_PREFIX, borrowed_symbol), Bytes[34]), max_outsize=32, is_static=True), String[32])
 
     # No events because it's the only market we would ever create in this contract
 
