@@ -163,7 +163,6 @@ def initialize(
     assert liquidation_discount >= MIN_LIQUIDATION_DISCOUNT, "Liquidation discount too low"
     assert loan_discount <= MAX_LOAN_DISCOUNT, "Loan discount too high"
     assert loan_discount > liquidation_discount, "need loan_discount>liquidation_discount"
-    MonetaryPolicy(monetary_policy).rate_write()  # Test that MonetaryPolicy has correct ABI
 
     p: uint256 = price_oracle.price()  # This also validates price oracle ABI
     assert p > 0
