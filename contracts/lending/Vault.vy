@@ -178,7 +178,7 @@ def initialize(
         code_offset=3)
     controller: address = create_from_blueprint(
         controller_impl,
-        empty(address), monetary_policy, loan_discount, liquidation_discount, amm,
+        collateral_token.address, monetary_policy, loan_discount, liquidation_discount, amm,
         code_offset=3)
     AMM(amm).set_admin(controller)
 
