@@ -16,6 +16,8 @@ def test_deposit_and_withdraw(vault, borrowed_token, accounts):
         borrowed_token.approve(vault.address, 2**256-1)
         vault.deposit(amount)
         assert vault.totalAssets() == amount
+        assert vault.balanceOf(user) == amount
+        assert vault.pricePerShare() == 10**18
 
         vault.redeem(vault.balanceOf(user))
         assert vault.totalAssets() == 0
