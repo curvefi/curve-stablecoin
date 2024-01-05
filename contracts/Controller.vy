@@ -1341,6 +1341,7 @@ def collect_fees() -> uint256:
     """
     @notice Collect the fees charged as interest
     """
+    # Calling fee_receiver will fail for lending markets because everything gets to lenders
     _to: address = FACTORY.fee_receiver()
     # AMM-based fees
     borrowed_fees: uint256 = AMM.admin_fees_x()
