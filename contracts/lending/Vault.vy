@@ -213,7 +213,11 @@ def borrow_apr() -> uint256:
 @external
 @view
 def lend_apr() -> uint256:
-    return self.amm.rate() * self.controller.total_debt() / self._total_assets()
+    debt: uint256 = self.controller.total_debt()
+    if debt == 0:
+        return 0
+    else:
+        return self.amm.rate() * debt / self._total_assets()
 
 
 @external
