@@ -5,8 +5,8 @@ from hypothesis.stateful import RuleBasedStateMachine, run_state_machine_as_test
 
 
 DEAD_SHARES = 1000
-MIN_RATE  = 10**15 / (365 * 86400)  # 0.1%
-MAX_RATE  = 10**19 / (365 * 86400)  # 1000%
+MIN_RATE  = 10**15 // (365 * 86400)  # 0.1%
+MAX_RATE  = 10**19 // (365 * 86400)  # 1000%
 
 
 class StatefulLendBorrow(RuleBasedStateMachine):
