@@ -322,7 +322,6 @@ def test_borrow_more_0(controller_factory, market_amm, market_controller, moneta
     for k, v in locals().items():
         setattr(StatefulLendBorrow, k, v)
     state = StatefulLendBorrow()
-    state = StatefulLendBorrow()
     state.debt_payable()
     state.sum_of_debts()
     state.change_rate(rate=0)
