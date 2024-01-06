@@ -221,7 +221,11 @@ class StatefulLendBorrow(RuleBasedStateMachine):
 
     @invariant()
     def sum_of_debts(self):
-        assert abs(sum(self.controller.debt(u) for u in self.accounts) - self.controller.total_debt()) <= len(self.accounts)
+        S = sum(self.controller.debt(u) for u in self.accounts)
+        T = self.controller.total_debt()
+        assert abs(S - T) <= len(self.accounts)
+        if S == 0:
+            assert T == 0
 
     @invariant()
     def debt_payable(self):
