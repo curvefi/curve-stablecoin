@@ -105,10 +105,10 @@ class StatefulLendBorrow(RuleBasedStateMachine):
     @rule(amount=amount, user_id=user_id)
     def repay(self, amount, user_id):
         user = self.accounts[user_id]
-        user_debt = self.controller.debt(user)
+        to_repay = min(self.controller.debt(user), amount)
         user_balance = self.borrowed_token.balanceOf(user)
-        if user_debt > user_balance:
-            self.borrowed_token._mint_for_testing(user, user_debt - user_balance)
+        if to_repay > user_balance:
+            self.borrowed_token._mint_for_testing(user, to_repay - user_balance)
 
         with boa.env.prank(user):
             if amount == 0:
@@ -229,7 +229,7 @@ class StatefulLendBorrow(RuleBasedStateMachine):
             supply = self.borrowed_token.totalSupply()
             b = self.borrowed_token.balanceOf(self.controller)
             debt = self.controller.total_debt()
-            assert debt >= supply - b  # Not equal because of interest. We do not mint here
+            assert debt + 10 >= supply - b  # Can have error of 1 (rounding) at most per step (and 10 stateful steps)
 
 
 def test_stateful_lendborrow(vault, market_amm, market_controller, market_mpolicy, collateral_token, borrowed_token, accounts, admin):
