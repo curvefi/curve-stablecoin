@@ -197,7 +197,7 @@ class StatefulLendBorrow(RuleBasedStateMachine):
                         self.controller.borrow_more(c_amount, amount)
                 return
 
-            if final_collateral * self.collateral_precision * self.amm.get_p() // 10**18 > 2**128 - 1:
+            if final_collateral * self.collateral_precision // n > (2**128 - 1) // DEAD_SHARES:
                 with boa.reverts():
                     self.controller.borrow_more(c_amount, amount)
                 return
@@ -237,7 +237,23 @@ class StatefulLendBorrow(RuleBasedStateMachine):
 
 
 def test_stateful_lendborrow(vault, market_amm, market_controller, market_mpolicy, collateral_token, borrowed_token, accounts, admin):
-    StatefulLendBorrow.TestCase.settings = settings(max_examples=200, stateful_step_count=10)
+    StatefulLendBorrow.TestCase.settings = settings(max_examples=2000, stateful_step_count=10)
     for k, v in locals().items():
         setattr(StatefulLendBorrow, k, v)
     run_state_machine_as_test(StatefulLendBorrow)
+
+
+def test_borrow_not_reverting(vault, market_amm, market_controller, market_mpolicy, collateral_token, borrowed_token, accounts, admin):
+    for k, v in locals().items():
+        setattr(StatefulLendBorrow, k, v)
+    state = StatefulLendBorrow()
+    state.debt_payable()
+    state.sum_of_debts()
+    state.time_travel(t=0)
+    state.debt_payable()
+    state.sum_of_debts()
+    state.create_loan(amount=1, c_amount=28303, n=5, user_id=0)
+    state.debt_payable()
+    state.sum_of_debts()
+    state.borrow_more(amount=1, c_amount=11229318108390940992, user_id=0)
+    state.teardown()
