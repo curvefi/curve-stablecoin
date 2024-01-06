@@ -16,6 +16,9 @@ from vyper.interfaces import ERC20
 interface Controller:
     def total_debt() -> uint256: view
 
+interface Factory:
+    def admin() -> address: view
+
 
 event SetAdmin:
     admin: address
@@ -50,6 +53,8 @@ def __init__(borrowed_token: ERC20, min_rate: uint256, max_rate: uint256):
     self.max_rate = max_rate
     self.log_min_rate = self.ln_int(min_rate)
     self.log_max_rate = self.ln_int(max_rate)
+
+    self.admin = Factory(msg.sender).admin()
 
 
 ### MATH ###
