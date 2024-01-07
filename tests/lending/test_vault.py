@@ -11,7 +11,8 @@ def test_vault_creation(vault, market_controller, market_amm, market_mpolicy):
 
 
 def test_deposit_and_withdraw(vault, borrowed_token, accounts):
-    amount = 10**6 * 10 ** borrowed_token.decimals()
+    one_token = 10 ** borrowed_token.decimals()
+    amount = 10**6 * one_token
     user = accounts[1]
     borrowed_token._mint_for_testing(user, amount)
 
@@ -19,7 +20,7 @@ def test_deposit_and_withdraw(vault, borrowed_token, accounts):
         borrowed_token.approve(vault.address, 2**256-1)
         vault.deposit(amount)
         assert vault.totalAssets() == amount
-        assert vault.balanceOf(user) == amount
+        assert vault.balanceOf(user) == amount * 10**18 // one_token
         assert vault.pricePerShare() == 10**18
         vault.redeem(vault.balanceOf(user))
         assert vault.totalAssets() == 0
