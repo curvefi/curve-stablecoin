@@ -4,6 +4,9 @@ from hypothesis import strategies as st
 from hypothesis.stateful import RuleBasedStateMachine, run_state_machine_as_test, rule, invariant
 
 
+DEAD_SHARES = 1000
+
+
 def test_vault_creation(vault, market_controller, market_amm, market_mpolicy):
     assert vault.amm() == market_amm.address
     assert vault.controller() == market_controller.address
@@ -20,8 +23,8 @@ def test_deposit_and_withdraw(vault, borrowed_token, accounts):
         borrowed_token.approve(vault.address, 2**256-1)
         vault.deposit(amount)
         assert vault.totalAssets() == amount
-        assert vault.balanceOf(user) == amount * 10**18 // one_token
-        assert vault.pricePerShare() == 10**18
+        assert vault.balanceOf(user) == amount * 10**18 * DEAD_SHARES // one_token
+        assert vault.pricePerShare() == 10**18 // DEAD_SHARES
         vault.redeem(vault.balanceOf(user))
         assert vault.totalAssets() == 0
 
@@ -38,6 +41,7 @@ class StatefulVault(RuleBasedStateMachine):
                 self.borrowed_token.approve(self.vault.address, 2**256 - 1)
         assert self.vault.asset() == self.borrowed_token.address
         self.total_assets = 0
+        self.precision = 10 ** (18 - self.borrowed_token.decimals())
 
     @invariant()
     def inv_aprs(self):
@@ -51,6 +55,7 @@ class StatefulVault(RuleBasedStateMachine):
 
     @rule(user_id=user_id, assets=amount)
     def deposit(self, user_id, assets):
+        assets = assets // self.precision
         user = self.accounts[user_id]
         self.borrowed_token._mint_for_testing(user, assets)
         to_mint = self.vault.previewDeposit(assets)
@@ -67,6 +72,7 @@ class StatefulVault(RuleBasedStateMachine):
 
     @rule(user_from=user_id, user_to=user_id, assets=amount)
     def deposit_for(self, user_from, user_to, assets):
+        assets = assets // self.precision
         user_from = self.accounts[user_from]
         user_to = self.accounts[user_to]
         self.borrowed_token._mint_for_testing(user_from, assets)

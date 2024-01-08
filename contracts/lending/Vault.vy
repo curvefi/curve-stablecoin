@@ -75,6 +75,8 @@ MAX_LOAN_DISCOUNT: constant(uint256) = 5 * 10**17
 MIN_LIQUIDATION_DISCOUNT: constant(uint256) = 10**16
 ADMIN_FEE: constant(uint256) = 0
 
+DEAD_SHARES: constant(uint256) = 1000
+
 STABLECOIN: public(immutable(ERC20))
 WETH: public(immutable(address))
 
@@ -256,24 +258,40 @@ def pricePerShare() -> uint256:
         return 10**18 * self.precision * self._total_assets() / supply
 
 
+@internal
+@view
+def _convert_to_shares(assets: uint256, is_floor: bool = True) -> uint256:
+    precision: uint256 = self.precision
+    numerator: uint256 = (self.totalSupply + DEAD_SHARES) * assets * precision
+    denominator: uint256 = (self._total_assets() * precision + 1)
+    if is_floor:
+        return numerator / denominator
+    else:
+        return (numerator + denominator - 1) / denominator
+
+
+@internal
+@view
+def _convert_to_assets(shares: uint256, is_floor: bool = True) -> uint256:
+    precision: uint256 = self.precision
+    numerator: uint256 = shares * (self._total_assets() * precision + 1)
+    denominator: uint256 = (self.totalSupply + DEAD_SHARES) * precision
+    if is_floor:
+        return numerator / denominator
+    else:
+        return (numerator + denominator - 1) / denominator
+
+
 @external
 @view
 def convertToShares(assets: uint256) -> uint256:
-    supply: uint256 = self.totalSupply
-    if supply == 0:
-        return assets * self.precision
-    else:
-        return assets * supply / self._total_assets()
+    return self._convert_to_shares(assets)
 
 
 @external
 @view
 def convertToAssets(shares: uint256) -> uint256:
-    supply: uint256 = self.totalSupply
-    if supply == 0:
-        return shares / self.precision
-    else:
-        return shares * self._total_assets() / supply
+    return self._convert_to_assets(shares)
 
 
 @external
@@ -285,22 +303,13 @@ def maxDeposit(receiver: address) -> uint256:
 @external
 @view
 def previewDeposit(assets: uint256) -> uint256:
-    supply: uint256 = self.totalSupply
-    if supply == 0:
-        return assets * self.precision
-    else:
-        return assets * supply / self._total_assets()
+    return self._convert_to_shares(assets)
 
 
 @external
 def deposit(assets: uint256, receiver: address = msg.sender) -> uint256:
-    supply: uint256 = self.totalSupply
-    to_mint: uint256 = 0
     controller: address = self.controller.address
-    if supply > 0:
-        to_mint = assets * supply / self._total_assets()
-    else:
-        to_mint = assets * self.precision
+    to_mint: uint256 = self._convert_to_shares(assets)
     assert self.borrowed_token.transferFrom(msg.sender, controller, assets, default_return_value=True)
     self._mint(receiver, to_mint)
     self._update_rates(controller)
@@ -317,25 +326,13 @@ def maxMint(receiver: address) -> uint256:
 @external
 @view
 def previewMint(shares: uint256) -> uint256:
-    supply: uint256 = self.totalSupply
-    if supply == 0:
-        precision: uint256 = self.precision
-        return (shares + precision - 1) / precision
-    else:
-        # Do ceil div because the method should never be advantageous compare to others
-        return (shares * self._total_assets() + supply - 1) / supply
+    return self._convert_to_assets(shares, False)
 
 
 @external
 def mint(shares: uint256, receiver: address = msg.sender) -> uint256:
-    supply: uint256 = self.totalSupply
-    assets: uint256 = 0
     controller: address = self.controller.address
-    if supply > 0:
-        assets = (shares * self._total_assets() + supply - 1) / supply
-    else:
-        precision: uint256 = self.precision
-        assets = (shares + precision - 1) / precision
+    assets: uint256 = self._convert_to_assets(shares)
     assert self.borrowed_token.transferFrom(msg.sender, controller, assets, default_return_value=True)
     self._mint(receiver, shares)
     self._update_rates(controller)
@@ -346,60 +343,40 @@ def mint(shares: uint256, receiver: address = msg.sender) -> uint256:
 @external
 @view
 def maxWithdraw(owner: address) -> uint256:
-    supply: uint256 = self.totalSupply
-    if supply == 0:
-        return 0
-    else:
-        return min(
-            self.balanceOf[owner] * self._total_assets() / supply,
-            self.borrowed_token.balanceOf(self.controller.address))
+    return min(
+        self._convert_to_assets(self.balanceOf[owner], False),
+        self.borrowed_token.balanceOf(self.controller.address))
 
 
 @external
 @view
 def previewWithdraw(assets: uint256) -> uint256:
     assert assets <= self.borrowed_token.balanceOf(self.controller.address)
-    supply: uint256 = self.totalSupply
-    if supply == 0:
-        assert assets == 0
-        return 0
-    else:
-        total_assets: uint256 = self._total_assets()
-        return (assets * supply + total_assets - 1) / total_assets
+    return self._convert_to_shares(assets, False)
 
 
 @external
 def withdraw(assets: uint256, receiver: address = msg.sender, owner: address = msg.sender) -> uint256:
-    supply: uint256 = self.totalSupply
-    if supply == 0:
-        assert assets == 0
-        return 0
-
-    else:
-        total_assets: uint256 = self._total_assets()
-        shares: uint256 = (assets * supply + total_assets - 1) / total_assets
+    shares: uint256 = self._convert_to_shares(assets, False)
+    if owner != msg.sender:
         allowance: uint256 = self.allowance[owner][msg.sender]
-        if allowance != max_value(uint256) and owner != msg.sender:
+        if allowance != max_value(uint256):
             self._approve(owner, msg.sender, allowance - shares)
 
-        controller: address = self.controller.address
-        assert self.borrowed_token.transferFrom(controller, receiver, assets, default_return_value=True)
-        self._burn(owner, shares)
-        self._update_rates(controller)
-        log Withdraw(msg.sender, receiver, owner, assets, shares)
-        return shares
+    controller: address = self.controller.address
+    assert self.borrowed_token.transferFrom(controller, receiver, assets, default_return_value=True)
+    self._burn(owner, shares)
+    self._update_rates(controller)
+    log Withdraw(msg.sender, receiver, owner, assets, shares)
+    return shares
 
 
 @external
 @view
 def maxRedeem(owner: address) -> uint256:
-    supply: uint256 = self.totalSupply
-    if supply == 0:
-        return 0
-    else:
-        return min(
-            self.borrowed_token.balanceOf(self.controller.address) * supply / self._total_assets(),
-            self.balanceOf[owner])
+    return min(
+        self._convert_to_shares(self.borrowed_token.balanceOf(self.controller.address), False),
+        self.balanceOf[owner])
 
 
 @external
@@ -412,31 +389,25 @@ def previewRedeem(shares: uint256) -> uint256:
         return 0
 
     else:
-        assets_to_redeem: uint256 = shares * self._total_assets() / supply
+        assets_to_redeem: uint256 = self._convert_to_assets(shares)
         assert assets_to_redeem <= self.borrowed_token.balanceOf(self.controller.address)
         return assets_to_redeem
 
 
 @external
 def redeem(shares: uint256, receiver: address = msg.sender, owner: address = msg.sender) -> uint256:
-    supply: uint256 = self.totalSupply
-
-    if supply == 0:
-        assert shares == 0
-        return 0
-
-    else:
+    if owner != msg.sender:
         allowance: uint256 = self.allowance[owner][msg.sender]
-        if allowance != max_value(uint256) and owner != msg.sender:
+        if allowance != max_value(uint256):
             self._approve(owner, msg.sender, allowance - shares)
 
-        controller: address = self.controller.address
-        assets_to_redeem: uint256 = shares * self._total_assets() / supply
-        assert self.borrowed_token.transferFrom(controller, receiver, assets_to_redeem, default_return_value=True)
-        self._burn(owner, shares)
-        self._update_rates(controller)
-        log Withdraw(msg.sender, receiver, owner, assets_to_redeem, shares)
-        return assets_to_redeem
+    assets_to_redeem: uint256 = self._convert_to_assets(shares)
+    self._burn(owner, shares)
+    controller: address = self.controller.address
+    assert self.borrowed_token.transferFrom(controller, receiver, assets_to_redeem, default_return_value=True)
+    self._update_rates(controller)
+    log Withdraw(msg.sender, receiver, owner, assets_to_redeem, shares)
+    return assets_to_redeem
 
 
 # ERC20 methods
