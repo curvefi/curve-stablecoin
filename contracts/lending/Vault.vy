@@ -382,9 +382,7 @@ def maxRedeem(owner: address) -> uint256:
 @external
 @view
 def previewRedeem(shares: uint256) -> uint256:
-    supply: uint256 = self.totalSupply
-
-    if supply == 0:
+    if self.totalSupply == 0:
         assert shares == 0
         return 0
 
