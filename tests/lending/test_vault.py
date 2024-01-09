@@ -121,6 +121,28 @@ class StatefulVault(RuleBasedStateMachine):
         assert d_user_tokens == assets
         self.total_assets += assets
 
+    @rule(user_id=user_id, shares=amount)
+    def redeem(self, user_id, shares):
+        user = self.accounts[user_id]
+        max_redeem = self.vault.maxRedeem(user)
+        if shares <= max_redeem:
+            assets = self.vault.previewRedeem(shares)
+            d_vault_balance = self.vault.balanceOf(user)
+            d_user_tokens = self.borrowed_token.balanceOf(user)
+            with boa.env.prank(user):
+                assets_redeemed = self.vault.redeem(shares)
+            d_vault_balance -= self.vault.balanceOf(user)
+            d_user_tokens = self.borrowed_token.balanceOf(user) - d_user_tokens
+            assert assets_redeemed == assets
+            assert shares == d_vault_balance
+            assert d_user_tokens == assets
+            self.total_assets -= assets
+
+        else:
+            with boa.reverts():
+                with boa.env.prank(user):
+                    self.vault.redeem(shares)
+
 
 def test_stateful_vault(vault, borrowed_token, accounts, admin, market_amm, market_controller):
     StatefulVault.TestCase.settings = settings(max_examples=500, stateful_step_count=10)
