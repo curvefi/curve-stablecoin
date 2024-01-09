@@ -88,6 +88,39 @@ class StatefulVault(RuleBasedStateMachine):
         assert d_user_tokens == assets
         self.total_assets += assets
 
+    @rule(user_id=user_id, shares=amount)
+    def mint(self, user_id, shares):
+        user = self.accounts[user_id]
+        assets = self.vault.previewMint(shares)
+        self.borrowed_token._mint_for_testing(user, assets)
+        d_vault_balance = self.vault.balanceOf(user)
+        d_user_tokens = self.borrowed_token.balanceOf(user)
+        with boa.env.prank(user):
+            assets_deposited = self.vault.mint(shares)
+        d_vault_balance = self.vault.balanceOf(user) - d_vault_balance
+        d_user_tokens -= self.borrowed_token.balanceOf(user)
+        assert assets_deposited == assets
+        assert shares == d_vault_balance
+        assert d_user_tokens == assets
+        self.total_assets += assets
+
+    @rule(user_from=user_id, user_to=user_id, shares=amount)
+    def mint_for(self, user_from, user_to, shares):
+        user_from = self.accounts[user_from]
+        user_to = self.accounts[user_to]
+        assets = self.vault.previewMint(shares)
+        self.borrowed_token._mint_for_testing(user_from, assets)
+        d_vault_balance = self.vault.balanceOf(user_to)
+        d_user_tokens = self.borrowed_token.balanceOf(user_from)
+        with boa.env.prank(user_from):
+            assets_deposited = self.vault.mint(shares, user_to)
+        d_vault_balance = self.vault.balanceOf(user_to) - d_vault_balance
+        d_user_tokens -= self.borrowed_token.balanceOf(user_from)
+        assert assets_deposited == assets
+        assert shares == d_vault_balance
+        assert d_user_tokens == assets
+        self.total_assets += assets
+
 
 def test_stateful_vault(vault, borrowed_token, accounts, admin, market_amm, market_controller):
     StatefulVault.TestCase.settings = settings(max_examples=500, stateful_step_count=10)

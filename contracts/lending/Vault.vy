@@ -332,7 +332,7 @@ def previewMint(shares: uint256) -> uint256:
 @external
 def mint(shares: uint256, receiver: address = msg.sender) -> uint256:
     controller: address = self.controller.address
-    assets: uint256 = self._convert_to_assets(shares)
+    assets: uint256 = self._convert_to_assets(shares, False)
     assert self.borrowed_token.transferFrom(msg.sender, controller, assets, default_return_value=True)
     self._mint(receiver, shares)
     self._update_rates(controller)
