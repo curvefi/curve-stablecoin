@@ -143,6 +143,68 @@ class StatefulVault(RuleBasedStateMachine):
                 with boa.env.prank(user):
                     self.vault.redeem(shares)
 
+    @rule(user_from=user_id, user_to=user_id, shares=amount)
+    def redeem_for(self, user_from, user_to, shares):
+        user_from = self.accounts[user_from]
+        user_to = self.accounts[user_to]
+        max_redeem = self.vault.maxRedeem(user_from)
+        if shares <= max_redeem:
+            assets = self.vault.previewRedeem(shares)
+            d_vault_balance = self.vault.balanceOf(user_from)
+            d_user_tokens = self.borrowed_token.balanceOf(user_to)
+            with boa.env.prank(user_from):
+                assets_redeemed = self.vault.redeem(shares, user_to)
+            d_vault_balance -= self.vault.balanceOf(user_from)
+            d_user_tokens = self.borrowed_token.balanceOf(user_to) - d_user_tokens
+            assert assets_redeemed == assets
+            assert shares == d_vault_balance
+            assert d_user_tokens == assets
+            self.total_assets -= assets
+
+        else:
+            with boa.reverts():
+                with boa.env.prank(user_from):
+                    self.vault.redeem(shares, user_to)
+
+    @rule(user_from=user_id, user_to=user_id, owner=user_id, shares=amount, approval=amount)
+    def redeem_owner_for(self, user_from, user_to, owner, shares, approval):
+        if user_from == owner:
+            return
+        user_from = self.accounts[user_from]
+        user_to = self.accounts[user_to]
+        owner = self.accounts[owner]
+        max_redeem = self.vault.maxRedeem(owner)
+        if shares <= max_redeem:
+            with boa.env.prank(owner):
+                self.vault.approve(user_from, approval)
+            if approval >= shares:
+                assets = self.vault.previewRedeem(shares)
+                d_vault_balance = self.vault.balanceOf(owner)
+                d_user_tokens = self.borrowed_token.balanceOf(user_to)
+                with boa.env.prank(user_from):
+                    assets_redeemed = self.vault.redeem(shares, user_to, owner)
+                d_vault_balance -= self.vault.balanceOf(owner)
+                d_user_tokens = self.borrowed_token.balanceOf(user_to) - d_user_tokens
+                assert assets_redeemed == assets
+                assert shares == d_vault_balance
+                assert d_user_tokens == assets
+                self.total_assets -= assets
+                with boa.env.prank(owner):
+                    self.vault.approve(user_from, 0)
+            else:
+                with boa.reverts():
+                    with boa.env.prank(user_from):
+                        self.vault.redeem(shares, user_to, owner)
+
+        else:
+            with boa.env.prank(owner):
+                self.vault.approve(user_from, 2**256 - 1)
+            with boa.reverts():
+                with boa.env.prank(user_from):
+                    self.vault.redeem(shares, user_to, owner)
+            with boa.env.prank(owner):
+                self.vault.approve(user_from, 0)
+
 
 def test_stateful_vault(vault, borrowed_token, accounts, admin, market_amm, market_controller):
     StatefulVault.TestCase.settings = settings(max_examples=500, stateful_step_count=10)
