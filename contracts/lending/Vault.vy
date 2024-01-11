@@ -344,7 +344,7 @@ def mint(shares: uint256, receiver: address = msg.sender) -> uint256:
 @view
 def maxWithdraw(owner: address) -> uint256:
     return min(
-        self._convert_to_assets(self.balanceOf[owner], False),
+        self._convert_to_assets(self.balanceOf[owner]),
         self.borrowed_token.balanceOf(self.controller.address))
 
 

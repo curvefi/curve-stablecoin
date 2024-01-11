@@ -205,6 +205,28 @@ class StatefulVault(RuleBasedStateMachine):
             with boa.env.prank(owner):
                 self.vault.approve(user_from, 0)
 
+    @rule(user_id=user_id, assets=amount)
+    def withdraw(self, user_id, assets):
+        user = self.accounts[user_id]
+        max_withdraw = self.vault.maxWithdraw(user)
+        if assets <= max_withdraw:
+            shares = self.vault.previewWithdraw(assets)
+            d_vault_balance = self.vault.balanceOf(user)
+            d_user_tokens = self.borrowed_token.balanceOf(user)
+            with boa.env.prank(user):
+                shares_withdrawn = self.vault.withdraw(assets)
+            d_vault_balance -= self.vault.balanceOf(user)
+            d_user_tokens = self.borrowed_token.balanceOf(user) - d_user_tokens
+            assert shares_withdrawn == shares
+            assert shares == d_vault_balance
+            assert d_user_tokens == assets
+            self.total_assets -= assets
+
+        else:
+            with boa.reverts():
+                with boa.env.prank(user):
+                    self.vault.withdraw(assets)
+
 
 def test_stateful_vault(vault, borrowed_token, accounts, admin, market_amm, market_controller):
     StatefulVault.TestCase.settings = settings(max_examples=500, stateful_step_count=10)
