@@ -78,7 +78,6 @@ ADMIN_FEE: constant(uint256) = 0
 DEAD_SHARES: constant(uint256) = 1000
 
 STABLECOIN: public(immutable(ERC20))
-WETH: public(immutable(address))
 
 borrowed_token: public(ERC20)
 collateral_token: public(ERC20)
@@ -111,7 +110,6 @@ def __init__(stablecoin: ERC20, weth: address):
     # where vaults are collaterals of each other
     self.borrowed_token = ERC20(0x0000000000000000000000000000000000000001)
     STABLECOIN = stablecoin
-    WETH = weth
 
 
 @internal
