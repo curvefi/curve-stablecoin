@@ -5,7 +5,7 @@
 Installing poetry and all dependencies for tests
 
 ```shell
-pip install poetry==1.4.1
+pip install poetry
 poetry install
 ```
 
