@@ -40,10 +40,6 @@ interface ERC20:
     def approve(_spender: address, _value: uint256) -> bool: nonpayable
     def balanceOf(_from: address) -> uint256: view
 
-interface WETH:
-    def deposit(): payable
-    def withdraw(_amount: uint256): nonpayable
-
 interface MonetaryPolicy:
     def rate_write() -> uint256: nonpayable
 
@@ -51,7 +47,6 @@ interface Factory:
     def stablecoin() -> address: view
     def admin() -> address: view
     def fee_receiver() -> address: view
-    def WETH() -> address: view
 
     # Only if lending vault
     def borrowed_token() -> address: view
@@ -162,8 +157,6 @@ MAX_ADMIN_FEE: constant(uint256) = 10**18  # 100%
 MIN_FEE: constant(uint256) = 10**6  # 1e-12, still needs to be above 0
 MAX_FEE: immutable(uint256)  # let's set to MIN_TICKS / A: for example, 4% max fee for A=100
 
-USE_ETH: immutable(bool)
-
 CALLBACK_DEPOSIT: constant(bytes4) = method_id("callback_deposit(address,uint256,uint256,uint256,uint256[])", output_type=bytes4)
 CALLBACK_REPAY: constant(bytes4) = method_id("callback_repay(address,uint256,uint256,uint256,uint256[])", output_type=bytes4)
 CALLBACK_LIQUIDATE: constant(bytes4) = method_id("callback_liquidate(address,uint256,uint256,uint256,uint256[])", output_type=bytes4)
@@ -224,18 +217,6 @@ def __init__(
     SQRT_BAND_RATIO = isqrt(unsafe_div(10**36 * _A, unsafe_sub(_A, 1)))
 
     _borrowed_token.approve(msg.sender, max_value(uint256))
-
-    # XXX should we eliminate WETH here?
-    if ERC20(Factory(msg.sender).WETH()) == _collateral_token:
-        USE_ETH = True
-
-
-@payable
-@external
-def __default__():
-    if msg.value > 0:
-        assert USE_ETH
-    assert len(msg.data) == 0
 
 
 @internal
@@ -555,30 +536,6 @@ def transfer(token: ERC20, _to: address, amount: uint256):
 
 
 @internal
-def _deposit_collateral(amount: uint256, mvalue: uint256):
-    """
-    Deposits raw ETH, WETH or both at the same time
-    """
-    if not USE_ETH:
-        assert mvalue == 0  # dev: Not accepting ETH
-    diff: uint256 = amount - mvalue  # dev: Incorrect ETH amount
-    if mvalue > 0:
-        WETH(COLLATERAL_TOKEN.address).deposit(value=mvalue)
-        self.transfer(COLLATERAL_TOKEN, AMM.address, mvalue)
-    self.transferFrom(COLLATERAL_TOKEN, msg.sender, AMM.address, diff)
-
-
-@internal
-def _withdraw_collateral(_for: address, amount: uint256, use_eth: bool):
-    if use_eth and USE_ETH:
-        self.transferFrom(COLLATERAL_TOKEN, AMM.address, self, amount)
-        WETH(COLLATERAL_TOKEN.address).withdraw(amount)
-        raw_call(_for, b"", value=amount, gas=MAX_ETH_GAS)
-    else:
-        self.transferFrom(COLLATERAL_TOKEN, AMM.address, _for, amount)
-
-
-@internal
 def execute_callback(callbacker: address, callback_sig: bytes4,
                      user: address, stablecoins: uint256, collateral: uint256, debt: uint256,
                      callback_args: DynArray[uint256, 5]) -> CallbackData:
@@ -606,7 +563,7 @@ def execute_callback(callbacker: address, callback_sig: bytes4,
     return data
 
 @internal
-def _create_loan(mvalue: uint256, collateral: uint256, debt: uint256, N: uint256, transfer_coins: bool):
+def _create_loan(collateral: uint256, debt: uint256, N: uint256, transfer_coins: bool):
     assert self.loan[msg.sender].initial_debt == 0, "Loan already created"
     assert N > MIN_TICKS-1, "Need more ticks"
     assert N < MAX_TICKS+1, "Need less ticks"
@@ -631,7 +588,7 @@ def _create_loan(mvalue: uint256, collateral: uint256, debt: uint256, N: uint256
     self.minted += debt
 
     if transfer_coins:
-        self._deposit_collateral(collateral, mvalue)
+        self.transferFrom(COLLATERAL_TOKEN, msg.sender, AMM.address, collateral)
         self.transfer(BORROWED_TOKEN, msg.sender, debt)
 
     self._save_rate()
@@ -640,7 +597,6 @@ def _create_loan(mvalue: uint256, collateral: uint256, debt: uint256, N: uint256
     log Borrow(msg.sender, collateral, debt)
 
 
-@payable
 @external
 @nonreentrant('lock')
 def create_loan(collateral: uint256, debt: uint256, N: uint256):
@@ -651,10 +607,9 @@ def create_loan(collateral: uint256, debt: uint256, N: uint256):
     @param N Number of bands to deposit into (to do autoliquidation-deliquidation),
            can be from MIN_TICKS to MAX_TICKS
     """
-    self._create_loan(msg.value, collateral, debt, N, True)
+    self._create_loan(collateral, debt, N, True)
 
 
-@payable
 @external
 @nonreentrant('lock')
 def create_loan_extended(collateral: uint256, debt: uint256, N: uint256, callbacker: address, callback_args: DynArray[uint256,5]):
@@ -676,8 +631,8 @@ def create_loan_extended(collateral: uint256, debt: uint256, N: uint256, callbac
         callbacker, CALLBACK_DEPOSIT, msg.sender, 0, collateral, debt, callback_args).collateral
 
     # After callback
-    self._create_loan(0, collateral + more_collateral, debt, N, False)
-    self._deposit_collateral(collateral, msg.value)
+    self._create_loan(collateral + more_collateral, debt, N, False)
+    self.transferFrom(COLLATERAL_TOKEN, msg.sender, AMM.address, collateral)
     self.transferFrom(COLLATERAL_TOKEN, callbacker, AMM.address, more_collateral)
 
 
@@ -731,7 +686,6 @@ def _add_collateral_borrow(d_collateral: uint256, d_debt: uint256, _for: address
     log UserState(_for, xy[1], debt, n1, n2, liquidation_discount)
 
 
-@payable
 @external
 @nonreentrant('lock')
 def add_collateral(collateral: uint256, _for: address = msg.sender):
@@ -743,7 +697,7 @@ def add_collateral(collateral: uint256, _for: address = msg.sender):
     if collateral == 0:
         return
     self._add_collateral_borrow(collateral, 0, _for, False)
-    self._deposit_collateral(collateral, msg.value)
+    self.transferFrom(COLLATERAL_TOKEN, msg.sender, AMM.address, collateral)
 
 
 @external
@@ -757,10 +711,9 @@ def remove_collateral(collateral: uint256, use_eth: bool = True):
     if collateral == 0:
         return
     self._add_collateral_borrow(collateral, 0, msg.sender, True)
-    self._withdraw_collateral(msg.sender, collateral, use_eth)
+    self.transferFrom(COLLATERAL_TOKEN, AMM.address, msg.sender, collateral)
 
 
-@payable
 @external
 @nonreentrant('lock')
 def borrow_more(collateral: uint256, debt: uint256):
@@ -774,7 +727,7 @@ def borrow_more(collateral: uint256, debt: uint256):
     self._add_collateral_borrow(collateral, debt, msg.sender, False)
     self.minted += debt
     if collateral != 0:
-        self._deposit_collateral(collateral, msg.value)
+        self.transferFrom(COLLATERAL_TOKEN, msg.sender, AMM.address, collateral)
     self.transfer(BORROWED_TOKEN, msg.sender, debt)
 
 
@@ -820,7 +773,7 @@ def repay(_d_debt: uint256, _for: address = msg.sender, max_active_band: int256 
             assert _for == msg.sender
             self.transferFrom(BORROWED_TOKEN, AMM.address, _for, xy[0])
         if xy[1] > 0:
-            self._withdraw_collateral(_for, xy[1], use_eth)
+            self.transferFrom(COLLATERAL_TOKEN, AMM.address, _for, xy[1])
         log UserState(_for, 0, 0, 0, 0, 0)
         log Repay(_for, xy[1], d_debt)
         self._remove_from_list(_for)
@@ -1084,7 +1037,7 @@ def _liquidate(user: address, min_x: uint256, health_limit: uint256, frac: uint2
 
         if callbacker == empty(address):
             # Withdraw collateral if no callback is present
-            self._withdraw_collateral(msg.sender, xy[1], use_eth)
+            self.transferFrom(COLLATERAL_TOKEN, AMM.address, msg.sender, xy[1])
             # Request what's left from user
             self.transferFrom(BORROWED_TOKEN, msg.sender, self, to_repay)
 
@@ -1102,7 +1055,7 @@ def _liquidate(user: address, min_x: uint256, health_limit: uint256, frac: uint2
 
     else:
         # Withdraw collateral
-        self._withdraw_collateral(msg.sender, xy[1], use_eth)
+        self.transferFrom(COLLATERAL_TOKEN, AMM.address, msg.sender, xy[1])
         # Return what's left to user
         if xy[0] > debt:
             self.transferFrom(BORROWED_TOKEN, AMM.address, msg.sender, unsafe_sub(xy[0], debt))
