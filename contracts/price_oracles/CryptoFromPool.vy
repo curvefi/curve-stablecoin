@@ -49,7 +49,6 @@ def _raw_price() -> uint256:
             p_borrowed = POOL.price_oracle(BORROWED_IX - 1)
         if COLLATERAL_IX > 0:
             p_collateral = POOL.price_oracle(COLLATERAL_IX - 1)
-        
 
     return p_collateral * 10**18 / p_borrowed
 
