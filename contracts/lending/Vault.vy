@@ -233,6 +233,7 @@ def _update_rates(controller: address):
 
 @external
 @view
+@nonreentrant('lock')
 def borrow_apr() -> uint256:
     """
     @notice Borrow APR (annualized and 1e18-based)
@@ -242,6 +243,7 @@ def borrow_apr() -> uint256:
 
 @external
 @view
+@nonreentrant('lock')
 def lend_apr() -> uint256:
     """
     @notice Lending APR (annualized and 1e18-based)
@@ -271,6 +273,7 @@ def _total_assets() -> uint256:
 
 @external
 @view
+@nonreentrant('lock')
 def totalAssets() -> uint256:
     """
     @notice Total assets which can be lent out or be in reserve
@@ -280,6 +283,7 @@ def totalAssets() -> uint256:
 
 @external
 @view
+@nonreentrant('lock')
 def pricePerShare() -> uint256:
     """
     @notice Method which shows how much one pool share costs in asset tokens
@@ -317,6 +321,7 @@ def _convert_to_assets(shares: uint256, is_floor: bool = True) -> uint256:
 
 @external
 @view
+@nonreentrant('lock')
 def convertToShares(assets: uint256) -> uint256:
     """
     @notice Returns the amount of shares which the Vault would exchange for the given amount of shares provided
@@ -326,6 +331,7 @@ def convertToShares(assets: uint256) -> uint256:
 
 @external
 @view
+@nonreentrant('lock')
 def convertToAssets(shares: uint256) -> uint256:
     """
     @notice Returns the amount of assets that the Vault would exchange for the amount of shares provided
@@ -344,6 +350,7 @@ def maxDeposit(receiver: address) -> uint256:
 
 @external
 @view
+@nonreentrant('lock')
 def previewDeposit(assets: uint256) -> uint256:
     """
     @notice Returns the amount of shares which can be obtained upon depositing assets
@@ -352,6 +359,7 @@ def previewDeposit(assets: uint256) -> uint256:
 
 
 @external
+@nonreentrant('lock')
 def deposit(assets: uint256, receiver: address = msg.sender) -> uint256:
     """
     @notice Deposit assets in return for whatever number of shares corresponds to the current conditions
@@ -378,6 +386,7 @@ def maxMint(receiver: address) -> uint256:
 
 @external
 @view
+@nonreentrant('lock')
 def previewMint(shares: uint256) -> uint256:
     """
     @notice Calculate the amount of assets which is needed to exactly mint the given amount of shares
@@ -386,6 +395,7 @@ def previewMint(shares: uint256) -> uint256:
 
 
 @external
+@nonreentrant('lock')
 def mint(shares: uint256, receiver: address = msg.sender) -> uint256:
     """
     @notice Mint given amount of shares taking whatever number of assets it requires
@@ -403,6 +413,7 @@ def mint(shares: uint256, receiver: address = msg.sender) -> uint256:
 
 @external
 @view
+@nonreentrant('lock')
 def maxWithdraw(owner: address) -> uint256:
     """
     @notice Maximum amount of assets which a given user can withdraw. Aware of both user's balance and available liquidity
@@ -414,6 +425,7 @@ def maxWithdraw(owner: address) -> uint256:
 
 @external
 @view
+@nonreentrant('lock')
 def previewWithdraw(assets: uint256) -> uint256:
     """
     @notice Calculate number of shares which gets burned when withdrawing given amount of asset
@@ -423,6 +435,7 @@ def previewWithdraw(assets: uint256) -> uint256:
 
 
 @external
+@nonreentrant('lock')
 def withdraw(assets: uint256, receiver: address = msg.sender, owner: address = msg.sender) -> uint256:
     """
     @notice Withdraw given amount of asset and burn the corresponding amount of vault shares
@@ -446,6 +459,7 @@ def withdraw(assets: uint256, receiver: address = msg.sender, owner: address = m
 
 @external
 @view
+@nonreentrant('lock')
 def maxRedeem(owner: address) -> uint256:
     """
     @notice Calculate maximum amount of shares which a given user can redeem
@@ -457,6 +471,7 @@ def maxRedeem(owner: address) -> uint256:
 
 @external
 @view
+@nonreentrant('lock')
 def previewRedeem(shares: uint256) -> uint256:
     """
     @notice Calculate the amount of assets which can be obtained by redeeming the given amount of shares
@@ -472,6 +487,7 @@ def previewRedeem(shares: uint256) -> uint256:
 
 
 @external
+@nonreentrant('lock')
 def redeem(shares: uint256, receiver: address = msg.sender, owner: address = msg.sender) -> uint256:
     """
     @notice Burn given amount of shares and give corresponding assets to the user

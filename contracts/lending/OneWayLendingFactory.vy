@@ -157,6 +157,7 @@ def _create(
 
 
 @external
+@nonreentrant('lock')
 def create(
         borrowed_token: address,
         collateral_token: address,
@@ -185,6 +186,7 @@ def create(
 
 
 @external
+@nonreentrant('lock')
 def create_from_pool(
         borrowed_token: address,
         collateral_token: address,
@@ -243,6 +245,7 @@ def create_from_pool(
 
 
 @external
+@nonreentrant('lock')
 def set_implementations(controller: address, amm: address, vault: address,
                         pool_price_oracle: address, monetary_policy: address):
     """
@@ -271,6 +274,7 @@ def set_implementations(controller: address, amm: address, vault: address,
 
 
 @external
+@nonreentrant('lock')
 def set_default_rates(min_rate: uint256, max_rate: uint256):
     """
     @notice Change min and max default borrow rates for creating new markets
@@ -292,6 +296,7 @@ def set_default_rates(min_rate: uint256, max_rate: uint256):
 
 
 @external
+@nonreentrant('lock')
 def set_admin(admin: address):
     """
     @notice Set admin of the factory (should end up with DAO)
