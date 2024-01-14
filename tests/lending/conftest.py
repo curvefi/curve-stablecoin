@@ -4,12 +4,6 @@ from itertools import product
 
 
 @pytest.fixture(scope="module")
-def weth(admin):
-    with boa.env.prank(admin):
-        return boa.load('contracts/testing/WETH.vy')
-
-
-@pytest.fixture(scope="module")
 def amm_interface():
     return boa.load_partial('contracts/AMM.vy')
 
@@ -37,9 +31,9 @@ def stablecoin(get_borrowed_token):
 
 
 @pytest.fixture(scope="module")
-def vault_impl(stablecoin, weth, admin):
+def vault_impl(stablecoin, admin):
     with boa.env.prank(admin):
-        return boa.load('contracts/lending/Vault.vy', stablecoin.address, weth.address)
+        return boa.load('contracts/lending/Vault.vy', stablecoin.address)
 
 
 @pytest.fixture(scope="module")
@@ -67,7 +61,8 @@ def mpolicy_impl(mpolicy_interface, admin):
 @pytest.fixture(scope="module")
 def factory(stablecoin, amm_impl, controller_impl, vault_impl, price_oracle_impl, mpolicy_impl, admin):
     with boa.env.prank(admin):
-        return boa.load('contracts/lending/OneWayLendingFactory.vy',
+        return boa.load(
+            'contracts/lending/OneWayLendingFactory.vy',
             stablecoin.address,
             amm_impl, controller_impl, vault_impl,
             price_oracle_impl, mpolicy_impl,
@@ -122,3 +117,12 @@ def borrowed_token(vault, mock_token_interface):
 @pytest.fixture(scope="module")
 def collateral_token(vault, mock_token_interface):
     return mock_token_interface.at(vault.collateral_token())
+
+
+@pytest.fixture(scope="module")
+def fake_leverage(collateral_token, borrowed_token, market_controller, admin):
+    with boa.env.prank(admin):
+        leverage = boa.load('contracts/testing/FakeLeverage.vy', borrowed_token.address, collateral_token.address,
+                            market_controller.address, 3000 * 10**18)
+        collateral_token._mint_for_testing(leverage.address, 1000 * 10**collateral_token.decimals())
+        return leverage

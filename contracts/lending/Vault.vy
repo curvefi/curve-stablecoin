@@ -1,6 +1,7 @@
 # @version 0.3.10
 """
-@title ERC4626+ Vault for lending with crvUSD using LLAMMA algorithm
+@title Vault
+@notice ERC4626+ Vault for lending with crvUSD using LLAMMA algorithm
 @author Curve.Fi
 @license Copyright (c) Curve.Fi, 2020-2024 - all rights reserved
 """
@@ -75,6 +76,10 @@ MAX_LOAN_DISCOUNT: constant(uint256) = 5 * 10**17
 MIN_LIQUIDATION_DISCOUNT: constant(uint256) = 10**16
 ADMIN_FEE: constant(uint256) = 0
 
+# These are virtual shares from method proposed by OpenZeppelin
+# see: https://blog.openzeppelin.com/a-novel-defense-against-erc4626-inflation-attacks
+# and
+# https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/token/ERC20/extensions/ERC4626.sol
 DEAD_SHARES: constant(uint256) = 1000
 
 STABLECOIN: public(immutable(ERC20))
@@ -104,7 +109,11 @@ precision: uint256
 
 
 @external
-def __init__(stablecoin: ERC20, weth: address):
+def __init__(stablecoin: ERC20):
+    """
+    @notice Template for Vault implementation
+    @param stablecoin Stablecoin address to test if it is borrowed or lent out token
+    """
     # The contract is made a "normal" template (not blueprint) so that we can get contract address before init
     # This is needed if we want to create a rehypothecation dual-market with two vaults
     # where vaults are collaterals of each other
@@ -154,6 +163,9 @@ def initialize(
         loan_discount: uint256,
         liquidation_discount: uint256
     ) -> (address, address):
+    """
+    @notice Initializer for vaults
+    """
     assert self.borrowed_token.address == empty(address)
     assert STABLECOIN == borrowed_token or STABLECOIN == collateral_token
 
