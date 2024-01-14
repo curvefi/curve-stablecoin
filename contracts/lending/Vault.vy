@@ -165,6 +165,16 @@ def initialize(
     ) -> (address, address):
     """
     @notice Initializer for vaults
+    @param amm_impl AMM implementation (blueprint)
+    @param controller_impl Controller implementation (blueprint)
+    @param borrowed_token Token which is being borrowed
+    @param collateral_token Token used for collateral
+    @param A Amplification coefficient: band size is ~1/A
+    @param fee Fee for swaps in AMM (for ETH markets found to be 0.6%)
+    @param price_oracle Already initialized price oracle
+    @param monetary_policy Already initialized monetary policy
+    @param loan_discount Maximum discount. LTV = sqrt(((A - 1) / A) ** 4) - loan_discount
+    @param liquidation_discount Liquidation discount. LT = sqrt(((A - 1) / A) ** 4) - liquidation_discount
     """
     assert self.borrowed_token.address == empty(address)
     assert STABLECOIN == borrowed_token or STABLECOIN == collateral_token
@@ -207,7 +217,8 @@ def initialize(
     self.precision = borrowed_precision
     borrowed_symbol: String[32] = borrowed_token.symbol()
     self.name = concat(NAME_PREFIX, borrowed_symbol)
-    # XXX Symbol must be String[32], but we do String[34]. Will fix once we know how to slice properly
+    # Symbol must be String[32], but we do String[34]. It doesn't affect contracts which read it (they will truncate)
+    # However this will be changed as soon as Vyper can *properly* manipulate strings
     self.symbol = concat(SYMBOL_PREFIX, borrowed_symbol)
 
     # No events because it's the only market we would ever create in this contract
@@ -223,24 +234,30 @@ def _update_rates(controller: address):
 @external
 @view
 def borrow_apr() -> uint256:
+    """
+    @notice Borrow APR (annualized and 1e18-based)
+    """
     return self.amm.rate() * (365 * 86400)
 
 
 @external
 @view
 def lend_apr() -> uint256:
+    """
+    @notice Lending APR (annualized and 1e18-based)
+    """
     debt: uint256 = self.controller.total_debt()
     if debt == 0:
         return 0
     else:
-        return self.amm.rate() * debt / self._total_assets()
+        return self.amm.rate() * (365 * 86400) * debt / self._total_assets()
 
 
 @external
 @view
 def asset() -> ERC20:
     """
-    Method returning borrowed asset address for ERC4626 compatibility
+    @notice Asset which is the same as borrowed_token
     """
     return self.borrowed_token
 
@@ -255,15 +272,21 @@ def _total_assets() -> uint256:
 @external
 @view
 def totalAssets() -> uint256:
+    """
+    @notice Total assets which can be lent out or be in reserve
+    """
     return self._total_assets()
 
 
 @external
 @view
 def pricePerShare() -> uint256:
+    """
+    @notice Method which shows how much one pool share costs in asset tokens
+    """
     supply: uint256 = self.totalSupply
     if supply == 0:
-        return 10**18
+        return 10**18 * DEAD_SHARES
     else:
         return 10**18 * self.precision * self._total_assets() / supply
 
@@ -295,29 +318,46 @@ def _convert_to_assets(shares: uint256, is_floor: bool = True) -> uint256:
 @external
 @view
 def convertToShares(assets: uint256) -> uint256:
+    """
+    @notice Returns the amount of shares which the Vault would exchange for the given amount of shares provided
+    """
     return self._convert_to_shares(assets)
 
 
 @external
 @view
 def convertToAssets(shares: uint256) -> uint256:
+    """
+    @notice Returns the amount of assets that the Vault would exchange for the amount of shares provided
+    """
     return self._convert_to_assets(shares)
 
 
 @external
 @view
 def maxDeposit(receiver: address) -> uint256:
+    """
+    @notice Maximum amount which can be deposited is unlimited
+    """
     return max_value(uint256)
 
 
 @external
 @view
 def previewDeposit(assets: uint256) -> uint256:
+    """
+    @notice Returns the amount of shares which can be obtained upon depositing assets
+    """
     return self._convert_to_shares(assets)
 
 
 @external
 def deposit(assets: uint256, receiver: address = msg.sender) -> uint256:
+    """
+    @notice Deposit assets in return for whatever number of shares corresponds to the current conditions
+    @param assets Amount of assets to deposit
+    @param receiver Receiver of the shares who is optional. If not specified - receiver is the sender
+    """
     controller: address = self.controller.address
     to_mint: uint256 = self._convert_to_shares(assets)
     assert self.borrowed_token.transferFrom(msg.sender, controller, assets, default_return_value=True)
@@ -330,17 +370,28 @@ def deposit(assets: uint256, receiver: address = msg.sender) -> uint256:
 @external
 @view
 def maxMint(receiver: address) -> uint256:
+    """
+    @notice Maximum amount which can be minted (infinity)
+    """
     return max_value(uint256)
 
 
 @external
 @view
 def previewMint(shares: uint256) -> uint256:
+    """
+    @notice Calculate the amount of assets which is needed to exactly mint the given amount of shares
+    """
     return self._convert_to_assets(shares, False)
 
 
 @external
 def mint(shares: uint256, receiver: address = msg.sender) -> uint256:
+    """
+    @notice Mint given amount of shares taking whatever number of assets it requires
+    @param shares Number of sharess to mint
+    @param receiver Optional receiver for the shares. If not specified - it's the sender
+    """
     controller: address = self.controller.address
     assets: uint256 = self._convert_to_assets(shares, False)
     assert self.borrowed_token.transferFrom(msg.sender, controller, assets, default_return_value=True)
@@ -353,6 +404,9 @@ def mint(shares: uint256, receiver: address = msg.sender) -> uint256:
 @external
 @view
 def maxWithdraw(owner: address) -> uint256:
+    """
+    @notice Maximum amount of assets which a given user can withdraw. Aware of both user's balance and available liquidity
+    """
     return min(
         self._convert_to_assets(self.balanceOf[owner]),
         self.borrowed_token.balanceOf(self.controller.address))
@@ -361,12 +415,21 @@ def maxWithdraw(owner: address) -> uint256:
 @external
 @view
 def previewWithdraw(assets: uint256) -> uint256:
+    """
+    @notice Calculate number of shares which gets burned when withdrawing given amount of asset
+    """
     assert assets <= self.borrowed_token.balanceOf(self.controller.address)
     return self._convert_to_shares(assets, False)
 
 
 @external
 def withdraw(assets: uint256, receiver: address = msg.sender, owner: address = msg.sender) -> uint256:
+    """
+    @notice Withdraw given amount of asset and burn the corresponding amount of vault shares
+    @param assets Amount of assets to withdraw
+    @param receiver Receiver of the assets (optional, sender if not specified)
+    @param owner Owner who's shares the caller takes. Only can take those if owner gave the approval to the sender. Optional
+    """
     shares: uint256 = self._convert_to_shares(assets, False)
     if owner != msg.sender:
         allowance: uint256 = self.allowance[owner][msg.sender]
@@ -384,6 +447,9 @@ def withdraw(assets: uint256, receiver: address = msg.sender, owner: address = m
 @external
 @view
 def maxRedeem(owner: address) -> uint256:
+    """
+    @notice Calculate maximum amount of shares which a given user can redeem
+    """
     return min(
         self._convert_to_shares(self.borrowed_token.balanceOf(self.controller.address), False),
         self.balanceOf[owner])
@@ -392,6 +458,9 @@ def maxRedeem(owner: address) -> uint256:
 @external
 @view
 def previewRedeem(shares: uint256) -> uint256:
+    """
+    @notice Calculate the amount of assets which can be obtained by redeeming the given amount of shares
+    """
     if self.totalSupply == 0:
         assert shares == 0
         return 0
@@ -404,6 +473,12 @@ def previewRedeem(shares: uint256) -> uint256:
 
 @external
 def redeem(shares: uint256, receiver: address = msg.sender, owner: address = msg.sender) -> uint256:
+    """
+    @notice Burn given amount of shares and give corresponding assets to the user
+    @param shares Amount of shares to burn
+    @param receiver Optional receiver of the assets
+    @param owner Optional owner of the shares. Can only redeem if owner gave approval to the sender
+    """
     if owner != msg.sender:
         allowance: uint256 = self.allowance[owner][msg.sender]
         if allowance != max_value(uint256):
