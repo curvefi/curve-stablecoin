@@ -7,10 +7,6 @@
 @license Copyright (c) Curve.Fi, 2020-2024 - all rights reserved
 """
 
-# create (low level configuration)
-# create_from_pool (with a price oracle)
-
-
 interface Vault:
     def initialize(
         amm_impl: address,
@@ -56,20 +52,29 @@ event NewVault:
 
 
 STABLECOIN: public(immutable(address))
+
+# These are limits for default borrow rates, NOT actual min and max rates.
+# Even governance cannot go beyond these rates before a new code is shipped
 MIN_RATE: public(constant(uint256)) = 10**15 / (365 * 86400)  # 0.1%
 MAX_RATE: public(constant(uint256)) = 10**19 / (365 * 86400)  # 1000%
 
 
+# Implementations which can be changed by governance
 amm_impl: public(address)
 controller_impl: public(address)
 vault_impl: public(address)
 pool_price_oracle_impl: public(address)
 monetary_policy_impl: public(address)
 
+# Actual min/max borrow rates when creating new markets
+# for example, 0.5% -> 50% is a good choice
 min_default_borrow_rate: public(uint256)
 max_default_borrow_rate: public(uint256)
+
+# Admin is supposed to be the DAO
 admin: public(address)
 
+# Vaults can only be created but not removed
 vaults: public(Vault[10**18])
 n_vaults: public(uint256)
 
@@ -83,6 +88,15 @@ def __init__(
         pool_price_oracle: address,
         monetary_policy: address,
         admin: address):
+    """
+    @notice Factory which creates one-way lending vaults (e.g. collateral is non-borrowable)
+    @param stablecoin Address of crvUSD. Only crvUSD-containing markets are allowed
+    @param amm Address of AMM implementation
+    @param controller Address of Controller implementation
+    @param pool_price_oracle Address of implementation for price oracle factory (prices from pools)
+    @param monetary_policy Address for implementation of monetary policy
+    @param admin Admin address (DAO)
+    """
     STABLECOIN = stablecoin
     self.amm_impl = amm
     self.controller_impl = controller
@@ -108,6 +122,9 @@ def _create(
         min_borrow_rate: uint256,
         max_borrow_rate: uint256
     ) -> Vault:
+    """
+    @notice Internal method for creation of the vault
+    """
     assert borrowed_token != collateral_token, "Same token"
     vault: Vault = Vault(create_minimal_proxy_to(self.vault_impl))
 
@@ -151,6 +168,18 @@ def create(
         min_borrow_rate: uint256 = 0,
         max_borrow_rate: uint256 = 0
     ) -> Vault:
+    """
+    @notice Creation of the vault using user-supplied price oracle contract
+    @param borrowed_token Token which is being borrowed
+    @param collateral_token Token used for collateral
+    @param A Amplification coefficient: band size is ~1/A
+    @param fee Fee for swaps in AMM (for ETH markets found to be 0.6%)
+    @param loan_discount Maximum discount. LTV = sqrt(((A - 1) / A) ** 4) - loan_discount
+    @param liquidation_discount Liquidation discount. LT = sqrt(((A - 1) / A) ** 4) - liquidation_discount
+    @param price_oracle Custom price oracle contract
+    @param min_borrow_rate Custom minimum borrow rate (otherwise min_default_borrow_rate)
+    @param max_borrow_rate Custom maximum borrow rate (otherwise max_default_borrow_rate)
+    """
     return self._create(borrowed_token, collateral_token, A, fee, loan_discount, liquidation_discount,
                         price_oracle, min_borrow_rate, max_borrow_rate)
 
@@ -167,6 +196,19 @@ def create_from_pool(
         min_borrow_rate: uint256 = 0,
         max_borrow_rate: uint256 = 0
     ) -> Vault:
+    """
+    @notice Creation of the vault using existing oraclized Curve pool as a price oracle
+    @param borrowed_token Token which is being borrowed
+    @param collateral_token Token used for collateral
+    @param A Amplification coefficient: band size is ~1/A
+    @param fee Fee for swaps in AMM (for ETH markets found to be 0.6%)
+    @param loan_discount Maximum discount. LTV = sqrt(((A - 1) / A) ** 4) - loan_discount
+    @param liquidation_discount Liquidation discount. LT = sqrt(((A - 1) / A) ** 4) - liquidation_discount
+    @param pool Curve tricrypto-ng, twocrypto-ng or stableswap-ng pool which has non-manipulatable price_oracle().
+                Must contain both collateral_token and borrowed_token.
+    @param min_borrow_rate Custom minimum borrow rate (otherwise min_default_borrow_rate)
+    @param max_borrow_rate Custom maximum borrow rate (otherwise max_default_borrow_rate)
+    """
     # Find coins in the pool
     borrowed_ix: uint256 = 100
     collateral_ix: uint256 = 100
@@ -203,6 +245,15 @@ def create_from_pool(
 @external
 def set_implementations(controller: address, amm: address, vault: address,
                         pool_price_oracle: address, monetary_policy: address):
+    """
+    @notice Set new implementations (blueprints) for controller, amm, vault, pool price oracle and monetary polcy.
+            Doesn't change existing ones
+    @param controller Address of the controller blueprint
+    @param amm Address of the AMM blueprint
+    @param vault Address of the Vault template
+    @param pool_price_oracle Address of the pool price oracle blueprint
+    @param monetary_policy Address of the monetary policy blueprint
+    """
     assert msg.sender == self.admin
 
     if controller != empty(address):
@@ -221,6 +272,11 @@ def set_implementations(controller: address, amm: address, vault: address,
 
 @external
 def set_default_rates(min_rate: uint256, max_rate: uint256):
+    """
+    @notice Change min and max default borrow rates for creating new markets
+    @param min_rate Minimal borrow rate (0 utilization)
+    @param max_rate Maxumum borrow rate (100% utilization)
+    """
     assert msg.sender == self.admin
 
     assert min_rate >= MIN_RATE
