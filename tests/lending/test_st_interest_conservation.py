@@ -211,13 +211,11 @@ class StatefulLendBorrow(RuleBasedStateMachine):
     @rule(min_rate=min_rate, max_rate=max_rate)
     def change_rate(self, min_rate, max_rate):
         with boa.env.prank(self.admin):
-            if (min_rate > max_rate or min_rate < MIN_RATE or max_rate < MIN_RATE
-                or min_rate > MAX_RATE or max_rate > MAX_RATE
-            ):            
+            if (min_rate > max_rate or min_rate < MIN_RATE or max_rate < MIN_RATE or min_rate > MAX_RATE or max_rate > MAX_RATE):
                 with boa.reverts():
-                    self.market_mpolicy.set_default_rates(min_rate, max_rate)
+                    self.market_mpolicy.set_rates(min_rate, max_rate)
             else:
-                self.market_mpolicy.set_default_rates(min_rate, max_rate)
+                self.market_mpolicy.set_rates(min_rate, max_rate)
 
     @invariant()
     def sum_of_debts(self):

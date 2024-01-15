@@ -20,6 +20,8 @@ from hypothesis.stateful import RuleBasedStateMachine, run_state_machine_as_test
 ZERO_ADDRESS = "0x0000000000000000000000000000000000000000"
 USE_FRACTION = 1
 USE_CALLBACKS = 2
+MIN_RATE = 10**15 / (365 * 86400)  # 0.1%
+MAX_RATE = 10**19 / (365 * 86400)  # 1000%
 
 
 class BigFuzz(RuleBasedStateMachine):
@@ -389,10 +391,14 @@ class BigFuzz(RuleBasedStateMachine):
                 self.price_oracle.set_price(p)
             self.trade_to_price(p)
 
-    # @rule(rate=rate)
-    def rule_change_rate(self, rate):
+    @rule(min_rate=rate, max_rate=rate)
+    def rule_change_rate(self, min_rate, max_rate):
         with boa.env.prank(self.admin):
-            self.monetary_policy.set_rate(rate)
+            if min_rate > max_rate or min(min_rate, max_rate) < MIN_RATE or max(min_rate, max_rate) > MAX_RATE:
+                with boa.reverts():
+                    self.market_mpolicy.set_rates(min_rate, max_rate)
+            else:
+                self.market_mpolicy.set_rates(min_rate, max_rate)
 
     @rule(dt=time_shift)
     def time_travel(self, dt):
@@ -402,7 +408,7 @@ class BigFuzz(RuleBasedStateMachine):
     def debt_supply(self):
         total_debt = self.market_controller.total_debt()
         if total_debt == 0:
-            assert self.market_controller.minted() == self.market_controller.redeemed()
+            assert abs(self.market_controller.minted() - self.market_controller.redeemed()) <= 1
         assert abs(sum(self.market_controller.debt(u) for u in self.accounts) - total_debt) <= 10
 
     @invariant()

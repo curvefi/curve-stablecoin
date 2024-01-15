@@ -150,7 +150,7 @@ def rate_write(_for: address = msg.sender) -> uint256:
 
 
 @external
-def set_default_rates(min_rate: uint256, max_rate: uint256):
+def set_rates(min_rate: uint256, max_rate: uint256):
     assert msg.sender == self.admin
 
     assert min_rate >= MIN_RATE
