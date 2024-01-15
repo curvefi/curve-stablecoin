@@ -172,7 +172,7 @@ class BigFuzz(RuleBasedStateMachine):
                 try:
                     self.market_controller.remove_collateral(y)
                 except Exception:
-                    if user_borrowed> 0:
+                    if user_borrowed > 0:
                         return
                     if (user_collateral - y) * self.collateral_mul // N <= 100:
                         return
@@ -260,8 +260,7 @@ class BigFuzz(RuleBasedStateMachine):
                 self.collateral_token._mint_for_testing(user, amount)
                 self.market_amm.exchange(1, 0, amount, 0)
 
-    # Liquidations (TODO from here)
-    # @rule(emode=extended_mode, frac=liquidate_frac)
+    @rule(emode=extended_mode, frac=liquidate_frac)
     def self_liquidate_and_health(self, emode, frac):
         for user in self.accounts:
             try:
@@ -270,8 +269,11 @@ class BigFuzz(RuleBasedStateMachine):
                 # Too deep
                 return
             if self.market_controller.loan_exists(user) and health <= 0:
-                self.get_stablecoins(user)
                 with boa.env.prank(user):
+                    debt = self.market_controller.debt(user)
+                    diff = debt - self.borrowed_token.balanceOf(user)
+                    if diff > 0:
+                        self.borrowed_token._mint_for_testing(user, diff)
                     if emode == USE_FRACTION:
                         try:
                             self.market_controller.liquidate_extended(
@@ -281,7 +283,7 @@ class BigFuzz(RuleBasedStateMachine):
                                 return
                             raise
                     elif emode == USE_CALLBACKS:
-                        self.stablecoin.transfer(self.fake_leverage.address, self.stablecoin.balanceOf(user))
+                        self.borrowed_token.transfer(self.fake_leverage.address, self.borrowed_token.balanceOf(user))
                         try:
                             self.market_controller.liquidate_extended(
                                     user, 0, frac, True,
@@ -292,13 +294,12 @@ class BigFuzz(RuleBasedStateMachine):
                             raise
                     else:
                         self.market_controller.liquidate(user, 0)
-                self.remove_stablecoins(user)
                 if emode == 0 or frac == 10**18:
                     assert not self.market_controller.loan_exists(user)
                     with boa.reverts():
                         self.market_controller.health(user)
 
-    # @rule(uid=user_id, luid=liquidator_id, emode=extended_mode, frac=liquidate_frac)
+    @rule(uid=user_id, luid=liquidator_id, emode=extended_mode, frac=liquidate_frac)
     def liquidate(self, uid, luid, emode, frac):
         user = self.accounts[uid]
         liquidator = self.accounts[luid]
@@ -308,23 +309,27 @@ class BigFuzz(RuleBasedStateMachine):
         with boa.env.prank(liquidator):
             self.fake_leverage.approve_all()
 
-        self.get_stablecoins(liquidator)
         if not self.market_controller.loan_exists(user):
+            debt = self.market_controller.debt(user)
+            diff = debt - self.borrowed_token.balanceOf(user)
+            if diff > 0:
+                self.borrowed_token._mint_for_testing(liquidator, diff)
+
             with boa.env.prank(liquidator):
                 with boa.reverts():
                     if emode == USE_FRACTION:
                         self.market_controller.liquidate_extended(
                                 user, 0, frac, True, ZERO_ADDRESS, [])
                     elif emode == USE_CALLBACKS:
-                        self.stablecoin.transfer(self.fake_leverage.address, self.stablecoin.balanceOf(user))
+                        self.borrowed_token.transfer(self.fake_leverage.address, self.borrowed_token.balanceOf(user))
                         self.market_controller.liquidate_extended(
                                 user, 0, frac, True,
                                 self.fake_leverage.address, [])
                     else:
                         self.market_controller.liquidate(user, 0)
                     if emode == USE_CALLBACKS:
-                        self.stablecoin.transferFrom(self.fake_leverage.address, liquidator,
-                                                     self.stablecoin.balanceOf(self.fake_leverage.address))
+                        self.borrowed_token.transferFrom(self.fake_leverage.address, liquidator,
+                                                         self.borrowed_token.balanceOf(self.fake_leverage.address))
         else:
             health_limit = self.market_controller.liquidation_discount()
             try:
@@ -338,15 +343,15 @@ class BigFuzz(RuleBasedStateMachine):
                             self.market_controller.liquidate_extended(
                                     user, 0, frac, True, ZERO_ADDRESS, [])
                         elif emode == USE_CALLBACKS:
-                            self.stablecoin.transfer(self.fake_leverage.address, self.stablecoin.balanceOf(user))
+                            self.borrowed_token.transfer(self.fake_leverage.address, self.borrowed_token.balanceOf(user))
                             self.market_controller.liquidate_extended(
                                     user, 0, frac, True,
                                     self.fake_leverage.address, [])
                         else:
                             self.market_controller.liquidate(user, 0)
                     if emode == USE_CALLBACKS:
-                        self.stablecoin.transferFrom(self.fake_leverage.address, liquidator,
-                                                     self.stablecoin.balanceOf(self.fake_leverage.address))
+                        self.borrowed_token.transferFrom(self.fake_leverage.address, liquidator,
+                                                         self.borrowed_token.balanceOf(self.fake_leverage.address))
                 else:
                     if emode == USE_FRACTION:
                         try:
@@ -357,7 +362,7 @@ class BigFuzz(RuleBasedStateMachine):
                                 return
                             raise
                     elif emode == USE_CALLBACKS:
-                        self.stablecoin.transfer(self.fake_leverage.address, self.stablecoin.balanceOf(user))
+                        self.borrowed_token.transfer(self.fake_leverage.address, self.borrowed_token.balanceOf(user))
                         try:
                             self.market_controller.liquidate_extended(
                                     user, 0, frac, True,
@@ -371,7 +376,6 @@ class BigFuzz(RuleBasedStateMachine):
                     if emode == 0 or frac == 10**18:
                         with boa.reverts():
                             self.market_controller.health(user)
-        self.remove_stablecoins(liquidator)
 
     # Other
     @rule(dp=oracle_step)
