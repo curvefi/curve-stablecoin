@@ -120,6 +120,16 @@ def collateral_token(vault, mock_token_interface):
 
 
 @pytest.fixture(scope="module")
+def filled_controller(vault, borrowed_token, market_controller, admin):
+    with boa.env.prank(admin):
+        amount = 100 * 10**6 * 10**(borrowed_token.decimals())
+        borrowed_token._mint_for_testing(admin, amount)
+        borrowed_token.approve(vault.address, 2**256 - 1)
+        vault.deposit(amount)
+    return market_controller
+
+
+@pytest.fixture(scope="module")
 def fake_leverage(collateral_token, borrowed_token, market_controller, admin):
     with boa.env.prank(admin):
         leverage = boa.load('contracts/testing/FakeLeverage.vy', borrowed_token.address, collateral_token.address,
