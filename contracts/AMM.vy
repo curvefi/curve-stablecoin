@@ -1080,13 +1080,16 @@ def _exchange(i: uint256, j: uint256, amount: uint256, minmax_amount: uint256, _
     if use_in_amount:
         out = self.calc_swap_out(i == 0, amount * in_precision, p_o, in_precision, out_precision)
     else:
-        out = self.calc_swap_in(i == 0, amount * out_precision, p_o, in_precision, out_precision)
+        amount_to_swap: uint256 = max_value(uint256)
+        if amount < amount_to_swap:
+            amount_to_swap = amount * out_precision
+        out = self.calc_swap_in(i == 0, amount_to_swap, p_o, in_precision, out_precision)
     in_amount_done: uint256 = unsafe_div(out.in_amount, in_precision)
     out_amount_done: uint256 = unsafe_div(out.out_amount, out_precision)
     if use_in_amount:
         assert out_amount_done >= minmax_amount, "Slippage"
     else:
-        assert in_amount_done <= minmax_amount and out_amount_done == amount, "Slippage"
+        assert in_amount_done <= minmax_amount and (out_amount_done == amount or amount == max_value(uint256)), "Slippage"
     if out_amount_done == 0 or in_amount_done == 0:
         return [0, 0]
 

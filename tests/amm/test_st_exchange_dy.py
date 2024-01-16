@@ -94,7 +94,7 @@ class StatefulExchange(RuleBasedStateMachine):
             if dy > 0:
                 self.collateral_token._mint_for_testing(u, dx)
                 with boa.env.prank(u):
-                    self.amm.exchange_dy(1, 0, dy, dx)
+                    self.amm.exchange_dy(1, 0, 2**256 - 1, dx)
                 left_in_amm = sum(self.amm.bands_y(n) for n in range(42))
                 assert left_in_amm >= self.total_deposited
 
