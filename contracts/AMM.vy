@@ -1086,7 +1086,7 @@ def _exchange(i: uint256, j: uint256, amount: uint256, minmax_amount: uint256, _
     if use_in_amount:
         assert out_amount_done >= minmax_amount, "Slippage"
     else:
-        assert in_amount_done <= minmax_amount, "Slippage"
+        assert in_amount_done <= minmax_amount and out_amount_done == amount, "Slippage"
     if out_amount_done == 0 or in_amount_done == 0:
         return [0, 0]
 
@@ -1294,7 +1294,9 @@ def get_dx(i: uint256, j: uint256, out_amount: uint256) -> uint256:
     """
     # i = 0: borrowable (USD) in, collateral (ETH) out; going up
     # i = 1: collateral (ETH) in, borrowable (USD) out; going down
-    return self._get_dxdy(i, j, out_amount, False).in_amount
+    trade: DetailedTrade = self._get_dxdy(i, j, out_amount, False)
+    assert trade.out_amount == out_amount
+    return trade.in_amount
 
 
 @external
