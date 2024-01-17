@@ -33,8 +33,9 @@ class AdiabaticTrader(RuleBasedStateMachine):
 
     @initialize(collateral_amount=collateral_amount, n=n)
     def initializer(self, collateral_amount, n):
+        # Calculating so that we create it with a nonzero loan
         collateral_amount = int(max(collateral_amount / self.collateral_mul,
-                                    2 * ceil(3000 * self.borrowed_mul / self.collateral_mul),
+                                    n * 10 * ceil(3000 * max(self.borrowed_mul / self.collateral_mul, 1)),
                                     n))
         user = self.accounts[0]
         with boa.env.prank(user):
