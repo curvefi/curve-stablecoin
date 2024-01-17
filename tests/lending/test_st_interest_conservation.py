@@ -67,8 +67,8 @@ class StatefulLendBorrow(RuleBasedStateMachine):
                         self.controller.create_loan(c_amount, amount, n)
                 return
 
-            if amount == 0:
-                with boa.reverts('No loan'):
+            if c_amount == 0 or amount == 0:
+                with boa.reverts():
                     self.controller.create_loan(c_amount, amount, n)
                     # It's actually division by zero which happens
                 return
