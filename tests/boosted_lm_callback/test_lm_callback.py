@@ -129,6 +129,7 @@ def test_gauge_integral_with_exchanges(
             is_alice = random() < 0.2
             dt = randrange(1, YEAR // 5)
             boa.env.time_travel(seconds=dt)
+            print("Time travel", dt)
 
             # For Bob
             with boa.env.prank(bob):
@@ -240,6 +241,7 @@ def test_gauge_integral_with_exchanges(
 
             dt = randrange(1, YEAR // 20)
             boa.env.time_travel(seconds=dt)
+            print("Time travel", dt)
 
             total_collateral_from_amm = collateral_token.balanceOf(market_amm) - market_amm.admin_fees_y() - 10 ** 25
             total_collateral_from_lm_cb = boosted_lm_callback.total_collateral() - 10 ** 25
@@ -368,8 +370,6 @@ def test_gauge_integral_with_exchanges_rekt(
         checkpoint_rate = crv.rate()
         checkpoint_supply = 0
         checkpoint_balance = 0
-
-        boa.env.time_travel(seconds=WEEK)
 
         # Let Alice and Bob have about the same collateral token amount
         with boa.env.prank(admin):
@@ -512,8 +512,6 @@ def test_gauge_integral_with_exchanges_rekt2(
         checkpoint_supply = 0
         checkpoint_balance = 0
 
-        boa.env.time_travel(seconds=WEEK)
-
         # Let Alice and Bob have about the same collateral token amount
         with boa.env.prank(admin):
             collateral_token._mint_for_testing(alice, 1000 * 10**18)
@@ -601,6 +599,7 @@ def test_gauge_integral_with_exchanges_rekt2(
                 if withdraw_amount > 0:
                     market_controller.remove_collateral(withdraw_amount)
                     print(f"{name} withdraws:", withdraw_amount)
+                update_integral()
 
         dt = randrange(1, YEAR // 5)
         boa.env.time_travel(seconds=dt)
