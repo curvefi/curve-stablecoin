@@ -1,5 +1,4 @@
 import boa
-from math import pow
 from random import random, randrange, choice
 from ..conftest import approx
 
@@ -111,13 +110,12 @@ def test_gauge_integral_with_exchanges(
             nonlocal checkpoint, checkpoint_rate, integral, checkpoint_balance, checkpoint_supply
 
             t1 = boa.env.vm.patch.timestamp
+            t_epoch = crv.start_epoch_time_write(sender=admin)
             rate1 = crv.rate()
-            future_epoch_time = crv.start_epoch_time() + 86400 * 365
-            if checkpoint <= future_epoch_time < t1:
-                rate1 = int(rate1 / pow(2, 0.25))
-                rate_x_time = (future_epoch_time - checkpoint) * checkpoint_rate + (t1 - future_epoch_time) * rate1
-            else:
+            if checkpoint >= t_epoch:
                 rate_x_time = (t1 - checkpoint) * rate1
+            else:
+                rate_x_time = (t_epoch - checkpoint) * checkpoint_rate + (t1 - t_epoch) * rate1
             if checkpoint_supply > 0:
                 integral += rate_x_time * checkpoint_balance // checkpoint_supply
             checkpoint_rate = rate1
@@ -185,7 +183,7 @@ def test_gauge_integral_with_exchanges(
                             # assert market_amm.get_sum_xy(alice)[1] == boosted_lm_callback.user_collateral(alice)
                         else:
                             repay_amount_alice = int(debt_alice // 10 + (debt_alice * 9 // 10) * random() * 0.99)
-                            market_controller.repay(repay_amount_alice)
+                            market_controller.repay(repay_amount_alice)  # TODO fix "Debt too high"
                             print("Alice repays:", repay_amount_alice)
                             if not is_underwater_alice:
                                 min_collateral_required_alice = market_controller.min_collateral(debt_alice - repay_amount_alice, 10)
@@ -386,13 +384,12 @@ def test_gauge_integral_with_exchanges_rekt(
             nonlocal checkpoint, checkpoint_rate, integral, checkpoint_balance, checkpoint_supply
 
             t1 = boa.env.vm.patch.timestamp
+            t_epoch = crv.start_epoch_time_write(sender=admin)
             rate1 = crv.rate()
-            future_epoch_time = crv.start_epoch_time() + 86400 * 365
-            if checkpoint <= future_epoch_time < t1:
-                rate1 = int(rate1 / pow(2, 0.25))
-                rate_x_time = (future_epoch_time - checkpoint) * checkpoint_rate + (t1 - future_epoch_time) * rate1
-            else:
+            if checkpoint >= t_epoch:
                 rate_x_time = (t1 - checkpoint) * rate1
+            else:
+                rate_x_time = (t_epoch - checkpoint) * checkpoint_rate + (t1 - t_epoch) * rate1
             if checkpoint_supply > 0:
                 integral += rate_x_time * checkpoint_balance // checkpoint_supply
             checkpoint_rate = rate1
@@ -486,7 +483,6 @@ def test_gauge_integral_with_exchanges_rekt(
             update_integral()
             print(i, dt / 86400, integral, boosted_lm_callback.integrate_fraction(alice), "\n")
             assert approx(boosted_lm_callback.integrate_fraction(alice), integral, 1e-13)
-    raise Exception("Success")
 
 
 def test_gauge_integral_with_exchanges_rekt2(
@@ -528,13 +524,12 @@ def test_gauge_integral_with_exchanges_rekt2(
             nonlocal checkpoint, checkpoint_rate, integral, checkpoint_balance, checkpoint_supply
 
             t1 = boa.env.vm.patch.timestamp
+            t_epoch = crv.start_epoch_time_write(sender=admin)
             rate1 = crv.rate()
-            future_epoch_time = crv.start_epoch_time() + 86400 * 365
-            if checkpoint <= future_epoch_time < t1:
-                rate1 = int(rate1 / pow(2, 0.25))
-                rate_x_time = (future_epoch_time - checkpoint) * checkpoint_rate + (t1 - future_epoch_time) * rate1
-            else:
+            if checkpoint >= t_epoch:
                 rate_x_time = (t1 - checkpoint) * rate1
+            else:
+                rate_x_time = (t_epoch - checkpoint) * checkpoint_rate + (t1 - t_epoch) * rate1
             if checkpoint_supply > 0:
                 integral += rate_x_time * checkpoint_balance // checkpoint_supply
             checkpoint_rate = rate1
@@ -705,8 +700,6 @@ def test_gauge_integral_with_exchanges_rekt2(
         update_integral()
         check()
 
-    raise Exception("Success")
-
 
 def test_gauge_integral_with_exchanges_rekt3(
         accounts,
@@ -748,13 +741,12 @@ def test_gauge_integral_with_exchanges_rekt3(
             nonlocal checkpoint, checkpoint_rate, integral, checkpoint_balance, checkpoint_supply
 
             t1 = boa.env.vm.patch.timestamp
+            t_epoch = crv.start_epoch_time_write(sender=admin)
             rate1 = crv.rate()
-            future_epoch_time = crv.start_epoch_time() + 86400 * 365
-            if checkpoint <= future_epoch_time < t1:
-                rate1 = int(rate1 / pow(2, 0.25))
-                rate_x_time = (future_epoch_time - checkpoint) * checkpoint_rate + (t1 - future_epoch_time) * rate1
-            else:
+            if checkpoint >= t_epoch:
                 rate_x_time = (t1 - checkpoint) * rate1
+            else:
+                rate_x_time = (t_epoch - checkpoint) * checkpoint_rate + (t1 - t_epoch) * rate1
             if checkpoint_supply > 0:
                 integral += rate_x_time * checkpoint_balance // checkpoint_supply
             checkpoint_rate = rate1
@@ -866,5 +858,3 @@ def test_gauge_integral_with_exchanges_rekt3(
         chad_trading(764856554507998461952)
         update_integral()
         check(832075)
-
-    raise Exception("Success")
