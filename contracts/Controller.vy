@@ -413,7 +413,7 @@ def _calculate_debt_n1(collateral: uint256, debt: uint256, N: uint256) -> int256
     # - we revert.
 
     # n1 is band number based on adiabatic trading, e.g. when p_oracle ~ p
-    y_effective = unsafe_div(y_effective * p_base, (debt + 1) * BORROWED_PRECISION)  # Now it's a ratio
+    y_effective = unsafe_div(y_effective * p_base, debt * BORROWED_PRECISION + 1)  # Now it's a ratio
 
     # n1 = floor(log2(y_effective) / self.logAratio)
     # EVM semantics is not doing floor unlike Python, so we do this
