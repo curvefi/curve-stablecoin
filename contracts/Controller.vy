@@ -572,7 +572,6 @@ def _create_loan(collateral: uint256, debt: uint256, N: uint256, transfer_coins:
     assert self.loan[msg.sender].initial_debt == 0, "Loan already created"
     assert N > MIN_TICKS-1, "Need more ticks"
     assert N < MAX_TICKS+1, "Need less ticks"
-    assert collateral >= N, "More collateral"
 
     n1: int256 = self._calculate_debt_n1(collateral, debt, N)
     n2: int256 = n1 + convert(N - 1, int256)
