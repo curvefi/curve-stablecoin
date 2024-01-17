@@ -1,4 +1,5 @@
 import boa
+from math import pow
 from random import random, randrange, choice
 from ..conftest import approx
 
@@ -111,11 +112,12 @@ def test_gauge_integral_with_exchanges(
 
             t1 = boa.env.vm.patch.timestamp
             rate1 = crv.rate()
-            t_epoch = crv.start_epoch_time()
-            if checkpoint >= t_epoch:
-                rate_x_time = (t1 - checkpoint) * rate1
+            future_epoch_time = crv.start_epoch_time() + 86400 * 365
+            if checkpoint <= future_epoch_time < t1:
+                rate1 = int(rate1 / pow(2, 0.25))
+                rate_x_time = (future_epoch_time - checkpoint) * checkpoint_rate + (t1 - future_epoch_time) * rate1
             else:
-                rate_x_time = (t_epoch - checkpoint) * checkpoint_rate + (t1 - t_epoch) * rate1
+                rate_x_time = (t1 - checkpoint) * rate1
             if checkpoint_supply > 0:
                 integral += rate_x_time * checkpoint_balance // checkpoint_supply
             checkpoint_rate = rate1
@@ -385,11 +387,12 @@ def test_gauge_integral_with_exchanges_rekt(
 
             t1 = boa.env.vm.patch.timestamp
             rate1 = crv.rate()
-            t_epoch = crv.start_epoch_time()
-            if checkpoint >= t_epoch:
-                rate_x_time = (t1 - checkpoint) * rate1
+            future_epoch_time = crv.start_epoch_time() + 86400 * 365
+            if checkpoint <= future_epoch_time < t1:
+                rate1 = int(rate1 / pow(2, 0.25))
+                rate_x_time = (future_epoch_time - checkpoint) * checkpoint_rate + (t1 - future_epoch_time) * rate1
             else:
-                rate_x_time = (t_epoch - checkpoint) * checkpoint_rate + (t1 - t_epoch) * rate1
+                rate_x_time = (t1 - checkpoint) * rate1
             if checkpoint_supply > 0:
                 integral += rate_x_time * checkpoint_balance // checkpoint_supply
             checkpoint_rate = rate1
@@ -526,11 +529,12 @@ def test_gauge_integral_with_exchanges_rekt2(
 
             t1 = boa.env.vm.patch.timestamp
             rate1 = crv.rate()
-            t_epoch = crv.start_epoch_time()
-            if checkpoint >= t_epoch:
-                rate_x_time = (t1 - checkpoint) * rate1
+            future_epoch_time = crv.start_epoch_time() + 86400 * 365
+            if checkpoint <= future_epoch_time < t1:
+                rate1 = int(rate1 / pow(2, 0.25))
+                rate_x_time = (future_epoch_time - checkpoint) * checkpoint_rate + (t1 - future_epoch_time) * rate1
             else:
-                rate_x_time = (t_epoch - checkpoint) * checkpoint_rate + (t1 - t_epoch) * rate1
+                rate_x_time = (t1 - checkpoint) * rate1
             if checkpoint_supply > 0:
                 integral += rate_x_time * checkpoint_balance // checkpoint_supply
             checkpoint_rate = rate1
@@ -745,11 +749,12 @@ def test_gauge_integral_with_exchanges_rekt3(
 
             t1 = boa.env.vm.patch.timestamp
             rate1 = crv.rate()
-            t_epoch = crv.start_epoch_time()
-            if checkpoint >= t_epoch:
-                rate_x_time = (t1 - checkpoint) * rate1
+            future_epoch_time = crv.start_epoch_time() + 86400 * 365
+            if checkpoint <= future_epoch_time < t1:
+                rate1 = int(rate1 / pow(2, 0.25))
+                rate_x_time = (future_epoch_time - checkpoint) * checkpoint_rate + (t1 - future_epoch_time) * rate1
             else:
-                rate_x_time = (t_epoch - checkpoint) * checkpoint_rate + (t1 - t_epoch) * rate1
+                rate_x_time = (t1 - checkpoint) * rate1
             if checkpoint_supply > 0:
                 integral += rate_x_time * checkpoint_balance // checkpoint_supply
             checkpoint_rate = rate1
