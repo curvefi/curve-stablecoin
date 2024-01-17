@@ -105,6 +105,8 @@ def ln_int(_x: uint256) -> int256:
     # and vyper log implementation
     # This can be much more optimal but that's not important here
     x: uint256 = _x
+    if _x < 10**18:
+        x = 10**36 / _x
     res: uint256 = 0
     for i in range(8):
         t: uint256 = 2**(7 - i)
@@ -121,7 +123,11 @@ def ln_int(_x: uint256) -> int256:
         d /= 2
     # Now res = log2(x)
     # ln(x) = log2(x) / log2(e)
-    return convert(res * 10**18 / 1442695040888963328, int256)
+    result: int256 = convert(res * 10**18 / 1442695040888963328, int256)
+    if _x >= 10**18:
+        return result
+    else:
+        return -result
 ### END MATH ###
 
 
@@ -135,7 +141,7 @@ def calculate_rate(_for: address) -> uint256:
         utilization: int256 = convert(total_debt * 10**18 / (BORROWED_TOKEN.balanceOf(_for) + total_debt), int256)
         log_min_rate: int256 = self.log_min_rate
         log_max_rate: int256 = self.log_max_rate
-        return self.exp(utilization * (log_max_rate - log_min_rate) + log_min_rate)
+        return self.exp(utilization * (log_max_rate - log_min_rate) / 10**18 + log_min_rate)
 
 
 @view
