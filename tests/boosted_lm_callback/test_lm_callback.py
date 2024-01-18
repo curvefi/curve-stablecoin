@@ -145,7 +145,7 @@ def test_gauge_integral_with_exchanges(
                         print("Bob repays (full):", debt_bob)
                         print("Bob withdraws (full):", amount_bob)
                         # assert market_amm.get_sum_xy(bob)[1] == boosted_lm_callback.user_collateral(bob)
-                    else:
+                    elif market_controller.health(bob) > 0:
                         repay_amount_bob = int(debt_bob // 10 + (debt_bob * 9 // 10) * random() * 0.99)
                         market_controller.repay(repay_amount_bob)
                         print("Bob repays:", repay_amount_bob)
@@ -184,7 +184,7 @@ def test_gauge_integral_with_exchanges(
                             print("Alice repays (full):", debt_alice)
                             print("Alice withdraws (full):", amount_alice)
                             # assert market_amm.get_sum_xy(alice)[1] == boosted_lm_callback.user_collateral(alice)
-                        else:
+                        elif market_controller.health(alice) > 0:
                             repay_amount_alice = int(debt_alice // 10 + (debt_alice * 9 // 10) * random() * 0.99)
                             market_controller.repay(repay_amount_alice)  # TODO fix "Debt too high"
                             print("Alice repays:", repay_amount_alice)
