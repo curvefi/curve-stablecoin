@@ -159,14 +159,15 @@ def test_gauge_integral_with_exchanges(
                 elif not is_underwater_bob:
                     amount_bob = randrange(1, collateral_token.balanceOf(bob) // 10 + 1)
                     collateral_token.approve(market_controller.address, amount_bob)
-                    p = price_oracle.price_w(sender=admin) * 0.7 / 10 ** 18
-                    borrow_amount_bob = int(amount_bob * random() * p)
-                    if market_controller.loan_exists(bob):
-                        market_controller.borrow_more(amount_bob, borrow_amount_bob)
-                    else:
-                        market_controller.create_loan(amount_bob, borrow_amount_bob, 10)
-                    print("Bob deposits:", amount_bob, borrow_amount_bob)
-                    update_integral()
+                    max_borrowable_bob = market_controller.max_borrowable(amount_bob + collateral_in_amm_bob, 10, debt_bob)
+                    borrow_amount_bob = int(random() * (max_borrowable_bob - debt_bob))
+                    if borrow_amount_bob > 0:
+                        if market_controller.loan_exists(bob):
+                            market_controller.borrow_more(amount_bob, borrow_amount_bob)
+                        else:
+                            market_controller.create_loan(amount_bob, borrow_amount_bob, 10)
+                        print("Bob deposits:", amount_bob, borrow_amount_bob)
+                        update_integral()
                     # assert market_amm.get_sum_xy(bob)[1] == boosted_lm_callback.user_collateral(bob)
 
             # For Alice
@@ -197,14 +198,15 @@ def test_gauge_integral_with_exchanges(
                     elif not is_underwater_alice:
                         amount_alice = randrange(1, collateral_token.balanceOf(alice) // 10 + 1)
                         collateral_token.approve(market_controller.address, amount_alice)
-                        max_borrowable = market_controller.max_borrowable(amount_alice + collateral_in_amm_alice, 10, debt_alice)
-                        borrow_amount_alice = int(random() * (max_borrowable - debt_alice))
-                        if market_controller.loan_exists(alice):
-                            market_controller.borrow_more(amount_alice, borrow_amount_alice)
-                        else:
-                            market_controller.create_loan(amount_alice, borrow_amount_alice, 10)
-                        print("Alice deposits:", amount_alice, borrow_amount_alice)
-                        update_integral()
+                        max_borrowable_alice = market_controller.max_borrowable(amount_alice + collateral_in_amm_alice, 10, debt_alice)
+                        borrow_amount_alice = int(random() * (max_borrowable_alice - debt_alice))
+                        if borrow_amount_alice > 0:
+                            if market_controller.loan_exists(alice):
+                                market_controller.borrow_more(amount_alice, borrow_amount_alice)
+                            else:
+                                market_controller.create_loan(amount_alice, borrow_amount_alice, 10)
+                            print("Alice deposits:", amount_alice, borrow_amount_alice)
+                            update_integral()
                         # assert market_amm.get_sum_xy(alice)[1] == boosted_lm_callback.user_collateral(alice)
 
             # Chad trading
