@@ -96,6 +96,8 @@ def test_gauge_integral_with_exchanges(
         checkpoint_supply = 0
         checkpoint_balance = 0
 
+        boa.env.time_travel(seconds=WEEK)
+
         # Let Alice and Bob have about the same collateral token amount
         with boa.env.prank(admin):
             collateral_token._mint_for_testing(alice, 1000 * 10**18)
@@ -371,6 +373,8 @@ def test_gauge_integral_with_exchanges_rekt(
         checkpoint_supply = 0
         checkpoint_balance = 0
 
+        boa.env.time_travel(seconds=WEEK)
+
         # Let Alice and Bob have about the same collateral token amount
         with boa.env.prank(admin):
             collateral_token._mint_for_testing(alice, 1000 * 10**18)
@@ -510,6 +514,8 @@ def test_gauge_integral_with_exchanges_rekt2(
         checkpoint_rate = crv.rate()
         checkpoint_supply = 0
         checkpoint_balance = 0
+
+        boa.env.time_travel(seconds=WEEK)
 
         # Let Alice and Bob have about the same collateral token amount
         with boa.env.prank(admin):
@@ -727,6 +733,8 @@ def test_gauge_integral_with_exchanges_rekt3(
         checkpoint_supply = 0
         checkpoint_balance = 0
         checkpoint_counter = 0
+
+        boa.env.time_travel(seconds=WEEK)
 
         # Let Alice and Bob have about the same collateral token amount
         with boa.env.prank(admin):
