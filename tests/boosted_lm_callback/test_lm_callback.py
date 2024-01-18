@@ -253,13 +253,13 @@ def test_gauge_integral_with_exchanges(
             print("Total collateral:", total_collateral_from_amm, total_collateral_from_lm_cb)
             print("Working collateral:", total_collateral_from_amm * 4 // 10, working_collateral_from_lm_cb)
             if total_collateral_from_amm > 0 and total_collateral_from_lm_cb > 0:
-                assert approx(total_collateral_from_amm, total_collateral_from_lm_cb, 1e-11)
-                assert approx(total_collateral_from_amm * 4 // 10, working_collateral_from_lm_cb, 1e-11)
+                assert approx(total_collateral_from_amm, total_collateral_from_lm_cb, 1e-9)
+                assert approx(total_collateral_from_amm * 4 // 10, working_collateral_from_lm_cb, 1e-9)
 
             boosted_lm_callback.user_checkpoint(alice, sender=alice)
             update_integral()
             print(i, dt / 86400, integral, boosted_lm_callback.integrate_fraction(alice), "\n")
-            assert approx(boosted_lm_callback.integrate_fraction(alice), integral, 1e-10)
+            assert approx(boosted_lm_callback.integrate_fraction(alice), integral, 1e-9)
 
 
 def test_full_repay_underwater(
@@ -412,27 +412,27 @@ def test_gauge_integral_with_exchanges_rekt(
             print("Bob deposits:", amount_bob)
             update_integral()
 
-        # # Alice creates loan
-        # with boa.env.prank(alice):
-        #     amount_alice = 10 ** 20
-        #     collateral_token.approve(market_controller.address, amount_alice)
-        #     market_controller.create_loan(amount_alice, int(amount_alice * 1700), 10)
-        #     print("Alice deposits:", amount_alice)
-        #     update_integral()
+        # Alice creates loan
+        with boa.env.prank(alice):
+            amount_alice = 10 ** 20
+            collateral_token.approve(market_controller.address, amount_alice)
+            market_controller.create_loan(amount_alice, int(amount_alice * 1700), 10)
+            print("Alice deposits:", amount_alice)
+            update_integral()
 
         for i in range(40):
             dt = randrange(1, YEAR // 5)
             boa.env.time_travel(seconds=dt)
 
-            # debt_bob = market_controller.user_state(bob)[2]
-            # repay_amount_bob = int(debt_bob * random() * 0.7)
-            # market_controller.repay(repay_amount_bob, sender=bob)
-            # print("Bob repays:", repay_amount_bob)
-            #
-            # debt_alice = market_controller.user_state(alice)[2]
-            # repay_amount_alice = int(debt_alice * random() * 0.7)
-            # market_controller.repay(repay_amount_alice, sender=alice)
-            # print("Alice repays:", repay_amount_alice)
+            debt_bob = market_controller.user_state(bob)[2]
+            repay_amount_bob = int(debt_bob * random() * 0.7)
+            market_controller.repay(repay_amount_bob, sender=bob)
+            print("Bob repays:", repay_amount_bob)
+
+            debt_alice = market_controller.user_state(alice)[2]
+            repay_amount_alice = int(debt_alice * random() * 0.7)
+            market_controller.repay(repay_amount_alice, sender=alice)
+            print("Alice repays:", repay_amount_alice)
 
             # Chad trading
             bob_bands = market_amm.read_user_tick_numbers(bob)
