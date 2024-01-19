@@ -1080,13 +1080,16 @@ def _exchange(i: uint256, j: uint256, amount: uint256, minmax_amount: uint256, _
     if use_in_amount:
         out = self.calc_swap_out(i == 0, amount * in_precision, p_o, in_precision, out_precision)
     else:
-        out = self.calc_swap_in(i == 0, amount * out_precision, p_o, in_precision, out_precision)
+        amount_to_swap: uint256 = max_value(uint256)
+        if amount < amount_to_swap:
+            amount_to_swap = amount * out_precision
+        out = self.calc_swap_in(i == 0, amount_to_swap, p_o, in_precision, out_precision)
     in_amount_done: uint256 = unsafe_div(out.in_amount, in_precision)
     out_amount_done: uint256 = unsafe_div(out.out_amount, out_precision)
     if use_in_amount:
         assert out_amount_done >= minmax_amount, "Slippage"
     else:
-        assert in_amount_done <= minmax_amount, "Slippage"
+        assert in_amount_done <= minmax_amount and (out_amount_done == amount or amount == max_value(uint256)), "Slippage"
     if out_amount_done == 0 or in_amount_done == 0:
         return [0, 0]
 
@@ -1294,7 +1297,9 @@ def get_dx(i: uint256, j: uint256, out_amount: uint256) -> uint256:
     """
     # i = 0: borrowable (USD) in, collateral (ETH) out; going up
     # i = 1: collateral (ETH) in, borrowable (USD) out; going down
-    return self._get_dxdy(i, j, out_amount, False).in_amount
+    trade: DetailedTrade = self._get_dxdy(i, j, out_amount, False)
+    assert trade.out_amount == out_amount
+    return trade.in_amount
 
 
 @external

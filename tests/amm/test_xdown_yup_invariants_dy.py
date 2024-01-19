@@ -48,7 +48,7 @@ def test_immediate(amm, price_oracle, collateral_token, borrowed_token, accounts
                 break
 
     pump_recv_amount = int(deposit_amount * f_pump)
-    pump_amount = amm.get_dx(0, 1, pump_recv_amount)
+    pump_recv_amount, pump_amount = amm.get_dydx(0, 1, pump_recv_amount)
     with boa.env.prank(user):
         borrowed_token._mint_for_testing(user, pump_amount)
         amm.exchange_dy(0, 1, pump_recv_amount, pump_amount)
@@ -57,14 +57,14 @@ def test_immediate(amm, price_oracle, collateral_token, borrowed_token, accounts
     y0 = amm.get_y_up(user)
     if is_pump:
         trade_recv_amount = int(deposit_amount * f_trade)
-        trade_amount = amm.get_dx(0, 1, trade_recv_amount)
+        trade_recv_amount, trade_amount = amm.get_dydx(0, 1, trade_recv_amount)
         with boa.env.prank(user):
             borrowed_token._mint_for_testing(user, trade_amount)
         i = 0
         j = 1
     else:
         trade_recv_amount = int(p_o * deposit_amount / 10**collateral_decimals * f_trade / 10**(collateral_decimals - borrowed_decimals))
-        trade_amount = amm.get_dx(1, 0, trade_recv_amount)
+        trade_recv_amount, trade_amount = amm.get_dydx(1, 0, trade_recv_amount)
         with boa.env.prank(user):
             collateral_token._mint_for_testing(user, trade_amount)
         i = 1

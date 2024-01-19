@@ -190,7 +190,8 @@ def test_no_untradable_funds_in(amm, collateral_token, borrowed_token, price_ora
     # Trade back
     collateral_token._mint_for_testing(user, 10**24)  # BIG
     with boa.env.prank(user):
-        amm.exchange_dy(1, 0, 10**24, 10**24)
+        price_oracle.price_w()
+        amm.exchange_dy(1, 0, 2**256 - 1, 10**24)
     # Check that we cleaned up the last band
     new_b = borrowed_token.balanceOf(user)
     assert sum(amm.bands_x(n) for n in range(61)) == borrowed_token.balanceOf(amm.address), "Insolvent"
