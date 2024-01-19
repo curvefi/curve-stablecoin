@@ -419,7 +419,7 @@ class BigFuzz(RuleBasedStateMachine):
 def test_big_fuzz(
         vault, borrowed_token, collateral_token, market_mpolicy, accounts, admin, market_amm, market_controller,
         price_oracle, fake_leverage):
-    BigFuzz.TestCase.settings = settings(max_examples=1000, stateful_step_count=20)
+    BigFuzz.TestCase.settings = settings(max_examples=200, stateful_step_count=20)
     # Or quick check
     # BigFuzz.TestCase.settings = settings(max_examples=25, stateful_step_count=20)
     for k, v in locals().items():

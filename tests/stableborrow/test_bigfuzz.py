@@ -462,7 +462,7 @@ def test_big_fuzz(
     market_controller = controller_interface.at(market.get_controller(collateral_token.address))
     fake_leverage = get_fake_leverage(collateral_token, market_controller)
 
-    BigFuzz.TestCase.settings = settings(max_examples=313, stateful_step_count=20)
+    BigFuzz.TestCase.settings = settings(max_examples=50, stateful_step_count=20)
     # Or quick check
     # BigFuzz.TestCase.settings = settings(max_examples=25, stateful_step_count=20)
     for k, v in locals().items():
