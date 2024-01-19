@@ -10,6 +10,7 @@ WEEK = 7 * 86400
 def test_simple_exchange(
         accounts,
         admin,
+        chad,
         collateral_token,
         crv,
         market_controller,
@@ -18,7 +19,7 @@ def test_simple_exchange(
         gauge_controller,
         voting_escrow,
 ):
-    alice, bob, chad = accounts[:3]
+    alice, bob = accounts[:2]
     boa.env.time_travel(seconds=2 * WEEK + 5)
 
     # Wire up Gauge to the controller to have proper rates and stuff
@@ -31,17 +32,10 @@ def test_simple_exchange(
     with boa.env.prank(admin):
         collateral_token._mint_for_testing(alice, 1000 * 10 ** 18)
         collateral_token._mint_for_testing(bob, 1000 * 10 ** 18)
-        collateral_token._mint_for_testing(chad, 10**8 * 10 ** 18)
-
-    collateral_token.approve(market_controller.address, MAX_UINT256, sender=alice)
-    collateral_token.approve(market_controller.address, MAX_UINT256, sender=bob)
-    collateral_token.approve(market_amm.address, MAX_UINT256, sender=chad)
 
     # Alice and Bob create loan
     market_controller.create_loan(10**21, 10**21 * 2600, 10, sender=alice)
     market_controller.create_loan(10**21, 10**21 * 1000, 10, sender=bob)
-    # Chad creates loan just to get crvUSD
-    market_controller.create_loan(10**25, 10**25, 10, sender=chad)
 
     # Time travel and checkpoint
     boa.env.time_travel(4 * WEEK)
@@ -73,6 +67,7 @@ def test_simple_exchange(
 def test_gauge_integral_with_exchanges(
         accounts,
         admin,
+        chad,
         collateral_token,
         crv,
         boosted_lm_callback,
@@ -82,7 +77,7 @@ def test_gauge_integral_with_exchanges(
         price_oracle,
 ):
     with boa.env.anchor():
-        alice, bob, chad = accounts[:3]
+        alice, bob = accounts[:2]
 
         # Wire up Gauge to the controller to have proper rates and stuff
         with boa.env.prank(admin):
@@ -102,11 +97,6 @@ def test_gauge_integral_with_exchanges(
         with boa.env.prank(admin):
             collateral_token._mint_for_testing(alice, 1000 * 10**18)
             collateral_token._mint_for_testing(bob, 1000 * 10**18)
-
-        # Chad creates loan just to get crvUSD
-        collateral_token._mint_for_testing(chad, 10**26, sender=admin)
-        market_controller.create_loan(10 ** 25, 10 ** 24, 10, sender=chad)
-        chad_n = market_amm.read_user_tick_numbers(chad)[0]
 
         def update_integral():
             nonlocal checkpoint, checkpoint_rate, integral, checkpoint_balance, checkpoint_supply
@@ -214,7 +204,7 @@ def test_gauge_integral_with_exchanges(
             alice_bands = list(range(alice_bands[0], alice_bands[1] + 1))
             bob_bands = market_amm.read_user_tick_numbers(bob)
             bob_bands = list(range(bob_bands[0], bob_bands[1] + 1))
-            available_bands = list(filter(lambda x: 0 < x < chad_n, alice_bands + bob_bands))
+            available_bands = alice_bands + bob_bands
             print("Bob bands:", bob_bands)
             print("Alice bands:", alice_bands)
             print("Active band:", market_amm.active_band())
@@ -247,9 +237,9 @@ def test_gauge_integral_with_exchanges(
             boa.env.time_travel(seconds=dt)
             print("Time travel", dt)
 
-            total_collateral_from_amm = collateral_token.balanceOf(market_amm) - market_amm.admin_fees_y() - 10 ** 25
-            total_collateral_from_lm_cb = boosted_lm_callback.total_collateral() - 10 ** 25
-            working_collateral_from_lm_cb = boosted_lm_callback.working_supply() - 10 ** 25 * 4 // 10
+            total_collateral_from_amm = collateral_token.balanceOf(market_amm) - market_amm.admin_fees_y()
+            total_collateral_from_lm_cb = boosted_lm_callback.total_collateral()
+            working_collateral_from_lm_cb = boosted_lm_callback.working_supply()
             print("Total collateral:", total_collateral_from_amm, total_collateral_from_lm_cb)
             print("Working collateral:", total_collateral_from_amm * 4 // 10, working_collateral_from_lm_cb)
             if total_collateral_from_amm > 0 and total_collateral_from_lm_cb > 0:
@@ -265,6 +255,7 @@ def test_gauge_integral_with_exchanges(
 def test_full_repay_underwater(
         accounts,
         admin,
+        chad,
         collateral_token,
         crv,
         boosted_lm_callback,
@@ -274,7 +265,7 @@ def test_full_repay_underwater(
         price_oracle,
 ):
     with boa.env.anchor():
-        alice, bob, chad = accounts[:3]
+        alice, bob = accounts[:2]
 
         # Wire up Gauge to the controller to have proper rates and stuff
         with boa.env.prank(admin):
@@ -288,10 +279,6 @@ def test_full_repay_underwater(
         with boa.env.prank(admin):
             collateral_token._mint_for_testing(alice, 1000 * 10**18)
             collateral_token._mint_for_testing(bob, 1000 * 10**18)
-
-        # Chad creates loan just to get crvUSD
-        collateral_token._mint_for_testing(chad, 10**26, sender=admin)
-        market_controller.create_loan(10 ** 25, 10 ** 24, 10, sender=chad)
 
         dt = randrange(1, YEAR // 5)
         boa.env.time_travel(seconds=dt)
@@ -310,9 +297,9 @@ def test_full_repay_underwater(
             market_controller.create_loan(amount_alice, int(amount_alice * 500), 10)
             print("Alice deposits:", amount_alice)
 
-        print(collateral_token.balanceOf(market_amm) - market_amm.admin_fees_y() - 10 ** 25,
-              boosted_lm_callback.total_collateral() - 10 ** 25)
-        print(boosted_lm_callback.working_supply() - 10 ** 25 * 4 // 10)
+        print(collateral_token.balanceOf(market_amm) - market_amm.admin_fees_y(),
+              boosted_lm_callback.total_collateral())
+        print(boosted_lm_callback.working_supply())
 
         # Chad trading. As a result Bob will be underwater
         bob_bands = market_amm.read_user_tick_numbers(bob)
@@ -340,9 +327,9 @@ def test_full_repay_underwater(
         print("Bob repays (full):", debt_bob)
         print("Bob withdraws (full):", amount_bob)
 
-        total_collateral_from_amm = collateral_token.balanceOf(market_amm) - market_amm.admin_fees_y() - 10**25
-        total_collateral_from_lm_cb = boosted_lm_callback.total_collateral() - 10**25
-        working_collateral_from_lm_cb = boosted_lm_callback.working_supply() - 10**25 * 4 // 10
+        total_collateral_from_amm = collateral_token.balanceOf(market_amm) - market_amm.admin_fees_y()
+        total_collateral_from_lm_cb = boosted_lm_callback.total_collateral()
+        working_collateral_from_lm_cb = boosted_lm_callback.working_supply()
         print("Total collateral:", total_collateral_from_amm, total_collateral_from_lm_cb)
         print("Working collateral:", total_collateral_from_amm * 4 // 10, working_collateral_from_lm_cb)
         assert approx(total_collateral_from_amm, total_collateral_from_lm_cb, 1e-15)
@@ -352,6 +339,7 @@ def test_full_repay_underwater(
 def test_gauge_integral_with_exchanges_rekt(
         accounts,
         admin,
+        chad,
         collateral_token,
         crv,
         boosted_lm_callback,
@@ -361,7 +349,7 @@ def test_gauge_integral_with_exchanges_rekt(
         price_oracle,
 ):
     with boa.env.anchor():
-        alice, bob, chad = accounts[:3]
+        alice, bob = accounts[:2]
 
         # Wire up Gauge to the controller to have proper rates and stuff
         with boa.env.prank(admin):
@@ -381,10 +369,6 @@ def test_gauge_integral_with_exchanges_rekt(
         with boa.env.prank(admin):
             collateral_token._mint_for_testing(alice, 1000 * 10**18)
             collateral_token._mint_for_testing(bob, 1000 * 10**18)
-
-        # Chad creates loan just to get crvUSD
-        collateral_token._mint_for_testing(chad, 10**26, sender=admin)
-        market_controller.create_loan(10 ** 25, 10 ** 24, 10, sender=chad)
 
         def update_integral():
             nonlocal checkpoint, checkpoint_rate, integral, checkpoint_balance, checkpoint_supply
@@ -439,7 +423,6 @@ def test_gauge_integral_with_exchanges_rekt(
             bob_bands = list(range(bob_bands[0], bob_bands[1] + 1))
             alice_bands = market_amm.read_user_tick_numbers(alice)
             alice_bands = list(range(alice_bands[0], alice_bands[1] + 1))
-            available_bands = list(filter(lambda x: 0 < x, alice_bands + bob_bands))
             print("Bob bands:", bob_bands)
             print("Alice bands:", alice_bands)
             print("Active band:", market_amm.active_band())
@@ -476,9 +459,9 @@ def test_gauge_integral_with_exchanges_rekt(
             dt = randrange(1, YEAR // 20)
             boa.env.time_travel(seconds=dt)
 
-            total_collateral_from_amm = collateral_token.balanceOf(market_amm) - market_amm.admin_fees_y() - 10 ** 25
-            total_collateral_from_lm_cb = boosted_lm_callback.total_collateral() - 10 ** 25
-            working_collateral_from_lm_cb = boosted_lm_callback.working_supply() - 10 ** 25 * 4 // 10
+            total_collateral_from_amm = collateral_token.balanceOf(market_amm) - market_amm.admin_fees_y()
+            total_collateral_from_lm_cb = boosted_lm_callback.total_collateral()
+            working_collateral_from_lm_cb = boosted_lm_callback.working_supply()
             print("Total collateral:", total_collateral_from_amm, total_collateral_from_lm_cb)
             print("Working collateral:", total_collateral_from_amm * 4 // 10, working_collateral_from_lm_cb)
             if total_collateral_from_amm > 0 and total_collateral_from_lm_cb > 0:
@@ -494,6 +477,7 @@ def test_gauge_integral_with_exchanges_rekt(
 def test_gauge_integral_with_exchanges_rekt2(
         accounts,
         admin,
+        chad,
         collateral_token,
         crv,
         boosted_lm_callback,
@@ -503,7 +487,7 @@ def test_gauge_integral_with_exchanges_rekt2(
         price_oracle,
 ):
     with boa.env.anchor():
-        alice, bob, chad = accounts[:3]
+        alice, bob = accounts[:2]
 
         # Wire up Gauge to the controller to have proper rates and stuff
         with boa.env.prank(admin):
@@ -523,10 +507,6 @@ def test_gauge_integral_with_exchanges_rekt2(
         with boa.env.prank(admin):
             collateral_token._mint_for_testing(alice, 1000 * 10**18)
             collateral_token._mint_for_testing(bob, 1000 * 10**18)
-
-        # Chad creates loan just to get crvUSD
-        collateral_token._mint_for_testing(chad, 10**26, sender=admin)
-        market_controller.create_loan(10 ** 25, 10 ** 24, 10, sender=chad)
 
         def update_integral():
             nonlocal checkpoint, checkpoint_rate, integral, checkpoint_balance, checkpoint_supply
@@ -573,9 +553,9 @@ def test_gauge_integral_with_exchanges_rekt2(
             dt = randrange(1, YEAR // 20)
             boa.env.time_travel(seconds=dt)
 
-            total_collateral_from_amm = collateral_token.balanceOf(market_amm) - market_amm.admin_fees_y() - 10 ** 25
-            total_collateral_from_lm_cb = boosted_lm_callback.total_collateral() - 10 ** 25
-            working_collateral_from_lm_cb = boosted_lm_callback.working_supply() - 10 ** 25 * 4 // 10
+            total_collateral_from_amm = collateral_token.balanceOf(market_amm) - market_amm.admin_fees_y()
+            total_collateral_from_lm_cb = boosted_lm_callback.total_collateral()
+            working_collateral_from_lm_cb = boosted_lm_callback.working_supply()
             print("Total collateral:", total_collateral_from_amm, total_collateral_from_lm_cb)
             print("Working collateral:", total_collateral_from_amm * 4 // 10, working_collateral_from_lm_cb)
             if total_collateral_from_amm > 0 and total_collateral_from_lm_cb > 0:
@@ -712,6 +692,7 @@ def test_gauge_integral_with_exchanges_rekt2(
 def test_gauge_integral_with_exchanges_rekt3(
         accounts,
         admin,
+        chad,
         collateral_token,
         crv,
         boosted_lm_callback,
@@ -721,7 +702,7 @@ def test_gauge_integral_with_exchanges_rekt3(
         price_oracle,
 ):
     with boa.env.anchor():
-        alice, bob, chad = accounts[:3]
+        alice, bob = accounts[:2]
 
         # Wire up Gauge to the controller to have proper rates and stuff
         with boa.env.prank(admin):
@@ -742,10 +723,6 @@ def test_gauge_integral_with_exchanges_rekt3(
         with boa.env.prank(admin):
             collateral_token._mint_for_testing(alice, 1000 * 10**18)
             collateral_token._mint_for_testing(bob, 1000 * 10**18)
-
-        # Chad creates loan just to get crvUSD
-        collateral_token._mint_for_testing(chad, 10**26, sender=admin)
-        market_controller.create_loan(10 ** 25, 10 ** 24, 10, sender=chad)
 
         def update_integral():
             nonlocal checkpoint, checkpoint_rate, integral, checkpoint_balance, checkpoint_supply
@@ -793,9 +770,9 @@ def test_gauge_integral_with_exchanges_rekt3(
             boa.env.time_travel(seconds=dtime)
             print("Time travel", dtime)
 
-            total_collateral_from_amm = collateral_token.balanceOf(market_amm) - market_amm.admin_fees_y() - 10 ** 25
-            total_collateral_from_lm_cb = boosted_lm_callback.total_collateral() - 10 ** 25
-            working_collateral_from_lm_cb = boosted_lm_callback.working_supply() - 10 ** 25 * 4 // 10
+            total_collateral_from_amm = collateral_token.balanceOf(market_amm) - market_amm.admin_fees_y()
+            total_collateral_from_lm_cb = boosted_lm_callback.total_collateral()
+            working_collateral_from_lm_cb = boosted_lm_callback.working_supply()
             print("Total collateral:", total_collateral_from_amm, total_collateral_from_lm_cb)
             print("Working collateral:", total_collateral_from_amm * 4 // 10, working_collateral_from_lm_cb)
             if total_collateral_from_amm > 0 and total_collateral_from_lm_cb > 0:

@@ -1,5 +1,6 @@
 import boa
 import pytest
+from boa.environment import AddressT
 
 
 @pytest.fixture(scope="module")
@@ -31,11 +32,22 @@ def minter(admin, crv, gauge_controller):
     with boa.env.prank(admin):
         return boa.load('contracts/testing/Minter.vy', crv, gauge_controller)
 
+# Trader
+@pytest.fixture(scope="module")
+def chad(collateral_token, admin) -> AddressT:
+    _chad = boa.env.generate_address()
+    collateral_token._mint_for_testing(_chad, 10**25, sender=admin)
+
+    return _chad
+
 
 @pytest.fixture(scope="module")
-def stablecoin(admin):
+def stablecoin(admin, chad):
     with boa.env.prank(admin):
-        return boa.load('contracts/Stablecoin.vy', 'Curve USD', 'crvUSD')
+        _stablecoin = boa.load('contracts/Stablecoin.vy', 'Curve USD', 'crvUSD')
+        _stablecoin.mint(chad, 10**25)
+
+        return _stablecoin
 
 
 @pytest.fixture(scope="module")
@@ -89,7 +101,7 @@ def monetary_policy(admin):
 
 
 @pytest.fixture(scope="module")
-def get_market(controller_factory, monetary_policy, price_oracle, stablecoin, accounts, admin):
+def get_market(controller_factory, monetary_policy, price_oracle, stablecoin, accounts, admin, chad):
     def f(collateral_token):
         with boa.env.prank(admin):
             if controller_factory.n_collaterals() == 0:
@@ -106,6 +118,9 @@ def get_market(controller_factory, monetary_policy, price_oracle, stablecoin, ac
                         stablecoin.approve(amm, 2**256-1)
                         collateral_token.approve(controller, 2**256-1)
                         stablecoin.approve(controller, 2**256-1)
+                with boa.env.prank(chad):
+                    collateral_token.approve(amm, 2 ** 256 - 1)
+                    stablecoin.approve(amm, 2 ** 256 - 1)
             return controller_factory
     return f
 
