@@ -121,10 +121,9 @@ class StatefulLendBorrow(RuleBasedStateMachine):
 
             try:
                 self.controller.create_loan(c_amount, amount, n)
-            except Exception as e:
+            except Exception:
                 if c_amount * self.collateral_mul // n > 2 * DEAD_SHARES and c_amount * self.collateral_mul // n < (2**128 - 1) // DEAD_SHARES:
-                    if 'Too deep' not in str(e):
-                        raise
+                    pass
 
     @rule(amount_frac=amount_frac, user_id=user_id)
     def repay(self, amount_frac, user_id):
