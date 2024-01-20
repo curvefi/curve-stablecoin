@@ -161,10 +161,10 @@ def _update_liquidity_limit(user: address, collateral_amount: uint256, old_colla
 
     _working_supply: uint256 = self.working_supply + lim - old_collateral_amount * self.user_boost[user] / 10**18
     self.working_supply = _working_supply
-    boost: uint256 = 0
-    if collateral_amount > 0:
+    boost: uint256 = self.user_boost[user]
+    if collateral_amount > 0:  # Do not set boost to 0 for soft-liquidated user
         boost = lim * 10**18 / collateral_amount
-    self.user_boost[user] = boost
+        self.user_boost[user] = boost
 
     log UpdateLiquidityLimit(user, collateral_amount, L, lim, _working_supply)
 
