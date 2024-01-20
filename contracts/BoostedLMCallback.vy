@@ -254,11 +254,10 @@ def _checkpoint_collateral_shares(n: int256, collateral_per_share: DynArray[uint
 
 
 @internal
-def _checkpoint_user_shares(user: address, n: int256, user_shares: DynArray[uint256, MAX_TICKS_UINT], size: int256):
-    # Calculate the amount of real collateral for the user
+@view
+def _user_collateral(user: address, n: int256, user_shares: DynArray[uint256, MAX_TICKS_UINT], size: int256) -> uint256[2]:
     old_collateral_amount: uint256 = 0
     collateral_amount: uint256 = 0
-    boost: uint256 = 0 # [0.4, 1]
     if len(user_shares) > 0:
         for i in range(MAX_TICKS_INT):
             if i == size:
@@ -266,7 +265,22 @@ def _checkpoint_user_shares(user: address, n: int256, user_shares: DynArray[uint
             cps: uint256 = self.collateral_per_share[n + i]
             old_collateral_amount += self.user_shares[user][n + i] * cps / 10**18
             collateral_amount += user_shares[i] * cps / 10**18
-        boost = self._update_liquidity_limit(user, collateral_amount, old_collateral_amount)
+
+        return [collateral_amount, old_collateral_amount]
+    else:
+        for i in range(MAX_TICKS_INT):
+            if i == size:
+                break
+            old_collateral_amount += self.user_shares[user][n + i] * self.collateral_per_share[n + i] / 10**18
+
+        return [old_collateral_amount, old_collateral_amount]
+
+
+@internal
+def _checkpoint_user_shares(user: address, n: int256, user_shares: DynArray[uint256, MAX_TICKS_UINT], size: int256):
+    # Calculate the amount of real collateral for the user
+    collateral_amounts: uint256[2] = self._user_collateral(user, n, user_shares, size)
+    boost: uint256 = self._update_liquidity_limit(user, collateral_amounts[0], collateral_amounts[1])
 
     rpu: uint256 = self.integrate_fraction[user]
 
@@ -288,6 +302,11 @@ def _checkpoint_user_shares(user: address, n: int256, user_shares: DynArray[uint
             ws: uint256 = user_shares[i] * boost / 10**18
             self.working_shares[user][_n] = ws
             self.working_shares_per_band[_n] = self.working_shares_per_band[_n] + ws - old_ws
+        else:  # Here we just update boost
+            ws: uint256 = self.user_shares[user][_n] * boost / 10**18
+            self.working_shares[user][_n] = ws
+            self.working_shares_per_band[_n] = self.working_shares_per_band[_n] + ws - old_ws
+
 
         I_rpu: IntegralRPU = self.I_rpu[user][_n]
         I_rps: uint256 = self.I_rps[_n].rps
