@@ -12,7 +12,25 @@ from boa.network import NetworkEnv
 NETWORK = "http://localhost:8545"
 ZERO_ADDRESS = "0x0000000000000000000000000000000000000000"
 ADMIN = "0x40907540d8a6C65c637785e8f8B742ae6b0b9968"
-RATE0 = 2732676751
+
+POLICIES = {
+    'staked': {
+        'rate0': 4756468797,
+        'controllers': [
+            "0x100daa78fc509db39ef7d04de0c1abd299f4c6ce",  # wstETH
+            "0xec0820efafc41d8943ee8de495fc9ba8495b15cf",  # sfrxETHv2
+        ]
+    },
+    'plain': {
+        'rate0': 3488077118,
+        'controllers': [
+            "0x4e59541306910ad6dc1dac0ac9dfb29bd9f15c67",  # WBTC
+            "0xa920de414ea4ab66b97da1bfe9e6eca7d4219635",  # ETH
+            "0x1c91da0223c763d2e0173243eadaa0a2ea47e704",  # tBTC
+        ]
+    },
+}
+
 STABLE_ORACLE = "0x18672b1b0c623a30089A280Ed9256379fb0E4E62"
 FACTORY = "0xC9332fdCB1C491Dcc683bAe86Fe3cb70360738BC"
 PEG_KEEPERS = [
@@ -41,23 +59,23 @@ if __name__ == '__main__':
 
     factory = boa.load_partial('contracts/ControllerFactory.vy').at(FACTORY)
 
-    contract = boa.load(
-        'contracts/mpolicies/AggMonetaryPolicy3.vy',
-        ADMIN,
-        STABLE_ORACLE,
-        FACTORY,
-        PEG_KEEPERS + [ZERO_ADDRESS],
-        RATE0,
-        2 * 10**16,  # Sigma 2%
-        10 * 10**16)  # Target debt fraction 10%
+    for policy in POLICIES:
+        rate0 = POLICIES[policy]['rate0']
+        contract = boa.load(
+            'contracts/mpolicies/AggMonetaryPolicy3.vy',
+            ADMIN,
+            STABLE_ORACLE,
+            FACTORY,
+            PEG_KEEPERS + [ZERO_ADDRESS],
+            rate0,
+            2 * 10**16,  # Sigma 2%
+            10 * 10**16)  # Target debt fraction 10%
 
-    print('Deployed at:', contract.address)
+        print(f'Policy {policy} deployed at {contract.address}')
 
-    for i in range(50000):
-        controller = factory.controllers(i)
-        if controller == "0x0000000000000000000000000000000000000000":
-            break
-        print('Saving candle for:', controller)
-        contract.rate_write(controller, gas=10**6)
+        for controller in POLICIES[policy]['controllers']:
+            print('Saving candle for:', controller)
+            contract.rate_write(controller, gas=10**6)
 
-    contract.rate_write(gas=10**6)
+        contract.rate_write(gas=10**6)
+        print()
