@@ -35,10 +35,11 @@ def test_leverage(collateral_token, stablecoin, market_controller, market_amm, f
 @given(
     amount=st.integers(min_value=10 * 10**8, max_value=10**18),
     loan_mul=st.floats(min_value=0, max_value=10.0),
+    loan_more_mul=st.floats(min_value=0, max_value=10.0),
     repay_mul=st.floats(min_value=0, max_value=1.0))
 @settings(max_examples=2000)
 def test_leverage_property(collateral_token, stablecoin, market_controller, market_amm, fake_leverage, accounts,
-                           amount, loan_mul, repay_mul):
+                           amount, loan_mul, loan_more_mul, repay_mul):
     user = accounts[0]
 
     with boa.env.prank(user):
@@ -60,6 +61,26 @@ def test_leverage_property(collateral_token, stablecoin, market_controller, mark
         assert approx(market_controller.debt(user), debt, 1e-9, 10)
         assert stablecoin.balanceOf(user) == 0
 
+        more_debt = int(loan_more_mul * amount * 3000)
+        if (more_debt // 3000) <= collateral_token.balanceOf(fake_leverage.address):
+            if more_debt > 0:
+                collateral_token._mint_for_testing(user, amount)
+            market_controller.borrow_more_extended(amount, more_debt, fake_leverage.address, [0])
+            debt += more_debt
+            if more_debt > 0:
+                assert collateral_token.balanceOf(user) == 0
+                expected_collateral = int((2 + loan_mul + loan_more_mul) * amount)
+                assert approx(collateral_token.balanceOf(market_amm.address), expected_collateral, 1e-9, 10)
+                xy = market_amm.get_sum_xy(user)
+                assert xy[0] == 0
+                assert approx(xy[1], expected_collateral, 1e-9, 10)
+                assert approx(market_controller.debt(user), debt, 1e-9, 10)
+                assert stablecoin.balanceOf(user) == 0
+
+        else:
+            with boa.reverts():
+                market_controller.borrow_more_extended(amount, more_debt, fake_leverage.address, [0])
+
         s0 = stablecoin.balanceOf(market_controller.address)
 
         if debt * int(repay_mul * 1e18) // 10**18 >= 1:
@@ -76,7 +97,10 @@ def test_leverage_property(collateral_token, stablecoin, market_controller, mark
         assert collateral_token.balanceOf(market_controller.address) == 0
         assert stablecoin.balanceOf(market_controller.address) - s0 == debt * int(repay_mul * 1e18) // 10**18
         if repay_mul == 1.0:
-            assert collateral_token.balanceOf(user) == amount
+            if more_debt > 0:
+                assert abs(collateral_token.balanceOf(user) - 2 * amount) <= 1
+            else:
+                assert collateral_token.balanceOf(user) == amount
         else:
             assert collateral_token.balanceOf(user) == 0
 
