@@ -301,6 +301,20 @@ def _checkpoint_user_shares(user: address, n: int256, user_shares: DynArray[uint
 
 
 @external
+@view
+def user_collateral(user: address) -> uint256:
+    n: int256 = self.user_band[user]
+    size: int256 = self.user_range_size[user]
+    collateral_amount: uint256 = 0
+    for i in range(MAX_TICKS_INT):
+        if i == size:
+            break
+        collateral_amount += self.user_shares[user][n + i] * self.collateral_per_share[n + i] / 10 ** 18
+
+    return collateral_amount
+
+
+@external
 def callback_collateral_shares(n: int256, collateral_per_share: DynArray[uint256, MAX_TICKS_UINT], size: uint256):
     # It is important that this callback is called every time before callback_user_shares
     assert msg.sender == self.amm
@@ -329,6 +343,7 @@ def user_checkpoint(addr: address) -> bool:
     size: int256 = self.user_range_size[addr]
     self._checkpoint_collateral_shares(n, [], size)
     self._checkpoint_user_shares(addr, n, [], size)
+
     return True
 
 
@@ -344,4 +359,5 @@ def claimable_tokens(addr: address) -> uint256:
     size: int256 = self.user_range_size[addr]
     self._checkpoint_collateral_shares(n, [], size)
     self._checkpoint_user_shares(addr, n, [], size)
+
     return self.integrate_fraction[addr] - MINTER.minted(addr, self)
