@@ -107,10 +107,10 @@ def test_leverage_property(collateral_token, stablecoin, market_controller, mark
 
 def test_deleverage_error(collateral_token, stablecoin, market_controller, market_amm, fake_leverage, accounts):
     test_leverage_property.hypothesis.inner_test(
-            collateral_token, stablecoin, market_controller, market_amm, fake_leverage, accounts, 1000000000, 1.0, 0.5)
+            collateral_token, stablecoin, market_controller, market_amm, fake_leverage, accounts, 1000000000, 1.0, 0, 0.5)
 
 
 def test_no_coins_to_repay(collateral_token, stablecoin, market_controller, market_amm, fake_leverage, accounts):
     test_leverage_property.hypothesis.inner_test(
             collateral_token, stablecoin, market_controller, market_amm, fake_leverage, accounts, 128102389400761, 2.0,
-            1.3010426069826053e-18)
+            0, 1.3010426069826053e-18)
