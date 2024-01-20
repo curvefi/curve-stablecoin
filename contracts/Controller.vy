@@ -731,9 +731,36 @@ def borrow_more(collateral: uint256, debt: uint256):
         return
     self._add_collateral_borrow(collateral, debt, msg.sender, False)
     self.minted += debt
-    if collateral != 0:
-        self.transferFrom(COLLATERAL_TOKEN, msg.sender, AMM.address, collateral)
+    self.transferFrom(COLLATERAL_TOKEN, msg.sender, AMM.address, collateral)
     self.transfer(BORROWED_TOKEN, msg.sender, debt)
+
+
+@external
+@nonreentrant('lock')
+def borrow_more_extended(collateral: uint256, debt: uint256, callbacker: address, callback_args: DynArray[uint256,5]):
+    """
+    @notice Borrow more stablecoins while adding more collateral using a callback (to leverage more)
+    @param collateral Amount of collateral to add
+    @param debt Amount of stablecoin debt to take
+    @param callbacker Address of the callback contract
+    @param callback_args Extra arguments for the callback (up to 5) such as min_amount etc
+    """
+    if debt == 0:
+        return
+
+    # Before callback
+    self.transfer(BORROWED_TOKEN, callbacker, debt)
+
+    # Callback
+    # If there is any unused debt, callbacker can send it to the user
+    more_collateral: uint256 = self.execute_callback(
+        callbacker, CALLBACK_DEPOSIT, msg.sender, 0, collateral, debt, callback_args).collateral
+
+    # After callback
+    self._add_collateral_borrow(collateral + more_collateral, debt, msg.sender, False)
+    self.minted += debt
+    self.transferFrom(COLLATERAL_TOKEN, msg.sender, AMM.address, collateral)
+    self.transferFrom(COLLATERAL_TOKEN, callbacker, AMM.address, more_collateral)
 
 
 @internal
