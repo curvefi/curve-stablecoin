@@ -20,6 +20,7 @@ def test_deposit_and_withdraw(vault, borrowed_token, accounts):
     borrowed_token._mint_for_testing(user, amount)
 
     with boa.env.prank(user):
+        assert vault.pricePerShare() == 10**18 // DEAD_SHARES
         borrowed_token.approve(vault.address, 2**256-1)
         vault.deposit(amount)
         assert vault.totalAssets() == amount

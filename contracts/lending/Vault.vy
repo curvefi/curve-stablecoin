@@ -286,7 +286,7 @@ def pricePerShare() -> uint256:
     """
     supply: uint256 = self.totalSupply
     if supply == 0:
-        return 10**18 * DEAD_SHARES
+        return 10**18 / DEAD_SHARES
     else:
         return 10**18 * self.precision * self._total_assets() / supply
 
