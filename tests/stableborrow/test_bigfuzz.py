@@ -764,12 +764,8 @@ def test_debt_too_high_2_users(
 
 
 def test_cannot_create_loan(
-        controller_factory, get_market, amm_interface, controller_interface, monetary_policy, get_collateral_token, stablecoin, price_oracle,
-        accounts, get_fake_leverage, admin):
-    collateral_token = get_collateral_token(18)
-    market = get_market(collateral_token)
-    market_amm = amm_interface.at(market.get_amm(collateral_token.address))
-    market_controller = controller_interface.at(market.get_controller(collateral_token.address))
+        controller_factory, get_market, amm_interface, controller_interface, monetary_policy, stablecoin, price_oracle,
+        accounts, get_fake_leverage, admin, collateral_token, market_amm, market_controller):
     fake_leverage = get_fake_leverage(collateral_token, market_controller)
     for k, v in locals().items():
         setattr(BigFuzz, k, v)
