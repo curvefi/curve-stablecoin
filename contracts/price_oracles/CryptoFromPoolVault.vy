@@ -20,7 +20,7 @@ POOL: public(immutable(Pool))
 BORROWED_IX: public(immutable(uint256))
 COLLATERAL_IX: public(immutable(uint256))
 N_COINS: public(immutable(uint256))
-VAULT: publuc(immutable(Vault)
+VAULT: public(immutable(Vault))
 
 
 @external
