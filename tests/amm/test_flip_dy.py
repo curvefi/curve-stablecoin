@@ -81,7 +81,12 @@ def test_flip(amm, price_oracle, collateral_token, borrowed_token, accounts, adm
             # dy = int(STEP * amount_d)  <-- this leads to INFINITE LOOP
             is_empty = False
             while amm.get_p() > p:
-                dy = amm.get_dx(1, 0, dx)
+                dx_small, dy = amm.get_dydx(1, 0, dx)
+                if dx == dx_small:
+                    dy = amm.get_dx(1, 0, dx)
+                else:
+                    with boa.reverts():
+                        amm.get_dx(1, 0, dx)
                 if collateral_token.balanceOf(trader) < dy:
                     collateral_token._mint_for_testing(trader, dy)
                 n1 = amm.active_band()
@@ -89,7 +94,12 @@ def test_flip(amm, price_oracle, collateral_token, borrowed_token, accounts, adm
                 assert amm.get_y_up(depositor) * (1 + 1e-13) >= sum(amm.bands_y(n) for n in range(1, 6))
                 assert amm.get_x_down(depositor) * (1 + 1e-13) >= 5 * 0.95 * 3000 * 10**borrowed_decimals
                 with boa.env.prank(trader):
-                    amm.exchange_dy(1, 0, dx, dy)
+                    if dx == dx_small:
+                        amm.exchange_dy(1, 0, dx, dy)
+                    else:
+                        with boa.reverts():
+                            amm.exchange_dy(1, 0, dx, dy)
+                        amm.exchange_dy(1, 0, dx_small, dy)
                 n2 = amm.active_band()
                 p2 = amm.get_p()
                 if n1 == n2:
