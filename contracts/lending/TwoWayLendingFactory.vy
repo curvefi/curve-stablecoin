@@ -201,9 +201,9 @@ def create(
     vault_short: Vault = Vault(create_minimal_proxy_to(self.vault_impl))
 
     price_oracle_long: address = create_from_blueprint(
-        self.wrapper_price_oracle_impl, price_oracle, vault_short.address, code_offset=3)
+        self.wrapper_price_oracle_impl, price_oracle, vault_short.address, False, code_offset=3)
     price_oracle_short: address = create_from_blueprint(
-        self.wrapper_price_oracle_impl, price_oracle, vault_long.address, code_offset=3)
+        self.wrapper_price_oracle_impl, price_oracle, vault_long.address, True, code_offset=3)
 
     self._create(vault_long, vault_short, price_oracle_long, price_oracle_short,
                  borrowed_token, collateral_token, A, fee, loan_discount, liquidation_discount,
