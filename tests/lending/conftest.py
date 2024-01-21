@@ -31,9 +31,9 @@ def stablecoin(get_borrowed_token):
 
 
 @pytest.fixture(scope="module")
-def vault_impl(stablecoin, admin):
+def vault_impl(admin):
     with boa.env.prank(admin):
-        return boa.load('contracts/lending/Vault.vy', stablecoin.address)
+        return boa.load('contracts/lending/Vault.vy')
 
 
 @pytest.fixture(scope="module")

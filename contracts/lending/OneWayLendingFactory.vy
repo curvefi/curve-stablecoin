@@ -126,6 +126,7 @@ def _create(
     @notice Internal method for creation of the vault
     """
     assert borrowed_token != collateral_token, "Same token"
+    assert borrowed_token == STABLECOIN or collateral_token == STABLECOIN
     vault: Vault = Vault(create_minimal_proxy_to(self.vault_impl))
 
     min_rate: uint256 = self.min_default_borrow_rate

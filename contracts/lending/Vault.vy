@@ -82,8 +82,6 @@ ADMIN_FEE: constant(uint256) = 0
 # https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/token/ERC20/extensions/ERC4626.sol
 DEAD_SHARES: constant(uint256) = 1000
 
-STABLECOIN: public(immutable(ERC20))
-
 borrowed_token: public(ERC20)
 collateral_token: public(ERC20)
 
@@ -109,7 +107,7 @@ precision: uint256
 
 
 @external
-def __init__(stablecoin: ERC20):
+def __init__():
     """
     @notice Template for Vault implementation
     @param stablecoin Stablecoin address to test if it is borrowed or lent out token
@@ -118,7 +116,6 @@ def __init__(stablecoin: ERC20):
     # This is needed if we want to create a rehypothecation dual-market with two vaults
     # where vaults are collaterals of each other
     self.borrowed_token = ERC20(0x0000000000000000000000000000000000000001)
-    STABLECOIN = stablecoin
 
 
 @internal
@@ -177,7 +174,6 @@ def initialize(
     @param liquidation_discount Liquidation discount. LT = sqrt(((A - 1) / A) ** 4) - liquidation_discount
     """
     assert self.borrowed_token.address == empty(address)
-    assert STABLECOIN == borrowed_token or STABLECOIN == collateral_token
 
     self.borrowed_token = borrowed_token
     self.collateral_token = collateral_token
