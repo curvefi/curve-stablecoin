@@ -39,7 +39,7 @@ if __name__ == '__main__':
 
     amm_impl = boa.load_partial('contracts/AMM.vy').deploy_as_blueprint()
     controller_impl = boa.load_partial('contracts/Controller.vy').deploy_as_blueprint()
-    vault_impl = boa.load('contracts/lending/Vault.vy', CRVUSD)
+    vault_impl = boa.load('contracts/lending/Vault.vy')
     price_oracle_impl = boa.load_partial('contracts/price_oracles/CryptoFromPool.vy').deploy_as_blueprint()
     mpolicy_impl = boa.load_partial('contracts/mpolicies/SemilogMonetaryPolicy.vy').deploy_as_blueprint()
 
