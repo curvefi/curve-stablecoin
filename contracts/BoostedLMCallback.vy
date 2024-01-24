@@ -68,7 +68,7 @@ working_shares_per_band: public(HashMap[int256, uint256])  # This only counts st
 
 working_shares: public(HashMap[address, HashMap[int256, uint256]])
 user_shares: public(HashMap[address, HashMap[int256, uint256]])
-user_band: public(HashMap[address,int256])
+user_start_band: public(HashMap[address,int256])
 user_range_size: public(HashMap[address,int256])
 
 # Tracking of mining period
@@ -172,7 +172,7 @@ def _update_liquidity_limit(user: address, collateral_amount: uint256, old_colla
 
 
 @internal
-def _checkpoint_collateral_shares(n: int256, collateral_per_share: DynArray[uint256, MAX_TICKS_UINT], size: int256):
+def _checkpoint_collateral_shares(n_start: int256, collateral_per_share: DynArray[uint256, MAX_TICKS_UINT], size: int256):
     # Read current and new rate; update the new rate if needed
     I_rpc: IntegralRPC = self.I_rpc
     rate: uint256 = self.inflation_rate
@@ -229,7 +229,7 @@ def _checkpoint_collateral_shares(n: int256, collateral_per_share: DynArray[uint
     for i in range(MAX_TICKS_INT):
         if i == size:
             break
-        _n: int256 = n + i
+        _n: int256 = n_start + i
         old_cps: uint256 = self.collateral_per_share[_n]
         cps: uint256 = old_cps
         if len(collateral_per_share) > 0:
@@ -255,15 +255,15 @@ def _checkpoint_collateral_shares(n: int256, collateral_per_share: DynArray[uint
 
 @internal
 @view
-def _user_collateral(user: address, n: int256, user_shares: DynArray[uint256, MAX_TICKS_UINT], size: int256) -> uint256[2]:
+def _user_collateral(user: address, n_start: int256, user_shares: DynArray[uint256, MAX_TICKS_UINT], size: int256) -> uint256[2]:
     old_collateral_amount: uint256 = 0
     collateral_amount: uint256 = 0
     if len(user_shares) > 0:
         for i in range(MAX_TICKS_INT):
             if i == size:
                 break
-            cps: uint256 = self.collateral_per_share[n + i]
-            old_collateral_amount += self.user_shares[user][n + i] * cps / 10**18
+            cps: uint256 = self.collateral_per_share[n_start + i]
+            old_collateral_amount += self.user_shares[user][n_start + i] * cps / 10**18
             collateral_amount += user_shares[i] * cps / 10**18
 
         return [collateral_amount, old_collateral_amount]
@@ -271,15 +271,15 @@ def _user_collateral(user: address, n: int256, user_shares: DynArray[uint256, MA
         for i in range(MAX_TICKS_INT):
             if i == size:
                 break
-            old_collateral_amount += self.user_shares[user][n + i] * self.collateral_per_share[n + i] / 10**18
+            old_collateral_amount += self.user_shares[user][n_start + i] * self.collateral_per_share[n_start + i] / 10**18
 
         return [old_collateral_amount, old_collateral_amount]
 
 
 @internal
-def _checkpoint_user_shares(user: address, n: int256, user_shares: DynArray[uint256, MAX_TICKS_UINT], size: int256):
+def _checkpoint_user_shares(user: address, n_start: int256, user_shares: DynArray[uint256, MAX_TICKS_UINT], size: int256):
     # Calculate the amount of real collateral for the user
-    collateral_amounts: uint256[2] = self._user_collateral(user, n, user_shares, size)
+    collateral_amounts: uint256[2] = self._user_collateral(user, n_start, user_shares, size)
     boost: uint256 = self._update_liquidity_limit(user, collateral_amounts[0], collateral_amounts[1])
 
     rpu: uint256 = self.integrate_fraction[user]
@@ -287,7 +287,7 @@ def _checkpoint_user_shares(user: address, n: int256, user_shares: DynArray[uint
     for i in range(MAX_TICKS_INT):
         if i == size:
             break
-        _n: int256 = n + i
+        _n: int256 = n_start + i
         old_ws: uint256 = self.working_shares[user][_n]
 
         if len(user_shares) > 0:
@@ -322,31 +322,31 @@ def _checkpoint_user_shares(user: address, n: int256, user_shares: DynArray[uint
 @external
 @view
 def user_collateral(user: address) -> uint256:
-    n: int256 = self.user_band[user]
+    n_start: int256 = self.user_start_band[user]
     size: int256 = self.user_range_size[user]
     collateral_amount: uint256 = 0
     for i in range(MAX_TICKS_INT):
         if i == size:
             break
-        collateral_amount += self.user_shares[user][n + i] * self.collateral_per_share[n + i] / 10 ** 18
+        collateral_amount += self.user_shares[user][n_start + i] * self.collateral_per_share[n_start + i] / 10 ** 18
 
     return collateral_amount
 
 
 @external
-def callback_collateral_shares(n: int256, collateral_per_share: DynArray[uint256, MAX_TICKS_UINT], size: uint256):
+def callback_collateral_shares(n_start: int256, collateral_per_share: DynArray[uint256, MAX_TICKS_UINT], size: uint256):
     # It is important that this callback is called every time before callback_user_shares
     assert msg.sender == self.amm
-    self._checkpoint_collateral_shares(n, collateral_per_share, convert(size, int256))
+    self._checkpoint_collateral_shares(n_start, collateral_per_share, convert(size, int256))
 
 
 @external
-def callback_user_shares(user: address, n: int256, user_shares: DynArray[uint256, MAX_TICKS_UINT]):
+def callback_user_shares(user: address, n_start: int256, user_shares: DynArray[uint256, MAX_TICKS_UINT]):
     assert msg.sender == self.amm
-    self.user_band[user] = n
+    self.user_start_band[user] = n_start
     size: int256 = convert(len(user_shares), int256)
     self.user_range_size[user] = size
-    self._checkpoint_user_shares(user, n, user_shares, size)
+    self._checkpoint_user_shares(user, n_start, user_shares, size)
 
 
 @external
@@ -358,10 +358,10 @@ def user_checkpoint(addr: address) -> bool:
     """
     assert self.amm != empty(address)  # dev: not initialized
     assert msg.sender in [addr, MINTER.address]  # dev: unauthorized
-    n: int256 = self.user_band[addr]
+    n_start: int256 = self.user_start_band[addr]
     size: int256 = self.user_range_size[addr]
-    self._checkpoint_collateral_shares(n, [], size)
-    self._checkpoint_user_shares(addr, n, [], size)
+    self._checkpoint_collateral_shares(n_start, [], size)
+    self._checkpoint_user_shares(addr, n_start, [], size)
 
     return True
 
@@ -374,9 +374,9 @@ def claimable_tokens(addr: address) -> uint256:
     @return uint256 number of claimable tokens per user
     """
     assert self.amm != empty(address)  # dev: not initialized
-    n: int256 = self.user_band[addr]
+    n_start: int256 = self.user_start_band[addr]
     size: int256 = self.user_range_size[addr]
-    self._checkpoint_collateral_shares(n, [], size)
-    self._checkpoint_user_shares(addr, n, [], size)
+    self._checkpoint_collateral_shares(n_start, [], size)
+    self._checkpoint_user_shares(addr, n_start, [], size)
 
     return self.integrate_fraction[addr] - MINTER.minted(addr, self)
