@@ -279,7 +279,7 @@ def _user_collateral(user: address, n_start: int256, user_shares: DynArray[uint2
 @internal
 def _checkpoint_user_shares(user: address, n_start: int256, user_shares: DynArray[uint256, MAX_TICKS_UINT], size: int256):
     # Calculate the amount of real collateral for the user
-    collateral_amounts: uint256[2] = self._user_collateral(user, n_start, user_shares, size)
+    collateral_amounts: uint256[2] = self._user_collateral(user, n_start, user_shares, size)  # [collateral_amount, old_collateral_amount]
     boost: uint256 = self._update_liquidity_limit(user, collateral_amounts[0], collateral_amounts[1])
 
     rpu: uint256 = self.integrate_fraction[user]
@@ -323,6 +323,20 @@ def _checkpoint_user_shares(user: address, n_start: int256, user_shares: DynArra
 @view
 def user_collateral(user: address) -> uint256:
     return self._user_collateral(user, self.user_start_band[user], [], self.user_range_size[user])[0]
+
+
+@external
+@view
+def working_collateral(user: address) -> uint256:
+    n_start: int256 = self.user_start_band[user]
+    size: int256 = self.user_range_size[user]
+    _working_balance: uint256 = 0
+    for i in range(MAX_TICKS_INT):
+        if i == size:
+            break
+        _working_balance += self.working_shares[user][n_start + i] * self.collateral_per_share[n_start + i] / 10 ** 18
+
+    return _working_balance
 
 
 @external
