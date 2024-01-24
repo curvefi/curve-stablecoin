@@ -852,3 +852,200 @@ def test_gauge_integral_with_exchanges_rekt3(
         chad_trading(764856554507998461952)
         update_integral()
         check(832075)
+
+
+def test_gauge_integral_with_exchanges_rekt4(
+        accounts,
+        admin,
+        chad,
+        collateral_token,
+        crv,
+        boosted_lm_callback,
+        gauge_controller,
+        market_controller,
+        market_amm,
+        price_oracle,
+):
+    with boa.env.anchor():
+        alice, bob = accounts[:2]
+
+        # Wire up Gauge to the controller to have proper rates and stuff
+        with boa.env.prank(admin):
+            gauge_controller.add_type("crvUSD Market")
+            gauge_controller.change_type_weight(0, 10 ** 18)
+            gauge_controller.add_gauge(boosted_lm_callback.address, 0, 10 ** 18)
+
+        integral = 0  # ∫(balance * rate(t) / totalSupply(t) dt)
+        checkpoint = boa.env.vm.patch.timestamp
+        checkpoint_rate = crv.rate()
+        checkpoint_supply = 0
+        checkpoint_balance = 0
+        checkpoint_counter = 0
+
+        boa.env.time_travel(seconds=WEEK)
+
+        # Let Alice and Bob have about the same collateral token amount
+        with boa.env.prank(admin):
+            collateral_token._mint_for_testing(alice, 1000 * 10**18)
+            collateral_token._mint_for_testing(bob, 1000 * 10**18)
+
+        def update_integral():
+            nonlocal checkpoint, checkpoint_rate, integral, checkpoint_balance, checkpoint_supply
+
+            t1 = boa.env.vm.patch.timestamp
+            t_epoch = crv.start_epoch_time_write(sender=admin)
+            rate1 = crv.rate()
+            if checkpoint >= t_epoch:
+                rate_x_time = (t1 - checkpoint) * rate1
+            else:
+                rate_x_time = (t_epoch - checkpoint) * checkpoint_rate + (t1 - t_epoch) * rate1
+            if checkpoint_supply > 0:
+                integral += rate_x_time * checkpoint_balance // checkpoint_supply
+            checkpoint_rate = rate1
+            checkpoint = t1
+            checkpoint_supply = collateral_token.balanceOf(market_amm) - market_amm.admin_fees_y()
+            checkpoint_balance = market_amm.get_sum_xy(alice)[1]
+
+        def chad_trading(p_target):
+            bob_bands = market_amm.read_user_tick_numbers(bob)
+            bob_bands = list(range(bob_bands[0], bob_bands[1] + 1))
+            alice_bands = market_amm.read_user_tick_numbers(alice)
+            alice_bands = list(range(alice_bands[0], alice_bands[1] + 1))
+            print("Bob bands:", bob_bands)
+            print("Alice bands:", alice_bands)
+            print("Active band:", market_amm.active_band())
+            price_oracle.set_price(p_target, sender=admin)
+            print("Price set to:", p_target)
+            amount, pump = market_amm.get_amount_for_price(p_target)
+            with boa.env.prank(chad):
+                if pump:
+                    market_amm.exchange(0, 1, amount, 0)
+                else:
+                    market_amm.exchange(1, 0, amount, 0)
+            print("Swap:", amount, pump)
+            print("Active band:", market_amm.active_band())
+
+        def check(dtime):
+            nonlocal checkpoint_counter
+            if random() < 0.5:
+                boosted_lm_callback.user_checkpoint(alice, sender=alice)
+            if random() < 0.5:
+                boosted_lm_callback.user_checkpoint(bob, sender=bob)
+
+            boa.env.time_travel(seconds=dtime)
+            print("Time travel", dtime)
+
+            total_collateral_from_amm = collateral_token.balanceOf(market_amm) - market_amm.admin_fees_y()
+            total_collateral_from_lm_cb = boosted_lm_callback.total_collateral()
+            working_collateral_from_lm_cb = boosted_lm_callback.working_supply()
+            print("Total collateral:", total_collateral_from_amm, total_collateral_from_lm_cb)
+            print("Working collateral:", total_collateral_from_amm * 4 // 10, working_collateral_from_lm_cb)
+            if total_collateral_from_amm > 0 and total_collateral_from_lm_cb > 0:
+                assert approx(total_collateral_from_amm, total_collateral_from_lm_cb, 1e-14)
+                assert approx(total_collateral_from_amm * 4 // 10, working_collateral_from_lm_cb, 1e-13)
+
+            boosted_lm_callback.user_checkpoint(alice, sender=alice)
+            update_integral()
+            print(checkpoint_counter, dtime / 86400, integral, boosted_lm_callback.integrate_fraction(alice), "\n")
+            checkpoint_counter += 1
+            assert approx(boosted_lm_callback.integrate_fraction(alice), integral, 1e-14)
+
+        def deposit_and_borrow(user, collateral_amt, borrow_amt):
+            with boa.env.prank(user):
+                print("!!!", market_amm.get_sum_xy(user)[1], boosted_lm_callback.user_collateral(user), "!!!")
+                collateral_token.approve(market_controller.address, collateral_amt)
+                if market_controller.loan_exists(alice):
+                    market_controller.borrow_more(collateral_amt, borrow_amt)
+                else:
+                    market_controller.create_loan(collateral_amt, borrow_amt, 10)
+                name = "Alice" if user == alice else "Bob"
+                print(f"{name} deposits:", collateral_amt, borrow_amt)
+                update_integral()
+                print("!!!", market_amm.get_sum_xy(user)[1], boosted_lm_callback.user_collateral(user), "!!!")
+                # assert approx(market_amm.get_sum_xy(user)[1], boosted_lm_callback.user_collateral(user), 1e-13)
+                # assert approx(market_amm.get_sum_xy(user)[1] * 4 // 10, boosted_lm_callback.working_balance(user), 1e-13)
+
+        def repay_and_withdraw(user, repay_amount, withdraw_amount=0):
+            with boa.env.prank(user):
+                name = "Alice" if user == alice else "Bob"
+                market_controller.repay(repay_amount)
+                print(f"{name} repays:", repay_amount)
+                if withdraw_amount > 0:
+                    market_controller.remove_collateral(withdraw_amount)
+                    print(f"{name} withdraws:", withdraw_amount)
+                update_integral()
+
+        boa.env.time_travel(seconds=4810038)
+        print("Time travel", 4810038)
+
+        deposit_and_borrow(bob, 16609243527502215267, 18361787673580320849920)
+        chad_trading(1222307451688383938560)
+        update_integral()
+        check(1475661)
+
+        boa.env.time_travel(seconds=405196)
+        print("Time travel", 405196)
+
+        deposit_and_borrow(alice, 71436923248900940328, 7988549168321140883456)
+        chad_trading(1143170027456200048640)
+        update_integral()
+        check(1146668)
+
+        for p, dt1, dt2 in zip([122634278548501315584, 1196316220379981676544, 116402807422117396480, 118529798648208539648, 117743160684383338496, 1189040770537009709056, 1111250596421042962432, 1161761606030454685696, 1147619784442232438784, 116365332760255037440, 1115468774214983614464, 1175516043153986813952], [3682504, 1968115, 6265736, 6168047, 3326796, 2194619, 2105993, 4053060, 4438174, 5285690, 2124928, 1524562], [281663, 498364, 643289, 666360, 783083, 595115, 1193843, 338599, 35687, 1439872, 538530, 276668]):
+            boa.env.time_travel(seconds=dt1)
+            print("Time travel", dt1)
+
+            chad_trading(p)
+            update_integral()
+            check(dt2)
+
+        boa.env.time_travel(seconds=2964843)
+        print("Time travel", 2964843)
+
+        deposit_and_borrow(alice, 4344017874674111468, 25141459128368702160896)
+        chad_trading(884238625442462695424)
+        update_integral()
+        check(1111509)
+
+        for p, dt1, dt2 in zip([878136264183066918912, 900730453495203495936, 1198616473518147371008, 934506740664291819520, 1158050815927008493568, 1159589176708813684736], [4354023, 186126, 6166262, 2171719, 1936722, 6060816], [1435975, 1544903, 352782, 766288, 1259450, 435370]):
+            boa.env.time_travel(seconds=dt1)
+            print("Time travel", dt1)
+
+            chad_trading(p)
+            update_integral()
+            check(dt2)
+
+        boa.env.time_travel(seconds=1024907)
+        print("Time travel", 1024907)
+
+        deposit_and_borrow(alice, 67576033370686965101, 35334378090673966415872)
+        chad_trading(1111466984844117803008)
+        update_integral()
+        check(1184777)
+
+        boa.env.time_travel(seconds=5219829)
+        print("Time travel", 5219829)
+
+        chad_trading(1161080583797435138048)
+        update_integral()
+        check(1063315)
+
+        boa.env.time_travel(seconds=4085884)
+        print("Time travel", 4085884)
+
+        deposit_and_borrow(alice, 30101616270696088551, 58141955357299833831424)
+
+        bob_bands = market_amm.read_user_tick_numbers(bob)
+        bob_bands = list(range(bob_bands[0], bob_bands[1] + 1))
+        alice_bands = market_amm.read_user_tick_numbers(alice)
+        alice_bands = list(range(alice_bands[0], alice_bands[1] + 1))
+        print("Bob bands:", bob_bands)
+        print("Alice bands:", alice_bands)
+        print("Active band:", market_amm.active_band())
+        total_collateral_from_amm = collateral_token.balanceOf(market_amm) - market_amm.admin_fees_y()
+        total_collateral_from_lm_cb = boosted_lm_callback.total_collateral()
+        working_collateral_from_lm_cb = boosted_lm_callback.working_supply()
+        print("Total collateral:", total_collateral_from_amm, total_collateral_from_lm_cb)
+        print("Working collateral:", total_collateral_from_amm * 4 // 10, working_collateral_from_lm_cb)
+
+        raise Exception("Success")
