@@ -322,15 +322,7 @@ def _checkpoint_user_shares(user: address, n_start: int256, user_shares: DynArra
 @external
 @view
 def user_collateral(user: address) -> uint256:
-    n_start: int256 = self.user_start_band[user]
-    size: int256 = self.user_range_size[user]
-    collateral_amount: uint256 = 0
-    for i in range(MAX_TICKS_INT):
-        if i == size:
-            break
-        collateral_amount += self.user_shares[user][n_start + i] * self.collateral_per_share[n_start + i] / 10 ** 18
-
-    return collateral_amount
+    return self._user_collateral(user, self.user_start_band[user], [], self.user_range_size[user])[0]
 
 
 @external
