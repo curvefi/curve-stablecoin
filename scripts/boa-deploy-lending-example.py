@@ -65,5 +65,8 @@ if __name__ == '__main__':
     TRICRV_POOL = "0x4ebdf703948ddcea3b11f675b4d1fba9d2414a14"
     factory.create_from_pool(CRVUSD, CRV, 100, int(0.006 * 1e18), 9 * 10**16, 6 * 10**16, TRICRV_POOL)
 
+    import IPython
+    IPython.embed()
+
     if '--hardhat' in sys.argv[1:]:
         hardhat.wait()
