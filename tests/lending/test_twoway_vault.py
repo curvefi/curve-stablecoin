@@ -4,7 +4,7 @@ import boa
 DEAD_SHARES = 1000
 
 
-def test_vault_creation(vault_long, vault_short,
+def test_vault_creation(factory_2way, vault_long, vault_short,
                         controller_long, controller_short, amm_long, amm_short,
                         collateral_token, borrowed_token, price_oracle):
     assert controller_long.borrowed_token() == borrowed_token.address
@@ -14,6 +14,10 @@ def test_vault_creation(vault_long, vault_short,
 
     assert amm_long.price_oracle() == price_oracle.price() // DEAD_SHARES
     assert amm_short.price_oracle() == (10**18) ** 2 // DEAD_SHARES // price_oracle.price()
+    n = factory_2way.n_vaults()
+    assert n > 0
+    assert factory_2way.vaults(n - 2) == vault_long.address
+    assert factory_2way.vaults(n - 1) == vault_short.address
 
 
 def test_deposit_and_withdraw(vault_long, vault_short, borrowed_token, collateral_token, accounts):
