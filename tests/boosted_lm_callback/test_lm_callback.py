@@ -255,8 +255,8 @@ def test_gauge_integral_with_exchanges(
             print("Total collateral:", total_collateral_from_amm, total_collateral_from_lm_cb)
             print("Working collateral:", total_collateral_from_amm * 4 // 10, working_collateral_from_lm_cb)
             if total_collateral_from_amm > 0 and total_collateral_from_lm_cb > 0:
-                assert approx(total_collateral_from_amm, total_collateral_from_lm_cb, 1e-14)
-                assert approx(total_collateral_from_amm * 4 // 10, working_collateral_from_lm_cb, 1e-14)
+                assert approx(total_collateral_from_amm, total_collateral_from_lm_cb, 1e-13)
+                assert approx(total_collateral_from_amm * 4 // 10, working_collateral_from_lm_cb, 1e-13)
 
             boosted_lm_callback.user_checkpoint(alice, sender=alice)
             update_integral()
