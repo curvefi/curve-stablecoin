@@ -50,6 +50,16 @@ if __name__ == '__main__':
             price_oracle_impl, mpolicy_impl,
             ADMIN)
 
+    # Deploying an example
+    CRV = "0xd533a949740bb3306d119cc777fa900ba034cd52"
+    TRICRV_POOL = "0x4ebdf703948ddcea3b11f675b4d1fba9d2414a14"
+    factory.create_from_pool(CRVUSD, CRV, 100, int(0.006 * 1e18), 9 * 10**16, 6 * 10**16, TRICRV_POOL)
+    vault_compiled = boa.load_partial('contracts/lending/Vault.vy')
+    vault = vault_compiled.at(factory.vaults(0))
+    amm_address = vault.amm()
+    controller_address = vault.controller()
+    price_oracle_address = vault.price_oracle()
+
     print('Deployed contracts:')
     print('==========================')
     print('AMM implementation:', amm_impl.address)
@@ -58,12 +68,12 @@ if __name__ == '__main__':
     print('Pool price oracle implementation:', price_oracle_impl.address)
     print('Monetary Policy implementation:', mpolicy_impl.address)
     print('Factory:', factory.address)
+    print('--------------------------')
+    print('Vault:', vault.address)
+    print('AMM:', amm_address)
+    print('Controller:', controller_address)
+    print('Price Oracle:', price_oracle_address)
     print('==========================')
-
-    # Deploying an example
-    CRV = "0xd533a949740bb3306d119cc777fa900ba034cd52"
-    TRICRV_POOL = "0x4ebdf703948ddcea3b11f675b4d1fba9d2414a14"
-    factory.create_from_pool(CRVUSD, CRV, 100, int(0.006 * 1e18), 9 * 10**16, 6 * 10**16, TRICRV_POOL)
 
     import IPython
     IPython.embed()
