@@ -216,10 +216,9 @@ def test_gauge_integral_with_exchanges(
             print("Alice bands:", alice_bands)
             print("Active band:", market_amm.active_band())
             p_o = market_amm.price_oracle()
-            lower_bands = sorted(list(filter(lambda band: market_amm.p_oracle_up(band) < p_o, available_bands)))[:5]
             upper_bands = sorted(list(filter(lambda band: market_amm.p_oracle_down(band) > p_o, available_bands)))[-5:]
-            available_bands = lower_bands + upper_bands
-            print(lower_bands, upper_bands, available_bands)
+            lower_bands = sorted(list(filter(lambda band: market_amm.p_oracle_up(band) < p_o, available_bands)))[:5]
+            available_bands = upper_bands + lower_bands
             if len(available_bands) > 0:
                 target_band = choice(available_bands)
                 p_up = market_amm.p_oracle_up(target_band)
