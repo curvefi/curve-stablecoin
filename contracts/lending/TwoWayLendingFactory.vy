@@ -150,6 +150,7 @@ def _create(
 
     controller: address = empty(address)
     amm: address = empty(address)
+    n_vaults: uint256 = self.n_vaults
 
     controller, amm = vault_long.initialize(
         self.amm_impl, self.controller_impl,
@@ -159,7 +160,10 @@ def _create(
         monetary_policy,
         loan_discount, liquidation_discount
     )
-    log NewVault(0, vault_short.address, borrowed_token, vault_long.address, controller, amm, price_oracle_long, monetary_policy)
+
+    log NewVault(n_vaults, vault_short.address, borrowed_token, vault_long.address, controller, amm, price_oracle_long, monetary_policy)
+    self.vaults[n_vaults] = vault_long
+    n_vaults += 1
 
     controller, amm = vault_short.initialize(
         self.amm_impl, self.controller_impl,
@@ -169,7 +173,10 @@ def _create(
         monetary_policy,
         loan_discount, liquidation_discount
     )
-    log NewVault(0, vault_long.address, collateral_token, vault_short.address, controller, amm, price_oracle_short, monetary_policy)
+    log NewVault(n_vaults, vault_long.address, collateral_token, vault_short.address, controller, amm, price_oracle_short, monetary_policy)
+    self.vaults[n_vaults] = vault_short
+    n_vaults += 1
+    self.n_vaults = n_vaults
 
 
 @external
