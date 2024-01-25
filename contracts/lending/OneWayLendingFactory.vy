@@ -152,7 +152,12 @@ def _create(
         loan_discount, liquidation_discount
     )
 
-    log NewVault(0, collateral_token, borrowed_token, vault.address, controller, amm, price_oracle, monetary_policy)
+    n_vaults: uint256 = self.n_vaults
+    log NewVault(n_vaults, collateral_token, borrowed_token, vault.address, controller, amm, price_oracle, monetary_policy)
+    self.vaults[n_vaults] = vault
+
+    n_vaults += 1
+    self.n_vaults = n_vaults
 
     return vault
 
