@@ -132,20 +132,20 @@ def test_gauge_integral_with_exchanges(
                 if is_withdraw_bob:
                     amount_bob = randrange(1, collateral_in_amm_bob + 1)
                     if amount_bob == collateral_in_amm_bob:
-                        market_controller.repay(debt_bob)
                         print("Bob repays (full):", debt_bob)
                         print("Bob withdraws (full):", amount_bob)
+                        market_controller.repay(debt_bob)
                         assert approx(market_amm.get_sum_xy(bob)[1], boosted_lm_callback.user_collateral(bob), 1e-14)
                         assert approx(market_amm.get_sum_xy(bob)[1] * 4 // 10, boosted_lm_callback.working_collateral(bob), 1e-14)
                     elif market_controller.health(bob) > 0:
                         repay_amount_bob = int(debt_bob // 10 + (debt_bob * 9 // 10) * random() * 0.99)
-                        market_controller.repay(repay_amount_bob)
                         print("Bob repays:", repay_amount_bob)
+                        market_controller.repay(repay_amount_bob)
                         if not is_underwater_bob:
                             min_collateral_required_bob = market_controller.min_collateral(debt_bob - repay_amount_bob, 10)
                             remove_amount_bob = min(collateral_in_amm_bob - min_collateral_required_bob, amount_bob)
-                            market_controller.remove_collateral(remove_amount_bob)
                             print("Bob withdraws:", remove_amount_bob)
+                            market_controller.remove_collateral(remove_amount_bob)
                             assert approx(market_amm.get_sum_xy(bob)[1], boosted_lm_callback.user_collateral(bob), 1e-14)
                             assert approx(market_amm.get_sum_xy(bob)[1] * 4 // 10, boosted_lm_callback.working_collateral(bob), 1e-14)
                     update_integral()
@@ -155,11 +155,11 @@ def test_gauge_integral_with_exchanges(
                     max_borrowable_bob = market_controller.max_borrowable(amount_bob + collateral_in_amm_bob, 10, debt_bob)
                     borrow_amount_bob = int(random() * (max_borrowable_bob - debt_bob))
                     if borrow_amount_bob > 0:
+                        print("Bob deposits:", amount_bob, borrow_amount_bob)
                         if market_controller.loan_exists(bob):
                             market_controller.borrow_more(amount_bob, borrow_amount_bob)
                         else:
                             market_controller.create_loan(amount_bob, borrow_amount_bob, 10)
-                        print("Bob deposits:", amount_bob, borrow_amount_bob)
                         update_integral()
                     assert approx(market_amm.get_sum_xy(bob)[1], boosted_lm_callback.user_collateral(bob), 1e-14)
                     assert approx(market_amm.get_sum_xy(bob)[1] * 4 // 10, boosted_lm_callback.working_collateral(bob), 1e-14)
@@ -174,20 +174,20 @@ def test_gauge_integral_with_exchanges(
                     if is_withdraw_alice:
                         amount_alice = randrange(1, collateral_in_amm_alice + 1)
                         if amount_alice == collateral_in_amm_alice:
-                            market_controller.repay(debt_alice)
                             print("Alice repays (full):", debt_alice)
                             print("Alice withdraws (full):", amount_alice)
+                            market_controller.repay(debt_alice)
                             assert approx(market_amm.get_sum_xy(alice)[1], boosted_lm_callback.user_collateral(alice), 1e-14)
                             assert approx(market_amm.get_sum_xy(alice)[1] * 4 // 10, boosted_lm_callback.working_collateral(alice), 1e-14)
                         elif market_controller.health(alice) > 0:
                             repay_amount_alice = int(debt_alice // 10 + (debt_alice * 9 // 10) * random() * 0.99)
-                            market_controller.repay(repay_amount_alice)
                             print("Alice repays:", repay_amount_alice)
+                            market_controller.repay(repay_amount_alice)
                             if not is_underwater_alice:
                                 min_collateral_required_alice = market_controller.min_collateral(debt_alice - repay_amount_alice, 10)
                                 remove_amount_alice = min(collateral_in_amm_alice - min_collateral_required_alice, amount_alice)
-                                market_controller.remove_collateral(remove_amount_alice)
                                 print("Alice withdraws:", remove_amount_alice)
+                                market_controller.remove_collateral(remove_amount_alice)
                             assert approx(market_amm.get_sum_xy(alice)[1], boosted_lm_callback.user_collateral(alice), 1e-14)
                             assert approx(market_amm.get_sum_xy(alice)[1] * 4 // 10, boosted_lm_callback.working_collateral(alice), 1e-14)
                         update_integral()
@@ -197,24 +197,29 @@ def test_gauge_integral_with_exchanges(
                         max_borrowable_alice = market_controller.max_borrowable(amount_alice + collateral_in_amm_alice, 10, debt_alice)
                         borrow_amount_alice = int(random() * (max_borrowable_alice - debt_alice))
                         if borrow_amount_alice > 0:
+                            print("Alice deposits:", amount_alice, borrow_amount_alice)
                             if market_controller.loan_exists(alice):
                                 market_controller.borrow_more(amount_alice, borrow_amount_alice)
                             else:
                                 market_controller.create_loan(amount_alice, borrow_amount_alice, 10)
-                            print("Alice deposits:", amount_alice, borrow_amount_alice)
                             update_integral()
                         assert approx(market_amm.get_sum_xy(alice)[1], boosted_lm_callback.user_collateral(alice), 1e-14)
                         assert approx(market_amm.get_sum_xy(alice)[1] * 4 // 10, boosted_lm_callback.working_collateral(alice), 1e-14)
 
             # Chad trading
             alice_bands = market_amm.read_user_tick_numbers(alice)
-            alice_bands = list(range(alice_bands[0], alice_bands[1] + 1))
+            alice_bands = [] if alice_bands[0] == alice_bands[1] else list(range(alice_bands[0], alice_bands[1] + 1))
             bob_bands = market_amm.read_user_tick_numbers(bob)
-            bob_bands = list(range(bob_bands[0], bob_bands[1] + 1))
+            bob_bands = [] if bob_bands[0] == bob_bands[1] else list(range(bob_bands[0], bob_bands[1] + 1))
             available_bands = alice_bands + bob_bands
             print("Bob bands:", bob_bands)
             print("Alice bands:", alice_bands)
             print("Active band:", market_amm.active_band())
+            p_o = market_amm.price_oracle()
+            lower_bands = sorted(list(filter(lambda band: market_amm.p_oracle_up(band) < p_o, available_bands)))[:5]
+            upper_bands = sorted(list(filter(lambda band: market_amm.p_oracle_down(band) > p_o, available_bands)))[-5:]
+            available_bands = lower_bands + upper_bands
+            print(lower_bands, upper_bands, available_bands)
             if len(available_bands) > 0:
                 target_band = choice(available_bands)
                 p_up = market_amm.p_oracle_up(target_band)
@@ -251,12 +256,12 @@ def test_gauge_integral_with_exchanges(
             print("Working collateral:", total_collateral_from_amm * 4 // 10, working_collateral_from_lm_cb)
             if total_collateral_from_amm > 0 and total_collateral_from_lm_cb > 0:
                 assert approx(total_collateral_from_amm, total_collateral_from_lm_cb, 1e-14)
-                assert approx(total_collateral_from_amm * 4 // 10, working_collateral_from_lm_cb, 1e-13)
+                assert approx(total_collateral_from_amm * 4 // 10, working_collateral_from_lm_cb, 1e-14)
 
             boosted_lm_callback.user_checkpoint(alice, sender=alice)
             update_integral()
             print(i, dt / 86400, integral, boosted_lm_callback.integrate_fraction(alice), "\n")
-            assert approx(boosted_lm_callback.integrate_fraction(alice), integral, 1e-9)
+            assert approx(boosted_lm_callback.integrate_fraction(alice), integral, 1e-14)
 
 
 def test_full_repay_underwater(
@@ -952,7 +957,6 @@ def test_gauge_integral_with_exchanges_rekt4(
 
         def deposit_and_borrow(user, collateral_amt, borrow_amt):
             with boa.env.prank(user):
-                print("!!!", market_amm.get_sum_xy(user)[1], boosted_lm_callback.user_collateral(user), "!!!")
                 collateral_token.approve(market_controller.address, collateral_amt)
                 if market_controller.loan_exists(alice):
                     market_controller.borrow_more(collateral_amt, borrow_amt)
@@ -961,9 +965,8 @@ def test_gauge_integral_with_exchanges_rekt4(
                 name = "Alice" if user == alice else "Bob"
                 print(f"{name} deposits:", collateral_amt, borrow_amt)
                 update_integral()
-                print("!!!", market_amm.get_sum_xy(user)[1], boosted_lm_callback.user_collateral(user), "!!!")
-                # assert approx(market_amm.get_sum_xy(user)[1], boosted_lm_callback.user_collateral(user), 1e-13)
-                # assert approx(market_amm.get_sum_xy(user)[1] * 4 // 10, boosted_lm_callback.working_balance(user), 1e-13)
+                assert approx(market_amm.get_sum_xy(user)[1], boosted_lm_callback.user_collateral(user), 1e-13)
+                assert approx(market_amm.get_sum_xy(user)[1] * 4 // 10, boosted_lm_callback.working_collateral(user), 1e-13)
 
         def repay_and_withdraw(user, repay_amount, withdraw_amount=0):
             with boa.env.prank(user):
@@ -1047,5 +1050,3 @@ def test_gauge_integral_with_exchanges_rekt4(
         working_collateral_from_lm_cb = boosted_lm_callback.working_supply()
         print("Total collateral:", total_collateral_from_amm, total_collateral_from_lm_cb)
         print("Working collateral:", total_collateral_from_amm * 4 // 10, working_collateral_from_lm_cb)
-
-        raise Exception("Success")
