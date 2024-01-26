@@ -2,6 +2,7 @@ import boa
 
 
 DEAD_SHARES = 1000
+ZERO_ADDRESS = "0x0000000000000000000000000000000000000000"
 
 
 def test_vault_creation(factory_2way, vault_long, vault_short,
@@ -16,8 +17,26 @@ def test_vault_creation(factory_2way, vault_long, vault_short,
     assert amm_short.price_oracle() == (10**18) ** 2 // DEAD_SHARES // price_oracle.price()
     n = factory_2way.n_vaults()
     assert n > 0
+
     assert factory_2way.vaults(n - 2) == vault_long.address
     assert factory_2way.vaults(n - 1) == vault_short.address
+
+    assert factory_2way.amms(n - 2) == vault_long.amm()
+    assert factory_2way.amms(n - 1) == vault_short.amm()
+
+    assert factory_2way.controllers(n - 2) == vault_long.controller()
+    assert factory_2way.controllers(n - 1) == vault_short.controller()
+
+    assert factory_2way.borrowed_tokens(n - 2) == borrowed_token.address
+    assert factory_2way.borrowed_tokens(n - 1) == collateral_token.address
+
+    assert factory_2way.collateral_tokens(n - 2) == vault_short.address
+    assert factory_2way.collateral_tokens(n - 1) == vault_long.address
+
+    assert factory_2way.price_oracles(n - 1) != factory_2way.price_oracles(n - 2) != ZERO_ADDRESS
+
+    # Monetary policy is the same - reacts same way on utilization
+    assert factory_2way.monetary_policies(n - 1) == factory_2way.monetary_policies(n - 2) != ZERO_ADDRESS
 
 
 def test_deposit_and_withdraw(vault_long, vault_short, borrowed_token, collateral_token, accounts):
