@@ -1,14 +1,9 @@
 #!/usr/bin/env python3
 
 import boa
-import json
-import os
 import sys
 from time import sleep
 import subprocess
-from getpass import getpass
-from eth_account import account
-from boa.network import NetworkEnv
 
 
 NETWORK = "http://localhost:8545"
@@ -17,25 +12,13 @@ CRVUSD = "0xf939e0a03fb07f59a73314e73794be0e57ac1b4e"
 HARDHAT_COMMAND = ["npx", "hardhat", "node", "--fork", "https://eth.drpc.org", "--port", "8545"]
 
 
-def account_load(fname):
-    path = os.path.expanduser(os.path.join('~', '.brownie', 'accounts', fname + '.json'))
-    with open(path, 'r') as f:
-        pkey = account.decode_keyfile_json(json.load(f), getpass())
-        return account.Account.from_key(pkey)
-
-
 if __name__ == '__main__':
     if '--hardhat' in sys.argv[1:]:
         hardhat = subprocess.Popen(HARDHAT_COMMAND)
         sleep(5)
 
-    if '--fork' in sys.argv[1:]:
-        boa.env.fork(NETWORK)
-        boa.env.eoa = '0xbabe61887f1de2713c6f97e567623453d3C79f67'
-    else:
-        boa.set_env(NetworkEnv(NETWORK))
-        boa.env.add_account(account_load('babe'))
-        boa.env._fork_try_prefetch_state = False
+    boa.env.fork(NETWORK)
+    boa.env.eoa = '0xbabe61887f1de2713c6f97e567623453d3C79f67'
 
     amm_impl = boa.load_partial('contracts/AMM.vy').deploy_as_blueprint()
     controller_impl = boa.load_partial('contracts/Controller.vy').deploy_as_blueprint()
@@ -59,6 +42,12 @@ if __name__ == '__main__':
     amm_address = vault.amm()
     controller_address = vault.controller()
     price_oracle_address = vault.price_oracle()
+
+    erc20_compiled = boa.load_partial("contracts/testing/ERC20Mock.vy")
+    crv = erc20_compiled.at(CRV)
+    crv.transfer("0x1e59ce931B4CFea3fe4B875411e280e173cB7A9C", 10**24, sender="0x5f3b5DfEb7B28CDbD7FAba78963EE202a494e2A2")
+    crvusd = erc20_compiled.at(CRVUSD)
+    crvusd.transfer("0x1e59ce931B4CFea3fe4B875411e280e173cB7A9C", 10**24, sender="0xA920De414eA4Ab66b97dA1bFE9e6EcA7d4219635")
 
     print('Deployed contracts:')
     print('==========================')
