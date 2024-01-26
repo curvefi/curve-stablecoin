@@ -20,6 +20,14 @@ interface Vault:
         loan_discount: uint256,
         liquidation_discount: uint256
     ) -> (address, address): nonpayable
+    def amm() -> address: view
+    def controller() -> address: view
+    def borrowed_token() -> address: view
+    def collateral_token() -> address: view
+    def price_oracle() -> address: view
+
+interface Controller:
+    def monetary_policy() -> address: view
 
 interface Pool:
     def price_oracle(i: uint256 = 0) -> uint256: view  # Universal method!
@@ -248,6 +256,42 @@ def create_from_pool(
 
     return self._create(borrowed_token, collateral_token, A, fee, loan_discount, liquidation_discount,
                         price_oracle, min_borrow_rate, max_borrow_rate)
+
+
+@view
+@external
+def amms(n: uint256) -> address:
+    return self.vaults[n].amm()
+
+
+@view
+@external
+def controllers(n: uint256) -> address:
+    return self.vaults[n].controller()
+
+
+@view
+@external
+def borrowed_tokens(n: uint256) -> address:
+    return self.vaults[n].borrowed_token()
+
+
+@view
+@external
+def collateral_tokens(n: uint256) -> address:
+    return self.vaults[n].collateral_token()
+
+
+@view
+@external
+def price_oracles(n: uint256) -> address:
+    return self.vaults[n].price_oracle()
+
+
+@view
+@external
+def monetary_policies(n: uint256) -> address:
+    return Controller(self.vaults[n].controller()).monetary_policy()
 
 
 @external
