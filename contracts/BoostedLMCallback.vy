@@ -151,7 +151,7 @@ def _update_liquidity_limit(user: address, collateral_amount: uint256, old_colla
     voting_total: uint256 = VECRV.totalSupply()
 
     # collateral_amount and total are used to calculate boosts
-    L: uint256 = self.total_collateral + collateral_amount - old_collateral_amount
+    L: uint256 = max(self.total_collateral + collateral_amount, old_collateral_amount) - old_collateral_amount
     self.total_collateral = L
 
     lim: uint256 = collateral_amount * TOKENLESS_PRODUCTION / 100
