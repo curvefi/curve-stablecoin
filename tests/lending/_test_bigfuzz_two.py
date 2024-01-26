@@ -3,7 +3,7 @@ from math import log2, ceil
 from boa.vyper.contract import BoaError
 from hypothesis import settings
 from hypothesis import strategies as st
-from hypothesis.stateful import RuleBasedStateMachine, run_state_machine_as_test, rule, invariant
+from hypothesis.stateful import RuleBasedStateMachine, run_state_machine_as_test, rule  # , invariant
 
 
 # Variables and methods to check
@@ -61,8 +61,15 @@ class BigFuzz(RuleBasedStateMachine):
         self.vaults_c = {}
         self.vaults_c[False] = self.vault_short
         self.vaults_c[True] = self.vault_long
+        self.vaults = {}
         self.vaults[False] = self.vault_long
         self.vaults[True] = self.vault_short
+        self.controllers = {}
+        self.controllers[False] = self.controller_long
+        self.controllers[True] = self.controller_short
+        self.amms = {}
+        self.amms[False] = self.amm_short
+        self.amms[True] = self.amm_long
 
         for user in self.accounts:
             with boa.env.prank(user):
@@ -80,13 +87,13 @@ class BigFuzz(RuleBasedStateMachine):
                 self.vault_long.approve(self.controller_short.address, 2**256-1)
 
     # Auxiliary methods #
-    def check_debt_ceiling(self, amount):
-        return self.borrowed_token.balanceOf(self.market_controller.address) >= amount
+    def check_debt_ceiling(self, amount, is_short):
+        return self.tokens_b.balanceOf(self.controllers[is_short].address) >= amount
 
-    def get_max_good_band(self):
-        return ceil(log2(self.market_amm.get_base_price() / self.market_amm.price_oracle()) / log2(self.A / (self.A - 1)) + 5)
+    def get_max_good_band(self, is_short):
+        return ceil(log2(self.amms[is_short].get_base_price() / self.amms[is_short].price_oracle()) / log2(self.A / (self.A - 1)) + 5)
 
-    @rule(uid=user_id, asset_amount=loan_amount)
+    @rule(uid=user_id, asset_amount=loan_amount, is_short=is_short)
     def deposit_vault(self, uid, asset_amount, is_short):
         asset_amount = asset_amount // self.mul[is_short]
         user = self.accounts[uid]
@@ -96,16 +103,16 @@ class BigFuzz(RuleBasedStateMachine):
         with boa.env.prank(user):
             self.vaults[is_short].deposit(asset_amount)
 
-    # @rule(uid=user_id, shares_amount=loan_amount)
-    def withdraw_vault(self, uid, shares_amount):
+    @rule(uid=user_id, shares_amount=loan_amount, is_short=is_short)
+    def withdraw_vault(self, uid, shares_amount, is_short):
         user = self.accounts[uid]
-        if shares_amount <= self.vault.maxRedeem(user):
+        if shares_amount <= self.vaults[is_short].maxRedeem(user):
             with boa.env.prank(user):
-                self.vault.redeem(shares_amount)
+                self.vaults[is_short].redeem(shares_amount)
 
     # Borrowing and returning #
-    # @rule(y=collateral_amount, n=n, uid=user_id, ratio=ratio)
-    def create_loan(self, y, n, ratio, uid):
+    # @rule(y=collateral_amount, n=n, uid=user_id, ratio=ratio, is_short=is_short)
+    def create_loan(self, y, n, ratio, uid, is_short):
         debt = int(ratio * 3000 * y) // self.borrowed_mul
         y = y // self.collateral_mul
         user = self.accounts[uid]
