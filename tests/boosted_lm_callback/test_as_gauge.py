@@ -153,7 +153,8 @@ def test_gauge_integral(accounts, admin, collateral_token, crv, boosted_lm_callb
                     else:
                         repay_amount_bob = int(debt_bob * random() * 0.99)
                         market_controller.repay(repay_amount_bob)
-                        remove_amount_bob = min(int(market_controller.min_collateral(debt_bob - repay_amount_bob, 10) * 0.99), amount_bob)
+                        min_collateral_required_bob = market_controller.min_collateral(debt_bob - repay_amount_bob, 10)
+                        remove_amount_bob = min(collateral_in_amm_bob - min_collateral_required_bob, amount_bob)
                         market_controller.remove_collateral(remove_amount_bob)
                     update_integral()
                     bob_staked -= remove_amount_bob
@@ -184,7 +185,8 @@ def test_gauge_integral(accounts, admin, collateral_token, crv, boosted_lm_callb
                         else:
                             repay_amount_alice = int(debt_alice * random() * 0.99)
                             market_controller.repay(repay_amount_alice)
-                            remove_amount_alice = min(int(market_controller.min_collateral(debt_alice - repay_amount_alice, 10) * 0.99), amount_alice)
+                            min_collateral_required_alice = market_controller.min_collateral(debt_alice - repay_amount_alice, 10)
+                            remove_amount_alice = min(collateral_in_amm_alice - min_collateral_required_alice, amount_alice)
                             market_controller.remove_collateral(remove_amount_alice)
                         update_integral()
                         alice_staked -= remove_amount_alice
