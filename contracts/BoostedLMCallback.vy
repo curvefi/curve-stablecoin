@@ -11,6 +11,7 @@ interface Factory:
 
 interface LLAMMA:
     def coins(i: uint256) -> address: view
+    def bands_x(n: int256) -> uint256: view
 
 interface VotingEscrowBoost:
     def adjusted_balance_of(_account: address) -> uint256: view
@@ -145,24 +146,26 @@ def initialize():
 
 
 @internal
-def _update_liquidity_limit(user: address, collateral_amount: uint256, old_collateral_amount: uint256) -> uint256:
-    # To be called after totalSupply is updated
-    voting_balance: uint256 = VEBOOST_PROXY.adjusted_balance_of(user)
-    voting_total: uint256 = VECRV.totalSupply()
-
+def _update_liquidity_limit(user: address, collateral_amount: uint256, old_collateral_amount: uint256, is_underwater: bool) -> uint256:
     # collateral_amount and total are used to calculate boosts
     L: uint256 = max(self.total_collateral + collateral_amount, old_collateral_amount) - old_collateral_amount
     self.total_collateral = L
 
-    lim: uint256 = collateral_amount * TOKENLESS_PRODUCTION / 100
-    if voting_total > 0:
-        lim += L * voting_balance / voting_total * (100 - TOKENLESS_PRODUCTION) / 100
-    lim = min(collateral_amount, lim)
+    boost: uint256 = self.user_boost[user]
+    lim: uint256 = collateral_amount * boost / 10 ** 18
+    if not is_underwater:
+        # To be called after totalSupply is updated
+        voting_balance: uint256 = VEBOOST_PROXY.adjusted_balance_of(user)
+        voting_total: uint256 = VECRV.totalSupply()
+
+        lim = collateral_amount * TOKENLESS_PRODUCTION / 100
+        if voting_total > 0:
+            lim += L * voting_balance / voting_total * (100 - TOKENLESS_PRODUCTION) / 100
+        lim = min(collateral_amount, lim)
 
     _working_supply: uint256 = self.working_supply + lim - old_collateral_amount * self.user_boost[user] / 10**18
     self.working_supply = _working_supply
-    boost: uint256 = self.user_boost[user]
-    if collateral_amount > 0:  # Do not set boost to 0 for soft-liquidated user
+    if collateral_amount > 0 and not is_underwater:  # Do not update boost for underwater user to prevent manipulation
         boost = lim * 10**18 / collateral_amount
         self.user_boost[user] = boost
 
@@ -255,9 +258,10 @@ def _checkpoint_collateral_shares(n_start: int256, collateral_per_share: DynArra
 
 @internal
 @view
-def _user_collateral(user: address, n_start: int256, user_shares: DynArray[uint256, MAX_TICKS_UINT], size: int256) -> uint256[2]:
+def _user_amounts(user: address, n_start: int256, user_shares: DynArray[uint256, MAX_TICKS_UINT], size: int256) -> uint256[3]:
     old_collateral_amount: uint256 = 0
     collateral_amount: uint256 = 0
+    stablecoin_amount: uint256 = 0  # this amount is needed just to check whether user is_underwater or not
     if len(user_shares) > 0:
         for i in range(MAX_TICKS_INT):
             if i == size:
@@ -265,22 +269,24 @@ def _user_collateral(user: address, n_start: int256, user_shares: DynArray[uint2
             cps: uint256 = self.collateral_per_share[n_start + i]
             old_collateral_amount += self.user_shares[user][n_start + i] * cps / 10**18
             collateral_amount += user_shares[i] * cps / 10**18
+            stablecoin_amount += LLAMMA(self.amm).bands_x(n_start + i)
 
-        return [collateral_amount, old_collateral_amount]
+        return [collateral_amount, old_collateral_amount, stablecoin_amount]
     else:
         for i in range(MAX_TICKS_INT):
             if i == size:
                 break
             old_collateral_amount += self.user_shares[user][n_start + i] * self.collateral_per_share[n_start + i] / 10**18
+            stablecoin_amount += LLAMMA(self.amm).bands_x(n_start + i)
 
-        return [old_collateral_amount, old_collateral_amount]
+        return [old_collateral_amount, old_collateral_amount, stablecoin_amount]
 
 
 @internal
 def _checkpoint_user_shares(user: address, n_start: int256, user_shares: DynArray[uint256, MAX_TICKS_UINT], size: int256):
     # Calculate the amount of real collateral for the user
-    collateral_amounts: uint256[2] = self._user_collateral(user, n_start, user_shares, size)  # [collateral_amount, old_collateral_amount]
-    boost: uint256 = self._update_liquidity_limit(user, collateral_amounts[0], collateral_amounts[1])
+    _amounts: uint256[3] = self._user_amounts(user, n_start, user_shares, size)  # [collateral_amount, old_collateral_amount]
+    boost: uint256 = self._update_liquidity_limit(user, _amounts[0], _amounts[1], _amounts[2] > 0)
 
     rpu: uint256 = self.integrate_fraction[user]
 
@@ -322,7 +328,7 @@ def _checkpoint_user_shares(user: address, n_start: int256, user_shares: DynArra
 @external
 @view
 def user_collateral(user: address) -> uint256:
-    return self._user_collateral(user, self.user_start_band[user], [], self.user_range_size[user])[0]
+    return self._user_amounts(user, self.user_start_band[user], [], self.user_range_size[user])[0]
 
 
 @external
