@@ -7,13 +7,20 @@ from hypothesis.stateful import RuleBasedStateMachine, run_state_machine_as_test
 DEAD_SHARES = 1000
 
 
-def test_vault_creation(vault, market_controller, market_amm, market_mpolicy, factory):
+def test_vault_creation(vault, market_controller, market_amm, market_mpolicy, factory, price_oracle,
+                        borrowed_token, collateral_token):
     assert vault.amm() == market_amm.address
     assert vault.controller() == market_controller.address
     assert market_controller.monetary_policy() == market_mpolicy.address
     n = factory.n_vaults()
     assert n > 0
     assert factory.vaults(n - 1) == vault.address
+    assert factory.amms(n - 1) == market_amm.address
+    assert factory.controllers(n - 1) == market_controller.address
+    assert factory.borrowed_tokens(n - 1) == borrowed_token.address
+    assert factory.collateral_tokens(n - 1) == collateral_token.address
+    assert factory.price_oracles(n - 1) == price_oracle.address
+    assert factory.monetary_policies(n - 1) == market_mpolicy.address
 
 
 def test_deposit_and_withdraw(vault, borrowed_token, accounts):
