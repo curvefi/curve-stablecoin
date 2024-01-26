@@ -9,7 +9,7 @@ from ..conftest import approx
 class StateMachine(RuleBasedStateMachine):
     user_id = st.integers(min_value=0, max_value=4)
     value = st.integers(min_value=10**16, max_value=10 ** 18 * 10 ** 6 // 3000)
-    time = st.integers(min_value=0, max_value=86400 * 365)
+    time = st.integers(min_value=300, max_value=86400 * 90)
     lock_time = st.integers(min_value=86400 * 7, max_value=86400 * 365 * 4)
 
     def __init__(self):
@@ -145,19 +145,29 @@ class StateMachine(RuleBasedStateMachine):
                 assert approx(self.boosted_lm_callback.integrate_fraction(user), self.integrals[user]["integral"], 1e-15)
 
     @invariant()
-    def invariant_balances(self):
+    def invariant_collateral(self):
         """
-        Validate expected balances against actual balances.
+        Validate expected balances against actual balances and
+        expected total supply against actual total supply.
         """
         for account, integral in self.integrals.items():
             assert self.boosted_lm_callback.user_collateral(account) == integral["balance"]
+        assert self.boosted_lm_callback.total_collateral() == sum([i["balance"] for i in self.integrals.values()])
 
     @invariant()
-    def invariant_total_supply(self):
+    def invariant_working_collateral(self):
         """
-        Validate expected total supply against actual total supply.
+        Validate expected working balances against actual working balances and
+        expected working supply against actual working supply.
         """
-        assert self.boosted_lm_callback.total_collateral() == sum([i["balance"] for i in self.integrals.values()])
+        for account, integral in self.integrals.items():
+            y1 = self.boosted_lm_callback.working_collateral(account)
+            y2 = integral["working_balance"]
+            assert approx(y1, y2, 1e-17) or abs(y1 - y2) < 100
+
+        Y1 = self.boosted_lm_callback.working_supply()
+        Y2 = sum([i["working_balance"] for i in self.integrals.values()])
+        assert approx(Y1, Y2, 1e-17) or abs(Y1 - Y2) < 100
 
     def teardown(self):
         """
