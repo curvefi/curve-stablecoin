@@ -26,9 +26,9 @@ class StateMachine(RuleBasedStateMachine):
 
     def update_integrals(self, user, d_balance=0):
         # Update rewards
-        rate1 = self.crv.rate()
         t1 = boa.env.vm.patch.timestamp
         t_epoch = self.crv.start_epoch_time_write(sender=self.admin)
+        rate1 = self.crv.rate()
         for acct in self.accounts[:5]:
             integral = self.integrals[acct]
             if integral["checkpoint"] >= t_epoch:
