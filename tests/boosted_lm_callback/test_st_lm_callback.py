@@ -119,7 +119,6 @@ class StateMachine(RuleBasedStateMachine):
             if repay_pct == 1:
                 self.market_controller.repay(debt)
                 withdraw_amount = collateral_in_amm
-                self.update_integrals(user)
             elif self.market_controller.health(user) > 0:
                 repay_amount = int(debt * repay_pct)
                 self.market_controller.repay(repay_amount)
@@ -131,7 +130,10 @@ class StateMachine(RuleBasedStateMachine):
                     min_collateral_required = self.market_controller.min_collateral(debt - repay_amount, 10)
                     withdraw_amount = min(collateral_in_amm - min_collateral_required, withdraw_amount)
                     self.market_controller.remove_collateral(withdraw_amount)
-                self.update_integrals(user)
+            else:
+                # We call checkpoint manually to pass checks below
+                self.boosted_lm_callback.user_checkpoint(user)
+            self.update_integrals(user)
 
             assert self.collateral_token.balanceOf(user) == balance + withdraw_amount
 
