@@ -63,7 +63,8 @@ def test_gauge_integral_one_user(accounts, admin, collateral_token, crv, boosted
                     else:
                         repay_amount = int(debt * random() * 0.99)
                         market_controller.repay(repay_amount)
-                        remove_amount = min(int(market_controller.min_collateral(debt - repay_amount, 10) * 0.99), amount)
+                        min_collateral_required = market_controller.min_collateral(debt - repay_amount, 10)
+                        remove_amount = min(collateral_in_amm - min_collateral_required, amount)
                         market_controller.remove_collateral(remove_amount)
                     update_integral()
                     alice_staked -= remove_amount
