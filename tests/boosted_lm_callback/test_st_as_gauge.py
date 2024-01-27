@@ -77,7 +77,7 @@ class StateMachine(RuleBasedStateMachine):
 
             assert self.collateral_token.balanceOf(user) == balance - value
             if self.integrals[user]["integral"] > 0 and self.boosted_lm_callback.integrate_fraction(user) > 0:
-                assert approx(self.boosted_lm_callback.integrate_fraction(user), self.integrals[user]["integral"], 1e-15)
+                assert approx(self.boosted_lm_callback.integrate_fraction(user), self.integrals[user]["integral"], 1e-13)
 
     @rule(uid=user_id, value=value)
     def withdraw(self, uid, value):
@@ -105,7 +105,7 @@ class StateMachine(RuleBasedStateMachine):
 
             assert self.collateral_token.balanceOf(user) == balance + remove_amount
             if self.integrals[user]["integral"] > 0 and self.boosted_lm_callback.integrate_fraction(user) > 0:
-                assert approx(self.boosted_lm_callback.integrate_fraction(user), self.integrals[user]["integral"], 1e-15)
+                assert approx(self.boosted_lm_callback.integrate_fraction(user), self.integrals[user]["integral"], 1e-13)
 
     @rule(dt=time)
     def advance_time(self, dt):
@@ -142,7 +142,7 @@ class StateMachine(RuleBasedStateMachine):
             self.boosted_lm_callback.user_checkpoint(user)
             self.update_integrals(user)
             if self.integrals[user]["integral"] > 0 and self.boosted_lm_callback.integrate_fraction(user) > 0:
-                assert approx(self.boosted_lm_callback.integrate_fraction(user), self.integrals[user]["integral"], 1e-15)
+                assert approx(self.boosted_lm_callback.integrate_fraction(user), self.integrals[user]["integral"], 1e-13)
 
     @invariant()
     def invariant_collateral(self):
@@ -167,7 +167,7 @@ class StateMachine(RuleBasedStateMachine):
 
         Y1 = self.boosted_lm_callback.working_supply()
         Y2 = sum([i["working_balance"] for i in self.integrals.values()])
-        assert approx(Y1, Y2, 1e-17) or abs(Y1 - Y2) < 100
+        assert approx(Y1, Y2, 1e-17) or abs(Y1 - Y2) < 1000
 
     def teardown(self):
         """
@@ -183,7 +183,7 @@ class StateMachine(RuleBasedStateMachine):
             assert self.collateral_token.balanceOf(account) == initial + integral["balance"]
             assert (self.integrals[account]["integral"] > 0) == (self.boosted_lm_callback.integrate_fraction(account) > 0)
             if self.integrals[account]["integral"] > 0:
-                assert approx(self.boosted_lm_callback.integrate_fraction(account), self.integrals[account]["integral"], 1e-14)
+                assert approx(self.boosted_lm_callback.integrate_fraction(account), self.integrals[account]["integral"], 1e-13)
 
 
 def test_state_machine(

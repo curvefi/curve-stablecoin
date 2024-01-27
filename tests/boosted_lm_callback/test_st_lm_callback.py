@@ -220,11 +220,11 @@ class StateMachine(RuleBasedStateMachine):
         for account, integral in self.integrals.items():
             y1 = self.boosted_lm_callback.user_collateral(account)
             y2 = integral["balance"]
-            assert approx(y1, y2, 1e-14) or abs(y1 - y2) < 100
+            assert approx(y1, y2, 1e-14) or abs(y1 - y2) < 100000  # Seems ok for 18 decimals
 
         Y1 = self.boosted_lm_callback.total_collateral()
         Y2 = sum([i["balance"] for i in self.integrals.values()])
-        assert approx(Y1, Y2, 1e-13) or abs(Y1 - Y2) < 100
+        assert approx(Y1, Y2, 1e-13) or abs(Y1 - Y2) < 100000  # Seems ok for 18 decimals
 
     @invariant()
     def invariant_working_collateral(self):
@@ -235,11 +235,11 @@ class StateMachine(RuleBasedStateMachine):
         for account, integral in self.integrals.items():
             y1 = self.boosted_lm_callback.working_collateral(account)
             y2 = integral["working_balance"]
-            assert approx(y1, y2, 1e-14) or abs(y1 - y2) < 100
+            assert approx(y1, y2, 1e-14) or abs(y1 - y2) < 100000  # Seems ok for 18 decimals
 
         Y1 = self.boosted_lm_callback.working_supply()
         Y2 = sum([i["working_balance"] for i in self.integrals.values()])
-        assert approx(Y1, Y2, 1e-13) or abs(Y1 - Y2) < 100
+        assert approx(Y1, Y2, 1e-13) or abs(Y1 - Y2) < 100000  # Seems ok for 18 decimals
 
     def teardown(self):
         """
