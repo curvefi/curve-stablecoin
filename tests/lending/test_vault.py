@@ -29,6 +29,8 @@ def test_vault_creation(vault, market_controller, market_amm, market_mpolicy, fa
     vaults = set(factory.token_to_vaults(token, i) for i in range(factory.token_n_vaults(token)))
     assert vault.address in vaults
 
+    assert factory.vaults(factory.vaults_index(vault.address)) == vault.address
+
 
 def test_deposit_and_withdraw(vault, borrowed_token, accounts):
     one_token = 10 ** borrowed_token.decimals()
