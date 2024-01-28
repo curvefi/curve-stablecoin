@@ -87,6 +87,7 @@ admin: public(address)
 
 # Vaults can only be created but not removed
 vaults: public(Vault[10**18])
+_vaults_index: HashMap[Vault, uint256]
 n_vaults: public(uint256)
 
 # Index to find vaults by a non-crvUSD token
@@ -185,6 +186,7 @@ def _create(
 
     log NewVault(n_vaults, vault_short.address, borrowed_token, vault_long.address, controller, amm, price_oracle_long, monetary_policy)
     self.vaults[n_vaults] = vault_long
+    self._vaults_index[vault_long] = n_vaults + 2**128
     n_vaults += 1
 
     controller, amm = vault_short.initialize(
@@ -197,6 +199,7 @@ def _create(
     )
     log NewVault(n_vaults, vault_long.address, collateral_token, vault_short.address, controller, amm, price_oracle_short, monetary_policy)
     self.vaults[n_vaults] = vault_short
+    self._vaults_index[vault_short] = n_vaults + 2**128
     n_vaults += 1
     self.n_vaults = n_vaults
 
@@ -346,6 +349,12 @@ def price_oracles(n: uint256) -> address:
 @external
 def monetary_policies(n: uint256) -> address:
     return Controller(self.vaults[n].controller()).monetary_policy()
+
+
+@view
+@external
+def vaults_index(vault: Vault) -> uint256:
+    return self._vaults_index[vault] - 2**128
 
 
 @external

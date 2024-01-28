@@ -47,6 +47,10 @@ def test_vault_creation(factory_2way, vault_long, vault_short,
     assert vault_long.address in vaults
     assert vault_short.address in vaults
 
+    # Vaults index
+    assert factory_2way.vaults(factory_2way.vaults_index(vault_long.address)) == vault_long.address
+    assert factory_2way.vaults(factory_2way.vaults_index(vault_short.address)) == vault_short.address
+
 
 def test_deposit_and_withdraw(vault_long, vault_short, borrowed_token, collateral_token, accounts):
     one_borrowed_token = 10 ** borrowed_token.decimals()
