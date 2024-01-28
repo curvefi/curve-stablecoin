@@ -51,6 +51,14 @@ def test_vault_creation(factory_2way, vault_long, vault_short,
     assert factory_2way.vaults(factory_2way.vaults_index(vault_long.address)) == vault_long.address
     assert factory_2way.vaults(factory_2way.vaults_index(vault_short.address)) == vault_short.address
 
+    # Gauges
+    gauge = factory_2way.deploy_gauge(vault_long.address)
+    assert factory_2way.gauge_for_vault(vault_long.address) == gauge
+    assert factory_2way.gauges(n - 2) == gauge
+    gauge = factory_2way.deploy_gauge(vault_short.address)
+    assert factory_2way.gauge_for_vault(vault_short.address) == gauge
+    assert factory_2way.gauges(n - 1) == gauge
+
 
 def test_deposit_and_withdraw(vault_long, vault_short, borrowed_token, collateral_token, accounts):
     one_borrowed_token = 10 ** borrowed_token.decimals()
