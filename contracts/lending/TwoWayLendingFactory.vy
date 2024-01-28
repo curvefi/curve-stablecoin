@@ -89,6 +89,10 @@ admin: public(address)
 vaults: public(Vault[10**18])
 n_vaults: public(uint256)
 
+# Index to find vaults by a non-crvUSD token
+token_to_vaults: public(HashMap[address, Vault[10**18]])
+token_n_vaults: public(HashMap[address, uint256])
+
 
 @external
 def __init__(
@@ -122,6 +126,16 @@ def __init__(
     self.max_default_borrow_rate = 50 * 10**16 / (365 * 86400)
 
     self.admin = admin
+
+
+@internal
+def _add_to_index(vault: Vault, token_a: address, token_b: address):
+    token: address = token_a
+    if token_a == STABLECOIN:
+        token = token_b
+    n_vaults: uint256 = self.token_n_vaults[token]
+    self.token_to_vaults[token][n_vaults] = vault
+    self.token_n_vaults[token] = n_vaults + 1
 
 
 @internal
@@ -185,6 +199,9 @@ def _create(
     self.vaults[n_vaults] = vault_short
     n_vaults += 1
     self.n_vaults = n_vaults
+
+    self._add_to_index(vault_long, borrowed_token, collateral_token)
+    self._add_to_index(vault_short, borrowed_token, collateral_token)
 
 
 @external

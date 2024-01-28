@@ -7,7 +7,7 @@ ZERO_ADDRESS = "0x0000000000000000000000000000000000000000"
 
 def test_vault_creation(factory_2way, vault_long, vault_short,
                         controller_long, controller_short, amm_long, amm_short,
-                        collateral_token, borrowed_token, price_oracle):
+                        collateral_token, borrowed_token, price_oracle, stablecoin):
     assert controller_long.borrowed_token() == borrowed_token.address
     assert controller_short.borrowed_token() == collateral_token.address
     assert controller_long.collateral_token() == vault_short.address
@@ -37,6 +37,15 @@ def test_vault_creation(factory_2way, vault_long, vault_short,
 
     # Monetary policy is the same - reacts same way on utilization
     assert factory_2way.monetary_policies(n - 1) == factory_2way.monetary_policies(n - 2) != ZERO_ADDRESS
+
+    # Token index
+    if borrowed_token == stablecoin:
+        token = collateral_token
+    else:
+        token = borrowed_token
+    vaults = set(factory_2way.token_to_vaults(token, i) for i in range(factory_2way.token_n_vaults(token)))
+    assert vault_long.address in vaults
+    assert vault_short.address in vaults
 
 
 def test_deposit_and_withdraw(vault_long, vault_short, borrowed_token, collateral_token, accounts):
