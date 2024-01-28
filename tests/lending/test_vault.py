@@ -8,7 +8,7 @@ DEAD_SHARES = 1000
 
 
 def test_vault_creation(vault, market_controller, market_amm, market_mpolicy, factory, price_oracle,
-                        borrowed_token, collateral_token):
+                        borrowed_token, collateral_token, stablecoin):
     assert vault.amm() == market_amm.address
     assert vault.controller() == market_controller.address
     assert market_controller.monetary_policy() == market_mpolicy.address
@@ -21,6 +21,13 @@ def test_vault_creation(vault, market_controller, market_amm, market_mpolicy, fa
     assert factory.collateral_tokens(n - 1) == collateral_token.address
     assert factory.price_oracles(n - 1) == price_oracle.address
     assert factory.monetary_policies(n - 1) == market_mpolicy.address
+
+    if borrowed_token == stablecoin:
+        token = collateral_token
+    else:
+        token = borrowed_token
+    vaults = set(factory.token_to_vaults(token, i) for i in range(factory.token_n_vaults(token)))
+    assert vault.address in vaults
 
 
 def test_deposit_and_withdraw(vault, borrowed_token, accounts):
