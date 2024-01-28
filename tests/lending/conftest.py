@@ -61,7 +61,7 @@ def mpolicy_impl(mpolicy_interface, admin):
 @pytest.fixture(scope="module")
 def gauge_impl(admin):
     with boa.env.prank(admin):
-        return boa.load_partial('contracts/lending/LiquidityGauge.vy').deploy_as_blueprint()
+        return boa.load_partial('contracts/testing/MockGauge.vy').deploy_as_blueprint()
 
 
 @pytest.fixture(scope="module")
