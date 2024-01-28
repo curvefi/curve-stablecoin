@@ -40,6 +40,7 @@ event SetImplementations:
     vault: address
     price_oracle: address
     monetary_policy: address
+    gauge: address
 
 event SetDefaultRates:
     min_rate: uint256
@@ -58,6 +59,10 @@ event NewVault:
     price_oracle: address
     monetary_policy: address
 
+event LiquidityGaugeDeployed:
+    vault: address
+    gauge: address
+
 
 STABLECOIN: public(immutable(address))
 
@@ -73,6 +78,7 @@ controller_impl: public(address)
 vault_impl: public(address)
 pool_price_oracle_impl: public(address)
 monetary_policy_impl: public(address)
+gauge_impl: public(address)
 
 # Actual min/max borrow rates when creating new markets
 # for example, 0.5% -> 50% is a good choice
@@ -84,11 +90,14 @@ admin: public(address)
 
 # Vaults can only be created but not removed
 vaults: public(Vault[10**18])
+_vaults_index: HashMap[Vault, uint256]
 n_vaults: public(uint256)
 
 # Index to find vaults by a non-crvUSD token
 token_to_vaults: public(HashMap[address, Vault[10**18]])
 token_n_vaults: public(HashMap[address, uint256])
+
+gauges: public(address[10**18])
 
 
 @external
@@ -99,6 +108,7 @@ def __init__(
         vault: address,
         pool_price_oracle: address,
         monetary_policy: address,
+        gauge: address,
         admin: address):
     """
     @notice Factory which creates one-way lending vaults (e.g. collateral is non-borrowable)
@@ -107,6 +117,7 @@ def __init__(
     @param controller Address of Controller implementation
     @param pool_price_oracle Address of implementation for price oracle factory (prices from pools)
     @param monetary_policy Address for implementation of monetary policy
+    @param gauge Address for gauge implementation
     @param admin Admin address (DAO)
     """
     STABLECOIN = stablecoin
@@ -115,6 +126,7 @@ def __init__(
     self.vault_impl = vault
     self.pool_price_oracle_impl = pool_price_oracle
     self.monetary_policy_impl = monetary_policy
+    self.gauge_impl = gauge
 
     self.min_default_borrow_rate = 5 * 10**15 / (365 * 86400)
     self.max_default_borrow_rate = 50 * 10**16 / (365 * 86400)
@@ -167,6 +179,7 @@ def _create(
     n_vaults: uint256 = self.n_vaults
     log NewVault(n_vaults, collateral_token, borrowed_token, vault.address, controller, amm, price_oracle, monetary_policy)
     self.vaults[n_vaults] = vault
+    self._vaults_index[vault] = n_vaults + 2**128
 
     self.n_vaults = n_vaults + 1
 
@@ -304,10 +317,43 @@ def monetary_policies(n: uint256) -> address:
     return Controller(self.vaults[n].controller()).monetary_policy()
 
 
+@view
+@external
+def vaults_index(vault: Vault) -> uint256:
+    return self._vaults_index[vault] - 2**128
+
+
+@external
+def deploy_gauge(_vault: Vault) -> address:
+    """
+    @notice Deploy a liquidity gauge for a vault
+    @param _vault Vault address to deploy a gauge for
+    @return Address of the deployed gauge
+    """
+    ix: uint256 = self._vaults_index[_vault]
+    assert ix != 0, "Unknown vault"
+    ix -= 2**128
+    assert self.gauges[ix] == empty(address), "Gauge already deployed"
+    implementation: address = self.gauge_impl
+    assert implementation != empty(address), "Gauge implementation not set"
+
+    gauge: address = create_from_blueprint(implementation, _vault, code_offset=3)
+    self.gauges[ix] = gauge
+
+    log LiquidityGaugeDeployed(_vault.address, gauge)
+    return gauge
+
+
+@view
+@external
+def gauge_for_vault(_vault: Vault) -> address:
+    return self.gauges[self._vaults_index[_vault] - 2**128]
+
+
 @external
 @nonreentrant('lock')
 def set_implementations(controller: address, amm: address, vault: address,
-                        pool_price_oracle: address, monetary_policy: address):
+                        pool_price_oracle: address, monetary_policy: address, gauge: address):
     """
     @notice Set new implementations (blueprints) for controller, amm, vault, pool price oracle and monetary polcy.
             Doesn't change existing ones
@@ -316,6 +362,7 @@ def set_implementations(controller: address, amm: address, vault: address,
     @param vault Address of the Vault template
     @param pool_price_oracle Address of the pool price oracle blueprint
     @param monetary_policy Address of the monetary policy blueprint
+    @param gauge Address for gauge implementation blueprint
     """
     assert msg.sender == self.admin
 
@@ -329,8 +376,10 @@ def set_implementations(controller: address, amm: address, vault: address,
         self.pool_price_oracle_impl = pool_price_oracle
     if monetary_policy != empty(address):
         self.monetary_policy_impl = monetary_policy
+    if gauge != empty(address):
+        self.gauge_impl = gauge
 
-    log SetImplementations(amm, controller, vault, pool_price_oracle, monetary_policy)
+    log SetImplementations(amm, controller, vault, pool_price_oracle, monetary_policy, gauge)
 
 
 @external

@@ -59,13 +59,19 @@ def mpolicy_impl(mpolicy_interface, admin):
 
 
 @pytest.fixture(scope="module")
-def factory(stablecoin, amm_impl, controller_impl, vault_impl, price_oracle_impl, mpolicy_impl, admin):
+def gauge_impl(admin):
+    with boa.env.prank(admin):
+        return boa.load_partial('contracts/lending/LiquidityGauge.vy').deploy_as_blueprint()
+
+
+@pytest.fixture(scope="module")
+def factory(stablecoin, amm_impl, controller_impl, vault_impl, price_oracle_impl, mpolicy_impl, gauge_impl, admin):
     with boa.env.prank(admin):
         return boa.load(
             'contracts/lending/OneWayLendingFactory.vy',
             stablecoin.address,
             amm_impl, controller_impl, vault_impl,
-            price_oracle_impl, mpolicy_impl,
+            price_oracle_impl, mpolicy_impl, gauge_impl,
             admin)
 
 
