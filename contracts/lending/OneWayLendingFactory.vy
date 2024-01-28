@@ -86,6 +86,10 @@ admin: public(address)
 vaults: public(Vault[10**18])
 n_vaults: public(uint256)
 
+# Index to find vaults by a non-crvUSD token
+token_to_vaults: public(HashMap[address, Vault[10**18]])
+token_n_vaults: public(HashMap[address, uint256])
+
 
 @external
 def __init__(
@@ -164,8 +168,14 @@ def _create(
     log NewVault(n_vaults, collateral_token, borrowed_token, vault.address, controller, amm, price_oracle, monetary_policy)
     self.vaults[n_vaults] = vault
 
-    n_vaults += 1
-    self.n_vaults = n_vaults
+    self.n_vaults = n_vaults + 1
+
+    token: address = borrowed_token
+    if borrowed_token == STABLECOIN:
+        token = collateral_token
+    n_vaults = self.token_n_vaults[token]
+    self.token_to_vaults[token][n_vaults] = vault
+    self.token_n_vaults[token] = n_vaults + 1
 
     return vault
 
