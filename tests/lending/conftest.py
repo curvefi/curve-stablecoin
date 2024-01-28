@@ -163,12 +163,12 @@ def wrapper_oracle_impl(admin):
 
 @pytest.fixture(scope="module")
 def factory_2way(stablecoin, amm_impl, controller_impl, vault_impl, vault_price_oracle_impl, wrapper_oracle_impl,
-                 mpolicy_impl, admin):
+                 mpolicy_impl, gauge_impl, admin):
     with boa.env.prank(admin):
         return boa.load(
             'contracts/lending/TwoWayLendingFactory.vy',
             stablecoin, amm_impl, controller_impl, vault_impl,
-            vault_price_oracle_impl, wrapper_oracle_impl, mpolicy_impl, admin)
+            vault_price_oracle_impl, wrapper_oracle_impl, mpolicy_impl, gauge_impl, admin)
 
 
 @pytest.fixture(scope="module")
