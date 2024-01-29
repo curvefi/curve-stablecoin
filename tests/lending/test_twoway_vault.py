@@ -15,7 +15,7 @@ def test_vault_creation(factory_2way, vault_long, vault_short,
 
     assert amm_long.price_oracle() == price_oracle.price() // DEAD_SHARES
     assert amm_short.price_oracle() == (10**18) ** 2 // DEAD_SHARES // price_oracle.price()
-    n = factory_2way.n_vaults()
+    n = factory_2way.market_count()
     assert n > 0
 
     assert factory_2way.vaults(n - 2) == vault_long.address
@@ -43,7 +43,7 @@ def test_vault_creation(factory_2way, vault_long, vault_short,
         token = collateral_token
     else:
         token = borrowed_token
-    vaults = set(factory_2way.token_to_vaults(token, i) for i in range(factory_2way.token_n_vaults(token)))
+    vaults = set(factory_2way.token_to_vaults(token, i) for i in range(factory_2way.token_market_count(token)))
     assert vault_long.address in vaults
     assert vault_short.address in vaults
 

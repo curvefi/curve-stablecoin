@@ -94,11 +94,11 @@ admin: public(address)
 # Vaults can only be created but not removed
 vaults: public(Vault[10**18])
 _vaults_index: HashMap[Vault, uint256]
-n_vaults: public(uint256)
+market_count: public(uint256)
 
 # Index to find vaults by a non-crvUSD token
 token_to_vaults: public(HashMap[address, Vault[10**18]])
-token_n_vaults: public(HashMap[address, uint256])
+token_market_count: public(HashMap[address, uint256])
 
 gauges: public(address[10**18])
 
@@ -145,9 +145,9 @@ def _add_to_index(vault: Vault, token_a: address, token_b: address):
     token: address = token_a
     if token_a == STABLECOIN:
         token = token_b
-    n_vaults: uint256 = self.token_n_vaults[token]
-    self.token_to_vaults[token][n_vaults] = vault
-    self.token_n_vaults[token] = n_vaults + 1
+    market_count: uint256 = self.token_market_count[token]
+    self.token_to_vaults[token][market_count] = vault
+    self.token_market_count[token] = market_count + 1
 
 
 @internal
@@ -184,7 +184,7 @@ def _create(
 
     controller: address = empty(address)
     amm: address = empty(address)
-    n_vaults: uint256 = self.n_vaults
+    market_count: uint256 = self.market_count
 
     controller, amm = vault_long.initialize(
         self.amm_impl, self.controller_impl,
@@ -195,10 +195,10 @@ def _create(
         loan_discount, liquidation_discount
     )
 
-    log NewVault(n_vaults, vault_short.address, borrowed_token, vault_long.address, controller, amm, price_oracle_long, monetary_policy)
-    self.vaults[n_vaults] = vault_long
-    self._vaults_index[vault_long] = n_vaults + 2**128
-    n_vaults += 1
+    log NewVault(market_count, vault_short.address, borrowed_token, vault_long.address, controller, amm, price_oracle_long, monetary_policy)
+    self.vaults[market_count] = vault_long
+    self._vaults_index[vault_long] = market_count + 2**128
+    market_count += 1
 
     controller, amm = vault_short.initialize(
         self.amm_impl, self.controller_impl,
@@ -208,11 +208,11 @@ def _create(
         monetary_policy,
         loan_discount, liquidation_discount
     )
-    log NewVault(n_vaults, vault_long.address, collateral_token, vault_short.address, controller, amm, price_oracle_short, monetary_policy)
-    self.vaults[n_vaults] = vault_short
-    self._vaults_index[vault_short] = n_vaults + 2**128
-    n_vaults += 1
-    self.n_vaults = n_vaults
+    log NewVault(market_count, vault_long.address, collateral_token, vault_short.address, controller, amm, price_oracle_short, monetary_policy)
+    self.vaults[market_count] = vault_short
+    self._vaults_index[vault_short] = market_count + 2**128
+    market_count += 1
+    self.market_count = market_count
 
     self._add_to_index(vault_long, borrowed_token, collateral_token)
     self._add_to_index(vault_short, borrowed_token, collateral_token)
