@@ -99,8 +99,11 @@ class StateMachine(RuleBasedStateMachine):
             else:
                 repay_amount = int(debt * random() * 0.99)
                 self.market_controller.repay(repay_amount)
-                remove_amount = min(int(self.market_controller.min_collateral(debt - repay_amount, 10) * 0.99), value)
-                self.market_controller.remove_collateral(remove_amount)
+                min_collateral_required = self.market_controller.min_collateral(debt - repay_amount, 10)
+                remove_amount = min(collateral_in_amm - min_collateral_required, value)
+                remove_amount = max(remove_amount, 0)
+                if remove_amount > 0:
+                    self.market_controller.remove_collateral(remove_amount)
             self.update_integrals(user, -remove_amount)
 
             assert self.collateral_token.balanceOf(user) == balance + remove_amount

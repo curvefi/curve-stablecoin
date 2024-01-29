@@ -129,7 +129,9 @@ class StateMachine(RuleBasedStateMachine):
                     withdraw_amount = int(collateral_in_amm * withdraw_pct)
                     min_collateral_required = self.market_controller.min_collateral(debt - repay_amount, 10)
                     withdraw_amount = min(collateral_in_amm - min_collateral_required, withdraw_amount)
-                    self.market_controller.remove_collateral(withdraw_amount)
+                    withdraw_amount = max(withdraw_amount, 0)
+                    if withdraw_amount > 0:
+                        self.market_controller.remove_collateral(withdraw_amount)
             else:
                 # We call checkpoint manually to pass checks below
                 self.boosted_lm_callback.user_checkpoint(user)

@@ -65,7 +65,9 @@ def test_gauge_integral_one_user(accounts, admin, collateral_token, crv, boosted
                         market_controller.repay(repay_amount)
                         min_collateral_required = market_controller.min_collateral(debt - repay_amount, 10)
                         remove_amount = min(collateral_in_amm - min_collateral_required, amount)
-                        market_controller.remove_collateral(remove_amount)
+                        remove_amount = max(remove_amount, 0)
+                        if remove_amount > 0:
+                            market_controller.remove_collateral(remove_amount)
                     update_integral()
                     alice_staked -= remove_amount
                 else:
@@ -156,7 +158,9 @@ def test_gauge_integral(accounts, admin, collateral_token, crv, boosted_lm_callb
                         market_controller.repay(repay_amount_bob)
                         min_collateral_required_bob = market_controller.min_collateral(debt_bob - repay_amount_bob, 10)
                         remove_amount_bob = min(collateral_in_amm_bob - min_collateral_required_bob, amount_bob)
-                        market_controller.remove_collateral(remove_amount_bob)
+                        remove_amount_bob = max(remove_amount_bob, 0)
+                        if remove_amount_bob > 0:
+                            market_controller.remove_collateral(remove_amount_bob)
                     update_integral()
                     bob_staked -= remove_amount_bob
                 else:
@@ -188,7 +192,9 @@ def test_gauge_integral(accounts, admin, collateral_token, crv, boosted_lm_callb
                             market_controller.repay(repay_amount_alice)
                             min_collateral_required_alice = market_controller.min_collateral(debt_alice - repay_amount_alice, 10)
                             remove_amount_alice = min(collateral_in_amm_alice - min_collateral_required_alice, amount_alice)
-                            market_controller.remove_collateral(remove_amount_alice)
+                            remove_amount_alice = max(remove_amount_alice, 0)
+                            if remove_amount_alice > 0:
+                                market_controller.remove_collateral(remove_amount_alice)
                         update_integral()
                         alice_staked -= remove_amount_alice
                     else:

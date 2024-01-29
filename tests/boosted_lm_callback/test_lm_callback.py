@@ -144,8 +144,10 @@ def test_gauge_integral_with_exchanges(
                         if not is_underwater_bob:
                             min_collateral_required_bob = market_controller.min_collateral(debt_bob - repay_amount_bob, 10)
                             remove_amount_bob = min(collateral_in_amm_bob - min_collateral_required_bob, amount_bob)
-                            print("Bob withdraws:", remove_amount_bob)
-                            market_controller.remove_collateral(remove_amount_bob)
+                            remove_amount_bob = max(remove_amount_bob, 0)
+                            if remove_amount_bob > 0:
+                                print("Bob withdraws:", remove_amount_bob)
+                                market_controller.remove_collateral(remove_amount_bob)
                             assert approx(market_amm.get_sum_xy(bob)[1], boosted_lm_callback.user_collateral(bob), 1e-13)
                             assert approx(market_amm.get_sum_xy(bob)[1] * 4 // 10, boosted_lm_callback.working_collateral(bob), 1e-13)
                     update_integral()
@@ -186,8 +188,10 @@ def test_gauge_integral_with_exchanges(
                             if not is_underwater_alice:
                                 min_collateral_required_alice = market_controller.min_collateral(debt_alice - repay_amount_alice, 10)
                                 remove_amount_alice = min(collateral_in_amm_alice - min_collateral_required_alice, amount_alice)
-                                print("Alice withdraws:", remove_amount_alice)
-                                market_controller.remove_collateral(remove_amount_alice)
+                                remove_amount_alice = max(remove_amount_alice, 0)
+                                if remove_amount_alice > 0:
+                                    print("Alice withdraws:", remove_amount_alice)
+                                    market_controller.remove_collateral(remove_amount_alice)
                             assert approx(market_amm.get_sum_xy(alice)[1], boosted_lm_callback.user_collateral(alice), 1e-13)
                             assert approx(market_amm.get_sum_xy(alice)[1] * 4 // 10, boosted_lm_callback.working_collateral(alice), 1e-13)
                         update_integral()
