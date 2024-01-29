@@ -12,7 +12,7 @@ def test_vault_creation(vault, market_controller, market_amm, market_mpolicy, fa
     assert vault.amm() == market_amm.address
     assert vault.controller() == market_controller.address
     assert market_controller.monetary_policy() == market_mpolicy.address
-    n = factory.n_vaults()
+    n = factory.market_count()
     assert n > 0
     assert factory.vaults(n - 1) == vault.address
     assert factory.amms(n - 1) == market_amm.address
@@ -26,7 +26,7 @@ def test_vault_creation(vault, market_controller, market_amm, market_mpolicy, fa
         token = collateral_token
     else:
         token = borrowed_token
-    vaults = set(factory.token_to_vaults(token, i) for i in range(factory.token_n_vaults(token)))
+    vaults = set(factory.token_to_vaults(token, i) for i in range(factory.token_market_count(token)))
     assert vault.address in vaults
 
     assert factory.vaults(factory.vaults_index(vault.address)) == vault.address

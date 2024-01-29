@@ -91,11 +91,11 @@ admin: public(address)
 # Vaults can only be created but not removed
 vaults: public(Vault[10**18])
 _vaults_index: HashMap[Vault, uint256]
-n_vaults: public(uint256)
+market_count: public(uint256)
 
 # Index to find vaults by a non-crvUSD token
 token_to_vaults: public(HashMap[address, Vault[10**18]])
-token_n_vaults: public(HashMap[address, uint256])
+token_market_count: public(HashMap[address, uint256])
 
 gauges: public(address[10**18])
 
@@ -176,19 +176,19 @@ def _create(
         loan_discount, liquidation_discount
     )
 
-    n_vaults: uint256 = self.n_vaults
-    log NewVault(n_vaults, collateral_token, borrowed_token, vault.address, controller, amm, price_oracle, monetary_policy)
-    self.vaults[n_vaults] = vault
-    self._vaults_index[vault] = n_vaults + 2**128
+    market_count: uint256 = self.market_count
+    log NewVault(market_count, collateral_token, borrowed_token, vault.address, controller, amm, price_oracle, monetary_policy)
+    self.vaults[market_count] = vault
+    self._vaults_index[vault] = market_count + 2**128
 
-    self.n_vaults = n_vaults + 1
+    self.market_count = market_count + 1
 
     token: address = borrowed_token
     if borrowed_token == STABLECOIN:
         token = collateral_token
-    n_vaults = self.token_n_vaults[token]
-    self.token_to_vaults[token][n_vaults] = vault
-    self.token_n_vaults[token] = n_vaults + 1
+    market_count = self.token_market_count[token]
+    self.token_to_vaults[token][market_count] = vault
+    self.token_market_count[token] = market_count + 1
 
     return vault
 
