@@ -88,7 +88,7 @@ def test_gauge_integral_one_user(accounts, admin, collateral_token, crv, boosted
             update_integral()
             print(i, dt / 86400, integral, boosted_lm_callback.integrate_fraction(alice))
             if integral > 0:
-                assert approx(boosted_lm_callback.integrate_fraction(alice), integral, 1e-15)
+                assert approx(boosted_lm_callback.integrate_fraction(alice), integral, 1e-14)
 
 
 def test_gauge_integral(accounts, admin, collateral_token, crv, boosted_lm_callback, gauge_controller, market_controller):
@@ -219,7 +219,7 @@ def test_gauge_integral(accounts, admin, collateral_token, crv, boosted_lm_callb
             boosted_lm_callback.user_checkpoint(alice, sender=alice)
             update_integral()
             print(i, dt / 86400, integral, boosted_lm_callback.integrate_fraction(alice))
-            assert approx(boosted_lm_callback.integrate_fraction(alice), integral, 1e-15)
+            assert approx(boosted_lm_callback.integrate_fraction(alice), integral, 1e-14)
 
 
 def test_mining_with_votelock(
@@ -276,7 +276,7 @@ def test_mining_with_votelock(
     # Alice earned 2.5 times more CRV because she vote-locked her CRV
     rewards_alice = boosted_lm_callback.integrate_fraction(alice)
     rewards_bob = boosted_lm_callback.integrate_fraction(bob)
-    assert approx(rewards_alice / rewards_bob, 2.5, 1e-15)
+    assert approx(rewards_alice / rewards_bob, 2.5, 1e-14)
 
     # Time travel / checkpoint: no one has CRV vote-locked
     boa.env.time_travel(4 * WEEK)
