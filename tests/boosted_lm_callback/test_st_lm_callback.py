@@ -84,7 +84,17 @@ class StateMachine(RuleBasedStateMachine):
             deposit_amount = min(int(balance * deposit_pct), balance)
             collateral_in_amm, stablecoin_in_amm, debt, __ = self.market_controller.user_state(user)
             max_borrowable = self.market_controller.max_borrowable(deposit_amount + collateral_in_amm, 10, debt)
-            borrow_amount = min(int((max_borrowable - debt) * borrow_pct), max_borrowable - debt) * 99 // 100
+            borrow_amount = min(int((max_borrowable - debt) * borrow_pct), max_borrowable - debt)
+            i = 1
+            while True:
+                try:
+                    self.market_controller.calculate_debt_n1(collateral_in_amm + deposit_amount, borrow_amount, 10)
+                    break
+                except:
+                    if i == 100:
+                        break
+                    i += 1
+                    borrow_amount = borrow_amount * (100 - i) // 100
             is_underwater = stablecoin_in_amm > 0
             if borrow_amount <= 0 or is_underwater:
                 return
