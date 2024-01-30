@@ -30,6 +30,7 @@ interface Controller:
     def minted() -> uint256: view
     def redeemed() -> uint256: view
     def monetary_policy() -> address: view
+    def check_lock() -> bool: view
 
 interface PriceOracle:
     def price() -> uint256: view
@@ -264,6 +265,7 @@ def asset() -> ERC20:
 @view
 def _total_assets() -> uint256:
     # admin fee should be accounted for here when enabled
+    self.controller.check_lock()
     return self.borrowed_token.balanceOf(self.controller.address) + self.controller.total_debt()
 
 

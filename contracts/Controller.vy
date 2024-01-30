@@ -1358,3 +1358,10 @@ def collect_fees() -> uint256:
     else:
         log CollectFees(0, loan.initial_debt)
         return 0
+
+
+@external
+@view
+@nonreentrant('lock')
+def check_lock() -> bool:
+    return True
