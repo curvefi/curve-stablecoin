@@ -42,12 +42,13 @@ if __name__ == '__main__':
     vault_impl = boa.load('contracts/lending/Vault.vy')
     price_oracle_impl = boa.load_partial('contracts/price_oracles/CryptoFromPool.vy').deploy_as_blueprint()
     mpolicy_impl = boa.load_partial('contracts/mpolicies/SemilogMonetaryPolicy.vy').deploy_as_blueprint()
+    gauge_impl = boa.load_partial('contracts/lending/LiquidityGauge.vy').deploy_as_blueprint()
 
     factory = boa.load(
             'contracts/lending/OneWayLendingFactory.vy',
             CRVUSD,
             amm_impl, controller_impl, vault_impl,
-            price_oracle_impl, mpolicy_impl,
+            price_oracle_impl, mpolicy_impl, gauge_impl,
             ADMIN)
 
     print('Deployed contracts:')
@@ -57,6 +58,7 @@ if __name__ == '__main__':
     print('Vault implementation:', vault_impl.address)
     print('Pool price oracle implementation:', price_oracle_impl.address)
     print('Monetary Policy implementation:', mpolicy_impl.address)
+    print('Gauge implementation:', gauge_impl.address)
     print('Factory:', factory.address)
     print('==========================')
 
