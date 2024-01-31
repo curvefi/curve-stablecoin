@@ -39,6 +39,9 @@ interface PriceOracle:
 interface MonetaryPolicy:
     def rate_write(controller: address) -> uint256: nonpayable
 
+interface Factory:
+    def admin() -> address: view
+
 
 # ERC20 events
 
@@ -89,6 +92,7 @@ collateral_token: public(ERC20)
 price_oracle: public(PriceOracle)
 amm: public(AMM)
 controller: public(Controller)
+factory: public(Factory)
 
 
 # ERC20 publics
@@ -209,6 +213,7 @@ def initialize(
 
     self.amm = AMM(amm)
     self.controller = Controller(controller)
+    self.factory = Factory(msg.sender)
 
     # ERC20 set up
     self.precision = borrowed_precision
@@ -629,3 +634,9 @@ def decreaseAllowance(_spender: address, _sub_value: uint256) -> bool:
         self._approve(msg.sender, _spender, allowance)
 
     return True
+
+
+@external
+@view
+def admin() -> address:
+    return self.factory.admin()
