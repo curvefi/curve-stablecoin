@@ -88,7 +88,7 @@ class StateMachine(RuleBasedStateMachine):
             i = 1
             while True:
                 try:
-                    self.market_controller.calculate_debt_n1(collateral_in_amm + deposit_amount, borrow_amount, 10)
+                    self.market_controller.calculate_debt_n1(collateral_in_amm + deposit_amount, debt + borrow_amount, 10)
                     break
                 except:
                     if i == 100:
@@ -138,7 +138,7 @@ class StateMachine(RuleBasedStateMachine):
                 else:
                     withdraw_amount = int(collateral_in_amm * withdraw_pct)
                     min_collateral_required = self.market_controller.min_collateral(debt - repay_amount, 10)
-                    withdraw_amount = min(collateral_in_amm - min_collateral_required, withdraw_amount)
+                    withdraw_amount = min(collateral_in_amm - min_collateral_required, withdraw_amount) * 99 // 100
                     withdraw_amount = max(withdraw_amount, 0)
                     if withdraw_amount > 0:
                         self.market_controller.remove_collateral(withdraw_amount)
@@ -308,7 +308,7 @@ def test_state_machine(
 
     boa.env.time_travel(seconds=7 * 86400)
 
-    StateMachine.TestCase.settings = settings(max_examples=50, stateful_step_count=50)
+    StateMachine.TestCase.settings = settings(max_examples=400, stateful_step_count=50)
     for k, v in locals().items():
         setattr(StateMachine, k, v)
     run_state_machine_as_test(StateMachine)

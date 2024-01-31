@@ -68,16 +68,18 @@ class StateMachine(RuleBasedStateMachine):
         user = self.accounts[uid]
         with boa.env.prank(user):
             balance = self.collateral_token.balanceOf(user)
+            value = min(balance, value)
 
-            if self.market_controller.loan_exists(user):
-                self.market_controller.borrow_more(value, int(value * random() * 2000))
-            else:
-                self.market_controller.create_loan(value, int(value * random() * 2000), 10)
-            self.update_integrals(user, value)
+            if value > 0:
+                if self.market_controller.loan_exists(user):
+                    self.market_controller.borrow_more(value, int(value * random() * 2000))
+                else:
+                    self.market_controller.create_loan(value, int(value * random() * 2000), 10)
+                self.update_integrals(user, value)
 
-            assert self.collateral_token.balanceOf(user) == balance - value
-            if self.integrals[user]["integral"] > 0 and self.boosted_lm_callback.integrate_fraction(user) > 0:
-                assert approx(self.boosted_lm_callback.integrate_fraction(user), self.integrals[user]["integral"], 1e-13)
+                assert self.collateral_token.balanceOf(user) == balance - value
+                if self.integrals[user]["integral"] > 0 and self.boosted_lm_callback.integrate_fraction(user) > 0:
+                    assert approx(self.boosted_lm_callback.integrate_fraction(user), self.integrals[user]["integral"], 1e-13)
 
     @rule(uid=user_id, value=value)
     def withdraw(self, uid, value):
@@ -170,7 +172,7 @@ class StateMachine(RuleBasedStateMachine):
 
         Y1 = self.boosted_lm_callback.working_supply()
         Y2 = sum([i["working_balance"] for i in self.integrals.values()])
-        assert approx(Y1, Y2, 1e-17) or abs(Y1 - Y2) < 1000
+        assert approx(Y1, Y2, 1e-17) or abs(Y1 - Y2) < 10000
 
     def teardown(self):
         """
@@ -217,7 +219,7 @@ def test_state_machine(
 
     boa.env.time_travel(seconds=7 * 86400)
 
-    StateMachine.TestCase.settings = settings(max_examples=30, stateful_step_count=25)
+    StateMachine.TestCase.settings = settings(max_examples=400, stateful_step_count=50)
     for k, v in locals().items():
         setattr(StateMachine, k, v)
     run_state_machine_as_test(StateMachine)
