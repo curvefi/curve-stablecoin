@@ -153,7 +153,7 @@ Aminus1: immutable(uint256)
 LOGN_A_RATIO: immutable(int256)  # log(A / (A - 1))
 SQRT_BAND_RATIO: immutable(uint256)
 
-MAX_ADMIN_FEE: constant(uint256) = 10**18  # 100%
+MAX_ADMIN_FEE: constant(uint256) = 5 * 10**17  # 50%
 MIN_FEE: constant(uint256) = 10**6  # 1e-12, still needs to be above 0
 MAX_FEE: immutable(uint256)  # let's set to MIN_TICKS / A: for example, 4% max fee for A=100
 

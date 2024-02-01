@@ -14,7 +14,7 @@ class StatefulExchange(RuleBasedStateMachine):
     amount = st.integers(min_value=0, max_value=10**9 * 10**18)
     pump = st.booleans()
     user_id = st.integers(min_value=0, max_value=4)
-    admin_fee = st.integers(min_value=0, max_value=10**18)
+    admin_fee = st.integers(min_value=0, max_value=10**18 / 2)
 
     def __init__(self):
         super().__init__()

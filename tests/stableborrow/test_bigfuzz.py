@@ -42,7 +42,7 @@ class BigFuzz(RuleBasedStateMachine):
     extended_mode = st.integers(min_value=0, max_value=2)
     liquidate_frac = st.integers(min_value=0, max_value=10**18 + 1)
 
-    amm_admin_fee = st.integers(min_value=0, max_value=10**18)
+    amm_admin_fee = st.integers(min_value=0, max_value=5 * 10**17)
 
     def __init__(self):
         super().__init__()
