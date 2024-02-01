@@ -284,20 +284,6 @@ def totalAssets() -> uint256:
     return self._total_assets()
 
 
-@external
-@view
-@nonreentrant('lock')
-def pricePerShare() -> uint256:
-    """
-    @notice Method which shows how much one pool share costs in asset tokens
-    """
-    supply: uint256 = self.totalSupply
-    if supply == 0:
-        return 10**18 / DEAD_SHARES
-    else:
-        return 10**18 * self.precision * self._total_assets() / supply
-
-
 @internal
 @view
 def _convert_to_shares(assets: uint256, is_floor: bool = True) -> uint256:
@@ -320,6 +306,26 @@ def _convert_to_assets(shares: uint256, is_floor: bool = True) -> uint256:
         return numerator / denominator
     else:
         return (numerator + denominator - 1) / denominator
+
+
+@external
+@view
+@nonreentrant('lock')
+def pricePerShare(is_floor: bool = True) -> uint256:
+    """
+    @notice Method which shows how much one pool share costs in asset tokens
+    """
+    supply: uint256 = self.totalSupply
+    if supply == 0:
+        return 10**18 / DEAD_SHARES
+    else:
+        precision: uint256 = self.precision
+        numerator: uint256 = 10**18 * (self._total_assets() * precision + 1)
+        denominator: uint256 = (supply + DEAD_SHARES)
+        if is_floor:
+            return numerator / denominator
+        else:
+            return (numerator + denominator - 1) / denominator
 
 
 @external
