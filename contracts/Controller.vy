@@ -241,7 +241,7 @@ def log2(_x: uint256) -> int256:
             res = unsafe_add(unsafe_mul(t, 10**18), res)
         t = unsafe_div(t, 2)
     d: uint256 = 10**18
-    for i in range(34):  # 10 decimals: math.log(10**10, 2) == 33.2. Need more?
+    for i in range(59):  # 18 decimals: math.log(10**18) == 59.8
         if (x >= 2 * 10**18):
             res = unsafe_add(res, d)
             x = unsafe_div(x, 2)
