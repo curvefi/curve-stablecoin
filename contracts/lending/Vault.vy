@@ -459,8 +459,8 @@ def withdraw(assets: uint256, receiver: address = msg.sender, owner: address = m
             self._approve(owner, msg.sender, allowance - shares)
 
     controller: address = self.controller.address
-    assert self.borrowed_token.transferFrom(controller, receiver, assets, default_return_value=True)
     self._burn(owner, shares)
+    assert self.borrowed_token.transferFrom(controller, receiver, assets, default_return_value=True)
     self._update_rates(controller)
     log Withdraw(msg.sender, receiver, owner, assets, shares)
     return shares
