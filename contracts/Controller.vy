@@ -24,7 +24,6 @@ interface LLAMMA:
     def set_admin_fee(fee: uint256): nonpayable
     def price_oracle() -> uint256: view
     def can_skip_bands(n_end: int256) -> bool: view
-    def set_price_oracle(price_oracle: PriceOracle): nonpayable
     def admin_fees_x() -> uint256: view
     def admin_fees_y() -> uint256: view
     def reset_admin_fees(): nonpayable
