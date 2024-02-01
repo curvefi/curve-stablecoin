@@ -45,6 +45,6 @@ def test_min_coin_amount(swaps, initial_amounts, alice, peg_keepers, peg_keeper_
 def test_almost_balanced(swaps, alice, peg_keepers, peg_keeper_updater, redeemable_tokens):
     for swap, peg_keeper, rtoken in zip(swaps, peg_keepers, redeemable_tokens):
         with boa.env.prank(alice):
-            swap.add_liquidity([10**rtoken.decimals(), 0], 0)
+            swap.add_liquidity([10, 0], 0)
         with boa.env.prank(peg_keeper_updater):
             assert not peg_keeper.update()

@@ -58,8 +58,6 @@ ACTION_DELAY: constant(uint256) = 15 * 60
 ADMIN_ACTIONS_DELAY: constant(uint256) = 3 * 86400
 
 PRECISION: constant(uint256) = 10 ** 18
-# Calculation error for profit
-PROFIT_THRESHOLD: constant(uint256) = 10 ** 18
 
 POOL: immutable(CurvePool)
 I: immutable(uint256)  # index of pegged in pool
@@ -201,7 +199,7 @@ def _calc_profit_from(lp_balance: uint256, virtual_price: uint256, debt: uint256
     """
     @notice PegKeeper's profit calculation formula
     """
-    lp_debt: uint256 = debt * PRECISION / virtual_price + PROFIT_THRESHOLD
+    lp_debt: uint256 = debt * PRECISION / virtual_price
 
     if lp_balance <= lp_debt:
         return 0
