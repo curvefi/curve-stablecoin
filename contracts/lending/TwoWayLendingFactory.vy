@@ -441,8 +441,6 @@ def set_default_rates(min_rate: uint256, max_rate: uint256):
     assert msg.sender == self.admin
 
     assert min_rate >= MIN_RATE
-    assert max_rate >= MIN_RATE
-    assert min_rate <= MAX_RATE
     assert max_rate <= MAX_RATE
     assert max_rate >= min_rate
 
