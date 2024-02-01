@@ -305,7 +305,6 @@ def create_from_pool(
             collateral_ix = i
     if collateral_ix == 100 or borrowed_ix == 100:
         raise "Tokens not in pool"
-    assert N > 1
     if N == 2:
         assert Pool(pool).price_oracle() > 0, "Pool has no oracle"
     else:
