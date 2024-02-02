@@ -163,10 +163,12 @@ def set_rates(min_rate: uint256, max_rate: uint256):
     assert min_rate >= MIN_RATE
     assert max_rate <= MAX_RATE
 
+    if min_rate != self.min_rate:
+        self.log_min_rate = self.ln_int(min_rate)
+    if max_rate != self.max_rate:
+        self.log_max_rate = self.ln_int(max_rate)
     self.min_rate = min_rate
     self.max_rate = max_rate
-    self.log_min_rate = self.ln_int(min_rate)
-    self.log_max_rate = self.ln_int(max_rate)
 
     log SetRates(min_rate, max_rate)
 
