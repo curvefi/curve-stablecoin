@@ -314,7 +314,7 @@ def update(_beneficiary: address = msg.sender) -> uint256:
 
     # Send generated profit
     new_profit: uint256 = self._calc_profit()
-    assert new_profit >= initial_profit, "peg unprofitable"
+    assert new_profit > initial_profit, "peg unprofitable"
     lp_amount: uint256 = new_profit - initial_profit
     caller_profit: uint256 = lp_amount * self.caller_share / SHARE_PRECISION
     if caller_profit > 0:
