@@ -306,7 +306,7 @@ def _convert_to_assets(shares: uint256, is_floor: bool = True) -> uint256:
 @nonreentrant('lock')
 def pricePerShare(is_floor: bool = True) -> uint256:
     """
-    @notice Method which shows how much one pool share costs in asset tokens
+    @notice Method which shows how much one pool share costs in asset tokens if they are normalized to 18 decimals
     """
     supply: uint256 = self.totalSupply
     if supply == 0:

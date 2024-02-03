@@ -49,7 +49,7 @@ def test_deposit_and_withdraw(vault, borrowed_token, accounts):
         vault.deposit(amount)
         assert vault.totalAssets() == amount
         assert vault.balanceOf(user) == amount * 10**18 * DEAD_SHARES // one_token
-        assert vault.pricePerShare() == 10**18 // DEAD_SHARES
+        assert vault.pricePerShare() == 10**18 // DEAD_SHARES  # We test different precisions here, and pps is the same
         vault.redeem(vault.balanceOf(user))
         assert vault.totalAssets() == 0
 
@@ -67,6 +67,7 @@ class StatefulVault(RuleBasedStateMachine):
         assert self.vault.asset() == self.borrowed_token.address
         self.total_assets = 0
         self.precision = 10 ** (18 - self.borrowed_token.decimals())
+        self.pps = None
         self.was_used = False
 
     @invariant()
@@ -80,6 +81,19 @@ class StatefulVault(RuleBasedStateMachine):
     @invariant()
     def inv_total_assets(self):
         assert self.total_assets == self.vault.totalAssets()
+
+    @invariant()
+    def inv_pps(self):
+        pps = self.vault.pricePerShare()
+        # supply = self.vault.totalSupply()
+        # ass = self.vault.internal._total_assets()
+        assert pps >= 1e18 // 1000  # Most likely we'll be around here
+        assert pps <= 1e18 // 1000 * self.precision * 5  # But can pump by factor of preicision in the worst case
+        if self.total_assets > 100000:
+            if self.pps:
+                assert approx(pps, self.pps, 1e-2)
+            else:
+                self.pps = pps
 
     @rule(user_id=user_id, assets=amount)
     def deposit(self, user_id, assets):
@@ -329,7 +343,7 @@ class StatefulVault(RuleBasedStateMachine):
 
 
 def test_stateful_vault(vault, borrowed_token, accounts, admin, market_amm, market_controller):
-    StatefulVault.TestCase.settings = settings(max_examples=500, stateful_step_count=10)
+    StatefulVault.TestCase.settings = settings(max_examples=500, stateful_step_count=50)
     for k, v in locals().items():
         setattr(StatefulVault, k, v)
     run_state_machine_as_test(StatefulVault)
