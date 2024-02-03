@@ -111,7 +111,7 @@ def ln_int(_x: uint256) -> int256:
             x /= p
             res += t * 10**18
     d: uint256 = 10**18
-    for i in range(59):  # 18 decimals: math.log2(10**10) == 59.7
+    for i in range(59):  # 18 decimals: math.log2(10**18) == 59.7
         if (x >= 2 * 10**18):
             res += d
             x /= 2
