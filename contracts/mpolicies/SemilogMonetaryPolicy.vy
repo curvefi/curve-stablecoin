@@ -20,9 +20,6 @@ interface Factory:
     def admin() -> address: view
 
 
-event SetAdmin:
-    admin: address
-
 event SetRates:
     min_rate: uint256
     max_rate: uint256
@@ -33,8 +30,7 @@ MIN_RATE: public(constant(uint256)) = 10**15 / (365 * 86400)  # 0.1%
 MAX_RATE: public(constant(uint256)) = 10**19 / (365 * 86400)  # 1000%
 
 BORROWED_TOKEN: public(immutable(ERC20))
-
-admin: public(address)
+FACTORY: public(immutable(Factory))
 
 min_rate: public(uint256)
 max_rate: public(uint256)
@@ -54,7 +50,7 @@ def __init__(borrowed_token: ERC20, min_rate: uint256, max_rate: uint256):
     self.log_min_rate = self.ln_int(min_rate)
     self.log_max_rate = self.ln_int(max_rate)
 
-    self.admin = Factory(msg.sender).admin()
+    FACTORY = Factory(msg.sender)
 
 
 ### MATH ###
@@ -157,7 +153,7 @@ def rate_write(_for: address = msg.sender) -> uint256:
 
 @external
 def set_rates(min_rate: uint256, max_rate: uint256):
-    assert msg.sender == self.admin
+    assert msg.sender == FACTORY.admin()
 
     assert max_rate >= min_rate
     assert min_rate >= MIN_RATE
@@ -171,14 +167,3 @@ def set_rates(min_rate: uint256, max_rate: uint256):
     self.max_rate = max_rate
 
     log SetRates(min_rate, max_rate)
-
-
-@external
-def set_admin(admin: address):
-    """
-    @notice Set admin of the factory (should end up with DAO)
-    @param admin Address of the admin
-    """
-    assert msg.sender == self.admin
-    self.admin = admin
-    log SetAdmin(admin)
