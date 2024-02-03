@@ -377,6 +377,15 @@ def _save_rate():
     AMM.set_rate(rate)
 
 
+@external
+@nonreentrant('lock')
+def save_rate():
+    """
+    @notice Save current rate
+    """
+    self._save_rate()
+
+
 @internal
 @view
 def _debt(user: address) -> (uint256, uint256):

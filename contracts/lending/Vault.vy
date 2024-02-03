@@ -31,13 +31,11 @@ interface Controller:
     def redeemed() -> uint256: view
     def monetary_policy() -> address: view
     def check_lock() -> bool: view
+    def save_rate(): nonpayable
 
 interface PriceOracle:
     def price() -> uint256: view
     def price_w() -> uint256: nonpayable
-
-interface MonetaryPolicy:
-    def rate_write(controller: address) -> uint256: nonpayable
 
 interface Factory:
     def admin() -> address: view
@@ -228,11 +226,6 @@ def initialize(
     return controller, amm
 
 
-@internal
-def _update_rates(controller: address):
-    MonetaryPolicy(self.controller.monetary_policy()).rate_write(controller)
-
-
 @external
 @view
 @nonreentrant('lock')
@@ -375,11 +368,11 @@ def deposit(assets: uint256, receiver: address = msg.sender) -> uint256:
     @param assets Amount of assets to deposit
     @param receiver Receiver of the shares who is optional. If not specified - receiver is the sender
     """
-    controller: address = self.controller.address
+    controller: Controller = self.controller
     to_mint: uint256 = self._convert_to_shares(assets)
-    assert self.borrowed_token.transferFrom(msg.sender, controller, assets, default_return_value=True)
+    assert self.borrowed_token.transferFrom(msg.sender, controller.address, assets, default_return_value=True)
     self._mint(receiver, to_mint)
-    self._update_rates(controller)
+    controller.save_rate()
     log Deposit(msg.sender, receiver, assets, to_mint)
     return to_mint
 
@@ -411,11 +404,11 @@ def mint(shares: uint256, receiver: address = msg.sender) -> uint256:
     @param shares Number of sharess to mint
     @param receiver Optional receiver for the shares. If not specified - it's the sender
     """
-    controller: address = self.controller.address
+    controller: Controller = self.controller
     assets: uint256 = self._convert_to_assets(shares, False)
-    assert self.borrowed_token.transferFrom(msg.sender, controller, assets, default_return_value=True)
+    assert self.borrowed_token.transferFrom(msg.sender, controller.address, assets, default_return_value=True)
     self._mint(receiver, shares)
-    self._update_rates(controller)
+    controller.save_rate()
     log Deposit(msg.sender, receiver, assets, shares)
     return assets
 
@@ -458,10 +451,10 @@ def withdraw(assets: uint256, receiver: address = msg.sender, owner: address = m
         if allowance != max_value(uint256):
             self._approve(owner, msg.sender, allowance - shares)
 
-    controller: address = self.controller.address
+    controller: Controller = self.controller
     self._burn(owner, shares)
-    assert self.borrowed_token.transferFrom(controller, receiver, assets, default_return_value=True)
-    self._update_rates(controller)
+    assert self.borrowed_token.transferFrom(controller.address, receiver, assets, default_return_value=True)
+    controller.save_rate()
     log Withdraw(msg.sender, receiver, owner, assets, shares)
     return shares
 
@@ -511,9 +504,9 @@ def redeem(shares: uint256, receiver: address = msg.sender, owner: address = msg
 
     assets_to_redeem: uint256 = self._convert_to_assets(shares)
     self._burn(owner, shares)
-    controller: address = self.controller.address
-    assert self.borrowed_token.transferFrom(controller, receiver, assets_to_redeem, default_return_value=True)
-    self._update_rates(controller)
+    controller: Controller = self.controller
+    assert self.borrowed_token.transferFrom(controller.address, receiver, assets_to_redeem, default_return_value=True)
+    controller.save_rate()
     log Withdraw(msg.sender, receiver, owner, assets_to_redeem, shares)
     return assets_to_redeem
 
