@@ -85,8 +85,6 @@ class StatefulVault(RuleBasedStateMachine):
     @invariant()
     def inv_pps(self):
         pps = self.vault.pricePerShare()
-        # supply = self.vault.totalSupply()
-        # ass = self.vault.internal._total_assets()
         assert pps >= 1e18 // 1000  # Most likely we'll be around here
         assert pps <= 1e18 // 1000 * self.precision * 5  # But can pump by factor of preicision in the worst case
         if self.total_assets > 100000:
