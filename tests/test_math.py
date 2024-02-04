@@ -1,6 +1,6 @@
 import pytest
 import boa
-from math import log2, sqrt, exp
+from math import log2, sqrt, exp, log
 from hypothesis import given, settings
 from hypothesis import strategies as st
 
@@ -73,3 +73,24 @@ def test_exp(optimized_math, power):
         pow_int = optimized_math.optimized_exp(power)
         pow_ideal = int(exp(power / 1e18) * 1e18)
         assert abs(pow_int - pow_ideal) < max(1e8, pow_ideal * 1e-10)
+
+
+@given(st.integers(min_value=0, max_value=2**256-1))
+@settings(**SETTINGS)
+def test_wad_ln(optimized_math, x):
+    if x > 0 and x < 2**255:
+        y_v = optimized_math.wad_ln(x)
+    elif x >= 2**255:
+        with boa.reverts():
+            optimized_math.wad_ln(x)
+        return
+    else:
+        with boa.reverts():
+            optimized_math.wad_ln(x)
+        y_v = 0
+    if x > 0:
+        y = log(x / 1e18)
+    else:
+        y = 0
+
+    assert abs(y_v / 1e18 - y) <= max(1e-9, 1e-9 * (abs(y) + 1))
