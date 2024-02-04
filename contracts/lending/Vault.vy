@@ -315,10 +315,13 @@ def pricePerShare(is_floor: bool = True) -> uint256:
         precision: uint256 = self.precision
         numerator: uint256 = 10**18 * (self._total_assets() * precision + 1)
         denominator: uint256 = (supply + DEAD_SHARES)
+        pps: uint256 = 0
         if is_floor:
-            return numerator / denominator
+            pps = numerator / denominator
         else:
-            return (numerator + denominator - 1) / denominator
+            pps = (numerator + denominator - 1) / denominator
+        assert pps > 0
+        return pps
 
 
 @external
