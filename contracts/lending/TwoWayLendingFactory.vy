@@ -176,8 +176,7 @@ def _create(
         min_rate = min_borrow_rate
     if max_borrow_rate > 0:
         max_rate = max_borrow_rate
-    assert min_rate >= MIN_RATE and max_rate >= MIN_RATE\
-        and min_rate <= MAX_RATE and max_rate <= MAX_RATE\
+    assert min_rate >= MIN_RATE and max_rate <= MAX_RATE\
         and min_rate <= max_rate, "Wrong rates"
     monetary_policy: address = create_from_blueprint(
         self.monetary_policy_impl, borrowed_token, min_rate, max_rate, code_offset=3)
