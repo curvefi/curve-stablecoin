@@ -69,14 +69,23 @@ class BigFuzz(RuleBasedStateMachine):
         if balance < asset_amount:
             self.borrowed_token._mint_for_testing(user, asset_amount - balance)
         with boa.env.prank(user):
-            self.vault.deposit(asset_amount)
+            if self.vault.totalAssets() + asset_amount < 10000:
+                with boa.reverts():
+                    self.vault.deposit(asset_amount)
+            else:
+                self.vault.deposit(asset_amount)
 
     @rule(uid=user_id, shares_amount=loan_amount)
     def withdraw_vault(self, uid, shares_amount):
         user = self.accounts[uid]
         if shares_amount <= self.vault.maxRedeem(user):
             with boa.env.prank(user):
-                self.vault.redeem(shares_amount)
+                expected_assets = self.vault.totalAssets() - self.vault.previewRedeem(shares_amount)
+                if expected_assets < 10000 and expected_assets != 0:
+                    with boa.reverts():
+                        self.vault.redeem(shares_amount)
+                else:
+                    self.vault.redeem(shares_amount)
 
     # Borrowing and returning #
     @rule(y=collateral_amount, n=n, uid=user_id, ratio=ratio)

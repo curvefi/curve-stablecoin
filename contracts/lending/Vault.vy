@@ -83,6 +83,7 @@ ADMIN_FEE: constant(uint256) = 0
 # and
 # https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/token/ERC20/extensions/ERC4626.sol
 DEAD_SHARES: constant(uint256) = 1000
+MIN_ASSETS: constant(uint256) = 10000
 
 borrowed_token: public(ERC20)
 collateral_token: public(ERC20)
@@ -279,10 +280,14 @@ def totalAssets() -> uint256:
 
 @internal
 @view
-def _convert_to_shares(assets: uint256, is_floor: bool = True) -> uint256:
+def _convert_to_shares(assets: uint256, is_floor: bool = True,
+                       _total_assets: uint256 = max_value(uint256)) -> uint256:
+    total_assets: uint256 = _total_assets
+    if total_assets == max_value(uint256):
+        total_assets = self._total_assets()
     precision: uint256 = self.precision
     numerator: uint256 = (self.totalSupply + DEAD_SHARES) * assets * precision
-    denominator: uint256 = (self._total_assets() * precision + 1)
+    denominator: uint256 = (total_assets * precision + 1)
     if is_floor:
         return numerator / denominator
     else:
@@ -291,9 +296,13 @@ def _convert_to_shares(assets: uint256, is_floor: bool = True) -> uint256:
 
 @internal
 @view
-def _convert_to_assets(shares: uint256, is_floor: bool = True) -> uint256:
+def _convert_to_assets(shares: uint256, is_floor: bool = True,
+                       _total_assets: uint256 = max_value(uint256)) -> uint256:
+    total_assets: uint256 = _total_assets
+    if total_assets == max_value(uint256):
+        total_assets = self._total_assets()
     precision: uint256 = self.precision
-    numerator: uint256 = shares * (self._total_assets() * precision + 1)
+    numerator: uint256 = shares * (total_assets * precision + 1)
     denominator: uint256 = (self.totalSupply + DEAD_SHARES) * precision
     if is_floor:
         return numerator / denominator
@@ -372,7 +381,9 @@ def deposit(assets: uint256, receiver: address = msg.sender) -> uint256:
     @param receiver Receiver of the shares who is optional. If not specified - receiver is the sender
     """
     controller: Controller = self.controller
-    to_mint: uint256 = self._convert_to_shares(assets)
+    total_assets: uint256 = self._total_assets()
+    assert total_assets + assets >= MIN_ASSETS, "Need more assets"
+    to_mint: uint256 = self._convert_to_shares(assets, True, total_assets)
     assert self.borrowed_token.transferFrom(msg.sender, controller.address, assets, default_return_value=True)
     self._mint(receiver, to_mint)
     controller.save_rate()
@@ -408,7 +419,9 @@ def mint(shares: uint256, receiver: address = msg.sender) -> uint256:
     @param receiver Optional receiver for the shares. If not specified - it's the sender
     """
     controller: Controller = self.controller
-    assets: uint256 = self._convert_to_assets(shares, False)
+    total_assets: uint256 = self._total_assets()
+    assets: uint256 = self._convert_to_assets(shares, False, total_assets)
+    assert total_assets + assets >= MIN_ASSETS, "Need more assets"
     assert self.borrowed_token.transferFrom(msg.sender, controller.address, assets, default_return_value=True)
     self._mint(receiver, shares)
     controller.save_rate()
@@ -448,7 +461,9 @@ def withdraw(assets: uint256, receiver: address = msg.sender, owner: address = m
     @param receiver Receiver of the assets (optional, sender if not specified)
     @param owner Owner who's shares the caller takes. Only can take those if owner gave the approval to the sender. Optional
     """
-    shares: uint256 = self._convert_to_shares(assets, False)
+    total_assets: uint256 = self._total_assets()
+    assert total_assets - assets >= MIN_ASSETS or total_assets == assets, "Need more assets"
+    shares: uint256 = self._convert_to_shares(assets, False, total_assets)
     if owner != msg.sender:
         allowance: uint256 = self.allowance[owner][msg.sender]
         if allowance != max_value(uint256):
@@ -505,7 +520,9 @@ def redeem(shares: uint256, receiver: address = msg.sender, owner: address = msg
         if allowance != max_value(uint256):
             self._approve(owner, msg.sender, allowance - shares)
 
-    assets_to_redeem: uint256 = self._convert_to_assets(shares)
+    total_assets: uint256 = self._total_assets()
+    assets_to_redeem: uint256 = self._convert_to_assets(shares, True, total_assets)
+    assert total_assets - assets_to_redeem >= MIN_ASSETS or total_assets == assets_to_redeem, "Need more assets"
     self._burn(owner, shares)
     controller: Controller = self.controller
     assert self.borrowed_token.transferFrom(controller.address, receiver, assets_to_redeem, default_return_value=True)

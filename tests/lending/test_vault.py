@@ -86,7 +86,7 @@ class StatefulVault(RuleBasedStateMachine):
     def inv_pps(self):
         pps = self.vault.pricePerShare()
         assert pps >= 1e18 // 1000  # Most likely we'll be around here
-        assert pps <= 1e18 // 1000 * self.precision * 5  # But can pump by factor of preicision in the worst case
+        assert pps <= 1e18 // 1000 * 1.1  # Cannot pump much due to min assets limits (this test only pupms via rounding errors)
         if self.total_assets > 100000:
             if self.pps:
                 assert approx(pps, self.pps, 1e-2)
@@ -102,7 +102,12 @@ class StatefulVault(RuleBasedStateMachine):
         d_vault_balance = self.vault.balanceOf(user)
         d_user_tokens = self.borrowed_token.balanceOf(user)
         with boa.env.prank(user):
-            minted = self.vault.deposit(assets)
+            if self.total_assets + assets < 10000:
+                with boa.reverts():
+                    self.vault.deposit(assets)
+                return
+            else:
+                minted = self.vault.deposit(assets)
         self.was_used = True
         d_vault_balance = self.vault.balanceOf(user) - d_vault_balance
         d_user_tokens -= self.borrowed_token.balanceOf(user)
@@ -121,7 +126,12 @@ class StatefulVault(RuleBasedStateMachine):
         d_vault_balance = self.vault.balanceOf(user_to)
         d_user_tokens = self.borrowed_token.balanceOf(user_from)
         with boa.env.prank(user_from):
-            minted = self.vault.deposit(assets, user_to)
+            if self.total_assets + assets < 10000:
+                with boa.reverts():
+                    self.vault.deposit(assets, user_to)
+                return
+            else:
+                minted = self.vault.deposit(assets, user_to)
         self.was_used = True
         d_vault_balance = self.vault.balanceOf(user_to) - d_vault_balance
         d_user_tokens -= self.borrowed_token.balanceOf(user_from)
@@ -138,7 +148,12 @@ class StatefulVault(RuleBasedStateMachine):
         d_vault_balance = self.vault.balanceOf(user)
         d_user_tokens = self.borrowed_token.balanceOf(user)
         with boa.env.prank(user):
-            assets_deposited = self.vault.mint(shares)
+            if self.total_assets + assets < 10000:
+                with boa.reverts():
+                    self.vault.mint(shares)
+                return
+            else:
+                assets_deposited = self.vault.mint(shares)
         self.was_used = True
         d_vault_balance = self.vault.balanceOf(user) - d_vault_balance
         d_user_tokens -= self.borrowed_token.balanceOf(user)
@@ -156,7 +171,12 @@ class StatefulVault(RuleBasedStateMachine):
         d_vault_balance = self.vault.balanceOf(user_to)
         d_user_tokens = self.borrowed_token.balanceOf(user_from)
         with boa.env.prank(user_from):
-            assets_deposited = self.vault.mint(shares, user_to)
+            if self.total_assets + assets < 10000:
+                with boa.reverts():
+                    self.vault.mint(shares, user_to)
+                return
+            else:
+                assets_deposited = self.vault.mint(shares, user_to)
         self.was_used = True
         d_vault_balance = self.vault.balanceOf(user_to) - d_vault_balance
         d_user_tokens -= self.borrowed_token.balanceOf(user_from)
@@ -174,7 +194,12 @@ class StatefulVault(RuleBasedStateMachine):
             d_vault_balance = self.vault.balanceOf(user)
             d_user_tokens = self.borrowed_token.balanceOf(user)
             with boa.env.prank(user):
-                assets_redeemed = self.vault.redeem(shares)
+                if self.total_assets - assets < 10000 and self.total_assets - assets != 0:
+                    with boa.reverts():
+                        self.vault.redeem(shares)
+                    return
+                else:
+                    assets_redeemed = self.vault.redeem(shares)
             self.was_used = True
             d_vault_balance -= self.vault.balanceOf(user)
             d_user_tokens = self.borrowed_token.balanceOf(user) - d_user_tokens
@@ -198,7 +223,12 @@ class StatefulVault(RuleBasedStateMachine):
             d_vault_balance = self.vault.balanceOf(user_from)
             d_user_tokens = self.borrowed_token.balanceOf(user_to)
             with boa.env.prank(user_from):
-                assets_redeemed = self.vault.redeem(shares, user_to)
+                if self.total_assets - assets < 10000 and self.total_assets - assets != 0:
+                    with boa.reverts():
+                        self.vault.redeem(shares, user_to)
+                    return
+                else:
+                    assets_redeemed = self.vault.redeem(shares, user_to)
             self.was_used = True
             d_vault_balance -= self.vault.balanceOf(user_from)
             d_user_tokens = self.borrowed_token.balanceOf(user_to) - d_user_tokens
@@ -228,7 +258,12 @@ class StatefulVault(RuleBasedStateMachine):
                 d_vault_balance = self.vault.balanceOf(owner)
                 d_user_tokens = self.borrowed_token.balanceOf(user_to)
                 with boa.env.prank(user_from):
-                    assets_redeemed = self.vault.redeem(shares, user_to, owner)
+                    if self.total_assets - assets < 10000 and self.total_assets - assets != 0:
+                        with boa.reverts():
+                            self.vault.redeem(shares, user_to, owner)
+                        return
+                    else:
+                        assets_redeemed = self.vault.redeem(shares, user_to, owner)
                 self.was_used = True
                 d_vault_balance -= self.vault.balanceOf(owner)
                 d_user_tokens = self.borrowed_token.balanceOf(user_to) - d_user_tokens
@@ -261,7 +296,12 @@ class StatefulVault(RuleBasedStateMachine):
             d_vault_balance = self.vault.balanceOf(user)
             d_user_tokens = self.borrowed_token.balanceOf(user)
             with boa.env.prank(user):
-                shares_withdrawn = self.vault.withdraw(assets)
+                if self.total_assets - assets < 10000 and self.total_assets - assets != 0:
+                    with boa.reverts():
+                        self.vault.withdraw(assets)
+                    return
+                else:
+                    shares_withdrawn = self.vault.withdraw(assets)
             self.was_used = True
             d_vault_balance -= self.vault.balanceOf(user)
             d_user_tokens = self.borrowed_token.balanceOf(user) - d_user_tokens
@@ -285,7 +325,12 @@ class StatefulVault(RuleBasedStateMachine):
             d_vault_balance = self.vault.balanceOf(user_from)
             d_user_tokens = self.borrowed_token.balanceOf(user_to)
             with boa.env.prank(user_from):
-                shares_withdrawn = self.vault.withdraw(assets, user_to)
+                if self.total_assets - assets < 10000 and self.total_assets - assets != 0:
+                    with boa.reverts():
+                        self.vault.withdraw(assets, user_to)
+                    return
+                else:
+                    shares_withdrawn = self.vault.withdraw(assets, user_to)
             self.was_used = True
             d_vault_balance -= self.vault.balanceOf(user_from)
             d_user_tokens = self.borrowed_token.balanceOf(user_to) - d_user_tokens
@@ -315,7 +360,12 @@ class StatefulVault(RuleBasedStateMachine):
                 d_vault_balance = self.vault.balanceOf(owner)
                 d_user_tokens = self.borrowed_token.balanceOf(user_to)
                 with boa.env.prank(user_from):
-                    shares_withdrawn = self.vault.withdraw(assets, user_to, owner)
+                    if self.total_assets - assets < 10000 and self.total_assets - assets != 0:
+                        with boa.reverts():
+                            self.vault.withdraw(assets, user_to, owner)
+                        return
+                    else:
+                        shares_withdrawn = self.vault.withdraw(assets, user_to, owner)
                 self.was_used = True
                 d_vault_balance -= self.vault.balanceOf(owner)
                 d_user_tokens = self.borrowed_token.balanceOf(user_to) - d_user_tokens
