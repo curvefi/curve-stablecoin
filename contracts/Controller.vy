@@ -1413,6 +1413,8 @@ def admin_fees() -> uint256:
 def collect_fees() -> uint256:
     """
     @notice Collect the fees charged as interest
+    @notice None of this fees are collected if factory has no fee_receiver - e.g. for lending
+            This is by design: lending does NOT earn interest, system makes money by using crvUSD
     """
     # Calling fee_receiver will fail for lending markets because everything gets to lenders
     _to: address = FACTORY.fee_receiver()

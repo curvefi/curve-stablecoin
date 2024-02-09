@@ -22,8 +22,9 @@ The core contract `AMM.vy` stays exactly the same. It is already exactly like we
 The Controller has an ability to not only 18-digit tokens (like crvUSD) but tokens with any number of digits. For that,
 there were multiple changes to make sure rounding aways rounds up in favor of the exisitng borrowers.
 
-Method which collects borrowing fees `collect_fees()` will not work in lending. Admin fees are zero, and all the fees
-will go to the vault depositors. This is intentional: system will make money on fees made by crvUSD itself.
+Method which collects borrowing fees `collect_fees()` will not work in lending. Admin fees are zero, and all the
+interest will go to the vault depositors. Moreover, AMM admin fees cannot be charged: their claim would fail to.
+This is intentional: system will make money on fees made by crvUSD itself.
 
 The contract which creates the Controller can have `collateral_token()` and `borrowed_token()` public methods instead of
 a `stablecoin()` method. This is to keep the code clean and understandable when stablecoin is collateral, not borrowed.
