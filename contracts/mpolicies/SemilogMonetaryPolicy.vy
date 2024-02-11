@@ -127,16 +127,18 @@ def ln_int(_x: uint256) -> int256:
 
 @internal
 @view
-def calculate_rate(_for: address, d_reserves: uint256, d_debt: uint256) -> uint256:
-    total_debt: uint256 = Controller(_for).total_debt()
-    if total_debt + d_debt == 0:
+def calculate_rate(_for: address, d_reserves: int256, d_debt: int256) -> uint256:
+    total_debt: int256 = convert(Controller(_for).total_debt(), int256)
+    total_reserves: int256 = convert(BORROWED_TOKEN.balanceOf(_for), int256) + total_debt + d_reserves
+    total_debt += d_debt
+    assert total_debt >= 0, "Negative debt"
+    assert total_reserves >= total_debt, "Reserves too small"
+    if total_debt == 0:
         return self.min_rate
     else:
-        utilization: int256 = convert((total_debt + d_debt) * 10**18 / (BORROWED_TOKEN.balanceOf(_for) + total_debt + d_reserves), int256)
-        assert utilization <= 10**18
         log_min_rate: int256 = self.log_min_rate
         log_max_rate: int256 = self.log_max_rate
-        return self.exp(utilization * (log_max_rate - log_min_rate) / 10**18 + log_min_rate)
+        return self.exp(total_debt * (log_max_rate - log_min_rate) / total_reserves + log_min_rate)
 
 
 @view
@@ -170,13 +172,5 @@ def set_rates(min_rate: uint256, max_rate: uint256):
 
 @view
 @external
-def future_rate(_for: address, liquidity_change: int256) -> uint256:
-    # liquidity_change > 0 -> deposit to vault
-    # liquidity_change < 0 -> borrow
-    d_reserves: uint256 = 0
-    d_debt: uint256 = 0
-    if liquidity_change > 0:
-        d_reserves = convert(liquidity_change, uint256)
-    elif liquidity_change < 0:
-        d_debt = convert(-liquidity_change, uint256)
+def future_rate(_for: address, d_reserves: int256, d_debt: int256) -> uint256:
     return self.calculate_rate(_for, d_reserves, d_debt)
