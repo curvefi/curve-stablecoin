@@ -357,9 +357,9 @@ def convertToAssets(shares: uint256) -> uint256:
 @view
 def maxDeposit(receiver: address) -> uint256:
     """
-    @notice Maximum amount which can be deposited is unlimited
+    @notice Maximum amount of assets which a given user can deposit. Essentially balanceOf
     """
-    return max_value(uint256)
+    return self.balanceOf[receiver]
 
 
 @external
@@ -395,9 +395,9 @@ def deposit(assets: uint256, receiver: address = msg.sender) -> uint256:
 @view
 def maxMint(receiver: address) -> uint256:
     """
-    @notice Maximum amount which can be minted (infinity)
+    @notice Calculate maximum amount of shares which a given user can mint
     """
-    return max_value(uint256)
+    return self._convert_to_shares(self.balanceOf[receiver])
 
 
 @external
