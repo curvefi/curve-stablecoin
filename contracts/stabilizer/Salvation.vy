@@ -43,7 +43,7 @@ def _transfer_back(_coin: ERC20):
 
 @external
 def buy_out(_pool: CurvePool, _pk: PegKeeper, _ransom: uint256, _max_total_supply: uint256, _max_price: uint256=10**18,
-    _use_all: bool=False) -> uint256:
+    _use_all: bool=False, _safe: bool=True) -> uint256:
     """
     @notice Buy out coin with crvUSD from Peg Keeper
     @dev Need off-chain data for TotalSupply and Price
@@ -53,6 +53,8 @@ def buy_out(_pool: CurvePool, _pk: PegKeeper, _ransom: uint256, _max_total_suppl
     @param _max_total_supply Maximum totalSupply allowed for the pool to mitigate sandwich
     @param _max_price Max coin price in crvUSD to allow to buy out
     @param _use_all Use the whole ransom. Might be needed with small amount when fees affect peg
+    @param _safe Withdraw coins saving the price in the pool, so there are no extra losses from exchanges.
+    Otherwise all coins will be exchanged in the pool to crvUSD.
     @return Amount of debt bought out
     """
     max_price: uint256 = min(_max_price, _pool.price_oracle() * (10 ** 18 + EPS) / 10 ** 18)
@@ -76,18 +78,22 @@ def buy_out(_pool: CurvePool, _pk: PegKeeper, _ransom: uint256, _max_total_suppl
     # PegKeeper takes back crvUSD
     lp += _pk.update()
 
-    # Withdraw crvUSD to stabilize
-    withdraw_amount: uint256 = _pool.balances(1) - initial_amounts[1] * _pool.balances(0) * dec / initial_amounts[0]
-    _pool.remove_liquidity_imbalance(
-        [0, withdraw_amount],
-        lp,
-        msg.sender,
-    )
+    if _safe:
+        # Withdraw crvUSD to stabilize
+        withdraw_amount: uint256 = _pool.balances(1) - initial_amounts[1] * _pool.balances(0) * dec / initial_amounts[0]
+        _pool.remove_liquidity_imbalance(
+            [0, withdraw_amount],
+            lp,
+            msg.sender,
+        )
 
-    # Remove everything else
-    _pool.remove_liquidity(_pool.balanceOf(self), [0, 0], msg.sender)
+        # Remove everything else proportionally preserving the price
+        _pool.remove_liquidity(_pool.balanceOf(self), [0, 0], msg.sender)
 
-    assert convert(abs(convert(_pool.get_p(), int256) - convert(initial_price, int256)), uint256) * 10 ** 18 / initial_price < EPS
+        assert convert(abs(convert(_pool.get_p(), int256) - convert(initial_price, int256)), uint256) * 10 ** 18 / initial_price < EPS, "Price moved too far"
+    else:
+        # Withdraw everything in crvUSD, automatically exchanging all coins in the pool
+        _pool.remove_liquidity_one_coin(lp, 1, 0, msg.sender)
 
     # Just in case
     for coin in [_pool.coins(0), crvUSD, ERC20(_pool.address)]:
