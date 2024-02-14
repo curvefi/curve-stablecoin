@@ -25,14 +25,10 @@ interface CurvePool:
     def get_p() -> uint256: view
     def balanceOf(arg0: address) -> uint256: view
     def totalSupply() -> uint256: view
-    def fee() -> uint256: view
 
 interface PegKeeper:
     def update(_beneficiary: address = msg.sender) -> uint256: nonpayable
     def debt() -> uint256: view
-    def calc_profit() -> uint256: view
-    def estimate_caller_profit() -> uint256: view
-    def withdraw_profit() -> uint256: nonpayable
 
 
 N_COINS: constant(uint256) = 2
@@ -46,7 +42,8 @@ def _transfer_back(_coin: ERC20):
 
 
 @external
-def buy_out(_pool: CurvePool, _pk: PegKeeper, _ransom: uint256, _max_total_supply: uint256, _max_price: uint256=10**18) -> uint256:
+def buy_out(_pool: CurvePool, _pk: PegKeeper, _ransom: uint256, _max_total_supply: uint256, _max_price: uint256=10**18,
+    _use_all: bool=False) -> uint256:
     """
     @notice Buy out coin with crvUSD from Peg Keeper
     @dev Need off-chain data for TotalSupply and Price
@@ -55,6 +52,8 @@ def buy_out(_pool: CurvePool, _pk: PegKeeper, _ransom: uint256, _max_total_suppl
     @param _ransom Amount of crvUSD to use to buy out
     @param _max_total_supply Maximum totalSupply allowed for the pool to mitigate sandwich
     @param _max_price Max coin price in crvUSD to allow to buy out
+    @param _use_all Use the whole ransom. Might be needed with small amount when fees affect peg
+    @return Amount of debt bought out
     """
     max_price: uint256 = min(_max_price, _pool.price_oracle() * (10 ** 18 + EPS) / 10 ** 18)
     initial_price: uint256 = _pool.get_p()
@@ -66,17 +65,15 @@ def buy_out(_pool: CurvePool, _pk: PegKeeper, _ransom: uint256, _max_total_suppl
     initial_amounts: uint256[2] = [_pool.balances(0) * dec, _pool.balances(1)]
 
     # Add crvUSD, so there is more crvUSD than TUSD and it is withdrawn
-    amount: uint256 = min(5 * initial_debt + initial_amounts[0] - initial_amounts[1], _ransom)
+    amount: uint256 = _ransom
+    if not _use_all:
+        amount = min(amount, 5 * initial_debt + initial_amounts[0] - initial_amounts[1])
     crvUSD: ERC20 = _pool.coins(1)
     crvUSD.transferFrom(msg.sender, self, amount)
     crvUSD.approve(_pool.address, max_value(uint256))
     lp: uint256 = _pool.add_liquidity([0, amount], 0)
 
     # PegKeeper takes back crvUSD
-    print(_pool.balances(0), _pool.balances(1), _pool.get_p())
-    # _pk.withdraw_profit()
-    print(_pk.calc_profit())
-    print(_pk.estimate_caller_profit())  # Should be 0 in case of 'unprofitable peg'
     lp += _pk.update()
 
     # Withdraw crvUSD to stabilize

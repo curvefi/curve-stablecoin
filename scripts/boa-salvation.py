@@ -9,10 +9,10 @@ from eth_account import account
 from boa.network import NetworkEnv
 
 
-RANSOM = 15 * 10 ** 6 * 10 ** 18
-IDX = 3  # TUSD
+RANSOM = 15 * 10 ** 6 * 10 ** 18  # ALTER: bank of crvUSD available
+IDX = 3  # ALTER: coin to buy out (TUSD)
 
-NETWORK = f"https://eth-mainnet.alchemyapi.io/v2/{os.environ['WEB3_ETHEREUM_MAINNET_ALCHEMY_API_KEY']}"
+NETWORK = f"http://localhost:8545"  # ALTER: provider
 ZERO_ADDRESS = "0x0000000000000000000000000000000000000000"
 
 POOLS = [
@@ -30,7 +30,7 @@ PEG_KEEPERS = [
 CRVUSD = "0xf939E0A03FB07F59A73314E73794Be0E57ac1b4E"
 SALVATION = ZERO_ADDRESS
 
-ETHERSCAN_API = os.environ["ETHERSCAN_TOKEN"]
+ETHERSCAN_API = os.environ["ETHERSCAN_TOKEN"]  # ALTER: Etherscan API token
 _contracts = {}
 
 
@@ -64,12 +64,12 @@ def deploy():
     return salvation.deploy()
 
 
-def buy_out(idx=IDX, ransom=RANSOM, max_total_supply=None, max_price=None, salvation=None):
+def buy_out(idx=IDX, ransom=RANSOM, max_total_supply=None, max_price=None, salvation=None, use_all=False):
     pool, pk = _pool(idx), _peg_keeper(idx)
     if not max_total_supply:
-        max_total_supply = pool.totalSupply() * 101 // 100
+        max_total_supply = pool.totalSupply() * 1001 // 1000
     if not max_price:
-        max_price = pool.price_oracle() * 101 // 100
+        max_price = pool.price_oracle() * 1001 // 1000
     if not salvation:
         salvation = deploy()
 
@@ -78,7 +78,7 @@ def buy_out(idx=IDX, ransom=RANSOM, max_total_supply=None, max_price=None, salva
         coin.balanceOf(boa.env.eoa) for coin in coins
     ]
 
-    bought_out = salvation.buy_out(pool, pk, ransom, max_total_supply, max_price)
+    bought_out = salvation.buy_out(pool, pk, ransom, max_total_supply, max_price, use_all)
     print(f"Bought out: {bought_out / 10 ** 18:>11.2f} crvUSD")
     print(f"Remaining:  {pk.debt() / 10 ** 18:>11.2f} crvUSD")
 
@@ -101,8 +101,8 @@ def simulate(idx=IDX, ransom=RANSOM):
         _contracts[CRVUSD] = boa.from_etherscan(CRVUSD, name="crvUSD", api_key=ETHERSCAN_API)
     crvusd = _contracts[CRVUSD]
 
-    for i in range(5):
-        if _peg_keeper(idx).debt() < 10 ** 18:
+    for i in range(5):  # ALTER: number of iterations
+        if _peg_keeper(idx).debt() < 10 ** 18:  # Small amounts may fail due to fees
             print("Peg Keeper is free")
             break
 
@@ -114,7 +114,11 @@ def simulate(idx=IDX, ransom=RANSOM):
 
         crvusd.approve(salvation, ransom)
 
-        buy_out(idx, ransom, salvation=salvation)
+        try:
+            buy_out(idx, ransom, salvation=salvation)
+        except Exception:
+            print("Could not buy out, will try the whole ransom")
+            buy_out(idx, ransom, salvation=salvation, use_all=True)
         boa.env.time_travel(seconds=15 * 60)  # PegKeeper:ACTION_DELAY
         print()
 
@@ -134,6 +138,6 @@ if __name__ == '__main__':
         simulate()
     else:
         boa.set_env(NetworkEnv(NETWORK))
-        boa.env.add_account(account_load('babe'))
+        boa.env.add_account(account_load('babe'))  # ALTER: account to use
         boa.env._fork_try_prefetch_state = False
         buy_out()
