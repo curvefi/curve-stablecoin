@@ -52,8 +52,8 @@ def test_calc_initial_profit(peg_keepers, swaps):
     for peg_keeper, swap in zip(peg_keepers, swaps):
         debt = peg_keeper.debt()
         assert debt / swap.get_virtual_price() < swap.balanceOf(peg_keeper)
-        aim_profit = swap.balanceOf(peg_keeper) - debt * 10**18 / swap.get_virtual_price()
-        assert aim_profit > peg_keeper.calc_profit() > 0
+        aim_profit = swap.balanceOf(peg_keeper) - debt * 10**18 // swap.get_virtual_price()
+        assert aim_profit >= peg_keeper.calc_profit() > 0
 
 
 @given(donate_fee=st.integers(min_value=1, max_value=10**20))

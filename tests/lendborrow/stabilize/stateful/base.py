@@ -14,18 +14,29 @@ class StateMachine(RuleBasedStateMachine):
     st_pct = st.floats(min_value=1e-6, max_value=0.9)
     st_pool = st.integers(min_value=0, max_value=1)  # Only two pools / peg_keepers
 
-    def __init__(self, disable_fee=True):
+    def __init__(self):
         super().__init__()
         self.profit = [pk.calc_profit() for pk in self.peg_keepers]
         stablecoin_decimals = self.stablecoin.decimals()
         self.dmul = [[10 ** r.decimals(), 10 ** stablecoin_decimals] for r in self.redeemable_tokens]
-        if disable_fee:
-            with boa.env.prank(self.admin):
-                for swap in self.swaps:
-                    swap.commit_new_fee(0)
-                boa.env.time_travel(7 * 86400)
-                for swap in self.swaps:
-                    swap.apply_new_fee()
+
+    def _disable_fees(self):
+        self.fees = []
+        with boa.env.prank(self.admin):
+            for swap in self.swaps:
+                self.fees.append(swap.fee())
+                swap.commit_new_fee(0)
+            boa.env.time_travel(7 * 86400)
+            for swap in self.swaps:
+                swap.apply_new_fee()
+
+    def _enable_fees(self):
+        with boa.env.prank(self.admin):
+            for swap, fee in zip(self.swaps, self.fees):
+                swap.commit_new_fee(fee)
+            boa.env.time_travel(7 * 86400)
+            for swap in self.swaps:
+                swap.apply_new_fee()
 
     @rule(idx=st_idx, pct=st_pct, pool_idx=st_pool)
     def add_one_coin(self, idx, pct, pool_idx):
