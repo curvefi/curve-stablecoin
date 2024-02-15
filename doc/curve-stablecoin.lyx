@@ -140,7 +140,7 @@ In this design, if someone borrows against collateral, even at liquidation
  loss happen.
  For example, according to simulations using historic data for ETH/USD since
  Sep 2017, if one leaves the CDP unattended for 3 days and during this time
- the price drop of 10% below the liquidation theshold happened - only 1%
+ the price drop of 10% below the liquidation threshold happened - only 1%
  of collateral gets lost.
 \end_layout
 
@@ -165,7 +165,7 @@ status open
 \begin_inset Caption Standard
 
 \begin_layout Plain Layout
-Dependence of the loss on the price shift relative to the liquidation theshold.
+Dependence of the loss on the price shift relative to the liquidation threshold.
  Time window for the observation is 3 days
 \end_layout
 
@@ -349,7 +349,7 @@ AMM which we search for.
 \end_layout
 
 \begin_layout Standard
-The below description doesn't serve as a fully self-consistent rigurous
+The below description doesn't serve as a fully self-consistent rigorous
  proofs.
  A lot of that (especially the invariant) are obtained from dimensional
  considerations.
@@ -447,7 +447,7 @@ and
 \begin_inset Formula $p_{\uparrow}(p_{o})=p_{o}$
 \end_inset
 
-, definining ends of bands in adiabatic limit (e.g.
+, defining ends of bands in adiabatic limit (e.g.
  
 \begin_inset Formula $p=p_{o}$
 \end_inset
