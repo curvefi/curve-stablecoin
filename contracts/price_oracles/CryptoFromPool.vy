@@ -13,6 +13,7 @@ POOL: public(immutable(Pool))
 BORROWED_IX: public(immutable(uint256))
 COLLATERAL_IX: public(immutable(uint256))
 N_COINS: public(immutable(uint256))
+NO_ARGUMENT: public(immutable(bool))
 
 
 @external
@@ -30,6 +31,18 @@ def __init__(
     BORROWED_IX = borrowed_ix
     COLLATERAL_IX = collateral_ix
 
+    no_argument: bool = False
+    if N == 2:
+        success: bool = False
+        res: Bytes[32] = empty(Bytes[32])
+        success, res = raw_call(
+            pool.address,
+            _abi_encode(empty(uint256), method_id=method_id("price_oracle(uint256)")),
+            max_outsize=32, is_static_call=True, revert_on_failure=False)
+        if not success:
+            no_argument = True
+    NO_ARGUMENT = no_argument
+
 
 @internal
 @view
@@ -37,7 +50,7 @@ def _raw_price() -> uint256:
     p_borrowed: uint256 = 10**18
     p_collateral: uint256 = 10**18
 
-    if N_COINS == 2:
+    if NO_ARGUMENT:
         p: uint256 = POOL.price_oracle()
         if COLLATERAL_IX > 0:
             p_collateral = p
