@@ -44,27 +44,32 @@ def admin():
 
 
 @pytest.fixture(scope="session")
-def get_collateral_token(admin) -> Callable[[int], Any]:
+def token_mock():
+    return boa.load_partial('contracts/testing/ERC20Mock.vy')
+
+
+@pytest.fixture(scope="session")
+def get_collateral_token(token_mock, admin) -> Callable[[int], Any]:
     def f(digits):
         with boa.env.prank(admin):
-            return boa.load('contracts/testing/ERC20Mock.vy', "Colalteral", "ETH", digits)
+            return token_mock.deploy("Colalteral", "ETH", digits)
     return f
 
 
 @pytest.fixture(scope="session")
-def get_borrowed_token(admin) -> Callable[[int], Any]:
+def get_borrowed_token(token_mock, admin) -> Callable[[int], Any]:
     def f(digits):
         with boa.env.prank(admin):
-            return boa.load('contracts/testing/ERC20Mock.vy', "Rugworks USD", "rUSD", digits)
+            return token_mock.deploy("Rugworks USD", "rUSD", digits)
     return f
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture(scope="session")
 def collateral_token(get_collateral_token):
     return get_collateral_token(18)
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture(scope="session")
 def price_oracle(admin):
     with boa.env.prank(admin):
         oracle = boa.load('contracts/testing/DummyPriceOracle.vy', admin, PRICE * 10**18)

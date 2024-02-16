@@ -7,42 +7,52 @@ def get_method_id(desc):
     return method_id(desc).to_bytes(4, 'big') + b'\x00' * 28
 
 
+@pytest.fixture(scope="session")
+def stablecoin_pre():
+    return boa.load_partial('contracts/Stablecoin.vy')
+
+
 @pytest.fixture(scope="module")
-def stablecoin(admin):
+def stablecoin(stablecoin_pre, admin):
     with boa.env.prank(admin):
-        return boa.load('contracts/Stablecoin.vy', 'Curve USD', 'crvUSD')
+        return stablecoin_pre.deploy('Curve USD', 'crvUSD')
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture(scope="session")
 def weth(admin):
     with boa.env.prank(admin):
         return boa.load('contracts/testing/WETH.vy')
 
 
+@pytest.fixture(scope="session")
+def controller_factory_impl():
+    return boa.load_partial('contracts/ControllerFactory.vy')
+
+
 @pytest.fixture(scope="module")
-def controller_prefactory(stablecoin, weth, admin, accounts):
+def controller_prefactory(controller_factory_impl, stablecoin, weth, admin, accounts):
     with boa.env.prank(admin):
-        return boa.load('contracts/ControllerFactory.vy', stablecoin.address, admin, accounts[0], weth.address)
+        return controller_factory_impl.deploy(stablecoin.address, admin, accounts[0], weth.address)
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture(scope="session")
 def controller_interface():
     return boa.load_partial('contracts/Controller.vy')
 
 
-@pytest.fixture(scope="module")
-def controller_impl(controller_prefactory, controller_interface, admin):
+@pytest.fixture(scope="session")
+def controller_impl(controller_interface, admin):
     with boa.env.prank(admin):
         return controller_interface.deploy_as_blueprint()
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture(scope="session")
 def amm_interface():
     return boa.load_partial('contracts/AMM.vy')
 
 
-@pytest.fixture(scope="module")
-def amm_impl(stablecoin, amm_interface, admin):
+@pytest.fixture(scope="session")
+def amm_impl(amm_interface, admin):
     with boa.env.prank(admin):
         return amm_interface.deploy_as_blueprint()
 
@@ -55,7 +65,7 @@ def controller_factory(controller_prefactory, amm_impl, controller_impl, stablec
     return controller_prefactory
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture(scope="session")
 def monetary_policy(admin):
     with boa.env.prank(admin):
         policy = boa.load('contracts/testing/ConstantMonetaryPolicy.vy', admin)
@@ -96,7 +106,7 @@ def market_amm(market, collateral_token, stablecoin, amm_interface, accounts):
 
 
 @pytest.fixture(scope="module")
-def market_controller(market, stablecoin, collateral_token, controller_interface, controller_factory, accounts):
+def market_controller(market, stablecoin, collateral_token, controller_interface, accounts):
     return controller_interface.at(market.get_controller(collateral_token.address))
 
 

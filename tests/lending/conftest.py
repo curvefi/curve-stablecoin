@@ -3,23 +3,23 @@ import pytest
 from itertools import product
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture(scope="session")
 def amm_interface():
     return boa.load_partial('contracts/AMM.vy')
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture(scope="session")
 def amm_impl(amm_interface, admin):
     with boa.env.prank(admin):
         return amm_interface.deploy_as_blueprint()
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture(scope="session")
 def controller_interface():
     return boa.load_partial('contracts/Controller.vy')
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture(scope="session")
 def controller_impl(controller_interface, admin):
     with boa.env.prank(admin):
         return controller_interface.deploy_as_blueprint()
@@ -30,45 +30,49 @@ def stablecoin(get_borrowed_token):
     return get_borrowed_token(18)
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture(scope="session")
 def vault_impl(admin):
     with boa.env.prank(admin):
         return boa.load('contracts/lending/Vault.vy')
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture(scope="session")
 def price_oracle_interface():
     return boa.load_partial('contracts/price_oracles/CryptoFromPool.vy')
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture(scope="session")
 def price_oracle_impl(price_oracle_interface, admin):
     with boa.env.prank(admin):
         return price_oracle_interface.deploy_as_blueprint()
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture(scope="session")
 def mpolicy_interface():
     return boa.load_partial('contracts/mpolicies/SemilogMonetaryPolicy.vy')
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture(scope="session")
 def mpolicy_impl(mpolicy_interface, admin):
     with boa.env.prank(admin):
         return mpolicy_interface.deploy_as_blueprint()
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture(scope="session")
 def gauge_impl(admin):
     with boa.env.prank(admin):
         return boa.load_partial('contracts/testing/MockGauge.vy').deploy_as_blueprint()
 
 
+@pytest.fixture(scope="session")
+def factory_partial():
+    return boa.load_partial('contracts/lending/OneWayLendingFactory.vy')
+
+
 @pytest.fixture(scope="module")
-def factory(stablecoin, amm_impl, controller_impl, vault_impl, price_oracle_impl, mpolicy_impl, gauge_impl, admin):
+def factory(factory_partial, stablecoin, amm_impl, controller_impl, vault_impl, price_oracle_impl, mpolicy_impl, gauge_impl, admin):
     with boa.env.prank(admin):
-        return boa.load(
-            'contracts/lending/OneWayLendingFactory.vy',
+        return factory_partial.deploy(
             stablecoin.address,
             amm_impl, controller_impl, vault_impl,
             price_oracle_impl, mpolicy_impl, gauge_impl,
@@ -125,7 +129,7 @@ def market_mpolicy(market_controller, mpolicy_interface):
     return mpolicy_interface.at(market_controller.monetary_policy())
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture(scope="session")
 def mock_token_interface():
     return boa.load_partial('contracts/testing/ERC20Mock.vy')
 
@@ -149,24 +153,28 @@ def fake_leverage(collateral_token, borrowed_token, market_controller, admin):
         return leverage
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture(scope="session")
 def vault_price_oracle_impl(admin):
     with boa.env.prank(admin):
         return boa.load_partial('contracts/price_oracles/CryptoFromPoolVault.vy').deploy_as_blueprint()
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture(scope="session")
 def wrapper_oracle_impl(admin):
     with boa.env.prank(admin):
         return boa.load_partial('contracts/price_oracles/OracleVaultWrapper.vy').deploy_as_blueprint()
 
 
+@pytest.fixture(scope="session")
+def factory_2way_partial():
+    return boa.load_partial('contracts/lending/TwoWayLendingFactory.vy')
+
+
 @pytest.fixture(scope="module")
-def factory_2way(stablecoin, amm_impl, controller_impl, vault_impl, vault_price_oracle_impl, wrapper_oracle_impl,
+def factory_2way(factory_2way_partial, stablecoin, amm_impl, controller_impl, vault_impl, vault_price_oracle_impl, wrapper_oracle_impl,
                  mpolicy_impl, gauge_impl, admin):
     with boa.env.prank(admin):
-        return boa.load(
-            'contracts/lending/TwoWayLendingFactory.vy',
+        return factory_2way_partial.deploy(
             stablecoin, amm_impl, controller_impl, vault_impl,
             vault_price_oracle_impl, wrapper_oracle_impl, mpolicy_impl, gauge_impl, admin)
 
