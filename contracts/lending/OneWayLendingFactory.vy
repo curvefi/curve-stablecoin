@@ -6,6 +6,7 @@
 @author Curve.fi
 @license Copyright (c) Curve.Fi, 2020-2024 - all rights reserved
 """
+from vyper.interfaces import ERC20
 
 interface Vault:
     def initialize(
@@ -28,6 +29,13 @@ interface Vault:
 
 interface Controller:
     def monetary_policy() -> address: view
+
+interface AMM:
+    def get_dy(i: uint256, j: uint256, in_amount: uint256) -> uint256: view
+    def get_dx(i: uint256, j: uint256, out_amount: uint256) -> uint256: view
+    def get_dydx(i: uint256, j: uint256, out_amount: uint256) -> (uint256, uint256): view
+    def exchange(i: uint256, j: uint256, in_amount: uint256, min_amount: uint256, _for: address) -> uint256[2]: nonpayable
+    def exchange_dy(i: uint256, j: uint256, out_amount: uint256, max_amount: uint256, _for: address) -> uint256[2]: nonpayable
 
 interface Pool:
     def price_oracle(i: uint256 = 0) -> uint256: view  # Universal method!
@@ -90,6 +98,7 @@ admin: public(address)
 
 # Vaults can only be created but not removed
 vaults: public(Vault[10**18])
+amms: public(AMM[10**18])
 _vaults_index: HashMap[Vault, uint256]
 market_count: public(uint256)
 
@@ -177,6 +186,7 @@ def _create(
     market_count: uint256 = self.market_count
     log NewVault(market_count, collateral_token, borrowed_token, vault.address, controller, amm, price_oracle, monetary_policy)
     self.vaults[market_count] = vault
+    self.amms[market_count] = AMM(amm)
     self._vaults_index[vault] = market_count + 2**128
 
     self.market_count = market_count + 1
@@ -187,6 +197,9 @@ def _create(
     market_count = self.token_market_count[token]
     self.token_to_vaults[token][market_count] = vault
     self.token_market_count[token] = market_count + 1
+
+    ERC20(borrowed_token).approve(amm, max_value(uint256))
+    ERC20(collateral_token).approve(amm, max_value(uint256))
 
     return vault
 
@@ -276,12 +289,6 @@ def create_from_pool(
 
     return self._create(borrowed_token, collateral_token, A, fee, loan_discount, liquidation_discount,
                         price_oracle, min_borrow_rate, max_borrow_rate)
-
-
-@view
-@external
-def amms(n: uint256) -> address:
-    return self.vaults[n].amm()
 
 
 @view
@@ -409,3 +416,31 @@ def set_admin(admin: address):
     assert msg.sender == self.admin
     self.admin = admin
     log SetAdmin(admin)
+
+
+@external
+@view
+def get_dy(vault_id: uint256, i: uint256, j: uint256, amount: uint256) -> uint256:
+    return self.amms[vault_id].get_dy(i, j, amount)
+
+
+@external
+@view
+def get_dx(vault_id: uint256, i: uint256, j: uint256, out_amount: uint256) -> uint256:
+    return self.amms[vault_id].get_dy(i, j, out_amount)
+
+
+@external
+@view
+def get_dydx(vault_id: uint256, i: uint256, j: uint256, out_amount: uint256) -> (uint256, uint256):
+    return self.amms[vault_id].get_dydx(i, j, out_amount)
+
+
+@external
+def exchange(vault_id: uint256, i: uint256, j: uint256, amount: uint256, min_out: uint256, receiver: address = msg.sender) -> uint256[2]:
+    return self.amms[vault_id].exchange(i, j, amount, min_out, receiver)
+
+
+@external
+def exchange_dy(vault_id: uint256, i: uint256, j: uint256, amount: uint256, max_in: uint256, receiver: address = msg.sender) -> uint256[2]:
+    return self.amms[vault_id].exchange_dy(i, j, amount, max_in, receiver)
