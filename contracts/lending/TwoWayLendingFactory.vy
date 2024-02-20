@@ -5,6 +5,7 @@
 @author Curve.fi
 @license Copyright (c) Curve.Fi, 2020-2024 - all rights reserved
 """
+from vyper.interfaces import ERC20
 
 interface Vault:
     def initialize(
@@ -25,9 +26,21 @@ interface Vault:
     def borrowed_token() -> address: view
     def collateral_token() -> address: view
     def price_oracle() -> address: view
+    def convertToShares(assets: uint256) -> uint256: view
+    def convertToAssets(shares: uint256) -> uint256: view
+    def deposit(assets: uint256) -> uint256: nonpayable
+    def redeem(shares: uint256, receiver: address) -> uint256: nonpayable
+    def balanceOf(user: address) -> uint256: view
 
 interface Controller:
     def monetary_policy() -> address: view
+
+interface AMM:
+    def get_dy(i: uint256, j: uint256, in_amount: uint256) -> uint256: view
+    def get_dx(i: uint256, j: uint256, out_amount: uint256) -> uint256: view
+    def get_dydx(i: uint256, j: uint256, out_amount: uint256) -> (uint256, uint256): view
+    def exchange(i: uint256, j: uint256, in_amount: uint256, min_amount: uint256, _for: address) -> uint256[2]: nonpayable
+    def exchange_dy(i: uint256, j: uint256, out_amount: uint256, max_amount: uint256, _for: address) -> uint256[2]: nonpayable
 
 interface Pool:
     def price_oracle(i: uint256 = 0) -> uint256: view  # Universal method!
@@ -93,6 +106,7 @@ admin: public(address)
 
 # Vaults can only be created but not removed
 vaults: public(Vault[10**18])
+amms: public(AMM[10**18])
 _vaults_index: HashMap[Vault, uint256]
 market_count: public(uint256)
 
@@ -196,8 +210,13 @@ def _create(
 
     log NewVault(market_count, vault_short.address, borrowed_token, vault_long.address, controller, amm, price_oracle_long, monetary_policy)
     self.vaults[market_count] = vault_long
+    self.amms[market_count] = AMM(amm)
     self._vaults_index[vault_long] = market_count + 2**128
     market_count += 1
+
+    ERC20(borrowed_token).approve(amm, max_value(uint256))
+    ERC20(collateral_token).approve(vault_long.address, max_value(uint256))
+    ERC20(vault_long.address).approve(amm, max_value(uint256))
 
     controller, amm = vault_short.initialize(
         self.amm_impl, self.controller_impl,
@@ -209,9 +228,14 @@ def _create(
     )
     log NewVault(market_count, vault_long.address, collateral_token, vault_short.address, controller, amm, price_oracle_short, monetary_policy)
     self.vaults[market_count] = vault_short
+    self.amms[market_count] = AMM(amm)
     self._vaults_index[vault_short] = market_count + 2**128
     market_count += 1
     self.market_count = market_count
+
+    ERC20(vault_short.address).approve(amm, max_value(uint256))
+    ERC20(borrowed_token).approve(vault_short.address, max_value(uint256))
+    ERC20(collateral_token).approve(amm, max_value(uint256))
 
     self._add_to_index(vault_long, borrowed_token, collateral_token)
     self._add_to_index(vault_short, borrowed_token, collateral_token)
@@ -322,12 +346,6 @@ def create_from_pool(
                  min_borrow_rate, max_borrow_rate)
 
     return (vault_long, vault_short)
-
-
-@view
-@external
-def amms(n: uint256) -> address:
-    return self.vaults[n].amm()
 
 
 @view
@@ -459,3 +477,88 @@ def set_admin(admin: address):
     assert msg.sender == self.admin
     self.admin = admin
     log SetAdmin(admin)
+
+
+@internal
+@view
+def other_vault(vault_id: uint256) -> Vault:
+    if vault_id % 2 == 0:
+        return self.vaults[vault_id + 1]
+    else:
+        return self.vaults[vault_id - 1]
+
+
+@external
+@view
+def coins(vault_id: uint256) -> address[2]:
+    return [self.vaults[vault_id].borrowed_token(), self.other_vault(vault_id).borrowed_token()]
+
+
+@external
+@view
+def get_dy(vault_id: uint256, i: uint256, j: uint256, amount: uint256) -> uint256:
+    dx: uint256 = amount
+    other_vault: Vault = self.other_vault(vault_id)
+    if i == 1:
+        dx = other_vault.convertToShares(amount)
+    dy: uint256 = self.amms[vault_id].get_dy(i, j, dx)
+    if j == 1:
+        dy = other_vault.convertToAssets(dy)
+    return dy
+
+
+@external
+@view
+def get_dx(vault_id: uint256, i: uint256, j: uint256, out_amount: uint256) -> uint256:
+    dy: uint256 = out_amount
+    other_vault: Vault = self.other_vault(vault_id)
+    if j == 1:
+        dy = other_vault.convertToShares(out_amount)
+    dx: uint256 = self.amms[vault_id].get_dx(i, j, dy)
+    if i == 1:
+        dx = other_vault.convertToAssets(dx)
+    return dx
+
+
+@external
+@view
+def get_dydx(vault_id: uint256, i: uint256, j: uint256, out_amount: uint256) -> (uint256, uint256):
+    dy: uint256 = out_amount
+    other_vault: Vault = self.other_vault(vault_id)
+    if j == 1:
+        dy = other_vault.convertToShares(out_amount)
+    dy, dx = self.amms[vault_id].get_dydx(i, j, dy)
+    if j == 1:
+        dy = other_vault.convertToShares(dy)
+    if i == 1:
+        dx = other_vault.convertToAssets(dx)
+    return dy, dx
+
+
+@external
+def exchange(vault_id: uint256, i: uint256, j: uint256, amount: uint256, min_out: uint256, receiver: address = msg.sender) -> uint256[2]:
+    other_vault: Vault = self.other_vault(vault_id)
+    dx: uint256 = amount
+    _receiver: address = receiver
+    _min_out: uint256 = min_out
+    if i == 1:
+        dx = other_vault.deposit(amount)
+    else:  # j == 1
+        _receiver = self
+        _min_out = 0
+    dx_done: uint256 = 0
+    dx_done, dy = self.amms[vault_id].exchange(i, j, dx, min_out, _receiver)
+    if i == 1:
+        if dx_done != dx:
+            dx = amount - other_vault.redeem(other_vault.balanceOf(self), msg.sender)
+        else:
+            dx = amount
+    else:
+        dy = other_vault.redeem(dy, receiver)
+        assert dy >= min_out, "Slippage"
+    return [dx, dy]
+
+
+@external
+def exchange_dy(vault_id: uint256, i: uint256, j: uint256, amount: uint256, max_in: uint256, receiver: address = msg.sender) -> uint256[2]:
+    return self.amms[vault_id].exchange_dy(i, j, amount, max_in, receiver)
