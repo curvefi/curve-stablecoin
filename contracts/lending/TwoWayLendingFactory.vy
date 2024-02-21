@@ -594,4 +594,18 @@ def exchange(vault_id: uint256, i: uint256, j: uint256, amount: uint256, min_out
 @external
 @nonreentrant('lock')
 def exchange_dy(vault_id: uint256, i: uint256, j: uint256, amount: uint256, max_in: uint256, receiver: address = msg.sender) -> uint256[2]:
-    return self.amms[vault_id].exchange_dy(i, j, amount, max_in, receiver)
+    vault: Vault = self.vaults[vault_id]
+    other_vault: Vault = self.other_vault(vault_id)
+    _receiver: address = receiver
+    _max_in: uint256 = self.transfer_in(vault, other_vault, i, msg.sender, max_in)
+    _amount: uint256 = amount
+    if i == 1:
+        _amount = other_vault.convertToShares(amount)
+    if j == 1:
+        _receiver = msg.sender
+    dxy: uint256[2] = self.amms[vault_id].exchange_dy(i, j, _amount, _max_in, _receiver)
+    if i == 1:
+        dxy[0] = max_in - self.transfer_out(vault, other_vault, i, receiver)
+    else:
+        dxy[1] = self.transfer_out(vault, other_vault, j, receiver)
+    return dxy
