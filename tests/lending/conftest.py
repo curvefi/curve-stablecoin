@@ -185,7 +185,7 @@ def vaults_2way(factory_2way, vault_impl, collateral_token, borrowed_token, pric
         vault_long, vault_short = factory_2way.create(
             borrowed_token.address, collateral_token.address,
             100, int(0.006 * 1e18), int(0.09 * 1e18), int(0.06 * 1e18),
-            price_oracle.address)
+            price_oracle.address, "Test vault")
         return vault_impl.at(vault_long), vault_impl.at(vault_short)
 
 
