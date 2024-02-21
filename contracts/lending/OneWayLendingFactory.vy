@@ -107,6 +107,7 @@ token_to_vaults: public(HashMap[address, Vault[10**18]])
 token_market_count: public(HashMap[address, uint256])
 
 gauges: public(address[10**18])
+names: public(HashMap[uint256, String[64]])
 
 
 @external
@@ -152,6 +153,7 @@ def _create(
         loan_discount: uint256,
         liquidation_discount: uint256,
         price_oracle: address,
+        name: String[64],
         min_borrow_rate: uint256,
         max_borrow_rate: uint256
     ) -> Vault:
@@ -188,6 +190,7 @@ def _create(
     self.vaults[market_count] = vault
     self.amms[market_count] = AMM(amm)
     self._vaults_index[vault] = market_count + 2**128
+    self.names[market_count] = name
 
     self.market_count = market_count + 1
 
@@ -214,6 +217,7 @@ def create(
         loan_discount: uint256,
         liquidation_discount: uint256,
         price_oracle: address,
+        name: String[64],
         min_borrow_rate: uint256 = 0,
         max_borrow_rate: uint256 = 0
     ) -> Vault:
@@ -226,11 +230,12 @@ def create(
     @param loan_discount Maximum discount. LTV = sqrt(((A - 1) / A) ** 4) - loan_discount
     @param liquidation_discount Liquidation discount. LT = sqrt(((A - 1) / A) ** 4) - liquidation_discount
     @param price_oracle Custom price oracle contract
+    @param name Human-readable market name
     @param min_borrow_rate Custom minimum borrow rate (otherwise min_default_borrow_rate)
     @param max_borrow_rate Custom maximum borrow rate (otherwise max_default_borrow_rate)
     """
     return self._create(borrowed_token, collateral_token, A, fee, loan_discount, liquidation_discount,
-                        price_oracle, min_borrow_rate, max_borrow_rate)
+                        price_oracle, name, min_borrow_rate, max_borrow_rate)
 
 
 @external
@@ -243,6 +248,7 @@ def create_from_pool(
         loan_discount: uint256,
         liquidation_discount: uint256,
         pool: address,
+        name: String[64],
         min_borrow_rate: uint256 = 0,
         max_borrow_rate: uint256 = 0
     ) -> Vault:
@@ -256,6 +262,7 @@ def create_from_pool(
     @param liquidation_discount Liquidation discount. LT = sqrt(((A - 1) / A) ** 4) - liquidation_discount
     @param pool Curve tricrypto-ng, twocrypto-ng or stableswap-ng pool which has non-manipulatable price_oracle().
                 Must contain both collateral_token and borrowed_token.
+    @param name Human-readable market name
     @param min_borrow_rate Custom minimum borrow rate (otherwise min_default_borrow_rate)
     @param max_borrow_rate Custom maximum borrow rate (otherwise max_default_borrow_rate)
     """
@@ -288,7 +295,7 @@ def create_from_pool(
         self.pool_price_oracle_impl, pool, N, borrowed_ix, collateral_ix, code_offset=3)
 
     return self._create(borrowed_token, collateral_token, A, fee, loan_discount, liquidation_discount,
-                        price_oracle, min_borrow_rate, max_borrow_rate)
+                        price_oracle, name, min_borrow_rate, max_borrow_rate)
 
 
 @view

@@ -109,7 +109,7 @@ def vault(factory, vault_impl, collateral_token, borrowed_token, price_oracle, a
             factory.create(
                 borrowed_token.address, collateral_token.address,
                 100, int(0.006 * 1e18), int(0.09 * 1e18), int(0.06 * 1e18),
-                price_oracle.address
+                price_oracle.address, "Test vault"
             )
         )
 
