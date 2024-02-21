@@ -569,6 +569,7 @@ def transfer_out(vault: Vault, other_vault: Vault, i: uint256, _to: address) -> 
 
 
 @external
+@nonreentrant('lock')
 def exchange(vault_id: uint256, i: uint256, j: uint256, amount: uint256, min_out: uint256, receiver: address = msg.sender) -> uint256[2]:
     vault: Vault = self.vaults[vault_id]
     other_vault: Vault = self.other_vault(vault_id)
@@ -591,5 +592,6 @@ def exchange(vault_id: uint256, i: uint256, j: uint256, amount: uint256, min_out
 
 
 @external
+@nonreentrant('lock')
 def exchange_dy(vault_id: uint256, i: uint256, j: uint256, amount: uint256, max_in: uint256, receiver: address = msg.sender) -> uint256[2]:
     return self.amms[vault_id].exchange_dy(i, j, amount, max_in, receiver)
