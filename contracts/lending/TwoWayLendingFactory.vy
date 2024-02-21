@@ -215,8 +215,8 @@ def _create(
     market_count += 1
 
     ERC20(borrowed_token).approve(amm, max_value(uint256))
-    ERC20(collateral_token).approve(vault_long.address, max_value(uint256))
-    ERC20(vault_long.address).approve(amm, max_value(uint256))
+    ERC20(collateral_token).approve(vault_short.address, max_value(uint256))
+    ERC20(vault_short.address).approve(amm, max_value(uint256))
 
     controller, amm = vault_short.initialize(
         self.amm_impl, self.controller_impl,
@@ -233,9 +233,9 @@ def _create(
     market_count += 1
     self.market_count = market_count
 
-    ERC20(vault_short.address).approve(amm, max_value(uint256))
-    ERC20(borrowed_token).approve(vault_short.address, max_value(uint256))
+    ERC20(borrowed_token).approve(vault_long.address, max_value(uint256))
     ERC20(collateral_token).approve(amm, max_value(uint256))
+    ERC20(vault_long.address).approve(amm, max_value(uint256))
 
     self._add_to_index(vault_long, borrowed_token, collateral_token)
     self._add_to_index(vault_short, borrowed_token, collateral_token)
@@ -527,36 +527,67 @@ def get_dydx(vault_id: uint256, i: uint256, j: uint256, out_amount: uint256) -> 
     other_vault: Vault = self.other_vault(vault_id)
     if j == 1:
         dy = other_vault.convertToShares(out_amount)
+    dx: uint256 = 0
     dy, dx = self.amms[vault_id].get_dydx(i, j, dy)
     if j == 1:
-        dy = other_vault.convertToShares(dy)
+        dy = other_vault.convertToAssets(dy)
     if i == 1:
         dx = other_vault.convertToAssets(dx)
     return dy, dx
 
 
+@internal
+def transfer_in(vault: Vault, other_vault: Vault, i: uint256, _from: address, amount: uint256) -> uint256:
+    token: ERC20 = empty(ERC20)
+    if i == 0:
+        token = ERC20(vault.borrowed_token())
+    else:
+        token = ERC20(vault.collateral_token())
+    if amount > 0:
+        assert token.transferFrom(_from, self, amount, default_return_value=True)
+        if i == 1:
+            return other_vault.deposit(amount)
+        else:
+            return amount
+    else:
+        return 0
+
+
+@internal
+def transfer_out(vault: Vault, other_vault: Vault, i: uint256, _to: address) -> uint256:
+    token: ERC20 = empty(ERC20)
+    amount: uint256 = 0
+    if i == 0:
+        token = ERC20(vault.borrowed_token())
+        amount = token.balanceOf(self)
+        if amount > 0:
+            assert token.transfer(_to, amount, default_return_value=True)
+    else:
+        token = ERC20(vault.collateral_token())
+        amount = other_vault.redeem(other_vault.balanceOf(self), _to)
+    return amount
+
+
 @external
 def exchange(vault_id: uint256, i: uint256, j: uint256, amount: uint256, min_out: uint256, receiver: address = msg.sender) -> uint256[2]:
+    vault: Vault = self.vaults[vault_id]
     other_vault: Vault = self.other_vault(vault_id)
-    dx: uint256 = amount
     _receiver: address = receiver
     _min_out: uint256 = min_out
-    if i == 1:
-        dx = other_vault.deposit(amount)
-    else:  # j == 1
+    dx: uint256 = self.transfer_in(vault, other_vault, i, msg.sender, amount)
+    if j == 1:
         _receiver = self
         _min_out = 0
-    dx_done: uint256 = 0
-    dx_done, dy = self.amms[vault_id].exchange(i, j, dx, min_out, _receiver)
+    dxy: uint256[2] = self.amms[vault_id].exchange(i, j, dx, _min_out, _receiver)
     if i == 1:
-        if dx_done != dx:
-            dx = amount - other_vault.redeem(other_vault.balanceOf(self), msg.sender)
+        if dxy[0] != dx:
+            dxy[0] = amount - self.transfer_out(vault, other_vault, i, receiver)
         else:
-            dx = amount
+            dxy[0] = amount
     else:
-        dy = other_vault.redeem(dy, receiver)
-        assert dy >= min_out, "Slippage"
-    return [dx, dy]
+        dxy[1] = self.transfer_out(vault, other_vault, j, receiver)
+        assert dxy[1] >= min_out, "Slippage"
+    return dxy
 
 
 @external
