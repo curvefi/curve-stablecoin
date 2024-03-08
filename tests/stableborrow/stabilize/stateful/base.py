@@ -1,7 +1,7 @@
 import boa
 from hypothesis import strategies as st
 from hypothesis.stateful import RuleBasedStateMachine, rule, invariant
-from boa.vyper.contract import BoaError
+from boa import BoaError
 from ..conftest import BASE_AMOUNT
 
 
