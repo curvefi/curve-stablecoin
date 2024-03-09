@@ -40,7 +40,10 @@ def test_dydx_limits(amm, amounts, accounts, ns, dns, collateral_token, admin, b
     # Small swap
     dy, dx = amm.get_dydx(0, 1, 10**(collateral_decimals - 6))  # 0.000001 ETH
     assert dy == 10**12
-    assert approx(dx, dy * 3000 / 10**(collateral_decimals - borrowed_decimals), 4e-2 + 2 * min(ns) / amm.A())
+    if min(ns) == 1:
+        assert approx(dx, dy * 3000 / 10**(collateral_decimals - borrowed_decimals), 4e-2 + 2 * min(ns) / amm.A())
+    else:
+        assert dx >= dy * 3000 / 10**(collateral_decimals - borrowed_decimals)
     dy, dx = amm.get_dydx(1, 0, 10**(borrowed_decimals - 4))  # No liquidity
     assert dx == 0
     assert dy == 0  # Rounded down
@@ -141,6 +144,8 @@ def test_exchange_dy_down_up(amm, amounts, accounts, ns, dns, amount, borrowed_t
                 amm.deposit_range(user, amount, n1, n2)
                 collateral_token._mint_for_testing(amm.address, amount)
 
+    p_before = amm.get_p()
+
     # crvUSD --> ETH (dx - crvUSD, dy - ETH)
     dy, dx = amm.get_dydx(0, 1, amount)
     assert dy <= amount
@@ -155,17 +160,21 @@ def test_exchange_dy_down_up(amm, amounts, accounts, ns, dns, amount, borrowed_t
     assert borrowed_token.balanceOf(u) == 0
     assert collateral_token.balanceOf(u) == dy2
 
+    p_after = amm.get_p()
+    fee = abs(p_after - p_before) / (4 * max(p_after, p_before))
+
     sum_borrowed = sum(amm.bands_x(i) for i in range(50))
     sum_collateral = sum(amm.bands_y(i) for i in range(50))
     assert abs(borrowed_token.balanceOf(amm) - sum_borrowed // 10**(18 - borrowed_decimals)) <= 1
     assert abs(collateral_token.balanceOf(amm) - sum_collateral // 10**(18 - collateral_decimals)) <= 1
 
     # ETH --> crvUSD (dx - ETH, dy - crvUSD)
-    expected_in_amount = int(dy2 / 0.98)  # two trades charge 1% twice
+    expected_in_amount = dy2
     out_amount = dx2
 
     dy, dx = amm.get_dydx(1, 0, out_amount)
-    assert approx(dx, expected_in_amount, 5e-4)  # Not precise because fee is charged on different directions
+    assert dx >= expected_in_amount
+    assert abs(dx - expected_in_amount) <= 2 * (fee + 0.01) * expected_in_amount
     assert out_amount - dy <= 1
 
     collateral_token._mint_for_testing(u, dx - collateral_token.balanceOf(u))

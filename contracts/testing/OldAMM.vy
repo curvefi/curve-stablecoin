@@ -290,22 +290,6 @@ def limit_p_o(p: uint256) -> uint256[2]:
 
 
 @internal
-@pure
-def get_dynamic_fee(p_o: uint256, p_o_up: uint256) -> uint256:
-    """
-    Dynamic fee equal to a quarter of difference between current price and the price of price oracle
-    """
-    p_c_d: uint256 = unsafe_div(unsafe_div(p_o ** 2, p_o_up) * p_o, p_o_up)
-    p_c_u: uint256 = unsafe_div(unsafe_div(p_c_d * A, Aminus1) * A, Aminus1)
-    if p_o < p_c_d:
-        return unsafe_div(unsafe_sub(p_c_d, p_o) * (10**18 / 4), p_c_d)
-    elif p_o > p_c_u:
-        return unsafe_div(unsafe_sub(p_o, p_c_u) * (10**18 / 4), p_o)
-    else:
-        return 0
-
-
-@internal
 @view
 def _price_oracle_ro() -> uint256[2]:
     return self.limit_p_o(price_oracle_contract.price())
@@ -877,7 +861,10 @@ def calc_swap_out(pump: bool, in_amount: uint256, p_o: uint256[2], in_precision:
     y: uint256 = self.bands_y[out.n2]
 
     in_amount_left: uint256 = in_amount
-    fee: uint256 = max(self.fee, p_o[1])
+    antifee: uint256 = unsafe_div(
+        (10**18)**2,
+        unsafe_sub(10**18, max(self.fee, p_o[1]))
+    )
     admin_fee: uint256 = self.admin_fee
     j: uint256 = MAX_TICKS_UINT
 
@@ -886,7 +873,6 @@ def calc_swap_out(pump: bool, in_amount: uint256, p_o: uint256[2], in_precision:
         f: uint256 = 0
         g: uint256 = 0
         Inv: uint256 = 0
-        dynamic_fee: uint256 = fee
 
         if x > 0 or y > 0:
             if j == MAX_TICKS_UINT:
@@ -896,12 +882,6 @@ def calc_swap_out(pump: bool, in_amount: uint256, p_o: uint256[2], in_precision:
             f = unsafe_div(A * y0 * p_o[0] / p_o_up * p_o[0], 10**18)
             g = unsafe_div(Aminus1 * y0 * p_o_up, p_o[0])
             Inv = (f + x) * (g + y)
-            dynamic_fee = max(self.get_dynamic_fee(p_o[0], p_o_up), fee)
-
-        antifee: uint256 = unsafe_div(
-            (10**18)**2,
-            unsafe_sub(10**18, min(dynamic_fee, 10**18 - 1))
-        )
 
         if j != MAX_TICKS_UINT:
             # Initialize
@@ -1183,7 +1163,10 @@ def calc_swap_in(pump: bool, out_amount: uint256, p_o: uint256[2], in_precision:
     y: uint256 = self.bands_y[out.n2]
 
     out_amount_left: uint256 = out_amount
-    fee: uint256 = max(self.fee, p_o[1])
+    antifee: uint256 = unsafe_div(
+        (10**18)**2,
+        unsafe_sub(10**18, max(self.fee, p_o[1]))
+    )
     admin_fee: uint256 = self.admin_fee
     j: uint256 = MAX_TICKS_UINT
 
@@ -1192,7 +1175,6 @@ def calc_swap_in(pump: bool, out_amount: uint256, p_o: uint256[2], in_precision:
         f: uint256 = 0
         g: uint256 = 0
         Inv: uint256 = 0
-        dynamic_fee: uint256 = fee
 
         if x > 0 or y > 0:
             if j == MAX_TICKS_UINT:
@@ -1202,12 +1184,6 @@ def calc_swap_in(pump: bool, out_amount: uint256, p_o: uint256[2], in_precision:
             f = unsafe_div(A * y0 * p_o[0] / p_o_up * p_o[0], 10**18)
             g = unsafe_div(Aminus1 * y0 * p_o_up, p_o[0])
             Inv = (f + x) * (g + y)
-            dynamic_fee = max(self.get_dynamic_fee(p_o[0], p_o_up), fee)
-
-        antifee: uint256 = unsafe_div(
-            (10**18)**2,
-            unsafe_sub(10**18, min(dynamic_fee, 10**18 - 1))
-        )
 
         if j != MAX_TICKS_UINT:
             # Initialize

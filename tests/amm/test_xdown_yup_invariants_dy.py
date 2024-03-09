@@ -35,6 +35,8 @@ def test_immediate(amm, price_oracle, collateral_token, borrowed_token, accounts
     borrowed_decimals = borrowed_token.decimals()
     deposit_amount = int(deposit_amount * 10**collateral_decimals)
     user = accounts[0]
+    prices = []
+    prices.append(amm.get_p())
     with boa.env.prank(admin):
         price_oracle.set_price(p_o)
         amm.set_fee(0)
@@ -47,12 +49,14 @@ def test_immediate(amm, price_oracle, collateral_token, borrowed_token, accounts
             if p_o == p_internal:
                 break
 
+    prices.append(amm.get_p())
     pump_recv_amount = int(deposit_amount * f_pump)
     pump_recv_amount, pump_amount = amm.get_dydx(0, 1, pump_recv_amount)
     with boa.env.prank(user):
         borrowed_token._mint_for_testing(user, pump_amount)
         amm.exchange_dy(0, 1, pump_recv_amount, pump_amount)
 
+    prices.append(amm.get_p())
     x0 = amm.get_x_down(user)
     y0 = amm.get_y_up(user)
     if is_pump:
@@ -73,11 +77,17 @@ def test_immediate(amm, price_oracle, collateral_token, borrowed_token, accounts
     with boa.env.prank(user):
         amm.exchange_dy(i, j, trade_recv_amount, trade_amount)
 
+    prices.append(amm.get_p())
     x1 = amm.get_x_down(user)
     y1 = amm.get_y_up(user)
 
-    assert approx(x0, x1, 1e-6, 100)
-    assert approx(y0, y1, 1e-6, 100)
+    assert x1 >= x0
+    assert y1 >= y0
+
+    fee = max(abs(max(prices) - p_o), abs(p_o - min(prices))) / (4 * min(p_o, *prices))
+
+    assert approx(x0, x1, fee, 100)
+    assert approx(y0, y1, fee, 100)
 
 
 @given(
@@ -108,6 +118,7 @@ def test_adiabatic(amm, price_oracle, collateral_token, borrowed_token, accounts
     p_o_mul = (p_o_2 / p_o_1) ** (1 / (N_STEPS - 1))
     precision = max(1.5 * abs(p_o_mul - 1) * (dn + 1) * (max(p_o_2, p_o_1) / min(p_o_2, p_o_1)), 1e-6)  # Emprical formula
     precision += 1 - min(p_o_mul, 1 / p_o_mul)**3  # Dynamic fee component
+    fee_component = 2 * (max(p_o_1, p_o_2, 3000 * 10**18) - min(p_o_1, p_o_2, 3000 * 10**18)) / min(p_o_1, p_o_2, 3000 * 10**18) / N_STEPS
 
     x0 = 0
     y0 = 0
@@ -142,8 +153,12 @@ def test_adiabatic(amm, price_oracle, collateral_token, borrowed_token, accounts
 
         x = amm.get_x_down(user)
         y = amm.get_y_up(user)
-        assert approx(x, x0, precision)
-        assert approx(y, y0, precision)
+
+        assert x >= x0 * (1 - precision)
+        assert y >= y0 * (1 - precision)
+
+        assert approx(x, x0, precision + fee_component * (k + 1))
+        assert approx(y, y0, precision + fee_component * (k + 1))
 
         if k != N_STEPS - 1:
             p_o = int(p_o * p_o_mul)

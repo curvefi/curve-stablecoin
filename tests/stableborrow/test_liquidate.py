@@ -38,7 +38,7 @@ def controller_for_liquidation(stablecoin, collateral_token, market_controller, 
             market_amm.exchange(0, 1, debt, 0)
         health_1 = market_controller.health(user)
 
-        assert approx(health_0, health_1, 1e-6)
+        assert health_0 <= health_1  # Eearns fees on dynamic fee
 
         boa.env.time_travel(sleep_time)
 
@@ -146,7 +146,7 @@ def test_self_liquidate(accounts, admin, controller_for_liquidation, market_amm,
     fee_receiver = accounts[0]
 
     with boa.env.anchor():
-        controller = controller_for_liquidation(sleep_time=35 * 86400, discount=2.5 * 10**16)
+        controller = controller_for_liquidation(sleep_time=40 * 86400, discount=2.5 * 10**16)
 
         with boa.env.prank(accounts[2]):
             stablecoin.transfer(fee_receiver, 10**10)

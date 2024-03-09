@@ -25,7 +25,10 @@ def test_dxdy_limits(amm, amounts, accounts, ns, dns, collateral_token, admin):
     # Small swap
     dx, dy = amm.get_dxdy(0, 1, 10**2)  # $0.0001
     assert dx == 10**2
-    assert approx(dy, dx * 10**(18 - 6) / 3000, 4e-2 + 2 * min(ns) / amm.A())
+    if min(ns) == 1:
+        assert approx(dy, dx * 10**(18 - 6) / 3000, 4e-2 + 2 * min(ns) / amm.A())
+    else:
+        assert dy <= dx * 10**(18 - 6) / 3000
     dx, dy = amm.get_dxdy(1, 0, 10**16)  # No liquidity
     assert dx == 0
     assert dy == 0  # Rounded down
@@ -59,6 +62,8 @@ def test_exchange_down_up(amm, amounts, accounts, ns, dns, amount,
                 amm.deposit_range(user, amount, n1, n2)
                 collateral_token._mint_for_testing(amm.address, amount)
 
+    p_before = amm.get_p()
+
     dx, dy = amm.get_dxdy(0, 1, amount)
     assert dx <= amount
     dx2, dy2 = amm.get_dxdy(0, 1, dx)
@@ -70,6 +75,9 @@ def test_exchange_down_up(amm, amounts, accounts, ns, dns, amount,
     assert borrowed_token.balanceOf(u) == 0
     assert collateral_token.balanceOf(u) == dy2
 
+    p_after = amm.get_p()
+    fee = abs(p_after - p_before) / (4 * max(p_after, p_before))
+
     sum_borrowed = sum(amm.bands_x(i) for i in range(50))
     sum_collateral = sum(amm.bands_y(i) for i in range(50))
     assert abs(borrowed_token.balanceOf(amm) - sum_borrowed // 10**(18 - 6)) <= 1
@@ -80,7 +88,8 @@ def test_exchange_down_up(amm, amounts, accounts, ns, dns, amount,
 
     dx, dy = amm.get_dxdy(1, 0, in_amount)
     assert approx(dx, in_amount, 5e-4)  # Not precise because fee is charged on different directions
-    assert abs(dy - expected_out_amount) <= 1
+    assert dy <= expected_out_amount
+    assert abs(dy - expected_out_amount) <= 2 * fee * expected_out_amount
 
     collateral_token._mint_for_testing(u, dx - collateral_token.balanceOf(u))
     dy_measured = borrowed_token.balanceOf(u)
