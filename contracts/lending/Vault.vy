@@ -359,7 +359,7 @@ def maxDeposit(receiver: address) -> uint256:
     """
     @notice Maximum amount of assets which a given user can deposit. Essentially balanceOf
     """
-    return self.balanceOf[receiver]
+    return self.borrowed_token.balanceOf(receiver)
 
 
 @external
@@ -397,7 +397,7 @@ def maxMint(receiver: address) -> uint256:
     """
     @notice Calculate maximum amount of shares which a given user can mint
     """
-    return self._convert_to_shares(self.balanceOf[receiver])
+    return self._convert_to_shares(self.borrowed_token.balanceOf(receiver))
 
 
 @external
