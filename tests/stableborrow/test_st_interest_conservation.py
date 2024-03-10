@@ -120,7 +120,7 @@ class StatefulLendBorrow(RuleBasedStateMachine):
                 with boa.env.prank(self.accounts[0]):
                     self.stablecoin.transfer(user, min(diff, admin_balance))
                 if user_balance + admin_balance < min(amount, user_debt):
-                    assert diff < admin_balance + 20  # Still dust
+                    assert sum(sum(abs(n) for n in self.amm.read_user_tick_numbers(u)) > 0 for u in self.accounts[:10]) > 1
                     return
 
             self.controller.repay(amount, user)

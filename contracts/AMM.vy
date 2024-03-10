@@ -807,7 +807,7 @@ def withdraw(user: address, frac: uint256) -> uint256[2]:
         # If withdrawal is the last one - transfer dust to admin fees
         if new_shares == 0:
             if x > 0:
-                self.admin_fees_x += x
+                self.admin_fees_x += unsafe_div(x, BORROWED_PRECISION)
             if y > 0:
                 self.admin_fees_y += unsafe_div(y, COLLATERAL_PRECISION)
             x = 0
