@@ -1,7 +1,7 @@
 from hypothesis import settings
 from hypothesis import strategies as st
 from hypothesis.stateful import RuleBasedStateMachine, run_state_machine_as_test, initialize, rule, invariant
-from boa.vyper.contract import VyperContract
+from boa.contracts.vyper.vyper_contract import VyperContract
 import boa
 
 
