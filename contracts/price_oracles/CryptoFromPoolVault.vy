@@ -35,7 +35,6 @@ def __init__(
     assert borrowed_ix != collateral_ix
     assert borrowed_ix < N
     assert collateral_ix < N
-    assert pool.coins(collateral_ix) == vault.borrowed_token()
 
     POOL = pool
     N_COINS = N
