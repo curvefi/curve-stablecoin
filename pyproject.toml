@@ -9,20 +9,15 @@ packages = []
 [tool.poetry.dependencies]
 python = ">=3.10,<4"
 vyper = "0.3.10"
-poetry = "^1.7"
-eth-abi = "4.1.0"
-titanoboa = {git = "https://github.com/vyperlang/titanoboa.git", rev = "5860aa429041bedfdb41c946b67cb2d80e99a0df"}
-pycryptodome = "^3.18.0"
-pytest = "^7.4.0"
-hypothesis = "^6.82.0"
+poetry = "^1"
+titanoboa = {git = "https://github.com/vyperlang/titanoboa.git", rev = "375052479b5a164a3f84489810eebb15fb43737a"}
+hypothesis = "^6.99.0"
 pdbpp = "^0.10.3"
 jedi = "^0.19.0"
-pytest-xdist = "^3.3.1"
+pytest-xdist = "^3.5"
 pytest-forked = "^1.6.0"
-ipython = "^8.14.0"
-eth_account = "^0.10"
+ipython = "^8"
 cytoolz = "^0.12"
-
 
 [build-system]
 requires = ["poetry-core"]

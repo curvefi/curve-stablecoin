@@ -1,6 +1,6 @@
 import pytest
 import boa
-from boa.vyper.contract import BoaError
+from boa import BoaError
 from hypothesis import given, settings
 from hypothesis import strategies as st
 from ..conftest import approx
