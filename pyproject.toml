@@ -11,7 +11,7 @@ python = ">=3.10,<4"
 vyper = "0.3.10"
 poetry = "^1.7"
 eth-abi = "4.1.0"
-titanoboa = {git = "https://github.com/vyperlang/titanoboa.git", rev = "5860aa429041bedfdb41c946b67cb2d80e99a0df"}
+titanoboa = {git = "https://github.com/vyperlang/titanoboa.git", rev = "7301b85940820ab2bb2067df840d7f71ca965e1d"}
 pycryptodome = "^3.18.0"
 pytest = "^7.4.0"
 hypothesis = "^6.82.0"
