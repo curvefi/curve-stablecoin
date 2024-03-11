@@ -86,8 +86,8 @@ if __name__ == '__main__':
         borrowed = CRVUSD
         A = 75
         fee = int(0.0015 * 1e18)
-        borrowing_discount = int(0.06 * 1e18)
-        liquidation_discount = int(0.03 * 1e18)
+        borrowing_discount = int(0.065 * 1e18)
+        liquidation_discount = int(0.035 * 1e18)
         min_borrow_rate = 5 * 10**15 // (365 * 86400)  # 0.5%
         max_borrow_rate = 80 * 10**16 // (365 * 86400)  # 80%
         vault = factory.create_from_pool(borrowed, collateral, A, fee, borrowing_discount, liquidation_discount,
