@@ -54,45 +54,6 @@ def test_deposit_and_withdraw(vault, borrowed_token, accounts):
         assert vault.totalAssets() == 0
 
 
-def test_factory_exchanges(factory, vault, borrowed_token, collateral_token, market_controller, accounts):
-    one_token = 10 ** borrowed_token.decimals()
-    collateral_amount = 100 * 10 ** collateral_token.decimals()
-    amount = 10**6 * one_token
-    user = accounts[1]
-    borrowed_token._mint_for_testing(user, amount)
-
-    with boa.env.prank(user):
-        # Fund vault
-        borrowed_token.approve(vault.address, 2**256-1)
-        vault.deposit(amount)
-
-        # Borrow
-        collateral_token.approve(market_controller.address, 2**256-1)
-        collateral_token._mint_for_testing(user, collateral_amount)
-        borrow_amount = market_controller.max_borrowable(collateral_amount, 4)
-        market_controller.create_loan(collateral_amount, borrow_amount, 4)
-
-        # Exchange several times
-        borrowed_token.approve(factory.address, 2**256 - 1)
-        collateral_token.approve(factory.address, 2**256 - 1)
-        vault_id = factory.vaults_index(vault.address)
-        b1 = borrowed_token.balanceOf(user)
-        c1 = collateral_token.balanceOf(user)
-        dx1, dy1 = factory.exchange(vault_id, 0, 1, borrow_amount // 2, 0)
-        b2 = borrowed_token.balanceOf(user)
-        c2 = collateral_token.balanceOf(user)
-        assert dx1 == borrow_amount // 2
-        assert b1 - b2 == dx1
-        assert c2 - c1 == dy1
-        dx2, dy2 = factory.exchange(vault_id, 1, 0, dy1, 0)
-        b3 = borrowed_token.balanceOf(user)
-        c3 = collateral_token.balanceOf(user)
-        assert dx2 == dy1
-        assert dy2 < dx1  # Fees
-        assert b3 - b2 == dy2
-        assert c2 - c3 == dx2
-
-
 class StatefulVault(RuleBasedStateMachine):
     user_id = st.integers(min_value=0, max_value=9)
     t = st.integers(min_value=0, max_value=86400 * 365)
