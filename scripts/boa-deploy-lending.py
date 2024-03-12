@@ -79,6 +79,22 @@ if __name__ == '__main__':
         gauge = factory.deploy_gauge(vault)
         print(f"Vault {name}: {vault}, gauge: {gauge}")
 
+        # Deploy WETH long market
+        name = "WETH-long"
+        oracle_pool = "0x4eBdF703948ddCEA3B11f675B4D1Fba9d2414A14"  # TriCRV
+        collateral = "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2"   # WETH
+        borrowed = CRVUSD
+        A = 70
+        fee = int(0.002 * 1e18)
+        borrowing_discount = int(0.07 * 1e18)
+        liquidation_discount = int(0.04 * 1e18)
+        min_borrow_rate = 5 * 10**15 // (365 * 86400)  # 0.5%
+        max_borrow_rate = 80 * 10**16 // (365 * 86400)  # 80%
+        vault = factory.create_from_pool(borrowed, collateral, A, fee, borrowing_discount, liquidation_discount,
+                                         oracle_pool, name, min_borrow_rate, max_borrow_rate)
+        gauge = factory.deploy_gauge(vault)
+        print(f"Vault {name}: {vault}, gauge: {gauge}")
+
         # Deploy tBTC long market
         name = "tBTC-long"
         oracle_pool = "0x2889302a794dA87fBF1D6Db415C1492194663D13"  # TricryptoLLAMA
