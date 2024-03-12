@@ -336,10 +336,6 @@ def create_from_pool(
             collateral_ix = i
     if collateral_ix == 100 or borrowed_ix == 100:
         raise "Tokens not in pool"
-    if N == 2:
-        assert Pool(pool).price_oracle() > 0, "Pool has no oracle"
-    else:
-        assert Pool(pool).price_oracle(0) > 0, "Pool has no oracle"
 
     vault_long: Vault = Vault(create_minimal_proxy_to(self.vault_impl))
     vault_short: Vault = Vault(create_minimal_proxy_to(self.vault_impl))

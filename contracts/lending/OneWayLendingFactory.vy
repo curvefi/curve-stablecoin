@@ -287,10 +287,6 @@ def create_from_pool(
             collateral_ix = i
     if collateral_ix == 100 or borrowed_ix == 100:
         raise "Tokens not in pool"
-    if N == 2:
-        assert Pool(pool).price_oracle() > 0, "Pool has no oracle"
-    else:
-        assert Pool(pool).price_oracle(0) > 0, "Pool has no oracle"
     price_oracle: address = create_from_blueprint(
         self.pool_price_oracle_impl, pool, N, borrowed_ix, collateral_ix, code_offset=3)
 
