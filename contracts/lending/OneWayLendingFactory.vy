@@ -30,12 +30,6 @@ interface Vault:
 interface Controller:
     def monetary_policy() -> address: view
 
-interface AMM:
-    def get_dy(i: uint256, j: uint256, in_amount: uint256) -> uint256: view
-    def get_dx(i: uint256, j: uint256, out_amount: uint256) -> uint256: view
-    def get_dydx(i: uint256, j: uint256, out_amount: uint256) -> (uint256, uint256): view
-    def exchange(i: uint256, j: uint256, in_amount: uint256, min_amount: uint256, _for: address) -> uint256[2]: nonpayable
-    def exchange_dy(i: uint256, j: uint256, out_amount: uint256, max_amount: uint256, _for: address) -> uint256[2]: nonpayable
 
 interface Pool:
     def price_oracle(i: uint256 = 0) -> uint256: view  # Universal method!
