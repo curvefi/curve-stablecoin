@@ -774,8 +774,6 @@ def _add_collateral_borrow(d_collateral: uint256, d_debt: uint256, _for: address
     else:
         log Borrow(_for, d_collateral, d_debt)
 
-    self._save_rate()
-
     log UserState(_for, xy[1], debt, n1, n2, liquidation_discount)
 
 
@@ -791,6 +789,7 @@ def add_collateral(collateral: uint256, _for: address = msg.sender):
         return
     self._add_collateral_borrow(collateral, 0, _for, False)
     self.transferFrom(COLLATERAL_TOKEN, msg.sender, AMM.address, collateral)
+    self._save_rate()
 
 
 @external
@@ -805,6 +804,7 @@ def remove_collateral(collateral: uint256, use_eth: bool = True):
         return
     self._add_collateral_borrow(collateral, 0, msg.sender, True)
     self.transferFrom(COLLATERAL_TOKEN, AMM.address, msg.sender, collateral)
+    self._save_rate()
 
 
 @external
@@ -821,6 +821,7 @@ def borrow_more(collateral: uint256, debt: uint256):
     self.minted += debt
     self.transferFrom(COLLATERAL_TOKEN, msg.sender, AMM.address, collateral)
     self.transfer(BORROWED_TOKEN, msg.sender, debt)
+    self._save_rate()
 
 
 @external
@@ -849,6 +850,7 @@ def borrow_more_extended(collateral: uint256, debt: uint256, callbacker: address
     self.minted += debt
     self.transferFrom(COLLATERAL_TOKEN, msg.sender, AMM.address, collateral)
     self.transferFrom(COLLATERAL_TOKEN, callbacker, AMM.address, more_collateral)
+    self._save_rate()
 
 
 @internal
