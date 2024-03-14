@@ -357,9 +357,9 @@ def convertToAssets(shares: uint256) -> uint256:
 @view
 def maxDeposit(receiver: address) -> uint256:
     """
-    @notice Maximum amount of assets which a given user can deposit. Essentially balanceOf
+    @notice Maximum amount of assets which a given user can deposit (inf)
     """
-    return self.balanceOf[receiver]
+    return max_value(uint256)
 
 
 @external
@@ -395,9 +395,9 @@ def deposit(assets: uint256, receiver: address = msg.sender) -> uint256:
 @view
 def maxMint(receiver: address) -> uint256:
     """
-    @notice Calculate maximum amount of shares which a given user can mint
+    @notice Return maximum amount of shares which a given user can mint (inf)
     """
-    return self._convert_to_shares(self.balanceOf[receiver])
+    return max_value(uint256)
 
 
 @external
@@ -522,7 +522,12 @@ def redeem(shares: uint256, receiver: address = msg.sender, owner: address = msg
 
     total_assets: uint256 = self._total_assets()
     assets_to_redeem: uint256 = self._convert_to_assets(shares, True, total_assets)
-    assert total_assets - assets_to_redeem >= MIN_ASSETS or total_assets == assets_to_redeem, "Need more assets"
+    if total_assets - assets_to_redeem < MIN_ASSETS:
+        if shares == self.totalSupply:
+            # This is the last withdrawal, so we can take everything
+            assets_to_redeem = total_assets
+        else:
+            raise "Need more assets"
     self._burn(owner, shares)
     controller: Controller = self.controller
     assert self.borrowed_token.transferFrom(controller.address, receiver, assets_to_redeem, default_return_value=True)

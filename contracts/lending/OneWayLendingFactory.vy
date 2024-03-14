@@ -287,10 +287,6 @@ def create_from_pool(
             collateral_ix = i
     if collateral_ix == 100 or borrowed_ix == 100:
         raise "Tokens not in pool"
-    if N == 2:
-        assert Pool(pool).price_oracle() > 0, "Pool has no oracle"
-    else:
-        assert Pool(pool).price_oracle(0) > 0, "Pool has no oracle"
     price_oracle: address = create_from_blueprint(
         self.pool_price_oracle_impl, pool, N, borrowed_ix, collateral_ix, code_offset=3)
 
@@ -430,62 +426,3 @@ def set_admin(admin: address):
 def coins(vault_id: uint256) -> address[2]:
     vault: Vault = self.vaults[vault_id]
     return [vault.borrowed_token(), vault.collateral_token()]
-
-
-@external
-@view
-def get_dy(vault_id: uint256, i: uint256, j: uint256, amount: uint256) -> uint256:
-    return self.amms[vault_id].get_dy(i, j, amount)
-
-
-@external
-@view
-def get_dx(vault_id: uint256, i: uint256, j: uint256, out_amount: uint256) -> uint256:
-    return self.amms[vault_id].get_dx(i, j, out_amount)
-
-
-@external
-@view
-def get_dydx(vault_id: uint256, i: uint256, j: uint256, out_amount: uint256) -> (uint256, uint256):
-    return self.amms[vault_id].get_dydx(i, j, out_amount)
-
-
-@internal
-def transfer_in(vault: Vault, i: uint256, _from: address, amount: uint256):
-    token: ERC20 = empty(ERC20)
-    if i == 0:
-        token = ERC20(vault.borrowed_token())
-    else:
-        token = ERC20(vault.collateral_token())
-    if amount > 0:
-        assert token.transferFrom(_from, self, amount, default_return_value=True)
-
-
-@internal
-def transfer_out(vault: Vault, i: uint256, _to: address):
-    token: ERC20 = empty(ERC20)
-    if i == 0:
-        token = ERC20(vault.borrowed_token())
-    else:
-        token = ERC20(vault.collateral_token())
-    amount: uint256 = token.balanceOf(self)
-    if amount > 0:
-        assert token.transfer(_to, amount, default_return_value=True)
-
-
-@external
-@nonreentrant('lock')
-def exchange(vault_id: uint256, i: uint256, j: uint256, amount: uint256, min_out: uint256, receiver: address = msg.sender) -> uint256[2]:
-    vault: Vault = self.vaults[vault_id]
-    self.transfer_in(vault, i, msg.sender, amount)
-    return self.amms[vault_id].exchange(i, j, amount, min_out, receiver)
-
-
-@external
-@nonreentrant('lock')
-def exchange_dy(vault_id: uint256, i: uint256, j: uint256, amount: uint256, max_in: uint256, receiver: address = msg.sender) -> uint256[2]:
-    vault: Vault = self.vaults[vault_id]
-    self.transfer_in(vault, i, msg.sender, max_in)
-    out_value: uint256[2] = self.amms[vault_id].exchange_dy(i, j, amount, max_in, receiver)
-    self.transfer_out(vault, i, msg.sender)
-    return out_value

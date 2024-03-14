@@ -1,6 +1,6 @@
 import boa
 from math import log2, ceil
-from boa.vyper.contract import BoaError
+from boa import BoaError
 from hypothesis import settings
 from hypothesis import strategies as st
 from hypothesis.stateful import RuleBasedStateMachine, run_state_machine_as_test, rule  # , invariant

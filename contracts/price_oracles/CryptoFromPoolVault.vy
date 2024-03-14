@@ -23,6 +23,11 @@ N_COINS: public(immutable(uint256))
 VAULT: public(immutable(Vault))
 NO_ARGUMENT: public(immutable(bool))
 
+PPS_MAX_SPEED: constant(uint256) = 10**16 / 60  # Max speed of pricePerShare change
+
+cached_price_per_share: public(uint256)
+cached_timestamp: public(uint256)
+
 
 @external
 def __init__(
@@ -35,7 +40,6 @@ def __init__(
     assert borrowed_ix != collateral_ix
     assert borrowed_ix < N
     assert collateral_ix < N
-    assert pool.coins(collateral_ix) == vault.borrowed_token()
 
     POOL = pool
     N_COINS = N
@@ -55,10 +59,27 @@ def __init__(
             no_argument = True
     NO_ARGUMENT = no_argument
 
+    self.cached_price_per_share = VAULT.pricePerShare()
+    self.cached_timestamp = block.timestamp
+
 
 @internal
 @view
-def _raw_price() -> uint256:
+def _pps() -> uint256:
+    return min(VAULT.pricePerShare(), self.cached_price_per_share * (10**18 + PPS_MAX_SPEED * (block.timestamp - self.cached_timestamp)) / 10**18)
+
+
+@internal
+def _pps_w() -> uint256:
+    pps: uint256 = min(VAULT.pricePerShare(), self.cached_price_per_share * (10**18 + PPS_MAX_SPEED * (block.timestamp - self.cached_timestamp)) / 10**18)
+    self.cached_price_per_share = pps
+    self.cached_timestamp = block.timestamp
+    return pps
+
+
+@internal
+@view
+def _raw_price(pps: uint256) -> uint256:
     p_borrowed: uint256 = 10**18
     p_collateral: uint256 = 10**18
 
@@ -75,15 +96,15 @@ def _raw_price() -> uint256:
         if COLLATERAL_IX > 0:
             p_collateral = POOL.price_oracle(COLLATERAL_IX - 1)
 
-    return p_collateral * VAULT.pricePerShare() / p_borrowed
+    return p_collateral * pps / p_borrowed
 
 
 @external
 @view
 def price() -> uint256:
-    return self._raw_price()
+    return self._raw_price(self._pps())
 
 
 @external
 def price_w() -> uint256:
-    return self._raw_price()
+    return self._raw_price(self._pps_w())

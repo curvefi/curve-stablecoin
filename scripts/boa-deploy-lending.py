@@ -68,12 +68,44 @@ if __name__ == '__main__':
         oracle_pool = "0x2889302a794dA87fBF1D6Db415C1492194663D13"  # TricryptoLLAMA
         collateral = "0x7f39C581F595B53c5cb19bD0b3f8dA6c935E2Ca0"   # wstETH
         borrowed = CRVUSD
-        A = 100
-        fee = int(0.005 * 1e18)
-        borrowing_discount = int(0.09 * 1e18)
-        liquidation_discount = int(0.06 * 1e18)
+        A = 70
+        fee = int(0.002 * 1e18)
+        borrowing_discount = int(0.07 * 1e18)
+        liquidation_discount = int(0.04 * 1e18)
         min_borrow_rate = 5 * 10**15 // (365 * 86400)  # 0.5%
-        max_borrow_rate = 25 * 10**16 // (365 * 86400)  # 25%
+        max_borrow_rate = 80 * 10**16 // (365 * 86400)  # 80%
+        vault = factory.create_from_pool(borrowed, collateral, A, fee, borrowing_discount, liquidation_discount,
+                                         oracle_pool, name, min_borrow_rate, max_borrow_rate)
+        gauge = factory.deploy_gauge(vault)
+        print(f"Vault {name}: {vault}, gauge: {gauge}")
+
+        # Deploy WETH long market
+        name = "WETH-long"
+        oracle_pool = "0x4eBdF703948ddCEA3B11f675B4D1Fba9d2414A14"  # TriCRV
+        collateral = "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2"   # WETH
+        borrowed = CRVUSD
+        A = 70
+        fee = int(0.002 * 1e18)
+        borrowing_discount = int(0.07 * 1e18)
+        liquidation_discount = int(0.04 * 1e18)
+        min_borrow_rate = 5 * 10**15 // (365 * 86400)  # 0.5%
+        max_borrow_rate = 80 * 10**16 // (365 * 86400)  # 80%
+        vault = factory.create_from_pool(borrowed, collateral, A, fee, borrowing_discount, liquidation_discount,
+                                         oracle_pool, name, min_borrow_rate, max_borrow_rate)
+        gauge = factory.deploy_gauge(vault)
+        print(f"Vault {name}: {vault}, gauge: {gauge}")
+
+        # Deploy tBTC long market
+        name = "tBTC-long"
+        oracle_pool = "0x2889302a794dA87fBF1D6Db415C1492194663D13"  # TricryptoLLAMA
+        collateral = "0x18084fbA666a33d37592fA2633fD49a74DD93a88"   # tBTC
+        borrowed = CRVUSD
+        A = 75
+        fee = int(0.0015 * 1e18)
+        borrowing_discount = int(0.065 * 1e18)
+        liquidation_discount = int(0.035 * 1e18)
+        min_borrow_rate = 5 * 10**15 // (365 * 86400)  # 0.5%
+        max_borrow_rate = 80 * 10**16 // (365 * 86400)  # 80%
         vault = factory.create_from_pool(borrowed, collateral, A, fee, borrowing_discount, liquidation_discount,
                                          oracle_pool, name, min_borrow_rate, max_borrow_rate)
         gauge = factory.deploy_gauge(vault)
@@ -85,12 +117,12 @@ if __name__ == '__main__':
         CRV = "0xD533a949740bb3306d119CC777fa900bA034cd52"
         collateral = CRV
         borrowed = CRVUSD
-        A = 50
-        fee = int(0.006 * 1e18)
-        borrowing_discount = int(0.14 * 1e18)
-        liquidation_discount = int(0.11 * 1e18)
+        A = 30
+        fee = int(0.002 * 1e18)
+        borrowing_discount = int(0.11 * 1e18)
+        liquidation_discount = int(0.08 * 1e18)
         vault = factory.create_from_pool(borrowed, collateral, A, fee, borrowing_discount, liquidation_discount,
-                                         oracle_pool, name)
+                                         oracle_pool, name, min_borrow_rate, max_borrow_rate)
         gauge = factory.deploy_gauge(vault)
         print(f"Vault {name}: {vault}, gauge: {gauge}")
 
@@ -100,7 +132,7 @@ if __name__ == '__main__':
         collateral = CRVUSD
         borrowed = CRV
         vault = factory.create_from_pool(borrowed, collateral, A, fee, borrowing_discount, liquidation_discount,
-                                         oracle_pool, name)
+                                         oracle_pool, name, min_borrow_rate, max_borrow_rate)
         gauge = factory.deploy_gauge(vault)
         print(f"Vault {name}: {vault}, gauge: {gauge}")
 

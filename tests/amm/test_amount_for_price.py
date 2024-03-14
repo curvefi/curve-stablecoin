@@ -26,6 +26,9 @@ def test_amount_for_price(price_oracle, amm, accounts, collateral_token, borrowe
         amm.deposit_range(user, deposit_amount, n1, n2)
         collateral_token._mint_for_testing(amm.address, deposit_amount)
 
+    prices = [oracle_price]
+    prices.append(amm.get_p())
+
     with boa.env.prank(user):
         # Dump some to be somewhere inside the bands
         eamount = int(deposit_amount * amm.get_p() // 10**18 * init_trade_frac)
@@ -53,13 +56,16 @@ def test_amount_for_price(price_oracle, amm, accounts, collateral_token, borrowe
             amm.exchange(1, 0, amount, 0)
 
     p = amm.get_p()
+    prices.append(p)
+
+    fee = (max(prices) - min(prices)) / (4 * min(prices))
 
     prec = 1e-6
     if amount > 0:
         if is_pump:
-            prec = max(2 / amount + 2 / (1e12 * amount * 1e18 / p_max), prec)
+            prec = max(2 / amount + 2 / (1e12 * amount * 1e18 / p_max), prec + fee)
         else:
-            prec = max(2 / amount + 2 / (amount * p_max / 1e18 / 1e12), prec)
+            prec = max(2 / amount + 2 / (amount * p_max / 1e18 / 1e12), prec + fee)
     else:
         return
 

@@ -112,11 +112,16 @@ class StatefulLendBorrow(RuleBasedStateMachine):
             # When we have interest - need to have admin fees claimed to have enough in circulation
             self.controller.collect_fees()
             # And we need to transfer them to us if necessary
-            diff = self.controller.debt(user) - self.stablecoin.balanceOf(user)
+            user_debt = self.controller.debt(user)
+            user_balance = self.stablecoin.balanceOf(user)
+            diff = user_debt - user_balance
             if diff > 0:
+                admin_balance = self.stablecoin.balanceOf(self.accounts[0])
                 with boa.env.prank(self.accounts[0]):
-                    bal = self.stablecoin.balanceOf(self.accounts[0])
-                    self.stablecoin.transfer(user, min(diff, bal))
+                    self.stablecoin.transfer(user, min(diff, admin_balance))
+                if user_balance + admin_balance < min(amount, user_debt):
+                    assert sum(sum(abs(n) for n in self.amm.read_user_tick_numbers(u)) > 0 for u in self.accounts[:10]) > 1
+                    return
 
             self.controller.repay(amount, user)
 
@@ -331,4 +336,35 @@ def test_borrow_more_0(controller_factory, market_amm, market_controller, moneta
     state.debt_payable()
     state.sum_of_debts()
     state.borrow_more(amount=1, c_amount=0, user_id=0)
+    state.teardown()
+
+
+def test_no_coins(controller_factory, market_amm, market_controller, monetary_policy, collateral_token, stablecoin, accounts, admin):
+    for k, v in locals().items():
+        setattr(StatefulLendBorrow, k, v)
+    state = StatefulLendBorrow()
+    state.debt_payable()
+    state.sum_of_debts()
+    state.change_rate(rate=0)
+    state.debt_payable()
+    state.sum_of_debts()
+    state.change_rate(rate=0)
+    state.debt_payable()
+    state.sum_of_debts()
+    state.change_rate(rate=1)
+    state.debt_payable()
+    state.sum_of_debts()
+    state.create_loan(amount=1, c_amount=5270, n=5, user_id=1)
+    state.debt_payable()
+    state.sum_of_debts()
+    state.create_loan(amount=1, c_amount=5270, n=5, user_id=2)
+    state.debt_payable()
+    state.sum_of_debts()
+    state.time_travel(t=1)
+    state.debt_payable()
+    state.sum_of_debts()
+    state.change_rate(rate=0)
+    state.debt_payable()
+    state.sum_of_debts()
+    state.repay(amount=2, user_id=1)
     state.teardown()

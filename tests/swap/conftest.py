@@ -1,6 +1,6 @@
 import boa
 import pytest
-from boa.contracts.vyper.vyper_contract import VyperContract
+from boa.interpret import VyperContract
 
 ZERO_ADDRESS = "0x0000000000000000000000000000000000000000"
 
