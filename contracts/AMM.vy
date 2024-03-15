@@ -1616,6 +1616,8 @@ def get_amount_for_price(p: uint256) -> (uint256, bool):
     j: uint256 = MAX_TICKS_UINT
     pump: bool = True
 
+    fee: uint256 = max(self.fee, p_o[1])
+
     for i in range(MAX_TICKS + MAX_SKIP_TICKS):
         assert p_o_up > 0
         x: uint256 = self.bands_x[n]
@@ -1623,7 +1625,9 @@ def get_amount_for_price(p: uint256) -> (uint256, bool):
         if i == 0:
             if p < self._get_p(n, x, y):
                 pump = False
+        dynamic_fee: uint256 = fee
         not_empty: bool = x > 0 or y > 0
+
         if not_empty:
             y0 = self._get_y0(x, y, p_o[0], p_o_up)
             f = unsafe_div(unsafe_div(A * y0 * p_o[0], p_o_up) * p_o[0], 10**18)
@@ -1631,6 +1635,12 @@ def get_amount_for_price(p: uint256) -> (uint256, bool):
             Inv = (f + x) * (g + y)
             if j == MAX_TICKS_UINT:
                 j = 0
+            dynamic_fee = max(self.get_dynamic_fee(p_o[0], p_o_up), fee)
+
+        antifee: uint256 = unsafe_div(
+            (10**18)**2,
+            unsafe_sub(10**18, min(dynamic_fee, 10**18 - 1))
+        )
 
         if p <= p_up:
             if p >= p_down:
@@ -1638,9 +1648,9 @@ def get_amount_for_price(p: uint256) -> (uint256, bool):
                     ynew: uint256 = unsafe_sub(max(self.sqrt_int(Inv * 10**18 / p), g), g)
                     xnew: uint256 = unsafe_sub(max(Inv / (g + ynew), f), f)
                     if pump:
-                        amount += unsafe_sub(max(xnew, x), x)
+                        amount += unsafe_div(unsafe_sub(max(xnew, x), x) * antifee, 10**18)
                     else:
-                        amount += unsafe_sub(max(ynew, y), y)
+                        amount += unsafe_div(unsafe_sub(max(ynew, y), y) * antifee, 10**18)
                 break
 
         # Need this to break if price is too far
@@ -1648,7 +1658,7 @@ def get_amount_for_price(p: uint256) -> (uint256, bool):
 
         if pump:
             if not_empty:
-                amount += (Inv / g - f) - x
+                amount += unsafe_div(((Inv / g - f) - x) * antifee, 10**18)
             if n == max_band:
                 break
             if j == MAX_TICKS_UINT - 1:
@@ -1663,7 +1673,7 @@ def get_amount_for_price(p: uint256) -> (uint256, bool):
 
         else:
             if not_empty:
-                amount += (Inv / f - g) - y
+                amount += unsafe_div(((Inv / f - g) - y) * antifee, 10**18)
             if n == min_band:
                 break
             if j == MAX_TICKS_UINT - 1:
@@ -1679,7 +1689,6 @@ def get_amount_for_price(p: uint256) -> (uint256, bool):
         if j != MAX_TICKS_UINT:
             j = unsafe_add(j, 1)
 
-    amount = amount * 10**18 / unsafe_sub(10**18, max(self.fee, p_o[1]))
     if amount == 0:
         return 0, pump
 
