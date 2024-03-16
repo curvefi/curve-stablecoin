@@ -29,10 +29,10 @@ def mock_peg_keepers(admin):
 
 @pytest.fixture(scope='module')
 def mp(mock_factory, mock_peg_keepers, price_oracle, admin):
-    with boa.env.prank(admin):
+    with boa.env.anchor(), boa.env.prank(admin):
         price_oracle.set_price(10**18)
 
-        return boa.load(
+        yield boa.load(
             'contracts/mpolicies/AggMonetaryPolicy3.vy',
             admin,
             price_oracle.address,
