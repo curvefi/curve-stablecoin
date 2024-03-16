@@ -12,7 +12,7 @@ from hypothesis import strategies as st
     init_trade_frac=st.floats(min_value=0.0, max_value=1.0),
     p_frac=st.floats(min_value=0.1, max_value=10)
 )
-@settings(max_examples=500)
+@settings(max_examples=5000)
 def test_amount_for_price(price_oracle, amm, accounts, collateral_token, borrowed_token, admin,
                           oracle_price, n1, dn, deposit_amount, init_trade_frac, p_frac):
     user = accounts[0]
@@ -58,23 +58,22 @@ def test_amount_for_price(price_oracle, amm, accounts, collateral_token, borrowe
     p = amm.get_p()
     prices.append(p)
 
-    fee = (max(prices) - min(prices)) / (4 * min(prices))
-
     prec = 1e-6
     if amount > 0:
         if is_pump:
-            prec = max(2 / amount + 2 / (1e12 * amount * 1e18 / p_max), prec + fee)
+            prec += 2 / amount + 2 / (1e12 * amount * 1e18 / p_max)
         else:
-            prec = max(2 / amount + 2 / (amount * p_max / 1e18 / 1e12), prec + fee)
+            prec += 2 / amount + 2 / (amount * p_max / 1e18 / 1e12)
     else:
         return
+    prec = max(prec, 1e-3)
 
     n_final = amm.active_band()
 
     assert approx(p_max, amm.p_current_up(n2), 1e-8)
     assert approx(p_min, amm.p_current_down(n1), 1e-8)
 
-    if abs(n_final - n0) < 50 - 1 and prec < 0.1:
+    if abs(n_final - n0) < 50 - 1:
         A = amm.A()
         a_ratio = A / (A - 1)
         p_o_ratio = amm.p_oracle_up(n_final) / amm.price_oracle()

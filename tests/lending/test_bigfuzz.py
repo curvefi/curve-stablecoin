@@ -417,7 +417,7 @@ class BigFuzz(RuleBasedStateMachine):
     def debt_supply(self):
         total_debt = self.market_controller.total_debt()
         if total_debt == 0:
-            assert abs(self.market_controller.minted() - self.market_controller.redeemed()) <= 1
+            assert self.market_controller.minted() <= self.market_controller.redeemed()  # Paid back more than lent out
         assert abs(sum(self.market_controller.debt(u) for u in self.accounts) - total_debt) <= 10
 
     @invariant()
@@ -428,7 +428,7 @@ class BigFuzz(RuleBasedStateMachine):
 def test_big_fuzz(
         vault, borrowed_token, collateral_token, market_mpolicy, accounts, admin, market_amm, market_controller,
         price_oracle, fake_leverage):
-    BigFuzz.TestCase.settings = settings(max_examples=200, stateful_step_count=20)
+    BigFuzz.TestCase.settings = settings(max_examples=2000, stateful_step_count=20)
     # Or quick check
     # BigFuzz.TestCase.settings = settings(max_examples=25, stateful_step_count=20)
     for k, v in locals().items():
