@@ -2,7 +2,7 @@ uv
 vyper==0.3.10
 #poetry~=1.7
 eth-abi==4.1.0
-titanoboa @ git+https://github.com/vyperlang/titanoboa.git@375052479b5a164a3f84489810eebb15fb43737a
+titanoboa @ git+https://github.com/vyperlang/titanoboa.git@968d6533ae5842ff2892dc62d4a1d4aee6704a2b
 pytest~=7.4.0
 hypothesis~=6.82.0
 pdbpp
