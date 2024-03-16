@@ -1,0 +1,213 @@
+# Hypothetical 2-block attack (extremely hard to do, but should not be ignored).
+# Found by MixBytes as a flash loan attack for vault token collaterals (not yet released feature).
+# However the scope was extended (by Michael) to any vaults using assumption of a control over two subsequent blocks,
+# 100M'ish real funds to use for attack (no flash loan) and full trust to block validator - attacker exposes all those 100Ms to
+# validator to grab (and thereby prevent the attack) if they attempt this attack at all.
+#
+# This type of attack has never happened in real world, however preemptively was addressed
+# in crvUSD markets by increasing AMM fee, and in lending by making a special dynamic fee
+
+import boa
+import pytest
+
+from hypothesis import given, settings
+from hypothesis import strategies as st
+
+
+MAX = 2**256 - 1
+
+
+@pytest.fixture(scope='module')
+def collateral_token(get_collateral_token):
+    decimals = 18
+    return get_collateral_token(decimals)
+
+
+@pytest.fixture(scope='module')
+def borrowed_token(stablecoin):
+    return stablecoin
+
+
+@pytest.fixture(scope='module')
+def victim(accounts):
+    return accounts[1]
+
+
+@pytest.fixture(scope='module')
+def hacker(accounts):
+    return accounts[2]
+
+
+@pytest.fixture(scope="module")
+def factory_new(factory_partial, stablecoin, amm_impl, controller_impl, vault_impl, price_oracle_impl, mpolicy_impl, gauge_impl, admin):
+    with boa.env.prank(admin):
+        return factory_partial.deploy(
+            stablecoin.address,
+            amm_impl, controller_impl, vault_impl,
+            price_oracle_impl, mpolicy_impl, gauge_impl,
+            admin)
+
+
+@pytest.fixture(scope="module")
+def amm_old_interface():
+    return boa.load_partial('contracts/testing/OldAMM.vy')
+
+
+@pytest.fixture(scope="module")
+def factory_old(factory_partial, stablecoin, controller_impl, vault_impl, price_oracle_impl, mpolicy_impl, gauge_impl, amm_old_interface, admin):
+    with boa.env.prank(admin):
+        amm_impl = amm_old_interface.deploy_as_blueprint()
+        return factory_partial.deploy(
+            stablecoin.address,
+            amm_impl, controller_impl, vault_impl,
+            price_oracle_impl, mpolicy_impl, gauge_impl,
+            admin)
+
+
+@pytest.fixture(scope='module')
+def vault_new(factory_new, vault_impl, borrowed_token, collateral_token, price_oracle, admin):
+    with boa.env.prank(admin):
+        price_oracle.set_price(int(1e18))
+
+        vault = vault_impl.at(
+            factory_new.create(
+                borrowed_token.address, collateral_token.address,
+                100, int(0.002 * 1e18), int(0.09 * 1e18), int(0.06 * 1e18),
+                price_oracle.address, "Test"
+            )
+        )
+
+        boa.env.time_travel(120)
+
+        return vault
+
+
+@pytest.fixture(scope='module')
+def vault_old(factory_old, vault_impl, borrowed_token, collateral_token, price_oracle, admin):
+    with boa.env.prank(admin):
+        price_oracle.set_price(int(1e18))
+
+        vault = vault_impl.at(
+            factory_old.create(
+                borrowed_token.address, collateral_token.address,
+                100, int(0.006 * 1e18), int(0.09 * 1e18), int(0.06 * 1e18),
+                price_oracle.address, "Test"
+            )
+        )
+
+        boa.env.time_travel(120)
+
+        return vault
+
+
+@pytest.fixture(scope='module')
+def controller_new(vault_new, controller_interface):
+    return controller_interface.at(vault_new.controller())
+
+
+@pytest.fixture(scope='module')
+def amm_new(vault_new, amm_interface):
+    return amm_interface.at(vault_new.amm())
+
+
+@pytest.fixture(scope='module')
+def controller_old(vault_old, controller_interface):
+    return controller_interface.at(vault_old.controller())
+
+
+@pytest.fixture(scope='module')
+def amm_old(vault_old, amm_old_interface):
+    return amm_old_interface.at(vault_old.amm())
+
+
+def template_vuln_test(vault, controller, amm, admin, borrowed_token, price_oracle, collateral_token, victim, hacker,
+                       victim_gap, victim_bins, fee):
+
+    # victim loan
+    victim_collateral_lent = int(10_000_000e18)
+    price_manipulation = 15 / 866  # 866-second price oracle manipulation during 15 second (1 block)
+    manipulation_time = 13  # time between two blocks
+
+    p = price_oracle.price()
+
+    with boa.env.prank(admin):
+        controller.set_amm_fee(int(fee * 1e18))
+
+    # hacker
+    hacker_crvusd_reserves = int(500_000_000e18)
+
+    # approve everything
+    for user in hacker, victim:
+        with boa.env.prank(user):
+            for token in borrowed_token, collateral_token:
+                for contract in controller, amm, vault:
+                    token.approve(contract.address, MAX)
+
+    # add crvUSD to the vault
+    with boa.env.prank(admin):
+        b_amount = int(1_000_000_000e18)
+        borrowed_token._mint_for_testing(admin, b_amount)
+        borrowed_token.approve(vault.address, MAX)
+        vault.deposit(b_amount)
+
+    # victim creates a loan
+    with boa.env.prank(victim):
+        victim_borrow = int((1 - victim_gap) * controller.max_borrowable(victim_collateral_lent, victim_bins))
+        collateral_token._mint_for_testing(victim, victim_collateral_lent)
+        controller.create_loan(victim_collateral_lent, victim_borrow, victim_bins)
+        initial_health = controller.health(victim, True) / 1e18
+        # print("Victim health", initial_health)
+
+    # hacker manipulates price oracle and liquidates the victim
+    with boa.env.prank(hacker):
+        borrowed_token._mint_for_testing(hacker, hacker_crvusd_reserves)
+        spent, received = amm.exchange(0, 1, hacker_crvusd_reserves, 0)
+        # print(f"Bought {received/1e18:.3f} for {spent/1e18:.2f}")
+
+    # update oracle price
+    with boa.env.prank(admin):
+        new_p = int(p * (1 + price_manipulation))
+        price_oracle.set_price(new_p)
+        # print(f"Manipulated collateral price {new_p/1e18:.4f}")
+
+    boa.env.time_travel(manipulation_time)
+
+    with boa.env.prank(hacker):
+        victim_health = controller.health(victim, True) / 1e18
+        # print("Victim health", victim_health)
+
+        with boa.reverts():
+            controller.liquidate(victim, 0)
+
+            # If liquidation succeeded
+            crvusd_profit = borrowed_token.balanceOf(hacker) - hacker_crvusd_reserves
+            print("crvusd profit", crvusd_profit / 1e18)
+            collateral_profit = collateral_token.balanceOf(hacker)
+            print("Collateral profit", collateral_profit / 1e18)
+            profit = crvusd_profit + collateral_profit * (p / 1e18)
+            print("Total profit", profit / 1e18)
+            print(f"Health: {initial_health} -> {victim_health}")
+
+
+@given(
+    victim_gap=st.floats(min_value=15 / 866, max_value=0.9),
+    victim_bins=st.integers(min_value=4, max_value=50)
+)
+@settings(max_examples=10000)
+def test_vuln_new(vault_new, controller_new, amm_new, admin, borrowed_token, price_oracle, collateral_token, victim, hacker,
+                  victim_gap, victim_bins):
+
+    template_vuln_test(vault_new, controller_new, amm_new, admin, borrowed_token, price_oracle, collateral_token, victim, hacker,
+                       victim_gap, victim_bins, fee=0.00001)  # Any fee is safe - even very low
+
+
+@given(
+    victim_gap=st.floats(min_value=15 / 866, max_value=0.9),
+    victim_bins=st.integers(min_value=4, max_value=50)
+)
+@settings(max_examples=10000)
+def test_vuln_old(vault_old, controller_old, amm_old, admin, borrowed_token, price_oracle, collateral_token, victim, hacker,
+                  victim_gap, victim_bins):
+
+    template_vuln_test(vault_old, controller_old, amm_old, admin, borrowed_token, price_oracle, collateral_token, victim, hacker,
+                       victim_gap, victim_bins, fee=0.019)  # 1.9% fee or higher is safe
