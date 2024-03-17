@@ -123,7 +123,7 @@ def test_liquidate_callback(accounts, admin, stablecoin, collateral_token, contr
         health_before = controller.health(user)
         try:
             dy = collateral_token.balanceOf(fee_receiver)
-            controller.liquidate_extended(user, int(0.999 * f * x / 1e18), frac, True,
+            controller.liquidate_extended(user, int(0.999 * f * x / 1e18), frac,
                                           fake_leverage.address, [])
             dy = collateral_token.balanceOf(fee_receiver) - dy
             dx = stablecoin.balanceOf(fee_receiver) - b
@@ -180,7 +180,7 @@ def test_tokens_to_liquidate(accounts, admin, controller_for_liquidation, market
             stablecoin.transfer(fee_receiver, 10**10)
 
         with boa.env.prank(fee_receiver):
-            controller.liquidate_extended(user, 0, frac, True, "0x0000000000000000000000000000000000000000", [])
+            controller.liquidate_extended(user, 0, frac, "0x0000000000000000000000000000000000000000", [])
 
         balance = stablecoin.balanceOf(fee_receiver)
 

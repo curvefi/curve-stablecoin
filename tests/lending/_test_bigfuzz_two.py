@@ -311,7 +311,7 @@ class BigFuzz(RuleBasedStateMachine):
                     if emode == USE_FRACTION:
                         try:
                             self.market_controller.liquidate_extended(
-                                    user, 0, frac, True, ZERO_ADDRESS, [])
+                                    user, 0, frac, ZERO_ADDRESS, [])
                         except Exception:
                             if self.market_controller.debt(user) * frac // 10**18 == 0:
                                 return
@@ -343,7 +343,7 @@ class BigFuzz(RuleBasedStateMachine):
                 with boa.reverts():
                     if emode == USE_FRACTION:
                         self.market_controller.liquidate_extended(
-                                user, 0, frac, True, ZERO_ADDRESS, [])
+                                user, 0, frac, ZERO_ADDRESS, [])
                     else:
                         self.market_controller.liquidate(user, 0)
         else:
@@ -357,14 +357,14 @@ class BigFuzz(RuleBasedStateMachine):
                     with boa.reverts():
                         if emode == USE_FRACTION:
                             self.market_controller.liquidate_extended(
-                                    user, 0, frac, True, ZERO_ADDRESS, [])
+                                    user, 0, frac, ZERO_ADDRESS, [])
                         else:
                             self.market_controller.liquidate(user, 0)
                 else:
                     if emode == USE_FRACTION:
                         try:
                             self.market_controller.liquidate_extended(
-                                    user, 0, frac, True, ZERO_ADDRESS, [])
+                                    user, 0, frac, ZERO_ADDRESS, [])
                         except Exception:
                             if self.market_controller.debt(user) * frac // 10**18 == 0:
                                 return

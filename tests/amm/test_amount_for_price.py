@@ -19,6 +19,7 @@ def test_amount_for_price(price_oracle, amm, accounts, collateral_token, borrowe
     with boa.env.prank(admin):
         amm.set_fee(0)
         price_oracle.set_price(oracle_price)
+    boa.env.time_travel(3600)
     n2 = n1 + dn
 
     # Initial deposit

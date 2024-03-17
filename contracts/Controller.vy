@@ -794,11 +794,10 @@ def add_collateral(collateral: uint256, _for: address = msg.sender):
 
 @external
 @nonreentrant('lock')
-def remove_collateral(collateral: uint256, use_eth: bool = True):
+def remove_collateral(collateral: uint256):
     """
     @notice Remove some collateral without repaying the debt
     @param collateral Amount of collateral to remove
-    @param use_eth Use wrapping/unwrapping if collateral is ETH
     """
     if collateral == 0:
         return
@@ -868,13 +867,12 @@ def _remove_from_list(_for: address):
 
 @external
 @nonreentrant('lock')
-def repay(_d_debt: uint256, _for: address = msg.sender, max_active_band: int256 = 2**255-1, use_eth: bool = True):
+def repay(_d_debt: uint256, _for: address = msg.sender, max_active_band: int256 = 2**255-1):
     """
     @notice Repay debt (partially or fully)
     @param _d_debt The amount of debt to repay. If higher than the current debt - will do full repayment
     @param _for The user to repay the debt for
     @param max_active_band Don't allow active band to be higher than this (to prevent front-running the repay)
-    @param use_eth Use wrapping/unwrapping if collateral is ETH
     """
     if _d_debt == 0:
         return
@@ -1116,7 +1114,7 @@ def _get_f_remove(frac: uint256, health_limit: uint256) -> uint256:
     return f_remove
 
 @internal
-def _liquidate(user: address, min_x: uint256, health_limit: uint256, frac: uint256, use_eth: bool,
+def _liquidate(user: address, min_x: uint256, health_limit: uint256, frac: uint256,
                callbacker: address, callback_args: DynArray[uint256,5]):
     """
     @notice Perform a bad liquidation of user if the health is too bad
@@ -1124,7 +1122,6 @@ def _liquidate(user: address, min_x: uint256, health_limit: uint256, frac: uint2
     @param min_x Minimal amount of stablecoin withdrawn (to avoid liquidators being sandwiched)
     @param health_limit Minimal health to liquidate at
     @param frac Fraction to liquidate; 100% = 10**18
-    @param use_eth Use wrapping/unwrapping if collateral is ETH
     @param callbacker Address of the callback contract
     @param callback_args Extra arguments for the callback (up to 5) such as min_amount etc
     """
@@ -1199,34 +1196,32 @@ def _liquidate(user: address, min_x: uint256, health_limit: uint256, frac: uint2
 
 @external
 @nonreentrant('lock')
-def liquidate(user: address, min_x: uint256, use_eth: bool = True):
+def liquidate(user: address, min_x: uint256):
     """
     @notice Peform a bad liquidation (or self-liquidation) of user if health is not good
     @param min_x Minimal amount of stablecoin to receive (to avoid liquidators being sandwiched)
-    @param use_eth Use wrapping/unwrapping if collateral is ETH
     """
     discount: uint256 = 0
     if user != msg.sender:
         discount = self.liquidation_discounts[user]
-    self._liquidate(user, min_x, discount, 10**18, use_eth, empty(address), [])
+    self._liquidate(user, min_x, discount, 10**18, empty(address), [])
 
 
 @external
 @nonreentrant('lock')
-def liquidate_extended(user: address, min_x: uint256, frac: uint256, use_eth: bool,
+def liquidate_extended(user: address, min_x: uint256, frac: uint256,
                        callbacker: address, callback_args: DynArray[uint256,5]):
     """
     @notice Peform a bad liquidation (or self-liquidation) of user if health is not good
     @param min_x Minimal amount of stablecoin to receive (to avoid liquidators being sandwiched)
     @param frac Fraction to liquidate; 100% = 10**18
-    @param use_eth Use wrapping/unwrapping if collateral is ETH
     @param callbacker Address of the callback contract
     @param callback_args Extra arguments for the callback (up to 5) such as min_amount etc
     """
     discount: uint256 = 0
     if user != msg.sender:
         discount = self.liquidation_discounts[user]
-    self._liquidate(user, min_x, discount, min(frac, 10**18), use_eth, callbacker, callback_args)
+    self._liquidate(user, min_x, discount, min(frac, 10**18), callbacker, callback_args)
 
 
 @view
