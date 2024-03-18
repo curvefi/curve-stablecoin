@@ -10,13 +10,12 @@ packages = []
 python = ">=3.10,<4"
 vyper = "0.3.10"
 poetry = "^1"
-titanoboa = {git = "https://github.com/vyperlang/titanoboa.git", rev = "375052479b5a164a3f84489810eebb15fb43737a"}
+titanoboa = {git = "https://github.com/vyperlang/titanoboa.git", rev = "574409ed71b0c8fe75f25aea05b786a27f1d644a"}
 hypothesis = "^6.99.0"
 pdbpp = "^0.10.3"
 jedi = "^0.19.0"
 pytest-xdist = "^3.5"
 pytest-forked = "^1.6.0"
-py-evm = "<0.10.0"
 ipython = "^8"
 cytoolz = "^0.12"
 
