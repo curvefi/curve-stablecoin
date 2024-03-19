@@ -21,6 +21,11 @@ N_COINS: public(immutable(uint256))
 VAULT: public(immutable(Vault))
 NO_ARGUMENT: public(immutable(bool))
 
+RATE_MAX_SPEED: constant(uint256) = 10**16 / 60  # Max speed of Rate change
+
+cached_timestamp: public(uint256)
+cached_rate: public(uint256)
+
 
 @external
 def __init__(
@@ -55,7 +60,31 @@ def __init__(
 
 @internal
 @view
-def _raw_price() -> uint256:
+def _rate() -> uint256:
+    rate: uint256 = VAULT.convertToAssets(10**18)
+    cached_rate: uint256 = self.cached_rate
+
+    if cached_rate == 0:
+        return rate
+
+    if rate > cached_rate:
+        return min(rate, cached_rate * (10**18 + RATE_MAX_SPEED * (block.timestamp - self.cached_timestamp)) / 10**18)
+
+    else:
+        return max(rate, cached_rate * (10**18 - RATE_MAX_SPEED * (block.timestamp - self.cached_timestamp)) / 10**18)
+
+
+@internal
+def _rate_w() -> uint256:
+    rate: uint256 = self._rate()
+    self.cached_rate = rate
+    self.cached_timestamp = block.timestamp
+    return rate
+
+
+@internal
+@view
+def _raw_price(rate: uint256) -> uint256:
     p_borrowed: uint256 = 10**18
     p_collateral: uint256 = 10**18
 
@@ -72,15 +101,15 @@ def _raw_price() -> uint256:
         if COLLATERAL_IX > 0:
             p_collateral = POOL.price_oracle(COLLATERAL_IX - 1)
 
-    return p_collateral * VAULT.convertToAssets(10**18) / p_borrowed
+    return p_collateral * rate / p_borrowed
 
 
 @external
 @view
 def price() -> uint256:
-    return self._raw_price()
+    return self._raw_price(self._rate())
 
 
 @external
 def price_w() -> uint256:
-    return self._raw_price()
+    return self._raw_price(self._rate_w())
