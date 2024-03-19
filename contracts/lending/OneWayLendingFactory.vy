@@ -6,7 +6,6 @@
 @author Curve.fi
 @license Copyright (c) Curve.Fi, 2020-2024 - all rights reserved
 """
-from vyper.interfaces import ERC20
 
 interface Vault:
     def initialize(
@@ -200,9 +199,6 @@ def _create(
     market_count = self.token_market_count[token]
     self.token_to_vaults[token][market_count] = vault
     self.token_market_count[token] = market_count + 1
-
-    ERC20(borrowed_token).approve(amm, max_value(uint256))
-    ERC20(collateral_token).approve(amm, max_value(uint256))
 
     return vault
 
