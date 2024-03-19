@@ -60,7 +60,7 @@ def __init__(
                 max_outsize=32, is_static_call=True, revert_on_failure=False)
             if not success:
                 assert j != 0, "No coins(0)"
-                N = i
+                N = j
                 break
 
         assert borrowed_ixs[i] != collateral_ixs[i]
