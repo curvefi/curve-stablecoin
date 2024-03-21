@@ -67,9 +67,11 @@ def __init__(
         assert borrowed_ixs[i] < N
         assert collateral_ixs[i] < N
 
+        # Init variables for raw call
+        success: bool = False
+
         # Check and record if pool requires coin id in argument or no
         if N == 2:
-            success: bool = False
             res: Bytes[32] = empty(Bytes[32])
             success, res = raw_call(
                 pools[i].address,
@@ -82,7 +84,9 @@ def __init__(
         else:
             no_arguments.append(False)
 
-        stored_rates: DynArray[uint256, MAX_COINS] = pools[i].stored_rates(default_return_value=empty(DynArray[uint256, MAX_COINS]))
+        res: Bytes[1024] = empty(Bytes[1024])
+        success, res = raw_call(pools[i].address, method_id("stored_rates()"), max_outsize=1024, is_static_call=True, revert_on_failure=False)
+        stored_rates: DynArray[uint256, MAX_COINS] = _abi_decode(res, DynArray[uint256, MAX_COINS])
 
         u: bool = False
         for r in stored_rates:
