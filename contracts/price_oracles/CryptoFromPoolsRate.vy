@@ -86,7 +86,9 @@ def __init__(
 
         res: Bytes[1024] = empty(Bytes[1024])
         success, res = raw_call(pools[i].address, method_id("stored_rates()"), max_outsize=1024, is_static_call=True, revert_on_failure=False)
-        stored_rates: DynArray[uint256, MAX_COINS] = _abi_decode(res, DynArray[uint256, MAX_COINS])
+        stored_rates: DynArray[uint256, MAX_COINS] = empty(DynArray[uint256, MAX_COINS])
+        if success and len(res) > 0:
+            stored_rates = _abi_decode(res, DynArray[uint256, MAX_COINS])
 
         u: bool = False
         for r in stored_rates:
@@ -132,6 +134,12 @@ def _stored_rate() -> uint256:
 
     else:
         return max(rate, cached_rate * (10**18 - RATE_MAX_SPEED * (block.timestamp - self.cached_timestamp)) / 10**18)
+
+
+@external
+@view
+def stored_rate() -> uint256:
+    return self._stored_rate()
 
 
 @internal
