@@ -16,3 +16,4 @@ venv
 .env
 /.env-*
 /.py312
+/scripts/networks.py
