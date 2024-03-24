@@ -105,7 +105,7 @@ if __name__ == '__main__':
         collateral = "0x2f2a2543B76A4166549F7aaB2e75Bef0aefC5B0f"   # wBTC
         borrowed = CRVUSD
         A = 75
-        fee = int(0.0015 * 1e18)
+        fee = int(0.006 * 1e18)
         borrowing_discount = int(0.065 * 1e18)
         liquidation_discount = int(0.035 * 1e18)
         min_borrow_rate = 2 * 10**16 // (365 * 86400)  # 2%
