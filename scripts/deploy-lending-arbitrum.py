@@ -127,6 +127,8 @@ if __name__ == '__main__':
         gauge_factory_eth = ABIContractFactory.from_abi_dict(GAUGE_FACTORY_ABI_ETH).at(GAUGE_FACTORY)
 
         gauge_factory_eth.deploy_gauge(CHAIN_ID, salt_weth)
+        if '--fork' not in sys.argv[1:]:
+            sleep(30)  # RPCs on Ethereum can change the node, so need to sleep to not fail
         gauge_factory_eth.deploy_gauge(CHAIN_ID, salt_wbtc)
 
     if '--hardhat' in sys.argv[1:]:
