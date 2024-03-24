@@ -53,8 +53,9 @@ if __name__ == '__main__':
         boa.env.fork(ARBITRUM)
         boa.env.eoa = '0xbabe61887f1de2713c6f97e567623453d3C79f67'
     else:
+        babe = account_load('babe')
         boa.set_network_env(ARBITRUM)
-        boa.env.add_account(account_load('babe'))
+        boa.env.add_account(babe)
         boa.env._fork_try_prefetch_state = False
 
     amm_impl = boa.load_partial('contracts/AMM.vy').deploy_as_blueprint()
@@ -96,8 +97,8 @@ if __name__ == '__main__':
         vault_weth = factory.create_from_pool(borrowed, collateral, A, fee, borrowing_discount, liquidation_discount,
                                               oracle_pool, name, min_borrow_rate, max_borrow_rate)
         salt_weth = os.urandom(32)
-        gauge_weth = gauge_factory.deploy_gauge(vault_weth, salt_weth, GAUGE_FUNDER)
-        print(f"Vault {name}: {vault_weth}, gauge: {gauge_weth}, salt: {salt_weth.hex()}")
+        gauge_factory.deploy_gauge(vault_weth, salt_weth, GAUGE_FUNDER)
+        print(f"Vault {name}: {vault_weth}, salt: {salt_weth.hex()}")
 
         # Deploy wBTC long market
         name = "wBTC-long"
@@ -113,15 +114,15 @@ if __name__ == '__main__':
         vault_wbtc = factory.create_from_pool(borrowed, collateral, A, fee, borrowing_discount, liquidation_discount,
                                               oracle_pool, name, min_borrow_rate, max_borrow_rate)
         salt_wbtc = os.urandom(32)
-        gauge_wbtc = gauge_factory.deploy_gauge(vault_wbtc, salt_wbtc, GAUGE_FUNDER)
-        print(f"Vault {name}: {vault_wbtc}, gauge: {gauge_wbtc}, salt: {salt_wbtc.hex()}")
+        gauge_factory.deploy_gauge(vault_wbtc, salt_wbtc, GAUGE_FUNDER)
+        print(f"Vault {name}: {vault_wbtc}, salt: {salt_wbtc.hex()}")
 
         if '--fork' in sys.argv[1:]:
             boa.env.fork(NETWORK)
             boa.env.eoa = '0xbabe61887f1de2713c6f97e567623453d3C79f67'
         else:
             boa.set_network_env(NETWORK)
-            boa.env.add_account(account_load('babe'))
+            boa.env.add_account(babe)
             boa.env._fork_try_prefetch_state = False
 
         gauge_factory_eth = ABIContractFactory.from_abi_dict(GAUGE_FACTORY_ABI_ETH).at(GAUGE_FACTORY)
