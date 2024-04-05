@@ -135,7 +135,7 @@ def _get_k_effective(collateral: uint256, N: uint256) -> uint256:
     # x_effective = sum_{i=0..N-1}(y / N * p(n_{n1+i})) =
     # = y / N * p_oracle_up(n1) * sqrt((A - 1) / A) * sum_{0..N-1}(((A-1) / A)**k)
     # === d_y_effective * p_oracle_up(n1) * sum(...) === y * k_effective * p_oracle_up(n1)
-    # d_k_effective = N / sqrt(A / (A - 1))
+    # d_k_effective = 1 / N / sqrt(A / (A - 1))
     # d_k_effective: uint256 = 10**18 * unsafe_sub(10**18, discount) / (SQRT_BAND_RATIO * N)
     # Make some extra discount to always deposit lower when we have DEAD_SHARES rounding
     discount: uint256 = Controller(CONTROLLER).loan_discount()
