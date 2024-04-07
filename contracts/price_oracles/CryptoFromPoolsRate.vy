@@ -133,7 +133,7 @@ def _stored_rate() -> uint256:
         return min(rate, cached_rate * (10**18 + RATE_MAX_SPEED * (block.timestamp - self.cached_timestamp)) / 10**18)
 
     else:
-        return max(rate, cached_rate * (10**18 - RATE_MAX_SPEED * (block.timestamp - self.cached_timestamp)) / 10**18)
+        return max(rate, cached_rate * (10**18 - min(RATE_MAX_SPEED * (block.timestamp - self.cached_timestamp), 10**18)) / 10**18)
 
 
 @external
