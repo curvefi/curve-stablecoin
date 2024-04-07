@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 # Deployed at:
-# https://arbiscan.io/address/0x6EFE6D76f0dAA3E01b690f667087d050F98e8835#readContract
+# https://arbiscan.io/address/0xbB82bf9a0C6739c0bacFdFFbcE3D2Ec4AA97970E
 
 import boa
 import json
