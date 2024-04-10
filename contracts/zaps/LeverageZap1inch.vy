@@ -43,8 +43,11 @@ event Deposit:
 
 event Repay:
     user: indexed(address)
-    collateral_used: uint256
-    borrowed_from_collateral: uint256
+    state_collateral_used: uint256
+    borrowed_from_state_collateral: uint256
+    user_collateral: uint256
+    user_collateral_used: uint256
+    borrowed_from_user_collateral: uint256
     user_borrowed: uint256
 
 
@@ -320,10 +323,11 @@ def callback_repay(user: address, callback_args: DynArray[uint256,10], callback_
     """
     @notice Callback method which should be called by controller to create leveraged position
     @param user Address of the user
-    @param callback_args [stablecoins, collateral, debt, factory_id, controller_id, user_borrowed]
+    @param callback_args [stablecoins, collateral, debt, factory_id, controller_id, user_collateral, user_borrowed]
                          0-2. stablecoins, collateral, debt - values from user_state
                          3-4. factory_id, controller_id are needed to check that msg.sender is the one of our controllers
-                         5. user_borrowed - the amount of borrowed token to repay from user's wallet
+                         5. user_collateral - the amount of collateral token provided by user (needs to be exchanged for borrowed)
+                         6. user_borrowed - the amount of borrowed token to repay from user's wallet
     return [user_borrowed + borrowed_from_collateral, remaining_collateral]
     """
     controller: address = Factory(self.FACTORIES[callback_args[3]]).controllers(callback_args[4])
@@ -337,14 +341,26 @@ def callback_repay(user: address, callback_args: DynArray[uint256,10], callback_
     self._approve(collateral_token, controller)
 
     initial_collateral: uint256 = ERC20(collateral_token).balanceOf(self)
-    # Buys borrowed token for collateral from user's position. The amount to be spent is specified inside callback_bytes.
+    user_collateral: uint256 = callback_args[5]
+    self._transferFrom(collateral_token, user, self, user_collateral)
+    # Buys borrowed token for collateral from user's position + from user's wallet.
+    # The amount to be spent is specified inside callback_bytes.
     raw_call(ROUTER_1INCH, callback_bytes)
     remaining_collateral: uint256 = ERC20(collateral_token).balanceOf(self)
-    borrowed_from_collateral: uint256 = ERC20(borrowed_token).balanceOf(self)
+    state_collateral_used: uint256 = 0
+    borrowed_from_state_collateral: uint256 = 0
+    user_collateral_used: uint256 = user_collateral
+    borrowed_from_user_collateral: uint256 = ERC20(borrowed_token).balanceOf(self)  # here it's total borrowed_from_collateral
+    if remaining_collateral < initial_collateral:
+        state_collateral_used = initial_collateral - remaining_collateral
+        borrowed_from_state_collateral = state_collateral_used * 10**18 / (state_collateral_used + user_collateral_used) * borrowed_from_user_collateral / 10**18
+        borrowed_from_user_collateral = borrowed_from_user_collateral - borrowed_from_state_collateral
+    else:
+        user_collateral_used = user_collateral - (remaining_collateral - initial_collateral)
 
-    user_borrowed: uint256 = callback_args[5]
+    user_borrowed: uint256 = callback_args[6]
     self._transferFrom(borrowed_token, user, self, user_borrowed)
 
-    log Repay(user, initial_collateral - remaining_collateral, borrowed_from_collateral, user_borrowed)
+    log Repay(user, state_collateral_used, borrowed_from_state_collateral, user_collateral, user_collateral_used, borrowed_from_user_collateral, user_borrowed)
 
-    return [borrowed_from_collateral + user_borrowed, remaining_collateral]
+    return [borrowed_from_state_collateral + borrowed_from_user_collateral + user_borrowed, remaining_collateral]
