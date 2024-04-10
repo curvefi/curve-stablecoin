@@ -10,8 +10,8 @@ interface ERC20:
     def balanceOf(_owner: address) -> uint256: view
 
 interface StableSwap:
-    def get_p() -> uint256: view
-    def price_oracle() -> uint256: view
+    def get_p(i: uint256=0) -> uint256: view
+    def price_oracle(i: uint256=0) -> uint256: view
 
 interface PegKeeper:
     def pool() -> StableSwap: view
@@ -54,6 +54,7 @@ struct PegKeeperInfo:
     peg_keeper: PegKeeper
     pool: StableSwap
     is_inverse: bool
+    add_index: bool
 
 enum Killed:
     Provide  # 1
@@ -107,7 +108,11 @@ def _get_price(_info: PegKeeperInfo) -> uint256:
     """
     @return Price of the coin in STABLECOIN
     """
-    price: uint256 = _info.pool.get_p()
+    price: uint256 = 0
+    if _info.add_index:
+        price = _info.pool.get_p(0)
+    else:
+        price = _info.pool.get_p()
     if _info.is_inverse:
         price = 10 ** 36 / price
     return price
@@ -119,7 +124,11 @@ def _get_price_oracle(_info: PegKeeperInfo) -> uint256:
     """
     @return Price of the coin in STABLECOIN
     """
-    price: uint256 = _info.pool.price_oracle()
+    price: uint256 = 0
+    if _info.add_index:
+        price = _info.pool.price_oracle(0)
+    else:
+        price = _info.pool.price_oracle()
     if _info.is_inverse:
         price = 10 ** 36 / price
     return price
@@ -232,10 +241,17 @@ def add_peg_keepers(_peg_keepers: DynArray[PegKeeper, MAX_LEN]):
     i: uint256 = len(self.peg_keepers)
     for pk in _peg_keepers:
         assert self.peg_keeper_i[pk] == empty(uint256)  # dev: duplicate
+        pool: StableSwap = pk.pool()
+        success: bool = False
+        success = raw_call(
+            pool.address, _abi_encode(convert(0, uint256), method_id=method_id("price_oracle(uint256)")),
+            revert_on_failure=False
+        )
         info: PegKeeperInfo = PegKeeperInfo({
             peg_keeper: pk,
-            pool: pk.pool(),
+            pool: pool,
             is_inverse: pk.IS_INVERSE(),
+            add_index: success,
         })
         self.peg_keepers.append(info)  # dev: too many pairs
         i += 1
