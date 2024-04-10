@@ -218,13 +218,17 @@ def _max_p_base(controller: address) -> uint256:
     """
     AMM: LLAMMA = LLAMMA(Controller(controller).amm())
     A: uint256 = AMM.A()
-    LOG2_A_RATIO: int256 = self.wad_ln(A * 10**18 / (A - 1))
+    LOGN_A_RATIO: int256 = self.wad_ln(A * 10**18 / (A - 1))
 
     p_oracle: uint256 = AMM.price_oracle()
     # Should be correct unless price changes suddenly by MAX_P_BASE_BANDS+ bands
-    n1: int256 = unsafe_div(self.wad_ln(AMM.get_base_price() * 10**18 / p_oracle), LOG2_A_RATIO) + MAX_P_BASE_BANDS
-    p_base: uint256 = AMM.p_oracle_up(n1)
+    n1: int256 = self.wad_ln(AMM.get_base_price() * 10**18 / p_oracle)
+    if n1 < 0:
+        n1 -= LOGN_A_RATIO - 1  # This is to deal with vyper's rounding of negative numbers
+    n1 = unsafe_div(n1, LOGN_A_RATIO) + MAX_P_BASE_BANDS
     n_min: int256 = AMM.active_band_with_skip()
+    n1 = max(n1, n_min + 1)
+    p_base: uint256 = AMM.p_oracle_up(n1)
 
     for i in range(MAX_SKIP_TICKS + 1):
         n1 -= 1
