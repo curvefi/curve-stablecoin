@@ -1,6 +1,6 @@
 import pytest
 import boa
-from boa.vyper.contract import BoaError
+from boa import BoaError
 from hypothesis import settings
 from hypothesis.stateful import run_state_machine_as_test, invariant
 from hypothesis._settings import HealthCheck
