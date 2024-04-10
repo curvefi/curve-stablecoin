@@ -65,36 +65,116 @@ def __init__(_router_1inch: address, _factories: DynArray[address, 2]):
 
 @internal
 @pure
-def log2(_x: uint256) -> int256:
+def _log_2(x: uint256) -> uint256:
     """
-    @notice int(1e18 * log2(_x / 1e18))
+    @dev An `internal` helper function that returns the log in base 2
+         of `x`, following the selected rounding direction.
+    @notice Note that it returns 0 if given 0. The implementation is
+            inspired by OpenZeppelin's implementation here:
+            https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/utils/math/Math.sol.
+            This code is taken from snekmate.
+    @param x The 32-byte variable.
+    @return uint256 The 32-byte calculation result.
     """
-    # adapted from: https://medium.com/coinmonks/9aef8515136e
-    # and vyper log implementation
-    # Might use more optimal solmate's log
-    inverse: bool = _x < 10**18
-    res: uint256 = 0
-    x: uint256 = _x
-    if inverse:
-        x = 10**36 / x
-    t: uint256 = 2**7
-    for i in range(8):
-        p: uint256 = pow_mod256(2, t)
-        if x >= unsafe_mul(p, 10**18):
-            x = unsafe_div(x, p)
-            res = unsafe_add(unsafe_mul(t, 10**18), res)
-        t = unsafe_div(t, 2)
-    d: uint256 = 10**18
-    for i in range(34):  # 10 decimals: math.log(10**10, 2) == 33.2. Need more?
-        if (x >= 2 * 10**18):
-            res = unsafe_add(res, d)
-            x = unsafe_div(x, 2)
-        x = unsafe_div(unsafe_mul(x, x), 10**18)
-        d = unsafe_div(d, 2)
-    if inverse:
-        return -convert(res, int256)
-    else:
-        return convert(res, int256)
+    value: uint256 = x
+    result: uint256 = empty(uint256)
+
+    # The following lines cannot overflow because we have the well-known
+    # decay behaviour of `log_2(max_value(uint256)) < max_value(uint256)`.
+    if (x >> 128 != empty(uint256)):
+        value = x >> 128
+        result = 128
+    if (value >> 64 != empty(uint256)):
+        value = value >> 64
+        result = unsafe_add(result, 64)
+    if (value >> 32 != empty(uint256)):
+        value = value >> 32
+        result = unsafe_add(result, 32)
+    if (value >> 16 != empty(uint256)):
+        value = value >> 16
+        result = unsafe_add(result, 16)
+    if (value >> 8 != empty(uint256)):
+        value = value >> 8
+        result = unsafe_add(result, 8)
+    if (value >> 4 != empty(uint256)):
+        value = value >> 4
+        result = unsafe_add(result, 4)
+    if (value >> 2 != empty(uint256)):
+        value = value >> 2
+        result = unsafe_add(result, 2)
+    if (value >> 1 != empty(uint256)):
+        result = unsafe_add(result, 1)
+
+    return result
+
+
+@internal
+@pure
+def wad_ln(x: uint256) -> int256:
+    """
+    @dev Calculates the natural logarithm of a signed integer with a
+         precision of 1e18.
+    @notice Note that it returns 0 if given 0. Furthermore, this function
+            consumes about 1,400 to 1,650 gas units depending on the value
+            of `x`. The implementation is inspired by Remco Bloemen's
+            implementation under the MIT license here:
+            https://xn--2-umb.com/22/exp-ln.
+            This code is taken from snekmate.
+    @param x The 32-byte variable.
+    @return int256 The 32-byte calculation result.
+    """
+    value: int256 = convert(x, int256)
+
+    assert x > 0
+
+    # We want to convert `x` from "10 ** 18" fixed point to "2 ** 96"
+    # fixed point. We do this by multiplying by "2 ** 96 / 10 ** 18".
+    # But since "ln(x * C) = ln(x) + ln(C)" holds, we can just do nothing
+    # here and add "ln(2 ** 96 / 10 ** 18)" at the end.
+
+    # Reduce the range of `x` to "(1, 2) * 2 ** 96".
+    # Also remember that "ln(2 ** k * x) = k * ln(2) + ln(x)" holds.
+    k: int256 = unsafe_sub(convert(self._log_2(x), int256), 96)
+    # Note that to circumvent Vyper's safecast feature for the potentially
+    # negative expression `value <<= uint256(159 - k)`, we first convert the
+    # expression `value <<= uint256(159 - k)` to `bytes32` and subsequently
+    # to `uint256`. Remember that the EVM default behaviour is to use two's
+    # complement representation to handle signed integers.
+    value = convert(convert(convert(value << convert(unsafe_sub(159, k), uint256), bytes32), uint256) >> 159, int256)
+
+    # Evaluate using a "(8, 8)"-term rational approximation. Since `p` is monic,
+    # we will multiply by a scaling factor later.
+    p: int256 = unsafe_add(unsafe_mul(unsafe_add(value, 3_273_285_459_638_523_848_632_254_066_296), value) >> 96, 24_828_157_081_833_163_892_658_089_445_524)
+    p = unsafe_add(unsafe_mul(p, value) >> 96, 43_456_485_725_739_037_958_740_375_743_393)
+    p = unsafe_sub(unsafe_mul(p, value) >> 96, 11_111_509_109_440_967_052_023_855_526_967)
+    p = unsafe_sub(unsafe_mul(p, value) >> 96, 45_023_709_667_254_063_763_336_534_515_857)
+    p = unsafe_sub(unsafe_mul(p, value) >> 96, 14_706_773_417_378_608_786_704_636_184_526)
+    p = unsafe_sub(unsafe_mul(p, value), 795_164_235_651_350_426_258_249_787_498 << 96)
+
+    # We leave `p` in the "2 ** 192" base so that we do not have to scale it up
+    # again for the division. Note that `q` is monic by convention.
+    q: int256 = unsafe_add(unsafe_mul(unsafe_add(value, 5_573_035_233_440_673_466_300_451_813_936), value) >> 96, 71_694_874_799_317_883_764_090_561_454_958)
+    q = unsafe_add(unsafe_mul(q, value) >> 96, 283_447_036_172_924_575_727_196_451_306_956)
+    q = unsafe_add(unsafe_mul(q, value) >> 96, 401_686_690_394_027_663_651_624_208_769_553)
+    q = unsafe_add(unsafe_mul(q, value) >> 96, 204_048_457_590_392_012_362_485_061_816_622)
+    q = unsafe_add(unsafe_mul(q, value) >> 96, 31_853_899_698_501_571_402_653_359_427_138)
+    q = unsafe_add(unsafe_mul(q, value) >> 96, 909_429_971_244_387_300_277_376_558_375)
+
+    # It is known that the polynomial `q` has no zeros in the domain.
+    # No scaling is required, as `p` is already "2 ** 96" too large. Also,
+    # `r` is in the range "(0, 0.125) * 2 ** 96" after the division.
+    r: int256 = unsafe_div(p, q)
+
+    # To finalise the calculation, we have to proceed with the following steps:
+    #   - multiply by the scaling factor "s = 5.549...",
+    #   - add "ln(2 ** 96 / 10 ** 18)",
+    #   - add "k * ln(2)", and
+    #   - multiply by "10 ** 18 / 2 ** 96 = 5 ** 18 >> 78".
+    # In order to perform the most gas-efficient calculation, we carry out all
+    # these steps in one expression.
+    return unsafe_add(unsafe_add(unsafe_mul(r, 1_677_202_110_996_718_588_342_820_967_067_443_963_516_166),\
+           unsafe_mul(k, 16_597_577_552_685_614_221_487_285_958_193_947_469_193_820_559_219_878_177_908_093_499_208_371)),\
+           600_920_179_829_731_861_736_702_779_321_621_459_595_472_258_049_074_101_567_377_883_020_018_308) >> 174
 
 
 @internal
@@ -138,11 +218,11 @@ def _max_p_base(controller: address) -> uint256:
     """
     AMM: LLAMMA = LLAMMA(Controller(controller).amm())
     A: uint256 = AMM.A()
-    LOG2_A_RATIO: int256 = self.log2(A * 10**18 / (A - 1))
+    LOG2_A_RATIO: int256 = self.wad_ln(A * 10**18 / (A - 1))
 
     p_oracle: uint256 = AMM.price_oracle()
     # Should be correct unless price changes suddenly by MAX_P_BASE_BANDS+ bands
-    n1: int256 = unsafe_div(self.log2(AMM.get_base_price() * 10**18 / p_oracle), LOG2_A_RATIO) + MAX_P_BASE_BANDS
+    n1: int256 = unsafe_div(self.wad_ln(AMM.get_base_price() * 10**18 / p_oracle), LOG2_A_RATIO) + MAX_P_BASE_BANDS
     p_base: uint256 = AMM.p_oracle_up(n1)
     n_min: int256 = AMM.active_band_with_skip()
 
