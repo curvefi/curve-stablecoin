@@ -54,7 +54,7 @@ struct PegKeeperInfo:
     peg_keeper: PegKeeper
     pool: StableSwap
     is_inverse: bool
-    add_index: bool
+    include_index: bool
 
 enum Killed:
     Provide  # 1
@@ -109,7 +109,7 @@ def _get_price(_info: PegKeeperInfo) -> uint256:
     @return Price of the coin in STABLECOIN
     """
     price: uint256 = 0
-    if _info.add_index:
+    if _info.include_index:
         price = _info.pool.get_p(0)
     else:
         price = _info.pool.get_p()
@@ -125,7 +125,7 @@ def _get_price_oracle(_info: PegKeeperInfo) -> uint256:
     @return Price of the coin in STABLECOIN
     """
     price: uint256 = 0
-    if _info.add_index:
+    if _info.include_index:
         price = _info.pool.price_oracle(0)
     else:
         price = _info.pool.price_oracle()
@@ -242,8 +242,7 @@ def add_peg_keepers(_peg_keepers: DynArray[PegKeeper, MAX_LEN]):
     for pk in _peg_keepers:
         assert self.peg_keeper_i[pk] == empty(uint256)  # dev: duplicate
         pool: StableSwap = pk.pool()
-        success: bool = False
-        success = raw_call(
+        success: bool = raw_call(
             pool.address, _abi_encode(convert(0, uint256), method_id=method_id("price_oracle(uint256)")),
             revert_on_failure=False
         )
@@ -251,7 +250,7 @@ def add_peg_keepers(_peg_keepers: DynArray[PegKeeper, MAX_LEN]):
             peg_keeper: pk,
             pool: pool,
             is_inverse: pk.IS_INVERSE(),
-            add_index: success,
+            include_index: success,
         })
         self.peg_keepers.append(info)  # dev: too many pairs
         i += 1
