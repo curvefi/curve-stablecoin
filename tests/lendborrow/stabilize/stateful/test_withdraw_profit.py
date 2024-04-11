@@ -53,6 +53,8 @@ class StateMachine(base.StateMachine):
                 with boa.env.prank(self.alice):
                     swap.add_liquidity([0, amount], 0)
                 self._enable_fees()
+                if hasattr(swap, "offpeg_fee_multiplier"):
+                    swap.eval("self.offpeg_fee_multiplier = 0")
 
                 boa.env.time_travel(15 * 60)
 
@@ -84,10 +86,7 @@ def test_withdraw_profit(
 ):
     with boa.env.prank(admin):
         for swap in swaps:
-            swap.commit_new_fee(4 * 10**7)
-        boa.env.time_travel(4 * 86400)
-        for swap in swaps:
-            swap.apply_new_fee()
+            swap.eval(f"self.fee = {4 * 10 ** 7}")
 
     StateMachine.TestCase.settings = settings(max_examples=20, stateful_step_count=40)
     for k, v in locals().items():
@@ -110,10 +109,7 @@ def test_withdraw_profit_example_1(
 
     with boa.env.prank(admin):
         for swap in swaps:
-            swap.commit_new_fee(4 * 10**7)
-        boa.env.time_travel(4 * 86400)
-        for swap in swaps:
-            swap.apply_new_fee()
+            swap.eval(f"self.fee = {4 * 10 ** 7}")
 
     StateMachine.TestCase.settings = settings(max_examples=20, stateful_step_count=40)
     for k, v in locals().items():

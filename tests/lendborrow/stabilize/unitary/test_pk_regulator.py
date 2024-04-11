@@ -7,7 +7,7 @@ ZERO_ADDRESS = "0x0000000000000000000000000000000000000000"
 ADMIN_ACTIONS_DEADLINE = 3 * 86400
 
 
-def test_price_range(peg_keepers, swaps, stablecoin, admin, receiver, reg):
+def test_price_range(peg_keepers, swaps, stablecoin, admin, receiver, reg, rate_oracle):
     with boa.env.prank(admin):
         reg.set_price_deviation(10 ** 17)
         for peg_keeper in peg_keepers:
@@ -18,12 +18,18 @@ def test_price_range(peg_keepers, swaps, stablecoin, admin, receiver, reg):
         assert reg.withdraw_allowed(peg_keeper)
 
         # Move current price (get_p) a little
-        swap.eval("self.rate_multipliers[0] *= 2")
+        try:
+            swap.eval("self.rate_multipliers[0] *= 2")
+        except:
+            rate_oracle.set(1, 2 * 10 ** 18)
         assert reg.provide_allowed(peg_keeper)
         assert reg.withdraw_allowed(peg_keeper)
 
         # Move further
-        swap.eval("self.rate_multipliers[0] *= 5")
+        try:
+            swap.eval("self.rate_multipliers[0] *= 5")
+        except:
+            rate_oracle.set(1, 10 ** 19)
 
         assert not reg.provide_allowed(peg_keeper)
         assert not reg.withdraw_allowed(peg_keeper)

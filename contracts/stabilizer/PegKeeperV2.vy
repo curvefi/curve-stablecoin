@@ -15,12 +15,19 @@ interface Regulator:
 interface CurvePool:
     def balances(i_coin: uint256) -> uint256: view
     def coins(i: uint256) -> address: view
-    def calc_token_amount(_amounts: uint256[2], _is_deposit: bool) -> uint256: view
-    def add_liquidity(_amounts: uint256[2], _min_mint_amount: uint256) -> uint256: nonpayable
-    def remove_liquidity_imbalance(_amounts: uint256[2], _max_burn_amount: uint256) -> uint256: nonpayable
     def get_virtual_price() -> uint256: view
     def balanceOf(arg0: address) -> uint256: view
     def transfer(_to: address, _value: uint256) -> bool: nonpayable
+
+interface CurvePoolOld:
+    def calc_token_amount(_amounts: uint256[2], _is_deposit: bool) -> uint256: view
+    def add_liquidity(_amounts: uint256[2], _min_mint_amount: uint256) -> uint256: nonpayable
+    def remove_liquidity_imbalance(_amounts: uint256[2], _max_burn_amount: uint256) -> uint256: nonpayable
+
+interface CurvePoolNG:
+    def calc_token_amount(_amounts: DynArray[uint256, 2], _is_deposit: bool) -> uint256: view
+    def add_liquidity(_amounts: DynArray[uint256, 2], _min_mint_amount: uint256) -> uint256: nonpayable
+    def remove_liquidity_imbalance(_amounts: DynArray[uint256, 2], _max_burn_amount: uint256) -> uint256: nonpayable
 
 interface ERC20:
     def approve(_spender: address, _amount: uint256): nonpayable
@@ -63,6 +70,7 @@ POOL: immutable(CurvePool)
 I: immutable(uint256)  # index of pegged in pool
 PEGGED: immutable(ERC20)
 IS_INVERSE: public(immutable(bool))
+IS_NG: public(immutable(bool))  # Interface for CurveStableSwapNG
 PEG_MUL: immutable(uint256)
 
 regulator: public(Regulator)
@@ -110,6 +118,11 @@ def __init__(
             IS_INVERSE = (i == 0)
         else:
             PEG_MUL = 10 ** (18 - coins[i].decimals())
+
+    IS_NG = raw_call(
+        _pool.address, _abi_encode(convert(0, uint256), method_id=method_id("price_oracle(uint256)")),
+        revert_on_failure=False
+    )
 
     self.admin = _admin
     log ApplyNewAdmin(msg.sender)
@@ -163,9 +176,14 @@ def _provide(_amount: uint256):
 
     amount: uint256 = min(_amount, PEGGED.balanceOf(self))
 
-    amounts: uint256[2] = empty(uint256[2])
-    amounts[I] = amount
-    POOL.add_liquidity(amounts, 0)
+    if IS_NG:
+        amounts: DynArray[uint256, 2] = [0, 0]
+        amounts[I] = amount
+        CurvePoolNG(POOL.address).add_liquidity(amounts, 0)
+    else:
+        amounts: uint256[2] = empty(uint256[2])
+        amounts[I] = amount
+        CurvePoolOld(POOL.address).add_liquidity(amounts, 0)
 
     self.last_change = block.timestamp
     self.debt += amount
@@ -183,9 +201,14 @@ def _withdraw(_amount: uint256):
     debt: uint256 = self.debt
     amount: uint256 = min(_amount, debt)
 
-    amounts: uint256[2] = empty(uint256[2])
-    amounts[I] = amount
-    POOL.remove_liquidity_imbalance(amounts, max_value(uint256))
+    if IS_NG:
+        amounts: DynArray[uint256, 2] = [0, 0]
+        amounts[I] = amount
+        CurvePoolNG(POOL.address).remove_liquidity_imbalance(amounts, max_value(uint256))
+    else:
+        amounts: uint256[2] = empty(uint256[2])
+        amounts[I] = amount
+        CurvePoolOld(POOL.address).remove_liquidity_imbalance(amounts, max_value(uint256))
 
     self.last_change = block.timestamp
     self.debt = debt - amount
@@ -233,9 +256,15 @@ def _calc_call_profit(_amount: uint256, _is_deposit: bool) -> uint256:
     else:
         amount = min(_amount, debt)
 
-    amounts: uint256[2] = empty(uint256[2])
-    amounts[I] = amount
-    lp_balance_diff: uint256 = POOL.calc_token_amount(amounts, _is_deposit)
+    lp_balance_diff: uint256 = 0
+    if IS_NG:
+        amounts: DynArray[uint256, 2] = [0, 0]
+        amounts[I] = amount
+        lp_balance_diff = CurvePoolNG(POOL.address).calc_token_amount(amounts, _is_deposit)
+    else:
+        amounts: uint256[2] = empty(uint256[2])
+        amounts[I] = amount
+        lp_balance_diff = CurvePoolOld(POOL.address).calc_token_amount(amounts, _is_deposit)
 
     if _is_deposit:
         lp_balance += lp_balance_diff

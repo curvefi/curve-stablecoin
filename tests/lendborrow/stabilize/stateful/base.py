@@ -25,18 +25,12 @@ class StateMachine(RuleBasedStateMachine):
         with boa.env.prank(self.admin):
             for swap in self.swaps:
                 self.fees.append(swap.fee())
-                swap.commit_new_fee(0)
-            boa.env.time_travel(7 * 86400)
-            for swap in self.swaps:
-                swap.apply_new_fee()
+                swap.eval(f"self.fee = 0")
 
     def _enable_fees(self):
         with boa.env.prank(self.admin):
             for swap, fee in zip(self.swaps, self.fees):
-                swap.commit_new_fee(fee)
-            boa.env.time_travel(7 * 86400)
-            for swap in self.swaps:
-                swap.apply_new_fee()
+                swap.eval(f"self.fee = {fee}")
 
     @rule(idx=st_idx, pct=st_pct, pool_idx=st_pool)
     def add_one_coin(self, idx, pct, pool_idx):

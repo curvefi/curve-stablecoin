@@ -53,6 +53,31 @@ def swap_deployer(swap_impl, admin):
 
 
 @pytest.fixture(scope="module")
+def rate_oracle(swap_impl, admin):
+    return boa.load('contracts/testing/MockRateOracle.vy')
+
+
+@pytest.fixture(scope="module")
+def swap_impl_ng(admin, swap_deployer, rate_oracle):
+    with boa.env.prank(admin):
+        # Do not forget `git submodule init` and `git submodule update`
+        prefix = "contracts/testing/stableswap-ng/contracts/main"
+        factory = boa.load(f"{prefix}/CurveStableSwapFactoryNG.vy", admin, admin)
+        swap_deployer.eval(f'self.factory_ng = FactoryNG({factory.address})')
+        swap_deployer.eval(f'self.rate_oracle = {rate_oracle.address}')
+
+        impl = boa.load_partial(f"{prefix}/CurveStableSwapNG.vy").deploy_as_blueprint()
+        factory.set_pool_implementations(0, impl)
+
+        math = boa.load(f"{prefix}/CurveStableSwapNGMath.vy")
+        factory.set_math_implementation(math)
+
+        views = boa.load(f"{prefix}/CurveStableSwapNGViews.vy")
+        factory.set_views_implementation(views)
+        return impl
+
+
+@pytest.fixture(scope="module")
 def unsafe_factory(controller_factory, stablecoin, admin, accounts):
     with boa.env.anchor():
         with boa.env.prank(admin):
@@ -70,16 +95,25 @@ def stableswap_a(unsafe_factory, swap_deployer, swap_impl, stablecoin, stablecoi
 
 
 @pytest.fixture(scope="module")
-def stableswap_b(unsafe_factory, swap_deployer, swap_impl, stablecoin, stablecoin_b, admin):
+def stableswap_b(unsafe_factory, swap_deployer, swap_impl_ng, stablecoin, stablecoin_b, admin):
     with boa.env.prank(admin):
-        addr = swap_deployer.deploy(stablecoin_b, stablecoin)
-        swap = swap_impl.deployer.at(addr)
+        addr = swap_deployer.deploy_ng(stablecoin_b, stablecoin)
+        swap = swap_impl_ng.deployer.at(addr)
         return swap
 
 
 @pytest.fixture(scope="module")
 def swaps(stableswap_a, stableswap_b):
     return [stableswap_a, stableswap_b]
+
+
+@pytest.fixture(scope="module")
+def set_fee():
+    def inner(swap, fee, offpeg_fee_multiplier=None):
+        swap.eval(f"self.fee = {fee}")
+        if offpeg_fee_multiplier:
+            swap.eval(f"self.offpeg_fee_multiplier = {offpeg_fee_multiplier}")
+    return inner
 
 
 @pytest.fixture(scope="module")
@@ -90,7 +124,7 @@ def redeemable_tokens(stablecoin_a, stablecoin_b):
 @pytest.fixture(scope="module")
 def price_aggregator(stablecoin, stableswap_a, stableswap_b, admin):
     with boa.env.prank(admin):
-        agg = boa.load('contracts/price_oracles/AggregateStablePrice2.vy', stablecoin.address, 10**15, admin)
+        agg = boa.load('contracts/price_oracles/AggregateStablePrice3.vy', stablecoin.address, 10**15, admin)
         agg.add_price_pair(stableswap_a.address)
         agg.add_price_pair(stableswap_b.address)
         return agg
