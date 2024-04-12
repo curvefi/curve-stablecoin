@@ -25,9 +25,9 @@ interface CurvePoolOld:
     def remove_liquidity_imbalance(_amounts: uint256[2], _max_burn_amount: uint256) -> uint256: nonpayable
 
 interface CurvePoolNG:
-    def calc_token_amount(_amounts: DynArray[uint256, 2], _is_deposit: bool) -> uint256: view
-    def add_liquidity(_amounts: DynArray[uint256, 2], _min_mint_amount: uint256) -> uint256: nonpayable
-    def remove_liquidity_imbalance(_amounts: DynArray[uint256, 2], _max_burn_amount: uint256) -> uint256: nonpayable
+    def calc_token_amount(_amounts: DynArray[uint256, 8], _is_deposit: bool) -> uint256: view
+    def add_liquidity(_amounts: DynArray[uint256, 8], _min_mint_amount: uint256) -> uint256: nonpayable
+    def remove_liquidity_imbalance(_amounts: DynArray[uint256, 8], _max_burn_amount: uint256) -> uint256: nonpayable
 
 interface ERC20:
     def approve(_spender: address, _amount: uint256): nonpayable
