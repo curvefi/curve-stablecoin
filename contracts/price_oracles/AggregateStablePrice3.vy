@@ -6,6 +6,7 @@
 """
 # Returns price of stablecoin in "dollars" based on multiple redeemable stablecoins
 # Recommended to use 3+ price sources
+# Version3: Works with -ng pools
 
 interface Stableswap:
     def price_oracle(i: uint256=0) -> uint256: view
