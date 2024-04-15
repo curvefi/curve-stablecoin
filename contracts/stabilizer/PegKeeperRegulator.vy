@@ -40,6 +40,9 @@ event DebtParameters:
     alpha: uint256
     beta: uint256
 
+event SetAggregator:
+    aggregator: address
+
 event SetKilled:
     is_killed: Killed
     by: address
@@ -318,6 +321,16 @@ def set_debt_parameters(_alpha: uint256, _beta: uint256):
     self.alpha = _alpha
     self.beta = _beta
     log DebtParameters(_alpha, _beta)
+
+
+@external
+def set_aggregator(_agg: Aggregator):
+    """
+    @notice Set new crvUSD price aggregator
+    """
+    assert msg.sender == self.admin
+    self.aggregator = _agg
+    log SetAggregator(_agg.address)
 
 
 @external

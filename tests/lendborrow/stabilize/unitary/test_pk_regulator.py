@@ -150,11 +150,12 @@ def test_set_killed(reg, peg_keepers, admin):
         assert not reg.withdraw_allowed(peg_keeper)
 
 
-def test_admin(reg, admin, alice):
+def test_admin(reg, admin, alice, agg):
     # initial parameters
     assert reg.worst_price_threshold() == 3 * 10 ** (18 - 4)
     assert reg.price_deviation() == 100 * 10 ** 18
     assert (reg.alpha(), reg.beta()) == (10 ** 18, 10 ** 18)
+    assert reg.aggregator() == agg.address
     assert reg.emergency_admin() == admin
     assert reg.is_killed() == 0
     assert reg.admin() == admin
@@ -167,6 +168,8 @@ def test_admin(reg, admin, alice):
             reg.set_price_deviation(10 ** 17)
         with boa.reverts():
             reg.set_debt_parameters(10 ** 18 // 2, 10 ** 18 // 5)
+        with boa.reverts():
+            reg.set_aggregator(alice)
         with boa.reverts():
             reg.set_emergency_admin(alice)
         with boa.reverts():
@@ -184,6 +187,9 @@ def test_admin(reg, admin, alice):
 
         reg.set_debt_parameters(10 ** 18 // 2, 10 ** 18 // 5)
         assert (reg.alpha(), reg.beta()) == (10 ** 18 // 2, 10 ** 18 // 5)
+
+        reg.set_aggregator(alice)
+        assert reg.aggregator() == alice
 
         reg.set_emergency_admin(alice)
         assert reg.emergency_admin() == alice
