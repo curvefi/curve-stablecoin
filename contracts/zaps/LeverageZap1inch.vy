@@ -342,10 +342,13 @@ def callback_repay(user: address, callback_args: DynArray[uint256,10], callback_
 
     initial_collateral: uint256 = ERC20(collateral_token).balanceOf(self)
     user_collateral: uint256 = callback_args[5]
-    self._transferFrom(collateral_token, user, self, user_collateral)
-    # Buys borrowed token for collateral from user's position + from user's wallet.
-    # The amount to be spent is specified inside callback_bytes.
-    raw_call(ROUTER_1INCH, callback_bytes)
+    if callback_bytes != b"":
+        self._transferFrom(collateral_token, user, self, user_collateral)
+        # Buys borrowed token for collateral from user's position + from user's wallet.
+        # The amount to be spent is specified inside callback_bytes.
+        raw_call(ROUTER_1INCH, callback_bytes)
+    else:
+        assert user_collateral == 0
     remaining_collateral: uint256 = ERC20(collateral_token).balanceOf(self)
     state_collateral_used: uint256 = 0
     borrowed_from_state_collateral: uint256 = 0
