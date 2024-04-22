@@ -107,46 +107,56 @@ def __init__(
 
 @internal
 @view
-def _raw_stored_rate() -> uint256:
+def _raw_stored_rate() -> (uint256, bool):
     rate: uint256 = 10**18
+    use_rates: bool = False
 
     for i in range(MAX_POOLS):
         if i == POOL_COUNT:
             break
         if USE_RATES[i]:
+            use_rates = True
             rates: DynArray[uint256, MAX_COINS] = POOLS[i].stored_rates()
             rate = rate * rates[COLLATERAL_IX[i]] / rates[BORROWED_IX[i]]
 
-    return rate
+    return rate, use_rates
 
 
 @internal
 @view
-def _stored_rate() -> uint256:
-    rate: uint256 = self._raw_stored_rate()
+def _stored_rate() -> (uint256, bool):
+    use_rates: bool = False
+    rate: uint256 = 0
+    rate, use_rates = self._raw_stored_rate()
+    if not use_rates:
+        return rate, use_rates
+
     cached_rate: uint256 = self.cached_rate
 
-    if cached_rate == 0:
-        return rate
+    if cached_rate == 0 or cached_rate == rate:
+        return rate, use_rates
 
     if rate > cached_rate:
-        return min(rate, cached_rate * (10**18 + RATE_MAX_SPEED * (block.timestamp - self.cached_timestamp)) / 10**18)
+        return min(rate, cached_rate * (10**18 + RATE_MAX_SPEED * (block.timestamp - self.cached_timestamp)) / 10**18), use_rates
 
     else:
-        return max(rate, cached_rate * (10**18 - min(RATE_MAX_SPEED * (block.timestamp - self.cached_timestamp), 10**18)) / 10**18)
+        return max(rate, cached_rate * (10**18 - min(RATE_MAX_SPEED * (block.timestamp - self.cached_timestamp), 10**18)) / 10**18), use_rates
 
 
 @external
 @view
 def stored_rate() -> uint256:
-    return self._stored_rate()
+    return self._stored_rate()[0]
 
 
 @internal
 def _stored_rate_w() -> uint256:
-    rate: uint256 = self._stored_rate()
-    self.cached_rate = rate
-    self.cached_timestamp = block.timestamp
+    rate: uint256 = 0
+    use_rates: bool = False
+    rate, use_rates = self._stored_rate()
+    if use_rates:
+        self.cached_rate = rate
+        self.cached_timestamp = block.timestamp
     return rate
 
 
@@ -179,7 +189,7 @@ def _unscaled_price() -> uint256:
 @external
 @view
 def price() -> uint256:
-    return self._unscaled_price() * self._stored_rate() / 10**18
+    return self._unscaled_price() * self._stored_rate()[0] / 10**18
 
 
 @external
