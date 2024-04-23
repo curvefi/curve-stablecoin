@@ -284,19 +284,20 @@ def _approve(coin: address, spender: address):
 
 @external
 @nonreentrant('lock')
-def callback_deposit(user: address, callback_args: DynArray[uint256, 10], callback_bytes: Bytes[10**4]) -> uint256[2]:
+def callback_deposit(user: address, stablecoins: uint256, user_collateral: uint256, d_debt: uint256,
+                     callback_args: DynArray[uint256, 10], callback_bytes: Bytes[10**4] = b"") -> uint256[2]:
     """
     @notice Callback method which should be called by controller to create leveraged position
     @param user Address of the user
-    @param callback_args [stablecoins, user_collateral, d_debt, factory_id, controller_id, user_borrowed]
-                         0. stablecoins is always 0
-                         1. user_collateral - the amount of collateral token provided by user
-                         2. d_debt - the amount to be borrowed (in addition to what has already been borrowed)
-                         3-4. factory_id, controller_id are needed to check that msg.sender is the one of our controllers
-                         5. user_borrowed - the amount of borrowed token provided by user (needs to be exchanged for collateral)
+    @param stablecoins Always 0
+    @param user_collateral The amount of collateral token provided by user
+    @param d_debt The amount to be borrowed (in addition to what has already been borrowed)
+    @param callback_args [factory_id, controller_id, user_borrowed]
+                         0-1. factory_id, controller_id are needed to check that msg.sender is the one of our controllers
+                         2. user_borrowed - the amount of borrowed token provided by user (needs to be exchanged for collateral)
     return [0, user_collateral_from_borrowed + leverage_collateral]
     """
-    controller: address = Factory(self.FACTORIES[callback_args[3]]).controllers(callback_args[4])
+    controller: address = Factory(self.FACTORIES[callback_args[0]]).controllers(callback_args[1])
     assert msg.sender == controller, "wrong controller"
     amm: LLAMMA = LLAMMA(Controller(controller).amm())
     borrowed_token: address = amm.coins(0)
@@ -305,32 +306,35 @@ def callback_deposit(user: address, callback_args: DynArray[uint256, 10], callba
     self._approve(borrowed_token, ROUTER_1INCH)
     self._approve(collateral_token, controller)
 
-    user_borrowed: uint256 = callback_args[5]
+    user_borrowed: uint256 = callback_args[2]
     self._transferFrom(borrowed_token, user, self, user_borrowed)
     raw_call(ROUTER_1INCH, callback_bytes)  # buys leverage_collateral for user_borrowed + dDebt
     additional_collateral: uint256 = ERC20(collateral_token).balanceOf(self)
-    leverage_collateral: uint256 = callback_args[2] * 10**18 / (callback_args[2] + user_borrowed) * additional_collateral / 10**18
+    leverage_collateral: uint256 = d_debt * 10**18 / (d_debt + user_borrowed) * additional_collateral / 10**18
     user_collateral_from_borrowed: uint256 = additional_collateral - leverage_collateral
 
-    log Deposit(user, callback_args[1], user_borrowed, user_collateral_from_borrowed, callback_args[2], leverage_collateral)
+    log Deposit(user, user_collateral, user_borrowed, user_collateral_from_borrowed, d_debt, leverage_collateral)
 
     return [0, additional_collateral]
 
 
 @external
 @nonreentrant('lock')
-def callback_repay(user: address, callback_args: DynArray[uint256,10], callback_bytes: Bytes[10 ** 4]) -> uint256[2]:
+def callback_repay(user: address, stablecoins: uint256, collateral: uint256, debt: uint256,
+                   callback_args: DynArray[uint256,10], callback_bytes: Bytes[10 ** 4] = b"") -> uint256[2]:
     """
     @notice Callback method which should be called by controller to create leveraged position
     @param user Address of the user
-    @param callback_args [stablecoins, collateral, debt, factory_id, controller_id, user_collateral, user_borrowed]
-                         0-2. stablecoins, collateral, debt - values from user_state
-                         3-4. factory_id, controller_id are needed to check that msg.sender is the one of our controllers
-                         5. user_collateral - the amount of collateral token provided by user (needs to be exchanged for borrowed)
-                         6. user_borrowed - the amount of borrowed token to repay from user's wallet
+    @param stablecoins The value from user_state
+    @param collateral The value from user_state
+    @param debt The value from user_state
+    @param callback_args [factory_id, controller_id, user_collateral, user_borrowed]
+                         0-1. factory_id, controller_id are needed to check that msg.sender is the one of our controllers
+                         2. user_collateral - the amount of collateral token provided by user (needs to be exchanged for borrowed)
+                         3. user_borrowed - the amount of borrowed token to repay from user's wallet
     return [user_borrowed + borrowed_from_collateral, remaining_collateral]
     """
-    controller: address = Factory(self.FACTORIES[callback_args[3]]).controllers(callback_args[4])
+    controller: address = Factory(self.FACTORIES[callback_args[0]]).controllers(callback_args[1])
     assert msg.sender == controller, "wrong controller"
     amm: LLAMMA = LLAMMA(Controller(controller).amm())
     borrowed_token: address = amm.coins(0)
@@ -341,7 +345,7 @@ def callback_repay(user: address, callback_args: DynArray[uint256,10], callback_
     self._approve(collateral_token, controller)
 
     initial_collateral: uint256 = ERC20(collateral_token).balanceOf(self)
-    user_collateral: uint256 = callback_args[5]
+    user_collateral: uint256 = callback_args[2]
     if callback_bytes != b"":
         self._transferFrom(collateral_token, user, self, user_collateral)
         # Buys borrowed token for collateral from user's position + from user's wallet.
@@ -361,7 +365,7 @@ def callback_repay(user: address, callback_args: DynArray[uint256,10], callback_
     else:
         user_collateral_used = user_collateral - (remaining_collateral - initial_collateral)
 
-    user_borrowed: uint256 = callback_args[6]
+    user_borrowed: uint256 = callback_args[3]
     self._transferFrom(borrowed_token, user, self, user_borrowed)
 
     log Repay(user, state_collateral_used, borrowed_from_state_collateral, user_collateral, user_collateral_used, borrowed_from_user_collateral, user_borrowed)
