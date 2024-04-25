@@ -160,6 +160,11 @@ CALLBACK_DEPOSIT: constant(bytes4) = method_id("callback_deposit(address,uint256
 CALLBACK_REPAY: constant(bytes4) = method_id("callback_repay(address,uint256,uint256,uint256,uint256[])", output_type=bytes4)
 CALLBACK_LIQUIDATE: constant(bytes4) = method_id("callback_liquidate(address,uint256,uint256,uint256,uint256[])", output_type=bytes4)
 
+CALLBACK_DEPOSIT_WITH_BYTES: constant(bytes4) = method_id("callback_deposit(address,uint256,uint256,uint256,uint256[],bytes)", output_type=bytes4)
+# CALLBACK_REPAY_WITH_BYTES: constant(bytes4) = method_id("callback_repay(address,uint256,uint256,uint256,uint256[],bytes)", output_type=bytes4) <-- BUG! The reason is 0 at the beginning of method_id
+CALLBACK_REPAY_WITH_BYTES: constant(bytes4) = 0x008ae188
+CALLBACK_LIQUIDATE_WITH_BYTES: constant(bytes4) = method_id("callback_liquidate(address,uint256,uint256,uint256,uint256[],bytes)", output_type=bytes4)
+
 DEAD_SHARES: constant(uint256) = 1000
 
 MAX_ETH_GAS: constant(uint256) = 10000  # Forward this much gas to ETH transfers (2300 is what send() does)
@@ -631,7 +636,7 @@ def transfer(token: ERC20, _to: address, amount: uint256):
 @internal
 def execute_callback(callbacker: address, callback_sig: bytes4,
                      user: address, stablecoins: uint256, collateral: uint256, debt: uint256,
-                     callback_args: DynArray[uint256, 5]) -> CallbackData:
+                     callback_args: DynArray[uint256, 5], callback_bytes: Bytes[10**4]) -> CallbackData:
     assert callbacker != COLLATERAL_TOKEN.address
 
     data: CallbackData = empty(CallbackData)
@@ -642,7 +647,7 @@ def execute_callback(callbacker: address, callback_sig: bytes4,
     # Callback
     response: Bytes[64] = raw_call(
         callbacker,
-        concat(callback_sig, _abi_encode(user, stablecoins, collateral, debt, callback_args)),
+        concat(callback_sig, _abi_encode(user, stablecoins, collateral, debt, callback_args, callback_bytes)),
         max_outsize=64
     )
     data.stablecoins = convert(slice(response, 0, 32), uint256)
@@ -705,7 +710,7 @@ def create_loan(collateral: uint256, debt: uint256, N: uint256):
 
 @external
 @nonreentrant('lock')
-def create_loan_extended(collateral: uint256, debt: uint256, N: uint256, callbacker: address, callback_args: DynArray[uint256,5]):
+def create_loan_extended(collateral: uint256, debt: uint256, N: uint256, callbacker: address, callback_args: DynArray[uint256,5], callback_bytes: Bytes[10**4] = b""):
     """
     @notice Create loan but pass stablecoin to a callback first so that it can build leverage
     @param collateral Amount of collateral to use
@@ -718,10 +723,14 @@ def create_loan_extended(collateral: uint256, debt: uint256, N: uint256, callbac
     # Before callback
     self.transfer(BORROWED_TOKEN, callbacker, debt)
 
+    # For compatibility
+    callback_sig: bytes4 = CALLBACK_DEPOSIT_WITH_BYTES
+    if callback_bytes == b"":
+        callback_sig = CALLBACK_DEPOSIT
     # Callback
     # If there is any unused debt, callbacker can send it to the user
     more_collateral: uint256 = self.execute_callback(
-        callbacker, CALLBACK_DEPOSIT, msg.sender, 0, collateral, debt, callback_args).collateral
+        callbacker, callback_sig, msg.sender, 0, collateral, debt, callback_args, callback_bytes).collateral
 
     # After callback
     self._create_loan(collateral + more_collateral, debt, N, False)
@@ -825,7 +834,7 @@ def borrow_more(collateral: uint256, debt: uint256):
 
 @external
 @nonreentrant('lock')
-def borrow_more_extended(collateral: uint256, debt: uint256, callbacker: address, callback_args: DynArray[uint256,5]):
+def borrow_more_extended(collateral: uint256, debt: uint256, callbacker: address, callback_args: DynArray[uint256,5], callback_bytes: Bytes[10**4] = b""):
     """
     @notice Borrow more stablecoins while adding more collateral using a callback (to leverage more)
     @param collateral Amount of collateral to add
@@ -839,10 +848,14 @@ def borrow_more_extended(collateral: uint256, debt: uint256, callbacker: address
     # Before callback
     self.transfer(BORROWED_TOKEN, callbacker, debt)
 
+    # For compatibility
+    callback_sig: bytes4 = CALLBACK_DEPOSIT_WITH_BYTES
+    if callback_bytes == b"":
+        callback_sig = CALLBACK_DEPOSIT
     # Callback
     # If there is any unused debt, callbacker can send it to the user
     more_collateral: uint256 = self.execute_callback(
-        callbacker, CALLBACK_DEPOSIT, msg.sender, 0, collateral, debt, callback_args).collateral
+        callbacker, callback_sig, msg.sender, 0, collateral, debt, callback_args, callback_bytes).collateral
 
     # After callback
     self._add_collateral_borrow(collateral + more_collateral, debt, msg.sender, False)
@@ -942,7 +955,7 @@ def repay(_d_debt: uint256, _for: address = msg.sender, max_active_band: int256 
 
 @external
 @nonreentrant('lock')
-def repay_extended(callbacker: address, callback_args: DynArray[uint256,5]):
+def repay_extended(callbacker: address, callback_args: DynArray[uint256,5], callback_bytes: Bytes[10**4] = b""):
     """
     @notice Repay loan but get a stablecoin for that from callback (to deleverage)
     @param callbacker Address of the callback contract
@@ -956,8 +969,12 @@ def repay_extended(callbacker: address, callback_args: DynArray[uint256,5]):
     debt, rate_mul = self._debt(msg.sender)
     self.transferFrom(COLLATERAL_TOKEN, AMM.address, callbacker, xy[1])
 
+    # For compatibility
+    callback_sig: bytes4 = CALLBACK_REPAY_WITH_BYTES
+    if callback_bytes == b"":
+        callback_sig = CALLBACK_REPAY
     cb: CallbackData = self.execute_callback(
-        callbacker, CALLBACK_REPAY, msg.sender, xy[0], xy[1], debt, callback_args)
+        callbacker, callback_sig, msg.sender, xy[0], xy[1], debt, callback_args, callback_bytes)
 
     # After callback
     total_stablecoins: uint256 = cb.stablecoins + xy[0]
@@ -1115,7 +1132,7 @@ def _get_f_remove(frac: uint256, health_limit: uint256) -> uint256:
 
 @internal
 def _liquidate(user: address, min_x: uint256, health_limit: uint256, frac: uint256,
-               callbacker: address, callback_args: DynArray[uint256,5]):
+               callbacker: address, callback_args: DynArray[uint256,5], callback_bytes: Bytes[10**4] = b""):
     """
     @notice Perform a bad liquidation of user if the health is too bad
     @param user Address of the user
@@ -1163,9 +1180,13 @@ def _liquidate(user: address, min_x: uint256, health_limit: uint256, frac: uint2
         else:
             # Move collateral to callbacker, call it and remove everything from it back in
             self.transferFrom(COLLATERAL_TOKEN, AMM.address, callbacker, xy[1])
+            # For compatibility
+            callback_sig: bytes4 = CALLBACK_LIQUIDATE_WITH_BYTES
+            if callback_bytes == b"":
+                callback_sig = CALLBACK_LIQUIDATE
             # Callback
             cb: CallbackData = self.execute_callback(
-                callbacker, CALLBACK_LIQUIDATE, user, xy[0], xy[1], debt, callback_args)
+                callbacker, callback_sig, user, xy[0], xy[1], debt, callback_args, callback_bytes)
             assert cb.stablecoins >= to_repay, "not enough proceeds"
             if cb.stablecoins > to_repay:
                 self.transferFrom(BORROWED_TOKEN, callbacker, msg.sender, unsafe_sub(cb.stablecoins, to_repay))
@@ -1210,7 +1231,7 @@ def liquidate(user: address, min_x: uint256):
 @external
 @nonreentrant('lock')
 def liquidate_extended(user: address, min_x: uint256, frac: uint256,
-                       callbacker: address, callback_args: DynArray[uint256,5]):
+                       callbacker: address, callback_args: DynArray[uint256,5], callback_bytes: Bytes[10**4] = b""):
     """
     @notice Peform a bad liquidation (or self-liquidation) of user if health is not good
     @param min_x Minimal amount of stablecoin to receive (to avoid liquidators being sandwiched)
@@ -1221,7 +1242,7 @@ def liquidate_extended(user: address, min_x: uint256, frac: uint256,
     discount: uint256 = 0
     if user != msg.sender:
         discount = self.liquidation_discounts[user]
-    self._liquidate(user, min_x, discount, min(frac, 10**18), callbacker, callback_args)
+    self._liquidate(user, min_x, discount, min(frac, 10**18), callbacker, callback_args, callback_bytes)
 
 
 @view
