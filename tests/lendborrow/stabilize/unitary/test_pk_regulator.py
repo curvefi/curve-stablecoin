@@ -57,6 +57,8 @@ def test_price_order(peg_keepers, mock_peg_keepers, swaps, initial_amounts, stab
 
 def test_aggregator_price(peg_keepers, mock_peg_keepers, reg, agg, admin, stablecoin):
     mock_peg_keeper = boa.load('contracts/testing/MockPegKeeper.vy', 10 ** 18, stablecoin)
+    for peg_keeper in peg_keepers:
+        stablecoin.eval(f"self.balanceOf[{peg_keeper.address}] += {10 ** 18}")
     with boa.env.prank(admin):
         agg.add_price_pair(mock_peg_keeper)
         for price in [0.95, 1.05]:
@@ -117,8 +119,9 @@ def test_debt_limit_formula(peg_keepers, mock_peg_keepers, reg, admin, stablecoi
     )
 
 
-def test_set_killed(reg, peg_keepers, admin):
+def test_set_killed(reg, peg_keepers, admin, stablecoin):
     peg_keeper = peg_keepers[0]
+    stablecoin.eval(f"self.balanceOf[{peg_keeper.address}] += {10 ** 18}")
     with boa.env.prank(admin):
         assert reg.is_killed() == 0
 
