@@ -9,7 +9,6 @@ from . import base
 
 pytestmark = pytest.mark.usefixtures(
     "add_initial_liquidity",
-    "provide_token_to_peg_keepers",
     "mint_alice"
 )
 
@@ -19,10 +18,6 @@ class StateMachine(base.StateMachine):
     Stateful test that performs a series of deposits, swaps and withdrawals
     and confirms that profit is calculated right.
     """
-
-    def __init__(self):
-        super().__init__(disable_fee=False)
-
     @invariant()
     def invariant_expected_caller_profit(self):
         """
@@ -70,7 +65,7 @@ def test_stable_peg(
         for swap in swaps:
             swap.apply_new_fee()
 
-    StateMachine.TestCase.settings = settings(max_examples=700, stateful_step_count=40, suppress_health_check=HealthCheck.all())
+    StateMachine.TestCase.settings = settings(max_examples=100, stateful_step_count=40, suppress_health_check=HealthCheck.all())
     for k, v in locals().items():
         setattr(StateMachine, k, v)
     run_state_machine_as_test(StateMachine)

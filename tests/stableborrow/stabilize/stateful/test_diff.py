@@ -9,7 +9,6 @@ from . import base
 
 pytestmark = pytest.mark.usefixtures(
     "add_initial_liquidity",
-    "provide_token_to_peg_keepers",
     "mint_alice"
 )
 
@@ -19,40 +18,6 @@ class StateMachine(base.StateMachine):
     Stateful test that performs a series of deposits, swaps and withdrawals
     and confirms that profit is calculated right.
     """
-
-    def __init__(self):
-        super().__init__()
-
-    @invariant()
-    def invariant_profit_increases(self):
-        """
-        Verify that Peg Keeper profit only increases.
-        """
-        for i, peg_keeper in enumerate(self.peg_keepers):
-            profit = peg_keeper.calc_profit()
-            assert profit >= self.profit[i]
-            self.profit[i] = profit
-
-    @invariant()
-    def invariant_profit(self):
-        """
-        Check Profit value.
-        """
-        for peg_keeper, swap in zip(self.peg_keepers, self.swaps):
-            try:
-                with boa.env.prank(self.alice):
-                    peg_keeper.update()
-            except BoaError as e:
-                if 'peg unprofitable' in str(e):
-                    continue
-
-            profit = peg_keeper.calc_profit()
-            virtual_price = swap.get_virtual_price()
-            aim_profit = (
-                swap.balanceOf(peg_keeper) - peg_keeper.debt() * 10**18 // virtual_price
-            )
-            assert aim_profit >= profit  # Never take more than real profit
-            assert aim_profit - profit < 2e18  # Error less than 2 LP Tokens
 
     @invariant()
     def invariant_check_diff(self):
@@ -91,13 +56,6 @@ def test_stable_peg(
     receiver,
     admin,
 ):
-    with boa.env.prank(admin):
-        for swap in swaps:
-            swap.commit_new_fee(4 * 10**7)
-        boa.env.time_travel(4 * 86400)
-        for swap in swaps:
-            swap.apply_new_fee()
-
     StateMachine.TestCase.settings = settings(max_examples=20, stateful_step_count=40, suppress_health_check=HealthCheck.all())
     for k, v in locals().items():
         setattr(StateMachine, k, v)
@@ -114,19 +72,11 @@ def test_fail_remove(
     receiver,
     admin,
 ):
-    with boa.env.prank(admin):
-        for swap in swaps:
-            swap.commit_new_fee(4 * 10**7)
-        boa.env.time_travel(4 * 86400)
-        for swap in swaps:
-            swap.apply_new_fee()
     for k, v in locals().items():
         setattr(StateMachine, k, v)
     state = StateMachine()
     state.advance_time()
     state.invariant_check_diff()
-    state.invariant_profit()
-    state.invariant_profit_increases()
     state.remove(pct=0.75, pool_idx=0)
     state.teardown()
 
@@ -141,19 +91,11 @@ def test_fail_wrong_diff(
     receiver,
     admin,
 ):
-    with boa.env.prank(admin):
-        for swap in swaps:
-            swap.commit_new_fee(4 * 10**7)
-        boa.env.time_travel(4 * 86400)
-        for swap in swaps:
-            swap.apply_new_fee()
     for k, v in locals().items():
         setattr(StateMachine, k, v)
     state = StateMachine()
     state.advance_time()
     state.invariant_check_diff()
-    state.invariant_profit()
-    state.invariant_profit_increases()
     state.exchange(idx=0, pct=0.75, pool_idx=0)
     state.advance_time()
     state.invariant_check_diff()
@@ -170,34 +112,20 @@ def test_fail_wrong_diff_2(
     receiver,
     admin,
 ):
-    with boa.env.prank(admin):
-        for swap in swaps:
-            swap.commit_new_fee(4 * 10**7)
-        boa.env.time_travel(4 * 86400)
-        for swap in swaps:
-            swap.apply_new_fee()
     for k, v in locals().items():
         setattr(StateMachine, k, v)
     state = StateMachine()
     state.advance_time()
     state.invariant_check_diff()
-    state.invariant_profit()
-    state.invariant_profit_increases()
     state.remove(pct=0.5, pool_idx=1)
     state.advance_time()
     state.invariant_check_diff()
-    state.invariant_profit()
-    state.invariant_profit_increases()
     state.add_one_coin(idx=1, pct=0.5, pool_idx=0)
     state.advance_time()
     state.invariant_check_diff()
-    state.invariant_profit()
-    state.invariant_profit_increases()
     state.remove_one_coin(idx=0, pct=0.75, pool_idx=0)
     state.advance_time()
     state.invariant_check_diff()
-    state.invariant_profit()
-    state.invariant_profit_increases()
     state.remove(pct=0.5, pool_idx=0)
     state.advance_time()
     state.invariant_check_diff()

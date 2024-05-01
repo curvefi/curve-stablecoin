@@ -17,11 +17,11 @@ def mock_factory(admin):
 
 
 @pytest.fixture(scope="module")
-def mock_peg_keepers(admin):
+def mock_peg_keepers(admin, stablecoin):
     with boa.env.prank(admin):
         pks = []
         for i in range(4):
-            pk = boa.load('contracts/testing/MockPegKeeper.vy')
+            pk = boa.load('contracts/testing/MockPegKeeper.vy', 10 ** 18, stablecoin)
             pk.set_debt(10**4 * 10**18)
             pks.append(pk)
         return pks
@@ -29,10 +29,10 @@ def mock_peg_keepers(admin):
 
 @pytest.fixture(scope='module')
 def mp(mock_factory, mock_peg_keepers, price_oracle, admin):
-    with boa.env.anchor(), boa.env.prank(admin):
+    with boa.env.prank(admin):
         price_oracle.set_price(10**18)
 
-        yield boa.load(
+        return boa.load(
             'contracts/mpolicies/AggMonetaryPolicy3.vy',
             admin,
             price_oracle.address,

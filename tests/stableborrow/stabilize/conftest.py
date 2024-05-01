@@ -28,6 +28,11 @@ def bob(accounts):
 
 
 @pytest.fixture(scope="module")
+def collateral_token(get_collateral_token):
+    return get_collateral_token(18)
+
+
+@pytest.fixture(scope="module")
 def stablecoin_a(admin):
     with boa.env.prank(admin):
         return boa.load('contracts/testing/ERC20Mock.vy', "USDa", "USDa", 6)
@@ -158,16 +163,38 @@ def crypto_agg_with_external_oracle(dummy_tricrypto, agg, stableswap_a, chainlin
 
 
 @pytest.fixture(scope="module")
-def peg_keepers(stablecoin_a, stablecoin_b, stableswap_a, stableswap_b, controller_factory, agg, admin, receiver):
+def mock_peg_keepers(stablecoin):
+    """ Make Regulator always pass order of prices check """
+    return [
+        boa.load('contracts/testing/MockPegKeeper.vy', price, stablecoin) for price in [0, 2 ** 256 - 1]
+    ]
+
+
+@pytest.fixture(scope="module")
+def reg(agg, stablecoin, mock_peg_keepers, admin):
+    regulator = boa.load(
+        'contracts/stabilizer/PegKeeperRegulator.vy',
+        stablecoin, agg, admin, admin
+    )
+    with boa.env.prank(admin):
+        regulator.set_price_deviation(10 ** 20)
+        regulator.set_debt_parameters(10 ** 18, 10 ** 18)
+        regulator.add_peg_keepers([mock.address for mock in mock_peg_keepers])
+    return regulator
+
+
+@pytest.fixture(scope="module")
+def peg_keepers(stablecoin_a, stablecoin_b, stableswap_a, stableswap_b, controller_factory, reg, admin, receiver):
     pks = []
     with boa.env.prank(admin):
         for (coin, pool) in [(stablecoin_a, stableswap_a), (stablecoin_b, stableswap_b)]:
             pks.append(
                     boa.load(
-                        'contracts/stabilizer/PegKeeper.vy',
-                        pool.address, 1, receiver, 2 * 10**4,
-                        controller_factory.address, agg.address, admin)
+                        'contracts/stabilizer/PegKeeperV2.vy',
+                        pool.address, receiver, 2 * 10**4,
+                        controller_factory.address, reg.address, admin)
             )
+        reg.add_peg_keepers([pk.address for pk in pks])
     return pks
 
 

@@ -7,7 +7,6 @@ from hypothesis.stateful import run_state_machine_as_test, rule, invariant
 
 pytestmark = pytest.mark.usefixtures(
     "add_initial_liquidity",
-    "provide_token_to_peg_keepers",
     "mint_alice"
 )
 
@@ -50,8 +49,10 @@ class StateMachine(base.StateMachine):
                 if amount < 0:
                     return
                 StateMachine._mint(self.alice, [self.stablecoin], [amount])
+                self._disable_fees()
                 with boa.env.prank(self.alice):
                     swap.add_liquidity([0, amount], 0)
+                self._enable_fees()
 
                 boa.env.time_travel(15 * 60)
 
