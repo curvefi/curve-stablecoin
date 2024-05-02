@@ -66,7 +66,7 @@ class StateMachine(base.StateMachine):
                 # This is imprecise: probably because decimals of the redeemable token can be not 1e18
                 # But could make sense to investigate more
                 assert debt_after / debt_before < 1e-5
-                assert abs(swap.balances(0) * 10**18 // dmul[0] - (swap.balances(1) - 4 * debt)) <= swap.balances(1) / 1e5
+                assert abs(swap.balances(0) * 10**18 // dmul[0] - (swap.balances(1) - 4 * debt)) <= debt * swap.fee() // (2 * 10 ** 10)
 
 
 @pytest.mark.parametrize("always_withdraw", [False, True])
