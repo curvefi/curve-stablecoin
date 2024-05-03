@@ -1,6 +1,6 @@
 import pytest
 import boa
-from boa.vyper.contract import BoaError
+from boa import BoaError
 from hypothesis import settings
 from hypothesis.stateful import run_state_machine_as_test, invariant
 from hypothesis._settings import HealthCheck
@@ -60,10 +60,7 @@ def test_stable_peg(
 ):
     with boa.env.prank(admin):
         for swap in swaps:
-            swap.commit_new_fee(4 * 10**7)
-        boa.env.time_travel(4 * 86400)
-        for swap in swaps:
-            swap.apply_new_fee()
+            swap.eval(f"self.fee = {4 * 10**7}")
 
     StateMachine.TestCase.settings = settings(max_examples=100, stateful_step_count=40, suppress_health_check=HealthCheck.all())
     for k, v in locals().items():
@@ -83,10 +80,7 @@ def test_expected_profit_amount(
 ):
     with boa.env.prank(admin):
         for swap in swaps:
-            swap.commit_new_fee(4 * 10**7)
-        boa.env.time_travel(4 * 86400)
-        for swap in swaps:
-            swap.apply_new_fee()
+            swap.eval(f"self.fee = {4 * 10**7}")
     for k, v in locals().items():
         setattr(StateMachine, k, v)
     state = StateMachine()
@@ -125,10 +119,7 @@ def test_expected_profit_amount_2(
 ):
     with boa.env.prank(admin):
         for swap in swaps:
-            swap.commit_new_fee(4 * 10**7)
-        boa.env.time_travel(4 * 86400)
-        for swap in swaps:
-            swap.apply_new_fee()
+            swap.eval(f"self.fee = {4 * 10 ** 7}")
     for k, v in locals().items():
         setattr(StateMachine, k, v)
     state = StateMachine()
@@ -203,10 +194,7 @@ def test_calc_revert(
 ):
     with boa.env.prank(admin):
         for swap in swaps:
-            swap.commit_new_fee(4 * 10**7)
-        boa.env.time_travel(4 * 86400)
-        for swap in swaps:
-            swap.apply_new_fee()
+            swap.eval(f"self.fee = {4 * 10 ** 7}")
     for k, v in locals().items():
         setattr(StateMachine, k, v)
     state = StateMachine()

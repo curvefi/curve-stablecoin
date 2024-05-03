@@ -1,7 +1,7 @@
 from hypothesis import settings
 from hypothesis import strategies as st
 from hypothesis.stateful import RuleBasedStateMachine, run_state_machine_as_test, initialize, rule, invariant
-from boa.vyper.contract import VyperContract
+from boa.contracts.vyper.vyper_contract import VyperContract
 import boa
 
 
@@ -20,7 +20,7 @@ class AggMonetaryPolicyCreation(RuleBasedStateMachine):
     target_debt_fraction = st.integers(min_value=1, max_value=10**18)
     MPOLICY = boa.load_partial('contracts/mpolicies/AggMonetaryPolicy2.vy')
     ERC20 = boa.load_partial('contracts/testing/ERC20Mock.vy')
-    PK = boa.load_partial('contracts/stabilizer/PegKeeper.vy')
+    PK = boa.load_partial('contracts/stabilizer/PegKeeperV2.vy')
 
     def __init__(self):
         super().__init__()
@@ -32,7 +32,7 @@ class AggMonetaryPolicyCreation(RuleBasedStateMachine):
         self.one_usd = []
         self.swaps = []
         self.peg_keepers = []
-        self.agg = boa.load('contracts/price_oracles/AggregateStablePrice2.vy', self.stablecoin.address, 10**15, self.admin)
+        self.agg = boa.load('contracts/price_oracles/AggregateStablePrice3.vy', self.stablecoin.address, 10**15, self.admin)
         self.reg = boa.load('contracts/stabilizer/PegKeeperRegulator.vy', self.stablecoin.address, self.agg, self.admin, self.admin)
 
     @initialize(digits=many_digits)
