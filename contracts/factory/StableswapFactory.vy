@@ -159,7 +159,7 @@ def __init__(_fee_receiver: address):
 @external
 def metapool_implementations(_base_pool: address) -> address[10]:
     """
-    @notice Get a list of implementation contracts for metapools targetting the given base pool
+    @notice Get a list of implementation contracts for metapools targeting the given base pool
     @dev A base pool is the pool for the LP token contained within the metapool
     @param _base_pool Address of the base pool
     @return List of implementation contract addresses

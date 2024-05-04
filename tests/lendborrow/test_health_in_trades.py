@@ -105,7 +105,7 @@ def test_approval_worked(market_amm, market_controller, monetary_policy, collate
 def test_shift_oracle_fail(market_amm, market_controller, monetary_policy, collateral_token, stablecoin, price_oracle, accounts, admin):
     for k, v in locals().items():
         setattr(AdiabaticTrader, k, v)
-    # Fail which was due to rounding eror in get_amount_for_price
+    # Fail which was due to rounding error in get_amount_for_price
     with boa.env.anchor():
         state = AdiabaticTrader()
         state.initializer(collateral_amount=10000000257, n=5)

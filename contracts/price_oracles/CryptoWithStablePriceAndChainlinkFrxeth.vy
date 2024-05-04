@@ -59,7 +59,7 @@ last_timestamp: public(uint256)
 
 CHAINLINK_AGGREGATOR: immutable(ChainlinkAggregator)
 CHAINLINK_PRICE_PRECISION: immutable(uint256)
-BOUND_SIZE: immutable(uint256)  # boudaries are in %
+BOUND_SIZE: immutable(uint256)  # boundaries are in %
 
 # Uni for failsafe limits (like what frax does)
 UNI_ORACLE_READER: constant(address) = 0xB210CE856631EeEB767eFa666EC7C1C57738d438
