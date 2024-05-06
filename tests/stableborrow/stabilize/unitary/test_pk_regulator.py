@@ -7,7 +7,7 @@ ZERO_ADDRESS = "0x0000000000000000000000000000000000000000"
 ADMIN_ACTIONS_DEADLINE = 3 * 86400
 
 
-def test_price_range(peg_keepers, swaps, stablecoin, admin, receiver, reg):
+def test_price_range(peg_keepers, swaps, stablecoin, admin, receiver, reg, rate_oracle):
     with boa.env.prank(admin):
         reg.set_price_deviation(10 ** 17)
         for peg_keeper in peg_keepers:
@@ -18,12 +18,18 @@ def test_price_range(peg_keepers, swaps, stablecoin, admin, receiver, reg):
         assert reg.withdraw_allowed(peg_keeper)
 
         # Move current price (get_p) a little
-        swap.eval("self.rate_multipliers[0] *= 2")
+        try:
+            swap.eval("self.rate_multipliers[0] *= 2")
+        except:
+            rate_oracle.set(1, 2 * 10 ** 18)
         assert reg.provide_allowed(peg_keeper)
         assert reg.withdraw_allowed(peg_keeper)
 
         # Move further
-        swap.eval("self.rate_multipliers[0] *= 5")
+        try:
+            swap.eval("self.rate_multipliers[0] *= 5")
+        except:
+            rate_oracle.set(1, 10 ** 19)
 
         assert not reg.provide_allowed(peg_keeper)
         assert not reg.withdraw_allowed(peg_keeper)
@@ -147,11 +153,12 @@ def test_set_killed(reg, peg_keepers, admin, stablecoin):
         assert not reg.withdraw_allowed(peg_keeper)
 
 
-def test_admin(reg, admin, alice):
+def test_admin(reg, admin, alice, agg):
     # initial parameters
     assert reg.worst_price_threshold() == 3 * 10 ** (18 - 4)
     assert reg.price_deviation() == 100 * 10 ** 18
     assert (reg.alpha(), reg.beta()) == (10 ** 18, 10 ** 18)
+    assert reg.aggregator() == agg.address
     assert reg.emergency_admin() == admin
     assert reg.is_killed() == 0
     assert reg.admin() == admin
@@ -164,6 +171,8 @@ def test_admin(reg, admin, alice):
             reg.set_price_deviation(10 ** 17)
         with boa.reverts():
             reg.set_debt_parameters(10 ** 18 // 2, 10 ** 18 // 5)
+        with boa.reverts():
+            reg.set_aggregator(alice)
         with boa.reverts():
             reg.set_emergency_admin(alice)
         with boa.reverts():
@@ -181,6 +190,9 @@ def test_admin(reg, admin, alice):
 
         reg.set_debt_parameters(10 ** 18 // 2, 10 ** 18 // 5)
         assert (reg.alpha(), reg.beta()) == (10 ** 18 // 2, 10 ** 18 // 5)
+
+        reg.set_aggregator(alice)
+        assert reg.aggregator() == alice
 
         reg.set_emergency_admin(alice)
         assert reg.emergency_admin() == alice
