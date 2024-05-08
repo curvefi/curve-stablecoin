@@ -250,10 +250,6 @@ def _max_p_base(controller: address) -> uint256:
 def max_borrowable(controller: address, _user_collateral: uint256, _leverage_collateral: uint256, N: uint256, p_avg: uint256) -> uint256:
     """
     @notice Calculation of maximum which can be borrowed with leverage
-    @param collateral Amount of collateral (at its native precision)
-    @param N Number of bands to deposit into
-    @param route_idx Index of the route which should be use for exchange stablecoin to collateral
-    @return Maximum amount of stablecoin to borrow with leverage
     """
     # max_borrowable = collateral / (1 / (k_effective * max_p_base) - 1 / p_avg)
     AMM: LLAMMA = LLAMMA(Controller(controller).amm())

@@ -114,7 +114,6 @@ precision: uint256
 def __init__():
     """
     @notice Template for Vault implementation
-    @param stablecoin Stablecoin address to test if it is borrowed or lent out token
     """
     # The contract is made a "normal" template (not blueprint) so that we can get contract address before init
     # This is needed if we want to create a rehypothecation dual-market with two vaults
