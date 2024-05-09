@@ -26,16 +26,11 @@ fee: public(constant(uint256)) = 0  # 1 == 0.01 %
 
 
 @external
-def __init__(
-        collateral_token: address,
-        monetary_policy: address,
-        loan_discount: uint256,
-        liquidation_discount: uint256,
-        amm: address):
+def __init__(factory: Factory):
     """
     @notice FlashLender constructor. Gets crvUSD address from factory and gives infinite crvUSD approval to factory.
     """
-    crvUSD: address = Factory(msg.sender).stablecoin()
+    crvUSD: address = factory.stablecoin()
     self.supportedTokens[crvUSD] = True
 
     ERC20(crvUSD).approve(msg.sender, max_value(uint256))
