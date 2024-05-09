@@ -21,7 +21,7 @@ interface ERC3156FlashBorrower:
 
 
 CALLBACK_SUCCESS: public(constant(bytes32)) = keccak256("ERC3156FlashBorrower.onFlashLoan")
-supportedTokens: HashMap[address, bool]
+supportedTokens: public(HashMap[address, bool])
 fee: public(constant(uint256)) = 0  # 1 == 0.01 %
 
 
