@@ -51,10 +51,6 @@ interface Factory:
     def borrowed_token() -> address: view
     def collateral_token() -> address: view
 
-interface PriceOracle:
-    def price() -> uint256: view
-    def price_w() -> uint256: nonpayable
-
 
 event UserState:
     user: indexed(address)

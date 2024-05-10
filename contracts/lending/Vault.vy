@@ -27,8 +27,6 @@ interface AMM:
 
 interface Controller:
     def total_debt() -> uint256: view
-    def minted() -> uint256: view
-    def redeemed() -> uint256: view
     def monetary_policy() -> address: view
     def check_lock() -> bool: view
     def save_rate(): nonpayable

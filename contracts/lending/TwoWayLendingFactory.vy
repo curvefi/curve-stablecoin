@@ -20,7 +20,6 @@ interface Vault:
         loan_discount: uint256,
         liquidation_discount: uint256
     ) -> (address, address): nonpayable
-    def pricePerShare() -> uint256: view
     def amm() -> address: view
     def controller() -> address: view
     def borrowed_token() -> address: view
@@ -44,7 +43,6 @@ interface AMM:
 
 interface Pool:
     def price_oracle(i: uint256 = 0) -> uint256: view  # Universal method!
-    def coins(i: uint256) -> address: view
 
 
 event SetImplementations:
