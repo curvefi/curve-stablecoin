@@ -96,6 +96,9 @@ event CollectFees:
     amount: uint256
     new_supply: uint256
 
+event SetLMCallback:
+    callback: address
+
 
 struct Loan:
     initial_debt: uint256
@@ -1411,6 +1414,7 @@ def set_callback(cb: address):
     """
     assert msg.sender == FACTORY.admin()
     AMM.set_callback(cb)
+    log SetLMCallback(cb)
 
 
 @external
