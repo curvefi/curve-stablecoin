@@ -576,6 +576,9 @@ def max_borrowable(collateral: uint256, N: uint256, current_debt: uint256 = 0) -
     #
     # When n1 -= 1:
     # p_oracle_up *= A / (A - 1)
+    # if N < MIN_TICKS or N > MAX_TICKS:
+    if N < convert(MIN_TICKS, uint256) or N > convert(MAX_TICKS, uint256):
+        return 0
 
     y_effective: uint256 = self.get_y_effective(collateral * COLLATERAL_PRECISION, N, self.loan_discount)
 
