@@ -3,7 +3,7 @@ import numpy as np
 
 beta = 3
 alpha = 0.5
-u0 = 0.9
+u0 = 0.85
 
 r0 = 14
 
