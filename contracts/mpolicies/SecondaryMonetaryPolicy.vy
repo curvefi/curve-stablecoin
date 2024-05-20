@@ -78,7 +78,7 @@ def __init__(factory: Factory, amm: IAMM, borrowed_token: ERC20,
 @internal
 def get_params(u_0: uint256, alpha: uint256, beta: uint256) -> Parameters:
     p: Parameters = empty(Parameters)
-    p.u_inf = (beta - 10**18) * u_0 / (((beta - 10**18) * u_0 - (10**18 - u_0) * (18 - alpha)) / 10**18)
+    p.u_inf = (beta - 10**18) * u_0 / (((beta - 10**18) * u_0 - (10**18 - u_0) * (10**18 - alpha)) / 10**18)
     p.A = (10**18 - alpha) * p.u_inf / 10**18 * (p.u_inf - u_0) / u_0
     p.r_minf = alpha - p.A * 10**18 / p.u_inf
     return p
