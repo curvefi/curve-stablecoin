@@ -52,9 +52,10 @@ parameters: public(Parameters)
 
 
 @external
-def __init__(amm: IAMM, borrowed_token: ERC20,
+def __init__(factory: Factory, amm: IAMM, borrowed_token: ERC20,
              target_utilization: uint256, low_ratio: uint256, high_ratio: uint256):
     """
+    @param factory Factory contract
     @param amm AMM to take borrow rate from as a basis
     @param borrowed_token Borrowed token in the market (e.g. crvUSD)
     @param target_utilization Utilization at which borrow rate is the same as in AMM
@@ -66,7 +67,7 @@ def __init__(amm: IAMM, borrowed_token: ERC20,
     assert low_ratio >= 10**16
     assert high_ratio <= 100 * 10**18
 
-    FACTORY = Factory(msg.sender)
+    FACTORY = factory
     AMM = amm
     BORROWED_TOKEN = borrowed_token
     p: Parameters = self.get_params(target_utilization, low_ratio, high_ratio)
