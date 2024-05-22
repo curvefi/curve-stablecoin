@@ -19,9 +19,14 @@ U_0 = int(0.85e18)
 LOW_RATIO = int(0.5e18)
 HIGH_RATIO = int(3e18)
 # WBTC, WETH, TBTC, WSTETH (== WETH)
-AMMS = ["0x8eeDE294459EFaFf55d580bc95C98306Ab03F0C8", "0xb46aDcd1eA7E35C4EB801406C3E76E76e9a46EdF",
-        "0x5338B1bf469651a5951ef618Fb5DeFbffaed7BE9", "0xb46aDcd1eA7E35C4EB801406C3E76E76e9a46EdF"]
-SHIFTS = [0, 0, 0, 4 * 10**16]
+# CRVUSD AMMS, not LlamaLend!!
+AMMS = ["0xE0438Eb3703bF871E31Ce639bd351109c88666ea", "0x1681195C176239ac5E72d9aeBaCf5b2492E0C4ee",
+        "0xf9bD9da2427a50908C4c6D1599D8e62837C2BCB0", "0x1681195C176239ac5E72d9aeBaCf5b2492E0C4ee"]
+SHIFTS = [0, 0, 0, int(4e16 / 365 / 86400)]
+
+# LlamaLend controllers
+CONTROLLERS = ["0xcaD85b7fe52B1939DCEebEe9bCf0b2a5Aa0cE617", "0xaade9230AA9161880E13a38C83400d3D1995267b",
+               "0x413FD2511BAD510947a91f5c6c79EBD8138C29Fc", "0x1E0165DbD2019441aB7927C018701f3138114D71"]
 
 
 def account_load(fname):
@@ -46,5 +51,5 @@ if __name__ == '__main__':
         for (amm, shift) in zip(AMMS, SHIFTS)
     ]
 
-    for p in policies:
-        print(p.address)
+    for p, c in zip(policies, CONTROLLERS):
+        print(p.address, p.rate(c) * 86400 * 365 / 1e18)
