@@ -1,5 +1,13 @@
 #!/usr/bin/env python3
 
+"""
+Deployed addresses (and example borrow rates):
+WBTC 0x188041aD83145351Ef45F4bb91D08886648aEaF8 0.11111546984616
+WETH 0x1A783886F03710ABf4a6833F50D5e69047123be6 0.113174760523104
+TBTC 0x6Ddd163240c21189eD0c89D30f6681142bf05FFB 0.10298066829552
+WSTETH 0x319C06103bc51b3c01a1A121451Aa5E2A2a7778f 0.153236318405616
+"""
+
 import boa
 import json
 import os
@@ -19,6 +27,7 @@ U_0 = int(0.85e18)
 LOW_RATIO = int(0.5e18)
 HIGH_RATIO = int(3e18)
 # WBTC, WETH, TBTC, WSTETH (== WETH)
+NAMES = ["WBTC", "WETH", "TBTC", "WSTETH"]
 # CRVUSD AMMS, not LlamaLend!!
 AMMS = ["0xE0438Eb3703bF871E31Ce639bd351109c88666ea", "0x1681195C176239ac5E72d9aeBaCf5b2492E0C4ee",
         "0xf9bD9da2427a50908C4c6D1599D8e62837C2BCB0", "0x1681195C176239ac5E72d9aeBaCf5b2492E0C4ee"]
@@ -51,5 +60,5 @@ if __name__ == '__main__':
         for (amm, shift) in zip(AMMS, SHIFTS)
     ]
 
-    for p, c in zip(policies, CONTROLLERS):
-        print(p.address, p.rate(c) * 86400 * 365 / 1e18)
+    for n, p, c in zip(NAMES, policies, CONTROLLERS):
+        print(n, p.address, p.rate(c) * 86400 * 365 / 1e18)
