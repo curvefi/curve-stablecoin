@@ -44,6 +44,11 @@ struct Parameters:
     A: uint256
     r_minf: uint256
 
+MIN_UTIL: constant(uint256) = 10**16
+MAX_UTIL: constant(uint256)  = 99 * 10**16
+MIN_LOW_RATIO: constant(uint256)  = 10**16
+MAX_HIGH_RATIO: constant(uint256) = 100 * 10**18
+
 BORROWED_TOKEN: public(immutable(ERC20))
 FACTORY: public(immutable(Factory))
 AMM: public(immutable(IAMM))
@@ -62,10 +67,11 @@ def __init__(factory: Factory, amm: IAMM, borrowed_token: ERC20,
     @param low_ratio Ratio rate/target_rate at 0% utilization
     @param high_ratio Ratio rate/target_rate at 100% utilization
     """
-    assert target_utilization >= 10**16
-    assert target_utilization <= 99 * 10**16
-    assert low_ratio >= 10**16
-    assert high_ratio <= 100 * 10**18
+    assert target_utilization >= MIN_UTIL
+    assert target_utilization <= MAX_UTIL
+    assert low_ratio >= MIN_LOW_RATIO
+    assert high_ratio <= MAX_HIGH_RATIO
+    assert low_ratio < high_ratio
 
     FACTORY = factory
     AMM = amm
@@ -94,7 +100,9 @@ def calculate_rate(_for: address, d_reserves: int256, d_debt: int256) -> uint256
     assert total_debt >= 0, "Negative debt"
     assert total_reserves >= total_debt, "Reserves too small"
 
-    u: uint256 = convert(total_debt * 10**18  / total_reserves, uint256)
+    u: uint256 = 0
+    if total_reserves > 0:
+        u = convert(total_debt * 10**18  / total_reserves, uint256)
     r0: uint256 = AMM.rate()
 
     return r0 * p.r_minf / 10**18 + p.A * r0 / (p.u_inf - u)
@@ -115,10 +123,11 @@ def rate_write(_for: address = msg.sender) -> uint256:
 def set_parameters(target_utilization: uint256, low_ratio: uint256, high_ratio: uint256):
     assert msg.sender == FACTORY.admin()
 
-    assert target_utilization >= 10**16
-    assert target_utilization <= 99 * 10**16
-    assert low_ratio >= 10**16
-    assert high_ratio <= 100 * 10**18
+    assert target_utilization >= MIN_UTIL
+    assert target_utilization <= MAX_UTIL
+    assert low_ratio >= MIN_LOW_RATIO
+    assert high_ratio <= MAX_HIGH_RATIO
+    assert low_ratio < high_ratio
 
     p: Parameters = self.get_params(target_utilization, low_ratio, high_ratio)
     self.parameters = p

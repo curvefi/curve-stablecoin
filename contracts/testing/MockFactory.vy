@@ -25,6 +25,7 @@ def set_debt(controller: address, debt: uint256):
 
 
 @external
+@view
 def total_debt() -> uint256:
     total: uint256 = 0
     for i in range(10000):
@@ -33,3 +34,8 @@ def total_debt() -> uint256:
         total += Controller(self.controllers[i]).total_debt()
     return total
 
+
+@external
+@view
+def admin() -> address:
+    return tx.origin  # Never, never to it at home
