@@ -38,16 +38,19 @@ event SetParameters:
     u_inf: uint256
     A: uint256
     r_minf: uint256
+    shift: uint256
 
 struct Parameters:
     u_inf: uint256
     A: uint256
     r_minf: uint256
+    shift: uint256
 
 MIN_UTIL: constant(uint256) = 10**16
 MAX_UTIL: constant(uint256)  = 99 * 10**16
 MIN_LOW_RATIO: constant(uint256)  = 10**16
 MAX_HIGH_RATIO: constant(uint256) = 100 * 10**18
+MAX_RATE_SHIFT: constant(uint256) = 100 * 10**18
 
 BORROWED_TOKEN: public(immutable(ERC20))
 FACTORY: public(immutable(Factory))
@@ -58,7 +61,7 @@ parameters: public(Parameters)
 
 @external
 def __init__(factory: Factory, amm: IAMM, borrowed_token: ERC20,
-             target_utilization: uint256, low_ratio: uint256, high_ratio: uint256):
+             target_utilization: uint256, low_ratio: uint256, high_ratio: uint256, rate_shift: uint256):
     """
     @param factory Factory contract
     @param amm AMM to take borrow rate from as a basis
@@ -66,27 +69,30 @@ def __init__(factory: Factory, amm: IAMM, borrowed_token: ERC20,
     @param target_utilization Utilization at which borrow rate is the same as in AMM
     @param low_ratio Ratio rate/target_rate at 0% utilization
     @param high_ratio Ratio rate/target_rate at 100% utilization
+    @param rate_shift Shift all the rate curve by this rate
     """
     assert target_utilization >= MIN_UTIL
     assert target_utilization <= MAX_UTIL
     assert low_ratio >= MIN_LOW_RATIO
     assert high_ratio <= MAX_HIGH_RATIO
     assert low_ratio < high_ratio
+    assert rate_shift <= MAX_RATE_SHIFT
 
     FACTORY = factory
     AMM = amm
     BORROWED_TOKEN = borrowed_token
-    p: Parameters = self.get_params(target_utilization, low_ratio, high_ratio)
+    p: Parameters = self.get_params(target_utilization, low_ratio, high_ratio, rate_shift)
     self.parameters = p
-    log SetParameters(p.u_inf, p.A, p.r_minf)
+    log SetParameters(p.u_inf, p.A, p.r_minf, p.shift)
 
 
 @internal
-def get_params(u_0: uint256, alpha: uint256, beta: uint256) -> Parameters:
+def get_params(u_0: uint256, alpha: uint256, beta: uint256, rate_shift: uint256) -> Parameters:
     p: Parameters = empty(Parameters)
     p.u_inf = (beta - 10**18) * u_0 / (((beta - 10**18) * u_0 - (10**18 - u_0) * (10**18 - alpha)) / 10**18)
     p.A = (10**18 - alpha) * p.u_inf / 10**18 * (p.u_inf - u_0) / u_0
     p.r_minf = alpha - p.A * 10**18 / p.u_inf
+    p.shift = rate_shift
     return p
 
 
@@ -105,7 +111,7 @@ def calculate_rate(_for: address, d_reserves: int256, d_debt: int256) -> uint256
         u = convert(total_debt * 10**18  / total_reserves, uint256)
     r0: uint256 = AMM.rate()
 
-    return r0 * p.r_minf / 10**18 + p.A * r0 / (p.u_inf - u)
+    return r0 * p.r_minf / 10**18 + p.A * r0 / (p.u_inf - u) + p.shift
 
 
 @view
@@ -120,7 +126,13 @@ def rate_write(_for: address = msg.sender) -> uint256:
 
 
 @external
-def set_parameters(target_utilization: uint256, low_ratio: uint256, high_ratio: uint256):
+def set_parameters(target_utilization: uint256, low_ratio: uint256, high_ratio: uint256, rate_shift: uint256):
+    """
+    @param target_utilization Utilization at which borrow rate is the same as in AMM
+    @param low_ratio Ratio rate/target_rate at 0% utilization
+    @param high_ratio Ratio rate/target_rate at 100% utilization
+    @param rate_shift Shift all the rate curve by this rate
+    """
     assert msg.sender == FACTORY.admin()
 
     assert target_utilization >= MIN_UTIL
@@ -128,10 +140,11 @@ def set_parameters(target_utilization: uint256, low_ratio: uint256, high_ratio: 
     assert low_ratio >= MIN_LOW_RATIO
     assert high_ratio <= MAX_HIGH_RATIO
     assert low_ratio < high_ratio
+    assert rate_shift <= MAX_RATE_SHIFT
 
-    p: Parameters = self.get_params(target_utilization, low_ratio, high_ratio)
+    p: Parameters = self.get_params(target_utilization, low_ratio, high_ratio, rate_shift)
     self.parameters = p
-    log SetParameters(p.u_inf, p.A, p.r_minf)
+    log SetParameters(p.u_inf, p.A, p.r_minf, p.shift)
 
 
 @view

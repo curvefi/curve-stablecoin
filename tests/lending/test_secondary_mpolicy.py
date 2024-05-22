@@ -36,7 +36,7 @@ def borrowed_token(get_borrowed_token):
 @pytest.fixture(scope="module")
 def mp(factory, amm, borrowed_token):
     return boa.load('contracts/mpolicies/SecondaryMonetaryPolicy.vy', factory, amm, borrowed_token,
-                    int(0.85 * 1e18), int(0.5 * 1e18), int(3 * 1e18))
+                    int(0.85 * 1e18), int(0.5 * 1e18), int(3 * 1e18), 0)
 
 
 @given(
@@ -45,18 +45,20 @@ def mp(factory, amm, borrowed_token):
     u_0=st.integers(0, 10**18),
     min_ratio=st.integers(10**15, 10**19),
     max_ratio=st.integers(10**15, 10**19),
+    shift=st.integers(0, 101 * 10**18)
 )
 @settings(max_examples=10000)
-def test_mp(mp, factory, controller, borrowed_token, amm, total_debt, balance, u_0, min_ratio, max_ratio):
+def test_mp(mp, factory, controller, borrowed_token, amm, total_debt, balance, u_0, min_ratio, max_ratio, shift):
     if u_0 >= int(0.2e18) and u_0 <= int(0.98e18) and \
        min_ratio > int(1e17) and max_ratio < (10e17) and \
-       min_ratio < int(0.9e18) and max_ratio > int(1.1e18):
+       min_ratio < int(0.9e18) and max_ratio > int(1.1e18) and\
+       shift <= 100 * 10**18:
         # These parameters will certainly work
-        mp.set_parameters(u_0, min_ratio, max_ratio)
+        mp.set_parameters(u_0, min_ratio, max_ratio, shift)
     else:
         # Some of other parameters will also work unless they hit hard limits
         try:
-            mp.set_parameters(u_0, min_ratio, max_ratio)
+            mp.set_parameters(u_0, min_ratio, max_ratio, shift)
         except Exception:
             return
         assert u_0 >= MIN_UTIL and u_0 <= MAX_UTIL
@@ -68,7 +70,7 @@ def test_mp(mp, factory, controller, borrowed_token, amm, total_debt, balance, u
 
     rate = mp.rate(controller.address)
 
-    assert rate >= RATE0 * min_ratio // 10**18 * 0.999999
-    assert rate <= RATE0 * max_ratio // 10**18 * 1.000001
+    assert rate >= RATE0 * min_ratio // 10**18 * 0.999999 + shift
+    assert rate <= RATE0 * max_ratio // 10**18 * 1.000001 + shift
 
     mp.rate_write(controller.address)

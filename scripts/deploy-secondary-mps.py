@@ -41,7 +41,7 @@ if __name__ == '__main__':
 
     policies = [
         boa.load('contracts/mpolicies/SecondaryMonetaryPolicy.vy',
-                 FACTORY, amm, BORROWED_TOKEN, U_0, LOW_RATIO, HIGH_RATIO)
+                 FACTORY, amm, BORROWED_TOKEN, U_0, LOW_RATIO, HIGH_RATIO, 0)
         for amm in AMMS
     ]
 
