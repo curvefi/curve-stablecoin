@@ -18,9 +18,10 @@ BORROWED_TOKEN = "0xf939E0A03FB07F59A73314E73794Be0E57ac1b4E"  # CRVUSD
 U_0 = int(0.85e18)
 LOW_RATIO = int(0.5e18)
 HIGH_RATIO = int(3e18)
-# WBTC, WETH, TBTC
+# WBTC, WETH, TBTC, WSTETH (== WETH)
 AMMS = ["0x8eeDE294459EFaFf55d580bc95C98306Ab03F0C8", "0xb46aDcd1eA7E35C4EB801406C3E76E76e9a46EdF",
-        "0x5338B1bf469651a5951ef618Fb5DeFbffaed7BE9"]
+        "0x5338B1bf469651a5951ef618Fb5DeFbffaed7BE9", "0xb46aDcd1eA7E35C4EB801406C3E76E76e9a46EdF"]
+SHIFTS = [0, 0, 0, 4 * 10**16]
 
 
 def account_load(fname):
@@ -41,8 +42,8 @@ if __name__ == '__main__':
 
     policies = [
         boa.load('contracts/mpolicies/SecondaryMonetaryPolicy.vy',
-                 FACTORY, amm, BORROWED_TOKEN, U_0, LOW_RATIO, HIGH_RATIO, 0)
-        for amm in AMMS
+                 FACTORY, amm, BORROWED_TOKEN, U_0, LOW_RATIO, HIGH_RATIO, shift)
+        for (amm, shift) in zip(AMMS, SHIFTS)
     ]
 
     for p in policies:
