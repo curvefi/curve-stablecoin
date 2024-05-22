@@ -4,11 +4,10 @@ from math import log
 from typing import Any, Callable
 
 import boa
+from boa.environment import Env
 import pytest
 from hypothesis import settings
 
-
-boa.env.enable_fast_mode()
 
 
 PRICE = 3000
@@ -16,6 +15,7 @@ PRICE = 3000
 
 settings.register_profile("default", deadline=timedelta(seconds=1000))
 settings.load_profile(os.getenv(u"HYPOTHESIS_PROFILE", "default"))
+
 
 
 def approx(x1: int, x2: int, precision: int, abs_precision=None):
@@ -32,6 +32,13 @@ def approx(x1: int, x2: int, precision: int, abs_precision=None):
         return abs(x2) <= abs_precision
     return result or (abs(log(x1 / x2)) <= precision)
 
+
+# fresh env for each worker, so xdist workers do not trample each other
+@pytest.fixture(scope="session", autouse=True)
+def fresh_env():
+    with boa.swap_env(Env()):
+        boa.env.enable_fast_mode()
+        yield
 
 @pytest.fixture(scope="session")
 def accounts():
