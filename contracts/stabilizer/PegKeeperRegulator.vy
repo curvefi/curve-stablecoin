@@ -43,6 +43,9 @@ event DebtParameters:
 event SetAggregator:
     aggregator: address
 
+event SetFeeReceiver:
+    fee_receiver: address
+
 event SetKilled:
     is_killed: Killed
     by: address
@@ -76,15 +79,18 @@ aggregator: public(Aggregator)
 peg_keepers: public(DynArray[PegKeeperInfo, MAX_LEN])
 peg_keeper_i: HashMap[PegKeeper,  uint256]  # 1 + index of peg keeper in a list
 
+fee_receiver: public(address)
+
 is_killed: public(Killed)
 admin: public(address)
 emergency_admin: public(address)
 
 
 @external
-def __init__(_stablecoin: ERC20, _agg: Aggregator, _admin: address, _emergency_admin: address):
+def __init__(_stablecoin: ERC20, _agg: Aggregator, _fee_receiver: address, _admin: address, _emergency_admin: address):
     STABLECOIN = _stablecoin
     self.aggregator = _agg
+    self.fee_receiver = _fee_receiver
     self.admin = _admin
     self.emergency_admin = _emergency_admin
     log SetAdmin(_admin)
@@ -331,6 +337,16 @@ def set_aggregator(_agg: Aggregator):
     assert msg.sender == self.admin
     self.aggregator = _agg
     log SetAggregator(_agg.address)
+
+
+@external
+def set_fee_receiver(_fee_receiver: address):
+    """
+    @notice Set new PegKeeper's profit receiver
+    """
+    assert msg.sender == self.admin
+    self.fee_receiver = _fee_receiver
+    log SetFeeReceiver(_fee_receiver)
 
 
 @external
