@@ -5,15 +5,13 @@ ZERO_ADDRESS = "0x0000000000000000000000000000000000000000"
 ADMIN_ACTIONS_DEADLINE = 3 * 86400
 
 
-def test_parameters(peg_keepers, swaps, stablecoin, admin, receiver, reg):
+def test_parameters(peg_keepers, swaps, stablecoin, admin, reg):
     for peg_keeper, swap in zip(peg_keepers, swaps):
         assert peg_keeper.pegged() == stablecoin.address
         assert peg_keeper.pool() == swap.address
 
         assert peg_keeper.admin() == admin
         assert peg_keeper.future_admin() == ZERO_ADDRESS
-
-        assert peg_keeper.receiver() == receiver
 
         assert peg_keeper.caller_share() == 2 * 10**4
         assert peg_keeper.regulator() == reg.address
@@ -105,14 +103,3 @@ def test_revert_new_admin(peg_keepers, admin, alice):
             pk.commit_new_admin(alice)
             pk.commit_new_admin(admin)
         assert pk.future_admin() == admin
-
-
-def test_set_new_receiver(peg_keepers, admin, alice, receiver):
-    for pk in peg_keepers:
-        with boa.reverts():  # dev: only admin
-            with boa.env.prank(alice):
-                pk.set_new_receiver(alice)
-        with boa.env.prank(admin):
-            pk.set_new_receiver(alice)
-
-        assert pk.receiver() == alice

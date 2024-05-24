@@ -11,6 +11,7 @@ interface Regulator:
     def stablecoin() -> address: view
     def provide_allowed(_pk: address=msg.sender) -> uint256: view
     def withdraw_allowed(_pk: address=msg.sender) -> uint256: view
+    def fee_receiver() -> address: view
 
 interface CurvePool:
     def balances(i_coin: uint256) -> uint256: view
@@ -43,9 +44,6 @@ event Withdraw:
 
 event Profit:
     lp_amount: uint256
-
-event NewReceiver:
-    receiver: address
 
 event CommitNewAdmin:
     admin: address
@@ -93,13 +91,12 @@ FACTORY: immutable(address)
 
 @external
 def __init__(
-    _pool: CurvePool, _receiver: address, _caller_share: uint256,
+    _pool: CurvePool, _caller_share: uint256,
     _factory: address, _regulator: Regulator, _admin: address,
 ):
     """
     @notice Contract constructor
     @param _pool Contract pool address
-    @param _receiver Receiver of the profit
     @param _caller_share Caller's share of profit
     @param _factory Factory which should be able to take coins away
     @param _regulator Peg Keeper Regulator
@@ -126,10 +123,6 @@ def __init__(
 
     self.admin = _admin
     log ApplyNewAdmin(msg.sender)
-
-    assert _receiver != empty(address)
-    self.receiver = _receiver
-    log NewReceiver(_receiver)
 
     self.regulator = _regulator
     log SetNewRegulator(_regulator.address)
@@ -360,7 +353,7 @@ def withdraw_profit() -> uint256:
     @return Amount of LP Token received
     """
     lp_amount: uint256 = self._calc_profit()
-    POOL.transfer(self.receiver, lp_amount)
+    POOL.transfer(self.regulator.fee_receiver(), lp_amount)
 
     log Profit(lp_amount)
 
@@ -432,15 +425,3 @@ def apply_new_admin():
     self.new_admin_deadline = 0
 
     log ApplyNewAdmin(new_admin)
-
-
-@external
-@nonpayable
-def set_new_receiver(_new_receiver: address):
-    """
-    @notice Commit new receiver of profit
-    @param _new_receiver Address of the new receiver
-    """
-    assert msg.sender == self.admin  # dev: only admin
-    self.receiver = _new_receiver
-    log NewReceiver(_new_receiver)

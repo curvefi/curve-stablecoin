@@ -205,10 +205,10 @@ def mock_peg_keepers(stablecoin):
 
 
 @pytest.fixture(scope="module")
-def reg(agg, stablecoin, mock_peg_keepers, admin):
+def reg(agg, stablecoin, mock_peg_keepers, receiver, admin):
     regulator = boa.load(
         'contracts/stabilizer/PegKeeperRegulator.vy',
-        stablecoin, agg, admin, admin
+        stablecoin, agg, receiver, admin, admin
     )
     with boa.env.prank(admin):
         regulator.set_price_deviation(10 ** 20)
@@ -225,7 +225,7 @@ def peg_keepers(stablecoin_a, stablecoin_b, stableswap_a, stableswap_b, controll
             pks.append(
                     boa.load(
                         'contracts/stabilizer/PegKeeperV2.vy',
-                        pool.address, receiver, 2 * 10**4,
+                        pool.address, 2 * 10**4,
                         controller_factory.address, reg.address, admin)
             )
         reg.add_peg_keepers([pk.address for pk in pks])
