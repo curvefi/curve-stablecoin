@@ -1,10 +1,10 @@
 # @version 0.3.10
 
 """
-@title LlamaLend and crvUSD leverage zap (using 1inch)
+@title LlamaLendLeverageZap
 @author Curve.Fi
 @license Copyright (c) Curve.Fi, 2020-2024 - all rights reserved
-@notice Creates leverage on crvUSD via 1inch Router. Does calculations for leverage.
+@notice Creates leverage on LlamaLend and crvUSD markets via 1inch Router. Does calculations for leverage.
 """
 
 interface ERC20:
