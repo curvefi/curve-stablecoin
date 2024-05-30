@@ -33,7 +33,7 @@ def __init__(factory: Factory):
     crvUSD: address = factory.stablecoin()
     self.supportedTokens[crvUSD] = True
 
-    ERC20(crvUSD).approve(msg.sender, max_value(uint256))
+    ERC20(crvUSD).approve(factory.address, max_value(uint256))
 
 
 @external
