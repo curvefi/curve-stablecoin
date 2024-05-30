@@ -52,6 +52,11 @@ def amm_impl(amm_interface, admin):
         return amm_interface.deploy_as_blueprint()
 
 
+@pytest.fixture(scope="session")
+def user():
+    return boa.env.generate_address()
+
+
 @pytest.fixture(scope="module")
 def controller_factory(controller_prefactory, amm_impl, controller_impl, stablecoin, admin):
     with boa.env.prank(admin):
@@ -61,9 +66,20 @@ def controller_factory(controller_prefactory, amm_impl, controller_impl, stablec
 
 
 @pytest.fixture(scope="module")
-def flash_lender(controller_factory, admin):
+def max_flash_loan():
+    return 3 * 10**6 * 10 ** 18
+
+
+@pytest.fixture(scope="module")
+def flash_lender(controller_factory, admin, max_flash_loan):
     with boa.env.prank(admin):
         fl = boa.load('contracts/flashloan/FlashLender.vy', controller_factory.address)
-        controller_factory.set_debt_ceiling(fl.address, 3 * 10**6 * 10 ** 18)
+        controller_factory.set_debt_ceiling(fl.address, max_flash_loan)
 
         return fl
+
+
+@pytest.fixture(scope="module")
+def flash_borrower(flash_lender, admin):
+    with boa.env.prank(admin):
+        return boa.load('contracts/testing/DummyFlashBorrower.vy', flash_lender.address)

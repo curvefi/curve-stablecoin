@@ -17,23 +17,22 @@ def test_params(stablecoin, collateral_token, flash_lender, admin, max_flash_loa
 
 
 def test_flashloan(stablecoin, flash_lender, flash_borrower, user, max_flash_loan):
-    with boa.env.anchor():
-        for i in range(10):
-            initial_count = flash_borrower.count()
-            initial_total_amount = flash_borrower.total_amount()
-            assert initial_count == i
-            assert initial_total_amount == i * max_flash_loan
-            assert stablecoin.balanceOf(flash_lender) == max_flash_loan
-            assert stablecoin.balanceOf(flash_borrower) == 0
+    for i in range(10):
+        initial_count = flash_borrower.count()
+        initial_total_amount = flash_borrower.total_amount()
+        assert initial_count == i
+        assert initial_total_amount == i * max_flash_loan
+        assert stablecoin.balanceOf(flash_lender) == max_flash_loan
+        assert stablecoin.balanceOf(flash_borrower) == 0
 
-            flash_borrower.flashBorrow(stablecoin, max_flash_loan, sender=user)
+        flash_borrower.flashBorrow(stablecoin, max_flash_loan, sender=user)
 
-            count = flash_borrower.count()
-            total_amount = flash_borrower.total_amount()
-            assert count - initial_count == 1
-            assert total_amount - initial_total_amount == max_flash_loan
-            assert stablecoin.balanceOf(flash_borrower) == 0
-            assert stablecoin.balanceOf(flash_lender) == max_flash_loan
+        count = flash_borrower.count()
+        total_amount = flash_borrower.total_amount()
+        assert count - initial_count == 1
+        assert total_amount - initial_total_amount == max_flash_loan
+        assert stablecoin.balanceOf(flash_borrower) == 0
+        assert stablecoin.balanceOf(flash_lender) == max_flash_loan
 
 
 def test_unsupported_currency(collateral_token, flash_borrower, user, max_flash_loan):
