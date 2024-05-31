@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 
+# Deploed at: 0xf574cBeBBd549273aF82b42cD0230DE9eA6efEF7
+
 import boa
 import json
 import os
@@ -41,4 +43,6 @@ if __name__ == '__main__':
     policy = boa.load('contracts/mpolicies/SusdeMonetaryPolicy.vy',
                       FACTORY, SUSDE, BORROWED_TOKEN, U_0, LOW_RATIO, HIGH_RATIO, 0)
 
+    print(policy.raw_susde_apr() / 1e18)
     print(policy.rate(CONTROLLER) * 86400 * 365 / 1e18)
+    policy.rate_write()
