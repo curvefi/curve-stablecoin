@@ -1,6 +1,6 @@
 # @version 0.3.10
 """
-@title sUSDe monetary policy
+@title SusdeMonetaryPolicy
 @notice Based on SecondaryMonetaryPolicy, however following EMA of sUSDe yield rate
 @author Curve.fi
 @license Copyright (c) Curve.Fi, 2020-2024 - all rights reserved

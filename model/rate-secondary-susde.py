@@ -2,7 +2,7 @@ import pylab
 import numpy as np
 
 beta = 1.5
-alpha = 0.33
+alpha = 0.35
 u0 = 0.85
 
 r0 = 28
