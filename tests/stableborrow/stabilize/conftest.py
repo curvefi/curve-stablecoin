@@ -28,6 +28,11 @@ def bob(accounts):
 
 
 @pytest.fixture(scope="module")
+def collateral_token(get_collateral_token):
+    return get_collateral_token(18)
+
+
+@pytest.fixture(scope="module")
 def stablecoin_a(admin):
     with boa.env.prank(admin):
         return boa.load('contracts/testing/ERC20Mock.vy', "USDa", "USDa", 6)
@@ -53,6 +58,31 @@ def swap_deployer(swap_impl, admin):
 
 
 @pytest.fixture(scope="module")
+def rate_oracle(swap_impl, admin):
+    return boa.load('contracts/testing/MockRateOracle.vy')
+
+
+@pytest.fixture(scope="module")
+def swap_impl_ng(admin, swap_deployer, rate_oracle):
+    with boa.env.prank(admin):
+        # Do not forget `git submodule init` and `git submodule update`
+        prefix = "contracts/testing/stableswap-ng/contracts/main"
+        factory = boa.load(f"{prefix}/CurveStableSwapFactoryNG.vy", admin, admin)
+        swap_deployer.eval(f'self.factory_ng = FactoryNG({factory.address})')
+        swap_deployer.eval(f'self.rate_oracle = {rate_oracle.address}')
+
+        impl = boa.load_partial(f"{prefix}/CurveStableSwapNG.vy").deploy_as_blueprint()
+        factory.set_pool_implementations(0, impl)
+
+        math = boa.load(f"{prefix}/CurveStableSwapNGMath.vy")
+        factory.set_math_implementation(math)
+
+        views = boa.load(f"{prefix}/CurveStableSwapNGViews.vy")
+        factory.set_views_implementation(views)
+        return impl
+
+
+@pytest.fixture(scope="module")
 def unsafe_factory(controller_factory, stablecoin, admin, accounts):
     with boa.env.anchor():
         with boa.env.prank(admin):
@@ -70,16 +100,25 @@ def stableswap_a(unsafe_factory, swap_deployer, swap_impl, stablecoin, stablecoi
 
 
 @pytest.fixture(scope="module")
-def stableswap_b(unsafe_factory, swap_deployer, swap_impl, stablecoin, stablecoin_b, admin):
+def stableswap_b(unsafe_factory, swap_deployer, swap_impl_ng, stablecoin, stablecoin_b, admin):
     with boa.env.prank(admin):
-        addr = swap_deployer.deploy(stablecoin_b, stablecoin)
-        swap = swap_impl.deployer.at(addr)
+        addr = swap_deployer.deploy_ng(stablecoin_b, stablecoin)
+        swap = swap_impl_ng.deployer.at(addr)
         return swap
 
 
 @pytest.fixture(scope="module")
 def swaps(stableswap_a, stableswap_b):
     return [stableswap_a, stableswap_b]
+
+
+@pytest.fixture(scope="module")
+def set_fee():
+    def inner(swap, fee, offpeg_fee_multiplier=None):
+        swap.eval(f"self.fee = {fee}")
+        if offpeg_fee_multiplier:
+            swap.eval(f"self.offpeg_fee_multiplier = {offpeg_fee_multiplier}")
+    return inner
 
 
 @pytest.fixture(scope="module")
@@ -90,7 +129,7 @@ def redeemable_tokens(stablecoin_a, stablecoin_b):
 @pytest.fixture(scope="module")
 def price_aggregator(stablecoin, stableswap_a, stableswap_b, admin):
     with boa.env.prank(admin):
-        agg = boa.load('contracts/price_oracles/AggregateStablePrice2.vy', stablecoin.address, 10**15, admin)
+        agg = boa.load('contracts/price_oracles/AggregateStablePrice3.vy', stablecoin.address, 10**15, admin)
         agg.add_price_pair(stableswap_a.address)
         agg.add_price_pair(stableswap_b.address)
         return agg
@@ -158,16 +197,38 @@ def crypto_agg_with_external_oracle(dummy_tricrypto, agg, stableswap_a, chainlin
 
 
 @pytest.fixture(scope="module")
-def peg_keepers(stablecoin_a, stablecoin_b, stableswap_a, stableswap_b, controller_factory, agg, admin, receiver):
+def mock_peg_keepers(stablecoin):
+    """ Make Regulator always pass order of prices check """
+    return [
+        boa.load('contracts/testing/MockPegKeeper.vy', price, stablecoin) for price in [0, 2 ** 256 - 1]
+    ]
+
+
+@pytest.fixture(scope="module")
+def reg(agg, stablecoin, mock_peg_keepers, admin):
+    regulator = boa.load(
+        'contracts/stabilizer/PegKeeperRegulator.vy',
+        stablecoin, agg, admin, admin
+    )
+    with boa.env.prank(admin):
+        regulator.set_price_deviation(10 ** 20)
+        regulator.set_debt_parameters(10 ** 18, 10 ** 18)
+        regulator.add_peg_keepers([mock.address for mock in mock_peg_keepers])
+    return regulator
+
+
+@pytest.fixture(scope="module")
+def peg_keepers(stablecoin_a, stablecoin_b, stableswap_a, stableswap_b, controller_factory, reg, admin, receiver):
     pks = []
     with boa.env.prank(admin):
         for (coin, pool) in [(stablecoin_a, stableswap_a), (stablecoin_b, stableswap_b)]:
             pks.append(
                     boa.load(
-                        'contracts/stabilizer/PegKeeper.vy',
-                        pool.address, 1, receiver, 2 * 10**4,
-                        controller_factory.address, agg.address, admin)
+                        'contracts/stabilizer/PegKeeperV2.vy',
+                        pool.address, receiver, 2 * 10**4,
+                        controller_factory.address, reg.address, admin)
             )
+        reg.add_peg_keepers([pk.address for pk in pks])
     return pks
 
 

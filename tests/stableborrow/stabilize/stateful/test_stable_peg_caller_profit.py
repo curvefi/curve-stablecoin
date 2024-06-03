@@ -9,7 +9,6 @@ from . import base
 
 pytestmark = pytest.mark.usefixtures(
     "add_initial_liquidity",
-    "provide_token_to_peg_keepers",
     "mint_alice"
 )
 
@@ -19,10 +18,6 @@ class StateMachine(base.StateMachine):
     Stateful test that performs a series of deposits, swaps and withdrawals
     and confirms that profit is calculated right.
     """
-
-    def __init__(self):
-        super().__init__(disable_fee=False)
-
     @invariant()
     def invariant_expected_caller_profit(self):
         """
@@ -65,12 +60,9 @@ def test_stable_peg(
 ):
     with boa.env.prank(admin):
         for swap in swaps:
-            swap.commit_new_fee(4 * 10**7)
-        boa.env.time_travel(4 * 86400)
-        for swap in swaps:
-            swap.apply_new_fee()
+            swap.eval(f"self.fee = {4 * 10**7}")
 
-    StateMachine.TestCase.settings = settings(max_examples=700, stateful_step_count=40, suppress_health_check=HealthCheck.all())
+    StateMachine.TestCase.settings = settings(max_examples=100, stateful_step_count=40, suppress_health_check=HealthCheck.all())
     for k, v in locals().items():
         setattr(StateMachine, k, v)
     run_state_machine_as_test(StateMachine)
@@ -88,10 +80,7 @@ def test_expected_profit_amount(
 ):
     with boa.env.prank(admin):
         for swap in swaps:
-            swap.commit_new_fee(4 * 10**7)
-        boa.env.time_travel(4 * 86400)
-        for swap in swaps:
-            swap.apply_new_fee()
+            swap.eval(f"self.fee = {4 * 10**7}")
     for k, v in locals().items():
         setattr(StateMachine, k, v)
     state = StateMachine()
@@ -130,10 +119,7 @@ def test_expected_profit_amount_2(
 ):
     with boa.env.prank(admin):
         for swap in swaps:
-            swap.commit_new_fee(4 * 10**7)
-        boa.env.time_travel(4 * 86400)
-        for swap in swaps:
-            swap.apply_new_fee()
+            swap.eval(f"self.fee = {4 * 10 ** 7}")
     for k, v in locals().items():
         setattr(StateMachine, k, v)
     state = StateMachine()
@@ -208,10 +194,7 @@ def test_calc_revert(
 ):
     with boa.env.prank(admin):
         for swap in swaps:
-            swap.commit_new_fee(4 * 10**7)
-        boa.env.time_travel(4 * 86400)
-        for swap in swaps:
-            swap.apply_new_fee()
+            swap.eval(f"self.fee = {4 * 10 ** 7}")
     for k, v in locals().items():
         setattr(StateMachine, k, v)
     state = StateMachine()

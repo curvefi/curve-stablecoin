@@ -42,9 +42,14 @@ def test_min_coin_amount(swaps, initial_amounts, alice, peg_keepers, peg_keeper_
             assert peg_keeper.update()
 
 
-def test_almost_balanced(swaps, alice, peg_keepers, peg_keeper_updater, redeemable_tokens):
+def test_almost_balanced(swaps, alice, peg_keepers, peg_keeper_updater, redeemable_tokens, stablecoin):
     for swap, peg_keeper, rtoken in zip(swaps, peg_keepers, redeemable_tokens):
         with boa.env.prank(alice):
-            swap.add_liquidity([10**rtoken.decimals(), 0], 0)
-        with boa.env.prank(peg_keeper_updater):
-            assert not peg_keeper.update()
+            diff = swap.balances(1) * 10 ** (18 - stablecoin.decimals()) -\
+                   swap.balances(0) * 10 ** (18 - rtoken.decimals())
+            amounts = [diff if diff > 0 else 0, -diff if diff < 0 else 0]
+            amounts[0] += 10
+            swap.add_liquidity(amounts, 0)
+        with boa.reverts('peg unprofitable'):  # dev: peg was unprofitable
+            with boa.env.prank(peg_keeper_updater):
+                peg_keeper.update()

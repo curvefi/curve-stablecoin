@@ -27,8 +27,6 @@ interface AMM:
 
 interface Controller:
     def total_debt() -> uint256: view
-    def minted() -> uint256: view
-    def redeemed() -> uint256: view
     def monetary_policy() -> address: view
     def check_lock() -> bool: view
     def save_rate(): nonpayable
@@ -114,7 +112,6 @@ precision: uint256
 def __init__():
     """
     @notice Template for Vault implementation
-    @param stablecoin Stablecoin address to test if it is borrowed or lent out token
     """
     # The contract is made a "normal" template (not blueprint) so that we can get contract address before init
     # This is needed if we want to create a rehypothecation dual-market with two vaults

@@ -12,8 +12,6 @@ interface Oracle:
 
 interface Vault:
     def pricePerShare() -> uint256: view
-    def borrowed_token() -> address: view
-    def collateral_token() -> address: view
 
 
 ORACLE: public(immutable(Oracle))

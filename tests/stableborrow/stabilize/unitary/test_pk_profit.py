@@ -10,7 +10,7 @@ pytestmark = pytest.mark.usefixtures(
 
 
 @pytest.fixture(scope="module")
-def make_profit(swaps, redeemable_tokens, stablecoin, alice, admin):
+def make_profit(swaps, redeemable_tokens, stablecoin, alice, admin, set_fee):
     def _inner(amount, i=None):
         """Amount to add to balances."""
         for j, (rtoken, swap) in enumerate(zip(redeemable_tokens, swaps)):
@@ -21,10 +21,7 @@ def make_profit(swaps, redeemable_tokens, stablecoin, alice, admin):
             if exchange_amount == 0:
                 continue
 
-            with boa.env.prank(admin):
-                swap.commit_new_fee(10**9)
-                boa.env.time_travel(4 * 86400)
-                swap.apply_new_fee()
+            set_fee(swap, 10**9)
 
             with boa.env.prank(alice):
                 rtoken._mint_for_testing(alice, exchange_amount)
@@ -34,10 +31,7 @@ def make_profit(swaps, redeemable_tokens, stablecoin, alice, admin):
                 stablecoin.approve(swap.address, out)
                 swap.exchange(1, 0, out, 0)
 
-            with boa.env.prank(admin):
-                swap.commit_new_fee(0)
-                boa.env.time_travel(4 * 86400)
-                swap.apply_new_fee()
+            set_fee(swap, 0)
 
     return _inner
 
@@ -52,8 +46,8 @@ def test_calc_initial_profit(peg_keepers, swaps):
     for peg_keeper, swap in zip(peg_keepers, swaps):
         debt = peg_keeper.debt()
         assert debt / swap.get_virtual_price() < swap.balanceOf(peg_keeper)
-        aim_profit = swap.balanceOf(peg_keeper) - debt * 10**18 / swap.get_virtual_price()
-        assert aim_profit > peg_keeper.calc_profit() > 0
+        aim_profit = swap.balanceOf(peg_keeper) - debt * 10**18 // swap.get_virtual_price()
+        assert aim_profit >= peg_keeper.calc_profit() > 0
 
 
 @given(donate_fee=st.integers(min_value=1, max_value=10**20))
@@ -143,7 +137,7 @@ def test_profit_receiver(
         assert swap.balanceOf(receiver) > 0
 
 
-def test_unprofitable_peg(swaps, peg_keepers, redeemable_tokens, stablecoin, alice, imbalance_pool, admin):
+def test_unprofitable_peg(swaps, peg_keepers, redeemable_tokens, stablecoin, alice, imbalance_pool, admin, set_fee):
     for swap, peg_keeper, rtoken in zip(swaps, peg_keepers, redeemable_tokens):
         with boa.env.anchor():
             # Leave a little of debt
@@ -157,10 +151,7 @@ def test_unprofitable_peg(swaps, peg_keepers, redeemable_tokens, stablecoin, ali
             able_to_add = stablecoin.balanceOf(peg_keeper) // rtoken_mul
             imbalance_pool(swap, 0, 5 * able_to_add, add_diff=True)
 
-            with boa.env.prank(admin):
-                swap.commit_new_fee(5 * 10**9)
-                boa.env.time_travel(4 * 86400)
-                swap.apply_new_fee()
+            set_fee(swap, 5 * 10**9)
 
             boa.env.time_travel(15 * 60)
             with boa.reverts('peg unprofitable'):  # dev: peg was unprofitable

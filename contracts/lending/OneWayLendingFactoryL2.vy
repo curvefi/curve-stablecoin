@@ -125,7 +125,7 @@ def __init__(
     @param controller Address of Controller implementation
     @param pool_price_oracle Address of implementation for price oracle factory (prices from pools)
     @param monetary_policy Address for implementation of monetary policy
-    @param gauge Address for gauge factory on this L2
+    @param gauge_factory Address for gauge factory on this L2
     @param admin Admin address (DAO)
     """
     STABLECOIN = stablecoin

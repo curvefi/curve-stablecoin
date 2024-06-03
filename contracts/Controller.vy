@@ -51,10 +51,6 @@ interface Factory:
     def borrowed_token() -> address: view
     def collateral_token() -> address: view
 
-interface PriceOracle:
-    def price() -> uint256: view
-    def price_w() -> uint256: nonpayable
-
 
 event UserState:
     user: indexed(address)
@@ -95,6 +91,9 @@ event SetBorrowingDiscounts:
 event CollectFees:
     amount: uint256
     new_supply: uint256
+
+event SetLMCallback:
+    callback: address
 
 
 struct Loan:
@@ -156,14 +155,16 @@ MAX_ADMIN_FEE: constant(uint256) = 5 * 10**17  # 50%
 MIN_FEE: constant(uint256) = 10**6  # 1e-12, still needs to be above 0
 MAX_FEE: immutable(uint256)  # let's set to MIN_TICKS / A: for example, 4% max fee for A=100
 
-CALLBACK_DEPOSIT: constant(bytes4) = method_id("callback_deposit(address,uint256[],bytes)", output_type=bytes4)
-# CALLBACK_REPAY: constant(bytes4) = method_id("callback_repay(address,uint256[],bytes)", output_type=bytes4)  <-- BUG! The reason is 0 at the beginning of method_id
-CALLBACK_REPAY: constant(bytes4) = 0x0beb9027
-CALLBACK_LIQUIDATE: constant(bytes4) = method_id("callback_liquidate(address,uint256[],bytes)", output_type=bytes4)
+CALLBACK_DEPOSIT: constant(bytes4) = method_id("callback_deposit(address,uint256,uint256,uint256,uint256[])", output_type=bytes4)
+CALLBACK_REPAY: constant(bytes4) = method_id("callback_repay(address,uint256,uint256,uint256,uint256[])", output_type=bytes4)
+CALLBACK_LIQUIDATE: constant(bytes4) = method_id("callback_liquidate(address,uint256,uint256,uint256,uint256[])", output_type=bytes4)
+
+CALLBACK_DEPOSIT_WITH_BYTES: constant(bytes4) = method_id("callback_deposit(address,uint256,uint256,uint256,uint256[],bytes)", output_type=bytes4)
+# CALLBACK_REPAY_WITH_BYTES: constant(bytes4) = method_id("callback_repay(address,uint256,uint256,uint256,uint256[],bytes)", output_type=bytes4) <-- BUG! The reason is 0 at the beginning of method_id
+CALLBACK_REPAY_WITH_BYTES: constant(bytes4) = 0x008ae188
+CALLBACK_LIQUIDATE_WITH_BYTES: constant(bytes4) = method_id("callback_liquidate(address,uint256,uint256,uint256,uint256[],bytes)", output_type=bytes4)
 
 DEAD_SHARES: constant(uint256) = 1000
-
-MAX_ETH_GAS: constant(uint256) = 10000  # Forward this much gas to ETH transfers (2300 is what send() does)
 
 
 @external
@@ -575,6 +576,9 @@ def max_borrowable(collateral: uint256, N: uint256, current_debt: uint256 = 0) -
     #
     # When n1 -= 1:
     # p_oracle_up *= A / (A - 1)
+    # if N < MIN_TICKS or N > MAX_TICKS:
+    if N < convert(MIN_TICKS, uint256) or N > convert(MAX_TICKS, uint256):
+        return 0
 
     y_effective: uint256 = self.get_y_effective(collateral * COLLATERAL_PRECISION, N, self.loan_discount)
 
@@ -630,24 +634,21 @@ def transfer(token: ERC20, _to: address, amount: uint256):
 
 
 @internal
-def execute_callback(callbacker: address, callback_sig: bytes4, user: address,
-                     stablecoins: uint256, collateral: uint256, debt: uint256,
-                     callback_args: DynArray[uint256,7], callback_bytes: Bytes[10**4]) -> CallbackData:
+def execute_callback(callbacker: address, callback_sig: bytes4,
+                     user: address, stablecoins: uint256, collateral: uint256, debt: uint256,
+                     callback_args: DynArray[uint256, 5], callback_bytes: Bytes[10**4]) -> CallbackData:
     assert callbacker != COLLATERAL_TOKEN.address
+    assert callbacker != BORROWED_TOKEN.address
 
     data: CallbackData = empty(CallbackData)
     data.active_band = AMM.active_band()
     band_x: uint256 = AMM.bands_x(data.active_band)
     band_y: uint256 = AMM.bands_y(data.active_band)
 
-    callback_args_extended: DynArray[uint256,10] = [stablecoins, collateral, debt]
-    for i in range(len(callback_args), bound=7):
-        callback_args_extended.append(callback_args[i])
-
     # Callback
     response: Bytes[64] = raw_call(
         callbacker,
-        concat(callback_sig, _abi_encode(user, callback_args_extended, callback_bytes)),
+        concat(callback_sig, _abi_encode(user, stablecoins, collateral, debt, callback_args, callback_bytes)),
         max_outsize=64
     )
     data.stablecoins = convert(slice(response, 0, 32), uint256)
@@ -710,8 +711,7 @@ def create_loan(collateral: uint256, debt: uint256, N: uint256):
 
 @external
 @nonreentrant('lock')
-def create_loan_extended(collateral: uint256, debt: uint256, N: uint256, callbacker: address,
-                         callback_args: DynArray[uint256,7], callback_bytes: Bytes[10**4]):
+def create_loan_extended(collateral: uint256, debt: uint256, N: uint256, callbacker: address, callback_args: DynArray[uint256,5], callback_bytes: Bytes[10**4] = b""):
     """
     @notice Create loan but pass stablecoin to a callback first so that it can build leverage
     @param collateral Amount of collateral to use
@@ -719,16 +719,19 @@ def create_loan_extended(collateral: uint256, debt: uint256, N: uint256, callbac
     @param N Number of bands to deposit into (to do autoliquidation-deliquidation),
            can be from MIN_TICKS to MAX_TICKS
     @param callbacker Address of the callback contract
-    @param callback_args Extra arguments for the callback (up to 7) such as min_amount etc.
-    @param callback_bytes Bytes data for the callback such as aggregator calldata etc.
+    @param callback_args Extra arguments for the callback (up to 5) such as min_amount etc
     """
     # Before callback
     self.transfer(BORROWED_TOKEN, callbacker, debt)
 
+    # For compatibility
+    callback_sig: bytes4 = CALLBACK_DEPOSIT_WITH_BYTES
+    if callback_bytes == b"":
+        callback_sig = CALLBACK_DEPOSIT
     # Callback
     # If there is any unused debt, callbacker can send it to the user
     more_collateral: uint256 = self.execute_callback(
-        callbacker, CALLBACK_DEPOSIT, msg.sender, 0, collateral, debt, callback_args, callback_bytes).collateral
+        callbacker, callback_sig, msg.sender, 0, collateral, debt, callback_args, callback_bytes).collateral
 
     # After callback
     self._create_loan(collateral + more_collateral, debt, N, False)
@@ -832,15 +835,13 @@ def borrow_more(collateral: uint256, debt: uint256):
 
 @external
 @nonreentrant('lock')
-def borrow_more_extended(collateral: uint256, debt: uint256, callbacker: address,
-                         callback_args: DynArray[uint256,7], callback_bytes: Bytes[10**4]):
+def borrow_more_extended(collateral: uint256, debt: uint256, callbacker: address, callback_args: DynArray[uint256,5], callback_bytes: Bytes[10**4] = b""):
     """
     @notice Borrow more stablecoins while adding more collateral using a callback (to leverage more)
     @param collateral Amount of collateral to add
     @param debt Amount of stablecoin debt to take
     @param callbacker Address of the callback contract
-    @param callback_args Extra arguments for the callback (up to 7) such as min_amount etc.
-    @param callback_bytes Bytes data for the callback such as aggregator calldata etc.
+    @param callback_args Extra arguments for the callback (up to 5) such as min_amount etc
     """
     if debt == 0:
         return
@@ -848,10 +849,14 @@ def borrow_more_extended(collateral: uint256, debt: uint256, callbacker: address
     # Before callback
     self.transfer(BORROWED_TOKEN, callbacker, debt)
 
+    # For compatibility
+    callback_sig: bytes4 = CALLBACK_DEPOSIT_WITH_BYTES
+    if callback_bytes == b"":
+        callback_sig = CALLBACK_DEPOSIT
     # Callback
     # If there is any unused debt, callbacker can send it to the user
     more_collateral: uint256 = self.execute_callback(
-        callbacker, CALLBACK_DEPOSIT, msg.sender, 0, collateral, debt, callback_args, callback_bytes).collateral
+        callbacker, callback_sig, msg.sender, 0, collateral, debt, callback_args, callback_bytes).collateral
 
     # After callback
     self._add_collateral_borrow(collateral + more_collateral, debt, msg.sender, False)
@@ -951,12 +956,11 @@ def repay(_d_debt: uint256, _for: address = msg.sender, max_active_band: int256 
 
 @external
 @nonreentrant('lock')
-def repay_extended(callbacker: address, callback_args: DynArray[uint256,7], callback_bytes: Bytes[10**4]):
+def repay_extended(callbacker: address, callback_args: DynArray[uint256,5], callback_bytes: Bytes[10**4] = b""):
     """
     @notice Repay loan but get a stablecoin for that from callback (to deleverage)
     @param callbacker Address of the callback contract
-    @param callback_args Extra arguments for the callback (up to 7) such as min_amount etc.
-    @param callback_bytes Bytes data for the callback such as aggregator calldata etc.
+    @param callback_args Extra arguments for the callback (up to 5) such as min_amount etc
     """
     # Before callback
     ns: int256[2] = AMM.read_user_tick_numbers(msg.sender)
@@ -966,8 +970,12 @@ def repay_extended(callbacker: address, callback_args: DynArray[uint256,7], call
     debt, rate_mul = self._debt(msg.sender)
     self.transferFrom(COLLATERAL_TOKEN, AMM.address, callbacker, xy[1])
 
+    # For compatibility
+    callback_sig: bytes4 = CALLBACK_REPAY_WITH_BYTES
+    if callback_bytes == b"":
+        callback_sig = CALLBACK_REPAY
     cb: CallbackData = self.execute_callback(
-        callbacker, CALLBACK_REPAY, msg.sender, xy[0], xy[1], debt, callback_args, callback_bytes)
+        callbacker, callback_sig, msg.sender, xy[0], xy[1], debt, callback_args, callback_bytes)
 
     # After callback
     total_stablecoins: uint256 = cb.stablecoins + xy[0]
@@ -1124,8 +1132,8 @@ def _get_f_remove(frac: uint256, health_limit: uint256) -> uint256:
     return f_remove
 
 @internal
-def _liquidate(user: address, min_x: uint256, health_limit: uint256, frac: uint256, callbacker: address,
-               callback_args: DynArray[uint256,7], callback_bytes: Bytes[10**4]):
+def _liquidate(user: address, min_x: uint256, health_limit: uint256, frac: uint256,
+               callbacker: address, callback_args: DynArray[uint256,5], callback_bytes: Bytes[10**4] = b""):
     """
     @notice Perform a bad liquidation of user if the health is too bad
     @param user Address of the user
@@ -1133,8 +1141,7 @@ def _liquidate(user: address, min_x: uint256, health_limit: uint256, frac: uint2
     @param health_limit Minimal health to liquidate at
     @param frac Fraction to liquidate; 100% = 10**18
     @param callbacker Address of the callback contract
-    @param callback_args Extra arguments for the callback (up to 7) such as min_amount etc.
-    @param callback_bytes Bytes data for the callback such as aggregator calldata etc.
+    @param callback_args Extra arguments for the callback (up to 5) such as min_amount etc
     """
     debt: uint256 = 0
     rate_mul: uint256 = 0
@@ -1174,9 +1181,13 @@ def _liquidate(user: address, min_x: uint256, health_limit: uint256, frac: uint2
         else:
             # Move collateral to callbacker, call it and remove everything from it back in
             self.transferFrom(COLLATERAL_TOKEN, AMM.address, callbacker, xy[1])
+            # For compatibility
+            callback_sig: bytes4 = CALLBACK_LIQUIDATE_WITH_BYTES
+            if callback_bytes == b"":
+                callback_sig = CALLBACK_LIQUIDATE
             # Callback
             cb: CallbackData = self.execute_callback(
-                callbacker, CALLBACK_LIQUIDATE, user, xy[0], xy[1], debt, callback_args, callback_bytes)
+                callbacker, callback_sig, user, xy[0], xy[1], debt, callback_args, callback_bytes)
             assert cb.stablecoins >= to_repay, "not enough proceeds"
             if cb.stablecoins > to_repay:
                 self.transferFrom(BORROWED_TOKEN, callbacker, msg.sender, unsafe_sub(cb.stablecoins, to_repay))
@@ -1215,20 +1226,19 @@ def liquidate(user: address, min_x: uint256):
     discount: uint256 = 0
     if user != msg.sender:
         discount = self.liquidation_discounts[user]
-    self._liquidate(user, min_x, discount, 10**18, empty(address), [], b"")
+    self._liquidate(user, min_x, discount, 10**18, empty(address), [])
 
 
 @external
 @nonreentrant('lock')
-def liquidate_extended(user: address, min_x: uint256, frac: uint256, callbacker: address,
-                       callback_args: DynArray[uint256,7], callback_bytes: Bytes[10**4]):
+def liquidate_extended(user: address, min_x: uint256, frac: uint256,
+                       callbacker: address, callback_args: DynArray[uint256,5], callback_bytes: Bytes[10**4] = b""):
     """
     @notice Peform a bad liquidation (or self-liquidation) of user if health is not good
     @param min_x Minimal amount of stablecoin to receive (to avoid liquidators being sandwiched)
     @param frac Fraction to liquidate; 100% = 10**18
     @param callbacker Address of the callback contract
-    @param callback_args Extra arguments for the callback (up to 7) such as min_amount etc.
-    @param callback_bytes Bytes data for the callback such as aggregator calldata etc.
+    @param callback_args Extra arguments for the callback (up to 5) such as min_amount etc
     """
     discount: uint256 = 0
     if user != msg.sender:
@@ -1402,6 +1412,7 @@ def set_callback(cb: address):
     """
     assert msg.sender == FACTORY.admin()
     AMM.set_callback(cb)
+    log SetLMCallback(cb)
 
 
 @external
