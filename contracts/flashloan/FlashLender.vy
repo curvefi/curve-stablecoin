@@ -12,10 +12,9 @@ interface Factory:
     def stablecoin() -> address: view
 
 interface ERC3156FlashBorrower:
-    def onFlashLoan(initiator: address, token: address, amount: uint256, fee: uint256, data: Bytes[10**5]) -> bytes32: nonpayable
+    def onFlashLoan(initiator: address, token: address, amount: uint256, fee: uint256, data: Bytes[10**5]): nonpayable
 
 
-CALLBACK_SUCCESS: public(constant(bytes32)) = keccak256("ERC3156FlashBorrower.onFlashLoan")
 CRVUSD: immutable(address)
 fee: public(constant(uint256)) = 0  # 1 == 0.01 %
 
@@ -49,7 +48,7 @@ def flashLoan(receiver: ERC3156FlashBorrower, token: address, amount: uint256, d
     assert token == CRVUSD, "FlashLender: Unsupported currency"
     token_balance: uint256 = ERC20(token).balanceOf(self)
     assert ERC20(token).transfer(receiver.address, amount, default_return_value=True), "FlashLender: Transfer failed"
-    assert receiver.onFlashLoan(msg.sender, token, amount, 0, data) == CALLBACK_SUCCESS, "FlashLender: Callback failed"
+    receiver.onFlashLoan(msg.sender, token, amount, 0, data)
     assert ERC20(token).balanceOf(self) == token_balance, "FlashLender: Repay failed"
 
     return True
