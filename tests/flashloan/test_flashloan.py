@@ -50,6 +50,6 @@ def test_callback_failed(stablecoin, flash_borrower, user, max_flash_loan):
         flash_borrower.flashBorrow(stablecoin, max_flash_loan, False, sender=user)
 
 
-def test_repay_not_approved(stablecoin, flash_borrower, user, max_flash_loan):
-    with boa.reverts():
+def test_repay_failed(stablecoin, flash_borrower, user, max_flash_loan):
+    with boa.reverts("FlashLender: Repay failed"):
         flash_borrower.flashBorrow(stablecoin, max_flash_loan, True, False, sender=user)
