@@ -1,8 +1,6 @@
 # @version 0.3.10
 
-interface ERC20:
-    def balanceOf(_from: address) -> uint256: view
-    def approve(_spender: address, _value: uint256) -> bool: nonpayable
+from vyper.interfaces import ERC20
 
 interface ERC3156FlashLender:
     def flashFee(token: address, amount: uint256) -> uint256: view
@@ -16,6 +14,7 @@ LENDER: public(immutable(address))
 count: public(uint256)
 total_amount: public(uint256)
 success: bool
+send_back: bool
 
 
 @external
@@ -46,6 +45,9 @@ def onFlashLoan(
     self.count += 1
     self.total_amount += amount
 
+    if self.send_back:
+        ERC20(token).transfer(LENDER, amount + fee)
+
     if self.success:
         return CALLBACK_SUCCESS
     else:
@@ -53,12 +55,10 @@ def onFlashLoan(
 
 
 @external
-def flashBorrow(token: address, amount: uint256, success: bool = True, approve: bool = True):
+def flashBorrow(token: address, amount: uint256, success: bool = True, send_back: bool = True):
     """
     @notice Initiate a flash loan.
     """
-    _fee: uint256 = ERC3156FlashLender(LENDER).flashFee(token, amount)
-    if approve:
-        ERC20(token).approve(LENDER, amount + _fee)
+    self.send_back = send_back
     self.success = success
     ERC3156FlashLender(LENDER).flashLoan(self, token, amount, b"")
