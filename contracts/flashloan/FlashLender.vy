@@ -6,12 +6,7 @@
 @license Copyright (c) Curve.Fi, 2020-2024 - all rights reserved
 """
 
-interface ERC20:
-    def transferFrom(_from: address, _to: address, _value: uint256) -> bool: nonpayable
-    def transfer(_to: address, _value: uint256) -> bool: nonpayable
-    def decimals() -> uint256: view
-    def approve(_spender: address, _value: uint256) -> bool: nonpayable
-    def balanceOf(_from: address) -> uint256: view
+from vyper.interfaces import ERC20
 
 interface Factory:
     def stablecoin() -> address: view
