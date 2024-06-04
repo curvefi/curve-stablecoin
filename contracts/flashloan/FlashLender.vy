@@ -47,10 +47,9 @@ def flashLoan(receiver: ERC3156FlashBorrower, token: address, amount: uint256, d
     @param data A data parameter to be passed on to the `receiver` for any custom use.
     """
     assert token == CRVUSD, "FlashLender: Unsupported currency"
-    _fee: uint256 = self._flashFee(token, amount)
     assert ERC20(token).transfer(receiver.address, amount, default_return_value=True), "FlashLender: Transfer failed"
-    assert receiver.onFlashLoan(msg.sender, token, amount, _fee, data) == CALLBACK_SUCCESS, "FlashLender: Callback failed"
-    assert ERC20(token).transferFrom(receiver.address, self, amount + _fee, default_return_value=True), "FlashLender: Repay failed"
+    assert receiver.onFlashLoan(msg.sender, token, amount, 0, data) == CALLBACK_SUCCESS, "FlashLender: Callback failed"
+    assert ERC20(token).transferFrom(receiver.address, self, amount, default_return_value=True), "FlashLender: Repay failed"
 
     return True
 
@@ -65,19 +64,7 @@ def flashFee(token: address, amount: uint256) -> uint256:
     @return The amount of `token` to be charged for the loan, on top of the returned principal.
     """
     assert token == CRVUSD, "FlashLender: Unsupported currency"
-    return self._flashFee(token, amount)
-
-
-@internal
-@view
-def _flashFee(token: address, amount: uint256) -> uint256:
-    """
-    @notice The fee to be charged for a given loan. Internal function with no checks.
-    @param token The loan currency.
-    @param amount The amount of tokens lent.
-    @return The amount of `token` to be charged for the loan, on top of the returned principal.
-    """
-    return amount * fee / 10000
+    return 0
 
 
 @external
