@@ -47,7 +47,7 @@ def flashLoan(receiver: ERC3156FlashBorrower, token: address, amount: uint256, d
     """
     assert token == CRVUSD, "FlashLender: Unsupported currency"
     token_balance: uint256 = ERC20(token).balanceOf(self)
-    assert ERC20(token).transfer(receiver.address, amount, default_return_value=True), "FlashLender: Transfer failed"
+    ERC20(token).transfer(receiver.address, amount)
     receiver.onFlashLoan(msg.sender, token, amount, 0, data)
     assert ERC20(token).balanceOf(self) == token_balance, "FlashLender: Repay failed"
 
