@@ -16,7 +16,7 @@ interface ERC3156FlashBorrower:
 
 
 CALLBACK_SUCCESS: public(constant(bytes32)) = keccak256("ERC3156FlashBorrower.onFlashLoan")
-supportedTokens: public(HashMap[address, bool])
+CRVUSD: immutable(address)
 fee: public(constant(uint256)) = 0  # 1 == 0.01 %
 
 
@@ -25,10 +25,14 @@ def __init__(factory: Factory):
     """
     @notice FlashLender constructor. Gets crvUSD address from factory and gives infinite crvUSD approval to factory.
     """
-    crvUSD: address = factory.stablecoin()
-    self.supportedTokens[crvUSD] = True
+    CRVUSD = factory.stablecoin()
+    ERC20(CRVUSD).approve(factory.address, max_value(uint256))
 
-    ERC20(crvUSD).approve(factory.address, max_value(uint256))
+
+@external
+@view
+def supportedTokens(token: address) -> bool:
+    return token == CRVUSD
 
 
 @external
@@ -42,7 +46,7 @@ def flashLoan(receiver: ERC3156FlashBorrower, token: address, amount: uint256, d
     @param amount The amount of tokens lent.
     @param data A data parameter to be passed on to the `receiver` for any custom use.
     """
-    assert self.supportedTokens[token], "FlashLender: Unsupported currency"
+    assert token == CRVUSD, "FlashLender: Unsupported currency"
     _fee: uint256 = self._flashFee(token, amount)
     assert ERC20(token).transfer(receiver.address, amount, default_return_value=True), "FlashLender: Transfer failed"
     assert receiver.onFlashLoan(msg.sender, token, amount, _fee, data) == CALLBACK_SUCCESS, "FlashLender: Callback failed"
@@ -60,7 +64,7 @@ def flashFee(token: address, amount: uint256) -> uint256:
     @param amount The amount of tokens lent.
     @return The amount of `token` to be charged for the loan, on top of the returned principal.
     """
-    assert self.supportedTokens[token], "FlashLender: Unsupported currency"
+    assert token == CRVUSD, "FlashLender: Unsupported currency"
     return self._flashFee(token, amount)
 
 
@@ -84,7 +88,7 @@ def maxFlashLoan(token: address) -> uint256:
     @param token The loan currency.
     @return The amount of `token` that can be borrowed.
     """
-    if self.supportedTokens[token]:
+    if token == CRVUSD:
         return ERC20(token).balanceOf(self)
     else:
         return 0
