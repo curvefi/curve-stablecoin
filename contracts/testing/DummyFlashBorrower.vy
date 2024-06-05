@@ -30,7 +30,7 @@ def onFlashLoan(
     amount: uint256,
     fee: uint256,
     data: Bytes[10 ** 5],
-):
+) -> bytes32:
     """
     @notice ERC-3156 Flash loan callback.
     """
@@ -46,6 +46,7 @@ def onFlashLoan(
     if self.send_back:
         ERC20(token).transfer(LENDER, amount + fee)
 
+    return keccak256("ERC3156FlashBorrower.onFlashLoan")
 
 @external
 def flashBorrow(token: address, amount: uint256, send_back: bool = True):
