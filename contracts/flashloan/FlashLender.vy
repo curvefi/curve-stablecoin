@@ -46,10 +46,10 @@ def flashLoan(receiver: ERC3156FlashBorrower, token: address, amount: uint256, d
     @param data A data parameter to be passed on to the `receiver` for any custom use.
     """
     assert token == CRVUSD, "FlashLender: Unsupported currency"
-    token_balance: uint256 = ERC20(token).balanceOf(self)
-    ERC20(token).transfer(receiver.address, amount)
-    receiver.onFlashLoan(msg.sender, token, amount, 0, data)
-    assert ERC20(token).balanceOf(self) == token_balance, "FlashLender: Repay failed"
+    crvusd_balance: uint256 = ERC20(CRVUSD).balanceOf(self)
+    ERC20(CRVUSD).transfer(receiver.address, amount)
+    receiver.onFlashLoan(msg.sender, CRVUSD, amount, 0, data)
+    assert ERC20(CRVUSD).balanceOf(self) == crvusd_balance, "FlashLender: Repay failed"
 
     return True
 
@@ -76,6 +76,6 @@ def maxFlashLoan(token: address) -> uint256:
     @return The amount of `token` that can be borrowed.
     """
     if token == CRVUSD:
-        return ERC20(token).balanceOf(self)
+        return ERC20(CRVUSD).balanceOf(self)
     else:
         return 0
