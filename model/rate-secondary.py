@@ -2,10 +2,10 @@ import pylab
 import numpy as np
 
 beta = 3
-alpha = 0.5
+alpha = 0.35
 u0 = 0.85
 
-r0 = 14
+r0 = 15
 
 u_inf = (beta - 1) * u0 / ((beta - 1) * u0 - (1 - u0) * (1 - alpha))
 A = (1 - alpha) * (u_inf - u0) * u_inf / u0

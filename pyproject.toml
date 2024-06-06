@@ -11,7 +11,7 @@ package-mode = false
 python = ">=3.10,<4"
 vyper = "0.3.10"
 poetry = "^1"
-titanoboa = {git = "https://github.com/vyperlang/titanoboa.git", rev = "10fe638c7dc8c8856e6b7eed80a77fe416bb2724"}
+titanoboa = {git = "https://github.com/vyperlang/titanoboa.git", rev = "fc34a6655d0423aedd00a509f50557c1bc9f6610"}
 hypothesis = "^6.99.0"
 pdbpp = "^0.10.3"
 jedi = "^0.19.0"
