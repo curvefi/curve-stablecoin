@@ -30,8 +30,10 @@ if __name__ == '__main__':
         boa.env.add_account(babe)
         boa.env._fork_try_prefetch_state = False
 
+    controller_impl = boa.load_partial('contracts/Controller.vy')
+
     actions = [
-        (CONTROLLER, 'set_monetary_policy', MPOLICY)
+        (controller_impl.at(CONTROLLER), 'set_monetary_policy', MPOLICY)
     ]
     vote_id = curve_dao.create_vote(
         target,
