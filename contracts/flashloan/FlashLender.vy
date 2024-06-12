@@ -6,6 +6,8 @@
 @license Copyright (c) Curve.Fi, 2020-2024 - all rights reserved
 """
 
+VERSION: public(constant(String[8])) = "1.0.0"  # Initial
+
 from vyper.interfaces import ERC20
 
 interface Factory:
@@ -13,7 +15,6 @@ interface Factory:
 
 interface ERC3156FlashBorrower:
     def onFlashLoan(initiator: address, token: address, amount: uint256, fee: uint256, data: Bytes[10**5]): nonpayable
-
 
 CRVUSD: immutable(address)
 fee: public(constant(uint256)) = 0  # 1 == 0.01 %
