@@ -1,5 +1,9 @@
 #!/usr/bin/env python3
 
+# Vault: 0xd0c183C9339e73D7c9146D48E1111d1FBEe2D6f9
+# Gauge: 0xDFF0ed66fdDCC440FB3aDFB2f12029925799979c
+# Oracle: 0xAC8A4D55c1d6Ea3F84A6c868f2b5a5Ec3CeF2800
+
 # Deployed addresses
 # WETH:
 # Vault: 0x8fb1c7AEDcbBc1222325C39dd5c1D2d23420CAe3
@@ -68,10 +72,10 @@ if __name__ == '__main__':
     vault = factory.create(
         CRVUSD,
         SFRAX,
-        500,  # A
+        285,  # A
         int(0.002e18),  # fee
-        int(0.015e18),  # loan_discount
-        int(0.01e18),   # liq_discount
+        int(0.013e18),  # loan_discount
+        int(0.010e18),   # liq_discount
         oracle.address,
         'sfrax-long',
         min_rate,
