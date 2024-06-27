@@ -6,7 +6,7 @@
 @license Copyright (c) Curve.Fi, 2020-2024 - all rights reserved
 """
 
-VERSION: public(constant(String[8])) = "1.0.0"  # Initial
+version: public(constant(String[8])) = "1.0.0"  # Initial
 
 from vyper.interfaces import ERC20
 
