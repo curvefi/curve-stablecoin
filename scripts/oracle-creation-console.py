@@ -32,10 +32,12 @@ if __name__ == '__main__':
         boa.env._fork_try_prefetch_state = False
 
     oracle_factory = boa.load_partial('contracts/price_oracles/CryptoFromPoolsRate.vy')
+    factory_agg = boa.load_partial('contracts/price_oracles/CryptoFromPoolsRateWAgg.vy')
 
     print('================================================================================================================')
     print('Usage:')
     print('>> oracle_factory.deploy([0xpool1, 0xpool2], [borrowed_ix1, borrowed_ix2], [collateral_ix1, collateral_ix2])')
+    print('>> factory_agg.deploy([0xpool1, 0xpool2], [borrowed_ix1, borrowed_ix2], [collateral_ix1, collateral_ix2], agg)')
     print('================================================================================================================')
     print()
 
