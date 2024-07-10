@@ -9,6 +9,9 @@ from eth_account import account
 from networks import ARBITRUM
 
 
+FACTORY = "0xcaEC110C784c9DF37240a8Ce096D352A75922DeA"
+
+
 def account_load(fname):
     path = os.path.expanduser(os.path.join('~', '.brownie', 'accounts', fname + '.json'))
     with open(path, 'r') as f:
@@ -26,6 +29,8 @@ if __name__ == '__main__':
         boa.env._fork_try_prefetch_state = False
 
     oracle_code = boa.load_partial('contracts/price_oracles/L2/CryptoFromPoolArbitrum.vy')
+    agg_oracle_code = boa.load_partial('contracts/price_oracles/L2/CryptoFromPoolsRateArbitrumWAgg.vy')
+    factory = boa.load_partial('contracts/lending/OneWayLendingFactoryL2.vy').at(FACTORY)
 
     import IPython
     IPython.embed()
