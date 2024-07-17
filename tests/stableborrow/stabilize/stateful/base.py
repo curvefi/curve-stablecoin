@@ -122,4 +122,4 @@ class StateMachine(RuleBasedStateMachine):
         Advance the clock by 15 minutes between each action.
         Needed for action_delay in Peg Keeper.
         """
-        boa.env.time_travel(15 * 60)
+        boa.env.time_travel(12)

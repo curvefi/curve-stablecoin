@@ -33,7 +33,7 @@ class AggMonetaryPolicyCreation(RuleBasedStateMachine):
         self.swaps = []
         self.peg_keepers = []
         self.agg = boa.load('contracts/price_oracles/AggregateStablePrice3.vy', self.stablecoin.address, 10**15, self.admin)
-        self.reg = boa.load('contracts/stabilizer/PegKeeperRegulator.vy', self.stablecoin.address, self.agg, self.admin, self.admin)
+        self.reg = boa.load('contracts/stabilizer/PegKeeperRegulator.vy', self.stablecoin.address, self.agg, self.admin, self.admin, self.admin)
 
     @initialize(digits=many_digits)
     def initializer(self, digits):
@@ -66,7 +66,7 @@ class AggMonetaryPolicyCreation(RuleBasedStateMachine):
             self.stablecoin.approve(swap.address, 2**256 - 1)
             # Deploy a peg keeper
             pk = self.PK.deploy(
-                    swap.address, self.admin, 5 * 10**4,
+                    swap.address, 5 * 10**4,
                     self.controller_factory.address, self.reg.address, self.admin)
         self.stablecoins.append(fedUSD)
         self.swaps.append(swap)
