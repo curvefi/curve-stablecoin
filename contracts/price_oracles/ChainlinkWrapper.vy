@@ -4,7 +4,7 @@ Converts Chainlink answer from latestRoundData to 1e18-based rate for LRTs
 
 interface ChainlinkOracle:
     def latestRoundData() -> ChainlinkAnswer: view
-    def decimals() -> uint8: view
+    def decimals() -> uint256: view  # In reality uint8
 
 struct ChainlinkAnswer:
     roundID: uint80
@@ -20,8 +20,8 @@ FEED: public(immutable(ChainlinkOracle))
 
 @external
 def __init__(feed: ChainlinkOracle):
+    DECIMAL_MUL = 10**(18 - feed.decimals())
     FEED = feed
-    DECIMAL_MUL = 10**(18 - convert(feed.decimals(), uint256))
 
 
 @external
