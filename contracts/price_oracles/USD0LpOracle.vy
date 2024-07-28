@@ -86,7 +86,10 @@ def _raw_price() -> uint256:
         if COLLATERAL_IX > 0:
             p_collateral = POOL.price_oracle(COLLATERAL_IX - 1)
 
-    p_lp: uint256 = LP_POOL.get_virtual_price() * min(10**18, LP_POOL.price_oracle(1 - COLLATERAL_IX_IN_LP))
+    lp_coin_oracle: uint256 = LP_POOL.price_oracle(0)  # For 2 coins
+    if COLLATERAL_IX_IN_LP > 0:
+        lp_coin_oracle = 10**36 / lp_coin_oracle
+    p_lp: uint256 = LP_POOL.get_virtual_price() * min(10**18, lp_coin_oracle)
 
     return p_collateral * p_lp / p_borrowed
 
