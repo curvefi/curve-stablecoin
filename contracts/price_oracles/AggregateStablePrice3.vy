@@ -114,6 +114,7 @@ def remove_price_pair(n: uint256):
 
     if n < n_max:
         self.price_pairs[n] = self.price_pairs[n_max]
+        self.last_tvl[n] = self.last_tvl[n_max]
         log MovePricePair(n_max, n)
     self.n_price_pairs = n_max
     log RemovePricePair(n)
