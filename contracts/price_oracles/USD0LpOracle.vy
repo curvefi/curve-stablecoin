@@ -111,7 +111,7 @@ def _raw_price(pps: uint256) -> uint256:
     lp_coin_oracle: uint256 = LP_POOL.price_oracle(0)  # For 2 coins
     if COLLATERAL_IX_IN_LP > 0:
         lp_coin_oracle = 10**36 / lp_coin_oracle
-    p_lp: uint256 = pps * min(10**18, lp_coin_oracle)
+    p_lp: uint256 = pps * min(10**18, lp_coin_oracle) / 10**18
 
     return p_collateral * p_lp / p_borrowed
 
