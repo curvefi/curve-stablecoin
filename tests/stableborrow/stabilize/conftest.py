@@ -341,7 +341,7 @@ def provide_token_to_peg_keepers_no_sleep(initial_amounts, swaps, peg_keepers, r
 
 @pytest.fixture(scope="module")
 def provide_token_to_peg_keepers(provide_token_to_peg_keepers_no_sleep):
-    boa.env.time_travel(15 * 60)
+    boa.env.time_travel(12)
 
 
 @pytest.fixture(scope="module")

@@ -56,7 +56,7 @@ class StateMachine(base.StateMachine):
                 if hasattr(swap, "offpeg_fee_multiplier"):
                     swap.eval("self.offpeg_fee_multiplier = 0")
 
-                boa.env.time_travel(15 * 60)
+                boa.env.time_travel(12)
 
                 try:
                     peg_keeper.update()
