@@ -662,8 +662,8 @@ def execute_callback(callbacker: address, callback_sig: bytes4,
     return data
 
 @internal
-def _create_loan(collateral: uint256, debt: uint256, N: uint256, transfer_coins: bool):
-    assert self.loan[msg.sender].initial_debt == 0, "Loan already created"
+def _create_loan(collateral: uint256, debt: uint256, N: uint256, transfer_coins: bool, _for: address):
+    assert self.loan[_for].initial_debt == 0, "Loan already created"
     assert N > MIN_TICKS-1, "Need more ticks"
     assert N < MAX_TICKS+1, "Need less ticks"
 
@@ -671,42 +671,44 @@ def _create_loan(collateral: uint256, debt: uint256, N: uint256, transfer_coins:
     n2: int256 = n1 + convert(N - 1, int256)
 
     rate_mul: uint256 = AMM.get_rate_mul()
-    self.loan[msg.sender] = Loan({initial_debt: debt, rate_mul: rate_mul})
+    self.loan[_for] = Loan({initial_debt: debt, rate_mul: rate_mul})
     liquidation_discount: uint256 = self.liquidation_discount
-    self.liquidation_discounts[msg.sender] = liquidation_discount
+    self.liquidation_discounts[_for] = liquidation_discount
 
     n_loans: uint256 = self.n_loans
-    self.loans[n_loans] = msg.sender
-    self.loan_ix[msg.sender] = n_loans
+    self.loans[n_loans] = _for
+    self.loan_ix[_for] = n_loans
     self.n_loans = unsafe_add(n_loans, 1)
 
     self._total_debt.initial_debt = self._total_debt.initial_debt * rate_mul / self._total_debt.rate_mul + debt
     self._total_debt.rate_mul = rate_mul
 
-    AMM.deposit_range(msg.sender, collateral, n1, n2)
+    AMM.deposit_range(_for, collateral, n1, n2)
     self.minted += debt
 
     if transfer_coins:
         self.transferFrom(COLLATERAL_TOKEN, msg.sender, AMM.address, collateral)
-        self.transfer(BORROWED_TOKEN, msg.sender, debt)
+        self.transfer(BORROWED_TOKEN, _for, debt)
 
     self._save_rate()
 
-    log UserState(msg.sender, collateral, debt, n1, n2, liquidation_discount)
-    log Borrow(msg.sender, collateral, debt)
+    log UserState(_for, collateral, debt, n1, n2, liquidation_discount)
+    log Borrow(_for, collateral, debt)
 
 
 @external
 @nonreentrant('lock')
-def create_loan(collateral: uint256, debt: uint256, N: uint256):
+def create_loan(collateral: uint256, debt: uint256, N: uint256, _for: address = msg.sender):
     """
     @notice Create loan
     @param collateral Amount of collateral to use
     @param debt Stablecoin debt to take
     @param N Number of bands to deposit into (to do autoliquidation-deliquidation),
            can be from MIN_TICKS to MAX_TICKS
+    @param _for Address to create the loan for
     """
-    self._create_loan(collateral, debt, N, True)
+    assert _for == msg.sender or _for == tx.origin  # No issue to create for anyone except for making tx revert
+    self._create_loan(collateral, debt, N, True, _for)
 
 
 @external
@@ -734,7 +736,7 @@ def create_loan_extended(collateral: uint256, debt: uint256, N: uint256, callbac
         callbacker, callback_sig, msg.sender, 0, collateral, debt, callback_args, callback_bytes).collateral
 
     # After callback
-    self._create_loan(collateral + more_collateral, debt, N, False)
+    self._create_loan(collateral + more_collateral, debt, N, False, msg.sender)
     self.transferFrom(COLLATERAL_TOKEN, msg.sender, AMM.address, collateral)
     self.transferFrom(COLLATERAL_TOKEN, callbacker, AMM.address, more_collateral)
 
