@@ -826,6 +826,7 @@ def remove_collateral(collateral: uint256, _for: address = msg.sender):
     """
     @notice Remove some collateral without repaying the debt
     @param collateral Amount of collateral to remove
+    @param _for Address to remove collateral for
     """
     if collateral == 0:
         return
@@ -838,33 +839,39 @@ def remove_collateral(collateral: uint256, _for: address = msg.sender):
 
 @external
 @nonreentrant('lock')
-def borrow_more(collateral: uint256, debt: uint256):
+def borrow_more(collateral: uint256, debt: uint256, _for: address = msg.sender):
     """
     @notice Borrow more stablecoins while adding more collateral (not necessary)
     @param collateral Amount of collateral to add
     @param debt Amount of stablecoin debt to take
+    @param _for Address to borrow for
     """
     if debt == 0:
         return
-    self._add_collateral_borrow(collateral, debt, msg.sender, False)
+    if _for != msg.sender:
+        assert self.approval[_for][msg.sender]
+    self._add_collateral_borrow(collateral, debt, _for, False)
     self.minted += debt
     self.transferFrom(COLLATERAL_TOKEN, msg.sender, AMM.address, collateral)
-    self.transfer(BORROWED_TOKEN, msg.sender, debt)
+    self.transfer(BORROWED_TOKEN, _for, debt)
     self._save_rate()
 
 
 @external
 @nonreentrant('lock')
-def borrow_more_extended(collateral: uint256, debt: uint256, callbacker: address, callback_args: DynArray[uint256,5], callback_bytes: Bytes[10**4] = b""):
+def borrow_more_extended(collateral: uint256, debt: uint256, callbacker: address, callback_args: DynArray[uint256,5], callback_bytes: Bytes[10**4] = b"", _for: address = msg.sender):
     """
     @notice Borrow more stablecoins while adding more collateral using a callback (to leverage more)
     @param collateral Amount of collateral to add
     @param debt Amount of stablecoin debt to take
     @param callbacker Address of the callback contract
     @param callback_args Extra arguments for the callback (up to 5) such as min_amount etc
+    @param _for Address to borrow for
     """
     if debt == 0:
         return
+    if _for != msg.sender:
+        assert self.approval[_for][msg.sender]
 
     # Before callback
     self.transfer(BORROWED_TOKEN, callbacker, debt)
@@ -876,10 +883,10 @@ def borrow_more_extended(collateral: uint256, debt: uint256, callbacker: address
     # Callback
     # If there is any unused debt, callbacker can send it to the user
     more_collateral: uint256 = self.execute_callback(
-        callbacker, callback_sig, msg.sender, 0, collateral, debt, callback_args, callback_bytes).collateral
+        callbacker, callback_sig, _for, 0, collateral, debt, callback_args, callback_bytes).collateral
 
     # After callback
-    self._add_collateral_borrow(collateral + more_collateral, debt, msg.sender, False)
+    self._add_collateral_borrow(collateral + more_collateral, debt, _for, False)
     self.minted += debt
     self.transferFrom(COLLATERAL_TOKEN, msg.sender, AMM.address, collateral)
     self.transferFrom(COLLATERAL_TOKEN, callbacker, AMM.address, more_collateral)
