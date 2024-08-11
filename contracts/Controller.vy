@@ -100,7 +100,7 @@ event SetLMCallback:
 event Approval:
     owner: indexed(address)
     spender: indexed(address)
-    value: uint256
+    allow: bool
 
 
 struct Loan:
@@ -173,8 +173,7 @@ CALLBACK_LIQUIDATE_WITH_BYTES: constant(bytes4) = method_id("callback_liquidate(
 
 DEAD_SHARES: constant(uint256) = 1000
 
-# Allowances for loans: how much is address allowed to borrow
-allowance: public(HashMap[address, HashMap[address, uint256]])
+approval: public(HashMap[address, HashMap[address, bool]])
 
 
 @external
@@ -720,7 +719,7 @@ def create_loan(collateral: uint256, debt: uint256, N: uint256, _for: address = 
     if _for != msg.sender and _for != tx.origin:
         # We can create a loan for tx.origin (for example when wrapping ETH with EOA),
         # however need to approve in other cases
-        self._reduce_allowance(_for, debt)
+        assert self.approval[_for][msg.sender]
     self._create_loan(collateral, debt, N, True, _for)
 
 
@@ -738,9 +737,7 @@ def create_loan_extended(collateral: uint256, debt: uint256, N: uint256, callbac
     @param _for Address to create the loan for
     """
     if _for != msg.sender and _for != tx.origin:
-        # We can create a loan for tx.origin (for example when wrapping ETH with EOA),
-        # however need to approve in other cases
-        self._reduce_allowance(_for, debt)
+        assert self.approval[_for][msg.sender]
 
     # Before callback
     self.transfer(BORROWED_TOKEN, callbacker, debt)
@@ -825,15 +822,17 @@ def add_collateral(collateral: uint256, _for: address = msg.sender):
 
 @external
 @nonreentrant('lock')
-def remove_collateral(collateral: uint256):
+def remove_collateral(collateral: uint256, _for: address = msg.sender):
     """
     @notice Remove some collateral without repaying the debt
     @param collateral Amount of collateral to remove
     """
     if collateral == 0:
         return
-    self._add_collateral_borrow(collateral, 0, msg.sender, True)
-    self.transferFrom(COLLATERAL_TOKEN, AMM.address, msg.sender, collateral)
+    if _for != msg.sender:
+        assert self.approval[_for][msg.sender]
+    self._add_collateral_borrow(collateral, 0, _for, True)
+    self.transferFrom(COLLATERAL_TOKEN, AMM.address, _for, collateral)
     self._save_rate()
 
 
@@ -1500,21 +1499,7 @@ def check_lock() -> bool:
 
 # Allowance methods
 
-@internal
-def _approve(_owner: address, _spender: address, _value: uint256):
-    self.allowance[_owner][_spender] = _value
-
-    log Approval(_owner, _spender, _value)
-
-
-@internal
-def _reduce_allowance(_from: address, _value: uint256):
-    allowance: uint256 = self.allowance[_from][msg.sender]
-    if allowance != max_value(uint256):
-        self._approve(_from, msg.sender, allowance - _value)
-
-
 @external
-def approve(_spender: address, _value: uint256) -> bool:
-    self._approve(msg.sender, _spender, _value)
-    return True
+def approve(_spender: address, _allow: bool):
+    self.approval[msg.sender][_spender] = _allow
+    log Approval(msg.sender, _spender, _allow)
