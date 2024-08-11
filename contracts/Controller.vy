@@ -726,7 +726,7 @@ def create_loan(collateral: uint256, debt: uint256, N: uint256, _for: address = 
 
 @external
 @nonreentrant('lock')
-def create_loan_extended(collateral: uint256, debt: uint256, N: uint256, callbacker: address, callback_args: DynArray[uint256,5], callback_bytes: Bytes[10**4] = b""):
+def create_loan_extended(collateral: uint256, debt: uint256, N: uint256, callbacker: address, callback_args: DynArray[uint256,5], callback_bytes: Bytes[10**4] = b"", _for: address = msg.sender):
     """
     @notice Create loan but pass stablecoin to a callback first so that it can build leverage
     @param collateral Amount of collateral to use
@@ -735,7 +735,13 @@ def create_loan_extended(collateral: uint256, debt: uint256, N: uint256, callbac
            can be from MIN_TICKS to MAX_TICKS
     @param callbacker Address of the callback contract
     @param callback_args Extra arguments for the callback (up to 5) such as min_amount etc
+    @param _for Address to create the loan for
     """
+    if _for != msg.sender and _for != tx.origin:
+        # We can create a loan for tx.origin (for example when wrapping ETH with EOA),
+        # however need to approve in other cases
+        self._reduce_allowance(_for, debt)
+
     # Before callback
     self.transfer(BORROWED_TOKEN, callbacker, debt)
 
@@ -746,10 +752,10 @@ def create_loan_extended(collateral: uint256, debt: uint256, N: uint256, callbac
     # Callback
     # If there is any unused debt, callbacker can send it to the user
     more_collateral: uint256 = self.execute_callback(
-        callbacker, callback_sig, msg.sender, 0, collateral, debt, callback_args, callback_bytes).collateral
+        callbacker, callback_sig, _for, 0, collateral, debt, callback_args, callback_bytes).collateral
 
     # After callback
-    self._create_loan(collateral + more_collateral, debt, N, False, msg.sender)
+    self._create_loan(collateral + more_collateral, debt, N, False, _for)
     self.transferFrom(COLLATERAL_TOKEN, msg.sender, AMM.address, collateral)
     self.transferFrom(COLLATERAL_TOKEN, callbacker, AMM.address, more_collateral)
 
