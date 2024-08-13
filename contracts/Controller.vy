@@ -1513,6 +1513,11 @@ def check_lock() -> bool:
 
 @external
 def approve(_spender: address, _allow: bool):
+    """
+    @notice Allow another address to borrow and repay for the user
+    @param _spender Address to whitelist for the action
+    @param _allow Whether to turn the approval on or off (no amounts)
+    """
     self.approval[msg.sender][_spender] = _allow
     log Approval(msg.sender, _spender, _allow)
 
@@ -1525,4 +1530,8 @@ def _check_approval(_for: address) -> bool:
 
 @external
 def set_extra_health(_value: uint256):
+    """
+    @notice Add a little bit more to loan_discount to start SL with health higher than usual
+    @param _value 1e18-based addition to loan_discount
+    """
     self.extra_health[msg.sender] = _value
