@@ -126,6 +126,7 @@ MIN_LIQUIDATION_DISCOUNT: constant(uint256) = 10**16 # Start liquidating when th
 MAX_TICKS: constant(int256) = 50
 MAX_TICKS_UINT: constant(uint256) = 50
 MIN_TICKS: constant(int256) = 4
+MIN_TICKS_UINT: constant(uint256) = 4
 MAX_SKIP_TICKS: constant(uint256) = 1024
 MAX_P_BASE_BANDS: constant(int256) = 5
 
@@ -588,8 +589,7 @@ def max_borrowable(collateral: uint256, N: uint256, current_debt: uint256 = 0) -
     # When n1 -= 1:
     # p_oracle_up *= A / (A - 1)
     # if N < MIN_TICKS or N > MAX_TICKS:
-    if N < convert(MIN_TICKS, uint256) or N > convert(MAX_TICKS, uint256):
-        return 0
+    assert N >= MIN_TICKS_UINT and N <= MAX_TICKS_UINT
 
     y_effective: uint256 = self.get_y_effective(collateral * COLLATERAL_PRECISION, N, self.loan_discount)
 
@@ -609,9 +609,10 @@ def min_collateral(debt: uint256, N: uint256) -> uint256:
     @return Minimal collateral required
     """
     # Add N**2 to account for precision loss in multiple bands, e.g. N / (y/N) = N**2 / y
+    assert N <= MAX_TICKS_UINT
     return unsafe_div(
         unsafe_div(
-            debt * unsafe_mul(10**18, BORROWED_PRECISION) / self.max_p_base() * 10**18 / self.get_y_effective(10**18, N, self.loan_discount) + N * (N + 2 * DEAD_SHARES) + unsafe_sub(COLLATERAL_PRECISION, 1),
+            debt * unsafe_mul(10**18, BORROWED_PRECISION) / self.max_p_base() * 10**18 / self.get_y_effective(10**18, N, self.loan_discount) + unsafe_add(unsafe_mul(N, unsafe_add(N, 2 * DEAD_SHARES)), unsafe_sub(COLLATERAL_PRECISION, 1)),
             COLLATERAL_PRECISION
         ) * 10**18,
         10**18 - 10**14)
@@ -620,16 +621,17 @@ def min_collateral(debt: uint256, N: uint256) -> uint256:
 @external
 @view
 @nonreentrant('lock')
-def calculate_debt_n1(collateral: uint256, debt: uint256, N: uint256) -> int256:
+def calculate_debt_n1(collateral: uint256, debt: uint256, N: uint256, user: address = empty(address)) -> int256:
     """
     @notice Calculate the upper band number for the deposit to sit in to support
             the given debt. Reverts if requested debt is too high.
     @param collateral Amount of collateral (at its native precision)
     @param debt Amount of requested debt
     @param N Number of bands to deposit into
+    @param user User to calculate n1 for (only necessary for nonzero extra_health)
     @return Upper band n1 (n1 <= n2) to deposit into. Signed integer
     """
-    return self._calculate_debt_n1(collateral, debt, N, empty(address))
+    return self._calculate_debt_n1(collateral, debt, N, user)
 
 
 @internal
