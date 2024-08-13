@@ -174,6 +174,7 @@ CALLBACK_LIQUIDATE_WITH_BYTES: constant(bytes4) = method_id("callback_liquidate(
 DEAD_SHARES: constant(uint256) = 1000
 
 approval: public(HashMap[address, HashMap[address, bool]])
+extra_health: public(HashMap[address, uint256])
 
 
 @external
@@ -486,7 +487,7 @@ def get_y_effective(collateral: uint256, N: uint256, discount: uint256) -> uint2
 
 @internal
 @view
-def _calculate_debt_n1(collateral: uint256, debt: uint256, N: uint256) -> int256:
+def _calculate_debt_n1(collateral: uint256, debt: uint256, N: uint256, user: address) -> int256:
     """
     @notice Calculate the upper band number for the deposit to sit in to support
             the given debt. Reverts if requested debt is too high.
@@ -502,7 +503,8 @@ def _calculate_debt_n1(collateral: uint256, debt: uint256, N: uint256) -> int256
     # x_effective = y / N * p_oracle_up(n1) * sqrt((A - 1) / A) * sum_{0..N-1}(((A-1) / A)**k)
     # === d_y_effective * p_oracle_up(n1) * sum(...) === y_effective * p_oracle_up(n1)
     # d_y_effective = y / N / sqrt(A / (A - 1))
-    y_effective: uint256 = self.get_y_effective(collateral * COLLATERAL_PRECISION, N, self.loan_discount)
+    y_effective: uint256 = self.get_y_effective(collateral * COLLATERAL_PRECISION, N,
+                                                self.loan_discount + self.extra_health[user])
     # p_oracle_up(n1) = base_price * ((A - 1) / A)**n1
 
     # We borrow up until min band touches p_oracle,
@@ -627,7 +629,7 @@ def calculate_debt_n1(collateral: uint256, debt: uint256, N: uint256) -> int256:
     @param N Number of bands to deposit into
     @return Upper band n1 (n1 <= n2) to deposit into. Signed integer
     """
-    return self._calculate_debt_n1(collateral, debt, N)
+    return self._calculate_debt_n1(collateral, debt, N, empty(address))
 
 
 @internal
@@ -676,8 +678,8 @@ def _create_loan(collateral: uint256, debt: uint256, N: uint256, transfer_coins:
     assert N > MIN_TICKS-1, "Need more ticks"
     assert N < MAX_TICKS+1, "Need less ticks"
 
-    n1: int256 = self._calculate_debt_n1(collateral, debt, N)
-    n2: int256 = n1 + convert(N - 1, int256)
+    n1: int256 = self._calculate_debt_n1(collateral, debt, N, _for)
+    n2: int256 = n1 + convert(unsafe_sub(N, 1), int256)
 
     rate_mul: uint256 = AMM.get_rate_mul()
     self.loan[_for] = Loan({initial_debt: debt, rate_mul: rate_mul})
@@ -780,7 +782,7 @@ def _add_collateral_borrow(d_collateral: uint256, d_debt: uint256, _for: address
         xy[1] -= d_collateral
     else:
         xy[1] += d_collateral
-    n1: int256 = self._calculate_debt_n1(xy[1], debt, size)
+    n1: int256 = self._calculate_debt_n1(xy[1], debt, size, _for)
     n2: int256 = n1 + unsafe_sub(ns[1], ns[0])
 
     AMM.deposit_range(_for, xy[1], n1, n2)
@@ -949,7 +951,7 @@ def repay(_d_debt: uint256, _for: address = msg.sender, max_active_band: int256 
         if ns[0] > active_band:
             # Not in liquidation - can move bands
             xy: uint256[2] = AMM.withdraw(_for, 10**18)
-            n1: int256 = self._calculate_debt_n1(xy[1], debt, size)
+            n1: int256 = self._calculate_debt_n1(xy[1], debt, size, _for)
             n2: int256 = n1 + unsafe_sub(ns[1], ns[0])
             AMM.deposit_range(_for, xy[1], n1, n2)
             if approval:
@@ -1038,7 +1040,7 @@ def repay_extended(callbacker: address, callback_args: DynArray[uint256,5], call
         debt = unsafe_sub(debt, cb.stablecoins)
 
         # Not in liquidation - can move bands
-        n1: int256 = self._calculate_debt_n1(cb.collateral, debt, size)
+        n1: int256 = self._calculate_debt_n1(cb.collateral, debt, size, _for)
         n2: int256 = n1 + unsafe_sub(ns[1], ns[0])
         AMM.deposit_range(_for, cb.collateral, n1, n2)
         liquidation_discount: uint256 = self.liquidation_discount
@@ -1126,7 +1128,7 @@ def health_calculator(user: address, d_collateral: int256, d_debt: int256, full:
 
     if ns[0] > active_band:  # re-deposit
         collateral = convert(AMM.get_sum_xy(user)[1], int256) + d_collateral
-        n1 = self._calculate_debt_n1(convert(collateral, uint256), convert(debt, uint256), n)
+        n1 = self._calculate_debt_n1(convert(collateral, uint256), convert(debt, uint256), n, user)
         collateral *= convert(COLLATERAL_PRECISION, int256)  # now has 18 decimals
     else:
         n1 = ns[0]
@@ -1519,3 +1521,8 @@ def approve(_spender: address, _allow: bool):
 @view
 def _check_approval(_for: address) -> bool:
     return msg.sender == _for or self.approval[_for][msg.sender]
+
+
+@external
+def set_extra_health(_value: uint256):
+    self.extra_health[msg.sender] = _value
