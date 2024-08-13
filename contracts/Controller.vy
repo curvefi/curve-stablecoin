@@ -418,7 +418,7 @@ def _debt(user: address) -> (uint256, uint256):
         if debt % loan.rate_mul > 0:  # if only one loan -> don't have to do it
             if self.n_loans > 1:
                 debt += loan.rate_mul
-        debt /= loan.rate_mul
+        debt = unsafe_div(debt, loan.rate_mul)  # loan.rate_mul is nonzero because we just had % successful
         return (debt, rate_mul)
 
 
@@ -474,9 +474,11 @@ def get_y_effective(collateral: uint256, N: uint256, discount: uint256) -> uint2
     # d_y_effective = y / N / sqrt(A / (A - 1))
     # d_y_effective: uint256 = collateral * unsafe_sub(10**18, discount) / (SQRT_BAND_RATIO * N)
     # Make some extra discount to always deposit lower when we have DEAD_SHARES rounding
-    d_y_effective: uint256 = collateral * unsafe_sub(
-        10**18, min(discount + unsafe_div((DEAD_SHARES * 10**18), max(unsafe_div(collateral, N), DEAD_SHARES)), 10**18)
-    ) / unsafe_mul(SQRT_BAND_RATIO, N)
+    d_y_effective: uint256 = unsafe_div(
+        collateral * unsafe_sub(
+            10**18, min(discount + unsafe_div((DEAD_SHARES * 10**18), max(unsafe_div(collateral, N), DEAD_SHARES)), 10**18)
+        ),
+        unsafe_mul(SQRT_BAND_RATIO, N))
     y_effective: uint256 = d_y_effective
     for i in range(1, MAX_TICKS_UINT):
         if i == N:
@@ -567,12 +569,13 @@ def max_p_base() -> uint256:
 @external
 @view
 @nonreentrant('lock')
-def max_borrowable(collateral: uint256, N: uint256, current_debt: uint256 = 0) -> uint256:
+def max_borrowable(collateral: uint256, N: uint256, current_debt: uint256 = 0, user: address = empty(address)) -> uint256:
     """
     @notice Calculation of maximum which can be borrowed (details in comments)
     @param collateral Collateral amount against which to borrow
     @param N number of bands to have the deposit into
     @param current_debt Current debt of the user (if any)
+    @param user User to calculate the value for (only necessary for nonzero extra_health)
     @return Maximum amount of stablecoin to borrow
     """
     # Calculation of maximum which can be borrowed.
@@ -591,7 +594,8 @@ def max_borrowable(collateral: uint256, N: uint256, current_debt: uint256 = 0) -
     # if N < MIN_TICKS or N > MAX_TICKS:
     assert N >= MIN_TICKS_UINT and N <= MAX_TICKS_UINT
 
-    y_effective: uint256 = self.get_y_effective(collateral * COLLATERAL_PRECISION, N, self.loan_discount)
+    y_effective: uint256 = self.get_y_effective(collateral * COLLATERAL_PRECISION, N,
+                                                self.loan_discount + self.extra_health[user])
 
     x: uint256 = unsafe_sub(max(unsafe_div(y_effective * self.max_p_base(), 10**18), 1), 1)
     x = unsafe_div(x * (10**18 - 10**14), unsafe_mul(10**18, BORROWED_PRECISION))  # Make it a bit smaller
@@ -601,18 +605,19 @@ def max_borrowable(collateral: uint256, N: uint256, current_debt: uint256 = 0) -
 @external
 @view
 @nonreentrant('lock')
-def min_collateral(debt: uint256, N: uint256) -> uint256:
+def min_collateral(debt: uint256, N: uint256, user: address = empty(address)) -> uint256:
     """
     @notice Minimal amount of collateral required to support debt
     @param debt The debt to support
     @param N Number of bands to deposit into
+    @param user User to calculate the value for (only necessary for nonzero extra_health)
     @return Minimal collateral required
     """
     # Add N**2 to account for precision loss in multiple bands, e.g. N / (y/N) = N**2 / y
     assert N <= MAX_TICKS_UINT
     return unsafe_div(
         unsafe_div(
-            debt * unsafe_mul(10**18, BORROWED_PRECISION) / self.max_p_base() * 10**18 / self.get_y_effective(10**18, N, self.loan_discount) + unsafe_add(unsafe_mul(N, unsafe_add(N, 2 * DEAD_SHARES)), unsafe_sub(COLLATERAL_PRECISION, 1)),
+            debt * unsafe_mul(10**18, BORROWED_PRECISION) / self.max_p_base() * 10**18 / self.get_y_effective(10**18, N, self.loan_discount + self.extra_health[user]) + unsafe_add(unsafe_mul(N, unsafe_add(N, 2 * DEAD_SHARES)), unsafe_sub(COLLATERAL_PRECISION, 1)),
             COLLATERAL_PRECISION
         ) * 10**18,
         10**18 - 10**14)
@@ -947,14 +952,14 @@ def repay(_d_debt: uint256, _for: address = msg.sender, max_active_band: int256 
         assert active_band <= max_active_band
 
         ns: int256[2] = AMM.read_user_tick_numbers(_for)
-        size: uint256 = convert(unsafe_add(unsafe_sub(ns[1], ns[0]), 1), uint256)
+        size: int256 = unsafe_sub(ns[1], ns[0])
         liquidation_discount: uint256 = self.liquidation_discounts[_for]
 
         if ns[0] > active_band:
             # Not in liquidation - can move bands
             xy: uint256[2] = AMM.withdraw(_for, 10**18)
-            n1: int256 = self._calculate_debt_n1(xy[1], debt, size, _for)
-            n2: int256 = n1 + unsafe_sub(ns[1], ns[0])
+            n1: int256 = self._calculate_debt_n1(xy[1], debt, convert(unsafe_add(size, 1), uint256), _for)
+            n2: int256 = n1 + size
             AMM.deposit_range(_for, xy[1], n1, n2)
             if approval:
                 # Update liquidation discount only if we are that same user. No rugs
@@ -1036,14 +1041,14 @@ def repay_extended(callbacker: address, callback_args: DynArray[uint256,5], call
 
     # Else - partial repayment -> deleverage, but only if we are not underwater
     else:
-        size: uint256 = convert(unsafe_add(unsafe_sub(ns[1], ns[0]), 1), uint256)
+        size: int256 = unsafe_sub(ns[1], ns[0])
         assert ns[0] > cb.active_band
         d_debt = cb.stablecoins  # cb.stablecoins <= total_stablecoins < debt
         debt = unsafe_sub(debt, cb.stablecoins)
 
         # Not in liquidation - can move bands
-        n1: int256 = self._calculate_debt_n1(cb.collateral, debt, size, _for)
-        n2: int256 = n1 + unsafe_sub(ns[1], ns[0])
+        n1: int256 = self._calculate_debt_n1(cb.collateral, debt, convert(unsafe_add(size, 1), uint256), _for)
+        n2: int256 = n1 + size
         AMM.deposit_range(_for, cb.collateral, n1, n2)
         liquidation_discount: uint256 = self.liquidation_discount
         self.liquidation_discounts[_for] = liquidation_discount
@@ -1396,18 +1401,6 @@ def set_amm_fee(fee: uint256):
     AMM.set_fee(fee)
 
 
-# AMM has nonreentrant decorator
-@external
-def set_amm_admin_fee(fee: uint256):
-    """
-    @notice Set AMM's admin fee
-    @param fee New admin fee (not higher than MAX_ADMIN_FEE)
-    """
-    assert msg.sender == FACTORY.admin()
-    assert fee <= MAX_ADMIN_FEE, "High fee"
-    AMM.set_admin_fee(fee)
-
-
 @nonreentrant('lock')
 @external
 def set_monetary_policy(monetary_policy: address):
@@ -1472,12 +1465,6 @@ def collect_fees() -> uint256:
     """
     # Calling fee_receiver will fail for lending markets because everything gets to lenders
     _to: address = FACTORY.fee_receiver()
-    # AMM-based fees
-    borrowed_fees: uint256 = AMM.admin_fees_x()
-    collateral_fees: uint256 = AMM.admin_fees_y()
-    self.transferFrom(BORROWED_TOKEN, AMM.address, _to, borrowed_fees)
-    self.transferFrom(COLLATERAL_TOKEN, AMM.address, _to, collateral_fees)
-    AMM.reset_admin_fees()
 
     # Borrowing-based fees
     rate_mul: uint256 = AMM.get_rate_mul()
