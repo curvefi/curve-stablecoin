@@ -13,7 +13,6 @@ from hypothesis.stateful import RuleBasedStateMachine, run_state_machine_as_test
 # * liquidate
 # * self_liquidate
 # * set_amm_fee
-# * set_amm_admin_fee
 # * set_debt_ceiling
 # * set_borrowing_discounts
 # * collect AMM fees
@@ -41,8 +40,6 @@ class BigFuzz(RuleBasedStateMachine):
 
     extended_mode = st.integers(min_value=0, max_value=2)
     liquidate_frac = st.integers(min_value=0, max_value=10**18 + 1)
-
-    amm_admin_fee = st.integers(min_value=0, max_value=5 * 10**17)
 
     def __init__(self):
         super().__init__()
@@ -444,11 +441,6 @@ class BigFuzz(RuleBasedStateMachine):
             # Debt is 0 and admin fees are claimed
             ceiling = self.controller_factory.debt_ceiling(self.market_controller.address)
             assert self.stablecoin.balanceOf(self.market_controller.address) == ceiling
-
-    @rule(fee=amm_admin_fee)
-    def set_amm_admin_fee(self, fee):
-        with boa.env.prank(self.admin):
-            self.market_controller.set_amm_admin_fee(fee)
 
 
 @pytest.mark.parametrize("_tmp", range(4))  # This splits the test into 8 small chunks which are easier to parallelize

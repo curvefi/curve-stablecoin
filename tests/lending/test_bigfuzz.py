@@ -12,7 +12,6 @@ from hypothesis.stateful import RuleBasedStateMachine, run_state_machine_as_test
 # * liquidate
 # * self_liquidate
 # * set_amm_fee
-# * set_amm_admin_fee
 # * set_debt_ceiling
 # * set_borrowing_discounts
 # * collect AMM fees
