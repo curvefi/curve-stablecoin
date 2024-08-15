@@ -506,8 +506,7 @@ def _calculate_debt_n1(collateral: uint256, debt: uint256, N: uint256, user: add
     # x_effective = y / N * p_oracle_up(n1) * sqrt((A - 1) / A) * sum_{0..N-1}(((A-1) / A)**k)
     # === d_y_effective * p_oracle_up(n1) * sum(...) === y_effective * p_oracle_up(n1)
     # d_y_effective = y / N / sqrt(A / (A - 1))
-    y_effective: uint256 = self.get_y_effective(collateral * COLLATERAL_PRECISION, N,
-                                                self.loan_discount + self.extra_health[user])
+    y_effective: uint256 = self.get_y_effective(collateral * COLLATERAL_PRECISION, N, self.loan_discount + self.extra_health[user])
     # p_oracle_up(n1) = base_price * ((A - 1) / A)**n1
 
     # We borrow up until min band touches p_oracle,

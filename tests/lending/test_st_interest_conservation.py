@@ -56,15 +56,8 @@ class StatefulLendBorrow(RuleBasedStateMachine):
                 return
 
             if self.controller.total_debt() + amount > self.debt_ceiling:
-                if (
-                        (self.controller.total_debt() + amount) * self.amm.get_rate_mul() > 2**256 - 1
-                        or (c_amount * self.collateral_precision) * self.amm.get_p() > 2**256 - 1
-                ):
-                    with boa.reverts():
-                        self.controller.create_loan(c_amount, amount, n)
-                else:
-                    with boa.reverts():
-                        self.controller.create_loan(c_amount, amount, n)
+                with boa.reverts():
+                    self.controller.create_loan(c_amount, amount, n)
                 return
 
             if c_amount == 0 or amount == 0:
@@ -189,12 +182,8 @@ class StatefulLendBorrow(RuleBasedStateMachine):
                 return
 
             if self.controller.total_debt() + amount > self.debt_ceiling:
-                if (self.controller.total_debt() + amount) * self.collateral_precision * self.amm.get_rate_mul() > 2**256 - 1:
-                    with boa.reverts():
-                        self.controller.borrow_more(c_amount, amount)
-                else:
-                    with boa.reverts():
-                        self.controller.borrow_more(c_amount, amount)
+                with boa.reverts():
+                    self.controller.borrow_more(c_amount, amount)
                 return
 
             if final_collateral * self.collateral_precision // n > (2**128 - 1) // DEAD_SHARES:
