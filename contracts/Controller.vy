@@ -757,7 +757,7 @@ def create_loan_extended(collateral: uint256, debt: uint256, N: uint256, callbac
     # Callback
     # If there is any unused debt, callbacker can send it to the user
     more_collateral: uint256 = self.execute_callback(
-        callbacker, callback_sig, _for, 0, collateral, debt, callback_args, callback_bytes).collateral
+        callbacker, callback_sig, msg.sender, 0, collateral, debt, callback_args, callback_bytes).collateral
 
     # After callback
     self._create_loan(collateral + more_collateral, debt, N, False, _for)
@@ -888,7 +888,7 @@ def borrow_more_extended(collateral: uint256, debt: uint256, callbacker: address
     # Callback
     # If there is any unused debt, callbacker can send it to the user
     more_collateral: uint256 = self.execute_callback(
-        callbacker, callback_sig, _for, 0, collateral, debt, callback_args, callback_bytes).collateral
+        callbacker, callback_sig, msg.sender, 0, collateral, debt, callback_args, callback_bytes).collateral
 
     # After callback
     self._add_collateral_borrow(collateral + more_collateral, debt, _for, False)
@@ -1012,7 +1012,7 @@ def repay_extended(callbacker: address, callback_args: DynArray[uint256,5], call
     if callback_bytes == b"":
         callback_sig = CALLBACK_REPAY
     cb: CallbackData = self.execute_callback(
-        callbacker, callback_sig, _for, xy[0], xy[1], debt, callback_args, callback_bytes)
+        callbacker, callback_sig, msg.sender, xy[0], xy[1], debt, callback_args, callback_bytes)
 
     # After callback
     total_stablecoins: uint256 = cb.stablecoins + xy[0]
