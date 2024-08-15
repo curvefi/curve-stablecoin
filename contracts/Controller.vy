@@ -997,8 +997,7 @@ def repay_extended(callbacker: address, callback_args: DynArray[uint256,5], call
     @param callback_args Extra arguments for the callback (up to 5) such as min_amount etc
     @param _for Address to repay for
     """
-    if _for != msg.sender:
-        assert self.approval[_for][msg.sender]
+    assert self._check_approval(_for)
 
     # Before callback
     ns: int256[2] = AMM.read_user_tick_numbers(_for)
