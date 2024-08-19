@@ -1,4 +1,4 @@
-# @version 0.3.7
+# @version 0.3.10
 """
 This contract is a draft version of liquidity mining gauge for LLAMMa. It doesn't
 account for rate changes for simplicity but it could already be suitable for

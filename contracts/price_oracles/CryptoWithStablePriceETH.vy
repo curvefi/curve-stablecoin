@@ -1,4 +1,4 @@
-# @version 0.3.7
+# @version 0.3.10
 """
 @title CryptoWithStablePriceETH
 @notice Price oracle for tricrypto for crvUSD. Optional Chainlink included
@@ -69,7 +69,7 @@ def __init__(
         stableswap: Stableswap[N_POOLS],
         stable_aggregator: StableAggregator,
         factory: ControllerFactory,
-        chainlink_aggregator_btc: ChainlinkAggregator,
+        chainlink_aggregator_eth: ChainlinkAggregator,
         bound_size: uint256  # 1.5% sounds ok before we turn it off
     ):
     TRICRYPTO = tricrypto
@@ -96,15 +96,15 @@ def __init__(
     REDEEMABLE = _redeemable
 
     self.use_chainlink = True
-    CHAINLINK_AGGREGATOR_ETH = chainlink_aggregator_btc
-    CHAINLINK_PRICE_PRECISION_ETH = 10**convert(chainlink_aggregator_btc.decimals(), uint256)
+    CHAINLINK_AGGREGATOR_ETH = chainlink_aggregator_eth
+    CHAINLINK_PRICE_PRECISION_ETH = 10**convert(chainlink_aggregator_eth.decimals(), uint256)
     BOUND_SIZE = bound_size
 
 
 @internal
-@view
+@pure
 def exp(power: int256) -> uint256:
-    if power <= -42139678854452767551:
+    if power <= -41446531673892821376:
         return 0
 
     if power >= 135305999368893231589:

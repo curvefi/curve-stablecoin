@@ -1,4 +1,4 @@
-# @version 0.3.7
+# @version 0.3.10
 """
 Although this monetary policy works, it's only intended to be used in tests
 """

@@ -1,15 +1,14 @@
 import os
 from datetime import timedelta
 from math import log
-from typing import Any, Callable, List
+from typing import Any, Callable
 
 import boa
 import pytest
-from boa.environment import AddressT
 from hypothesis import settings
 
-boa.interpret.set_cache_dir()
-boa.reset_env()
+
+boa.env.enable_fast_mode()
 
 
 PRICE = 3000
@@ -35,37 +34,42 @@ def approx(x1: float, x2: float, precision: float, abs_precision=None):
 
 
 @pytest.fixture(scope="session")
-def accounts() -> List[AddressT]:
+def accounts():
     return [boa.env.generate_address() for _ in range(10)]
 
 
 @pytest.fixture(scope="session")
-def admin() -> AddressT:
+def admin():
     return boa.env.generate_address()
 
 
 @pytest.fixture(scope="session")
-def get_collateral_token(admin) -> Callable[[int], Any]:
+def token_mock():
+    return boa.load_partial('contracts/testing/ERC20Mock.vy')
+
+
+@pytest.fixture(scope="session")
+def get_collateral_token(token_mock, admin) -> Callable[[int], Any]:
     def f(digits):
         with boa.env.prank(admin):
-            return boa.load('contracts/testing/ERC20Mock.vy', "Colalteral", "ETH", digits)
+            return token_mock.deploy("Colalteral", "ETH", digits)
     return f
 
 
 @pytest.fixture(scope="session")
-def get_borrowed_token(admin) -> Callable[[int], Any]:
+def get_borrowed_token(token_mock, admin) -> Callable[[int], Any]:
     def f(digits):
         with boa.env.prank(admin):
-            return boa.load('contracts/testing/ERC20Mock.vy', "Rugworks USD", "rUSD", digits)
+            return token_mock.deploy("Rugworks USD", "rUSD", digits)
     return f
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture(scope="session")
 def collateral_token(get_collateral_token):
     return get_collateral_token(18)
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture(scope="session")
 def price_oracle(admin):
     with boa.env.prank(admin):
         oracle = boa.load('contracts/testing/DummyPriceOracle.vy', admin, PRICE * 10**18)

@@ -1,4 +1,4 @@
-# @version 0.3.7
+# @version 0.3.10
 """
 @title Curve StableSwap Owner Proxy
 @author Curve Finance
@@ -52,6 +52,7 @@ interface Factory:
         _implementation_idx: uint256,
     ) -> address: nonpayable
     def deploy_gauge(_pool: address) -> address: nonpayable
+    def add_token_to_whitelist(coin: address, _add: bool): nonpayable
 
 
 event CommitAdmins:
@@ -208,6 +209,17 @@ def stop_ramp_A(_pool: address):
     """
     assert msg.sender in [self.parameter_admin, self.emergency_admin], "Access denied"
     Curve(_pool).stop_ramp_A()
+
+
+@external
+@nonreentrant('lock')
+def add_token_to_whitelist(_target: address, coin: address, _add: bool):
+    """
+    @notice adds a token to a list of tokens with which plain pools are allowed
+    @param coin Address of the coin to add
+    """
+    assert msg.sender == self.ownership_admin, "Access denied"
+    Factory(_target).add_token_to_whitelist(coin, _add)
 
 
 @external

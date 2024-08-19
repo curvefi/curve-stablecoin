@@ -1,0 +1,22 @@
+$ ape run scripts/ape-deploy-leverage-zaps.py deploy --network ethereum:mainnet:alchemy
+Enter passphrase to permanently unlock 'babe': 
+WARNING: Danger! This account will now sign any transaction it's given.
+INFO: Compiling 'Controller.vy'.
+INFO: Compiling 'price_oracles/CryptoWithStablePriceTBTC.vy'.
+INFO: Compiling 'AMM.vy'.
+INFO: Compiling 'zaps/LeverageZapSfrxETH.vy'.
+INFO: Compiling 'zaps/LeverageZap.vy'.
+INFO: Compiling 'zaps/LeverageZapNewRouter.vy'.
+INFO: Compiling 'testing/TVLOracle.vy'.
+INFO: Compiling 'price_oracles/CryptoWithStablePriceFrxethN.vy'.
+INFO: Compiling 'zaps/LeverageZapWstETH.vy'.
+WARNING: Using cached key for babe
+INFO: Submitted https://etherscan.io/tx/0x108271f88052827f3c269dea5d058f2146016e840addd420ea4227f027815f7d
+Confirmations (2/2): 100%|███████████████████████████████████████████████████████████████████████████████████████████████████| 2/2 [00:25<00:00, 12.74s/it]
+INFO: Confirmed 0x108271f88052827f3c269dea5d058f2146016e840addd420ea4227f027815f7d (total fees paid = 36509465541046280)
+SUCCESS: Contract 'LeverageZapNewRouter' deployed to: 0x43eCFfe6c6C1b9F24AeB5C180E659c2a6FCe11Bc
+WARNING: Using cached key for babe
+INFO: Submitted https://etherscan.io/tx/0xd1031f5802aa36a3188e8a7f8fd6d118e0a09521eba72397bfe87ccafaed8210
+Confirmations (2/2): 100%|███████████████████████████████████████████████████████████████████████████████████████████████████| 2/2 [00:25<00:00, 12.66s/it]
+INFO: Confirmed 0xd1031f5802aa36a3188e8a7f8fd6d118e0a09521eba72397bfe87ccafaed8210 (total fees paid = 34156174371930968)
+SUCCESS: Contract 'LeverageZapNewRouter' deployed to: 0xD79964C70Cb06224FdA4c48387B53E9819bcB71c

@@ -1,4 +1,4 @@
-# @version 0.3.7
+# @version 0.3.10
 """
 @title Peg Keeper
 @license MIT
@@ -110,7 +110,7 @@ def __init__(_pool: CurvePool, _index: uint256, _receiver: address, _caller_shar
     self.admin = _admin
     assert _receiver != empty(address)
     self.receiver = _receiver
-    log ApplyNewAdmin(msg.sender)
+    log ApplyNewAdmin(_admin)
     log ApplyNewReceiver(_receiver)
 
     assert _caller_share <= SHARE_PRECISION  # dev: bad part value

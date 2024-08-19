@@ -1,4 +1,4 @@
-# @version 0.3.7
+# @version 0.3.10
 """
 @title CryptoWithStablePriceAndChainlinkFrxeth - price oracle for tricrypto+sfrxeth with Chainlink limits for crvUSD
 @author Curve.Fi
@@ -110,9 +110,9 @@ def __init__(
 
 
 @internal
-@view
+@pure
 def exp(power: int256) -> uint256:
-    if power <= -42139678854452767551:
+    if power <= -41446531673892821376:
         return 0
 
     if power >= 135305999368893231589:
@@ -146,43 +146,43 @@ def exp(power: int256) -> uint256:
 
 
 @external
-@view
+@pure
 def tricrypto() -> Tricrypto:
     return TRICRYPTO
 
 
 @external
-@view
+@pure
 def stableswap_aggregator() -> StableAggregator:
     return STABLESWAP_AGGREGATOR
 
 
 @external
-@view
+@pure
 def stableswap() -> Stableswap:
     return STABLESWAP
 
 
 @external
-@view
+@pure
 def staked_swap() -> Stableswap:
     return STAKEDSWAP
 
 
 @external
-@view
+@pure
 def stablecoin() -> address:
     return STABLECOIN
 
 
 @external
-@view
+@pure
 def redeemable() -> address:
     return REDEEMABLE
 
 
 @external
-@view
+@pure
 def ma_exp_time() -> uint256:
     return MA_EXP_TIME
 

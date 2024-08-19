@@ -1,4 +1,4 @@
-# @version 0.3.7
+# @version 0.3.10
 """
 @title AggregatorStablePrice - aggregator of stablecoin prices for crvUSD
 @author Curve.Fi
@@ -63,13 +63,13 @@ def set_admin(_admin: address):
 
 
 @external
-@view
+@pure
 def sigma() -> uint256:
     return SIGMA
 
 
 @external
-@view
+@pure
 def stablecoin() -> address:
     return STABLECOIN
 
@@ -104,9 +104,9 @@ def remove_price_pair(n: uint256):
 
 
 @internal
-@view
+@pure
 def exp(power: int256) -> uint256:
-    if power <= -42139678854452767551:
+    if power <= -41446531673892821376:
         return 0
 
     if power >= 135305999368893231589:

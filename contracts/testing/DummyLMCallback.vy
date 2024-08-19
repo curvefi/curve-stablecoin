@@ -1,4 +1,4 @@
-# @version 0.3.7
+# @version 0.3.10
 
 MAX_TICKS_UINT: constant(uint256) = 50
 

@@ -14,6 +14,7 @@ class StatefulExchange(RuleBasedStateMachine):
     amount = st.floats(min_value=0, max_value=10**9)
     pump = st.booleans()
     user_id = st.integers(min_value=0, max_value=4)
+    admin_fee = st.integers(min_value=0, max_value=10**18 // 2)
 
     def __init__(self):
         super().__init__()
@@ -51,11 +52,16 @@ class StatefulExchange(RuleBasedStateMachine):
             j = 0
             in_token = self.collateral_token
         u_amount = in_token.balanceOf(u)
-        required_amount = self.amm.get_dx(i, j, amount)
+        reduced_amount, required_amount = self.amm.get_dydx(i, j, amount)
         if required_amount > u_amount:
             in_token._mint_for_testing(u, required_amount - u_amount)
         with boa.env.prank(u):
-            self.amm.exchange_dy(i, j, amount, required_amount)
+            self.amm.exchange_dy(i, j, reduced_amount, required_amount)
+
+    @rule(fee=admin_fee)
+    def set_admin_fee(self, fee):
+        with boa.env.prank(self.admin):
+            self.amm.set_admin_fee(fee)
 
     @invariant()
     def amm_solvent(self):
@@ -70,7 +76,12 @@ class StatefulExchange(RuleBasedStateMachine):
         to_receive = self.total_deposited * self.initial_price * 10 // 10**18 // self.borrowed_mul  # Huge amount
         left_in_amm = sum(self.amm.bands_y(n) for n in range(42))
         if n < 50:
-            dx = self.amm.get_dx(1, 0, to_receive)
+            dy, dx = self.amm.get_dydx(1, 0, to_receive)
+            if dy == to_receive:
+                dx = self.amm.get_dx(1, 0, to_receive)
+            else:
+                with boa.reverts():
+                    self.amm.get_dx(1, 0, to_receive)
             assert dx * self.collateral_mul >= self.total_deposited - left_in_amm  # With fees, AMM will have more
 
     def teardown(self):
@@ -83,7 +94,7 @@ class StatefulExchange(RuleBasedStateMachine):
             if dy > 0:
                 self.collateral_token._mint_for_testing(u, dx)
                 with boa.env.prank(u):
-                    self.amm.exchange_dy(1, 0, to_receive, dx)
+                    self.amm.exchange_dy(1, 0, 2**256 - 1, dx)
                 left_in_amm = sum(self.amm.bands_y(n) for n in range(42))
                 assert left_in_amm >= self.total_deposited
 

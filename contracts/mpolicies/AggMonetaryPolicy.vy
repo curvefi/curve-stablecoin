@@ -1,4 +1,4 @@
-# @version 0.3.7
+# @version 0.3.10
 """
 @title AggMonetaryPolicy - monetary policy based on aggregated prices for crvUSD
 @author Curve.Fi
@@ -48,7 +48,7 @@ MAX_TARGET_DEBT_FRACTION: constant(uint256) = 10**18
 MAX_SIGMA: constant(uint256) = 10**18
 MIN_SIGMA: constant(uint256) = 10**14
 MAX_EXP: constant(uint256) = 1000 * 10**18
-MAX_RATE: constant(uint256) = 43959106799  # 400% APY
+MAX_RATE: constant(uint256) = 43959106799  # 300% APY
 
 
 @external
@@ -116,7 +116,7 @@ def remove_peg_keeper(pk: PegKeeper):
 @internal
 @pure
 def exp(power: int256) -> uint256:
-    if power <= -42139678854452767551:
+    if power <= -41446531673892821376:
         return 0
 
     if power >= 135305999368893231589:

@@ -1,4 +1,4 @@
-# @version 0.3.7
+# @version 0.3.10
 """
 @title EMAPriceOracle - wrapper which adds EMA to a price source for crvUSD
 @author Curve.Fi
@@ -36,14 +36,14 @@ def __init__(ma_exp_time: uint256,
     self.last_timestamp = block.timestamp
 
 
-@view
 @external
+@pure
 def ma_exp_time() -> uint256:
     return MA_EXP_TIME
 
 
 @external
-@view
+@pure
 def price_oracle_signature() -> (address, Bytes[4]):
     return SIG_ADDRESS, SIG_METHOD
 
@@ -67,9 +67,9 @@ def ext_price_oracle() -> uint256:
 
 
 @internal
-@view
+@pure
 def exp(power: int256) -> uint256:
-    if power <= -42139678854452767551:
+    if power <= -41446531673892821376:
         return 0
 
     if power >= 135305999368893231589:

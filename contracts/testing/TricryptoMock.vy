@@ -1,4 +1,4 @@
-# @version 0.3.7
+# @version 0.3.10
 
 coins: public(address[3])
 price_oracle: public(uint256[3])
