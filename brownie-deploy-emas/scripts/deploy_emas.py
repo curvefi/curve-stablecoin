@@ -14,9 +14,10 @@ FEEDS = {
         ('VELO', '0x0f2Ed59657e391746C1a097BDa98F2aBb94b1120')
     ],
     'fraxtal-main': [
-        ('ETH', ''),
-        ('wstETH', ''),
-        ('WBTC', ''),
+        ('ETH', '0x89e60b56efD70a1D4FBBaE947bC33cae41e37A72'),
+        ('FRAX', '0xa41107f9259bB835275eaCaAd8048307B80D7c00'),
+        ('FXS', '0xbf228a9131AB3BB8ca8C7a4Ad574932253D99Cd1'),
+        ('CRV', '0x6C5090e85a65038ca6AB207CDb9e7a897cb33e4d'),
     ]
 }
 
