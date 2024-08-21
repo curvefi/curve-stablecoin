@@ -17,3 +17,4 @@ venv
 /.env-*
 /.py312
 /scripts/networks.py
+/brownie-deploy-emas/build
