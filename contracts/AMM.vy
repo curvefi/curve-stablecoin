@@ -1149,8 +1149,8 @@ def _exchange(i: uint256, j: uint256, amount: uint256, minmax_amount: uint256, _
     log TokenExchange(_for, i, in_amount_done, j, out_amount_done)
 
     if lm.address != empty(address):
-        lm.callback_collateral_shares(n_start, collateral_shares, 
-        
+        lm.callback_collateral_shares(n_start, collateral_shares, len(collateral_shares))
+
     assert in_coin.transferFrom(msg.sender, self, in_amount_done, default_return_value=True)
     assert out_coin.transfer(_for, out_amount_done, default_return_value=True)
 
