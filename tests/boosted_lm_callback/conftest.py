@@ -1,6 +1,5 @@
 import boa
 import pytest
-from boa.environment import AddressT
 
 
 @pytest.fixture(scope="module")
@@ -32,9 +31,10 @@ def minter(admin, crv, gauge_controller):
     with boa.env.prank(admin):
         return boa.load('contracts/testing/Minter.vy', crv, gauge_controller)
 
+
 # Trader
 @pytest.fixture(scope="module")
-def chad(collateral_token, admin) -> AddressT:
+def chad(collateral_token, admin):
     _chad = boa.env.generate_address()
     collateral_token._mint_for_testing(_chad, 10**25, sender=admin)
 
@@ -145,7 +145,7 @@ def boosted_lm_callback(admin, controller_factory, collateral_token, crv, voting
                         voting_escrow_delegation_mock, gauge_controller, minter, market_controller):
     with boa.env.prank(admin):
         cb = boa.load('contracts/BoostedLMCallback.vy', controller_factory, collateral_token, 0, crv,
-                        voting_escrow, voting_escrow_delegation_mock, gauge_controller, minter)
+                      voting_escrow, voting_escrow_delegation_mock, gauge_controller, minter)
         cb.initialize()
         market_controller.set_callback(cb)
 

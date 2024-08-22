@@ -1,4 +1,4 @@
-# @version 0.3.7
+# @version 0.3.10
 
 block_counter: public(uint256)
 time_counter: public(uint256)

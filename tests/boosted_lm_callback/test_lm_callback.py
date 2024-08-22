@@ -86,7 +86,7 @@ def test_gauge_integral_with_exchanges(
             gauge_controller.add_gauge(boosted_lm_callback.address, 0, 10 ** 18)
 
         integral = 0  # ∫(balance * rate(t) / totalSupply(t) dt)
-        checkpoint = boa.env.vm.patch.timestamp
+        checkpoint = boa.env.evm.patch.timestamp
         checkpoint_rate = crv.rate()
         checkpoint_supply = 0
         checkpoint_balance = 0
@@ -101,7 +101,7 @@ def test_gauge_integral_with_exchanges(
         def update_integral():
             nonlocal checkpoint, checkpoint_rate, integral, checkpoint_balance, checkpoint_supply
 
-            t1 = boa.env.vm.patch.timestamp
+            t1 = boa.env.evm.patch.timestamp
             t_epoch = crv.start_epoch_time_write(sender=admin)
             rate1 = crv.rate()
             if checkpoint >= t_epoch:
@@ -240,7 +240,6 @@ def test_gauge_integral_with_exchanges(
                 print("Active band:", market_amm.active_band())
                 update_integral()
 
-
             # Checking that updating the checkpoint in the same second does nothing
             # Also everyone can update: that should make no difference, too
             if random() < 0.5:
@@ -287,8 +286,6 @@ def test_full_repay_underwater(
             gauge_controller.add_type("crvUSD Market")
             gauge_controller.change_type_weight(0, 10 ** 18)
             gauge_controller.add_gauge(boosted_lm_callback.address, 0, 10 ** 18)
-
-        integral = 0  # ∫(balance * rate(t) / totalSupply(t) dt)
 
         # Let Alice and Bob have about the same collateral token amount
         with boa.env.prank(admin):

@@ -1,4 +1,4 @@
-# @version 0.3.7
+# @version 0.3.10
 """
 WARNING:
 At the moment this contract is unfinished, so not recommended to be used

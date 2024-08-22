@@ -20,7 +20,7 @@ def test_gauge_integral_one_user(accounts, admin, collateral_token, crv, boosted
         boa.env.time_travel(seconds=WEEK)
         alice_staked = 0
         integral = 0  # ∫(balance * rate(t) / totalSupply(t) dt)
-        checkpoint = boa.env.vm.patch.timestamp
+        checkpoint = boa.env.evm.patch.timestamp
         # boa.env.time_travel(blocks=1)
         checkpoint_rate = crv.rate()
         checkpoint_supply = 0
@@ -31,7 +31,7 @@ def test_gauge_integral_one_user(accounts, admin, collateral_token, crv, boosted
         def update_integral():
             nonlocal checkpoint, checkpoint_rate, integral, checkpoint_balance, checkpoint_supply
 
-            t1 = boa.env.vm.patch.timestamp
+            t1 = boa.env.evm.patch.timestamp
             rate1 = crv.rate()
             t_epoch = crv.start_epoch_time_write(sender=admin)
             if checkpoint >= t_epoch:
@@ -106,7 +106,7 @@ def test_gauge_integral(accounts, admin, collateral_token, crv, boosted_lm_callb
         alice_staked = 0
         bob_staked = 0
         integral = 0  # ∫(balance * rate(t) / totalSupply(t) dt)
-        checkpoint = boa.env.vm.patch.timestamp
+        checkpoint = boa.env.evm.patch.timestamp
         boa.env.time_travel(blocks=1)
         checkpoint_rate = crv.rate()
         checkpoint_supply = 0
@@ -120,7 +120,7 @@ def test_gauge_integral(accounts, admin, collateral_token, crv, boosted_lm_callb
         def update_integral():
             nonlocal checkpoint, checkpoint_rate, integral, checkpoint_balance, checkpoint_supply
 
-            t1 = boa.env.vm.patch.timestamp
+            t1 = boa.env.evm.patch.timestamp
             rate1 = crv.rate()
             t_epoch = crv.start_epoch_time()
             if checkpoint >= t_epoch:
@@ -207,7 +207,6 @@ def test_gauge_integral(accounts, admin, collateral_token, crv, boosted_lm_callb
                         update_integral()
                         alice_staked += amount_alice
 
-
             # Checking that updating the checkpoint in the same second does nothing
             # Also everyone can update: that should make no difference, too
             if random() < 0.5:
@@ -263,7 +262,7 @@ def test_mining_with_votelock(
     collateral_token.approve(market_controller.address, MAX_UINT256, sender=bob)
 
     # Alice deposits to escrow. She now has a BOOST
-    t = boa.env.vm.patch.timestamp
+    t = boa.env.evm.patch.timestamp
     voting_escrow.create_lock(10 ** 20, t + 2 * WEEK, sender=alice)
 
     # Alice and Bob create loan
@@ -300,7 +299,7 @@ def test_mining_with_votelock(
     assert d_alice == d_bob
 
     # Both Alice and Bob votelock
-    t = boa.env.vm.patch.timestamp
+    t = boa.env.evm.patch.timestamp
     voting_escrow.create_lock(10 ** 20, t + 2 * WEEK, sender=alice)
     voting_escrow.create_lock(10 ** 20, t + 2 * WEEK, sender=bob)
 

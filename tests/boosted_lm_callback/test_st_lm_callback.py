@@ -22,7 +22,7 @@ class StateMachine(RuleBasedStateMachine):
         self.checkpoint_working_supply = 0
         self.checkpoint_rate = self.crv.rate()
         self.integrals = {addr: {
-            "checkpoint": boa.env.vm.patch.timestamp,
+            "checkpoint": boa.env.evm.patch.timestamp,
             "integral": 0,
             "balance": 0,
             "working_balance": 0,
@@ -31,7 +31,7 @@ class StateMachine(RuleBasedStateMachine):
 
     def update_integrals(self, user):
         # Update rewards
-        t1 = boa.env.vm.patch.timestamp
+        t1 = boa.env.evm.patch.timestamp
         t_epoch = self.crv.start_epoch_time_write(sender=self.admin)
         rate1 = self.crv.rate()
         for acct in self.accounts[:5]:
@@ -90,7 +90,7 @@ class StateMachine(RuleBasedStateMachine):
                 try:
                     self.market_controller.calculate_debt_n1(collateral_in_amm + deposit_amount, debt + borrow_amount, 10)
                     break
-                except:
+                except Exception:
                     if i == 100:
                         break
                     i += 1
@@ -199,7 +199,7 @@ class StateMachine(RuleBasedStateMachine):
         """
         user = self.accounts[uid]
         if self.voting_escrow.locked(user)[0] == 0:
-            self.voting_escrow.create_lock(10 ** 20, boa.env.vm.patch.timestamp + dt, sender=user)
+            self.voting_escrow.create_lock(10 ** 20, boa.env.evm.patch.timestamp + dt, sender=user)
 
     @rule(uid=user_id)
     def withdraw_from_ve(self, uid):
@@ -207,7 +207,7 @@ class StateMachine(RuleBasedStateMachine):
         Withdraw expired lock from voting escrow.
         """
         user = self.accounts[uid]
-        if 0 < self.voting_escrow.locked__end(user) < boa.env.vm.patch.timestamp:
+        if 0 < self.voting_escrow.locked__end(user) < boa.env.evm.patch.timestamp:
             self.voting_escrow.withdraw(sender=user)
 
     @rule(uid=user_id)
