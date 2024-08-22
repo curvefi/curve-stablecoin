@@ -844,7 +844,7 @@ def withdraw(user: address, frac: uint256) -> uint256[2]:
     log Withdraw(user, total_x, total_y)
 
     if lm.address != empty(address):
-        lm.callback_collateral_shares(0, [], len(user_shares))  # collateral/shares ratio is unchanged
+        lm.callback_collateral_shares(ns[0], [], len(user_shares))  # collateral/shares ratio is unchanged
         lm.callback_user_shares(user, ns[0], user_shares)
 
     return [total_x, total_y]
