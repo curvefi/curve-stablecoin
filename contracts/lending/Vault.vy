@@ -66,6 +66,9 @@ event Withdraw:
     assets: uint256
     shares: uint256
 
+event SetMaxSupply:
+    max_supply: uint256
+
 
 # Limits
 MIN_A: constant(uint256) = 2
@@ -90,6 +93,8 @@ price_oracle: public(PriceOracle)
 amm: public(AMM)
 controller: public(Controller)
 factory: public(Factory)
+
+maxSupply: public(uint256)
 
 
 # ERC20 publics
@@ -219,9 +224,21 @@ def initialize(
     # However this will be changed as soon as Vyper can *properly* manipulate strings
     self.symbol = concat(SYMBOL_PREFIX, borrowed_symbol)
 
+    self.maxSupply = max_value(uint256)
+
     # No events because it's the only market we would ever create in this contract
 
     return controller, amm
+
+
+@external
+def set_max_supply(max_supply: uint256):
+    """
+    @notice Set maximum depositable supply
+    """
+    assert msg.sender == self.factory.admin()
+    self.maxSupply = max_supply
+    log SetMaxSupply(max_supply)
 
 
 @external
@@ -356,7 +373,12 @@ def maxDeposit(receiver: address) -> uint256:
     """
     @notice Maximum amount of assets which a given user can deposit (inf)
     """
-    return max_value(uint256)
+    max_supply: uint256 = self.maxSupply
+    if max_supply == max_value(uint256):
+        return max_supply
+    else:
+        assets: uint256 = self._total_assets()
+        return max(max_supply, assets) - assets
 
 
 @external
@@ -380,6 +402,7 @@ def deposit(assets: uint256, receiver: address = msg.sender) -> uint256:
     controller: Controller = self.controller
     total_assets: uint256 = self._total_assets()
     assert total_assets + assets >= MIN_ASSETS, "Need more assets"
+    assert total_assets + assets <= self.maxSupply, "Supply limit"
     to_mint: uint256 = self._convert_to_shares(assets, True, total_assets)
     assert self.borrowed_token.transferFrom(msg.sender, controller.address, assets, default_return_value=True)
     self._mint(receiver, to_mint)
@@ -394,7 +417,12 @@ def maxMint(receiver: address) -> uint256:
     """
     @notice Return maximum amount of shares which a given user can mint (inf)
     """
-    return max_value(uint256)
+    max_supply: uint256 = self.maxSupply
+    if max_supply == max_value(uint256):
+        return max_supply
+    else:
+        assets: uint256 = self._total_assets()
+        return self._convert_to_shares(max(max_supply, assets) - assets)
 
 
 @external
@@ -419,6 +447,7 @@ def mint(shares: uint256, receiver: address = msg.sender) -> uint256:
     total_assets: uint256 = self._total_assets()
     assets: uint256 = self._convert_to_assets(shares, False, total_assets)
     assert total_assets + assets >= MIN_ASSETS, "Need more assets"
+    assert total_assets + assets <= self.maxSupply, "Supply limit"
     assert self.borrowed_token.transferFrom(msg.sender, controller.address, assets, default_return_value=True)
     self._mint(receiver, shares)
     controller.save_rate()
