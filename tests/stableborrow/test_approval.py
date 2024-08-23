@@ -84,7 +84,7 @@ def test_borrow_more(stablecoin, collateral_token, market_controller, existing_l
 
     with boa.env.prank(someone_else):
         with boa.reverts():
-            market_controller.borrow_more(0, more_debt)
+            market_controller.borrow_more(0, more_debt, user)
 
     with boa.env.prank(user):
         market_controller.approve(someone_else, True)
@@ -103,3 +103,28 @@ def test_borrow_more(stablecoin, collateral_token, market_controller, existing_l
         assert stablecoin.balanceOf(market_amm) == 0
         assert collateral_token.balanceOf(market_amm) == c_amount
         assert market_controller.total_debt() == debt + more_debt
+
+
+def test_remove_collateral(stablecoin, collateral_token, market_controller, existing_loan, market_amm, accounts):
+    user = accounts[0]
+    someone_else = accounts[1]
+
+    debt = market_controller.debt(user)
+    c_amount = int(2 * 1e6 * 1e18 * 1.5 / 3000)
+
+    with boa.env.prank(someone_else):
+        with boa.reverts():
+            market_controller.remove_collateral(c_amount // 10, user)
+
+    with boa.env.prank(user):
+        market_controller.approve(someone_else, True)
+
+    with boa.env.prank(someone_else):
+        market_controller.remove_collateral(c_amount // 10, user)
+
+        assert market_controller.debt(user) == debt
+        assert stablecoin.balanceOf(user) == debt
+        assert collateral_token.balanceOf(user) == c_amount // 10
+        assert stablecoin.balanceOf(market_amm) == 0
+        assert collateral_token.balanceOf(market_amm) == c_amount - c_amount // 10
+        assert market_controller.total_debt() == debt
