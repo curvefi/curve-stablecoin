@@ -26,6 +26,7 @@ interface Vault:
     def borrowed_token() -> address: view
     def collateral_token() -> address: view
     def price_oracle() -> address: view
+    def set_max_supply(_value: uint256): nonpayable
 
 interface Controller:
     def monetary_policy() -> address: view
@@ -214,7 +215,8 @@ def create(
         price_oracle: address,
         name: String[64],
         min_borrow_rate: uint256 = 0,
-        max_borrow_rate: uint256 = 0
+        max_borrow_rate: uint256 = 0,
+        supply_limit: uint256 = max_value(uint256)
     ) -> Vault:
     """
     @notice Creation of the vault using user-supplied price oracle contract
@@ -228,9 +230,13 @@ def create(
     @param name Human-readable market name
     @param min_borrow_rate Custom minimum borrow rate (otherwise min_default_borrow_rate)
     @param max_borrow_rate Custom maximum borrow rate (otherwise max_default_borrow_rate)
+    @param supply_limit Supply cap
     """
-    return self._create(borrowed_token, collateral_token, A, fee, loan_discount, liquidation_discount,
-                        price_oracle, name, min_borrow_rate, max_borrow_rate)
+    vault: Vault = self._create(borrowed_token, collateral_token, A, fee, loan_discount, liquidation_discount,
+                                price_oracle, name, min_borrow_rate, max_borrow_rate)
+    if supply_limit < max_value(uint256):
+        vault.set_max_supply(supply_limit)
+    return vault
 
 
 @external
@@ -245,7 +251,8 @@ def create_from_pool(
         pool: address,
         name: String[64],
         min_borrow_rate: uint256 = 0,
-        max_borrow_rate: uint256 = 0
+        max_borrow_rate: uint256 = 0,
+        supply_limit: uint256 = max_value(uint256)
     ) -> Vault:
     """
     @notice Creation of the vault using existing oraclized Curve pool as a price oracle
@@ -260,6 +267,7 @@ def create_from_pool(
     @param name Human-readable market name
     @param min_borrow_rate Custom minimum borrow rate (otherwise min_default_borrow_rate)
     @param max_borrow_rate Custom maximum borrow rate (otherwise max_default_borrow_rate)
+    @param supply_limit Supply cap
     """
     # Find coins in the pool
     borrowed_ix: uint256 = 100
@@ -285,8 +293,11 @@ def create_from_pool(
     price_oracle: address = create_from_blueprint(
         self.pool_price_oracle_impl, pool, N, borrowed_ix, collateral_ix, code_offset=3)
 
-    return self._create(borrowed_token, collateral_token, A, fee, loan_discount, liquidation_discount,
-                        price_oracle, name, min_borrow_rate, max_borrow_rate)
+    vault: Vault = self._create(borrowed_token, collateral_token, A, fee, loan_discount, liquidation_discount,
+                                price_oracle, name, min_borrow_rate, max_borrow_rate)
+    if supply_limit < max_value(uint256):
+        vault.set_max_supply(supply_limit)
+    return vault
 
 
 @view

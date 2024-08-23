@@ -236,7 +236,7 @@ def set_max_supply(max_supply: uint256):
     """
     @notice Set maximum depositable supply
     """
-    assert msg.sender == self.factory.admin()
+    assert msg.sender == self.factory.admin() or msg.sender == self.factory.address
     self.maxSupply = max_supply
     log SetMaxSupply(max_supply)
 
