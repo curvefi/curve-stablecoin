@@ -70,3 +70,36 @@ def test_repay_all(stablecoin, collateral_token, market_controller, existing_loa
         assert stablecoin.balanceOf(amm) == 0
         assert collateral_token.balanceOf(amm) == 0
         assert market_controller.total_debt() == 0
+
+
+def test_borrow_more(stablecoin, collateral_token, market_controller, existing_loan, market_amm, accounts):
+    user = accounts[0]
+    someone_else = accounts[1]
+
+    debt = market_controller.debt(user)
+    more_debt = debt // 10
+    c_amount = int(2 * 1e6 * 1e18 * 1.5 / 3000)
+
+    n_before_0, n_before_1 = market_amm.read_user_tick_numbers(user)
+
+    with boa.env.prank(someone_else):
+        with boa.reverts():
+            market_controller.borrow_more(0, more_debt)
+
+    with boa.env.prank(user):
+        market_controller.approve(someone_else, True)
+
+    with boa.env.prank(someone_else):
+        market_controller.borrow_more(0, more_debt, user)
+        n_after_0, n_after_1 = market_amm.read_user_tick_numbers(user)
+
+        assert n_before_1 - n_before_0 + 1 == 5
+        assert n_after_1 - n_after_0 + 1 == 5
+        assert n_after_0 < n_before_0
+
+        assert market_controller.debt(user) == debt + more_debt
+        assert stablecoin.balanceOf(user) == debt + more_debt
+        assert collateral_token.balanceOf(user) == 0
+        assert stablecoin.balanceOf(market_amm) == 0
+        assert collateral_token.balanceOf(market_amm) == c_amount
+        assert market_controller.total_debt() == debt + more_debt
