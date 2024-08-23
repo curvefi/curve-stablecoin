@@ -90,6 +90,10 @@ event SetBorrowingDiscounts:
     loan_discount: uint256
     liquidation_discount: uint256
 
+event SetExtraHealth:
+    user: indexed(address)
+    health: uint256
+
 event CollectFees:
     amount: uint256
     new_supply: uint256
@@ -1522,3 +1526,4 @@ def set_extra_health(_value: uint256):
     @param _value 1e18-based addition to loan_discount
     """
     self.extra_health[msg.sender] = _value
+    log SetExtraHealth(msg.sender, _value)
