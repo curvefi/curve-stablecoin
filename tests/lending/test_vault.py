@@ -1,4 +1,5 @@
 import boa
+import pytest
 from hypothesis import settings
 from hypothesis import strategies as st
 from hypothesis.stateful import RuleBasedStateMachine, run_state_machine_as_test, rule, invariant
@@ -8,8 +9,9 @@ from ..conftest import approx
 DEAD_SHARES = 1000
 
 
+@pytest.mark.parametrize("supply_limit", [1000 * 10**18, 2**256-1])
 def test_vault_creation(vault, market_controller, market_amm, market_mpolicy, factory, price_oracle,
-                        borrowed_token, collateral_token, stablecoin):
+                        borrowed_token, collateral_token, stablecoin, supply_limit):
     assert vault.amm() == market_amm.address
     assert vault.controller() == market_controller.address
     assert market_controller.monetary_policy() == market_mpolicy.address
