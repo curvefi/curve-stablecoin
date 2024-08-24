@@ -9,7 +9,6 @@ from ..conftest import approx
 DEAD_SHARES = 1000
 
 
-@pytest.mark.parametrize("supply_limit", [1000 * 10**18, 2**256-1])
 def test_vault_creation(vault, market_controller, market_amm, market_mpolicy, factory, price_oracle,
                         borrowed_token, collateral_token, stablecoin, supply_limit):
     assert vault.amm() == market_amm.address
@@ -39,21 +38,32 @@ def test_vault_creation(vault, market_controller, market_amm, market_mpolicy, fa
     assert factory.gauges(n - 1) == gauge
 
 
-def test_deposit_and_withdraw(vault, borrowed_token, accounts):
+@pytest.mark.parametrize("supply_limit", [0, 1000 * 10**18, 2**256-1, None])
+def test_deposit_and_withdraw(vault, borrowed_token, accounts, admin, supply_limit):
     one_token = 10 ** borrowed_token.decimals()
     amount = 10**6 * one_token
     user = accounts[1]
     borrowed_token._mint_for_testing(user, amount)
 
+    if supply_limit is not None:
+        with boa.env.prank(admin):
+            vault.set_max_supply(supply_limit)
+    else:
+        supply_limit = 2**256 - 1
+
     with boa.env.prank(user):
         assert vault.pricePerShare() == 10**18 // DEAD_SHARES
         borrowed_token.approve(vault.address, 2**256-1)
-        vault.deposit(amount)
-        assert vault.totalAssets() == amount
-        assert vault.balanceOf(user) == amount * 10**18 * DEAD_SHARES // one_token
-        assert vault.pricePerShare() == 10**18 // DEAD_SHARES  # We test different precisions here, and pps is the same
-        vault.redeem(vault.balanceOf(user))
-        assert vault.totalAssets() == 0
+        if amount > supply_limit:
+            with boa.reverts():
+                vault.deposit(amount)
+        else:
+            vault.deposit(amount)
+            assert vault.totalAssets() == amount
+            assert vault.balanceOf(user) == amount * 10**18 * DEAD_SHARES // one_token
+            assert vault.pricePerShare() == 10**18 // DEAD_SHARES  # We test different precisions here, and pps is the same
+            vault.redeem(vault.balanceOf(user))
+            assert vault.totalAssets() == 0
 
 
 class StatefulVault(RuleBasedStateMachine):
