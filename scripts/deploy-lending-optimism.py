@@ -27,31 +27,37 @@ ORACLES = [
 
 MARKET_PARAMS = [
     ('ETH', {
+        'collateral': '0x4200000000000000000000000000000000000006',
         'A': 70,
         'fee': int(0.006e18),
         'borrowing_discount': int(0.07e18),
         'liquidation_discount': int(0.04e18),
         'min_borrow_rate': 2 * 10**16 // (365 * 86400),
         'max_borrow_rate': 50 * 10**16 // (365 * 86400),
-        'oracle_contract': '0x13e3Ee699D1909E989722E753853AE30b17e08c5'
+        'oracle_contract': '0x13e3Ee699D1909E989722E753853AE30b17e08c5',
+        'supply_limit': 2**256-1
      }),
     ('wstETH', {
+        'collateral': '0x1F32b1c2345538c0c6f582fCB022739c4A194Ebb',
         'A': 70,
         'fee': int(0.006e18),
         'borrowing_discount': int(0.07e18),
         'liquidation_discount': int(0.04e18),
         'min_borrow_rate': 2 * 10**16 // (365 * 86400),
         'max_borrow_rate': 50 * 10**16 // (365 * 86400),
-        'oracle_contract': '0x698B585CbC4407e2D54aa898B2600B53C68958f7'
+        'oracle_contract': '0x698B585CbC4407e2D54aa898B2600B53C68958f7',
+        'supply_limit': 2**256-1
      }),
     ('WBTC', {
+        'collateral': '0x68f180fcCe6836688e9084f035309E29Bf0A2095',
         'A': 70,
         'fee': int(0.006e18),
         'borrowing_discount': int(0.065e18),
         'liquidation_discount': int(0.035e18),
         'min_borrow_rate': 2 * 10**16 // (365 * 86400),
         'max_borrow_rate': 50 * 10**16 // (365 * 86400),
-        'oracle_contract': '0x718A5788b89454aAE3A028AE9c111A29Be6c2a6F'
+        'oracle_contract': '0x718A5788b89454aAE3A028AE9c111A29Be6c2a6F',
+        'supply_limit': 2**256-1
      }),
 ]
 
@@ -94,8 +100,6 @@ if __name__ == '__main__':
         boa.env.add_account(babe)
         boa.env._fork_try_prefetch_state = False
 
-    # XXX stopped here
-
     amm_impl = boa.load_partial('contracts/AMM.vy').deploy_as_blueprint()
     controller_impl = boa.load_partial('contracts/Controller.vy').deploy_as_blueprint()
     vault_impl = boa.load('contracts/lending/Vault.vy')
@@ -121,39 +125,16 @@ if __name__ == '__main__':
     print('==========================')
 
     if '--markets' in sys.argv[1:]:
-        # Deploy WETH long market
-        name = "WETH-long"
-        oracle_pool = "0x82670f35306253222F8a165869B28c64739ac62e"  # Tricrypto-crvUSD (Arbitrum)
-        collateral = "0x82aF49447D8a07e3bd95BD0d56f35241523fBab1"   # WETH
-        borrowed = CRVUSD
-        A = 70
-        fee = int(0.006 * 1e18)
-        borrowing_discount = int(0.07 * 1e18)
-        liquidation_discount = int(0.04 * 1e18)
-        min_borrow_rate = 2 * 10**16 // (365 * 86400)  # 2%
-        max_borrow_rate = 50 * 10**16 // (365 * 86400)  # 50%
-        vault_weth = factory.create_from_pool(borrowed, collateral, A, fee, borrowing_discount, liquidation_discount,
-                                              oracle_pool, name, min_borrow_rate, max_borrow_rate)
-        salt_weth = os.urandom(32)
-        gauge_factory.deploy_gauge(vault_weth, salt_weth, GAUGE_FUNDER)
-        print(f"Vault {name}: {vault_weth}, salt: {salt_weth.hex()}")
-
-        # Deploy wBTC long market
-        name = "wBTC-long"
-        oracle_pool = "0x82670f35306253222F8a165869B28c64739ac62e"  # Tricrypto-crvUSD (Arbitrum)
-        collateral = "0x2f2a2543B76A4166549F7aaB2e75Bef0aefC5B0f"   # wBTC
-        borrowed = CRVUSD
-        A = 75
-        fee = int(0.006 * 1e18)
-        borrowing_discount = int(0.065 * 1e18)
-        liquidation_discount = int(0.035 * 1e18)
-        min_borrow_rate = 2 * 10**16 // (365 * 86400)  # 2%
-        max_borrow_rate = 50 * 10**16 // (365 * 86400)  # 50%
-        vault_wbtc = factory.create_from_pool(borrowed, collateral, A, fee, borrowing_discount, liquidation_discount,
-                                              oracle_pool, name, min_borrow_rate, max_borrow_rate)
-        salt_wbtc = os.urandom(32)
-        gauge_factory.deploy_gauge(vault_wbtc, salt_wbtc, GAUGE_FUNDER)
-        print(f"Vault {name}: {vault_wbtc}, salt: {salt_wbtc.hex()}")
+        for name, p in MARKET_PARAMS:
+            vault = factory.create(
+                CRVUSD, p['collateral'],
+                p['A'], p['fee'], p['borrowing_discount'], p['liquidation_discount'],
+                p['oracle_contract'], name + '-long',
+                p['min_borrow_rate'], p['max_borrow_rate'], p['supply_limit'])
+            salt = os.urandom(32)
+            gauge_factory.deploy_gauge(vault, salt, GAUGE_FUNDER)
+            print(f"Vault {name}: {vault}, salt: {salt.hex()}")
+            p['salt'] = salt
 
         if '--fork' in sys.argv[1:]:
             boa.env.fork(NETWORK)
@@ -165,10 +146,10 @@ if __name__ == '__main__':
 
         gauge_factory_eth = ABIContractFactory.from_abi_dict(GAUGE_FACTORY_ABI_ETH).at(GAUGE_FACTORY)
 
-        gauge_factory_eth.deploy_gauge(CHAIN_ID, salt_weth)
-        if '--fork' not in sys.argv[1:]:
-            sleep(30)  # RPCs on Ethereum can change the node, so need to sleep to not fail
-        gauge_factory_eth.deploy_gauge(CHAIN_ID, salt_wbtc)
+        for name, p in MARKET_PARAMS:
+            if '--fork' not in sys.argv[1:]:
+                sleep(30)  # RPCs on Ethereum can change the node, so need to sleep to not fail
+            gauge_factory_eth.deploy_gauge(CHAIN_ID, salt)
 
     if '--hardhat' in sys.argv[1:]:
         hardhat.wait()
