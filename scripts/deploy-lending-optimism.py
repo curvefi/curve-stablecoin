@@ -19,6 +19,42 @@ CRVUSD = "0xC52D7F23a2e460248Db6eE192Cb23dD12bDDCbf6"  # crvUSD-opti
 GAUGE_FUNDER = "0x7a16fF8270133F063aAb6C9977183D9e72835428"
 HARDHAT_COMMAND = ["npx", "hardhat", "node", "--fork", OPTIMISM, "--port", "8545"]
 
+ORACLES = [
+    ('OP', '0x0D276FC14719f9292D5C1eA2198673d1f4269246'),
+    ('CRV', '0xbD92C6c284271c227a1e0bF1786F468b539f51D9'),
+    ('VELO', '0x0f2Ed59657e391746C1a097BDa98F2aBb94b1120')
+]
+
+MARKET_PARAMS = [
+    ('ETH', {
+        'A': 70,
+        'fee': int(0.006e18),
+        'borrowing_discount': int(0.07e18),
+        'liquidation_discount': int(0.04e18),
+        'min_borrow_rate': 2 * 10**16 // (365 * 86400),
+        'max_borrow_rate': 50 * 10**16 // (365 * 86400),
+        'oracle_contract': '0x13e3Ee699D1909E989722E753853AE30b17e08c5'
+     }),
+    ('wstETH', {
+        'A': 70,
+        'fee': int(0.006e18),
+        'borrowing_discount': int(0.07e18),
+        'liquidation_discount': int(0.04e18),
+        'min_borrow_rate': 2 * 10**16 // (365 * 86400),
+        'max_borrow_rate': 50 * 10**16 // (365 * 86400),
+        'oracle_contract': '0x698B585CbC4407e2D54aa898B2600B53C68958f7'
+     }),
+    ('WBTC', {
+        'A': 70,
+        'fee': int(0.006e18),
+        'borrowing_discount': int(0.065e18),
+        'liquidation_discount': int(0.035e18),
+        'min_borrow_rate': 2 * 10**16 // (365 * 86400),
+        'max_borrow_rate': 50 * 10**16 // (365 * 86400),
+        'oracle_contract': '0x718A5788b89454aAE3A028AE9c111A29Be6c2a6F'
+     }),
+]
+
 CHAIN_ID = 10
 GAUGE_FACTORY_ABI = [
     {"stateMutability": "nonpayable",
@@ -63,7 +99,7 @@ if __name__ == '__main__':
     amm_impl = boa.load_partial('contracts/AMM.vy').deploy_as_blueprint()
     controller_impl = boa.load_partial('contracts/Controller.vy').deploy_as_blueprint()
     vault_impl = boa.load('contracts/lending/Vault.vy')
-    price_oracle_impl = boa.load_partial('contracts/price_oracles/L2/CryptoFromPoolArbitrum.vy').deploy_as_blueprint()
+    price_oracle_impl = boa.load_partial('contracts/price_oracles/L2/CryptoFromPoolOptimismWAgg.vy').deploy_as_blueprint()
     mpolicy_impl = boa.load_partial('contracts/mpolicies/SemilogMonetaryPolicy.vy').deploy_as_blueprint()
     gauge_factory = ABIContractFactory.from_abi_dict(GAUGE_FACTORY_ABI).at(GAUGE_FACTORY)
 
