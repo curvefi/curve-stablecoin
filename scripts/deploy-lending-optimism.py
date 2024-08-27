@@ -19,6 +19,8 @@ CRVUSD = "0xC52D7F23a2e460248Db6eE192Cb23dD12bDDCbf6"  # crvUSD-opti
 GAUGE_FUNDER = "0x7a16fF8270133F063aAb6C9977183D9e72835428"
 HARDHAT_COMMAND = ["npx", "hardhat", "node", "--fork", OPTIMISM, "--port", "8545"]
 
+AGG = "0x2e9e2A7AfEfE04b722eAe39ae70Dbce5411f0fb1"
+
 ORACLES = [
     ('OP', '0x0D276FC14719f9292D5C1eA2198673d1f4269246'),
     ('CRV', '0xbD92C6c284271c227a1e0bF1786F468b539f51D9'),
@@ -34,7 +36,7 @@ MARKET_PARAMS = [
         'liquidation_discount': int(0.04e18),
         'min_borrow_rate': 2 * 10**16 // (365 * 86400),
         'max_borrow_rate': 50 * 10**16 // (365 * 86400),
-        'oracle_contract': '0x13e3Ee699D1909E989722E753853AE30b17e08c5',
+        'oracle_contract': '0x13e3Ee699D1909E989722E753853AE30b17e08c5',  # XXX
         'supply_limit': 2**256-1
      }),
     ('wstETH', {
@@ -45,11 +47,11 @@ MARKET_PARAMS = [
         'liquidation_discount': int(0.04e18),
         'min_borrow_rate': 2 * 10**16 // (365 * 86400),
         'max_borrow_rate': 50 * 10**16 // (365 * 86400),
-        'oracle_contract': '0x698B585CbC4407e2D54aa898B2600B53C68958f7',
+        'oracle_contract': '0x698B585CbC4407e2D54aa898B2600B53C68958f7',  # XXX
         'supply_limit': 2**256-1
      }),
     ('WBTC', {
-        'collateral': '0x68f180fcCe6836688e9084f035309E29Bf0A2095',
+        'collateral': '0x68f180fcCe6836688e9084f035309E29Bf0A2095',  # XXX
         'A': 70,
         'fee': int(0.006e18),
         'borrowing_discount': int(0.065e18),
