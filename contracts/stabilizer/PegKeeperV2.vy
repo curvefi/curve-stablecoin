@@ -62,7 +62,7 @@ event SetNewRegulator:
 
 
 # Time between providing/withdrawing coins
-action_delay: uint256
+action_delay: public(uint256)
 ADMIN_ACTIONS_DELAY: constant(uint256) = 3 * 86400
 
 PRECISION: constant(uint256) = 10 ** 18
