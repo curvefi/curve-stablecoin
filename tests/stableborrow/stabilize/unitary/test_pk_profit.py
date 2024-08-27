@@ -153,7 +153,7 @@ def test_unprofitable_peg(swaps, peg_keepers, redeemable_tokens, stablecoin, ali
 
             set_fee(swap, 5 * 10**9)
 
-            boa.env.time_travel(15 * 60)
+            boa.env.time_travel(12)
             with boa.reverts('peg unprofitable'):  # dev: peg was unprofitable
                 with boa.env.prank(alice):
                     peg_keeper.update()

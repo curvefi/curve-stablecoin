@@ -51,6 +51,9 @@ event CommitNewAdmin:
 event ApplyNewAdmin:
     admin: address
 
+event SetNewActionDelay:
+    action_delay: uint256
+
 event SetNewCallerShare:
     caller_share: uint256
 
@@ -59,7 +62,7 @@ event SetNewRegulator:
 
 
 # Time between providing/withdrawing coins
-ACTION_DELAY: constant(uint256) = 15 * 60
+action_delay: public(uint256)
 ADMIN_ACTIONS_DELAY: constant(uint256) = 3 * 86400
 
 PRECISION: constant(uint256) = 10 ** 18
@@ -130,6 +133,9 @@ def __init__(
     assert _caller_share <= SHARE_PRECISION  # dev: bad part value
     self.caller_share = _caller_share
     log SetNewCallerShare(_caller_share)
+
+    self.action_delay = 12  # 1 block
+    log SetNewActionDelay(12)
 
     FACTORY = _factory
 
@@ -290,7 +296,7 @@ def estimate_caller_profit() -> uint256:
     @dev This method is not precise, real profit is always more because of increasing virtual price
     @return Expected amount of profit going to beneficiary
     """
-    if self.last_change + ACTION_DELAY > block.timestamp:
+    if self.last_change + self.action_delay > block.timestamp:
         return 0
 
     balance_pegged: uint256 = POOL.balances(I)
@@ -316,7 +322,7 @@ def update(_beneficiary: address = msg.sender) -> uint256:
     @param _beneficiary Beneficiary address
     @return Amount of profit received by beneficiary
     """
-    if self.last_change + ACTION_DELAY > block.timestamp:
+    if self.last_change + self.action_delay > block.timestamp:
         return 0
 
     balance_pegged: uint256 = POOL.balances(I)
@@ -361,6 +367,20 @@ def withdraw_profit() -> uint256:
 
 
 # ------------------------------- Admin methods --------------------------------
+
+
+@external
+@nonpayable
+def set_new_action_delay(_new_action_delay: uint256):
+    """
+    @notice Set new action delay
+    @param _new_action_delay Action delay in seconds
+    """
+    assert msg.sender == self.admin  # dev: only admin
+
+    self.action_delay = _new_action_delay
+
+    log SetNewActionDelay(_new_action_delay)
 
 
 @external

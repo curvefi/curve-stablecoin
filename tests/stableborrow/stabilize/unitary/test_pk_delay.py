@@ -2,7 +2,7 @@ import boa
 import pytest
 
 
-ACTION_DELAY = 15 * 60
+ACTION_DELAY = 12
 
 
 pytestmark = pytest.mark.usefixtures("add_initial_liquidity", "provide_token_to_peg_keepers", "mint_bob")
@@ -36,7 +36,7 @@ def test_update_no_delay(peg_keepers, swaps, redeemable_tokens, stablecoin, bob,
                     swap.add_liquidity([0, stablecoin.balanceOf(bob)], 0)
 
             t0 = pk.last_change()
-            boa.env.vm.patch.timestamp = t0 + ACTION_DELAY - 30
+            boa.env.vm.patch.timestamp = t0 + ACTION_DELAY - 3
             with boa.env.prank(peg_keeper_updater):
                 pk.update()
             assert pk.last_change() == t0
