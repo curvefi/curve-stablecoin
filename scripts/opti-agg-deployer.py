@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 # Deployed aggregator:
-# https://arbiscan.io/address/0x44a4FdFb626Ce98e36396d491833606309520330#readContract
+# https://optimistic.etherscan.io/address/0x534a909f456dfae903d7ea6927a1c7646099b02e#code
 
 import boa
 import json
@@ -44,8 +44,8 @@ if __name__ == '__main__':
     agg = agg_factory.deploy(crvusd, sigma, boa.env.eoa)
 
     for pool in pools:
-        agg.add_price_pair(pool)
+        agg.add_price_pair(pool, gas=10**6)
 
-    agg.set_admin(admin)
+    agg.set_admin(admin, gas=10**6)
 
     print(agg.address)
