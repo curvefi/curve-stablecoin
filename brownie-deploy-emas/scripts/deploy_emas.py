@@ -1,6 +1,16 @@
 from brownie import network, accounts
 from brownie import ChainlinkEMA
 
+# Deployed oracles:
+#
+# Optimism
+# ETH: 0x92577943c7aC4accb35288aB2CC84D75feC330aF - 2527.677385278486
+# wstETH: 0x44343B1B95BaA53eC561F8d7B357155B89507077 - 2973.64312578
+# WBTC: 0xEc12C072d9ABdf3F058C8B17169eED334fC1dE58 - 59936.0695874035
+# OP: 0x3Fa8ebd5d16445b42e0b6A54678718C94eA99aBC - 1.4259036116957085
+# CRV: 0x2016f1AaE491438E6EA908e30b60dAeb56ac185c - 0.30310084862222325
+# VELO: 0xc820FA08406174c14AA29335AbFbaf6B147B3D4c - 0.08164874
+
 
 OBSERVATIONS = 20
 INTERVAL = 30
@@ -27,9 +37,9 @@ def main():
     babe = accounts.load('babe')
     current_network = network.show_active()
     feed_list = FEEDS[current_network]
-    args = {'from': babe, 'priority_fee': 'auto'}
+    args = {'from': babe, 'priority_fee': 'auto', 'required_confs': 5}
     print(f'Deploying on {current_network}')
 
     for name, feed in feed_list:
-        oracle = ChainlinkEMA.deploy(feed, OBSERVATIONS, INTERVAL, args, publish_source=True)
+        oracle = ChainlinkEMA.deploy(feed, OBSERVATIONS, INTERVAL, args, publish_source=False)
         print(f'{name}: {oracle.address} - {oracle.price() / 1e18}')
