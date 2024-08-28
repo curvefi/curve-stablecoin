@@ -36,7 +36,7 @@ MARKET_PARAMS = [
         'liquidation_discount': int(0.04e18),
         'min_borrow_rate': 2 * 10**16 // (365 * 86400),
         'max_borrow_rate': 50 * 10**16 // (365 * 86400),
-        'oracle_contract': '0x13e3Ee699D1909E989722E753853AE30b17e08c5',  # XXX
+        'oracle_contract': '0x92577943c7aC4accb35288aB2CC84D75feC330aF',
         'supply_limit': 2**256-1
      }),
     ('wstETH', {
@@ -47,7 +47,7 @@ MARKET_PARAMS = [
         'liquidation_discount': int(0.04e18),
         'min_borrow_rate': 2 * 10**16 // (365 * 86400),
         'max_borrow_rate': 50 * 10**16 // (365 * 86400),
-        'oracle_contract': '0x698B585CbC4407e2D54aa898B2600B53C68958f7',  # XXX
+        'oracle_contract': '0x44343B1B95BaA53eC561F8d7B357155B89507077',
         'supply_limit': 2**256-1
      }),
     ('WBTC', {
@@ -58,7 +58,7 @@ MARKET_PARAMS = [
         'liquidation_discount': int(0.035e18),
         'min_borrow_rate': 2 * 10**16 // (365 * 86400),
         'max_borrow_rate': 50 * 10**16 // (365 * 86400),
-        'oracle_contract': '0x718A5788b89454aAE3A028AE9c111A29Be6c2a6F',
+        'oracle_contract': '0xEc12C072d9ABdf3F058C8B17169eED334fC1dE58',
         'supply_limit': 2**256-1
      }),
 ]
