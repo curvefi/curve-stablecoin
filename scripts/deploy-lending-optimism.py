@@ -67,7 +67,7 @@ MARKET_PARAMS = [
         'liquidation_discount': int(0.125e18),
         'min_borrow_rate': 2 * 10**16 // (365 * 86400),
         'max_borrow_rate': 30 * 10**16 // (365 * 86400),
-        'oracle_contract': '0x0D276FC14719f9292D5C1eA2198673d1f4269246',
+        'oracle_contract': '0x3Fa8ebd5d16445b42e0b6A54678718C94eA99aBC',
         'supply_limit': 15 * 10**6 * 10**18
     }),
     ('CRV', {
@@ -78,7 +78,7 @@ MARKET_PARAMS = [
         'liquidation_discount': int(0.125e18),
         'min_borrow_rate': 2 * 10**16 // (365 * 86400),
         'max_borrow_rate': 30 * 10**16 // (365 * 86400),
-        'oracle_contract': '0xbD92C6c284271c227a1e0bF1786F468b539f51D9',
+        'oracle_contract': '0x2016f1AaE491438E6EA908e30b60dAeb56ac185c',
         'supply_limit': 15 * 10**6 * 10**18
     })
 ]
