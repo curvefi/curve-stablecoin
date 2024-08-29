@@ -21,11 +21,9 @@ HARDHAT_COMMAND = ["npx", "hardhat", "node", "--fork", OPTIMISM, "--port", "8545
 
 AGG = "0x534a909f456dfae903d7ea6927a1c7646099b02e"
 
-ORACLES = [
-    ('OP', '0x0D276FC14719f9292D5C1eA2198673d1f4269246'),
-    ('CRV', '0xbD92C6c284271c227a1e0bF1786F468b539f51D9'),
-    ('VELO', '0x0f2Ed59657e391746C1a097BDa98F2aBb94b1120')
-]
+# ORACLES = [
+#     ('VELO', '0x0f2Ed59657e391746C1a097BDa98F2aBb94b1120')
+# ]
 
 MARKET_PARAMS = [
     ('ETH', {
@@ -35,7 +33,7 @@ MARKET_PARAMS = [
         'borrowing_discount': int(0.07e18),
         'liquidation_discount': int(0.04e18),
         'min_borrow_rate': 2 * 10**16 // (365 * 86400),
-        'max_borrow_rate': 50 * 10**16 // (365 * 86400),
+        'max_borrow_rate': 30 * 10**16 // (365 * 86400),
         'oracle_contract': '0x92577943c7aC4accb35288aB2CC84D75feC330aF',
         'supply_limit': 2**256-1
      }),
@@ -46,21 +44,43 @@ MARKET_PARAMS = [
         'borrowing_discount': int(0.07e18),
         'liquidation_discount': int(0.04e18),
         'min_borrow_rate': 2 * 10**16 // (365 * 86400),
-        'max_borrow_rate': 50 * 10**16 // (365 * 86400),
+        'max_borrow_rate': 30 * 10**16 // (365 * 86400),
         'oracle_contract': '0x44343B1B95BaA53eC561F8d7B357155B89507077',
         'supply_limit': 2**256-1
      }),
     ('WBTC', {
-        'collateral': '0x68f180fcCe6836688e9084f035309E29Bf0A2095',  # XXX
+        'collateral': '0x68f180fcCe6836688e9084f035309E29Bf0A2095',
         'A': 70,
         'fee': int(0.006e18),
         'borrowing_discount': int(0.065e18),
         'liquidation_discount': int(0.035e18),
         'min_borrow_rate': 2 * 10**16 // (365 * 86400),
-        'max_borrow_rate': 50 * 10**16 // (365 * 86400),
+        'max_borrow_rate': 30 * 10**16 // (365 * 86400),
         'oracle_contract': '0xEc12C072d9ABdf3F058C8B17169eED334fC1dE58',
         'supply_limit': 2**256-1
      }),
+    ('OP', {
+        'collateral': '0x4200000000000000000000000000000000000042',
+        'A': 22,
+        'fee': int(0.006e18),
+        'borrowing_discount': int(0.155e18),
+        'liquidation_discount': int(0.125e18),
+        'min_borrow_rate': 2 * 10**16 // (365 * 86400),
+        'max_borrow_rate': 30 * 10**16 // (365 * 86400),
+        'oracle_contract': '0x0D276FC14719f9292D5C1eA2198673d1f4269246',
+        'supply_limit': 15 * 10**6 * 10**18
+    }),
+    ('CRV', {
+        'collateral': '0x0994206dfE8De6Ec6920FF4D779B0d950605Fb53',
+        'A': 22,
+        'fee': int(0.006e18),
+        'borrowing_discount': int(0.155e18),
+        'liquidation_discount': int(0.125e18),
+        'min_borrow_rate': 2 * 10**16 // (365 * 86400),
+        'max_borrow_rate': 30 * 10**16 // (365 * 86400),
+        'oracle_contract': '0xbD92C6c284271c227a1e0bF1786F468b539f51D9',
+        'supply_limit': 15 * 10**6 * 10**18
+    })
 ]
 
 CHAIN_ID = 10
