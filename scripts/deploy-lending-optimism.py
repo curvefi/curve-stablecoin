@@ -171,6 +171,8 @@ if __name__ == '__main__':
         for name, p in MARKET_PARAMS:
             if '--fork' not in sys.argv[1:]:
                 sleep(30)  # RPCs on Ethereum can change the node, so need to sleep to not fail
+            salt = p['salt']
+            print(f'Deploying on Ethereum with salt: {salt.hex()}')
             gauge_factory_eth.deploy_gauge(CHAIN_ID, salt)
 
     if '--hardhat' in sys.argv[1:]:
