@@ -10,14 +10,14 @@ from getpass import getpass
 from eth_account import account
 from boa.contracts.abi.abi_contract import ABIContractFactory
 
-from networks import NETWORK, OPTIMISM
+from networks import NETWORK, FRAXTAL
 
 
 ADMIN = "0x4BbdFEd5696b3a8F6B3813506b5389959C5CDC57"  # Fraxtal Curve xgov
 GAUGE_FACTORY = "0xeF672bD94913CB6f1d2812a6e18c1fFdEd8eFf5c"  # Fraxtal gauge factory has also the same address on L1
 CRVUSD = "0xB102f7Efa0d5dE071A8D37B3548e1C7CB148Caf3"  # crvUSD-fraxtal
 GAUGE_FUNDER = "0xbabe61887f1de2713c6f97e567623453d3C79f67"
-HARDHAT_COMMAND = ["npx", "hardhat", "node", "--fork", OPTIMISM, "--port", "8545"]
+HARDHAT_COMMAND = ["npx", "hardhat", "node", "--fork", FRAXTAL, "--port", "8545"]
 
 MARKET_PARAMS = [
     ('sfrxETH', {
@@ -97,18 +97,18 @@ if __name__ == '__main__':
         sleep(5)
 
     if '--fork' in sys.argv[1:]:
-        boa.env.fork(OPTIMISM)
+        boa.env.fork(FRAXTAL)
         boa.env.eoa = '0xbabe61887f1de2713c6f97e567623453d3C79f67'
     else:
         babe = account_load('babe')
-        boa.set_network_env(OPTIMISM)
+        boa.set_network_env(FRAXTAL)
         boa.env.add_account(babe)
         boa.env._fork_try_prefetch_state = False
 
     amm_impl = boa.load_partial('contracts/AMM.vy').deploy_as_blueprint()
     controller_impl = boa.load_partial('contracts/Controller.vy').deploy_as_blueprint()
     vault_impl = boa.load('contracts/lending/Vault.vy')
-    price_oracle_impl = boa.load_partial('contracts/price_oracles/L2/CryptoFromPool***.vy').deploy_as_blueprint()
+    price_oracle_impl = boa.load_partial('contracts/price_oracles/CryptoFromPool.vy').deploy_as_blueprint()  # XXX
     mpolicy_impl = boa.load_partial('contracts/mpolicies/SemilogMonetaryPolicy.vy').deploy_as_blueprint()
     gauge_factory = ABIContractFactory.from_abi_dict(GAUGE_FACTORY_ABI).at(GAUGE_FACTORY)
 
