@@ -4,7 +4,7 @@
 """
 @title CryptoFromPoolsWAgg
 @notice Price oracle for pools which contain cryptos and crvUSD. It also uses aggregator to measure /USD instead of /crvUSD price.
-        The oracle chains multiple pool oracles, and at the same time applies rate oracles if they are applicable
+        The oracle chains multiple pool oracles
 @author Curve.Fi
 @license MIT
 """
