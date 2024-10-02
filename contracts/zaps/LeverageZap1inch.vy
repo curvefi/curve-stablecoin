@@ -275,7 +275,7 @@ def _transferFrom(token: address, _from: address, _to: address, amount: uint256)
 @internal
 def _approve(coin: address, spender: address):
     if ERC20(coin).allowance(self, spender) == 0:
-        ERC20(coin).approve(spender, max_value(uint256))
+        assert ERC20(coin).approve(spender, max_value(uint256), default_return_value=True)
 
 
 @external

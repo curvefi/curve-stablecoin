@@ -215,9 +215,9 @@ def _create(
     self._vaults_index[vault_long] = market_count + 2**128
     market_count += 1
 
-    ERC20(borrowed_token).approve(amm, max_value(uint256))
-    ERC20(collateral_token).approve(vault_short.address, max_value(uint256))
-    ERC20(vault_short.address).approve(amm, max_value(uint256))
+    assert ERC20(borrowed_token).approve(amm, max_value(uint256), default_return_value=True)
+    assert ERC20(collateral_token).approve(vault_short.address, max_value(uint256), default_return_value=True)
+    assert ERC20(vault_short.address).approve(amm, max_value(uint256), default_return_value=True)
 
     controller, amm = vault_short.initialize(
         self.amm_impl, self.controller_impl,
@@ -235,9 +235,9 @@ def _create(
     market_count += 1
     self.market_count = market_count
 
-    ERC20(borrowed_token).approve(vault_long.address, max_value(uint256))
-    ERC20(collateral_token).approve(amm, max_value(uint256))
-    ERC20(vault_long.address).approve(amm, max_value(uint256))
+    assert ERC20(borrowed_token).approve(vault_long.address, max_value(uint256), default_return_value=True)
+    assert ERC20(collateral_token).approve(amm, max_value(uint256), default_return_value=True)
+    assert ERC20(vault_long.address).approve(amm, max_value(uint256), default_return_value=True)
 
     self._add_to_index(vault_long, borrowed_token, collateral_token)
     self._add_to_index(vault_short, borrowed_token, collateral_token)
