@@ -232,7 +232,7 @@ def __init__(
 
     SQRT_BAND_RATIO = isqrt(unsafe_div(10**36 * _A, unsafe_sub(_A, 1)))
 
-    _borrowed_token.approve(msg.sender, max_value(uint256))
+    assert _borrowed_token.approve(msg.sender, max_value(uint256), default_return_value=True)
 
 
 @internal
