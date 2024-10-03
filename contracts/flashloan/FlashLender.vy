@@ -12,6 +12,7 @@ from vyper.interfaces import ERC20
 
 interface Factory:
     def stablecoin() -> address: view
+    def debt_ceiling_residual(_to: address) -> uint256: view
 
 interface ERC3156FlashBorrower:
     def onFlashLoan(initiator: address, token: address, amount: uint256, fee: uint256, data: Bytes[10**5]): nonpayable
@@ -23,6 +24,7 @@ event FlashLoan:
     amount: uint256
 
 
+FACTORY: immutable(Factory)
 CRVUSD: immutable(address)
 fee: public(constant(uint256)) = 0  # 1 == 0.01 %
 
@@ -32,6 +34,7 @@ def __init__(factory: Factory):
     """
     @notice FlashLender constructor. Gets crvUSD address from factory and gives infinite crvUSD approval to factory.
     """
+    FACTORY = factory
     CRVUSD = factory.stablecoin()
     ERC20(CRVUSD).approve(factory.address, max_value(uint256))
 
@@ -54,10 +57,9 @@ def flashLoan(receiver: ERC3156FlashBorrower, token: address, amount: uint256, d
     @param data A data parameter to be passed on to the `receiver` for any custom use.
     """
     assert token == CRVUSD, "FlashLender: Unsupported currency"
-    crvusd_balance: uint256 = ERC20(CRVUSD).balanceOf(self)
     ERC20(CRVUSD).transfer(receiver.address, amount)
     receiver.onFlashLoan(msg.sender, CRVUSD, amount, 0, data)
-    assert ERC20(CRVUSD).balanceOf(self) == crvusd_balance, "FlashLender: Repay failed"
+    assert ERC20(CRVUSD).balanceOf(self) >= FACTORY.debt_ceiling_residual(self), "FlashLender: Repay failed"
 
     log FlashLoan(msg.sender, receiver.address, amount)
 

@@ -10,7 +10,9 @@ def stablecoin_pre():
 @pytest.fixture(scope="module")
 def stablecoin(stablecoin_pre, admin):
     with boa.env.prank(admin):
-        return stablecoin_pre.deploy('Curve USD', 'crvUSD')
+        _stablecoin = stablecoin_pre.deploy('Curve USD', 'crvUSD')
+        _stablecoin.mint(admin, 10**21)
+        return _stablecoin
 
 
 @pytest.fixture(scope="session")
