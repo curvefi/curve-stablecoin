@@ -8,9 +8,6 @@
 
 from vyper.interfaces import ERC20
 
-interface Factory:
-    def get_amm(collateral: address, i: uint256) -> address: view
-
 interface LLAMMA:
     def coins(i: uint256) -> address: view
     def bands_x(n: int256) -> uint256: view
@@ -50,11 +47,7 @@ MAX_TICKS_INT: constant(int256) = 50
 TOKENLESS_PRODUCTION: constant(uint256) = 40
 WEEK: constant(uint256) = 604800
 
-amm: public(address)
-
-FACTORY: immutable(Factory)
-COLLATERAL_TOKEN: public(immutable(ERC20))
-COLLATERAL_INDEX: public(immutable(uint256))
+AMM: public(immutable(LLAMMA))
 VECRV: public(immutable(ERC20))
 CRV: public(immutable(CRV20))
 VEBOOST_PROXY: public(immutable(VotingEscrowBoost))
@@ -125,13 +118,11 @@ integrate_fraction: public(HashMap[address, uint256])
 
 @external
 def __init__(
-        factory: Factory,
-        collateral: ERC20,
-        c_index: uint256,
+        amm: LLAMMA,
         crv: CRV20,
         vecrv: ERC20,
         veboost_proxy: VotingEscrowBoost,
-        gc: GaugeController,
+        gauge_controller: GaugeController,
         minter: Minter,
 ):
     """
@@ -147,23 +138,15 @@ def __init__(
     @param gc: The address of the gauge controller
     @param minter: the address of CRV minter
     """
-    FACTORY = factory
-    COLLATERAL_TOKEN = collateral
-    COLLATERAL_INDEX = c_index
+    AMM = amm
+    CRV = crv
     VECRV = vecrv
     VEBOOST_PROXY = veboost_proxy
-    CRV = crv
-    GAUGE_CONTROLLER = gc
+    GAUGE_CONTROLLER = gauge_controller
     MINTER = minter
 
-
-@external
-def initialize():
-    amm: address = FACTORY.get_amm(COLLATERAL_TOKEN.address, COLLATERAL_INDEX)
-    self.amm = amm
-    assert COLLATERAL_TOKEN == ERC20(LLAMMA(amm).coins(1))
-    self.inflation_rate = CRV.rate()
-    self.future_epoch_time = CRV.future_epoch_time_write()
+    self.inflation_rate = crv.rate()
+    self.future_epoch_time = crv.future_epoch_time_write()
 
 
 @internal
@@ -320,7 +303,7 @@ def _user_amounts(user: address, n_start: int256, user_shares: DynArray[uint256,
             cps: uint256 = self.collateral_per_share[n_start + i]
             old_collateral_amount += self.user_shares[user][n_start + i] * cps / 10**18
             collateral_amount += user_shares[i] * cps / 10**18
-            stablecoin_amount += LLAMMA(self.amm).bands_x(n_start + i)
+            stablecoin_amount += AMM.bands_x(n_start + i)
 
         return [collateral_amount, old_collateral_amount, stablecoin_amount]
     else:
@@ -328,7 +311,7 @@ def _user_amounts(user: address, n_start: int256, user_shares: DynArray[uint256,
             if i == size:
                 break
             old_collateral_amount += self.user_shares[user][n_start + i] * self.collateral_per_share[n_start + i] / 10**18
-            stablecoin_amount += LLAMMA(self.amm).bands_x(n_start + i)
+            stablecoin_amount += AMM.bands_x(n_start + i)
 
         return [old_collateral_amount, old_collateral_amount, stablecoin_amount]
 
@@ -424,7 +407,7 @@ def callback_collateral_shares(n_start: int256, collateral_per_share: DynArray[u
     @param size The number of bands to checkpoint starting from `n_start`
     """
     # It is important that this callback is called every time before callback_user_shares
-    assert msg.sender == self.amm
+    assert msg.sender == AMM.address
     self._checkpoint_collateral_shares(n_start, collateral_per_share, convert(size, int256))
 
 
@@ -437,7 +420,7 @@ def callback_user_shares(user: address, n_start: int256, user_shares: DynArray[u
     @param user: The address of the user
     @param user_shares User's shares by bands
     """
-    assert msg.sender == self.amm
+    assert msg.sender == AMM.address
     self.user_start_band[user] = n_start
     size: int256 = convert(len(user_shares), int256)
     self.user_range_size[user] = size
@@ -452,7 +435,6 @@ def user_checkpoint(addr: address) -> bool:
     @param addr User address
     @return bool success
     """
-    assert self.amm != empty(address)  # dev: not initialized
     assert msg.sender in [addr, MINTER.address]  # dev: unauthorized
     n_start: int256 = self.user_start_band[addr]
     size: int256 = self.user_range_size[addr]
@@ -469,7 +451,6 @@ def claimable_tokens(addr: address) -> uint256:
     @dev This function should be manually changed to "view" in the ABI
     @return uint256 number of claimable tokens per user
     """
-    assert self.amm != empty(address)  # dev: not initialized
     n_start: int256 = self.user_start_band[addr]
     size: int256 = self.user_range_size[addr]
     self._checkpoint_collateral_shares(n_start, [], size)

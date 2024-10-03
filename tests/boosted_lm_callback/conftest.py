@@ -141,12 +141,11 @@ def market_controller(market, stablecoin, collateral_token, controller_interface
 
 
 @pytest.fixture(scope="module")
-def boosted_lm_callback(admin, controller_factory, collateral_token, crv, voting_escrow,
-                        voting_escrow_delegation_mock, gauge_controller, minter, market_controller):
+def boosted_lm_callback(admin, market_amm, crv, voting_escrow, voting_escrow_delegation_mock,
+                        gauge_controller, minter, market_controller):
     with boa.env.prank(admin):
-        cb = boa.load('contracts/BoostedLMCallback.vy', controller_factory, collateral_token, 0, crv,
+        cb = boa.load('contracts/BoostedLMCallback.vy', market_amm, crv,
                       voting_escrow, voting_escrow_delegation_mock, gauge_controller, minter)
-        cb.initialize()
         market_controller.set_callback(cb)
 
         return cb
