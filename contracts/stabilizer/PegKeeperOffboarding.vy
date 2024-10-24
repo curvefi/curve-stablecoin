@@ -1,4 +1,4 @@
-# @version 0.3.10
+# pragma version 0.3.10
 """
 @title Peg Keeper Offboarding
 @author Curve.Fi
@@ -54,14 +54,7 @@ enum Killed:
     Withdraw  # 2
 
 MAX_LEN: constant(uint256) = 32
-ONE: constant(uint256) = 10 ** 18
 
-worst_price_threshold: public(uint256)
-price_deviation: public(uint256)
-alpha: public(uint256)  # Initial boundary
-beta: public(uint256)  # Each PegKeeper's impact
-
-STABLECOIN: immutable(ERC20)
 peg_keepers: public(DynArray[PegKeeperInfo, MAX_LEN])  # PKs registered for offboarding
 peg_keeper_i: HashMap[PegKeeper,  uint256]  # 1 + index of peg keeper in a list
 
@@ -73,19 +66,13 @@ emergency_admin: public(address)
 
 
 @external
-def __init__(_stablecoin: ERC20, _agg: address, _fee_receiver: address, _admin: address, _emergency_admin: address):
-    STABLECOIN = _stablecoin
+def __init__(_fee_receiver: address, _admin: address, _emergency_admin: address):
     self.fee_receiver = _fee_receiver
     self.admin = _admin
     self.emergency_admin = _emergency_admin
+    log SetFeeReceiver(_fee_receiver)
     log SetAdmin(_admin)
     log SetEmergencyAdmin(_emergency_admin)
-
-
-@external
-@view
-def stablecoin() -> ERC20:
-    return STABLECOIN
 
 
 @external
