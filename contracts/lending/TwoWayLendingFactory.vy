@@ -584,13 +584,13 @@ def exchange(vault_id: uint256, i: uint256, j: uint256, amount: uint256, min_out
         _receiver = self
         _min_out = 0
     dxy: uint256[2] = self.amms[vault_id].exchange(i, j, dx, _min_out, _receiver)
-    if i == 1:
-        if dxy[0] != dx:
-            dxy[0] = self.transfer_out(vault, other_vault, i, receiver)
-            dxy[0] = amount - min(dxy[0], amount)  # if someone makes an unexpected donation to the factory - could be that we spent nothing
-        else:
-            dxy[0] = amount
-    else:
+
+    # Transfer out any leftovers of token i
+    if dxy[0] != dx:
+        dxy[0] = self.transfer_out(vault, other_vault, i, receiver)
+        dxy[0] = amount - min(dxy[0], amount)  # if someone makes an unexpected donation to the factory - could be that we spent nothing
+    # ..and of token j
+    if j == 1:
         dxy[1] = self.transfer_out(vault, other_vault, j, receiver)
         assert dxy[1] >= min_out, "Slippage"
     return dxy
