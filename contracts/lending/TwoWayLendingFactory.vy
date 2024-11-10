@@ -546,7 +546,7 @@ def transfer_in(vault: Vault, other_vault: Vault, i: uint256, _from: address, am
     if i == 0:
         token = ERC20(vault.borrowed_token())
     else:
-        token = ERC20(vault.collateral_token())
+        token = ERC20(other_vault.borrowed_token())
     if amount > 0:
         assert token.transferFrom(_from, self, amount, default_return_value=True)
         if i == 1:
