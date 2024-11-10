@@ -192,8 +192,10 @@ def _create(
         max_rate = max_borrow_rate
     assert min_rate >= MIN_RATE and max_rate <= MAX_RATE\
         and min_rate <= max_rate, "Wrong rates"
-    monetary_policy: address = create_from_blueprint(
+    monetary_policy_long: address = create_from_blueprint(
         self.monetary_policy_impl, borrowed_token, min_rate, max_rate, code_offset=3)
+    monetary_policy_short: address = create_from_blueprint(
+        self.monetary_policy_impl, collateral_token, min_rate, max_rate, code_offset=3)
 
     controller: address = empty(address)
     amm: address = empty(address)
@@ -204,11 +206,11 @@ def _create(
         borrowed_token, vault_short.address,
         A, fee,
         price_oracle_long,
-        monetary_policy,
+        monetary_policy_long,
         loan_discount, liquidation_discount
     )
 
-    log NewVault(market_count, vault_short.address, borrowed_token, vault_long.address, controller, amm, price_oracle_long, monetary_policy)
+    log NewVault(market_count, vault_short.address, borrowed_token, vault_long.address, controller, amm, price_oracle_long, monetary_policy_long)
     self.vaults[market_count] = vault_long
     self.amms[market_count] = AMM(amm)
     self.names[market_count] = concat(name, ": long")
@@ -224,10 +226,10 @@ def _create(
         collateral_token, vault_long.address,
         A, fee,
         price_oracle_short,
-        monetary_policy,
+        monetary_policy_short,
         loan_discount, liquidation_discount
     )
-    log NewVault(market_count, vault_long.address, collateral_token, vault_short.address, controller, amm, price_oracle_short, monetary_policy)
+    log NewVault(market_count, vault_long.address, collateral_token, vault_short.address, controller, amm, price_oracle_short, monetary_policy_short)
     self.vaults[market_count] = vault_short
     self.amms[market_count] = AMM(amm)
     self.names[market_count] = concat(name, ": short")

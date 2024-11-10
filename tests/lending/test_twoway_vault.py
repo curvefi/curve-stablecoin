@@ -35,8 +35,8 @@ def test_vault_creation(factory_2way, vault_long, vault_short,
 
     assert factory_2way.price_oracles(n - 1) != factory_2way.price_oracles(n - 2) != ZERO_ADDRESS
 
-    # Monetary policy is the same - reacts same way on utilization
-    assert factory_2way.monetary_policies(n - 1) == factory_2way.monetary_policies(n - 2) != ZERO_ADDRESS
+    # Monetary policy is NOT the same - reacts same way on utilization
+    assert factory_2way.monetary_policies(n - 1) != factory_2way.monetary_policies(n - 2) != ZERO_ADDRESS
 
     # Token index
     if borrowed_token == stablecoin:
