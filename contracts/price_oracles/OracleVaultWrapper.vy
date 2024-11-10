@@ -19,6 +19,7 @@ VAULT: public(immutable(Vault))
 IS_INVERTED: public(immutable(bool))
 
 PPS_MAX_SPEED: constant(uint256) = 10**16 / 60  # Max speed of pricePerShare change
+DEAD_SHARES: constant(uint256) = 1000
 
 cached_price_per_share: public(uint256)
 cached_timestamp: public(uint256)
@@ -40,12 +41,18 @@ def __init__(
 @internal
 @view
 def _pps() -> uint256:
-    return min(VAULT.pricePerShare(), self.cached_price_per_share * (10**18 + PPS_MAX_SPEED * (block.timestamp - self.cached_timestamp)) / 10**18)
+    pps: uint256 = VAULT.pricePerShare()
+    if pps == 10**18 / DEAD_SHARES:
+        return pps
+    else:
+        return min(pps, self.cached_price_per_share * (10**18 + PPS_MAX_SPEED * (block.timestamp - self.cached_timestamp)) / 10**18)
 
 
 @internal
 def _pps_w() -> uint256:
-    pps: uint256 = min(VAULT.pricePerShare(), self.cached_price_per_share * (10**18 + PPS_MAX_SPEED * (block.timestamp - self.cached_timestamp)) / 10**18)
+    pps: uint256 = VAULT.pricePerShare()
+    if pps != 10**18 / DEAD_SHARES:
+        pps = min(pps, self.cached_price_per_share * (10**18 + PPS_MAX_SPEED * (block.timestamp - self.cached_timestamp)) / 10**18)
     self.cached_price_per_share = pps
     self.cached_timestamp = block.timestamp
     return pps
