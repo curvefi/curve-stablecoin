@@ -602,9 +602,12 @@ def exchange_dy(vault_id: uint256, i: uint256, j: uint256, amount: uint256, max_
     _receiver: address = receiver
     _max_in: uint256 = self.transfer_in(vault, other_vault, i, msg.sender, max_in)
     _amount: uint256 = amount
-    if i == 1:
-        _amount = other_vault.convertToShares(amount)
+
+    # i=0, j=1: exchange borrowed to collateral, amount is amount of collateral
+    # i=1, j=0: exchange of collateral to borrowed, amount is amount of borrowed
+
     if j == 1:
+        _amount = other_vault.convertToShares(amount)
         _receiver = msg.sender
     dxy: uint256[2] = self.amms[vault_id].exchange_dy(i, j, _amount, _max_in, _receiver)
     if i == 1:
