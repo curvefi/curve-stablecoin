@@ -923,7 +923,6 @@ def repay(_d_debt: uint256, _for: address = msg.sender, max_active_band: int256 
     @param _d_debt The amount of debt to repay. If higher than the current debt - will do full repayment
     @param _for The user to repay the debt for
     @param max_active_band Don't allow active band to be higher than this (to prevent front-running the repay)
-    @param _for Address to repay for
     """
     if _d_debt == 0:
         return

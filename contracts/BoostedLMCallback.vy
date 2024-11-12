@@ -129,14 +129,14 @@ def __init__(
     @notice LLAMMA constructor.
             Init is done by deployer but the contract starts operating after creation of the market.
             The actual initialization is done by the vote which creates the market just before.
-    @param factory: LlamaLend/crvUSD factory address
-    @param collateral: The address of collateral token
-    @param c_index: The index of the market (among markets with the same collateral)
-    @param crv: The address of CRV token
-    @param vecrv: The address of veCRV
-    @param veboost_proxy: The address of voting escrow proxy
-    @param gc: The address of the gauge controller
-    @param minter: the address of CRV minter
+    @param factory LlamaLend/crvUSD factory address
+    @param collateral The address of collateral token
+    @param c_index The index of the market (among markets with the same collateral)
+    @param crv The address of CRV token
+    @param vecrv The address of veCRV
+    @param veboost_proxy The address of voting escrow proxy
+    @param gc The address of the gauge controller
+    @param minter the address of CRV minter
     """
     AMM = amm
     CRV = crv
@@ -283,15 +283,15 @@ def _checkpoint_collateral_shares(n_start: int256, collateral_per_share: DynArra
 def _user_amounts(user: address, n_start: int256, user_shares: DynArray[uint256, MAX_TICKS_UINT], size: int256) -> uint256[3]:
     """
     @notice Calculates user collateral amount from user bands and shares
-    @param user: The address of the user
+    @param user The address of the user
     @param n_start Index of the first band to checkpoint
     @param user_shares User's shares by bands
     @param size The number of bands to checkpoint starting from `n_start`
-    @return: [
+    @return [
                 collateral_amount calculated from passed args,
                 old_collateral_amount,
                 stablecoin_amount (needed to check whether user is underwater or not),
-             ]
+            ]
     """
     old_collateral_amount: uint256 = 0
     collateral_amount: uint256 = 0
@@ -321,7 +321,7 @@ def _checkpoint_user_shares(user: address, n_start: int256, user_shares: DynArra
     """
     @notice Checkpoint for user's shares in a set of bands
     @dev Updates the CRV emissions a user is entitled to receive
-    @param user: The address of the user
+    @param user The address of the user
     @param n_start Index of the first band to checkpoint
     @param user_shares User's shares by bands
     @param size The number of bands to checkpoint starting from `n_start`
@@ -372,7 +372,7 @@ def _checkpoint_user_shares(user: address, n_start: int256, user_shares: DynArra
 def user_collateral(user: address) -> uint256:
     """
     @param user: The address of the user
-    @return: User's collateral amount in LlamaLend/crvUSD AMM
+    @return User's collateral amount in LlamaLend/crvUSD AMM
     """
     return self._user_amounts(user, self.user_start_band[user], [], self.user_range_size[user])[0]
 
@@ -382,7 +382,7 @@ def user_collateral(user: address) -> uint256:
 def working_collateral(user: address) -> uint256:
     """
     @param user: The address of the user
-    @return: User's working collateral amount [0.4 * user_collateral, user_collateral]
+    @return User's working collateral amount [0.4 * user_collateral, user_collateral]
     """
     n_start: int256 = self.user_start_band[user]
     size: int256 = self.user_range_size[user]
@@ -417,7 +417,7 @@ def callback_user_shares(user: address, n_start: int256, user_shares: DynArray[u
     @notice Checkpoint for user's shares in a set of bands.
     @dev Updates the CRV emissions a user is entitled to receive.
          Can be called only be the corresponding AMM.
-    @param user: The address of the user
+    @param user The address of the user
     @param user_shares User's shares by bands
     """
     assert msg.sender == AMM.address
