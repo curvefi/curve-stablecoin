@@ -617,7 +617,7 @@ def min_collateral(debt: uint256, N: uint256, user: address = empty(address)) ->
     @return Minimal collateral required
     """
     # Add N**2 to account for precision loss in multiple bands, e.g. N / (y/N) = N**2 / y
-    assert N <= MAX_TICKS_UINT
+    assert N <= MAX_TICKS_UINT and N >= MIN_TICKS_UINT
     return unsafe_div(
         unsafe_div(
             debt * unsafe_mul(10**18, BORROWED_PRECISION) / self.max_p_base() * 10**18 / self.get_y_effective(10**18, N, self.loan_discount + self.extra_health[user]) + unsafe_add(unsafe_mul(N, unsafe_add(N, 2 * DEAD_SHARES)), unsafe_sub(COLLATERAL_PRECISION, 1)),
