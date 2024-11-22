@@ -27,7 +27,7 @@ def __init__(
         chainlink_aggregator: ChainlinkAggregator
     ):
     CHAINLINK_AGGREGATOR = chainlink_aggregator
-    CHAINLINK_PRICE_PRECISION = 10**convert(chainlink_aggregator.decimals(), uint256)
+    CHAINLINK_PRICE_PRECISION = 10**convert(18 - chainlink_aggregator.decimals(), uint256)
 
 
 @internal
