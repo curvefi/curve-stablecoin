@@ -1191,7 +1191,7 @@ def _liquidate(user: address, min_x: uint256, health_limit: uint256, frac: uint2
         assert self._health(user, debt, True, health_limit) < 0, "Not enough rekt"
 
     final_debt: uint256 = debt
-    debt = unsafe_div(debt * frac, 10**18)
+    debt = unsafe_div(debt * frac + (10**18 - 1), 10**18)
     assert debt > 0
     final_debt = unsafe_sub(final_debt, debt)
 
