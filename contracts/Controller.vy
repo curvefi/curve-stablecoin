@@ -770,13 +770,15 @@ def create_loan_extended(collateral: uint256, debt: uint256, N: uint256, callbac
 
 
 @internal
-def _add_collateral_borrow(d_collateral: uint256, d_debt: uint256, _for: address, remove_collateral: bool):
+def _add_collateral_borrow(d_collateral: uint256, d_debt: uint256, _for: address, remove_collateral: bool,
+                           check_rounding: bool):
     """
     @notice Internal method to borrow and add or remove collateral
     @param d_collateral Amount of collateral to add
     @param d_debt Amount of debt increase
     @param _for Address to transfer tokens to
     @param remove_collateral Remove collateral instead of adding
+    @param check_rounding Check that amount added is no less than the rounding error on the loan
     """
     debt: uint256 = 0
     rate_mul: uint256 = 0
@@ -792,6 +794,8 @@ def _add_collateral_borrow(d_collateral: uint256, d_debt: uint256, _for: address
         xy[1] -= d_collateral
     else:
         xy[1] += d_collateral
+        if check_rounding:
+            assert d_collateral > xy[1] / debt, "Rounding"  # Same as d_collateral / collateral > 1 / debt
     n1: int256 = self._calculate_debt_n1(xy[1], debt, size, _for)
     n2: int256 = n1 + unsafe_sub(ns[1], ns[0])
 
@@ -827,7 +831,7 @@ def add_collateral(collateral: uint256, _for: address = msg.sender):
     """
     if collateral == 0:
         return
-    self._add_collateral_borrow(collateral, 0, _for, False)
+    self._add_collateral_borrow(collateral, 0, _for, False, _for != msg.sender)
     self.transferFrom(COLLATERAL_TOKEN, msg.sender, AMM.address, collateral)
     self._save_rate()
 
@@ -843,7 +847,7 @@ def remove_collateral(collateral: uint256, _for: address = msg.sender):
     if collateral == 0:
         return
     assert self._check_approval(_for)
-    self._add_collateral_borrow(collateral, 0, _for, True)
+    self._add_collateral_borrow(collateral, 0, _for, True, False)
     self.transferFrom(COLLATERAL_TOKEN, AMM.address, _for, collateral)
     self._save_rate()
 
@@ -860,7 +864,7 @@ def borrow_more(collateral: uint256, debt: uint256, _for: address = msg.sender):
     if debt == 0:
         return
     assert self._check_approval(_for)
-    self._add_collateral_borrow(collateral, debt, _for, False)
+    self._add_collateral_borrow(collateral, debt, _for, False, False)
     self.minted += debt
     self.transferFrom(COLLATERAL_TOKEN, msg.sender, AMM.address, collateral)
     self.transfer(BORROWED_TOKEN, _for, debt)
@@ -895,7 +899,7 @@ def borrow_more_extended(collateral: uint256, debt: uint256, callbacker: address
         callbacker, callback_sig, _for, 0, collateral, debt, callback_args, callback_bytes).collateral
 
     # After callback
-    self._add_collateral_borrow(collateral + more_collateral, debt, _for, False)
+    self._add_collateral_borrow(collateral + more_collateral, debt, _for, False, False)
     self.minted += debt
     self.transferFrom(COLLATERAL_TOKEN, msg.sender, AMM.address, collateral)
     self.transferFrom(COLLATERAL_TOKEN, callbacker, AMM.address, more_collateral)
