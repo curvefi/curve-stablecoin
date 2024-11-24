@@ -421,7 +421,7 @@ def _debt(user: address) -> (uint256, uint256):
         debt: uint256 = loan.initial_debt * rate_mul
         if debt % loan.rate_mul > 0:  # if only one loan -> don't have to do it
             if self.n_loans > 1:
-                debt += loan.rate_mul
+                debt += unsafe_sub(loan.rate_mul, 1)
         debt = unsafe_div(debt, loan.rate_mul)  # loan.rate_mul is nonzero because we just had % successful
         return (debt, rate_mul)
 
