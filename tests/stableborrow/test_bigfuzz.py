@@ -171,7 +171,10 @@ class BigFuzz(RuleBasedStateMachine):
         with boa.env.prank(user):
             if (debt > 0 and n1 > n0) or y == 0:
                 before = self.collateral_token.balanceOf(user)
-                min_collateral = self.market_controller.min_collateral(debt, N)
+                if debt > 0:
+                    min_collateral = self.market_controller.min_collateral(debt, N)
+                else:
+                    return
                 try:
                     self.market_controller.remove_collateral(y)
                 except Exception:

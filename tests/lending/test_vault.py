@@ -10,7 +10,7 @@ DEAD_SHARES = 1000
 
 
 def test_vault_creation(vault, market_controller, market_amm, market_mpolicy, factory, price_oracle,
-                        borrowed_token, collateral_token, stablecoin, supply_limit):
+                        borrowed_token, collateral_token, stablecoin):
     assert vault.amm() == market_amm.address
     assert vault.controller() == market_controller.address
     assert market_controller.monetary_policy() == market_mpolicy.address
