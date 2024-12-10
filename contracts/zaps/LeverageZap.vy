@@ -4,7 +4,7 @@
 @title LlamaLendLeverageZap
 @author Curve.Fi
 @license Copyright (c) Curve.Fi, 2020-2024 - all rights reserved
-@notice Creates leverage on LlamaLend and crvUSD markets via 1inch Router. Does calculations for leverage.
+@notice Creates leverage on LlamaLend and crvUSD markets via Aggregator Router. Does calculations for leverage.
 """
 
 interface ERC20:
@@ -56,13 +56,13 @@ MAX_TICKS_UINT: constant(uint256) = 50
 MAX_P_BASE_BANDS: constant(int256) = 5
 MAX_SKIP_TICKS: constant(uint256) = 1024
 
-ROUTER_1INCH: public(immutable(address))
+ROUTER: public(immutable(address))
 FACTORIES: public(DynArray[address, 2])
 
 
 @external
-def __init__(_router_1inch: address, _factories: DynArray[address, 2]):
-    ROUTER_1INCH = _router_1inch
+def __init__(_router: address, _factories: DynArray[address, 2]):
+    ROUTER = _router
     self.FACTORIES = _factories
 
 
@@ -299,12 +299,12 @@ def callback_deposit(user: address, stablecoins: uint256, user_collateral: uint2
     borrowed_token: address = amm.coins(0)
     collateral_token: address = amm.coins(1)
 
-    self._approve(borrowed_token, ROUTER_1INCH)
+    self._approve(borrowed_token, ROUTER)
     self._approve(collateral_token, controller)
 
     user_borrowed: uint256 = callback_args[2]
     self._transferFrom(borrowed_token, user, self, user_borrowed)
-    raw_call(ROUTER_1INCH, callback_bytes)  # buys leverage_collateral for user_borrowed + dDebt
+    raw_call(ROUTER, callback_bytes)  # buys leverage_collateral for user_borrowed + dDebt
     additional_collateral: uint256 = ERC20(collateral_token).balanceOf(self)
     leverage_collateral: uint256 = d_debt * 10**18 / (d_debt + user_borrowed) * additional_collateral / 10**18
     user_collateral_from_borrowed: uint256 = additional_collateral - leverage_collateral
@@ -336,7 +336,7 @@ def callback_repay(user: address, stablecoins: uint256, collateral: uint256, deb
     borrowed_token: address = amm.coins(0)
     collateral_token: address = amm.coins(1)
 
-    self._approve(collateral_token, ROUTER_1INCH)
+    self._approve(collateral_token, ROUTER)
     self._approve(borrowed_token, controller)
     self._approve(collateral_token, controller)
 
@@ -346,7 +346,7 @@ def callback_repay(user: address, stablecoins: uint256, collateral: uint256, deb
         self._transferFrom(collateral_token, user, self, user_collateral)
         # Buys borrowed token for collateral from user's position + from user's wallet.
         # The amount to be spent is specified inside callback_bytes.
-        raw_call(ROUTER_1INCH, callback_bytes)
+        raw_call(ROUTER, callback_bytes)
     else:
         assert user_collateral == 0
     remaining_collateral: uint256 = ERC20(collateral_token).balanceOf(self)
