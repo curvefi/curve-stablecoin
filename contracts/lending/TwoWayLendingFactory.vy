@@ -612,9 +612,14 @@ def exchange_dy(vault_id: uint256, i: uint256, j: uint256, amount: uint256, max_
         _amount = other_vault.convertToShares(amount)
         _receiver = self  # We will redeem shares from the inside
     dxy: uint256[2] = self.amms[vault_id].exchange_dy(i, j, _amount, _max_in, _receiver)
-    if i == 1:
+
+    # Transfer out any leftovers of token i
+    if dxy[0] != _max_in:
         dxy[0] = self.transfer_out(vault, other_vault, i, receiver)  # Transfer out the remainder
         dxy[0] = max_in - min(dxy[0], max_in)  # if someone makes an unexpected donation to the factory - could be that we spent nothing
-    else:
+
+    # And token j if it was not transferred by exchange_dy itself
+    if j == 1:
         dxy[1] = self.transfer_out(vault, other_vault, j, receiver)
+
     return dxy
