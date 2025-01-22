@@ -203,7 +203,7 @@ def _checkpoint_collateral_shares(n_start: int256, collateral_per_share: DynArra
     rate: uint256 = self.inflation_rate
     new_rate: uint256 = rate
     prev_future_epoch: uint256 = self.future_epoch_time
-    if prev_future_epoch >= I_rpc.t:
+    if block.timestamp >= prev_future_epoch:
         self.future_epoch_time = CRV.future_epoch_time_write()
         new_rate = CRV.rate()
         self.inflation_rate = new_rate
