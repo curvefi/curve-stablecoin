@@ -6,7 +6,7 @@ import os
 import sys
 from getpass import getpass
 from eth_account import account
-from networks import ETHEREUM, ARBITRUM
+from networks import ETHEREUM, ARBITRUM, FRAXTAL
 
 
 def account_load(fname):
@@ -18,13 +18,18 @@ def account_load(fname):
 CONSTANTS = {
     "mainnet": {
         "rpc": ETHEREUM,
-        "router_1inch": "0x111111125421ca6dc452d289314280a0f8842a65",
+        "router_odos": "0xCf5540fFFCdC3d510B18bFcA6d2b9987b0772559",
         "factories": ["0xeA6876DDE9e3467564acBeE1Ed5bac88783205E0", "0xC9332fdCB1C491Dcc683bAe86Fe3cb70360738BC"],  # LlamaLend, crvUSD
     },
     "arbitrum": {
         "rpc": ARBITRUM,
-        "router_1inch": "0x111111125421ca6dc452d289314280a0f8842a65",
+        "router_odos": "0xa669e7A0d4b3e4Fa48af2dE86BD4CD7126Be4e13",
         "factories": ["0xcaEC110C784c9DF37240a8Ce096D352A75922DeA"],
+    },
+    "fraxtal": {
+        "rpc": FRAXTAL,
+        "router_odos": "0x56c85a254DD12eE8D9C04049a4ab62769Ce98210",
+        "factories": ["0xf3c9bdAB17B7016fBE3B77D17b1602A7db93ac66"],
     }
 }
 
@@ -40,6 +45,6 @@ if __name__ == '__main__':
     boa.env._fork_try_prefetch_state = False
 
     contract = boa.load('contracts/zaps/LeverageZap.vy',
-                        CONSTANTS[network]["router_1inch"], CONSTANTS[network]["factories"])
+                        CONSTANTS[network]["router_odos"], CONSTANTS[network]["factories"])
 
     print('Deployed at:', contract.address)
