@@ -1266,7 +1266,7 @@ def _liquidate(user: address, min_x: uint256, health_limit: uint256, frac: uint2
 @nonreentrant('lock')
 def liquidate(user: address, min_x: uint256):
     """
-    @notice Peform a bad liquidation (or self-liquidation) of user if health is not good
+    @notice Perform a bad liquidation (or self-liquidation) of user if health is not good
     @param min_x Minimal amount of stablecoin to receive (to avoid liquidators being sandwiched)
     """
     discount: uint256 = 0
@@ -1280,7 +1280,7 @@ def liquidate(user: address, min_x: uint256):
 def liquidate_extended(user: address, min_x: uint256, frac: uint256,
                        callbacker: address, callback_args: DynArray[uint256,5], callback_bytes: Bytes[10**4] = b""):
     """
-    @notice Peform a bad liquidation (or self-liquidation) of user if health is not good
+    @notice Perform a bad liquidation (or self-liquidation) of user if health is not good
     @param min_x Minimal amount of stablecoin to receive (to avoid liquidators being sandwiched)
     @param frac Fraction to liquidate; 100% = 10**18
     @param callbacker Address of the callback contract
