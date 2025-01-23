@@ -126,3 +126,76 @@ def test_remove_collateral(stablecoin, collateral_token, market_controller, exis
         assert stablecoin.balanceOf(market_amm) == 0
         assert collateral_token.balanceOf(market_amm) == c_amount - c_amount // 10
         assert market_controller.total_debt() == debt
+
+
+@pytest.fixture(scope="module")
+def controller_for_liquidation(stablecoin, collateral_token, market_controller, market_amm,
+                               price_oracle, monetary_policy, admin):
+    def f(sleep_time, user, someone_else):
+        N = 5
+        collateral_amount = 10**18
+
+        with boa.env.prank(admin):
+            market_controller.set_amm_fee(10**6)
+            monetary_policy.set_rate(int(1e18 * 1.0 / 365 / 86400))  # 100% APY
+
+        debt = market_controller.max_borrowable(collateral_amount, N)
+        with boa.env.prank(user):
+            collateral_token._mint_for_testing(user, collateral_amount)
+            stablecoin.approve(market_amm, 2**256-1)
+            stablecoin.approve(market_controller, 2**256-1)
+            collateral_token.approve(market_controller, 2**256-1)
+            market_controller.create_loan(collateral_amount, debt, N)
+
+        health_0 = market_controller.health(user)
+        # We put mostly USD into AMM, and its quantity remains constant while
+        # interest is accruing. Therefore, we will be at liquidation at some point
+        with boa.env.prank(user):
+            market_amm.exchange(0, 1, debt, 0)
+        health_1 = market_controller.health(user)
+
+        assert health_0 <= health_1  # Earns fees on dynamic fee
+
+        boa.env.time_travel(sleep_time)
+
+        health_2 = market_controller.health(user)
+        # Still healthy but liquidation threshold satisfied
+        assert 0 < health_2 < market_controller.liquidation_discount()
+
+        with boa.env.prank(admin):
+            # Stop charging fees to have enough coins to liquidate in existence a block before
+            monetary_policy.set_rate(0)
+
+        # Ensure approved account has enough to liquidate
+        with boa.env.prank(someone_else):
+            collateral_token._mint_for_testing(someone_else, collateral_amount)
+            stablecoin.approve(market_amm, 2**256-1)
+            stablecoin.approve(market_controller, 2**256-1)
+            collateral_token.approve(market_controller, 2**256-1)
+            market_controller.create_loan(collateral_amount, debt, N)
+
+        return market_controller
+
+    return f
+
+
+def test_self_liquidate(stablecoin, collateral_token, controller_for_liquidation, market_amm, accounts):
+    user = accounts[1]
+    someone_else = accounts[2]
+    controller = controller_for_liquidation(sleep_time=40 * 86400, user=user, someone_else=someone_else)
+
+    x = market_amm.get_sum_xy(user)[0]
+
+    with boa.env.prank(someone_else):
+        with boa.reverts("Not enough rekt"):
+            controller.liquidate(user, 0)
+
+    with boa.env.prank(user):
+        controller.approve(someone_else, True)
+
+    with boa.env.prank(someone_else):
+        with boa.reverts("Slippage"):
+            controller.liquidate(user, x + 1)
+
+        controller.liquidate(user, int(x * 0.999999))
+        assert controller.loan_exists(user) is False
