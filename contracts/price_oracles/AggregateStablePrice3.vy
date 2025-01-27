@@ -13,12 +13,13 @@ interface Stableswap:
     def coins(i: uint256) -> address: view
     def get_virtual_price() -> uint256: view
     def totalSupply() -> uint256: view
+    def D_oracle() -> uint256: view
 
 
 struct PricePair:
     pool: Stableswap
     is_inverse: bool
-    include_index: bool
+    is_ng: bool
 
 
 event AddPricePair:
@@ -93,7 +94,7 @@ def add_price_pair(_pool: Stableswap):
         revert_on_failure=False
     )
     if success:
-        price_pair.include_index = True
+        price_pair.is_ng = True
     coins: address[2] = [_pool.coins(0), _pool.coins(1)]
     if coins[0] == STABLECOIN:
         price_pair.is_inverse = True
@@ -169,12 +170,17 @@ def _ema_tvl() -> DynArray[uint256, MAX_PAIRS]:
     for i in range(MAX_PAIRS):
         if i == n_price_pairs:
             break
-        tvl: uint256 = self.last_tvl[i]
-        if alpha != 10**18:
-            # alpha = 1.0 when dt = 0
-            # alpha = 0.0 when dt = inf
-            new_tvl: uint256 = self.price_pairs[i].pool.totalSupply()  # We don't do virtual price here to save on gas
-            tvl = (new_tvl * (10**18 - alpha) + tvl * alpha) / 10**18
+        tvl: uint256 = 0
+        if self.price_pairs[i].is_ng:
+            tvl = self.price_pairs[i].pool.D_oracle()
+        else:
+            tvl = self.last_tvl[i]
+            if alpha != 10**18:
+                # alpha = 1.0 when dt = 0
+                # alpha = 0.0 when dt = inf
+                new_tvl: uint256 = self.price_pairs[i].pool.totalSupply() * 10**18 /\
+                    self.price_pairs[i].pool.get_virtual_price()
+                tvl = (new_tvl * (10**18 - alpha) + tvl * alpha) / 10**18
         tvls.append(tvl)
 
     return tvls
@@ -184,6 +190,19 @@ def _ema_tvl() -> DynArray[uint256, MAX_PAIRS]:
 @view
 def ema_tvl() -> DynArray[uint256, MAX_PAIRS]:
     return self._ema_tvl()
+
+
+@internal
+@view
+def _get_p(price_pair: PricePair) -> uint256:
+    p: uint256 = 0
+    if price_pair.is_ng:
+        p = price_pair.pool.price_oracle(0)
+    else:
+        p = price_pair.pool.price_oracle()
+    if price_pair.is_inverse:
+        p = 10**36 / p
+    return p
 
 
 @internal
@@ -200,17 +219,10 @@ def _price(tvls: DynArray[uint256, MAX_PAIRS]) -> uint256:
         price_pair: PricePair = self.price_pairs[i]
         pool_supply: uint256 = tvls[i]
         if pool_supply >= MIN_LIQUIDITY:
-            p: uint256 = 0
-            if price_pair.include_index:
-                p = price_pair.pool.price_oracle(0)
-            else:
-                p = price_pair.pool.price_oracle()
-            if price_pair.is_inverse:
-                p = 10**36 / p
-            prices[i] = p
+            prices[i] = self._get_p(price_pair)
             D[i] = pool_supply
             Dsum += pool_supply
-            DPsum += pool_supply * p
+            DPsum += pool_supply * prices[i]
     if Dsum == 0:
         return 10**18  # Placeholder for no active pools
     p_avg: uint256 = DPsum / Dsum
