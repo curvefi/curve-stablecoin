@@ -1266,11 +1266,11 @@ def _liquidate(user: address, min_x: uint256, health_limit: uint256, frac: uint2
 @nonreentrant('lock')
 def liquidate(user: address, min_x: uint256):
     """
-    @notice Peform a bad liquidation (or self-liquidation) of user if health is not good
+    @notice Perform a bad liquidation (or self-liquidation) of user if health is not good
     @param min_x Minimal amount of stablecoin to receive (to avoid liquidators being sandwiched)
     """
     discount: uint256 = 0
-    if user != msg.sender:
+    if not self._check_approval(user):
         discount = self.liquidation_discounts[user]
     self._liquidate(user, min_x, discount, 10**18, empty(address), [])
 
@@ -1280,14 +1280,14 @@ def liquidate(user: address, min_x: uint256):
 def liquidate_extended(user: address, min_x: uint256, frac: uint256,
                        callbacker: address, callback_args: DynArray[uint256,5], callback_bytes: Bytes[10**4] = b""):
     """
-    @notice Peform a bad liquidation (or self-liquidation) of user if health is not good
+    @notice Perform a bad liquidation (or self-liquidation) of user if health is not good
     @param min_x Minimal amount of stablecoin to receive (to avoid liquidators being sandwiched)
     @param frac Fraction to liquidate; 100% = 10**18
     @param callbacker Address of the callback contract
     @param callback_args Extra arguments for the callback (up to 5) such as min_amount etc
     """
     discount: uint256 = 0
-    if user != msg.sender:
+    if not self._check_approval(user):
         discount = self.liquidation_discounts[user]
     self._liquidate(user, min_x, discount, min(frac, 10**18), callbacker, callback_args, callback_bytes)
 
@@ -1303,7 +1303,7 @@ def tokens_to_liquidate(user: address, frac: uint256 = 10 ** 18) -> uint256:
     @return The amount of stablecoins needed
     """
     health_limit: uint256 = 0
-    if user != msg.sender:
+    if not self._check_approval(user):
         health_limit = self.liquidation_discounts[user]
     stablecoins: uint256 = unsafe_div(AMM.get_sum_xy(user)[0] * self._get_f_remove(frac, health_limit), 10 ** 18)
     debt: uint256 = unsafe_div(self._debt(user)[0] * frac, 10 ** 18)
