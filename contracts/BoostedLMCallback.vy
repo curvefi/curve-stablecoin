@@ -126,16 +126,12 @@ def __init__(
         minter: Minter,
 ):
     """
-    @notice LLAMMA constructor.
-            Init is done by deployer but the contract starts operating after creation of the market.
-            The actual initialization is done by the vote which creates the market just before.
-    @param factory LlamaLend/crvUSD factory address
-    @param collateral The address of collateral token
-    @param c_index The index of the market (among markets with the same collateral)
+    @notice BoostedLMCallback constructor. Should be deployed manually.
+    @param amm The address of amm
     @param crv The address of CRV token
     @param vecrv The address of veCRV
     @param veboost_proxy The address of voting escrow proxy
-    @param gc The address of the gauge controller
+    @param gauge_controller The address of the gauge controller
     @param minter the address of CRV minter
     """
     AMM = amm
@@ -371,7 +367,7 @@ def _checkpoint_user_shares(user: address, n_start: int256, user_shares: DynArra
 @view
 def user_collateral(user: address) -> uint256:
     """
-    @param user: The address of the user
+    @param user The address of the user
     @return User's collateral amount in LlamaLend/crvUSD AMM
     """
     return self._user_amounts(user, self.user_start_band[user], [], self.user_range_size[user])[0]
@@ -381,7 +377,7 @@ def user_collateral(user: address) -> uint256:
 @view
 def working_collateral(user: address) -> uint256:
     """
-    @param user: The address of the user
+    @param user The address of the user
     @return User's working collateral amount [0.4 * user_collateral, user_collateral]
     """
     n_start: int256 = self.user_start_band[user]
@@ -418,6 +414,7 @@ def callback_user_shares(user: address, n_start: int256, user_shares: DynArray[u
     @dev Updates the CRV emissions a user is entitled to receive.
          Can be called only be the corresponding AMM.
     @param user The address of the user
+    @param n_start Index of the first band to checkpoint
     @param user_shares User's shares by bands
     """
     assert msg.sender == AMM.address
@@ -449,6 +446,7 @@ def claimable_tokens(addr: address) -> uint256:
     """
     @notice Get the number of claimable tokens per user
     @dev This function should be manually changed to "view" in the ABI
+    @param addr User address
     @return uint256 number of claimable tokens per user
     """
     n_start: int256 = self.user_start_band[addr]
