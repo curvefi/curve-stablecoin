@@ -432,7 +432,6 @@ def user_checkpoint(addr: address) -> bool:
     @param addr User address
     @return bool success
     """
-    assert msg.sender in [addr, MINTER.address]  # dev: unauthorized
     n_start: int256 = self.user_start_band[addr]
     size: int256 = self.user_range_size[addr]
     self._checkpoint_collateral_shares(n_start, [], size)
