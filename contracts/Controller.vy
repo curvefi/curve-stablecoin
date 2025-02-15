@@ -797,7 +797,9 @@ def _add_collateral_borrow(d_collateral: uint256, d_debt: uint256, _for: address
         if check_rounding:
             # We need d(x + p*y) > 1 wei. For that, we do an equivalent check (but with x2 for safety)
             # This check is only needed when we add collateral for someone else, so gas is not an issue
-            assert d_collateral * AMM.price_oracle() > 2 * 10**18
+            # 2 * 10**(18 - borrow_decimals + collateral_decimals) =
+            # = 2 * 10**18 * 10**(18 - borrow_decimals) / 10**(collateral_decimals)
+            assert d_collateral * AMM.price_oracle() > 2 * 10**18 * BORROWED_PRECISION / COLLATERAL_PRECISION
     n1: int256 = self._calculate_debt_n1(xy[1], debt, size, _for)
     n2: int256 = n1 + unsafe_sub(ns[1], ns[0])
 
