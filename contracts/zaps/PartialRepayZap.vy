@@ -57,9 +57,9 @@ def _approve(coin: address, spender: address):
 @nonreentrant('lock')
 def callback_liquidate(user: address, stablecoins: uint256, collateral: uint256, debt: uint256, callback_args: DynArray[uint256, 5], callback_bytes: Bytes[10**4]) -> uint256[2]:
     if callback_bytes != b"":
-        raw_call(ROUTER, callback_bytes)  # sells collateral for borowed token
+        raw_call(ROUTER, callback_bytes)  # sells collateral for borrowed token
 
-    return [ERC20(BORROWED).balanceOf(self), ERC20(COLLATERAL).balanceOf(self)]
+    return [ERC20(BORROWED).balanceOf(self), 0]
 
 
 @external

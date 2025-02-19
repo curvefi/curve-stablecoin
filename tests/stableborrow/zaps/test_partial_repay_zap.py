@@ -19,8 +19,9 @@ def get_partial_repay_zap(admin, collateral_token, stablecoin, dummy_router):
                 str(dummy_router.address),
                 controller_address,
                 stablecoin.address,
-                collateral_token.address
+                collateral_token.address,
             )
+
     return deploy_partial_repay_zap
 
 
@@ -97,9 +98,17 @@ def test_self_liquidate(
     h = controller.health(user) / 10**16
     assert 0 < h < 1
 
-    frac = 0.07
+    frac = 0.06
+
+    h_norm = h * 10**16
+    frac_norm = frac * 10**18
     collateral = controller.user_state(user)[0]
-    collateral_in = int(((1 + h / 2) / (1 + h) * (1 - frac) + frac) * frac * collateral)
+    collateral_in = int(
+        ((10**18 + h_norm // 2) * (10**18 - frac_norm) // (10**18 + h_norm) + frac_norm)
+        * frac_norm
+        * collateral
+        // 10**36
+    )
     stablecoin_out = 10000 * collateral_in
 
     # Ensure router has stablecoin
@@ -121,5 +130,5 @@ def test_self_liquidate(
         sender=user,
     )
 
-    h = controller.health(user) / 10 ** 16
+    h = controller.health(user) / 10**16
     assert h > 3
