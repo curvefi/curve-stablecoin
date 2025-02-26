@@ -56,15 +56,27 @@ MARKET_PARAMS = [
         'oracle_contract': '0x3a1659Ddcf2339Be3aeA159cA010979FB49155FF',
         'supply_limit': 2**256-1
      }),
-    ('wETH', {
-        'collateral': '0x50c42dEAcD8Fc9773493ED674b675bE577f2634b',
+    ('scETH', {
+        'collateral': '0x3bcE5CB273F0F148010BbEa2470e7b5df84C7812',
         'A': 70,
         'fee': int(0.005e18),
         'borrowing_discount': int(0.07e18),
         'liquidation_discount': int(0.04e18),
         'min_borrow_rate': 2 * 10**16 // (365 * 86400),
         'max_borrow_rate': 40 * 10**16 // (365 * 86400),
-        'oracle_contract': '0xB755B949C126C04e0348DD881a5cF55d424742B2',
+        'oracle_contract': '0x2F0AF8eC2f5893392843a0F647A30A141dba9DaF',
+        # 'oracle_contract': '0xB755B949C126C04e0348DD881a5cF55d424742B2', wETH
+        'supply_limit': 2**256-1
+     }),
+    ('scUSD', {
+        'collateral': '0xd3DCe716f3eF535C5Ff8d041c1A41C3bd89b97aE',  # Params same as USDe
+        'A': 500,
+        'fee': int(0.001e18),
+        'borrowing_discount': int(0.015e18),
+        'liquidation_discount': int(0.01e18),
+        'min_borrow_rate': 1 * 10**16 // (365 * 86400),
+        'max_borrow_rate': 35 * 10**16 // (365 * 86400),
+        'oracle_contract': '0x48A68C5511DfC355007b7B794890F26653A7bF93',  # Usually 1.0
         'supply_limit': 2**256-1
      }),
 ]
