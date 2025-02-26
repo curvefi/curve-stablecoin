@@ -57,14 +57,14 @@ MARKET_PARAMS = [
         'supply_limit': 2**256-1
      }),
     ('wETH', {
-        'collateral': '0x824364077993847f71293B24ccA8567c00c2de11',
+        'collateral': '0x50c42dEAcD8Fc9773493ED674b675bE577f2634b',
         'A': 70,
         'fee': int(0.005e18),
         'borrowing_discount': int(0.07e18),
         'liquidation_discount': int(0.04e18),
         'min_borrow_rate': 2 * 10**16 // (365 * 86400),
         'max_borrow_rate': 40 * 10**16 // (365 * 86400),
-        'oracle_contract': '0xF97c707024ef0DD3E77a0824555a46B622bfB500',
+        'oracle_contract': '0xB755B949C126C04e0348DD881a5cF55d424742B2',
         'supply_limit': 2**256-1
      }),
 ]
