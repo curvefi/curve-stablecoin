@@ -5,10 +5,11 @@ import json
 import os
 import sys
 from time import sleep
-import subprocess
 from getpass import getpass
 from eth_account import account
 from boa.contracts.abi.abi_contract import ABIContractFactory
+from vyper.compiler.settings import Settings as CompilerSettings
+from vyper.compiler.settings import OptimizationLevel
 
 from networks import NETWORK, SONIC
 
@@ -97,6 +98,7 @@ GAUGE_FACTORY_ABI_ETH = [
      "outputs": [{"name": "", "type": "address"}],
      "gas": 165352}
 ]
+SONIC_ARGS = {'settings': CompilerSettings(evm_version='shanghai', optimize=OptimizationLevel.CODESIZE)}
 
 
 def account_load(fname):
@@ -107,10 +109,6 @@ def account_load(fname):
 
 
 if __name__ == '__main__':
-    if '--hardhat' in sys.argv[1:]:
-        hardhat = subprocess.Popen(HARDHAT_COMMAND)
-        sleep(5)
-
     if '--fork' in sys.argv[1:]:
         boa.env.fork(SONIC)
         boa.env.eoa = '0xbabe61887f1de2713c6f97e567623453d3C79f67'
@@ -120,15 +118,14 @@ if __name__ == '__main__':
         boa.env.add_account(babe)
         boa.env._fork_try_prefetch_state = False
 
-    amm_impl = boa.load_partial('contracts/AMM.vy').deploy_as_blueprint()
-    controller_impl = boa.load_partial('contracts/Controller.vy').deploy_as_blueprint()
-    vault_impl = boa.load('contracts/lending/Vault.vy')
-    price_oracle_impl = boa.load_partial('contracts/price_oracles/CryptoFromPool.vy').deploy_as_blueprint()
-    mpolicy_impl = boa.load_partial('contracts/mpolicies/SemilogMonetaryPolicy.vy').deploy_as_blueprint()
+    amm_impl = boa.load_partial('contracts/AMM.vy', compiler_args=SONIC_ARGS).deploy_as_blueprint()
+    controller_impl = boa.load_partial('contracts/Controller.vy', compiler_args=SONIC_ARGS).deploy_as_blueprint()
+    vault_impl = boa.load_partial('contracts/lending/Vault.vy', compiler_args=SONIC_ARGS).deploy()
+    price_oracle_impl = boa.load_partial('contracts/price_oracles/CryptoFromPool.vy', compiler_args=SONIC_ARGS).deploy_as_blueprint()
+    mpolicy_impl = boa.load_partial('contracts/mpolicies/SemilogMonetaryPolicy.vy', compiler_args=SONIC_ARGS).deploy_as_blueprint()
     gauge_factory = ABIContractFactory.from_abi_dict(GAUGE_FACTORY_ABI).at(GAUGE_FACTORY)
 
-    factory = boa.load(
-            'contracts/lending/OneWayLendingFactory.vy',
+    factory = boa.load_partial('contracts/lending/OneWayLendingFactory.vy', compiler_args=SONIC_ARGS).deploy(
             CRVUSD,
             amm_impl, controller_impl, vault_impl,
             price_oracle_impl, mpolicy_impl, GAUGE_FACTORY,
@@ -173,6 +170,3 @@ if __name__ == '__main__':
             salt = p['salt']
             print(f'Deploying on Ethereum with salt: {salt.hex()}')
             gauge_factory_eth.deploy_gauge(CHAIN_ID, salt)
-
-    if '--hardhat' in sys.argv[1:]:
-        hardhat.wait()
