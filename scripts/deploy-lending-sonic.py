@@ -140,6 +140,7 @@ if __name__ == '__main__':
     print('Monetary Policy implementation:', mpolicy_impl.address)
     print('Factory:', factory.address)
     print('==========================')
+    sleep(5)
 
     if '--markets' in sys.argv[1:]:
         for idx, (name, p) in enumerate(MARKET_PARAMS):
@@ -148,11 +149,13 @@ if __name__ == '__main__':
                 p['A'], p['fee'], p['borrowing_discount'], p['liquidation_discount'],
                 p['oracle_contract'], name + '-long',
                 p['min_borrow_rate'], p['max_borrow_rate'], p['supply_limit'])
+            sleep(5)
             vault = factory.vaults(idx)
             salt = os.urandom(32)
             gauge_factory.deploy_gauge(vault, salt, GAUGE_FUNDER)
             print(f"Vault {name}: {vault}, salt: {salt.hex()}")
             p['salt'] = salt
+            sleep(5)
 
         if '--fork' in sys.argv[1:]:
             boa.env.fork(NETWORK)
@@ -170,3 +173,4 @@ if __name__ == '__main__':
             salt = p['salt']
             print(f'Deploying on Ethereum with salt: {salt.hex()}')
             gauge_factory_eth.deploy_gauge(CHAIN_ID, salt)
+            sleep(15)
