@@ -148,11 +148,15 @@ if __name__ == '__main__':
                 CRVUSD, p['collateral'],
                 p['A'], p['fee'], p['borrowing_discount'], p['liquidation_discount'],
                 p['oracle_contract'], name + '-long',
-                p['min_borrow_rate'], p['max_borrow_rate'], p['supply_limit'])
+                p['min_borrow_rate'], p['max_borrow_rate'], p['supply_limit'],
+                gas=15_000_000)
             sleep(5)
             vault = factory.vaults(idx)
             salt = os.urandom(32)
-            gauge_factory.deploy_gauge(vault, salt, GAUGE_FUNDER)
+            try:
+                gauge_factory.deploy_gauge(vault, salt, GAUGE_FUNDER, gas=1_000_000)
+            except Exception as e:
+                print(f'Error {e} is not error?')
             print(f"Vault {name}: {vault}, salt: {salt.hex()}")
             p['salt'] = salt
             sleep(5)
@@ -172,5 +176,8 @@ if __name__ == '__main__':
                 sleep(30)  # RPCs on Ethereum can change the node, so need to sleep to not fail
             salt = p['salt']
             print(f'Deploying on Ethereum with salt: {salt.hex()}')
-            gauge_factory_eth.deploy_gauge(CHAIN_ID, salt)
-            sleep(15)
+            try:
+                gauge_factory_eth.deploy_gauge(CHAIN_ID, salt)
+            except Exception as e:
+                print(f'Maybe {e} is also success? All RPCs are complete shit, get Vitalik on the line')
+            sleep(30)
