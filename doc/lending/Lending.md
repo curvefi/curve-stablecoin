@@ -20,7 +20,7 @@ The core contract `AMM.vy` stays exactly the same. It is already exactly like we
 ### Controller.vy
 
 The Controller has an ability to not only 18-digit tokens (like crvUSD) but tokens with any number of digits. For that,
-there were multiple changes to make sure rounding aways rounds up in favor of the exisitng borrowers.
+there were multiple changes to make sure rounding always, away rounds up in favor of the existing borrowers.
 
 Method which collects borrowing fees `collect_fees()` will not work in lending. Admin fees are zero, and all the
 interest will go to the vault depositors. Moreover, AMM admin fees cannot be charged: their claim would fail to.
