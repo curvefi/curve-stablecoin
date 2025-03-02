@@ -125,7 +125,7 @@ if __name__ == '__main__':
     mpolicy_impl = boa.load_partial('contracts/mpolicies/SemilogMonetaryPolicy.vy', compiler_args=SONIC_ARGS).deploy_as_blueprint()
     gauge_factory = ABIContractFactory.from_abi_dict(GAUGE_FACTORY_ABI).at(GAUGE_FACTORY)
 
-    factory = boa.load_partial('contracts/lending/OneWayLendingFactory.vy', compiler_args=SONIC_ARGS).deploy(
+    factory = boa.load_partial('contracts/lending/OneWayLendingFactoryL2.vy', compiler_args=SONIC_ARGS).deploy(
             CRVUSD,
             amm_impl, controller_impl, vault_impl,
             price_oracle_impl, mpolicy_impl, GAUGE_FACTORY,
@@ -172,12 +172,11 @@ if __name__ == '__main__':
         gauge_factory_eth = ABIContractFactory.from_abi_dict(GAUGE_FACTORY_ABI_ETH).at(GAUGE_FACTORY_ETH)
 
         for name, p in MARKET_PARAMS:
-            if '--fork' not in sys.argv[1:]:
-                sleep(30)  # RPCs on Ethereum can change the node, so need to sleep to not fail
             salt = p['salt']
-            print(f'Deploying on Ethereum with salt: {salt.hex()}')
+            print(f'Deploying on Ethereum {name} with salt: {salt.hex()}')
             try:
                 gauge_factory_eth.deploy_gauge(CHAIN_ID, salt)
             except Exception as e:
                 print(f'Maybe {e} is also success? All RPCs are complete shit, get Vitalik on the line')
-            sleep(30)
+            if '--fork' not in sys.argv[1:]:
+                sleep(250)  # RPCs on Ethereum can change the node, so need to sleep to not fail
