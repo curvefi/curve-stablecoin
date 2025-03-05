@@ -6,7 +6,7 @@ import os
 import sys
 from getpass import getpass
 from eth_account import account
-from networks import ETHEREUM, ARBITRUM, FRAXTAL
+from networks import ETHEREUM, ARBITRUM, FRAXTAL, SONIC
 
 
 def account_load(fname):
@@ -30,6 +30,11 @@ CONSTANTS = {
         "rpc": FRAXTAL,
         "router_odos": "0x56c85a254DD12eE8D9C04049a4ab62769Ce98210",
         "factories": ["0xf3c9bdAB17B7016fBE3B77D17b1602A7db93ac66"],
+    },
+    "sonic": {
+        "rpc": SONIC,
+        "router_odos": "0xaC041Df48dF9791B0654f1Dbbf2CC8450C5f2e9D",
+        "factories": ["0x30d1859dad5a52ae03b6e259d1b48c4b12933993"],
     }
 }
 
