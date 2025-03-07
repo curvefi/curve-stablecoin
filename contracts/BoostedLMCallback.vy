@@ -323,7 +323,7 @@ def _checkpoint_user_shares(user: address, n_start: int256, user_shares: DynArra
     @param size The number of bands to checkpoint starting from `n_start`
     """
     # Calculate the amount of real collateral for the user
-    _amounts: uint256[3] = self._user_amounts(user, n_start, user_shares, size)  # [collateral_amount, old_collateral_amount]
+    _amounts: uint256[3] = self._user_amounts(user, n_start, user_shares, size)  # [collateral_amount, old_collateral_amount, stablecoin_amount]
     boost: uint256 = self._update_liquidity_limit(user, _amounts[0], _amounts[1], _amounts[2] > 0)
 
     rpu: uint256 = self.integrate_fraction[user]
