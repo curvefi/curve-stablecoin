@@ -8,43 +8,23 @@
 
 from vyper.interfaces import ERC20
 
-interface LLAMMA:
-    def coins(i: uint256) -> address: view
-    def bands_x(n: int256) -> uint256: view
-
 interface CRV20:
     def future_epoch_time_write() -> uint256: nonpayable
     def rate() -> uint256: view
 
 interface GaugeController:
-    def period() -> int128: view
-    def period_write() -> int128: nonpayable
-    def period_timestamp(p: int128) -> uint256: view
     def gauge_relative_weight(addr: address, time: uint256) -> uint256: view
-    def voting_escrow() -> address: view
-    def checkpoint(): nonpayable
     def checkpoint_gauge(addr: address): nonpayable
 
 interface Minter:
-    def token() -> address: view
-    def controller() -> address: view
     def minted(user: address, gauge: address) -> uint256: view
-
-
-event UpdateLiquidityLimit:
-    user: indexed(address)
-    original_balance: uint256
-    original_supply: uint256
-    working_balance: uint256
-    working_supply: uint256
 
 
 MAX_TICKS_UINT: constant(uint256) = 50
 MAX_TICKS_INT: constant(int256) = 50
 WEEK: constant(uint256) = 604800
 
-AMM: public(immutable(LLAMMA))
-VECRV: public(immutable(ERC20))
+AMM: public(immutable(address))
 CRV: public(immutable(CRV20))
 GAUGE_CONTROLLER: public(immutable(GaugeController))
 MINTER: public(immutable(Minter))
@@ -109,9 +89,8 @@ integrate_fraction: public(HashMap[address, uint256])
 
 @external
 def __init__(
-        amm: LLAMMA,
+        amm: address,
         crv: CRV20,
-        vecrv: ERC20,
         gauge_controller: GaugeController,
         minter: Minter,
 ):
@@ -119,13 +98,11 @@ def __init__(
     @notice LMCallback constructor. Should be deployed manually.
     @param amm The address of amm
     @param crv The address of CRV token
-    @param vecrv The address of veCRV
     @param gauge_controller The address of the gauge controller
     @param minter the address of CRV minter
     """
     AMM = amm
     CRV = crv
-    VECRV = vecrv
     GAUGE_CONTROLLER = gauge_controller
     MINTER = minter
 
@@ -308,7 +285,7 @@ def callback_collateral_shares(n_start: int256, collateral_per_share: DynArray[u
     @param size The number of bands to checkpoint starting from `n_start`
     """
     # It is important that this callback is called every time before callback_user_shares
-    assert msg.sender == AMM.address
+    assert msg.sender == AMM
     self._checkpoint_collateral_shares(n_start, collateral_per_share, convert(size, int256))
 
 
@@ -322,7 +299,7 @@ def callback_user_shares(user: address, n_start: int256, user_shares: DynArray[u
     @param n_start Index of the first band to checkpoint
     @param user_shares User's shares by bands
     """
-    assert msg.sender == AMM.address
+    assert msg.sender == AMM
     self.user_start_band[user] = n_start
     size: int256 = convert(len(user_shares), int256)
     self.user_range_size[user] = size
