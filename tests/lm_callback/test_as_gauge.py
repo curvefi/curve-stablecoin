@@ -10,18 +10,10 @@ WEEK = 7 * 86400
 def test_gauge_integral_one_user(accounts, admin, collateral_token, crv, lm_callback, gauge_controller, market_controller):
     with boa.env.anchor():
         alice = accounts[0]
-
-        # Wire up Gauge to the controller to have proper rates and stuff
-        with boa.env.prank(admin):
-            gauge_controller.add_type("crvUSD Market")
-            gauge_controller.change_type_weight(0, 10 ** 18)
-            gauge_controller.add_gauge(lm_callback.address, 0, 10 ** 18)
-
         boa.env.time_travel(seconds=WEEK)
         alice_staked = 0
         integral = 0  # ∫(balance * rate(t) / totalSupply(t) dt)
         checkpoint = boa.env.evm.patch.timestamp
-        # boa.env.time_travel(blocks=1)
         checkpoint_rate = crv.rate()
         checkpoint_supply = 0
         checkpoint_balance = 0
@@ -96,12 +88,6 @@ def test_gauge_integral_one_user(accounts, admin, collateral_token, crv, lm_call
 def test_gauge_integral(accounts, admin, collateral_token, crv, lm_callback, gauge_controller, market_controller):
     with boa.env.anchor():
         alice, bob = accounts[:2]
-
-        # Wire up Gauge to the controller to have proper rates and stuff
-        with boa.env.prank(admin):
-            gauge_controller.add_type("crvUSD Market")
-            gauge_controller.change_type_weight(0, 10 ** 18)
-            gauge_controller.add_gauge(lm_callback.address, 0, 10 ** 18)
 
         alice_staked = 0
         bob_staked = 0

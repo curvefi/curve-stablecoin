@@ -53,7 +53,7 @@ def weth(admin):
 @pytest.fixture(scope="module")
 def controller_prefactory(stablecoin, weth, admin, accounts):
     with boa.env.prank(admin):
-        return boa.load('contracts/ControllerFactory.vy', stablecoin.address, admin, accounts[0], weth.address)
+        return boa.load('contracts/ControllerFactory.vy', stablecoin.address, admin, admin, weth.address)
 
 
 @pytest.fixture(scope="module")
@@ -139,6 +139,11 @@ def lm_callback(admin, market_amm, crv, gauge_controller, minter, market_control
     with boa.env.prank(admin):
         cb = boa.load('contracts/LMCallback.vy', market_amm, crv, gauge_controller, minter)
         market_controller.set_callback(cb)
+
+        # Wire up LM Callback to the gauge controller to have proper rates and stuff
+        gauge_controller.add_type("crvUSD Market")
+        gauge_controller.change_type_weight(0, 10 ** 18)
+        gauge_controller.add_gauge(cb.address, 0, 10 ** 18)
 
         return cb
 

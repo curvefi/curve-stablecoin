@@ -157,12 +157,6 @@ def test_state_machine(
         with boa.env.prank(acct):
             collateral_token.approve(market_controller, 2 ** 256 - 1)
 
-    # Wire up Gauge to the controller to have proper rates and stuff
-    with boa.env.prank(admin):
-        gauge_controller.add_type("crvUSD Market")
-        gauge_controller.change_type_weight(0, 10 ** 18)
-        gauge_controller.add_gauge(lm_callback.address, 0, 10 ** 18)
-
     boa.env.time_travel(seconds=7 * 86400)
 
     StateMachine.TestCase.settings = settings(max_examples=400, stateful_step_count=50)

@@ -21,12 +21,6 @@ def test_simple_exchange(
     alice, bob = accounts[:2]
     boa.env.time_travel(seconds=2 * WEEK + 5)
 
-    # Wire up Gauge to the controller to have proper rates and stuff
-    with boa.env.prank(admin):
-        gauge_controller.add_type("crvUSD Market")
-        gauge_controller.change_type_weight(0, 10 ** 18)
-        gauge_controller.add_gauge(lm_callback.address, 0, 10 ** 18)
-
     # Let Alice and Bob have about the same collateral token amount
     with boa.env.prank(admin):
         collateral_token._mint_for_testing(alice, 1000 * 10 ** 18)
@@ -77,12 +71,6 @@ def test_gauge_integral_with_exchanges(
 ):
     with boa.env.anchor():
         alice, bob = accounts[:2]
-
-        # Wire up Gauge to the controller to have proper rates and stuff
-        with boa.env.prank(admin):
-            gauge_controller.add_type("crvUSD Market")
-            gauge_controller.change_type_weight(0, 10 ** 18)
-            gauge_controller.add_gauge(lm_callback.address, 0, 10 ** 18)
 
         integral = 0  # ∫(balance * rate(t) / totalSupply(t) dt)
         checkpoint = boa.env.evm.patch.timestamp
