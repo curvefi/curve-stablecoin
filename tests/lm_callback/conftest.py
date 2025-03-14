@@ -64,7 +64,7 @@ def controller_interface():
 
 
 @pytest.fixture(scope="module")
-def controller_impl(controller_prefactory, controller_interface, admin):
+def controller_impl(controller_interface, admin):
     with boa.env.prank(admin):
         return controller_interface.deploy_as_blueprint()
 
@@ -137,9 +137,9 @@ def market_controller(market, stablecoin, collateral_token, controller_interface
 
 
 @pytest.fixture(scope="module")
-def lm_callback(admin, market_amm, crv, gauge_controller, minter, market_controller):
+def lm_callback(admin, market_amm, crv, gauge_controller, minter, market_controller, controller_factory):
     with boa.env.prank(admin):
-        cb = boa.load('contracts/LMCallback.vy', market_amm, crv, gauge_controller, minter)
+        cb = boa.load('contracts/LMCallback.vy', market_amm, crv, gauge_controller, minter, controller_factory)
         market_controller.set_callback(cb)
 
         # Wire up LM Callback to the gauge controller to have proper rates and stuff

@@ -7,7 +7,7 @@ YEAR = 365 * 86400
 WEEK = 7 * 86400
 
 
-def test_gauge_integral_one_user(accounts, admin, collateral_token, crv, lm_callback, gauge_controller, market_controller, minter):
+def test_gauge_integral_one_user(accounts, admin, collateral_token, crv, lm_callback, market_controller, minter):
     with boa.env.anchor():
         alice = accounts[0]
         boa.env.time_travel(seconds=WEEK)
@@ -87,7 +87,7 @@ def test_gauge_integral_one_user(accounts, admin, collateral_token, crv, lm_call
             assert crv.balanceOf(alice) == crv_reward
 
 
-def test_gauge_integral(accounts, admin, collateral_token, crv, lm_callback, gauge_controller, market_controller, minter):
+def test_gauge_integral(accounts, admin, collateral_token, crv, lm_callback, market_controller, minter):
     with boa.env.anchor():
         alice, bob = accounts[:2]
 
@@ -226,3 +226,65 @@ def test_gauge_integral(accounts, admin, collateral_token, crv, lm_callback, gau
                     crv_reward = lm_callback.claimable_tokens(bob)
                 minter.mint(lm_callback.address)
                 assert crv.balanceOf(bob) - crv_balance == crv_reward
+
+
+def test_set_killed(
+        accounts,
+        admin,
+        collateral_token,
+        crv,
+        market_controller,
+        lm_callback,
+        minter,
+):
+    alice = accounts[0]
+    boa.env.time_travel(seconds=2 * WEEK + 5)
+
+    with boa.env.prank(admin):
+        collateral_token._mint_for_testing(alice, 1000 * 10 ** 18)
+
+    # Alice creates loan
+    market_controller.create_loan(10**21, 10**21 * 2600, 10, sender=alice)
+
+    # Time travel and checkpoint
+    boa.env.time_travel(4 * WEEK)
+
+    # Alice got some rewards
+    with boa.env.anchor():
+        rewards_alice = lm_callback.claimable_tokens(alice)
+    assert rewards_alice > 0
+    crv_balance = crv.balanceOf(alice)
+    minter.mint(lm_callback.address, sender=alice)
+    assert crv.balanceOf(alice) - crv_balance == rewards_alice
+
+    # Kill lm callback
+    with boa.reverts('only owner'):
+        lm_callback.set_killed(True, sender=alice)
+    lm_callback.set_killed(True, sender=admin)
+
+    # Time travel and checkpoint
+    boa.env.time_travel(4 * WEEK)
+
+    # Alice didn't get any rewards since lm callback is killed
+    with boa.env.anchor():
+        rewards_alice = lm_callback.claimable_tokens(alice)
+    assert rewards_alice == 0
+    crv_balance = crv.balanceOf(alice)
+    minter.mint(lm_callback.address, sender=alice)
+    assert crv.balanceOf(alice) == crv_balance
+
+    # Unkill lm callback
+    with boa.reverts('only owner'):
+        lm_callback.set_killed(False, sender=alice)
+    lm_callback.set_killed(False, sender=admin)
+
+    # Time travel and checkpoint
+    boa.env.time_travel(4 * WEEK)
+
+    # Alice got some rewards again since lm callback is unkilled
+    with boa.env.anchor():
+        rewards_alice = lm_callback.claimable_tokens(alice)
+    assert rewards_alice > 0
+    crv_balance = crv.balanceOf(alice)
+    minter.mint(lm_callback.address, sender=alice)
+    assert crv.balanceOf(alice) - crv_balance == rewards_alice
