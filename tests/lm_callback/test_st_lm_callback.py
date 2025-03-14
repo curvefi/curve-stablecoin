@@ -94,7 +94,7 @@ class StateMachine(RuleBasedStateMachine):
         user = self.accounts[uid]
         with boa.env.prank(user):
             balance = self.collateral_token.balanceOf(user)
-            collateral_in_amm, stablecoin_in_amm, debt, __ = self.market_controller.user_state(user)
+            collateral_in_amm, stablecoin_in_amm, debt, _ = self.market_controller.user_state(user)
             is_underwater = stablecoin_in_amm > 0
             if collateral_in_amm == 0:
                 return
@@ -181,6 +181,19 @@ class StateMachine(RuleBasedStateMachine):
             if r1 > 0:
                 assert approx(r1, r2, 1e-13) or abs(r1 - r2) < 100
 
+    @rule(uid=user_id)
+    def claim_crv(self, uid):
+        """
+        Claim user's CRV rewards.
+        """
+        user = self.accounts[uid]
+        with boa.env.prank(user):
+            crv_balance = self.crv.balanceOf(user)
+            with boa.env.anchor():
+                crv_reward = self.lm_callback.claimable_tokens(user)
+            self.minter.mint(self.lm_callback.address)
+            assert self.crv.balanceOf(user) - crv_balance == crv_reward
+
     @invariant()
     def invariant_collateral(self):
         """
@@ -201,20 +214,27 @@ class StateMachine(RuleBasedStateMachine):
         Final check to ensure that all balances may be withdrawn.
         """
         for account, integral in ((k, v) for k, v in self.integrals.items() if v):
-            initial_balance = self.collateral_token.balanceOf(account)
-            collateral_in_amm = integral["collateral"]
-            debt = self.market_controller.user_state(account)[2]
-            self.market_controller.repay(debt, sender=account)
-            self.update_integrals()
+            with boa.env.prank(account):
+                initial_collateral = self.collateral_token.balanceOf(account)
+                collateral_in_amm = integral["collateral"]
+                debt = self.market_controller.user_state(account)[2]
+                self.market_controller.repay(debt)
+                self.update_integrals()
 
-            assert not self.market_controller.loan_exists(account)
-            assert self.collateral_token.balanceOf(account) == initial_balance + collateral_in_amm
+                assert not self.market_controller.loan_exists(account)
+                assert self.collateral_token.balanceOf(account) == initial_collateral + collateral_in_amm
 
-            r1 = self.lm_callback.integrate_fraction(account)
-            r2 = self.integrals[account]["integral"]
-            assert (r1 > 0) == (r2 > 0)
-            if r1 > 0:
-                assert approx(r1, r2, 1e-13) or abs(r1 - r2) < 100
+                r1 = self.lm_callback.integrate_fraction(account)
+                r2 = integral["integral"]
+                assert (r1 > 0) == (r2 > 0)
+                if r1 > 0:
+                    assert approx(r1, r2, 1e-13) or abs(r1 - r2) < 100
+
+                crv_balance = self.crv.balanceOf(account)
+                with boa.env.anchor():
+                    crv_reward = self.lm_callback.claimable_tokens(account)
+                self.minter.mint(self.lm_callback.address)
+                assert self.crv.balanceOf(account) - crv_balance == crv_reward
 
 
 def test_state_machine(
@@ -229,6 +249,7 @@ def test_state_machine(
         market_controller,
         market_amm,
         price_oracle,
+        minter,
 ):
     for acct in accounts[:5]:
         with boa.env.prank(admin):

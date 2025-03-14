@@ -7,7 +7,7 @@ YEAR = 365 * 86400
 WEEK = 7 * 86400
 
 
-def test_gauge_integral_one_user(accounts, admin, collateral_token, crv, lm_callback, gauge_controller, market_controller):
+def test_gauge_integral_one_user(accounts, admin, collateral_token, crv, lm_callback, gauge_controller, market_controller, minter):
     with boa.env.anchor():
         alice = accounts[0]
         boa.env.time_travel(seconds=WEEK)
@@ -81,11 +81,13 @@ def test_gauge_integral_one_user(accounts, admin, collateral_token, crv, lm_call
             lm_callback.user_checkpoint(alice, sender=alice)
             update_integral()
             print(i, dt / 86400, integral, lm_callback.integrate_fraction(alice))
-            if integral > 0:
-                assert approx(lm_callback.integrate_fraction(alice), integral, 1e-14)
+            crv_reward = lm_callback.integrate_fraction(alice)
+            assert approx(crv_reward, integral, 1e-14)
+            minter.mint(lm_callback.address, sender=alice)
+            assert crv.balanceOf(alice) == crv_reward
 
 
-def test_gauge_integral(accounts, admin, collateral_token, crv, lm_callback, gauge_controller, market_controller):
+def test_gauge_integral(accounts, admin, collateral_token, crv, lm_callback, gauge_controller, market_controller, minter):
     with boa.env.anchor():
         alice, bob = accounts[:2]
 
@@ -207,7 +209,20 @@ def test_gauge_integral(accounts, admin, collateral_token, crv, lm_callback, gau
             dt = randrange(1, YEAR // 20)
             boa.env.time_travel(seconds=dt)
 
-            lm_callback.user_checkpoint(alice, sender=alice)
-            update_integral()
-            print(i, dt / 86400, integral, lm_callback.integrate_fraction(alice))
-            assert approx(lm_callback.integrate_fraction(alice), integral, 1e-14)
+            with boa.env.prank(alice):
+                crv_balance = crv.balanceOf(alice)
+                with boa.env.anchor():
+                    crv_reward = lm_callback.claimable_tokens(alice)
+                minter.mint(lm_callback.address)
+                assert crv.balanceOf(alice) - crv_balance == crv_reward
+
+                update_integral()
+                print(i, dt / 86400, integral, lm_callback.integrate_fraction(alice))
+                assert approx(lm_callback.integrate_fraction(alice), integral, 1e-14)
+
+            with boa.env.prank(bob):
+                crv_balance = crv.balanceOf(bob)
+                with boa.env.anchor():
+                    crv_reward = lm_callback.claimable_tokens(bob)
+                minter.mint(lm_callback.address)
+                assert crv.balanceOf(bob) - crv_balance == crv_reward

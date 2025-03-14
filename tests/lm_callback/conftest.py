@@ -23,7 +23,9 @@ def gauge_controller(admin, crv, voting_escrow):
 @pytest.fixture(scope="module")
 def minter(admin, crv, gauge_controller):
     with boa.env.prank(admin):
-        return boa.load('contracts/testing/Minter.vy', crv, gauge_controller)
+        _minter = boa.load('contracts/testing/Minter.vy', crv, gauge_controller)
+        crv.set_minter(_minter)
+        return _minter
 
 
 # Trader

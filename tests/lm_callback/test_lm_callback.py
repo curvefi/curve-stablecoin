@@ -17,6 +17,7 @@ def test_simple_exchange(
         market_amm,
         lm_callback,
         gauge_controller,
+        minter,
 ):
     alice, bob = accounts[:2]
     boa.env.time_travel(seconds=2 * WEEK + 5)
@@ -56,6 +57,12 @@ def test_simple_exchange(
     d_bob = rewards_bob - old_rewards_bob
     assert approx(d_bob / d_alice, 2, 1e-15)
 
+    minter.mint(lm_callback.address, sender=alice)
+    assert crv.balanceOf(alice) == rewards_alice
+
+    minter.mint(lm_callback.address, sender=bob)
+    assert crv.balanceOf(bob) == rewards_bob
+
 
 def test_gauge_integral_with_exchanges(
         accounts,
@@ -68,6 +75,7 @@ def test_gauge_integral_with_exchanges(
         market_controller,
         market_amm,
         price_oracle,
+        minter,
 ):
     with boa.env.anchor():
         alice, bob = accounts[:2]
@@ -238,10 +246,23 @@ def test_gauge_integral_with_exchanges(
             if total_collateral_from_amm > 0 and total_collateral_from_lm_cb > 0:
                 assert approx(total_collateral_from_amm, total_collateral_from_lm_cb, 1e-13)
 
-            lm_callback.user_checkpoint(alice, sender=alice)
-            update_integral()
-            print(i, dt / 86400, integral, lm_callback.integrate_fraction(alice), "\n")
-            assert approx(lm_callback.integrate_fraction(alice), integral, 1e-14)
+            with boa.env.prank(alice):
+                crv_balance = crv.balanceOf(alice)
+                with boa.env.anchor():
+                    crv_reward = lm_callback.claimable_tokens(alice)
+                minter.mint(lm_callback.address)
+                assert crv.balanceOf(alice) - crv_balance == crv_reward
+
+                update_integral()
+                print(i, dt / 86400, integral, lm_callback.integrate_fraction(alice))
+                assert approx(lm_callback.integrate_fraction(alice), integral, 1e-14)
+
+            with boa.env.prank(bob):
+                crv_balance = crv.balanceOf(bob)
+                with boa.env.anchor():
+                    crv_reward = lm_callback.claimable_tokens(bob)
+                minter.mint(lm_callback.address)
+                assert crv.balanceOf(bob) - crv_balance == crv_reward
 
 
 def test_full_repay_underwater(
@@ -255,15 +276,10 @@ def test_full_repay_underwater(
         market_controller,
         market_amm,
         price_oracle,
+        minter,
 ):
     with boa.env.anchor():
         alice, bob = accounts[:2]
-
-        # Wire up Gauge to the controller to have proper rates and stuff
-        with boa.env.prank(admin):
-            gauge_controller.add_type("crvUSD Market")
-            gauge_controller.change_type_weight(0, 10 ** 18)
-            gauge_controller.add_gauge(lm_callback.address, 0, 10 ** 18)
 
         # Let Alice and Bob have about the same collateral token amount
         with boa.env.prank(admin):
@@ -289,6 +305,9 @@ def test_full_repay_underwater(
 
         print(collateral_token.balanceOf(market_amm) - market_amm.admin_fees_y(),
               lm_callback.total_collateral())
+
+        dt = randrange(1, YEAR // 5)
+        boa.env.time_travel(seconds=dt)
 
         # Chad trading. As a result Bob will be underwater
         bob_bands = market_amm.read_user_tick_numbers(bob)
@@ -320,3 +339,11 @@ def test_full_repay_underwater(
         total_collateral_from_lm_cb = lm_callback.total_collateral()
         print("Total collateral:", total_collateral_from_amm, total_collateral_from_lm_cb)
         assert approx(total_collateral_from_amm, total_collateral_from_lm_cb, 1e-15)
+
+        for user in accounts[:2]:
+            with boa.env.prank(user):
+                crv_balance = crv.balanceOf(user)
+                with boa.env.anchor():
+                    crv_reward = lm_callback.claimable_tokens(bob)
+                minter.mint(lm_callback.address)
+                assert crv.balanceOf(user) - crv_balance == crv_reward
