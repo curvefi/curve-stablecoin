@@ -246,7 +246,6 @@ def test_state_machine(
         collateral_token,
         crv,
         lm_callback,
-        gauge_controller,
         market_controller,
         market_amm,
         price_oracle,

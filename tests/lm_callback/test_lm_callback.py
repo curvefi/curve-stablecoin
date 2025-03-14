@@ -16,7 +16,6 @@ def test_simple_exchange(
         market_controller,
         market_amm,
         lm_callback,
-        gauge_controller,
         minter,
 ):
     alice, bob = accounts[:2]
@@ -71,7 +70,6 @@ def test_gauge_integral_with_exchanges(
         collateral_token,
         crv,
         lm_callback,
-        gauge_controller,
         market_controller,
         market_amm,
         price_oracle,
@@ -272,7 +270,6 @@ def test_full_repay_underwater(
         collateral_token,
         crv,
         lm_callback,
-        gauge_controller,
         market_controller,
         market_amm,
         price_oracle,
