@@ -19,6 +19,9 @@ interface GaugeController:
 interface Minter:
     def minted(user: address, gauge: address) -> uint256: view
 
+interface LendingFactory:
+    def admin() -> address: view
+
 
 MAX_TICKS_UINT: constant(uint256) = 50
 MAX_TICKS_INT: constant(int256) = 50
@@ -28,6 +31,9 @@ AMM: public(immutable(address))
 CRV: public(immutable(CRV20))
 GAUGE_CONTROLLER: public(immutable(GaugeController))
 MINTER: public(immutable(Minter))
+LENDING_FACTORY: public(immutable(LendingFactory))
+
+is_killed: public(bool)
 
 total_collateral: public(uint256)
 
@@ -93,6 +99,7 @@ def __init__(
         crv: CRV20,
         gauge_controller: GaugeController,
         minter: Minter,
+        factory: LendingFactory,
 ):
     """
     @notice LMCallback constructor. Should be deployed manually.
@@ -105,6 +112,7 @@ def __init__(
     CRV = crv
     GAUGE_CONTROLLER = gauge_controller
     MINTER = minter
+    LENDING_FACTORY = factory
 
     self.inflation_rate = crv.rate()
     self.future_epoch_time = crv.future_epoch_time_write()
@@ -128,6 +136,10 @@ def _checkpoint_collateral_shares(n_start: int256, collateral_per_share: DynArra
         self.future_epoch_time = CRV.future_epoch_time_write()
         new_rate = CRV.rate()
         self.inflation_rate = new_rate
+
+    if self.is_killed:
+        rate = 0
+        new_rate = 0
 
     # * Record the collateral per share values
     # * Record integrals of rewards per share
@@ -336,3 +348,15 @@ def claimable_tokens(addr: address) -> uint256:
     self._checkpoint_user_shares(addr, n_start, [], size)
 
     return self.integrate_fraction[addr] - MINTER.minted(addr, self)
+
+
+@external
+def set_killed(_is_killed: bool):
+    """
+    @notice Set the killed status for this contract
+    @dev When killed, the gauge always yields a rate of 0 and so cannot mint CRV
+    @param _is_killed Killed status to set
+    """
+    assert msg.sender == LENDING_FACTORY.admin()  # dev: only owner
+
+    self.is_killed = _is_killed
