@@ -1,12 +1,10 @@
-# @version 0.3.10
+# @version 0.4.1
 """
 @title LlamaLend LMCallback
 @author Curve.Fi
 @license Copyright (c) Curve.Fi, 2020-2023 - all rights reserved
 @notice LM callback works like a gauge for collateral in LlamaLend/crvUSD AMMs
 """
-
-from vyper.interfaces import ERC20
 
 interface CRV20:
     def future_epoch_time_write() -> uint256: nonpayable
@@ -93,7 +91,7 @@ I_rpu: public(HashMap[address, HashMap[int256, IntegralRPU]])
 integrate_fraction: public(HashMap[address, uint256])
 
 
-@external
+@deploy
 def __init__(
         amm: address,
         crv: CRV20,
@@ -114,8 +112,8 @@ def __init__(
     MINTER = minter
     LENDING_FACTORY = factory
 
-    self.inflation_rate = crv.rate()
-    self.future_epoch_time = crv.future_epoch_time_write()
+    self.inflation_rate = staticcall crv.rate()
+    self.future_epoch_time = extcall crv.future_epoch_time_write()
 
 
 @internal
@@ -133,8 +131,8 @@ def _checkpoint_collateral_shares(n_start: int256, collateral_per_share: DynArra
     new_rate: uint256 = rate
     prev_future_epoch: uint256 = self.future_epoch_time
     if block.timestamp >= prev_future_epoch:
-        self.future_epoch_time = CRV.future_epoch_time_write()
-        new_rate = CRV.rate()
+        self.future_epoch_time = extcall CRV.future_epoch_time_write()
+        new_rate = staticcall CRV.rate()
         self.inflation_rate = new_rate
 
     if self.is_killed:
@@ -147,13 +145,13 @@ def _checkpoint_collateral_shares(n_start: int256, collateral_per_share: DynArra
     delta_rpc: uint256 = 0
 
     if total_collateral > 0 and block.timestamp > I_rpc.t:  # XXX should we not loop when total_collateral == 0?
-        GAUGE_CONTROLLER.checkpoint_gauge(self)
+        extcall GAUGE_CONTROLLER.checkpoint_gauge(self)
         prev_week_time: uint256 = I_rpc.t
-        week_time: uint256 = min((I_rpc.t + WEEK) / WEEK * WEEK, block.timestamp)
+        week_time: uint256 = min((I_rpc.t + WEEK) // WEEK * WEEK, block.timestamp)
 
-        for week_iter in range(500):
+        for week_iter: uint256 in range(500):
             dt: uint256 = week_time - prev_week_time
-            w: uint256 = GAUGE_CONTROLLER.gauge_relative_weight(self, prev_week_time / WEEK * WEEK)
+            w: uint256 = staticcall GAUGE_CONTROLLER.gauge_relative_weight(self, prev_week_time // WEEK * WEEK)
 
             if prev_future_epoch >= prev_week_time and prev_future_epoch < week_time:
                 # If we went across one or multiple epochs, apply the rate
@@ -161,11 +159,11 @@ def _checkpoint_collateral_shares(n_start: int256, collateral_per_share: DynArra
                 # the last epoch.
                 # If more than one epoch is crossed - the gauge gets less,
                 # but that'd mean it wasn't called for more than 1 year
-                delta_rpc += rate * w * (prev_future_epoch - prev_week_time) / total_collateral
+                delta_rpc += rate * w * (prev_future_epoch - prev_week_time) // total_collateral
                 rate = new_rate
-                delta_rpc += rate * w * (week_time - prev_future_epoch) / total_collateral
+                delta_rpc += rate * w * (week_time - prev_future_epoch) // total_collateral
             else:
-                delta_rpc += rate * w * dt / total_collateral
+                delta_rpc += rate * w * dt // total_collateral
             # On precisions of the calculation
             # rate ~= 10e18
             # last_weight > 0.01 * 1e18 = 1e16 (if pool weight is 1%)
@@ -183,7 +181,7 @@ def _checkpoint_collateral_shares(n_start: int256, collateral_per_share: DynArra
     self.I_rpc = I_rpc
 
     # Update total_collateral
-    for i in range(MAX_TICKS_INT):
+    for i: int256 in range(MAX_TICKS_INT):
         if i == size:
             break
         _n: int256 = n_start + i
@@ -193,15 +191,15 @@ def _checkpoint_collateral_shares(n_start: int256, collateral_per_share: DynArra
             cps = collateral_per_share[i]
             self.collateral_per_share[_n] = cps
         I_rps: IntegralRPS = self.I_rps[_n]
-        I_rps.rps += old_cps * (I_rpc.rpc - I_rps.rpc) / 10**18
+        I_rps.rps += old_cps * (I_rpc.rpc - I_rps.rpc) // 10**18
         I_rps.rpc = I_rpc.rpc
         self.I_rps[_n] = I_rps
         if cps != old_cps:
             spb: uint256 = self.shares_per_band[_n]
             if spb > 0:
-                # total_collateral += spb * (cps - old_cps) / 10**18
-                old_total_collateral: uint256 = spb * old_cps / 10 ** 18
-                total_collateral = max(total_collateral + spb * cps / 10**18, old_total_collateral) - old_total_collateral
+                # total_collateral += spb * (cps - old_cps) // 10**18
+                old_total_collateral: uint256 = spb * old_cps // 10 ** 18
+                total_collateral = max(total_collateral + spb * cps // 10**18, old_total_collateral) - old_total_collateral
 
     self.total_collateral = total_collateral
 
@@ -223,19 +221,19 @@ def _user_amounts(user: address, n_start: int256, user_shares: DynArray[uint256,
     old_collateral_amount: uint256 = 0
     collateral_amount: uint256 = 0
     if len(user_shares) > 0:
-        for i in range(MAX_TICKS_INT):
+        for i: int256 in range(MAX_TICKS_INT):
             if i == size:
                 break
             cps: uint256 = self.collateral_per_share[n_start + i]
-            old_collateral_amount += self.user_shares[user][n_start + i] * cps / 10**18
-            collateral_amount += user_shares[i] * cps / 10**18
+            old_collateral_amount += self.user_shares[user][n_start + i] * cps // 10**18
+            collateral_amount += user_shares[i] * cps // 10**18
 
         return [collateral_amount, old_collateral_amount]
     else:
-        for i in range(MAX_TICKS_INT):
+        for i: int256 in range(MAX_TICKS_INT):
             if i == size:
                 break
-            old_collateral_amount += self.user_shares[user][n_start + i] * self.collateral_per_share[n_start + i] / 10**18
+            old_collateral_amount += self.user_shares[user][n_start + i] * self.collateral_per_share[n_start + i] // 10**18
 
         return [old_collateral_amount, old_collateral_amount]
 
@@ -254,7 +252,7 @@ def _checkpoint_user_shares(user: address, n_start: int256, user_shares: DynArra
     self.total_collateral = max(self.total_collateral + _amounts[0], _amounts[1]) - _amounts[1]
 
     rpu: uint256 = self.integrate_fraction[user]
-    for i in range(MAX_TICKS_INT):
+    for i: int256 in range(MAX_TICKS_INT):
         if i == size:
             break
         _n: int256 = n_start + i
@@ -266,7 +264,7 @@ def _checkpoint_user_shares(user: address, n_start: int256, user_shares: DynArra
 
         I_rpu: IntegralRPU = self.I_rpu[user][_n]
         I_rps: uint256 = self.I_rps[_n].rps
-        d_rpu: uint256 = old_user_shares * (I_rps - I_rpu.rps) / 10**18
+        d_rpu: uint256 = old_user_shares * (I_rps - I_rpu.rps) // 10**18
         I_rpu.rpu += d_rpu
         I_rpu.rps = I_rps
         self.I_rpu[user][_n] = I_rpu
@@ -347,7 +345,7 @@ def claimable_tokens(addr: address) -> uint256:
     self._checkpoint_collateral_shares(n_start, [], size)
     self._checkpoint_user_shares(addr, n_start, [], size)
 
-    return self.integrate_fraction[addr] - MINTER.minted(addr, self)
+    return self.integrate_fraction[addr] - staticcall MINTER.minted(addr, self)
 
 
 @external
@@ -357,6 +355,6 @@ def set_killed(_is_killed: bool):
     @dev When killed, the gauge always yields a rate of 0 and so cannot mint CRV
     @param _is_killed Killed status to set
     """
-    assert msg.sender == LENDING_FACTORY.admin()  # dev: only owner
+    assert msg.sender == staticcall LENDING_FACTORY.admin()  # dev: only owner
 
     self.is_killed = _is_killed
