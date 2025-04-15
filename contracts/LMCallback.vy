@@ -319,7 +319,6 @@ def callback_user_shares(user: address, n_start: int256, user_shares: DynArray[u
 def user_checkpoint(addr: address) -> bool:
     """
     @notice Record a checkpoint for `addr`
-    @dev Can be called only by user or CRV minter
     @param addr User address
     @return bool success
     """
