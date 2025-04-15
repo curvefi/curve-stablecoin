@@ -21,6 +21,10 @@ interface LendingFactory:
     def admin() -> address: view
 
 
+event SetKilled:
+    is_killed: bool
+
+
 MAX_TICKS_UINT: constant(uint256) = 50
 MAX_TICKS_INT: constant(int256) = 50
 WEEK: constant(uint256) = 604800
@@ -354,5 +358,5 @@ def set_killed(_is_killed: bool):
     @param _is_killed Killed status to set
     """
     assert msg.sender == staticcall LENDING_FACTORY.admin()  # dev: only owner
-
     self.is_killed = _is_killed
+    log SetKilled(is_killed=_is_killed)
