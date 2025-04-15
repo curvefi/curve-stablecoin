@@ -259,7 +259,7 @@ def _checkpoint_user_shares(user: address, n_start: int256, user_shares: DynArra
         old_user_shares: uint256 = self.user_shares[user][_n]
 
         if len(user_shares) > 0:
-            self.shares_per_band[_n] = self.shares_per_band[_n] + user_shares[i] - self.user_shares[user][_n]
+            self.shares_per_band[_n] = self.shares_per_band[_n] + user_shares[i] - old_user_shares
             self.user_shares[user][_n] = user_shares[i]
 
         I_rpu: IntegralRPU = self.I_rpu[user][_n]
