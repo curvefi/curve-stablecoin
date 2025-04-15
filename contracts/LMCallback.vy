@@ -151,7 +151,7 @@ def _checkpoint_collateral_shares(n_start: int256, collateral_per_share: DynArra
 
         for week_iter: uint256 in range(500):
             dt: uint256 = week_time - prev_week_time
-            w: uint256 = staticcall GAUGE_CONTROLLER.gauge_relative_weight(self, prev_week_time // WEEK * WEEK)
+            w: uint256 = staticcall GAUGE_CONTROLLER.gauge_relative_weight(self, prev_week_time)
 
             if prev_future_epoch >= prev_week_time and prev_future_epoch < week_time:
                 # If we went across one or multiple epochs, apply the rate
