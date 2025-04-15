@@ -112,8 +112,8 @@ def __init__(
     MINTER = minter
     LENDING_FACTORY = factory
 
-    self.inflation_rate = staticcall crv.rate()
     self.future_epoch_time = extcall crv.future_epoch_time_write()
+    self.inflation_rate = staticcall crv.rate()
 
 
 @internal
