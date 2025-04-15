@@ -150,7 +150,6 @@ def _checkpoint_collateral_shares(n_start: int256, collateral_per_share: DynArra
         week_time: uint256 = min(unsafe_div(I_rpc.t + WEEK, WEEK) * WEEK, block.timestamp)
 
         for week_iter: uint256 in range(500):
-            dt: uint256 = week_time - prev_week_time
             w: uint256 = staticcall GAUGE_CONTROLLER.gauge_relative_weight(self, prev_week_time)
 
             if prev_future_epoch >= prev_week_time and prev_future_epoch < week_time:
@@ -163,7 +162,7 @@ def _checkpoint_collateral_shares(n_start: int256, collateral_per_share: DynArra
                 rate = new_rate
                 delta_rpc += unsafe_div(rate * w * (week_time - prev_future_epoch), total_collateral)
             else:
-                delta_rpc += unsafe_div(rate * w * dt, total_collateral)
+                delta_rpc += unsafe_div(rate * w * (week_time - prev_week_time), total_collateral)
             # On precisions of the calculation
             # rate ~= 10e18
             # last_weight > 0.01 * 1e18 = 1e16 (if pool weight is 1%)
