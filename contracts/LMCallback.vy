@@ -147,7 +147,7 @@ def _checkpoint_collateral_shares(n_start: int256, collateral_per_share: DynArra
     if total_collateral > 0 and block.timestamp > I_rpc.t:  # XXX should we not loop when total_collateral == 0?
         extcall GAUGE_CONTROLLER.checkpoint_gauge(self)
         prev_week_time: uint256 = I_rpc.t
-        week_time: uint256 = min((I_rpc.t + WEEK) // WEEK * WEEK, block.timestamp)
+        week_time: uint256 = min(unsafe_div(I_rpc.t + WEEK, WEEK) * WEEK, block.timestamp)
 
         for week_iter: uint256 in range(500):
             dt: uint256 = week_time - prev_week_time
@@ -159,11 +159,11 @@ def _checkpoint_collateral_shares(n_start: int256, collateral_per_share: DynArra
                 # the last epoch.
                 # If more than one epoch is crossed - the gauge gets less,
                 # but that'd mean it wasn't called for more than 1 year
-                delta_rpc += rate * w * (prev_future_epoch - prev_week_time) // total_collateral
+                delta_rpc += unsafe_div(rate * w * (prev_future_epoch - prev_week_time), total_collateral)
                 rate = new_rate
-                delta_rpc += rate * w * (week_time - prev_future_epoch) // total_collateral
+                delta_rpc += unsafe_div(rate * w * (week_time - prev_future_epoch), total_collateral)
             else:
-                delta_rpc += rate * w * dt // total_collateral
+                delta_rpc += unsafe_div(rate * w * dt, total_collateral)
             # On precisions of the calculation
             # rate ~= 10e18
             # last_weight > 0.01 * 1e18 = 1e16 (if pool weight is 1%)
@@ -191,15 +191,15 @@ def _checkpoint_collateral_shares(n_start: int256, collateral_per_share: DynArra
             cps = collateral_per_share[i]
             self.collateral_per_share[_n] = cps
         I_rps: IntegralRPS = self.I_rps[_n]
-        I_rps.rps += old_cps * (I_rpc.rpc - I_rps.rpc) // 10**18
+        I_rps.rps += unsafe_div(old_cps * (I_rpc.rpc - I_rps.rpc), 10**18)
         I_rps.rpc = I_rpc.rpc
         self.I_rps[_n] = I_rps
         if cps != old_cps:
             spb: uint256 = self.shares_per_band[_n]
             if spb > 0:
                 # total_collateral += spb * (cps - old_cps) // 10**18
-                old_total_collateral: uint256 = spb * old_cps // 10 ** 18
-                total_collateral = max(total_collateral + spb * cps // 10**18, old_total_collateral) - old_total_collateral
+                old_total_collateral: uint256 = unsafe_div(spb * old_cps, 10**18)
+                total_collateral = max(total_collateral + unsafe_div(spb * cps, 10**18), old_total_collateral) - old_total_collateral
 
     self.total_collateral = total_collateral
 
@@ -225,15 +225,15 @@ def _user_amounts(user: address, n_start: int256, user_shares: DynArray[uint256,
             if i == size:
                 break
             cps: uint256 = self.collateral_per_share[n_start + i]
-            old_collateral_amount += self.user_shares[user][n_start + i] * cps // 10**18
-            collateral_amount += user_shares[i] * cps // 10**18
+            old_collateral_amount += unsafe_div(self.user_shares[user][n_start + i] * cps, 10**18)
+            collateral_amount += unsafe_div(user_shares[i] * cps, 10**18)
 
         return [collateral_amount, old_collateral_amount]
     else:
         for i: int256 in range(MAX_TICKS_INT):
             if i == size:
                 break
-            old_collateral_amount += self.user_shares[user][n_start + i] * self.collateral_per_share[n_start + i] // 10**18
+            old_collateral_amount += unsafe_div(self.user_shares[user][n_start + i] * self.collateral_per_share[n_start + i], 10**18)
 
         return [old_collateral_amount, old_collateral_amount]
 
@@ -264,7 +264,7 @@ def _checkpoint_user_shares(user: address, n_start: int256, user_shares: DynArra
 
         I_rpu: IntegralRPU = self.I_rpu[user][_n]
         I_rps: uint256 = self.I_rps[_n].rps
-        d_rpu: uint256 = old_user_shares * (I_rps - I_rpu.rps) // 10**18
+        d_rpu: uint256 = unsafe_div(old_user_shares * (I_rps - I_rpu.rps), 10**18)
         I_rpu.rpu += d_rpu
         I_rpu.rps = I_rps
         self.I_rpu[user][_n] = I_rpu
