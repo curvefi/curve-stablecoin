@@ -179,24 +179,28 @@ def _checkpoint_collateral_shares(n_start: int256, collateral_per_share: DynArra
             prev_week_time = week_time
             week_time = min(week_time + WEEK, block.timestamp)
 
-    I_rpc.t = block.timestamp
-    I_rpc.rpc += delta_rpc
-    self.I_rpc = I_rpc
+    if not self.is_killed:
+        I_rpc.t = block.timestamp
+        I_rpc.rpc += delta_rpc
+        self.I_rpc = I_rpc
 
     # Update total_collateral
     for i: int256 in range(MAX_TICKS_INT):
         if i == size:
             break
         _n: int256 = n_start + i
+
         old_cps: uint256 = self.collateral_per_share[_n]
         cps: uint256 = old_cps
         if len(collateral_per_share) > 0:
             cps = collateral_per_share[i]
             self.collateral_per_share[_n] = cps
+
         I_rps: IntegralRPS = self.I_rps[_n]
         I_rps.rps += unsafe_div(old_cps * (I_rpc.rpc - I_rps.rpc), 10**18)
         I_rps.rpc = I_rpc.rpc
         self.I_rps[_n] = I_rps
+
         if cps != old_cps:
             spb: uint256 = self.shares_per_band[_n]
             if spb > 0:
@@ -358,5 +362,6 @@ def set_killed(_is_killed: bool):
     @param _is_killed Killed status to set
     """
     assert msg.sender == staticcall LENDING_FACTORY.admin()  # dev: only owner
+    self._checkpoint_collateral_shares(0, [], 0)
     self.is_killed = _is_killed
     log SetKilled(is_killed=_is_killed)
