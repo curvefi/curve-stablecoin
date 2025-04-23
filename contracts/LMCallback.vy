@@ -139,7 +139,8 @@ def _checkpoint_collateral_shares(n_start: int256, collateral_per_share: DynArra
         new_rate = staticcall CRV.rate()
         self.inflation_rate = new_rate
 
-    if self.is_killed:
+    is_killed: bool = self.is_killed
+    if is_killed:
         rate = 0
         new_rate = 0
 
@@ -179,7 +180,7 @@ def _checkpoint_collateral_shares(n_start: int256, collateral_per_share: DynArra
             prev_week_time = week_time
             week_time = min(week_time + WEEK, block.timestamp)
 
-    if not self.is_killed:
+    if not is_killed:
         I_rpc.t = block.timestamp
         I_rpc.rpc += delta_rpc
         self.I_rpc = I_rpc
