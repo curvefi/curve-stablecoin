@@ -152,7 +152,7 @@ def _checkpoint_collateral_shares(n_start: int256, collateral_per_share: DynArra
     if total_collateral > 0 and block.timestamp > I_rpc.t:  # XXX should we not loop when total_collateral == 0?
         extcall GAUGE_CONTROLLER.checkpoint_gauge(self)
         prev_week_time: uint256 = I_rpc.t
-        week_time: uint256 = min(unsafe_div(I_rpc.t + WEEK, WEEK) * WEEK, block.timestamp)
+        week_time: uint256 = min(unsafe_div(prev_week_time + WEEK, WEEK) * WEEK, block.timestamp)
 
         for week_iter: uint256 in range(500):
             w: uint256 = staticcall GAUGE_CONTROLLER.gauge_relative_weight(self, prev_week_time)
@@ -163,11 +163,11 @@ def _checkpoint_collateral_shares(n_start: int256, collateral_per_share: DynArra
                 # the last epoch.
                 # If more than one epoch is crossed - the gauge gets less,
                 # but that'd mean it wasn't called for more than 1 year
-                delta_rpc += unsafe_div(rate * w * (prev_future_epoch - prev_week_time), total_collateral)
+                delta_rpc += unsafe_div(rate * w * unsafe_sub(prev_future_epoch, prev_week_time), total_collateral)
                 rate = new_rate
-                delta_rpc += unsafe_div(rate * w * (week_time - prev_future_epoch), total_collateral)
+                delta_rpc += unsafe_div(rate * w * unsafe_sub(week_time, prev_future_epoch), total_collateral)
             else:
-                delta_rpc += unsafe_div(rate * w * (week_time - prev_week_time), total_collateral)
+                delta_rpc += unsafe_div(rate * w * unsafe_sub(week_time, prev_week_time), total_collateral)
             # On precisions of the calculation
             # rate ~= 10e18
             # last_weight > 0.01 * 1e18 = 1e16 (if pool weight is 1%)
@@ -198,7 +198,7 @@ def _checkpoint_collateral_shares(n_start: int256, collateral_per_share: DynArra
             self.collateral_per_share[_n] = cps
 
         I_rps: IntegralRPS = self.I_rps[_n]
-        I_rps.rps += unsafe_div(old_cps * (I_rpc.rpc - I_rps.rpc), 10**18)
+        I_rps.rps += unsafe_div(old_cps * unsafe_sub(I_rpc.rpc, I_rps.rpc), 10**18)
         I_rps.rpc = I_rpc.rpc
         self.I_rps[_n] = I_rps
 
@@ -272,7 +272,7 @@ def _checkpoint_user_shares(user: address, n_start: int256, user_shares: DynArra
 
         I_rpu: IntegralRPU = self.I_rpu[user][_n]
         I_rps: uint256 = self.I_rps[_n].rps
-        d_rpu: uint256 = unsafe_div(old_user_shares * (I_rps - I_rpu.rps), 10**18)
+        d_rpu: uint256 = unsafe_div(old_user_shares * unsafe_sub(I_rps, I_rpu.rps), 10**18)
         I_rpu.rpu += d_rpu
         I_rpu.rps = I_rps
         self.I_rpu[user][_n] = I_rpu
