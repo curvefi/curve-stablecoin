@@ -45,7 +45,7 @@ interface PriceOracle:
 
 interface LMGauge:
     def callback_collateral_shares(n: int256, collateral_per_share: DynArray[uint256, MAX_TICKS_UINT], size: uint256): nonpayable
-    def callback_user_shares(user: address, n: int256, user_shares: DynArray[uint256, MAX_TICKS_UINT]): nonpayable
+    def callback_user_shares(user: address, n: int256, user_shares: DynArray[uint256, MAX_TICKS_UINT], size: uint256): nonpayable
 
 
 event TokenExchange:
@@ -763,15 +763,15 @@ def deposit_range(user: address, amount: uint256, n1: int256, n2: int256):
         success, res = raw_call(
             lm.address,
             _abi_encode(
-                n1, collateral_shares, len(collateral_shares),
+                n1, collateral_shares, n_bands,
                 method_id=method_id("callback_collateral_shares(int256,uint256[],uint256)")
             ),
             max_outsize=32, revert_on_failure=False)
         success, res = raw_call(
             lm.address,
             _abi_encode(
-                user, n1, user_shares,
-                method_id=method_id("callback_user_shares(address,int256,uint256[])")
+                user, n1, empty(DynArray[uint256, MAX_TICKS_UINT]), n_bands,
+                method_id=method_id("callback_user_shares(address,int256,uint256[],uint256)")
             ),
             max_outsize=32, revert_on_failure=False)
 
@@ -792,7 +792,8 @@ def withdraw(user: address, frac: uint256) -> uint256[2]:
 
     ns: int256[2] = self._read_user_tick_numbers(user)
     n: int256 = ns[0]
-    user_shares: DynArray[uint256, MAX_TICKS_UINT] = self._read_user_ticks(user, ns)
+    old_user_shares: DynArray[uint256, MAX_TICKS_UINT] = self._read_user_ticks(user, ns)
+    user_shares: DynArray[uint256, MAX_TICKS_UINT] = old_user_shares
     assert user_shares[0] > 0, "No deposits"
 
     total_x: uint256 = 0
@@ -863,15 +864,15 @@ def withdraw(user: address, frac: uint256) -> uint256[2]:
         success, res = raw_call(
             lm.address,
             _abi_encode(
-                ns[0], empty(DynArray[uint256, MAX_TICKS_UINT]), len(user_shares),  # collateral/shares ratio is unchanged
+                ns[0], empty(DynArray[uint256, MAX_TICKS_UINT]), len(old_user_shares),  # collateral/shares ratio is unchanged
                 method_id=method_id("callback_collateral_shares(int256,uint256[],uint256)")
             ),
             max_outsize=32, revert_on_failure=False)
         success, res = raw_call(
             lm.address,
             _abi_encode(
-                user, ns[0], user_shares,
-                method_id=method_id("callback_user_shares(address,int256,uint256[])")
+                user, ns[0], old_user_shares, len(old_user_shares),
+                method_id=method_id("callback_user_shares(address,int256,uint256[],uint256)")
             ),
             max_outsize=32, revert_on_failure=False)
 
