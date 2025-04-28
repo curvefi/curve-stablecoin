@@ -135,7 +135,7 @@ bands_x: public(HashMap[int256, uint256])
 bands_y: public(HashMap[int256, uint256])
 
 total_shares: HashMap[int256, uint256]
-user_shares: HashMap[address, UserTicks]
+user_shares: public(HashMap[address, UserTicks])
 DEAD_SHARES: constant(uint256) = 1000
 
 liquidity_mining_callback: public(LMGauge)
