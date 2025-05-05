@@ -129,6 +129,7 @@ def __init__(
 
     self.future_epoch_time = extcall crv.future_epoch_time_write()
     self.inflation_rate = staticcall crv.rate()
+    self.I_rpc.t = block.timestamp
 
 
 @internal
