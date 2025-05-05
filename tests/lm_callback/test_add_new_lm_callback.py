@@ -6,12 +6,10 @@ WEEK = 7 * 86400
 def test_add_new_lm_callback(
         accounts,
         admin,
-        chad,
         collateral_token,
         crv,
         market_controller,
         market_amm,
-        lm_callback,
         minter,
         gauge_controller,
         controller_factory

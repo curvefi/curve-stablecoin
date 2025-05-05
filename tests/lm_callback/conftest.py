@@ -17,7 +17,11 @@ def voting_escrow(admin, crv):
 @pytest.fixture(scope="module")
 def gauge_controller(admin, crv, voting_escrow):
     with boa.env.prank(admin):
-        return boa.load('contracts/testing/GaugeController.vy', crv, voting_escrow)
+        gauge_controller = boa.load('contracts/testing/GaugeController.vy', crv, voting_escrow)
+        gauge_controller.add_type("crvUSD Market")
+        gauge_controller.change_type_weight(0, 10 ** 18)
+
+        return gauge_controller
 
 
 @pytest.fixture(scope="module")
@@ -141,10 +145,7 @@ def lm_callback(admin, market_amm, crv, gauge_controller, minter, market_control
     with boa.env.prank(admin):
         cb = boa.load('contracts/LMCallback.vy', market_amm, crv, gauge_controller, minter, controller_factory)
         market_controller.set_callback(cb)
-
         # Wire up LM Callback to the gauge controller to have proper rates and stuff
-        gauge_controller.add_type("crvUSD Market")
-        gauge_controller.change_type_weight(0, 10 ** 18)
         gauge_controller.add_gauge(cb.address, 0, 10 ** 18)
 
         return cb
