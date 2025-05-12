@@ -2944,6 +2944,17 @@ files = [
 ]
 
 [[package]]
+name = "snekmate"
+version = "0.1.1"
+description = "State-of-the-art, highly opinionated, hyper-optimised, and secure 🐍Vyper smart contract building blocks."
+optional = false
+python-versions = ">=3.10"
+files = [
+    {file = "snekmate-0.1.1-py3-none-any.whl", hash = "sha256:694dc3e5e1e7e5b82433852c303fa0deacb683cfc26a1f9e0505d90ab7a610a9"},
+    {file = "snekmate-0.1.1.tar.gz", hash = "sha256:7374e28f394466b6b545b76f4567b8b264684e444552031cd7b013e93b0900eb"},
+]
+
+[[package]]
 name = "sortedcontainers"
 version = "2.4.0"
 description = "Sorted Containers -- Sorted List, Sorted Dict, Sorted Set"
@@ -3349,4 +3360,4 @@ test = ["big-O", "importlib-resources", "jaraco.functools", "jaraco.itertools", 
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.10,<4"
-content-hash = "33738c5a6e546c33d087f2d0bf0279a23785d37aa20602e40bd84f5cd776aa57"
+content-hash = "5eafe79451ba6c6b3d2b295bf09be587b1e0f328ef51de8501bb8f772ee2ed36"
