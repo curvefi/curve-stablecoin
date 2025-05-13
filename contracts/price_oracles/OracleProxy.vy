@@ -16,6 +16,9 @@ interface IPriceOracle:
 event PriceOracleSet:
     new_implementation: address
 
+event MaxDeviationSet:
+    max_deviation: uint256
+
 MAX_DEVIATION_BPS: constant(uint256) = 5000  # 50%
 
 factory: public(IFactory)
@@ -39,29 +42,27 @@ def __init__(_implementation: address, _factory: IFactory, _max_deviation: uint2
     self.max_deviation = _max_deviation
 
 @internal
-def _validate_price_oracle(_oracle: address):
+def _validate_price_oracle(_oracle: address) -> uint256:
     """
     @notice Validates the new implementation has methods implemented correctly
     """
     assert _oracle != ZERO_ADDRESS, "Invalid address"
+
+    block_price: uint256 = IPriceOracle(_oracle).price()
     assert IPriceOracle(_oracle).price() > 0, "price() call failed"
     assert IPriceOracle(_oracle).price_w() > 0, "price_w() call failed"
 
+    return block_price
+
 @internal
-def _check_price_deviation(_old_oracle: address, _new_oracle: address):
+def _check_price_deviation(_old_oracle: address, new_price: uint256):
     """
     @notice Ensures price returned by new implementation is within acceptable bounds
     """
     old_price: uint256 = IPriceOracle(_old_oracle).price()
-    new_price: uint256 = IPriceOracle(_new_oracle).price()
 
     if old_price > 0:
-        delta: uint256 = 0
-        if old_price >= new_price:
-            delta = old_price - new_price
-        else:
-            delta = new_price - old_price
-
+        delta: uint256 = new_price - old_price if old_price < new_price else old_price - new_price
         max_delta: uint256 = old_price * self.max_deviation / 10_000
         assert delta <= max_delta, "Price deviation too high"
 
@@ -73,7 +74,7 @@ def set_price_oracle(_new_implementation: address):
     """
     assert msg.sender == self.factory.admin(), "Not authorized"
 
-    self._validate_price_oracle(_new_implementation)
+    block_price: uint256 = self._validate_price_oracle(_new_implementation)
 
     # If current implementation price() is borked,
     # skip the price deviation check
@@ -89,7 +90,7 @@ def set_price_oracle(_new_implementation: address):
     )
 
     if success:
-        self._check_price_deviation(self.implementation, _new_implementation)
+        self._check_price_deviation(self.implementation, block_price)
 
     self.implementation = _new_implementation
     log PriceOracleSet(_new_implementation)
@@ -105,6 +106,7 @@ def set_max_deviation(_max_deviation: uint256):
     assert _max_deviation <= MAX_DEVIATION_BPS, "Deviation too high"
 
     self.max_deviation = _max_deviation
+    log MaxDeviationSet(_max_deviation)
 
 @external
 @view
