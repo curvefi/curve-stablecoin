@@ -116,8 +116,25 @@ def __init__(pool: Pool, coin0_oracle: PriceOracle):
     self.last_rates = stored_rates
     self.last_balances = balances
     self.last_supply = supply
-    self.last_price = self._price_in_coin0(balances, supply, stored_rates) * (extcall COIN0_ORACLE.price_w()) // 10**18
+    self.last_price = self._price_in_coin0(balances, supply, stored_rates) * self._coin0_oracle_price_w() // 10**18
     self.last_timestamp = block.timestamp
+
+
+@internal
+@view
+def _coin0_oracle_price() -> uint256:
+    if COIN0_ORACLE.address != empty(address):
+        return staticcall COIN0_ORACLE.price()
+    else:
+        return 10**18
+
+
+@internal
+def _coin0_oracle_price_w() -> uint256:
+    if COIN0_ORACLE.address != empty(address):
+        return extcall COIN0_ORACLE.price_w()
+    else:
+        return 10**18
 
 
 @internal
@@ -230,7 +247,7 @@ def price() -> uint256:
     supply: uint256 = 0
     balances, supply = self._ema_balances_and_supply()
     rates: DynArray[uint256, MAX_COINS] = self._stored_rates()
-    return self._price_in_coin0(balances, supply, rates) * (staticcall COIN0_ORACLE.price()) // 10 ** 18
+    return self._price_in_coin0(balances, supply, rates) * (self._coin0_oracle_price()) // 10 ** 18
 
 
 @external
@@ -242,7 +259,7 @@ def price_w() -> uint256:
         supply: uint256 = 0
         balances, supply = self._ema_balances_and_supply()
         rates: DynArray[uint256, MAX_COINS] = self._stored_rates()
-        p: uint256 = self._price_in_coin0(balances, supply, rates) * (extcall COIN0_ORACLE.price_w()) // 10**18
+        p: uint256 = self._price_in_coin0(balances, supply, rates) * (self._coin0_oracle_price_w()) // 10**18
 
         if USE_RATES:
             self.last_rates = rates
