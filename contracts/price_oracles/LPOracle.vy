@@ -29,10 +29,11 @@ interface PriceOracle:
 
 MAX_COINS: constant(uint256) = 8
 RATE_MAX_SPEED: constant(uint256) = 10**16 // 60  # Max speed of Rate change
-BALANCES_MA_TIME: public(constant(uint256)) = 866  # 600s / ln(2)
+
 
 POOL: public(immutable(Pool))
 COIN0_ORACLE: public(immutable(PriceOracle))
+MA_EXP_TIME: public(immutable(uint256))  # T_half / ln(2), gets the value from pool's oracle
 NO_ARGUMENT: public(immutable(bool))
 N_COINS: public(immutable(uint256))
 USE_RATES: public(immutable(bool))
@@ -52,13 +53,14 @@ def __init__(pool: Pool, coin0_oracle: PriceOracle):
     no_argument: bool = False
     precisions: DynArray[uint256, MAX_COINS] = empty(DynArray[uint256, MAX_COINS])
     stored_rates: DynArray[uint256, MAX_COINS] = empty(DynArray[uint256, MAX_COINS])
+    ma_exp_time: uint256 = 0
 
-    # Init variable for raw calls
+    # Init variables for raw calls
+    res: Bytes[1024] = empty(Bytes[1024])
     success: bool = False
 
     # Find N_COINS and store PRECISIONS
     for i: uint256 in range(MAX_COINS + 1):
-        res: Bytes[32] = empty(Bytes[32])
         success, res = raw_call(
             pool.address,
             abi_encode(i, method_id=method_id("coins(uint256)")),
@@ -76,7 +78,6 @@ def __init__(pool: Pool, coin0_oracle: PriceOracle):
 
     # Check and record if pool requires coin id in argument or no
     if N_COINS == 2:
-        res: Bytes[32] = empty(Bytes[32])
         success, res = raw_call(
             pool.address,
             abi_encode(empty(uint256), method_id=method_id("price_oracle(uint256)")),
@@ -84,7 +85,17 @@ def __init__(pool: Pool, coin0_oracle: PriceOracle):
         if not success:
             no_argument = True
 
-    res: Bytes[1024] = empty(Bytes[1024])
+    # Get MA_EXP_TIME
+    success, res = raw_call(pool.address, method_id("ma_exp_time()"), max_outsize=32, is_static_call=True, revert_on_failure=False)
+    if success and len(res) > 0:
+        ma_exp_time = abi_decode(res, uint256)
+    else:
+        success, res = raw_call(pool.address, method_id("ma_time()"), max_outsize=32, is_static_call=True, revert_on_failure=False)
+        if success and len(res) > 0:
+            ma_exp_time = abi_decode(res, uint256) * 10**18 // 693147180559945344  # 1 / ln2
+        else:
+            raise "Can't extract ema_exp_time"
+
     success, res = raw_call(pool.address, method_id("stored_rates()"), max_outsize=1024, is_static_call=True, revert_on_failure=False)
     if success and len(res) > 0:
         stored_rates = abi_decode(res, DynArray[uint256, MAX_COINS])
@@ -101,6 +112,7 @@ def __init__(pool: Pool, coin0_oracle: PriceOracle):
 
     POOL = pool
     COIN0_ORACLE = coin0_oracle
+    MA_EXP_TIME = ma_exp_time
     NO_ARGUMENT = no_argument
     PRECISIONS = precisions
     USE_RATES = use_rates
@@ -192,7 +204,7 @@ def _ema_balances_and_supply() -> (DynArray[uint256, MAX_COINS], uint256):
     last_timestamp: uint256 = self.last_timestamp
     alpha: uint256 = 10**18
     if last_timestamp < block.timestamp:
-        alpha = convert(math._wad_exp(- convert((block.timestamp - last_timestamp) * 10**18 // BALANCES_MA_TIME, int256)), uint256)
+        alpha = convert(math._wad_exp(- convert((block.timestamp - last_timestamp) * 10**18 // MA_EXP_TIME, int256)), uint256)
 
     balances: DynArray[uint256, MAX_COINS] = empty(DynArray[uint256, MAX_COINS])
     for i: uint256 in range(MAX_COINS):
