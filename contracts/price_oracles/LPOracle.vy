@@ -17,6 +17,7 @@ interface Pool:
     def coins(i: uint256) -> address: view
     def price_oracle(i: uint256 = 0) -> uint256: view  # Universal method!
     def stored_rates() -> DynArray[uint256, MAX_COINS]: view
+    def get_virtual_price() -> uint256: view
     def lp_price() -> uint256: view  # Exists only for cryptopools
 
 interface PriceOracle:
@@ -116,7 +117,7 @@ def _price_in_coin0() -> uint256:
         if p_oracle < min_p:
             min_p = p_oracle
 
-    return min_p
+    return min_p * (staticcall POOL.get_virtual_price()) // 10**18
 
 
 @external
