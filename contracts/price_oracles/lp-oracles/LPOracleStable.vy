@@ -16,21 +16,18 @@ interface StablePool:
     def price_oracle(i: uint256 = 0) -> uint256: view  # Universal method!
     def get_virtual_price() -> uint256: view
 
-interface PriceOracle:
-    def price() -> uint256: view
-    def price_w() -> uint256: nonpayable
-
+import oracle_lib
+initializes: oracle_lib
 
 MAX_COINS: constant(uint256) = 8
 
 POOL: public(immutable(StablePool))
-COIN0_ORACLE: public(immutable(PriceOracle))
 NO_ARGUMENT: public(immutable(bool))
 N_COINS: public(immutable(uint256))
 
 
 @deploy
-def __init__(pool: StablePool, coin0_oracle: PriceOracle):
+def __init__(pool: StablePool, coin0_oracle: oracle_lib.PriceOracle):
     no_argument: bool = False
 
     # Init variables for raw calls
@@ -63,25 +60,8 @@ def __init__(pool: StablePool, coin0_oracle: PriceOracle):
         assert extcall coin0_oracle.price_w() > 0
 
     POOL = pool
-    COIN0_ORACLE = coin0_oracle
     NO_ARGUMENT = no_argument
-
-
-@internal
-@view
-def _coin0_oracle_price() -> uint256:
-    if COIN0_ORACLE.address != empty(address):
-        return staticcall COIN0_ORACLE.price()
-    else:
-        return 10**18
-
-
-@internal
-def _coin0_oracle_price_w() -> uint256:
-    if COIN0_ORACLE.address != empty(address):
-        return extcall COIN0_ORACLE.price_w()
-    else:
-        return 10**18
+    oracle_lib.__init__(coin0_oracle)
 
 
 @internal
@@ -105,9 +85,9 @@ def _price_in_coin0() -> uint256:
 @external
 @view
 def price() -> uint256:
-    return self._price_in_coin0() * self._coin0_oracle_price() // 10 ** 18
+    return self._price_in_coin0() * oracle_lib._coin0_oracle_price() // 10 ** 18
 
 
 @external
 def price_w() -> uint256:
-    return self._price_in_coin0() * self._coin0_oracle_price_w() // 10 ** 18
+    return self._price_in_coin0() * oracle_lib._coin0_oracle_price_w() // 10 ** 18
