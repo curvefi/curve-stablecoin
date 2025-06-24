@@ -3,22 +3,18 @@
 #pragma evm-version shanghai
 
 """
-@title LPOracle
+@title LPOracleStable
 @author Curve.Fi
 @license GNU Affero General Public License v3.0 only
-@notice Price oracle for Curve pool LPs. First, the oracle gets LP token price in terms of the first coin (coin0) of the pool.
+@notice Price oracle for Curve Stable Pool LPs. First, the oracle gets LP token price in terms of the first coin (coin0) of the pool.
         Then it chains with another oracle (target_coin/coin0) to get the final price.
 """
 
-from ethereum.ercs import IERC20Detailed
 
-
-interface Pool:
+interface StablePool:
     def coins(i: uint256) -> address: view
     def price_oracle(i: uint256 = 0) -> uint256: view  # Universal method!
-    def stored_rates() -> DynArray[uint256, MAX_COINS]: view
     def get_virtual_price() -> uint256: view
-    def lp_price() -> uint256: view  # Exists only for cryptopools
 
 interface PriceOracle:
     def price() -> uint256: view
@@ -27,27 +23,19 @@ interface PriceOracle:
 
 MAX_COINS: constant(uint256) = 8
 
-POOL: public(immutable(Pool))
+POOL: public(immutable(StablePool))
 COIN0_ORACLE: public(immutable(PriceOracle))
-IS_CRYPTO: public(immutable(bool))
 NO_ARGUMENT: public(immutable(bool))
 N_COINS: public(immutable(uint256))
-PRECISIONS: public(immutable(DynArray[uint256, MAX_COINS]))
 
 
 @deploy
-def __init__(pool: Pool, coin0_oracle: PriceOracle):
-    is_crypto: bool = False
+def __init__(pool: StablePool, coin0_oracle: PriceOracle):
     no_argument: bool = False
-    precisions: DynArray[uint256, MAX_COINS] = empty(DynArray[uint256, MAX_COINS])
 
     # Init variables for raw calls
     res: Bytes[1024] = empty(Bytes[1024])
     success: bool = False
-
-    success, res = raw_call(pool.address, method_id("lp_price()"), max_outsize=32, is_static_call=True, revert_on_failure=False)
-    if success and len(res) > 0:
-        is_crypto = True
 
     # Find N_COINS and store PRECISIONS
     for i: uint256 in range(MAX_COINS + 1):
@@ -60,12 +48,6 @@ def __init__(pool: Pool, coin0_oracle: PriceOracle):
             N_COINS = i
             break
 
-        coin: IERC20Detailed = IERC20Detailed(abi_decode(res, address))
-        if coin.address != 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE:
-            precisions.append(10**(18 - convert(staticcall coin.decimals(), uint256)))
-        else:
-            precisions.append(1)
-
     # Check and record if pool requires coin id in argument or no
     if N_COINS == 2:
         success, res = raw_call(
@@ -73,13 +55,16 @@ def __init__(pool: Pool, coin0_oracle: PriceOracle):
             abi_encode(empty(uint256), method_id=method_id("price_oracle(uint256)")),
             max_outsize=32, is_static_call=True, revert_on_failure=False)
         if not success:
+            assert staticcall pool.price_oracle() > 0, "No price_oracle method"
             no_argument = True
+
+    if coin0_oracle.address != empty(address):
+        assert staticcall coin0_oracle.price() > 0
+        assert extcall coin0_oracle.price_w() > 0
 
     POOL = pool
     COIN0_ORACLE = coin0_oracle
-    IS_CRYPTO = is_crypto
     NO_ARGUMENT = no_argument
-    PRECISIONS = precisions
 
 
 @internal
@@ -102,9 +87,6 @@ def _coin0_oracle_price_w() -> uint256:
 @internal
 @view
 def _price_in_coin0() -> uint256:
-    if IS_CRYPTO:
-        return staticcall POOL.lp_price()
-
     min_p: uint256 = max_value(uint256)
     for i: uint256 in range(N_COINS, bound=MAX_COINS):
         p_oracle: uint256 = 10 ** 18
