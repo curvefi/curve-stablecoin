@@ -12,3 +12,28 @@ def boa_fork():
 @pytest.fixture(scope="module")
 def stablecoin_aggregator():
     return boa.from_etherscan("0x18672b1b0c623a30089A280Ed9256379fb0E4E62", "AggregatorStablePrice", uri=EXPLORER_URL, api_key=EXPLORER_TOKEN)  # USD/crvUSD
+
+
+@pytest.fixture(scope="module")
+def admin():
+    return boa.env.generate_address()
+
+
+@pytest.fixture(scope="module")
+def stable_impl(admin):
+    with boa.env.prank(admin):
+        return boa.load_partial('contracts/price_oracles/lp-oracles/LPOracleStable.vy').deploy_as_blueprint()
+
+
+@pytest.fixture(scope="module")
+def crypto_impl(admin):
+    with boa.env.prank(admin):
+        return boa.load_partial('contracts/price_oracles/lp-oracles/LPOracleCrypto.vy').deploy_as_blueprint()
+
+
+@pytest.fixture(scope="module")
+def lp_oracle_factory(admin, stable_impl, crypto_impl):
+    with boa.env.prank(admin):
+        factory = boa.load("contracts/price_oracles/lp-oracles/LPOracleFactory.vy", admin)
+        factory.set_implementations(stable_impl, crypto_impl)
+        return factory

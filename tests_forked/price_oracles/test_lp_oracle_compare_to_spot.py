@@ -2,7 +2,7 @@ import boa
 from .settings import EXPLORER_URL, EXPLORER_TOKEN
 
 
-def test_tricrypto_usdc(stablecoin_aggregator):
+def test_tricrypto_usdc(lp_oracle_factory, stablecoin_aggregator, admin):
     tricrypto_usdc_pool_address = "0x7F86Bf177Dd4F3494b841a37e810A34dD56c829B"
     crvusd_usdc_pool_address = "0x4DEcE678ceceb27446b35C672dC7d61F30bAD69E"
 
@@ -11,8 +11,11 @@ def test_tricrypto_usdc(stablecoin_aggregator):
 
     usdc_crvusd_oracle = boa.load('contracts/price_oracles/CryptoFromPoolsRate.vy', [crvusd_usdc_pool_address], [1], [0])  # crvUSD/USDC
     usdc_usd_oracle = boa.load('contracts/price_oracles/CryptoFromPoolsRateWAgg.vy', [crvusd_usdc_pool_address], [1], [0], stablecoin_aggregator.address)  # USD/USDC
-    tricrypto_usdc_crvusd_lp_oracle = boa.load('contracts/price_oracles/LPOracle.vy', tricrypto_usdc_pool_address, usdc_crvusd_oracle.address)  # USDC/LP * crvUSD/USDC
-    tricrypto_usdc_usd_lp_oracle = boa.load('contracts/price_oracles/LPOracle.vy', tricrypto_usdc_pool_address, usdc_usd_oracle.address)  # USDC/LP * crvUSD/USDC * USD/crvUSD
+    with boa.env.prank(admin):
+        tricrypto_usdc_crvusd_lp_oracle = boa.load_partial('contracts/price_oracles/lp-oracles/LPOracleCrypto.vy').at(
+            lp_oracle_factory.deploy_oracle(tricrypto_usdc_pool_address, usdc_crvusd_oracle.address))  # USDC/LP * crvUSD/USDC
+        tricrypto_usdc_usd_lp_oracle = boa.load_partial('contracts/price_oracles/lp-oracles/LPOracleCrypto.vy').at(
+            lp_oracle_factory.deploy_oracle(tricrypto_usdc_pool_address, usdc_usd_oracle.address))  # USDC/LP * crvUSD/USDC * USD/crvUSD
 
     # --- Compare current oracle and spot prices ---
 
@@ -108,7 +111,7 @@ def test_tricrypto_usdc(stablecoin_aggregator):
     raise Exception("Success")
 
 
-def test_tricrypto_usdt(stablecoin_aggregator):
+def test_tricrypto_usdt(lp_oracle_factory, stablecoin_aggregator, admin):
     tricrypto_usdt_pool_address = "0xf5f5B97624542D72A9E06f04804Bf81baA15e2B4"
     crvusd_usdt_pool_address = "0x390f3595bCa2Df7d23783dFd126427CCeb997BF4"
 
@@ -117,8 +120,11 @@ def test_tricrypto_usdt(stablecoin_aggregator):
 
     usdt_crvusd_oracle = boa.load('contracts/price_oracles/CryptoFromPoolsRate.vy', [crvusd_usdt_pool_address], [1], [0])  # crvUSD/USDT
     usdt_usd_oracle = boa.load('contracts/price_oracles/CryptoFromPoolsRateWAgg.vy', [crvusd_usdt_pool_address], [1], [0], stablecoin_aggregator.address)  # USD/USDT
-    tricrypto_usdt_crvusd_lp_oracle = boa.load('contracts/price_oracles/LPOracle.vy', tricrypto_usdt_pool_address, usdt_crvusd_oracle.address)  # USDT/LP * crvUSD/USDT
-    tricrypto_usdt_usd_lp_oracle = boa.load('contracts/price_oracles/LPOracle.vy', tricrypto_usdt_pool_address, usdt_usd_oracle.address)  # USDT/LP * crvUSD/USDT * USD/crvUSD
+    with boa.env.prank(admin):
+        tricrypto_usdt_crvusd_lp_oracle = boa.load_partial('contracts/price_oracles/lp-oracles/LPOracleCrypto.vy').at(
+            lp_oracle_factory.deploy_oracle(tricrypto_usdt_pool_address, usdt_crvusd_oracle.address))  # USDT/LP * crvUSD/USDT
+        tricrypto_usdt_usd_lp_oracle = boa.load_partial('contracts/price_oracles/lp-oracles/LPOracleCrypto.vy').at(
+            lp_oracle_factory.deploy_oracle(tricrypto_usdt_pool_address, usdt_usd_oracle.address))  # USDT/LP * crvUSD/USDT * USD/crvUSD
 
     # Oracle price
     lp_oracle_price_crvusd = tricrypto_usdt_crvusd_lp_oracle.price()
@@ -134,13 +140,15 @@ def test_tricrypto_usdt(stablecoin_aggregator):
     assert abs(lp_spot_price_usd - lp_oracle_price_usd) / lp_oracle_price_usd < 0.005
 
 
-def test_tricrv(stablecoin_aggregator):
+def test_tricrv(lp_oracle_factory, stablecoin_aggregator, admin):
     tricrv_pool_address = "0x4eBdF703948ddCEA3B11f675B4D1Fba9d2414A14"
 
     tricrypto_usdt_pool = boa.from_etherscan(tricrv_pool_address, "TriCRV", uri=EXPLORER_URL, api_key=EXPLORER_TOKEN)
-
-    tricrv_crvusd_lp_oracle = boa.load('contracts/price_oracles/LPOracle.vy', tricrv_pool_address, "0x0000000000000000000000000000000000000000")  # USDT/LP * crvUSD/USDT
-    tricrv_usd_lp_oracle = boa.load('contracts/price_oracles/LPOracle.vy', tricrv_pool_address, stablecoin_aggregator.address)  # USDT/LP * crvUSD/USDT * USD/crvUSD
+    with boa.env.prank(admin):
+        tricrv_crvusd_lp_oracle = boa.load_partial('contracts/price_oracles/lp-oracles/LPOracleCrypto.vy').at(
+            lp_oracle_factory.deploy_oracle(tricrv_pool_address, "0x0000000000000000000000000000000000000000"))  # USDT/LP * crvUSD/USDT
+        tricrv_usd_lp_oracle = boa.load_partial('contracts/price_oracles/lp-oracles/LPOracleCrypto.vy').at(
+            lp_oracle_factory.deploy_oracle(tricrv_pool_address, stablecoin_aggregator.address))  # USDT/LP * crvUSD/USDT * USD/crvUSD
 
     # Oracle price
     lp_oracle_price_crvusd = tricrv_crvusd_lp_oracle.price()
@@ -155,7 +163,7 @@ def test_tricrv(stablecoin_aggregator):
     assert abs(lp_spot_price_usd - lp_oracle_price_usd) / lp_oracle_price_usd < 0.005
 
 
-def test_strategic_reserve(stablecoin_aggregator):
+def test_strategic_reserve(lp_oracle_factory, stablecoin_aggregator, admin):
     strategic_reserve_pool_address = "0x4f493B7dE8aAC7d55F71853688b1F7C8F0243C85"
     crvusd_usdc_pool_address = "0x4DEcE678ceceb27446b35C672dC7d61F30bAD69E"
 
@@ -164,8 +172,11 @@ def test_strategic_reserve(stablecoin_aggregator):
 
     usdc_crvusd_oracle = boa.load('contracts/price_oracles/CryptoFromPoolsRate.vy', [crvusd_usdc_pool_address], [1], [0])  # crvUSD/USDC
     usdc_usd_oracle = boa.load('contracts/price_oracles/CryptoFromPoolsRateWAgg.vy', [crvusd_usdc_pool_address], [1], [0], stablecoin_aggregator.address)  # USD/USDC
-    strategic_reserve_crvusd_lp_oracle = boa.load('contracts/price_oracles/LPOracle.vy', strategic_reserve_pool_address, usdc_crvusd_oracle.address)  # USDC/LP * crvUSD/USDC
-    strategic_reserve_usd_lp_oracle = boa.load('contracts/price_oracles/LPOracle.vy', strategic_reserve_pool_address, usdc_usd_oracle.address)  # USDC/LP * crvUSD/USDC * USD/crvUSD
+    with boa.env.prank(admin):
+        strategic_reserve_crvusd_lp_oracle = boa.load_partial('contracts/price_oracles/lp-oracles/LPOracleStable.vy').at(
+            lp_oracle_factory.deploy_oracle(strategic_reserve_pool_address, usdc_crvusd_oracle.address))  # USDC/LP * crvUSD/USDC
+        strategic_reserve_usd_lp_oracle = boa.load_partial('contracts/price_oracles/lp-oracles/LPOracleStable.vy').at(
+            lp_oracle_factory.deploy_oracle(strategic_reserve_pool_address, usdc_usd_oracle.address))  # USDC/LP * crvUSD/USDC * USD/crvUSD
 
     # Oracle price
     lp_oracle_price_crvusd = strategic_reserve_crvusd_lp_oracle.price()
@@ -181,7 +192,7 @@ def test_strategic_reserve(stablecoin_aggregator):
     assert abs(lp_spot_price_usd - lp_oracle_price_usd) / lp_oracle_price_usd < 0.005
 
 
-def test_weeth_weth(stablecoin_aggregator):
+def test_weeth_weth(lp_oracle_factory, stablecoin_aggregator, admin):
     weeth_ng_pool_address = "0xDB74dfDD3BB46bE8Ce6C33dC9D82777BCFc3dEd5"
     tricrypto_usdt_pool_address = "0xf5f5B97624542D72A9E06f04804Bf81baA15e2B4"
     crvusd_usdt_pool_address = "0x390f3595bCa2Df7d23783dFd126427CCeb997BF4"
@@ -194,8 +205,11 @@ def test_weeth_weth(stablecoin_aggregator):
                                   [tricrypto_usdt_pool_address, crvusd_usdt_pool_address], [0, 1], [2, 0])  # crvUSD/ETH
     usdt_usd_oracle = boa.load('contracts/price_oracles/CryptoFromPoolsRateWAgg.vy',
                                [tricrypto_usdt_pool_address, crvusd_usdt_pool_address], [0, 1], [2, 0], stablecoin_aggregator.address)  # USD/ETH
-    tricrypto_usdt_crvusd_lp_oracle = boa.load('contracts/price_oracles/LPOracle.vy', weeth_ng_pool_address, usdt_crvusd_oracle.address)  # ETH/LP * crvUSD/ETH
-    tricrypto_usdt_usd_lp_oracle = boa.load('contracts/price_oracles/LPOracle.vy', weeth_ng_pool_address, usdt_usd_oracle.address)  # ETH/LP * crvUSD/ETH * USD/crvUSD
+    with boa.env.prank(admin):
+        tricrypto_usdt_crvusd_lp_oracle = boa.load_partial('contracts/price_oracles/lp-oracles/LPOracleStable.vy').at(
+            lp_oracle_factory.deploy_oracle(weeth_ng_pool_address, usdt_crvusd_oracle.address))  # ETH/LP * crvUSD/ETH
+        tricrypto_usdt_usd_lp_oracle = boa.load_partial('contracts/price_oracles/lp-oracles/LPOracleStable.vy').at(
+            lp_oracle_factory.deploy_oracle(weeth_ng_pool_address, usdt_usd_oracle.address))  # ETH/LP * crvUSD/ETH * USD/crvUSD
 
     # Oracle price
     lp_oracle_price_crvusd = tricrypto_usdt_crvusd_lp_oracle.price()
@@ -212,7 +226,7 @@ def test_weeth_weth(stablecoin_aggregator):
     assert abs(lp_spot_price_usd - lp_oracle_price_usd) / lp_oracle_price_usd < 0.006
 
 
-def test_cvxcrv(stablecoin_aggregator):
+def test_cvxcrv(lp_oracle_factory, stablecoin_aggregator, admin):
     cvxcrv_pool_address = "0x971add32Ea87f10bD192671630be3BE8A11b8623"
     tricrv_pool_address = "0x4eBdF703948ddCEA3B11f675B4D1Fba9d2414A14"
 
@@ -221,8 +235,11 @@ def test_cvxcrv(stablecoin_aggregator):
 
     crv_crvusd_oracle = boa.load('contracts/price_oracles/CryptoFromPoolsRate.vy', [tricrv_pool_address], [0], [2])  # crvUSD/CRV
     crv_usd_oracle = boa.load('contracts/price_oracles/CryptoFromPoolsRateWAgg.vy', [tricrv_pool_address], [0], [2], stablecoin_aggregator.address)  # USD/CRV
-    cvxcrv_pool_crvusd_lp_oracle = boa.load('contracts/price_oracles/LPOracle.vy', cvxcrv_pool_address, crv_crvusd_oracle)  # CRV/LP * crvUSD/CRV
-    cvxcrv_pool_usd_lp_oracle = boa.load('contracts/price_oracles/LPOracle.vy', cvxcrv_pool_address, crv_usd_oracle)  # CRV/LP * crvUSD/CRV * USD/crvUSD
+    with boa.env.prank(admin):
+        cvxcrv_pool_crvusd_lp_oracle = boa.load_partial('contracts/price_oracles/lp-oracles/LPOracleStable.vy').at(
+            lp_oracle_factory.deploy_oracle(cvxcrv_pool_address, crv_crvusd_oracle))  # CRV/LP * crvUSD/CRV
+        cvxcrv_pool_usd_lp_oracle = boa.load_partial('contracts/price_oracles/lp-oracles/LPOracleStable.vy').at(
+            lp_oracle_factory.deploy_oracle(cvxcrv_pool_address, crv_usd_oracle))  # CRV/LP * crvUSD/CRV * USD/crvUSD
 
     # Oracle price
     lp_oracle_price_crvusd = cvxcrv_pool_crvusd_lp_oracle.price()
