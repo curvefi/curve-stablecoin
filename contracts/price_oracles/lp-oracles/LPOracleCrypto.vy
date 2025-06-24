@@ -12,6 +12,7 @@
 
 import oracle_lib
 initializes: oracle_lib
+exports: oracle_lib.COIN0_ORACLE
 
 
 interface CryptoPool:

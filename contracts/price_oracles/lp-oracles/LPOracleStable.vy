@@ -18,6 +18,7 @@ interface StablePool:
 
 import oracle_lib
 initializes: oracle_lib
+exports: oracle_lib.COIN0_ORACLE
 
 MAX_COINS: constant(uint256) = 8
 
