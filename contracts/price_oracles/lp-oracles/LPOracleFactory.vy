@@ -13,9 +13,6 @@ event DeployOracle:
     coin0_oracle: address
     implementation: address
 
-event SetAdmin:
-    admin: address
-
 event SetImplementations:
     stable_implementation: address
     crypto_implementation: address
