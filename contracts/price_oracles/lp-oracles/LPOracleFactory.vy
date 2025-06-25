@@ -71,12 +71,8 @@ def deploy_oracle(pool: address, coin0_oracle: address) -> address:
     self.oracles[N] = oracle
     self.n_oracles = N + 1
     self.oracle_map[pool][coin0_oracle][implementation] = oracle
-    self.oracle_info[oracle] = OracleInfo({
-        pool: pool,
-        coin0_oracle: coin0_oracle,
-        implementation: implementation
-    })
-    log DeployOracle(oracle, pool, coin0_oracle, implementation)
+    self.oracle_info[oracle] = OracleInfo(pool=pool, coin0_oracle=coin0_oracle, implementation=implementation)
+    log DeployOracle(oracle=oracle, pool=pool, coin0_oracle=coin0_oracle, implementation=implementation)
 
     return oracle
 
@@ -124,4 +120,4 @@ def set_implementations(stable_implementation: address, crypto_implementation: a
     assert crypto_implementation != empty(address)
     self.stable_implementation = stable_implementation
     self.crypto_implementation = crypto_implementation
-    log SetImplementations(stable_implementation, crypto_implementation)
+    log SetImplementations(stable_implementation=stable_implementation, crypto_implementation=crypto_implementation)
