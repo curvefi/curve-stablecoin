@@ -3,6 +3,10 @@
 #pragma evm-version shanghai
 
 
+from snekmate.auth import ownable
+initializes: ownable
+
+
 event DeployOracle:
     oracle: indexed(address)
     pool: indexed(address)
@@ -30,7 +34,6 @@ oracles: public(address[MAX_ORACLES])
 oracle_map: HashMap[address, HashMap[address, HashMap[address, address]]]  # oracle_map[pool][coin0_oracle][implementation] -> oracle
 oracle_info: HashMap[address, OracleInfo]  # oracle_info[oracle] -> OracleInfo
 
-admin: public(address)
 stable_implementation: public(address)
 crypto_implementation: public(address)
 
@@ -41,7 +44,9 @@ def __init__(admin: address):
     @notice Factory which creates StablePool and CryptoPool LP Oracles from blueprints
     @param admin Admin of the factory (ideally DAO)
     """
-    self.admin = admin
+    ownable.__init__()
+    ownable._transfer_ownership(admin)
+
 
 
 @external
@@ -114,21 +119,9 @@ def set_implementations(stable_implementation: address, crypto_implementation: a
     @param stable_implementation Address of the StablePool LP Oracle blueprint
     @param crypto_implementation Address of the CryptoPool LP Oracle blueprint
     """
-    assert msg.sender == self.admin, "Admin only"
+    ownable._check_owner()
     assert stable_implementation != empty(address)
     assert crypto_implementation != empty(address)
     self.stable_implementation = stable_implementation
     self.crypto_implementation = crypto_implementation
     log SetImplementations(stable_implementation, crypto_implementation)
-
-
-@external
-@nonreentrant
-def set_admin(admin: address):
-    """
-    @notice Set admin of the factory (should end up with DAO)
-    @param admin Address of the admin
-    """
-    assert msg.sender == self.admin, "Admin only"
-    self.admin = admin
-    log SetAdmin(admin)
