@@ -5,6 +5,7 @@
 
 from snekmate.auth import ownable
 initializes: ownable
+exports: ownable.__interface__
 
 
 event DeployOracle:
