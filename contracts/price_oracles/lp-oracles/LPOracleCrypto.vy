@@ -10,9 +10,9 @@
         Then it chains with another oracle (target_coin/coin0) to get the final price.
 """
 
-import oracle_lib
-initializes: oracle_lib
-exports: oracle_lib.COIN0_ORACLE
+import lp_oracle_lib
+initializes: lp_oracle_lib
+exports: lp_oracle_lib.COIN0_ORACLE
 
 
 interface CryptoPool:
@@ -22,13 +22,13 @@ interface CryptoPool:
 POOL: public(immutable(CryptoPool))
 
 @deploy
-def __init__(pool: CryptoPool, coin0_oracle: oracle_lib.PriceOracle):
+def __init__(pool: CryptoPool, coin0_oracle: lp_oracle_lib.PriceOracle):
     assert staticcall pool.lp_price() > 0
     if coin0_oracle.address != empty(address):
         assert staticcall coin0_oracle.price() > 0
         assert extcall coin0_oracle.price_w() > 0
     POOL = pool
-    oracle_lib.__init__(coin0_oracle)
+    lp_oracle_lib.__init__(coin0_oracle)
 
 
 @internal
@@ -40,9 +40,9 @@ def _price_in_coin0() -> uint256:
 @external
 @view
 def price() -> uint256:
-    return self._price_in_coin0() * oracle_lib._coin0_oracle_price() // 10 ** 18
+    return self._price_in_coin0() * lp_oracle_lib._coin0_oracle_price() // 10 ** 18
 
 
 @external
 def price_w() -> uint256:
-    return self._price_in_coin0() * oracle_lib._coin0_oracle_price_w() // 10 ** 18
+    return self._price_in_coin0() * lp_oracle_lib._coin0_oracle_price_w() // 10 ** 18
