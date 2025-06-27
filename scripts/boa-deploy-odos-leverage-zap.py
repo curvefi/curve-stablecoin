@@ -6,7 +6,7 @@ import os
 import sys
 from getpass import getpass
 from eth_account import account
-from networks import ETHEREUM, ARBITRUM, FRAXTAL, SONIC
+from networks import ETHEREUM, OPTIMISM, ARBITRUM, FRAXTAL, SONIC
 
 
 def account_load(fname):
@@ -20,6 +20,11 @@ CONSTANTS = {
         "rpc": ETHEREUM,
         "router_odos": "0xCf5540fFFCdC3d510B18bFcA6d2b9987b0772559",
         "factories": ["0xeA6876DDE9e3467564acBeE1Ed5bac88783205E0", "0xC9332fdCB1C491Dcc683bAe86Fe3cb70360738BC"],  # LlamaLend, crvUSD
+    },
+    "optimism": {
+        "rpc": OPTIMISM,
+        "router_odos": "0xCa423977156BB05b13A2BA3b76Bc5419E2fE9680",
+        "factories": ["0x5EA8f3D674C70b020586933A0a5b250734798BeF"],
     },
     "arbitrum": {
         "rpc": ARBITRUM,
