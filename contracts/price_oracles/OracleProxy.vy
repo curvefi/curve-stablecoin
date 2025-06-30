@@ -6,6 +6,7 @@
 @license MIT
 """
 
+
 interface IFactory:
     def admin() -> address: view
 
@@ -13,17 +14,20 @@ interface IPriceOracle:
     def price() -> uint256: view
     def price_w() -> uint256: nonpayable
 
+
 event PriceOracleSet:
     new_implementation: address
 
 event MaxDeviationSet:
     max_deviation: uint256
 
+
 MAX_DEVIATION_BPS: constant(uint256) = 5000  # 50%
 
-factory: public(IFactory)
+FACTORY: public(immutable(IFactory))
 implementation: public(address)
 max_deviation: public(uint256)
+
 
 @deploy
 def __init__(_implementation: address, _factory: IFactory, _max_deviation: uint256):
@@ -38,8 +42,9 @@ def __init__(_implementation: address, _factory: IFactory, _max_deviation: uint2
     assert _factory.address != empty(address)
     self._validate_price_oracle(_implementation)
     self.implementation = _implementation
-    self.factory = _factory
+    FACTORY = _factory
     self.max_deviation = _max_deviation
+
 
 @internal
 def _validate_price_oracle(_oracle: address) -> uint256:
@@ -54,6 +59,7 @@ def _validate_price_oracle(_oracle: address) -> uint256:
 
     return block_price
 
+
 @internal
 def _check_price_deviation(_old_oracle: address, new_price: uint256):
     """
@@ -66,13 +72,14 @@ def _check_price_deviation(_old_oracle: address, new_price: uint256):
         max_delta: uint256 = old_price * self.max_deviation // 10_000
         assert delta <= max_delta, "Price deviation too high"
 
+
 @external
 def set_price_oracle(_new_implementation: address):
     """
     @notice Sets a new oracle implementation contract
     @param _new_implementation new oracle implementation contract
     """
-    assert msg.sender == staticcall self.factory.admin(), "Not authorized"
+    assert msg.sender == staticcall FACTORY.admin(), "Not authorized"
 
     block_price: uint256 = self._validate_price_oracle(_new_implementation)
 
@@ -95,18 +102,20 @@ def set_price_oracle(_new_implementation: address):
     self.implementation = _new_implementation
     log PriceOracleSet(_new_implementation)
 
+
 @external
 def set_max_deviation(_max_deviation: uint256):
     """
     @notice Allows factory admin to update max price deviation in BPS (e.g. 500 = 5%)
     @param _max_deviation New maximum deviation, must be > 0 and <= MAX_DEVIATION_BPS
     """
-    assert msg.sender == staticcall self.factory.admin(), "Not authorized"
+    assert msg.sender == staticcall FACTORY.admin(), "Not authorized"
     assert _max_deviation > 0, "Invalid deviation"
     assert _max_deviation <= MAX_DEVIATION_BPS, "Deviation too high"
 
     self.max_deviation = _max_deviation
     log MaxDeviationSet(_max_deviation)
+
 
 @external
 @view
@@ -115,6 +124,7 @@ def price() -> uint256:
     @notice Passes price() from implementation contract
     """
     return staticcall IPriceOracle(self.implementation).price()
+
 
 @external
 def price_w() -> uint256:
