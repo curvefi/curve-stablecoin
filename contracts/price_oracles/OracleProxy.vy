@@ -16,7 +16,7 @@ interface IPriceOracle:
 
 
 event PriceOracleSet:
-    new_oracle: address
+    oracle: address
 
 event MaxDeviationSet:
     max_deviation: uint256
@@ -38,13 +38,15 @@ def __init__(_oracle: IPriceOracle, _factory: IFactory, _max_deviation: uint256)
     @param _factory LlamaLend factory contract
     @param _max_deviation Max price deviation when setting new oracle, in BPS (e.g. 500 == 5%)
     """
-    assert _max_deviation > 0, "Invalid max deviation"
-    assert _max_deviation <= MAX_DEVIATION_BPS, "Invalid max deviation"
+    assert _max_deviation > 0 and _max_deviation <= MAX_DEVIATION_BPS, "Invalid max deviation"
     assert _factory.address != empty(address)
     self._validate_price_oracle(_oracle)
     self.oracle = _oracle
     FACTORY = _factory
     self.max_deviation = _max_deviation
+
+    log PriceOracleSet(oracle=_oracle.address)
+    log MaxDeviationSet(max_deviation=_max_deviation)
 
 
 @internal
@@ -102,7 +104,7 @@ def set_price_oracle(_new_oracle: IPriceOracle):
 
     self.oracle = _new_oracle
 
-    log PriceOracleSet(_new_oracle.address)
+    log PriceOracleSet(oracle=_new_oracle.address)
 
 
 @external
@@ -117,7 +119,7 @@ def set_max_deviation(_max_deviation: uint256):
 
     self.max_deviation = _max_deviation
 
-    log MaxDeviationSet(_max_deviation)
+    log MaxDeviationSet(max_deviation=_max_deviation)
 
 
 @external
