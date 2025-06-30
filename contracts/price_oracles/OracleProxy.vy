@@ -8,6 +8,7 @@
 
 
 interface IFactory:
+    def owner() -> address: view
     def admin() -> address: view
 
 interface IPriceOracle:
@@ -25,6 +26,7 @@ event MaxDeviationSet:
 MAX_DEVIATION_BPS: constant(uint256) = 5000  # 50%
 
 FACTORY: public(immutable(IFactory))
+USE_OWNER: immutable(bool)
 
 oracle: public(IPriceOracle)
 max_deviation: public(uint256)
@@ -45,6 +47,20 @@ def __init__(_oracle: IPriceOracle, _factory: IFactory, _max_deviation: uint256)
     FACTORY = _factory
     self.max_deviation = _max_deviation
 
+    success: bool = False
+    response: Bytes[32] = b""
+    success, response = raw_call(
+        _factory.address,
+        method_id("owner()"),
+        max_outsize=32,
+        is_static_call=True,
+        revert_on_failure=False
+    )
+    if len(response) == 0:
+        success = False
+
+    USE_OWNER = success
+
     log PriceOracleSet(oracle=_oracle.address)
     log MaxDeviationSet(max_deviation=_max_deviation)
 
@@ -64,6 +80,17 @@ def _validate_price_oracle(_oracle: IPriceOracle) -> uint256:
 
 
 @internal
+def _check_admin():
+    """
+    @notice Throws if the sender is not the owner/admin.
+    """
+    if USE_OWNER:
+        assert msg.sender == staticcall FACTORY.owner(), "Not authorized"
+    else:
+        assert msg.sender == staticcall FACTORY.admin(), "Not authorized"
+
+
+@internal
 def _check_price_deviation(old_price: uint256, new_price: uint256):
     """
     @notice Ensures price returned by new oracle is within acceptable bounds
@@ -79,7 +106,7 @@ def set_price_oracle(_new_oracle: IPriceOracle):
     @notice Sets the new oracle contract
     @param _new_oracle The new oracle contract
     """
-    assert msg.sender == staticcall FACTORY.admin(), "Not authorized"
+    self._check_admin()
 
     new_price: uint256 = self._validate_price_oracle(_new_oracle)
 
@@ -112,7 +139,7 @@ def set_max_deviation(_max_deviation: uint256):
     @notice Allows factory admin to update max price deviation in BPS (e.g. 500 = 5%)
     @param _max_deviation New maximum deviation, must be > 0 and <= MAX_DEVIATION_BPS
     """
-    assert msg.sender == staticcall FACTORY.admin(), "Not authorized"
+    self._check_admin()
     assert _max_deviation > 0 and _max_deviation <= MAX_DEVIATION_BPS, "Invalid deviation"
 
     self.max_deviation = _max_deviation

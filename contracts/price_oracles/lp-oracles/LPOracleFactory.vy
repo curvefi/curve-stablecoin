@@ -17,6 +17,7 @@ event DeployOracle:
 event SetImplementations:
     stable_implementation: address
     crypto_implementation: address
+    proxy_implementation: address
 
 
 struct OracleInfo:
@@ -34,6 +35,7 @@ oracle_info: HashMap[address, OracleInfo]  # oracle_info[oracle] -> OracleInfo
 
 stable_implementation: public(address)
 crypto_implementation: public(address)
+proxy_implementation: public(address)
 
 
 @deploy
@@ -49,7 +51,7 @@ def __init__(admin: address):
 
 @external
 @nonreentrant
-def deploy_oracle(pool: address, coin0_oracle: address) -> address:
+def deploy_oracle(pool: address, coin0_oracle: address, use_proxy: bool = True, save_to_storage: bool = True) -> address:
     """
     @notice Deploy a new LP oracle
     @param pool Curve pool either stable or crypto
@@ -64,12 +66,16 @@ def deploy_oracle(pool: address, coin0_oracle: address) -> address:
     assert self.oracle_map[pool][coin0_oracle][implementation] == empty(address), "Oracle already exists"
 
     oracle: address = create_from_blueprint(implementation, pool, coin0_oracle, code_offset=3)
+    if use_proxy:
+        oracle = create_from_blueprint(self.proxy_implementation, oracle, self, convert(100, uint256), code_offset=3)
 
-    N: uint256 = self.n_oracles
-    self.oracles[N] = oracle
-    self.n_oracles = N + 1
-    self.oracle_map[pool][coin0_oracle][implementation] = oracle
-    self.oracle_info[oracle] = OracleInfo(pool=pool, coin0_oracle=coin0_oracle, implementation=implementation)
+    if save_to_storage:
+        N: uint256 = self.n_oracles
+        self.oracles[N] = oracle
+        self.n_oracles = N + 1
+        self.oracle_map[pool][coin0_oracle][implementation] = oracle
+        self.oracle_info[oracle] = OracleInfo(pool=pool, coin0_oracle=coin0_oracle, implementation=implementation)
+
     log DeployOracle(oracle=oracle, pool=pool, coin0_oracle=coin0_oracle, implementation=implementation)
 
     return oracle
@@ -107,7 +113,7 @@ def _is_crypto(pool: address) -> bool:
 
 @external
 @nonreentrant
-def set_implementations(stable_implementation: address, crypto_implementation: address):
+def set_implementations(stable_implementation: address, crypto_implementation: address, proxy_implementation: address):
     """
     @notice Set new implementations (blueprints) for stable and crypto oracles. Doesn't change existing ones
     @param stable_implementation Address of the StablePool LP Oracle blueprint
@@ -118,4 +124,6 @@ def set_implementations(stable_implementation: address, crypto_implementation: a
     assert crypto_implementation != empty(address)
     self.stable_implementation = stable_implementation
     self.crypto_implementation = crypto_implementation
-    log SetImplementations(stable_implementation=stable_implementation, crypto_implementation=crypto_implementation)
+    self.proxy_implementation = proxy_implementation
+
+    log SetImplementations(stable_implementation=stable_implementation, crypto_implementation=crypto_implementation, proxy_implementation=proxy_implementation)
