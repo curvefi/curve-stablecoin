@@ -56,24 +56,21 @@ def _validate_price_oracle(_oracle: IPriceOracle) -> uint256:
     """
     assert _oracle.address != empty(address), "Invalid address"
 
-    block_price: uint256 = staticcall _oracle.price()
-    assert block_price > 0, "price() call failed"
-    assert extcall _oracle.price_w() > 0, "price_w() call failed"
+    block_price: uint256 = extcall _oracle.price_w()
+    assert staticcall _oracle.price() > 0, "price() call failed"
+    assert block_price > 0, "price_w() call failed"
 
     return block_price
 
 
 @internal
-def _check_price_deviation(_old_oracle: IPriceOracle, new_price: uint256):
+def _check_price_deviation(old_price: uint256, new_price: uint256):
     """
     @notice Ensures price returned by new oracle is within acceptable bounds
     """
-    old_price: uint256 = staticcall _old_oracle.price()
-
-    if old_price > 0:
-        delta: uint256 = new_price - old_price if old_price < new_price else old_price - new_price
-        max_delta: uint256 = old_price * self.max_deviation // 10_000
-        assert delta <= max_delta, "Price deviation too high"
+    delta: uint256 = new_price - old_price if old_price < new_price else old_price - new_price
+    max_delta: uint256 = old_price * self.max_deviation // 10_000
+    assert delta <= max_delta, "Price deviation too high"
 
 
 @external
@@ -84,7 +81,7 @@ def set_price_oracle(_new_oracle: IPriceOracle):
     """
     assert msg.sender == staticcall FACTORY.admin(), "Not authorized"
 
-    block_price: uint256 = self._validate_price_oracle(_new_oracle)
+    new_price: uint256 = self._validate_price_oracle(_new_oracle)
 
     # If current oracle price() is borked,
     # skip the price deviation check
@@ -99,8 +96,10 @@ def set_price_oracle(_new_oracle: IPriceOracle):
         revert_on_failure=False
     )
 
-    if success:
-        self._check_price_deviation(self.oracle, block_price)
+    if success and len(response) > 0:
+        old_price: uint256 = abi_decode(response, uint256)
+        if old_price > 0:
+            self._check_price_deviation(old_price, new_price)
 
     self.oracle = _new_oracle
 
@@ -114,8 +113,7 @@ def set_max_deviation(_max_deviation: uint256):
     @param _max_deviation New maximum deviation, must be > 0 and <= MAX_DEVIATION_BPS
     """
     assert msg.sender == staticcall FACTORY.admin(), "Not authorized"
-    assert _max_deviation > 0, "Invalid deviation"
-    assert _max_deviation <= MAX_DEVIATION_BPS, "Deviation too high"
+    assert _max_deviation > 0 and _max_deviation <= MAX_DEVIATION_BPS, "Invalid deviation"
 
     self.max_deviation = _max_deviation
 
