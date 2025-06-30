@@ -1,4 +1,4 @@
-# @version 0.3.10
+# @version 0.4.1
 """
 @title OracleProxy
 @notice Oracle proxy allowing LlamaLend factory admin to set price oracle contract after deployment
@@ -25,7 +25,7 @@ factory: public(IFactory)
 implementation: public(address)
 max_deviation: public(uint256)
 
-@external
+@deploy
 def __init__(_implementation: address, _factory: IFactory, _max_deviation: uint256):
     """
     @notice Initializer for Llamalend oracle proxy
@@ -35,7 +35,7 @@ def __init__(_implementation: address, _factory: IFactory, _max_deviation: uint2
     """
     assert _max_deviation > 0, "Invalid max deviation"
     assert _max_deviation <= MAX_DEVIATION_BPS, "Invalid max deviation"
-    assert _factory.address != ZERO_ADDRESS
+    assert _factory.address != empty(address)
     self._validate_price_oracle(_implementation)
     self.implementation = _implementation
     self.factory = _factory
@@ -46,11 +46,11 @@ def _validate_price_oracle(_oracle: address) -> uint256:
     """
     @notice Validates the new implementation has methods implemented correctly
     """
-    assert _oracle != ZERO_ADDRESS, "Invalid address"
+    assert _oracle != empty(address), "Invalid address"
 
-    block_price: uint256 = IPriceOracle(_oracle).price()
-    assert IPriceOracle(_oracle).price() > 0, "price() call failed"
-    assert IPriceOracle(_oracle).price_w() > 0, "price_w() call failed"
+    block_price: uint256 = staticcall IPriceOracle(_oracle).price()
+    assert block_price > 0, "price() call failed"
+    assert extcall IPriceOracle(_oracle).price_w() > 0, "price_w() call failed"
 
     return block_price
 
@@ -59,11 +59,11 @@ def _check_price_deviation(_old_oracle: address, new_price: uint256):
     """
     @notice Ensures price returned by new implementation is within acceptable bounds
     """
-    old_price: uint256 = IPriceOracle(_old_oracle).price()
+    old_price: uint256 = staticcall IPriceOracle(_old_oracle).price()
 
     if old_price > 0:
         delta: uint256 = new_price - old_price if old_price < new_price else old_price - new_price
-        max_delta: uint256 = old_price * self.max_deviation / 10_000
+        max_delta: uint256 = old_price * self.max_deviation // 10_000
         assert delta <= max_delta, "Price deviation too high"
 
 @external
@@ -72,7 +72,7 @@ def set_price_oracle(_new_implementation: address):
     @notice Sets a new oracle implementation contract
     @param _new_implementation new oracle implementation contract
     """
-    assert msg.sender == self.factory.admin(), "Not authorized"
+    assert msg.sender == staticcall self.factory.admin(), "Not authorized"
 
     block_price: uint256 = self._validate_price_oracle(_new_implementation)
 
@@ -101,7 +101,7 @@ def set_max_deviation(_max_deviation: uint256):
     @notice Allows factory admin to update max price deviation in BPS (e.g. 500 = 5%)
     @param _max_deviation New maximum deviation, must be > 0 and <= MAX_DEVIATION_BPS
     """
-    assert msg.sender == self.factory.admin(), "Not authorized"
+    assert msg.sender == staticcall self.factory.admin(), "Not authorized"
     assert _max_deviation > 0, "Invalid deviation"
     assert _max_deviation <= MAX_DEVIATION_BPS, "Deviation too high"
 
@@ -114,11 +114,11 @@ def price() -> uint256:
     """
     @notice Passes price() from implementation contract
     """
-    return IPriceOracle(self.implementation).price()
-    
+    return staticcall IPriceOracle(self.implementation).price()
+
 @external
 def price_w() -> uint256:
     """
     @notice Calls price_w() on implementation contract
     """
-    return IPriceOracle(self.implementation).price_w()
+    return extcall IPriceOracle(self.implementation).price_w()
