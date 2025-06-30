@@ -20,6 +20,11 @@ def admin():
 
 
 @pytest.fixture(scope="module")
+def trader():
+    return boa.env.generate_address()
+
+
+@pytest.fixture(scope="module")
 def stable_impl(admin):
     with boa.env.prank(admin):
         return boa.load_partial('contracts/price_oracles/lp-oracles/LPOracleStable.vy').deploy_as_blueprint()
