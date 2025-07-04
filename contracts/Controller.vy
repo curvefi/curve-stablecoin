@@ -90,6 +90,9 @@ event SetBorrowingDiscounts:
     loan_discount: uint256
     liquidation_discount: uint256
 
+event SetBorrowCap:
+    borrow_cap: uint256
+
 event SetExtraHealth:
     user: indexed(address)
     health: uint256
@@ -180,6 +183,7 @@ DEAD_SHARES: constant(uint256) = 1000
 
 approval: public(HashMap[address, HashMap[address, bool]])
 extra_health: public(HashMap[address, uint256])
+borrow_cap: public(uint256)
 
 
 @external
@@ -455,9 +459,10 @@ def total_debt() -> uint256:
     """
     @notice Total debt of this controller
     """
-    rate_mul: uint256 = AMM.get_rate_mul()
-    loan: Loan = self._total_debt
-    return loan.initial_debt * rate_mul / loan.rate_mul
+    # TODO rename this to _total_debt (not done yet to minimize diffs,
+    # as this conflicts with storage var _total_debt)
+    return self.get_total_debt()
+    
 
 
 @internal
@@ -684,6 +689,7 @@ def execute_callback(callbacker: address, callback_sig: bytes4,
 
 @internal
 def _create_loan(collateral: uint256, debt: uint256, N: uint256, transfer_coins: bool, _for: address):
+    self._check_borrow_cap(debt)
     assert self.loan[_for].initial_debt == 0, "Loan already created"
     assert N > MIN_TICKS-1, "Need more ticks"
     assert N < MAX_TICKS+1, "Need less ticks"
@@ -868,6 +874,7 @@ def borrow_more(collateral: uint256, debt: uint256, _for: address = msg.sender):
     if debt == 0:
         return
     assert self._check_approval(_for)
+    self._check_borrow_cap(debt)
     self._add_collateral_borrow(collateral, debt, _for, False, False)
     self.minted += debt
     self.transferFrom(COLLATERAL_TOKEN, msg.sender, AMM.address, collateral)
@@ -1409,6 +1416,29 @@ def set_amm_fee(fee: uint256):
     assert fee <= MAX_FEE and fee >= MIN_FEE, "Fee"
     AMM.set_fee(fee)
 
+@external
+def set_borrow_cap(_borrow_cap: uint256):
+    """
+    @notice Set the borrow cap for this market
+    @dev Only callable by the factory
+    @param _borrow_cap New borrow cap in units of borrowed_token
+    """
+    assert msg.sender == FACTORY.admin(), "only factory"
+    self.borrow_cap = _borrow_cap
+    log SetBorrowCap(_borrow_cap)
+
+@view
+@internal
+def get_total_debt() -> uint256:
+    rate_mul: uint256 = AMM.get_rate_mul()
+    loan: Loan = self._total_debt
+    return loan.initial_debt * rate_mul / loan.rate_mul
+
+
+@internal
+@view
+def _check_borrow_cap(debt_increase: uint256):
+    assert self.get_total_debt() + debt_increase <= self.borrow_cap, "Borrow cap exceeded"
 
 @nonreentrant('lock')
 @external
