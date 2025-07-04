@@ -180,6 +180,7 @@ DEAD_SHARES: constant(uint256) = 1000
 
 approval: public(HashMap[address, HashMap[address, bool]])
 extra_health: public(HashMap[address, uint256])
+borrow_cap: public(uint256)
 
 
 @external
@@ -684,6 +685,7 @@ def execute_callback(callbacker: address, callback_sig: bytes4,
 
 @internal
 def _create_loan(collateral: uint256, debt: uint256, N: uint256, transfer_coins: bool, _for: address):
+    self._check_borrow_cap(debt)
     assert self.loan[_for].initial_debt == 0, "Loan already created"
     assert N > MIN_TICKS-1, "Need more ticks"
     assert N < MAX_TICKS+1, "Need less ticks"
@@ -858,7 +860,7 @@ def remove_collateral(collateral: uint256, _for: address = msg.sender):
 
 @external
 @nonreentrant('lock')
-def borrow_more(collateral: uint256, debt: uint256, _for: address = msg.sender):
+def _borrow_more(collateral: uint256, debt: uint256, _for: address = msg.sender):
     """
     @notice Borrow more stablecoins while adding more collateral (not necessary)
     @param collateral Amount of collateral to add
@@ -868,6 +870,7 @@ def borrow_more(collateral: uint256, debt: uint256, _for: address = msg.sender):
     if debt == 0:
         return
     assert self._check_approval(_for)
+    self._check_borrow_cap(debt)
     self._add_collateral_borrow(collateral, debt, _for, False, False)
     self.minted += debt
     self.transferFrom(COLLATERAL_TOKEN, msg.sender, AMM.address, collateral)
@@ -1409,6 +1412,21 @@ def set_amm_fee(fee: uint256):
     assert fee <= MAX_FEE and fee >= MIN_FEE, "Fee"
     AMM.set_fee(fee)
 
+@external
+def set_borrow_cap(_borrow_cap: uint256):
+    """
+    @notice Set the borrow cap for this market
+    @dev Only callable by the factory
+    @param _borrow_cap New borrow cap in units of borrowed_token
+    """
+    assert msg.sender == FACTORY.admin(), "only factory"
+    self.borrow_cap = _borrow_cap
+    TODO event
+
+
+@internal
+def _check_borrow_cap(debt_increase: uint256):
+    assert self.total_debt() + debt_increase <= self.borrow_cap, "Borrow cap exceeded"
 
 @nonreentrant('lock')
 @external
