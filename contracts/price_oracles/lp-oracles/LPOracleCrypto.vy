@@ -5,10 +5,11 @@
 """
 @title LPOracleCrypto
 @author Curve.Fi
-@license GNU Affero General Public License v3.0 only
+@license MIT
 @notice Price oracle for Curve Crypto Pool LPs. First, the oracle gets LP token price in terms of the first coin (coin0) of the pool.
         Then it chains with another oracle (target_coin/coin0) to get the final price.
 """
+
 
 import lp_oracle_lib
 initializes: lp_oracle_lib
@@ -21,14 +22,15 @@ interface CryptoPool:
 
 POOL: public(immutable(CryptoPool))
 
+
 @deploy
-def __init__(pool: CryptoPool, coin0_oracle: lp_oracle_lib.PriceOracle):
-    assert staticcall pool.lp_price() > 0
-    if coin0_oracle.address != empty(address):
-        assert staticcall coin0_oracle.price() > 0
-        assert extcall coin0_oracle.price_w() > 0
-    POOL = pool
-    lp_oracle_lib.__init__(coin0_oracle)
+def __init__(_pool: CryptoPool, _coin0_oracle: lp_oracle_lib.PriceOracle):
+    assert staticcall _pool.lp_price() > 0
+    if _coin0_oracle.address != empty(address):
+        assert staticcall _coin0_oracle.price() > 0
+        assert extcall _coin0_oracle.price_w() > 0
+    POOL = _pool
+    lp_oracle_lib.__init__(_coin0_oracle)
 
 
 @internal

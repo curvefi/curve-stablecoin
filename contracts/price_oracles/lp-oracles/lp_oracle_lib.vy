@@ -2,15 +2,19 @@
 #pragma optimize gas
 #pragma evm-version shanghai
 
+
 interface PriceOracle:
     def price() -> uint256: view
     def price_w() -> uint256: nonpayable
+
+
+COIN0_ORACLE: public(immutable(PriceOracle))
+
 
 @deploy
 def __init__(coin0_oracle: PriceOracle):
     COIN0_ORACLE = coin0_oracle
 
-COIN0_ORACLE: public(immutable(PriceOracle))
 
 @internal
 @view

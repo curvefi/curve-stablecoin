@@ -5,7 +5,7 @@
 """
 @title ProxyOracleFactory
 @author Curve
-@license MIT
+@license GNU Affero General Public License v3.0 only
 @notice Proxy oracle factory deploying proxy oracles and replacing price oracle contracts after the deployment
 """
 
@@ -26,7 +26,7 @@ event SetOracle:
 
 
 PROXY_ORACLE_IMPLEMENTATION: public(immutable(address))
-get_proxy: public(HashMap[address, address])
+get_proxy: public(HashMap[address, address])  # get_proxy[oracle] -> proxy
 
 
 @deploy

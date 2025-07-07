@@ -2,6 +2,13 @@
 #pragma optimize gas
 #pragma evm-version shanghai
 
+"""
+@title LPOracleFactory
+@author Curve.Fi
+@license GNU Affero General Public License v3.0 only
+@notice Permissionless StablePool and CryptoPool LP Oracles deployer and registry
+"""
+
 
 from snekmate.auth import ownable
 initializes: ownable
@@ -17,22 +24,14 @@ event DeployOracle:
     pool: indexed(address)
     coin0_oracle: address
 
-event SetImplementations:
-    stable_implementation: address
-    crypto_implementation: address
-
 
 struct OracleInfo:
     pool: address
     coin0_oracle: address
 
 
-MAX_ORACLES: constant(uint256) = 50000
-n_oracles: public(uint256)
-oracles: public(address[MAX_ORACLES])
-
 oracle_map: HashMap[address, HashMap[address, address]]  # oracle_map[pool][coin0_oracle] -> oracle
-oracle_info: HashMap[address, OracleInfo]  # oracle_info[oracle] -> OracleInfo
+oracle_info: public(HashMap[address, OracleInfo])  # oracle_info[oracle] -> OracleInfo
 
 STABLE_IMPLEMENTATION: public(immutable(address))
 CRYPTO_IMPLEMENTATION: public(immutable(address))
@@ -40,13 +39,13 @@ PROXY_ORACLE_FACTORY: public(immutable(IProxyOracleFactory))
 
 
 @deploy
-def __init__(admin: address, _stable_implementation: address, _crypto_implementation: address, _proxy_oracle_factory: IProxyOracleFactory):
+def __init__(_admin: address, _stable_implementation: address, _crypto_implementation: address, _proxy_oracle_factory: IProxyOracleFactory):
     """
     @notice Factory which creates StablePool and CryptoPool LP Oracles from blueprints
     @param admin Admin of the factory (ideally DAO)
     """
     ownable.__init__()
-    ownable._transfer_ownership(admin)
+    ownable._transfer_ownership(_admin)
 
     assert _stable_implementation != empty(address)
     assert _crypto_implementation != empty(address)
@@ -58,45 +57,40 @@ def __init__(admin: address, _stable_implementation: address, _crypto_implementa
 
 @external
 @nonreentrant
-def deploy_oracle(pool: address, coin0_oracle: address, use_proxy: bool = True, save_to_storage: bool = True) -> address:
+def deploy_oracle(_pool: address, _coin0_oracle: address, _use_proxy: bool = True) -> address[2]:
     """
     @notice Deploy a new LP oracle
-    @param pool Curve pool either stable or crypto
-    @param coin0_oracle Oracle for the first coin of the pool
-    @return Deployed oracle address
+    @param _pool Curve pool either stable or crypto
+    @param _coin0_oracle Oracle for the first coin of the pool
+    @param _use_proxy Whether to deploy proxy oracle or not
+    @return [deployed oracle address, deployed proxy address or zero]
     """
+    assert self.oracle_map[_pool][_coin0_oracle] == empty(address), "Oracle already exists"
+
     implementation: address = STABLE_IMPLEMENTATION
-    if self._is_crypto(pool):
+    if self._is_crypto(_pool):
         implementation = CRYPTO_IMPLEMENTATION
+    oracle: address = create_from_blueprint(implementation, _pool, _coin0_oracle, code_offset=3)
+    proxy: address = empty(address)
+    if _use_proxy:
+        proxy = extcall PROXY_ORACLE_FACTORY.deploy_proxy_oracle(oracle)
+    self.oracle_map[_pool][_coin0_oracle] = oracle
+    self.oracle_info[oracle] = OracleInfo(pool=_pool, coin0_oracle=_coin0_oracle)
 
-    assert self.oracle_map[pool][coin0_oracle] == empty(address), "Oracle already exists"
+    log DeployOracle(oracle=oracle, pool=_pool, coin0_oracle=_coin0_oracle)
 
-    oracle: address = create_from_blueprint(implementation, pool, coin0_oracle, code_offset=3)
-    if use_proxy:
-        oracle = extcall PROXY_ORACLE_FACTORY.deploy_proxy_oracle(oracle)
-
-    if save_to_storage:
-        N: uint256 = self.n_oracles
-        self.oracles[N] = oracle
-        self.n_oracles = N + 1
-        self.oracle_map[pool][coin0_oracle] = oracle
-        self.oracle_info[oracle] = OracleInfo(pool=pool, coin0_oracle=coin0_oracle)
-
-    log DeployOracle(oracle=oracle, pool=pool, coin0_oracle=coin0_oracle)
-
-    return oracle
+    return [oracle, proxy]
 
 
 @external
 @view
-def get_oracle(pool: address, coin0_oracle: address) -> address:
-    return self.oracle_map[pool][coin0_oracle]
-
-
-@external
-@view
-def get_oracle_info(oracle: address) -> OracleInfo:
-    return self.oracle_info[oracle]
+def get_oracle(_pool: address, _coin0_oracle: address) -> address:
+    """
+    @param _pool Curve pool either stable or crypto
+    @param _coin0_oracle Oracle for the first coin of the pool
+    @return Oracle address
+    """
+    return self.oracle_map[_pool][_coin0_oracle]
 
 
 @internal

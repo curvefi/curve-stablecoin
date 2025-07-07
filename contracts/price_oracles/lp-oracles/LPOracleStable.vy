@@ -5,7 +5,7 @@
 """
 @title LPOracleStable
 @author Curve.Fi
-@license GNU Affero General Public License v3.0 only
+@license MIT
 @notice Price oracle for Curve Stable Pool LPs. First, the oracle gets LP token price in terms of the first coin (coin0) of the pool.
         Then it chains with another oracle (target_coin/coin0) to get the final price.
 """
