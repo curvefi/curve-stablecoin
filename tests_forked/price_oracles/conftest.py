@@ -51,6 +51,5 @@ def proxy_factory(admin, proxy_impl):
 @pytest.fixture(scope="module")
 def lp_oracle_factory(admin, stable_impl, crypto_impl, proxy_factory):
     with boa.env.prank(admin):
-        factory = boa.load("contracts/price_oracles/lp-oracles/LPOracleFactory.vy", admin, proxy_factory)
-        factory.set_implementations(stable_impl, crypto_impl)
+        factory = boa.load("contracts/price_oracles/lp-oracles/LPOracleFactory.vy", admin, stable_impl, crypto_impl, proxy_factory)
         return factory
