@@ -1,4 +1,6 @@
-# pragma version 0.4.1
+# @version 0.4.1
+#pragma optimize gas
+#pragma evm-version shanghai
 
 interface PriceOracle:
     def price() -> uint256: view

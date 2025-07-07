@@ -39,12 +39,18 @@ def crypto_impl(admin):
 @pytest.fixture(scope="module")
 def proxy_impl(admin):
     with boa.env.prank(admin):
-        return boa.load_partial('contracts/price_oracles/OracleProxy.vy').deploy_as_blueprint()
+        return boa.load('contracts/price_oracles/proxy/ProxyOracle.vy')
 
 
 @pytest.fixture(scope="module")
-def lp_oracle_factory(admin, stable_impl, crypto_impl, proxy_impl):
+def proxy_factory(admin, proxy_impl):
     with boa.env.prank(admin):
-        factory = boa.load("contracts/price_oracles/lp-oracles/LPOracleFactory.vy", admin)
-        factory.set_implementations(stable_impl, crypto_impl, proxy_impl)
+        return boa.load('contracts/price_oracles/proxy/ProxyOracleFactory.vy', admin, proxy_impl)
+
+
+@pytest.fixture(scope="module")
+def lp_oracle_factory(admin, stable_impl, crypto_impl, proxy_factory):
+    with boa.env.prank(admin):
+        factory = boa.load("contracts/price_oracles/lp-oracles/LPOracleFactory.vy", admin, proxy_factory)
+        factory.set_implementations(stable_impl, crypto_impl)
         return factory

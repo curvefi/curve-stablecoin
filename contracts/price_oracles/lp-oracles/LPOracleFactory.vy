@@ -8,6 +8,10 @@ initializes: ownable
 exports: ownable.__interface__
 
 
+interface IProxyOracleFactory:
+    def deploy_proxy_oracle(_oracle: address) -> address: nonpayable
+
+
 event DeployOracle:
     oracle: indexed(address)
     pool: indexed(address)
@@ -17,7 +21,6 @@ event DeployOracle:
 event SetImplementations:
     stable_implementation: address
     crypto_implementation: address
-    proxy_implementation: address
 
 
 struct OracleInfo:
@@ -35,11 +38,11 @@ oracle_info: HashMap[address, OracleInfo]  # oracle_info[oracle] -> OracleInfo
 
 stable_implementation: public(address)
 crypto_implementation: public(address)
-proxy_implementation: public(address)
+PROXY_ORACLE_FACTORY: public(immutable(IProxyOracleFactory))
 
 
 @deploy
-def __init__(admin: address):
+def __init__(admin: address, _proxy_oracle_factory: IProxyOracleFactory):
     """
     @notice Factory which creates StablePool and CryptoPool LP Oracles from blueprints
     @param admin Admin of the factory (ideally DAO)
@@ -47,6 +50,8 @@ def __init__(admin: address):
     ownable.__init__()
     ownable._transfer_ownership(admin)
 
+    assert _proxy_oracle_factory.address != empty(address)
+    PROXY_ORACLE_FACTORY = _proxy_oracle_factory
 
 
 @external
@@ -67,7 +72,7 @@ def deploy_oracle(pool: address, coin0_oracle: address, use_proxy: bool = True, 
 
     oracle: address = create_from_blueprint(implementation, pool, coin0_oracle, code_offset=3)
     if use_proxy:
-        oracle = create_from_blueprint(self.proxy_implementation, oracle, self, convert(100, uint256), code_offset=3)
+        oracle = extcall PROXY_ORACLE_FACTORY.deploy_proxy_oracle(oracle)
 
     if save_to_storage:
         N: uint256 = self.n_oracles
@@ -113,7 +118,7 @@ def _is_crypto(pool: address) -> bool:
 
 @external
 @nonreentrant
-def set_implementations(stable_implementation: address, crypto_implementation: address, proxy_implementation: address):
+def set_implementations(stable_implementation: address, crypto_implementation: address):
     """
     @notice Set new implementations (blueprints) for stable and crypto oracles. Doesn't change existing ones
     @param stable_implementation Address of the StablePool LP Oracle blueprint
@@ -124,6 +129,5 @@ def set_implementations(stable_implementation: address, crypto_implementation: a
     assert crypto_implementation != empty(address)
     self.stable_implementation = stable_implementation
     self.crypto_implementation = crypto_implementation
-    self.proxy_implementation = proxy_implementation
 
-    log SetImplementations(stable_implementation=stable_implementation, crypto_implementation=crypto_implementation, proxy_implementation=proxy_implementation)
+    log SetImplementations(stable_implementation=stable_implementation, crypto_implementation=crypto_implementation)
