@@ -461,7 +461,7 @@ def total_debt() -> uint256:
     """
     # TODO rename this to _total_debt (not done yet to minimize diffs,
     # as this conflicts with storage var _total_debt)
-    return self.get_total_debt()
+    return self._get_total_debt()
     
 
 
@@ -689,10 +689,11 @@ def execute_callback(callbacker: address, callback_sig: bytes4,
 
 @internal
 def _create_loan(collateral: uint256, debt: uint256, N: uint256, transfer_coins: bool, _for: address):
-    self._check_borrow_cap(debt)
     assert self.loan[_for].initial_debt == 0, "Loan already created"
     assert N > MIN_TICKS-1, "Need more ticks"
     assert N < MAX_TICKS+1, "Need less ticks"
+
+    self._check_borrow_cap(debt)
 
     n1: int256 = self._calculate_debt_n1(collateral, debt, N, _for)
     n2: int256 = n1 + convert(unsafe_sub(N, 1), int256)
@@ -786,6 +787,8 @@ def _add_collateral_borrow(d_collateral: uint256, d_debt: uint256, _for: address
     @param remove_collateral Remove collateral instead of adding
     @param check_rounding Check that amount added is no less than the rounding error on the loan
     """
+    self._check_borrow_cap(d_debt)
+
     debt: uint256 = 0
     rate_mul: uint256 = 0
     debt, rate_mul = self._debt(_for)
@@ -874,7 +877,6 @@ def borrow_more(collateral: uint256, debt: uint256, _for: address = msg.sender):
     if debt == 0:
         return
     assert self._check_approval(_for)
-    self._check_borrow_cap(debt)
     self._add_collateral_borrow(collateral, debt, _for, False, False)
     self.minted += debt
     self.transferFrom(COLLATERAL_TOKEN, msg.sender, AMM.address, collateral)
@@ -1423,13 +1425,13 @@ def set_borrow_cap(_borrow_cap: uint256):
     @dev Only callable by the factory
     @param _borrow_cap New borrow cap in units of borrowed_token
     """
-    assert msg.sender == FACTORY.admin(), "only factory"
+    assert msg.sender == FACTORY.admin(), "Admin only"
     self.borrow_cap = _borrow_cap
     log SetBorrowCap(_borrow_cap)
 
 @view
 @internal
-def get_total_debt() -> uint256:
+def _get_total_debt() -> uint256:
     rate_mul: uint256 = AMM.get_rate_mul()
     loan: Loan = self._total_debt
     return loan.initial_debt * rate_mul / loan.rate_mul
@@ -1438,7 +1440,11 @@ def get_total_debt() -> uint256:
 @internal
 @view
 def _check_borrow_cap(debt_increase: uint256):
-    assert self.get_total_debt() + debt_increase <= self.borrow_cap, "Borrow cap exceeded"
+    # If no more debt is being borrowed, no need to check the cap
+    if debt_increase == 0:
+        return
+
+    assert self._get_total_debt() + debt_increase <= self.borrow_cap, "Borrow cap exceeded"
 
 @nonreentrant('lock')
 @external
