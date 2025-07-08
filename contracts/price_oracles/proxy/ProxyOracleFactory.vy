@@ -62,7 +62,7 @@ def deploy_proxy_oracle(_oracle: address) -> address:
 
 @external
 @nonreentrant
-def set_new_oracle(_proxy: IProxyOracle, _new_oracle: address, _skip_price_deviation_check: bool = False):
+def replace_oracle(_proxy: IProxyOracle, _new_oracle: address, _skip_price_deviation_check: bool = False):
     ownable._check_owner()
     extcall _proxy.set_price_oracle(_new_oracle, _skip_price_deviation_check)
 
