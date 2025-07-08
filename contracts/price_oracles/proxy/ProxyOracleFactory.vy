@@ -18,6 +18,7 @@ exports: ownable.__interface__
 interface IProxyOracle:
     def initialize(_oracle: address, _max_deviation: uint256): nonpayable
     def set_price_oracle(_new_oracle: address, _skip_price_deviation_check: bool): nonpayable
+    def oracle() -> address: view
 
 
 event SetOracle:
@@ -64,6 +65,9 @@ def deploy_proxy_oracle(_oracle: address) -> address:
 @nonreentrant
 def replace_oracle(_proxy: IProxyOracle, _new_oracle: address, _skip_price_deviation_check: bool = False):
     ownable._check_owner()
+    old_oracle: address = staticcall _proxy.oracle()
     extcall _proxy.set_price_oracle(_new_oracle, _skip_price_deviation_check)
+    self.get_proxy[old_oracle] = empty(address)
+    self.get_proxy[_new_oracle] = _proxy.address
 
     log SetOracle(proxy=_proxy.address, oracle=_new_oracle)
