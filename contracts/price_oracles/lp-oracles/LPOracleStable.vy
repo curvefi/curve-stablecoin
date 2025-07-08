@@ -42,7 +42,7 @@ def __init__(pool: StablePool, coin0_oracle: lp_oracle_lib.PriceOracle):
             abi_encode(i, method_id=method_id("coins(uint256)")),
             max_outsize=32, is_static_call=True, revert_on_failure=False)
         if not success:
-            assert i != 0, "No coins(0)"
+            assert i > 1, "Less than 2 coins"
             N_COINS = i
             break
 
