@@ -28,17 +28,17 @@ N_COINS: public(immutable(uint256))
 
 
 @deploy
-def __init__(pool: StablePool, coin0_oracle: lp_oracle_lib.PriceOracle):
+def __init__(_pool: StablePool, _coin0_oracle: lp_oracle_lib.PriceOracle):
     no_argument: bool = False
 
     # Init variables for raw calls
-    res: Bytes[1024] = empty(Bytes[1024])
+    res: Bytes[32] = empty(Bytes[32])
     success: bool = False
 
     # Find N_COINS and store PRECISIONS
     for i: uint256 in range(MAX_COINS + 1):
         success, res = raw_call(
-            pool.address,
+            _pool.address,
             abi_encode(i, method_id=method_id("coins(uint256)")),
             max_outsize=32, is_static_call=True, revert_on_failure=False)
         if not success:
@@ -49,20 +49,22 @@ def __init__(pool: StablePool, coin0_oracle: lp_oracle_lib.PriceOracle):
     # Check and record if pool requires coin id in argument or no
     if N_COINS == 2:
         success, res = raw_call(
-            pool.address,
+            _pool.address,
             abi_encode(empty(uint256), method_id=method_id("price_oracle(uint256)")),
             max_outsize=32, is_static_call=True, revert_on_failure=False)
-        if not success:
-            assert staticcall pool.price_oracle() > 0, "No price_oracle method"
+        if success:
+            assert convert(res, uint256) > 0, "pool.price_oracle(i) returns 0"
+        else:
+            assert staticcall _pool.price_oracle() > 0, "pool.price_oracle() returns 0"
             no_argument = True
 
-    if coin0_oracle.address != empty(address):
-        assert staticcall coin0_oracle.price() > 0
-        assert extcall coin0_oracle.price_w() > 0
+    if _coin0_oracle.address != empty(address):
+        assert staticcall _coin0_oracle.price() > 0, "coin0_oracle.price() returns 0"
+        assert extcall _coin0_oracle.price_w() > 0, "coin0_oracle.price_w() returns 0"
 
-    POOL = pool
+    POOL = _pool
     NO_ARGUMENT = no_argument
-    lp_oracle_lib.__init__(coin0_oracle)
+    lp_oracle_lib.__init__(_coin0_oracle)
 
 
 @internal
