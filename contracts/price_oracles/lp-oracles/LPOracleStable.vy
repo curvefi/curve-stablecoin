@@ -35,7 +35,7 @@ def __init__(_pool: StablePool, _coin0_oracle: lp_oracle_lib.PriceOracle):
     res: Bytes[32] = empty(Bytes[32])
     success: bool = False
 
-    # Find N_COINS and store PRECISIONS
+    # Find N_COINS
     for i: uint256 in range(MAX_COINS + 1):
         success, res = raw_call(
             _pool.address,
@@ -46,15 +46,16 @@ def __init__(_pool: StablePool, _coin0_oracle: lp_oracle_lib.PriceOracle):
             N_COINS = i
             break
 
-    # Check and record if pool requires coin id in argument or no
-    if N_COINS == 2:
+    # Check price_oracle() and record if the method requires coin id in argument or no
+    for i: uint256 in range(N_COINS - 1, bound=MAX_COINS):
         success, res = raw_call(
             _pool.address,
-            abi_encode(empty(uint256), method_id=method_id("price_oracle(uint256)")),
+            abi_encode(i, method_id=method_id("price_oracle(uint256)")),
             max_outsize=32, is_static_call=True, revert_on_failure=False)
         if success:
-            assert convert(res, uint256) > 0, "pool.price_oracle(i) returns 0"
+                assert convert(res, uint256) > 0, "pool.price_oracle(i) returns 0"
         else:
+            assert i == 0 and N_COINS == 2, "no argument for coins > 2"
             assert staticcall _pool.price_oracle() > 0, "pool.price_oracle() returns 0"
             no_argument = True
 

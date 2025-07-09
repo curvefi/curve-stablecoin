@@ -25,7 +25,6 @@ POOL: public(immutable(CryptoPool))
 
 @deploy
 def __init__(_pool: CryptoPool, _coin0_oracle: lp_oracle_lib.PriceOracle):
-    print("init")
     assert staticcall _pool.lp_price() > 0, "pool.lp_price() returns 0"
     if _coin0_oracle.address != empty(address):
         assert staticcall _coin0_oracle.price() > 0, "coin0_oracle.price() returns 0"
