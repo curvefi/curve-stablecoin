@@ -9,7 +9,8 @@ MAX_COINS: constant(uint256) = 2
 
 ADMIN: immutable(address)
 coins: public(immutable(address[2]))
-price_oracle: uint256
+price_oracle: public(uint256)
+get_virtual_price: public(uint256)
 
 
 @deploy
@@ -17,6 +18,7 @@ def __init__(_admin: address, _price: uint256):
     ADMIN = _admin
     self.price_oracle = _price
     coins = [empty(address), empty(address)]
+    self.get_virtual_price = 10**18
 
 
 @external

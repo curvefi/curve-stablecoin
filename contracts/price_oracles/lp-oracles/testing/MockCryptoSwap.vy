@@ -5,7 +5,7 @@ This contract is for testing only.
 If you see it on mainnet - it won't be used for anything except testing the actual deployment
 """
 
-lp_price: uint256
+lp_price: public(uint256)
 ADMIN: immutable(address)
 
 
