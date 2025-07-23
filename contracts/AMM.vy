@@ -34,6 +34,8 @@
 # (f + x) * (g + y) = Inv = p_oracle * A**2 * y0**2
 # =======================
 
+from contracts import common
+
 interface ERC20:
     def transfer(_to: address, _value: uint256) -> bool: nonpayable
     def transferFrom(_from: address, _to: address, _value: uint256) -> bool: nonpayable
@@ -137,7 +139,7 @@ bands_y: public(HashMap[int256, uint256])
 
 total_shares: HashMap[int256, uint256]
 user_shares: public(HashMap[address, UserTicks])
-DEAD_SHARES: constant(uint256) = 1000
+DEAD_SHARES: constant(uint256) = common.DEAD_SHARES
 
 liquidity_mining_callback: public(LMGauge)
 

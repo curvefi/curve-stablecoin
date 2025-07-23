@@ -8,6 +8,7 @@
 """
 
 from snekmate.utils import math
+from contracts import common
 
 interface LLAMMA:
     def A() -> uint256: view
@@ -113,12 +114,6 @@ struct Loan:
     initial_debt: uint256
     rate_mul: uint256
 
-struct Position:
-    user: address
-    x: uint256
-    y: uint256
-    debt: uint256
-    health: int256
 
 struct CallbackData:
     active_band: int256
@@ -130,11 +125,9 @@ FACTORY: immutable(Factory)
 MAX_LOAN_DISCOUNT: constant(uint256) = 5 * 10**17
 MIN_LIQUIDATION_DISCOUNT: constant(uint256) = 10**16 # Start liquidating when threshold reached
 MAX_TICKS: constant(int256) = 50
-MAX_TICKS_UINT: constant(uint256) = 50
+MAX_TICKS_UINT: constant(uint256) = common.MAX_TICKS_UINT
 MIN_TICKS: constant(int256) = 4
-MIN_TICKS_UINT: constant(uint256) = 4
-MAX_SKIP_TICKS: constant(uint256) = 1024
-MAX_P_BASE_BANDS: constant(int256) = 5
+MIN_TICKS_UINT: constant(uint256) = common.MIN_TICKS_UINT
 
 MAX_RATE: constant(uint256) = 43959106799  # 300% APY
 
@@ -178,7 +171,7 @@ CALLBACK_DEPOSIT_WITH_BYTES: constant(bytes4) = method_id("callback_deposit(addr
 CALLBACK_REPAY_WITH_BYTES: constant(bytes4) = 0x008ae188
 CALLBACK_LIQUIDATE_WITH_BYTES: constant(bytes4) = method_id("callback_liquidate(address,uint256,uint256,uint256,uint256[],bytes)", output_type=bytes4)
 
-DEAD_SHARES: constant(uint256) = 1000
+DEAD_SHARES: constant(uint256) = common.DEAD_SHARES
 
 approval: public(HashMap[address, HashMap[address, bool]])
 extra_health: public(HashMap[address, uint256])
@@ -264,6 +257,18 @@ def collateral_token() -> ERC20:
     return COLLATERAL_TOKEN
 
 
+# TODO check if merging these two can save space
+@external
+@view
+def sqrt_band_ratio() -> uint256:
+    return SQRT_BAND_RATIO
+
+@external
+@view
+def logn_a_ratio() -> int256:
+    return LOGN_A_RATIO
+
+
 @external
 @view
 def borrowed_token() -> ERC20:
@@ -347,38 +352,10 @@ def total_debt() -> uint256:
     loan: Loan = self._total_debt
     return loan.initial_debt * rate_mul // loan.rate_mul
 
-
 @internal
 @view
 def get_y_effective(collateral: uint256, N: uint256, discount: uint256) -> uint256:
-    """
-    @notice Intermediary method which calculates y_effective defined as x_effective / p_base,
-            however discounted by loan_discount.
-            x_effective is an amount which can be obtained from collateral when liquidating
-    @param collateral Amount of collateral to get the value for
-    @param N Number of bands the deposit is made into
-    @param discount Loan discount at 1e18 base (e.g. 1e18 == 100%)
-    @return y_effective
-    """
-    # x_effective = sum_{i=0..N-1}(y / N * p(n_{n1+i})) =
-    # = y / N * p_oracle_up(n1) * sqrt((A - 1) / A) * sum_{0..N-1}(((A-1) / A)**k)
-    # === d_y_effective * p_oracle_up(n1) * sum(...) === y_effective * p_oracle_up(n1)
-    # d_y_effective = y / N / sqrt(A / (A - 1))
-    # d_y_effective: uint256 = collateral * unsafe_sub(10**18, discount) / (SQRT_BAND_RATIO * N)
-    # Make some extra discount to always deposit lower when we have DEAD_SHARES rounding
-    d_y_effective: uint256 = unsafe_div(
-        collateral * unsafe_sub(
-            10**18, min(discount + unsafe_div((DEAD_SHARES * 10**18), max(unsafe_div(collateral, N), DEAD_SHARES)), 10**18)
-        ),
-        unsafe_mul(SQRT_BAND_RATIO, N))
-    y_effective: uint256 = d_y_effective
-    for i: uint256 in range(1, MAX_TICKS_UINT):
-        if i == N:
-            break
-        d_y_effective = unsafe_div(d_y_effective * Aminus1, A)
-        y_effective = unsafe_add(y_effective, d_y_effective)
-    return y_effective
-
+    return common.get_y_effective(collateral, N, discount, SQRT_BAND_RATIO, A)
 
 @internal
 @view
@@ -427,91 +404,6 @@ def _calculate_debt_n1(collateral: uint256, debt: uint256, N: uint256, user: add
     assert staticcall AMM.p_oracle_up(n1) < staticcall AMM.price_oracle(), "Debt too high"
 
     return n1
-
-
-@internal
-@view
-def max_p_base() -> uint256:
-    """
-    @notice Calculate max base price including skipping bands
-    """
-    p_oracle: uint256 = staticcall AMM.price_oracle()
-    # Should be correct unless price changes suddenly by MAX_P_BASE_BANDS+ bands
-    n1: int256 = math._wad_ln(convert(staticcall AMM.get_base_price() * 10**18 // p_oracle, int256))
-    if n1 < 0:
-        n1 -= LOGN_A_RATIO - 1  # This is to deal with vyper's rounding of negative numbers
-    n1 = unsafe_div(n1, LOGN_A_RATIO) + MAX_P_BASE_BANDS
-    n_min: int256 = staticcall AMM.active_band_with_skip()
-    n1 = max(n1, n_min + 1)
-    p_base: uint256 = staticcall AMM.p_oracle_up(n1)
-
-    for i: uint256 in range(MAX_SKIP_TICKS + 1):
-        n1 -= 1
-        if n1 <= n_min:
-            break
-        p_base_prev: uint256 = p_base
-        p_base = unsafe_div(p_base * A, Aminus1)
-        if p_base > p_oracle:
-            return p_base_prev
-
-    return p_base
-
-
-@external
-@view
-@nonreentrant
-def max_borrowable(collateral: uint256, N: uint256, current_debt: uint256 = 0, user: address = empty(address)) -> uint256:
-    """
-    @notice Calculation of maximum which can be borrowed (details in comments)
-    @param collateral Collateral amount against which to borrow
-    @param N number of bands to have the deposit into
-    @param current_debt Current debt of the user (if any)
-    @param user User to calculate the value for (only necessary for nonzero extra_health)
-    @return Maximum amount of stablecoin to borrow
-    """
-    # Calculation of maximum which can be borrowed.
-    # It corresponds to a minimum between the amount corresponding to price_oracle
-    # and the one given by the min reachable band.
-    #
-    # Given by p_oracle (perhaps needs to be multiplied by (A - 1) / A to account for mid-band effects)
-    # x_max ~= y_effective * p_oracle
-    #
-    # Given by band number:
-    # if n1 is the lowest empty band in the AMM
-    # xmax ~= y_effective * amm.p_oracle_up(n1)
-    #
-    # When n1 -= 1:
-    # p_oracle_up *= A / (A - 1)
-    # if N < MIN_TICKS or N > MAX_TICKS:
-    assert N >= MIN_TICKS_UINT and N <= MAX_TICKS_UINT
-
-    y_effective: uint256 = self.get_y_effective(collateral * COLLATERAL_PRECISION, N,
-                                                self.loan_discount + self.extra_health[user])
-
-    x: uint256 = unsafe_sub(max(unsafe_div(y_effective * self.max_p_base(), 10**18), 1), 1)
-    x = unsafe_div(x * (10**18 - 10**14), unsafe_mul(10**18, BORROWED_PRECISION))  # Make it a bit smaller
-    return min(x, staticcall BORROWED_TOKEN.balanceOf(self) + current_debt)  # Cannot borrow beyond the amount of coins Controller has
-
-
-@external
-@view
-@nonreentrant
-def min_collateral(debt: uint256, N: uint256, user: address = empty(address)) -> uint256:
-    """
-    @notice Minimal amount of collateral required to support debt
-    @param debt The debt to support
-    @param N Number of bands to deposit into
-    @param user User to calculate the value for (only necessary for nonzero extra_health)
-    @return Minimal collateral required
-    """
-    # Add N**2 to account for precision loss in multiple bands, e.g. N / (y/N) = N**2 / y
-    assert N <= MAX_TICKS_UINT and N >= MIN_TICKS_UINT
-    return unsafe_div(
-        unsafe_div(
-            debt * unsafe_mul(10**18, BORROWED_PRECISION) // self.max_p_base() * 10**18 // self.get_y_effective(10**18, N, self.loan_discount + self.extra_health[user]) + unsafe_add(unsafe_mul(N, unsafe_add(N, 2 * DEAD_SHARES)), unsafe_sub(COLLATERAL_PRECISION, 1)),
-            COLLATERAL_PRECISION
-        ) * 10**18,
-        10**18 - 10**14)
 
 
 @external
@@ -998,64 +890,6 @@ def _health(user: address, debt: uint256, full: bool, liquidation_discount: uint
     return health
 
 
-@external
-@view
-@nonreentrant
-def health_calculator(user: address, d_collateral: int256, d_debt: int256, full: bool, N: uint256 = 0) -> int256:
-    """
-    @notice Health predictor in case user changes the debt or collateral
-    @param user Address of the user
-    @param d_collateral Change in collateral amount (signed)
-    @param d_debt Change in debt amount (signed)
-    @param full Whether it's a 'full' health or not
-    @param N Number of bands in case loan doesn't yet exist
-    @return Signed health value
-    """
-    ns: int256[2] = staticcall AMM.read_user_tick_numbers(user)
-    debt: int256 = convert(self._debt(user)[0], int256)
-    n: uint256 = N
-    ld: int256 = 0
-    if debt != 0:
-        ld = convert(self.liquidation_discounts[user], int256)
-        n = convert(unsafe_add(unsafe_sub(ns[1], ns[0]), 1), uint256)
-    else:
-        ld = convert(self.liquidation_discount, int256)
-        ns[0] = max_value(int256)  # This will trigger a "re-deposit"
-
-    n1: int256 = 0
-    collateral: int256 = 0
-    x_eff: int256 = 0
-    debt += d_debt
-    assert debt > 0, "Non-positive debt"
-
-    active_band: int256 = staticcall AMM.active_band_with_skip()
-
-    if ns[0] > active_band:  # re-deposit
-        collateral = convert((staticcall AMM.get_sum_xy(user))[1], int256) + d_collateral
-        n1 = self._calculate_debt_n1(convert(collateral, uint256), convert(debt, uint256), n, user)
-        collateral *= convert(COLLATERAL_PRECISION, int256)  # now has 18 decimals
-    else:
-        n1 = ns[0]
-        x_eff = convert(staticcall AMM.get_x_down(user) * unsafe_mul(10**18, BORROWED_PRECISION), int256)
-
-    debt *= convert(BORROWED_PRECISION, int256)
-
-    p0: int256 = convert(staticcall AMM.p_oracle_up(n1), int256)
-    if ns[0] > active_band:
-        x_eff = convert(self.get_y_effective(convert(collateral, uint256), n, 0), int256) * p0
-
-    health: int256 = unsafe_div(x_eff, debt)
-    health = health - unsafe_div(health * ld, 10**18) - 10**18
-
-    if full:
-        if n1 > active_band:  # We are not in liquidation mode
-            p_diff: int256 = max(p0, convert(staticcall AMM.price_oracle(), int256)) - p0
-            if p_diff > 0:
-                health += unsafe_div(p_diff * collateral, debt)
-
-    return health
-
-
 @internal
 @pure
 def _get_f_remove(frac: uint256, health_limit: uint256) -> uint256:
@@ -1212,80 +1046,6 @@ def health(user: address, full: bool = False) -> int256:
     return self._health(user, self._debt(user)[0], full, self.liquidation_discounts[user])
 
 
-@view
-@external
-@nonreentrant
-def users_to_liquidate(_from: uint256=0, _limit: uint256=0) -> DynArray[Position, 1000]:
-    """
-    @notice Returns a dynamic array of users who can be "hard-liquidated".
-            This method is designed for convenience of liquidation bots.
-    @param _from Loan index to start iteration from
-    @param _limit Number of loans to look over
-    @return Dynamic array with detailed info about positions of users
-    """
-    n_loans: uint256 = self.n_loans
-    limit: uint256 = _limit
-    if _limit == 0:
-        limit = n_loans
-    ix: uint256 = _from
-    out: DynArray[Position, 1000] = []
-    for i: uint256 in range(10**6):
-        if ix >= n_loans or i == limit:
-            break
-        user: address = self.loans[ix]
-        debt: uint256 = self._debt(user)[0]
-        health: int256 = self._health(user, debt, True, self.liquidation_discounts[user])
-        if health < 0:
-            xy: uint256[2] = staticcall AMM.get_sum_xy(user)
-            out.append(Position(
-                user=user,
-                x=xy[0],
-                y=xy[1],
-                debt=debt,
-                health=health
-            ))
-        ix += 1
-    return out
-
-
-# AMM has a nonreentrant decorator
-@view
-@external
-def amm_price() -> uint256:
-    """
-    @notice Current price from the AMM
-    """
-    return staticcall AMM.get_p()
-
-
-@view
-@external
-@nonreentrant
-def user_prices(user: address) -> uint256[2]:  # Upper, lower
-    """
-    @notice Lowest price of the lower band and highest price of the upper band the user has deposit in the AMM
-    @param user User address
-    @return (upper_price, lower_price)
-    """
-    assert staticcall AMM.has_liquidity(user)
-    ns: int256[2] = staticcall AMM.read_user_tick_numbers(user) # ns[1] > ns[0]
-    return [staticcall AMM.p_oracle_up(ns[0]), staticcall AMM.p_oracle_down(ns[1])]
-
-
-@view
-@external
-@nonreentrant
-def user_state(user: address) -> uint256[4]:
-    """
-    @notice Return the user state in one call
-    @param user User to return the state for
-    @return (collateral, stablecoin, debt, N)
-    """
-    xy: uint256[2] = staticcall AMM.get_sum_xy(user)
-    ns: int256[2] = staticcall AMM.read_user_tick_numbers(user) # ns[1] > ns[0]
-    return [xy[1], xy[0], self._debt(user)[0], convert(unsafe_add(unsafe_sub(ns[1], ns[0]), 1), uint256)]
-
-
 # AMM has nonreentrant decorator
 @external
 def set_amm_fee(fee: uint256):
@@ -1421,3 +1181,11 @@ def set_extra_health(_value: uint256):
     """
     self.extra_health[msg.sender] = _value
     log SetExtraHealth(user=msg.sender, health=_value)
+
+# @external
+# @raw_return
+# def __default__():
+#     # TODO implement fallback for view methods
+#     pass
+    
+
