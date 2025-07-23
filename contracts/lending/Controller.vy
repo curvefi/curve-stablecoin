@@ -2,7 +2,7 @@
 # pragma optimize codesize
 # pragma evm-version shanghai
 """
-@title crvUSD Controller
+@title LlamaLend Controller
 @author Curve.Fi
 @license Copyright (c) Curve.Fi, 2020-2024 - all rights reserved
 """
@@ -106,6 +106,9 @@ event Approval:
     spender: indexed(address)
     allow: bool
 
+event SetBorrowCap:
+    borrow_cap: uint256
+
 
 struct Loan:
     initial_debt: uint256
@@ -180,6 +183,7 @@ DEAD_SHARES: constant(uint256) = 1000
 
 approval: public(HashMap[address, HashMap[address, bool]])
 extra_health: public(HashMap[address, uint256])
+borrow_cap: public(uint256)
 
 
 @external
@@ -701,7 +705,9 @@ def _create_loan(collateral: uint256, debt: uint256, N: uint256, transfer_coins:
     self.loan_ix[_for] = n_loans
     self.n_loans = unsafe_add(n_loans, 1)
 
-    self._total_debt.initial_debt = self._total_debt.initial_debt * rate_mul / self._total_debt.rate_mul + debt
+    new_total_debt: uint256 = self._total_debt.initial_debt * rate_mul / self._total_debt.rate_mul + debt
+    assert new_total_debt <= self.borrow_cap, "Borrow cap exceeded"
+    self._total_debt.initial_debt = new_total_debt
     self._total_debt.rate_mul = rate_mul
 
     AMM.deposit_range(_for, collateral, n1, n2)
@@ -814,7 +820,9 @@ def _add_collateral_borrow(d_collateral: uint256, d_debt: uint256, _for: address
         liquidation_discount = self.liquidation_discounts[_for]
 
     if d_debt != 0:
-        self._total_debt.initial_debt = self._total_debt.initial_debt * rate_mul / self._total_debt.rate_mul + d_debt
+        new_total_debt: uint256 = self._total_debt.initial_debt * rate_mul / self._total_debt.rate_mul + d_debt
+        assert new_total_debt <= self.borrow_cap, "Borrow cap exceeded"
+        self._total_debt.initial_debt = new_total_debt
         self._total_debt.rate_mul = rate_mul
 
     if remove_collateral:
@@ -1179,6 +1187,7 @@ def _get_f_remove(frac: uint256, health_limit: uint256) -> uint256:
 
     return f_remove
 
+
 @internal
 def _liquidate(user: address, min_x: uint256, health_limit: uint256, frac: uint256,
                callbacker: address, callback_args: DynArray[uint256,5], callback_bytes: Bytes[10**4] = b""):
@@ -1449,6 +1458,18 @@ def set_callback(cb: address):
     assert msg.sender == FACTORY.admin()
     AMM.set_callback(cb)
     log SetLMCallback(cb)
+
+
+@external
+def set_borrow_cap(_borrow_cap: uint256):
+    """
+    @notice Set the borrow cap for this market
+    @dev Only callable by the factory admin
+    @param _borrow_cap New borrow cap in units of borrowed_token
+    """
+    assert msg.sender == FACTORY.admin()
+    self.borrow_cap = _borrow_cap
+    log SetBorrowCap(_borrow_cap)
 
 
 @external
