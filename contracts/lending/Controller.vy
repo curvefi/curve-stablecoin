@@ -44,12 +44,9 @@ interface ERC20:
 interface MonetaryPolicy:
     def rate_write() -> uint256: nonpayable
 
-interface Factory:
-    def stablecoin() -> address: view
+interface Vault:
     def admin() -> address: view
     def fee_receiver() -> address: view
-
-    # Only if lending vault
     def borrowed_token() -> address: view
     def collateral_token() -> address: view
 
@@ -127,7 +124,7 @@ struct CallbackData:
     collateral: uint256
 
 
-FACTORY: immutable(Factory)
+VAULT: immutable(Vault)
 MAX_LOAN_DISCOUNT: constant(uint256) = 5 * 10**17
 MIN_LIQUIDATION_DISCOUNT: constant(uint256) = 10**16 # Start liquidating when threshold reached
 MAX_TICKS: constant(int256) = 50
@@ -202,7 +199,7 @@ def __init__(
            get_x_down() for "bad liquidation" purposes
     @param amm AMM address (Already deployed from blueprint)
     """
-    FACTORY = Factory(msg.sender)
+    VAULT = Vault(msg.sender)
 
     self.monetary_policy = MonetaryPolicy(monetary_policy)
 
@@ -217,26 +214,14 @@ def __init__(
     LOGN_A_RATIO = self.wad_ln(unsafe_div(_A * 10**18, unsafe_sub(_A, 1)))
     MAX_FEE = min(unsafe_div(10**18 * MIN_TICKS, A), 10**17)
 
-    _collateral_token: ERC20 = ERC20(collateral_token)
-    _borrowed_token: ERC20 = empty(ERC20)
-
-    if collateral_token == empty(address):
-        # Lending vault factory
-        _collateral_token = ERC20(Factory(msg.sender).collateral_token())
-        _borrowed_token = ERC20(Factory(msg.sender).borrowed_token())
-    else:
-        # Stablecoin factory
-        # _collateral_token is already set
-        _borrowed_token = ERC20(Factory(msg.sender).stablecoin())
-
-    COLLATERAL_TOKEN = _collateral_token
-    BORROWED_TOKEN = _borrowed_token
-    COLLATERAL_PRECISION = pow_mod256(10, 18 - _collateral_token.decimals())
-    BORROWED_PRECISION = pow_mod256(10, 18 - _borrowed_token.decimals())
+    COLLATERAL_TOKEN = ERC20(Vault(msg.sender).collateral_token())
+    BORROWED_TOKEN = ERC20(Vault(msg.sender).borrowed_token())
+    COLLATERAL_PRECISION = pow_mod256(10, 18 - COLLATERAL_TOKEN.decimals())
+    BORROWED_PRECISION = pow_mod256(10, 18 - BORROWED_TOKEN.decimals())
 
     SQRT_BAND_RATIO = isqrt(unsafe_div(10**36 * _A, unsafe_sub(_A, 1)))
 
-    assert _borrowed_token.approve(msg.sender, max_value(uint256), default_return_value=True)
+    assert BORROWED_TOKEN.approve(msg.sender, max_value(uint256), default_return_value=True)
 
 
 @internal
@@ -355,11 +340,11 @@ def wad_ln(x: uint256) -> int256:
 
 @external
 @pure
-def factory() -> Factory:
+def factory() -> Vault:
     """
     @notice Address of the factory
     """
-    return FACTORY
+    return VAULT
 
 
 @external
@@ -1414,7 +1399,7 @@ def set_amm_fee(fee: uint256):
     @notice Set the AMM fee (factory admin only)
     @param fee The fee which should be no higher than MAX_FEE
     """
-    assert msg.sender == FACTORY.admin()
+    assert msg.sender == VAULT.admin()
     assert fee <= MAX_FEE and fee >= MIN_FEE, "Fee"
     AMM.set_fee(fee)
 
@@ -1426,7 +1411,7 @@ def set_monetary_policy(monetary_policy: address):
     @notice Set monetary policy contract
     @param monetary_policy Address of the monetary policy contract
     """
-    assert msg.sender == FACTORY.admin()
+    assert msg.sender == VAULT.admin()
     self.monetary_policy = MonetaryPolicy(monetary_policy)
     MonetaryPolicy(monetary_policy).rate_write()
     log SetMonetaryPolicy(monetary_policy)
@@ -1440,7 +1425,7 @@ def set_borrowing_discounts(loan_discount: uint256, liquidation_discount: uint25
     @param loan_discount Discount which defines LTV
     @param liquidation_discount Discount where bad liquidation starts
     """
-    assert msg.sender == FACTORY.admin()
+    assert msg.sender == VAULT.admin()
     assert loan_discount > liquidation_discount
     assert liquidation_discount >= MIN_LIQUIDATION_DISCOUNT
     assert loan_discount <= MAX_LOAN_DISCOUNT
@@ -1455,7 +1440,7 @@ def set_callback(cb: address):
     """
     @notice Set liquidity mining callback
     """
-    assert msg.sender == FACTORY.admin()
+    assert msg.sender == VAULT.admin()
     AMM.set_callback(cb)
     log SetLMCallback(cb)
 
@@ -1467,7 +1452,7 @@ def set_borrow_cap(_borrow_cap: uint256):
     @dev Only callable by the factory admin
     @param _borrow_cap New borrow cap in units of borrowed_token
     """
-    assert msg.sender == FACTORY.admin()
+    assert msg.sender == VAULT.admin()
     self.borrow_cap = _borrow_cap
     log SetBorrowCap(_borrow_cap)
 
@@ -1494,7 +1479,7 @@ def collect_fees() -> uint256:
             This is by design: lending does NOT earn interest, system makes money by using crvUSD
     """
     # Calling fee_receiver will fail for lending markets because everything gets to lenders
-    _to: address = FACTORY.fee_receiver()
+    _to: address = VAULT.fee_receiver()
 
     # Borrowing-based fees
     rate_mul: uint256 = AMM.get_rate_mul()
