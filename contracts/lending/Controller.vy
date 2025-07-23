@@ -144,8 +144,9 @@ loans: public(address[2**64 - 1])  # Enumerate existing loans
 loan_ix: public(HashMap[address, uint256])  # Position of the loan in the list
 n_loans: public(uint256)  # Number of nonzero loans
 
-minted: public(uint256)
-redeemed: public(uint256)
+repaid: public(uint256)  # cumulative amount of assets ever repaid
+processed: public(uint256)  # cumulative amount of assets admin fees have been taken from
+collected: public(uint256)  # cumulative amount of assets collected by admin
 
 monetary_policy: public(MonetaryPolicy)
 liquidation_discount: public(uint256)
@@ -163,9 +164,9 @@ Aminus1: immutable(uint256)
 LOGN_A_RATIO: immutable(int256)  # log(A / (A - 1))
 SQRT_BAND_RATIO: immutable(uint256)
 
-MAX_ADMIN_FEE: constant(uint256) = 5 * 10**17  # 50%
-MIN_FEE: constant(uint256) = 10**6  # 1e-12, still needs to be above 0
-MAX_FEE: immutable(uint256)  # let's set to MIN_TICKS / A: for example, 4% max fee for A=100
+MAX_ADMIN_FEE: constant(uint256) = 2 * 10**17  # 20%
+MIN_AMM_FEE: constant(uint256) = 10**6  # 1e-12, still needs to be above 0
+MAX_AMM_FEE: immutable(uint256)  # let's set to MIN_TICKS / A: for example, 4% max fee for A=100
 
 CALLBACK_DEPOSIT: constant(bytes4) = method_id("callback_deposit(address,uint256,uint256,uint256,uint256[])", output_type=bytes4)
 CALLBACK_REPAY: constant(bytes4) = method_id("callback_repay(address,uint256,uint256,uint256,uint256[])", output_type=bytes4)
@@ -181,6 +182,7 @@ DEAD_SHARES: constant(uint256) = 1000
 approval: public(HashMap[address, HashMap[address, bool]])
 extra_health: public(HashMap[address, uint256])
 borrow_cap: public(uint256)
+admin_fee: public(uint256)
 
 
 @external
@@ -212,7 +214,7 @@ def __init__(
     A = _A
     Aminus1 = unsafe_sub(_A, 1)
     LOGN_A_RATIO = self.wad_ln(unsafe_div(_A * 10**18, unsafe_sub(_A, 1)))
-    MAX_FEE = min(unsafe_div(10**18 * MIN_TICKS, A), 10**17)
+    MAX_AMM_FEE = min(unsafe_div(10**18 * MIN_TICKS, A), 10**17)
 
     COLLATERAL_TOKEN = ERC20(Vault(msg.sender).collateral_token())
     BORROWED_TOKEN = ERC20(Vault(msg.sender).borrowed_token())
@@ -696,7 +698,7 @@ def _create_loan(collateral: uint256, debt: uint256, N: uint256, transfer_coins:
     self._total_debt.rate_mul = rate_mul
 
     AMM.deposit_range(_for, collateral, n1, n2)
-    self.minted += debt
+    self.processed += debt
 
     if transfer_coins:
         self.transferFrom(COLLATERAL_TOKEN, msg.sender, AMM.address, collateral)
@@ -862,7 +864,7 @@ def borrow_more(collateral: uint256, debt: uint256, _for: address = msg.sender):
         return
     assert self._check_approval(_for)
     self._add_collateral_borrow(collateral, debt, _for, False, False)
-    self.minted += debt
+    self.processed += debt
     self.transferFrom(COLLATERAL_TOKEN, msg.sender, AMM.address, collateral)
     self.transfer(BORROWED_TOKEN, _for, debt)
     self._save_rate()
@@ -897,7 +899,7 @@ def borrow_more_extended(collateral: uint256, debt: uint256, callbacker: address
 
     # After callback
     self._add_collateral_borrow(collateral + more_collateral, debt, _for, False, False)
-    self.minted += debt
+    self.processed += debt
     self.transferFrom(COLLATERAL_TOKEN, msg.sender, AMM.address, collateral)
     self.transferFrom(COLLATERAL_TOKEN, callbacker, AMM.address, more_collateral)
     self._save_rate()
@@ -982,7 +984,7 @@ def repay(_d_debt: uint256, _for: address = msg.sender, max_active_band: int256 
 
     # If we withdrew already - will burn less!
     self.transferFrom(BORROWED_TOKEN, msg.sender, self, d_debt)  # fail: insufficient funds
-    self.redeemed += d_debt
+    self.repaid += d_debt
 
     self.loan[_for] = Loan({initial_debt: debt, rate_mul: rate_mul})
     total_debt: uint256 = self._total_debt.initial_debt * rate_mul / self._total_debt.rate_mul
@@ -1067,7 +1069,7 @@ def repay_extended(callbacker: address, callback_args: DynArray[uint256,5], call
 
     # Common calls which we will do regardless of whether it's a full repay or not
     log Repay(_for, xy[1], d_debt)
-    self.redeemed += d_debt
+    self.repaid += d_debt
     self.loan[_for] = Loan({initial_debt: debt, rate_mul: rate_mul})
     total_debt: uint256 = self._total_debt.initial_debt * rate_mul / self._total_debt.rate_mul
     self._total_debt.initial_debt = unsafe_sub(max(total_debt, d_debt), d_debt)
@@ -1243,7 +1245,7 @@ def _liquidate(user: address, min_x: uint256, health_limit: uint256, frac: uint2
         if xy[0] > debt:
             self.transferFrom(BORROWED_TOKEN, AMM.address, msg.sender, unsafe_sub(xy[0], debt))
 
-    self.redeemed += debt
+    self.repaid += debt
     self.loan[user] = Loan({initial_debt: final_debt, rate_mul: rate_mul})
     log Repay(user, xy[1], debt)
     log Liquidate(msg.sender, user, xy[1], xy[0], debt)
@@ -1397,10 +1399,10 @@ def user_state(user: address) -> uint256[4]:
 def set_amm_fee(fee: uint256):
     """
     @notice Set the AMM fee (factory admin only)
-    @param fee The fee which should be no higher than MAX_FEE
+    @param fee The fee which should be no higher than MAX_AMM_FEE
     """
     assert msg.sender == VAULT.admin()
-    assert fee <= MAX_FEE and fee >= MIN_FEE, "Fee"
+    assert fee <= MAX_AMM_FEE and fee >= MIN_AMM_FEE, "Fee"
     AMM.set_fee(fee)
 
 
@@ -1446,6 +1448,7 @@ def set_callback(cb: address):
 
 
 @external
+@nonreentrant('lock')
 def set_borrow_cap(_borrow_cap: uint256):
     """
     @notice Set the borrow cap for this market
@@ -1458,6 +1461,16 @@ def set_borrow_cap(_borrow_cap: uint256):
 
 
 @external
+def set_admin_fee(admin_fee: uint256):
+    """
+    @param admin_fee The fee which should be no higher than MAX_ADMIN_FEE
+    """
+    assert msg.sender == VAULT.admin()
+    assert admin_fee <= MAX_ADMIN_FEE, "admin_fee is higher than MAX_ADMIN_FEE"
+    self.admin_fee = admin_fee
+
+
+@external
 @view
 def admin_fees() -> uint256:
     """
@@ -1465,20 +1478,17 @@ def admin_fees() -> uint256:
     """
     rate_mul: uint256 = AMM.get_rate_mul()
     loan: Loan = self._total_debt
-    loan.initial_debt = loan.initial_debt * rate_mul / loan.rate_mul + self.redeemed
-    minted: uint256 = self.minted
-    return unsafe_sub(max(loan.initial_debt, minted), minted)
+    loan.initial_debt = loan.initial_debt * rate_mul / loan.rate_mul
+    processed: uint256 = self.processed
+    return unsafe_sub(max(loan.initial_debt + self.repaid, processed), processed)
 
 
 @external
 @nonreentrant('lock')
 def collect_fees() -> uint256:
     """
-    @notice Collect the fees charged as interest.
-            None of this fees are collected if factory has no fee_receiver - e.g. for lending
-            This is by design: lending does NOT earn interest, system makes money by using crvUSD
+    @notice Collect the fees charged as a fraction of interest.
     """
-    # Calling fee_receiver will fail for lending markets because everything gets to lenders
     _to: address = VAULT.fee_receiver()
 
     # Borrowing-based fees
@@ -1490,17 +1500,18 @@ def collect_fees() -> uint256:
 
     self._save_rate()
 
-    # Amount which would have been redeemed if all the debt was repaid now
-    to_be_redeemed: uint256 = loan.initial_debt + self.redeemed
-    # Amount which was minted when borrowing + all previously claimed admin fees
-    minted: uint256 = self.minted
+    # Cumulative amount which would have been repaid if all the debt was repaid now
+    to_be_repaid: uint256 = loan.initial_debt + self.repaid
+    # Cumulative amount which was processed (admin fees have been taken from)
+    processed: uint256 = self.processed
     # Difference between to_be_redeemed and minted amount is exactly due to interest charged
-    if to_be_redeemed > minted:
-        self.minted = to_be_redeemed
-        to_be_redeemed = unsafe_sub(to_be_redeemed, minted)  # Now this is the fees to charge
-        self.transfer(BORROWED_TOKEN, _to, to_be_redeemed)
-        log CollectFees(to_be_redeemed, loan.initial_debt)
-        return to_be_redeemed
+    if to_be_repaid > processed:
+        self.processed = to_be_repaid
+        fees: uint256 = unsafe_sub(to_be_repaid, processed) * self.admin_fee / 10**18
+        self.collected += fees
+        self.transfer(BORROWED_TOKEN, _to, fees)
+        log CollectFees(fees, loan.initial_debt)
+        return fees
     else:
         log CollectFees(0, loan.initial_debt)
         return 0
