@@ -18,3 +18,5 @@ venv
 /.py312
 /scripts/networks.py
 /brownie-deploy-emas/build
+.DS_Store
+.claude
