@@ -27,6 +27,7 @@ interface AMM:
 
 interface Controller:
     def total_debt() -> uint256: view
+    def borrowed_balance() -> uint256: view
     def monetary_policy() -> address: view
     def check_lock() -> bool: view
     def save_rate(): nonpayable
@@ -95,6 +96,9 @@ controller: public(Controller)
 factory: public(Factory)
 
 maxSupply: public(uint256)
+
+deposited: public(uint256)  # cumulative amount of assets ever deposited
+withdrawn: public(uint256)  # cumulative amount of assets ever withdrawn
 
 
 # ERC20 publics
@@ -278,8 +282,7 @@ def asset() -> ERC20:
 @view
 def _total_assets() -> uint256:
     # admin fee should be accounted for here when enabled
-    self.controller.check_lock()
-    return self.borrowed_token.balanceOf(self.controller.address) + self.controller.total_debt()
+    return self.controller.borrowed_balance() + self.controller.total_debt()
 
 
 @external
@@ -405,6 +408,7 @@ def deposit(assets: uint256, receiver: address = msg.sender) -> uint256:
     assert total_assets + assets <= self.maxSupply, "Supply limit"
     to_mint: uint256 = self._convert_to_shares(assets, True, total_assets)
     assert self.borrowed_token.transferFrom(msg.sender, controller.address, assets, default_return_value=True)
+    self.deposited += assets
     self._mint(receiver, to_mint)
     controller.save_rate()
     log Deposit(msg.sender, receiver, assets, to_mint)
@@ -449,6 +453,7 @@ def mint(shares: uint256, receiver: address = msg.sender) -> uint256:
     assert total_assets + assets >= MIN_ASSETS, "Need more assets"
     assert total_assets + assets <= self.maxSupply, "Supply limit"
     assert self.borrowed_token.transferFrom(msg.sender, controller.address, assets, default_return_value=True)
+    self.deposited += assets
     self._mint(receiver, shares)
     controller.save_rate()
     log Deposit(msg.sender, receiver, assets, shares)
@@ -464,7 +469,7 @@ def maxWithdraw(owner: address) -> uint256:
     """
     return min(
         self._convert_to_assets(self.balanceOf[owner]),
-        self.borrowed_token.balanceOf(self.controller.address))
+        self.controller.borrowed_balance())
 
 
 @external
@@ -474,7 +479,7 @@ def previewWithdraw(assets: uint256) -> uint256:
     """
     @notice Calculate number of shares which gets burned when withdrawing given amount of asset
     """
-    assert assets <= self.borrowed_token.balanceOf(self.controller.address)
+    assert assets <= self.controller.borrowed_balance()
     return self._convert_to_shares(assets, False)
 
 
@@ -498,6 +503,7 @@ def withdraw(assets: uint256, receiver: address = msg.sender, owner: address = m
     controller: Controller = self.controller
     self._burn(owner, shares)
     assert self.borrowed_token.transferFrom(controller.address, receiver, assets, default_return_value=True)
+    self.withdrawn += assets
     controller.save_rate()
     log Withdraw(msg.sender, receiver, owner, assets, shares)
     return shares
@@ -511,7 +517,7 @@ def maxRedeem(owner: address) -> uint256:
     @notice Calculate maximum amount of shares which a given user can redeem
     """
     return min(
-        self._convert_to_shares(self.borrowed_token.balanceOf(self.controller.address), False),
+        self._convert_to_shares(self.controller.borrowed_balance(), False),
         self.balanceOf[owner])
 
 
@@ -528,7 +534,7 @@ def previewRedeem(shares: uint256) -> uint256:
 
     else:
         assets_to_redeem: uint256 = self._convert_to_assets(shares)
-        assert assets_to_redeem <= self.borrowed_token.balanceOf(self.controller.address)
+        assert assets_to_redeem <= self.controller.borrowed_balance()
         return assets_to_redeem
 
 
@@ -557,6 +563,7 @@ def redeem(shares: uint256, receiver: address = msg.sender, owner: address = msg
     self._burn(owner, shares)
     controller: Controller = self.controller
     assert self.borrowed_token.transferFrom(controller.address, receiver, assets_to_redeem, default_return_value=True)
+    self.withdrawn += assets_to_redeem
     controller.save_rate()
     log Withdraw(msg.sender, receiver, owner, assets_to_redeem, shares)
     return assets_to_redeem

@@ -39,7 +39,6 @@ interface ERC20:
     def transfer(_to: address, _value: uint256) -> bool: nonpayable
     def decimals() -> uint256: view
     def approve(_spender: address, _value: uint256) -> bool: nonpayable
-    def balanceOf(_from: address) -> uint256: view
 
 interface MonetaryPolicy:
     def rate_write() -> uint256: nonpayable
@@ -49,6 +48,8 @@ interface Vault:
     def fee_receiver() -> address: view
     def borrowed_token() -> address: view
     def collateral_token() -> address: view
+    def deposited() -> uint256: view
+    def withdrawn() -> uint256: view
 
 
 event UserState:
@@ -144,6 +145,7 @@ loans: public(address[2**64 - 1])  # Enumerate existing loans
 loan_ix: public(HashMap[address, uint256])  # Position of the loan in the list
 n_loans: public(uint256)  # Number of nonzero loans
 
+lent: public(uint256)  # cumulative amount of assets ever lent
 repaid: public(uint256)  # cumulative amount of assets ever repaid
 processed: public(uint256)  # cumulative amount of assets admin fees have been taken from
 collected: public(uint256)  # cumulative amount of assets collected by admin
@@ -560,6 +562,20 @@ def max_p_base() -> uint256:
     return p_base
 
 
+@internal
+@view
+def _borrowed_balance() -> uint256:
+    # (VAULT.deposited() - VAULT.withdrawn()) - (self.lent - self.repaid) - self.collected
+    return VAULT.deposited() + self.repaid - VAULT.withdrawn() - self.lent - self.collected
+
+
+@external
+@view
+@nonreentrant('lock')
+def borrowed_balance() -> uint256:
+    return self._borrowed_balance()
+
+
 @external
 @view
 @nonreentrant('lock')
@@ -593,7 +609,13 @@ def max_borrowable(collateral: uint256, N: uint256, current_debt: uint256 = 0, u
 
     x: uint256 = unsafe_sub(max(unsafe_div(y_effective * self.max_p_base(), 10**18), 1), 1)
     x = unsafe_div(x * (10**18 - 10**14), unsafe_mul(10**18, BORROWED_PRECISION))  # Make it a bit smaller
-    return min(x, BORROWED_TOKEN.balanceOf(self) + current_debt)  # Cannot borrow beyond the amount of coins Controller has
+
+    rate_mul: uint256 = AMM.get_rate_mul()
+    loan: Loan = self._total_debt
+    _total_debt: uint256 = loan.initial_debt * rate_mul / loan.rate_mul
+    _cap: uint256 = unsafe_sub(max(self.borrow_cap, _total_debt), _total_debt)
+    _cap = min(self._borrowed_balance() + current_debt, _cap)
+    return min(x, _cap)  # Cannot borrow beyond the amount of coins Controller has or beyond borrow_cap
 
 
 @external
@@ -698,6 +720,7 @@ def _create_loan(collateral: uint256, debt: uint256, N: uint256, transfer_coins:
     self._total_debt.rate_mul = rate_mul
 
     AMM.deposit_range(_for, collateral, n1, n2)
+    self.lent += debt
     self.processed += debt
 
     if transfer_coins:
@@ -864,6 +887,7 @@ def borrow_more(collateral: uint256, debt: uint256, _for: address = msg.sender):
         return
     assert self._check_approval(_for)
     self._add_collateral_borrow(collateral, debt, _for, False, False)
+    self.lent += debt
     self.processed += debt
     self.transferFrom(COLLATERAL_TOKEN, msg.sender, AMM.address, collateral)
     self.transfer(BORROWED_TOKEN, _for, debt)
@@ -899,6 +923,7 @@ def borrow_more_extended(collateral: uint256, debt: uint256, callbacker: address
 
     # After callback
     self._add_collateral_borrow(collateral + more_collateral, debt, _for, False, False)
+    self.lent += debt
     self.processed += debt
     self.transferFrom(COLLATERAL_TOKEN, msg.sender, AMM.address, collateral)
     self.transferFrom(COLLATERAL_TOKEN, callbacker, AMM.address, more_collateral)
@@ -1515,13 +1540,6 @@ def collect_fees() -> uint256:
     else:
         log CollectFees(0, loan.initial_debt)
         return 0
-
-
-@external
-@view
-@nonreentrant('lock')
-def check_lock() -> bool:
-    return True
 
 
 # Allowance methods
