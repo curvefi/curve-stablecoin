@@ -23,12 +23,8 @@ interface LLAMMA:
     def get_rate_mul() -> uint256: view
     def set_rate(rate: uint256) -> uint256: nonpayable
     def set_fee(fee: uint256): nonpayable
-    def set_admin_fee(fee: uint256): nonpayable
     def price_oracle() -> uint256: view
     def can_skip_bands(n_end: int256) -> bool: view
-    def admin_fees_x() -> uint256: view
-    def admin_fees_y() -> uint256: view
-    def reset_admin_fees(): nonpayable
     def has_liquidity(user: address) -> bool: view
     def bands_x(n: int256) -> uint256: view
     def bands_y(n: int256) -> uint256: view
@@ -163,7 +159,6 @@ Aminus1: immutable(uint256)
 LOGN_A_RATIO: immutable(int256)  # log(A / (A - 1))
 SQRT_BAND_RATIO: immutable(uint256)
 
-MAX_ADMIN_FEE: constant(uint256) = 5 * 10**17  # 50%
 MIN_FEE: constant(uint256) = 10**6  # 1e-12, still needs to be above 0
 MAX_FEE: immutable(uint256)  # let's set to MIN_TICKS / A: for example, 4% max fee for A=100
 

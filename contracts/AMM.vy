@@ -74,9 +74,6 @@ event SetRate:
 event SetFee:
     fee: uint256
 
-event SetAdminFee:
-    fee: uint256
-
 
 MAX_TICKS: constant(int256) = 50
 MAX_TICKS_UINT: constant(uint256) = 50
@@ -94,7 +91,6 @@ struct DetailedTrade:
     n2: int256
     ticks_in: DynArray[uint256, MAX_TICKS_UINT]
     last_tick_j: uint256
-    admin_fee: uint256
 
 
 BORROWED_TOKEN: immutable(ERC20)    # x
@@ -113,16 +109,12 @@ LOG_A_RATIO: immutable(int256)  # ln(A / (A - 1))
 MAX_ORACLE_DN_POW: immutable(uint256)  # (A / (A - 1)) ** 50
 
 fee: public(uint256)
-admin_fee: public(uint256)
 rate: public(uint256)
 rate_time: uint256
 rate_mul: uint256
 active_band: public(int256)
 min_band: public(int256)
 max_band: public(int256)
-
-admin_fees_x: public(uint256)
-admin_fees_y: public(uint256)
 
 price_oracle_contract: public(immutable(PriceOracle))
 old_p_o: uint256
@@ -165,7 +157,7 @@ def __init__(
     @param _log_A_ratio Precomputed int(ln(A / (A - 1)) * 1e18)
     @param _base_price Typically the initial crypto price at which AMM is deployed. Will correspond to band 0
     @param fee Relative fee of the AMM: int(fee * 1e18)
-    @param admin_fee Admin fee: how much of fee goes to admin. 50% === int(0.5 * 1e18)
+    @param admin_fee DEPRECATED, left for backward compatibility
     @param _price_oracle_contract External price oracle which has price() and price_w() methods
            which both return current price of collateral multiplied by 1e18
     """
@@ -181,7 +173,6 @@ def __init__(
     Aminus12 = pow_mod256(unsafe_sub(A, 1), 2)
 
     self.fee = fee
-    self.admin_fee = admin_fee
     price_oracle_contract = PriceOracle(_price_oracle_contract)
     self.prev_p_o_time = block.timestamp
     self.old_p_o = price_oracle_contract.price()
@@ -818,12 +809,10 @@ def withdraw(user: address, frac: uint256) -> uint256[2]:
         x -= dx
         y -= dy
 
-        # If withdrawal is the last one - transfer dust to admin fees
+        # If withdrawal is the last one - withdraw dust to the user
         if new_shares == 0:
-            if x > 0:
-                self.admin_fees_x += unsafe_div(x, BORROWED_PRECISION)
-            if y > 0:
-                self.admin_fees_y += unsafe_div(y, COLLATERAL_PRECISION)
+            dx += x
+            dy += y
             x = 0
             y = 0
 
@@ -906,7 +895,6 @@ def calc_swap_out(pump: bool, in_amount: uint256, p_o: uint256[2], in_precision:
 
     in_amount_left: uint256 = in_amount
     fee: uint256 = max(self.fee, p_o[1])
-    admin_fee: uint256 = self.admin_fee
     j: uint256 = MAX_TICKS_UINT
 
     for i in range(MAX_TICKS + MAX_SKIP_TICKS):
@@ -950,24 +938,20 @@ def calc_swap_out(pump: bool, in_amount: uint256, p_o: uint256[2], in_precision:
                         # This is the last band
                         x_dest = unsafe_div(in_amount_left * 10**18, antifee)  # LESS than in_amount_left
                         out.last_tick_j = min(Inv / (f + (x + x_dest)) - g + 1, y)  # Should be always >= 0
-                        x_dest = unsafe_div(unsafe_sub(in_amount_left, x_dest) * admin_fee, 10**18)  # abs admin fee now
                         x += in_amount_left  # x is precise after this
                         # Round down the output
                         out.out_amount += y - out.last_tick_j
-                        out.ticks_in[j] = x - x_dest
+                        out.ticks_in[j] = x
                         out.in_amount = in_amount
-                        out.admin_fee = unsafe_add(out.admin_fee, x_dest)
                         break
 
                     else:
                         # We go into the next band
                         dx = max(dx, 1)  # Prevents from leaving dust in the band
-                        x_dest = unsafe_div(unsafe_sub(dx, x_dest) * admin_fee, 10**18)  # abs admin fee now
                         in_amount_left -= dx
-                        out.ticks_in[j] = x + dx - x_dest
+                        out.ticks_in[j] = x + dx
                         out.in_amount += dx
                         out.out_amount += y
-                        out.admin_fee = unsafe_add(out.admin_fee, x_dest)
 
             if i != MAX_TICKS + MAX_SKIP_TICKS - 1:
                 if out.n2 == max_band:
@@ -991,23 +975,19 @@ def calc_swap_out(pump: bool, in_amount: uint256, p_o: uint256[2], in_precision:
                         # This is the last band
                         y_dest = unsafe_div(in_amount_left * 10**18, antifee)
                         out.last_tick_j = min(Inv / (g + (y + y_dest)) - f + 1, x)
-                        y_dest = unsafe_div(unsafe_sub(in_amount_left, y_dest) * admin_fee, 10**18)  # abs admin fee now
                         y += in_amount_left
                         out.out_amount += x - out.last_tick_j
-                        out.ticks_in[j] = y - y_dest
+                        out.ticks_in[j] = y
                         out.in_amount = in_amount
-                        out.admin_fee = unsafe_add(out.admin_fee, y_dest)
                         break
 
                     else:
                         # We go into the next band
                         dy = max(dy, 1)  # Prevents from leaving dust in the band
-                        y_dest = unsafe_div(unsafe_sub(dy, y_dest) * admin_fee, 10**18)  # abs admin fee now
                         in_amount_left -= dy
-                        out.ticks_in[j] = y + dy - y_dest
+                        out.ticks_in[j] = y + dy
                         out.in_amount += dy
                         out.out_amount += x
-                        out.admin_fee = unsafe_add(out.admin_fee, y_dest)
 
             if i != MAX_TICKS + MAX_SKIP_TICKS - 1:
                 if out.n2 == min_band:
@@ -1141,12 +1121,6 @@ def _exchange(i: uint256, j: uint256, amount: uint256, minmax_amount: uint256, _
     if out_amount_done == 0 or in_amount_done == 0:
         return [0, 0]
 
-    out.admin_fee = unsafe_div(out.admin_fee, in_precision)
-    if i == 0:
-        self.admin_fees_x += out.admin_fee
-    else:
-        self.admin_fees_y += out.admin_fee
-
     n: int256 = min(out.n1, out.n2)
     n_start: int256 = n
     n_diff: int256 = abs(unsafe_sub(out.n2, out.n1))
@@ -1220,7 +1194,6 @@ def calc_swap_in(pump: bool, out_amount: uint256, p_o: uint256[2], in_precision:
 
     out_amount_left: uint256 = out_amount
     fee: uint256 = max(self.fee, p_o[1])
-    admin_fee: uint256 = self.admin_fee
     j: uint256 = MAX_TICKS_UINT
 
     for i in range(MAX_TICKS + MAX_SKIP_TICKS):
@@ -1265,9 +1238,7 @@ def calc_swap_in(pump: bool, out_amount: uint256, p_o: uint256[2], in_precision:
                         dx: uint256 = unsafe_div(x_dest * antifee, 10**18)  # MORE than x_dest
                         out.out_amount = out_amount  # We successfully found liquidity for all the out_amount
                         out.in_amount += dx
-                        x_dest = unsafe_div(unsafe_sub(dx, x_dest) * admin_fee, 10**18)  # abs admin fee now
-                        out.ticks_in[j] = x + dx - x_dest
-                        out.admin_fee = unsafe_add(out.admin_fee, x_dest)
+                        out.ticks_in[j] = x + dx
                         break
 
                     else:
@@ -1277,9 +1248,7 @@ def calc_swap_in(pump: bool, out_amount: uint256, p_o: uint256[2], in_precision:
                         out_amount_left -= y
                         out.in_amount += dx
                         out.out_amount += y
-                        x_dest = unsafe_div(unsafe_sub(dx, x_dest) * admin_fee, 10**18)  # abs admin fee now
-                        out.ticks_in[j] = x + dx - x_dest
-                        out.admin_fee = unsafe_add(out.admin_fee, x_dest)
+                        out.ticks_in[j] = x + dx
 
             if i != MAX_TICKS + MAX_SKIP_TICKS - 1:
                 if out.n2 == max_band:
@@ -1304,9 +1273,7 @@ def calc_swap_in(pump: bool, out_amount: uint256, p_o: uint256[2], in_precision:
                         dy: uint256 = unsafe_div(y_dest * antifee, 10**18)  # MORE than y_dest
                         out.out_amount = out_amount
                         out.in_amount += dy
-                        y_dest = unsafe_div(unsafe_sub(dy, y_dest) * admin_fee, 10**18)  # abs admin fee now
-                        out.ticks_in[j] = y + dy - y_dest
-                        out.admin_fee = unsafe_add(out.admin_fee, y_dest)
+                        out.ticks_in[j] = y + dy
                         break
 
                     else:
@@ -1316,9 +1283,7 @@ def calc_swap_in(pump: bool, out_amount: uint256, p_o: uint256[2], in_precision:
                         out_amount_left -= x
                         out.in_amount += dy
                         out.out_amount += x
-                        y_dest = unsafe_div(unsafe_sub(dy, y_dest) * admin_fee, 10**18)  # abs admin fee now
-                        out.ticks_in[j] = y + dy - y_dest
-                        out.admin_fee = unsafe_add(out.admin_fee, y_dest)
+                        out.ticks_in[j] = y + dy
 
             if i != MAX_TICKS + MAX_SKIP_TICKS - 1:
                 if out.n2 == min_band:
@@ -1764,29 +1729,6 @@ def set_fee(fee: uint256):
     assert msg.sender == self.admin
     self.fee = fee
     log SetFee(fee)
-
-
-@external
-@nonreentrant('lock')
-def set_admin_fee(fee: uint256):
-    """
-    @notice Set admin fee - fraction of the AMM fee to go to admin
-    @param fee Admin fee where 1e18 == 100%
-    """
-    assert msg.sender == self.admin
-    self.admin_fee = fee
-    log SetAdminFee(fee)
-
-
-@external
-@nonreentrant('lock')
-def reset_admin_fees():
-    """
-    @notice Zero out AMM fees collected
-    """
-    assert msg.sender == self.admin
-    self.admin_fees_x = 0
-    self.admin_fees_y = 0
 
 
 # nonreentrant decorator is in Controller which is admin
