@@ -45,10 +45,6 @@ interface Factory:
     def admin() -> address: view
     def fee_receiver() -> address: view
 
-    # Only if lending vault
-    def borrowed_token() -> address: view
-    def collateral_token() -> address: view
-
 
 event UserState:
     user: indexed(address)
@@ -208,22 +204,10 @@ def __init__(
     LOGN_A_RATIO = self.wad_ln(unsafe_div(_A * 10**18, unsafe_sub(_A, 1)))
     MAX_FEE = min(unsafe_div(10**18 * MIN_TICKS, A), 10**17)
 
-    _collateral_token: ERC20 = ERC20(collateral_token)
-    _borrowed_token: ERC20 = empty(ERC20)
-
-    if collateral_token == empty(address):
-        # Lending vault factory
-        _collateral_token = ERC20(Factory(msg.sender).collateral_token())
-        _borrowed_token = ERC20(Factory(msg.sender).borrowed_token())
-    else:
-        # Stablecoin factory
-        # _collateral_token is already set
-        _borrowed_token = ERC20(Factory(msg.sender).stablecoin())
-
-    COLLATERAL_TOKEN = _collateral_token
-    BORROWED_TOKEN = _borrowed_token
-    COLLATERAL_PRECISION = pow_mod256(10, 18 - _collateral_token.decimals())
-    BORROWED_PRECISION = pow_mod256(10, 18 - _borrowed_token.decimals())
+    COLLATERAL_TOKEN = ERC20(collateral_token)
+    BORROWED_TOKEN = ERC20(Factory(msg.sender).stablecoin())
+    COLLATERAL_PRECISION = pow_mod256(10, 18 - COLLATERAL_TOKEN.decimals())
+    BORROWED_PRECISION = pow_mod256(10, 18 - BORROWED_TOKEN.decimals())
 
     SQRT_BAND_RATIO = isqrt(unsafe_div(10**36 * _A, unsafe_sub(_A, 1)))
 
