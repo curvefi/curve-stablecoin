@@ -167,11 +167,8 @@ MIN_AMM_FEE: constant(uint256) = 10**6  # 1e-12, still needs to be above 0
 MAX_AMM_FEE: immutable(uint256)  # let's set to MIN_TICKS / A: for example, 4% max fee for A=100
 
 CALLBACK_DEPOSIT: constant(bytes4) = method_id("callback_deposit(address,uint256,uint256,uint256,bytes)", output_type=bytes4)
-CALLBACK_REPAY: constant(bytes4) = method_id("callback_repay(address,uint256,uint256,uint256,uint256[])", output_type=bytes4)
+CALLBACK_REPAY: constant(bytes4) = method_id("callback_repay(address,uint256,uint256,uint256,bytes)", output_type=bytes4)
 CALLBACK_LIQUIDATE: constant(bytes4) = method_id("callback_liquidate(address,uint256,uint256,uint256,bytes)", output_type=bytes4)
-
-# CALLBACK_REPAY_WITH_BYTES: constant(bytes4) = method_id("callback_repay(address,uint256,uint256,uint256,uint256[],bytes)", output_type=bytes4) <-- BUG! The reason is 0 at the beginning of method_id
-CALLBACK_REPAY_WITH_BYTES: constant(bytes4) = 0x008ae188
 
 DEAD_SHARES: constant(uint256) = 1000
 
@@ -731,9 +728,9 @@ def create_loan(collateral: uint256, debt: uint256, N: uint256, _for: address = 
     @param debt Stablecoin debt to take
     @param N Number of bands to deposit into (to do autoliquidation-deliquidation),
            can be from MIN_TICKS to MAX_TICKS
+    @param _for Address to create the loan for
     @param callbacker Address of the callback contract
     @param calldata Any data for callbacker
-    @param _for Address to create the loan for
     """
     if _for != tx.origin:
         # We can create a loan for tx.origin (for example when wrapping ETH with EOA),
@@ -852,9 +849,9 @@ def borrow_more(collateral: uint256, debt: uint256, _for: address = msg.sender, 
     @notice Borrow more stablecoins while adding more collateral using a callback (to leverage more)
     @param collateral Amount of collateral to add
     @param debt Amount of stablecoin debt to take
+    @param _for Address to borrow for
     @param callbacker Address of the callback contract
     @param calldata Any data for callbacker
-    @param _for Address to borrow for
     """
     if debt == 0:
         return
@@ -893,156 +890,110 @@ def _remove_from_list(_for: address):
 
 @external
 @nonreentrant('lock')
-def repay(_d_debt: uint256, _for: address = msg.sender, max_active_band: int256 = 2**255-1):
+def repay(_d_debt: uint256, _for: address = msg.sender, max_active_band: int256 = 2**255-1,
+          callbacker: address = empty(address), calldata: Bytes[10**4] = b""):
     """
     @notice Repay debt (partially or fully)
-    @param _d_debt The amount of debt to repay. If higher than the current debt - will do full repayment
+    @param _d_debt The amount of debt to repay from user's wallet. If higher than the current debt - will do full repayment
     @param _for The user to repay the debt for
     @param max_active_band Don't allow active band to be higher than this (to prevent front-running the repay)
+    @param callbacker Address of the callback contract
+    @param calldata Any data for callbacker
     """
-    if _d_debt == 0:
-        return
-    # Or repay all for MAX_UINT256
-    # Withdraw if debt become 0
     debt: uint256 = 0
     rate_mul: uint256 = 0
     debt, rate_mul = self._debt(_for)
     assert debt > 0, "Loan doesn't exist"
-    d_debt: uint256 = min(debt, _d_debt)
-    debt = unsafe_sub(debt, d_debt)
     approval: bool = self._check_approval(_for)
+    xy: uint256[2] = empty(uint256[2])
 
-    if debt == 0:
-        # Allow to withdraw all assets even when underwater
-        xy: uint256[2] = AMM.withdraw(_for, 10**18)
-        if xy[0] > 0:
-            # Only allow full repayment when underwater for the sender to do
-            assert approval
-            self.transferFrom(BORROWED_TOKEN, AMM.address, _for, xy[0])
-        if xy[1] > 0:
-            self.transferFrom(COLLATERAL_TOKEN, AMM.address, _for, xy[1])
-        log UserState(_for, 0, 0, 0, 0, 0)
-        log Repay(_for, xy[1], d_debt)
-        self._remove_from_list(_for)
+    cb: CallbackData = empty(CallbackData)
+    if callbacker != empty(address):
+        assert approval
+        xy = AMM.withdraw(_for, 10 ** 18)
+        self.transferFrom(COLLATERAL_TOKEN, AMM.address, callbacker, xy[1])
+        cb = self.execute_callback(
+            callbacker, CALLBACK_REPAY, _for, xy[0], xy[1], debt, calldata)
 
-    else:
-        active_band: int256 = AMM.active_band_with_skip()
-        assert active_band <= max_active_band
-
-        ns: int256[2] = AMM.read_user_tick_numbers(_for)
-        size: int256 = unsafe_sub(ns[1], ns[0])
-        liquidation_discount: uint256 = self.liquidation_discounts[_for]
-
-        if ns[0] > active_band:
-            # Not in liquidation - can move bands
-            xy: uint256[2] = AMM.withdraw(_for, 10**18)
-            n1: int256 = self._calculate_debt_n1(xy[1], debt, convert(unsafe_add(size, 1), uint256), _for)
-            n2: int256 = n1 + size
-            AMM.deposit_range(_for, xy[1], n1, n2)
-            if approval:
-                # Update liquidation discount only if we are that same user. No rugs
-                liquidation_discount = self.liquidation_discount
-                self.liquidation_discounts[_for] = liquidation_discount
-            log UserState(_for, xy[1], debt, n1, n2, liquidation_discount)
-            log Repay(_for, 0, d_debt)
-        else:
-            # Underwater - cannot move band but can avoid a bad liquidation
-            log UserState(_for, max_value(uint256), debt, ns[0], ns[1], liquidation_discount)
-            log Repay(_for, 0, d_debt)
-
-        if not approval:
-            # Doesn't allow non-sender to repay in a way which ends with unhealthy state
-            # full = False to make this condition non-manipulatable (and also cheaper on gas)
-            assert self._health(_for, debt, False, liquidation_discount) > 0
-
-    # If we withdrew already - will burn less!
-    self.transferFrom(BORROWED_TOKEN, msg.sender, self, d_debt)  # fail: insufficient funds
-    self.repaid += d_debt
-
-    self.loan[_for] = Loan({initial_debt: debt, rate_mul: rate_mul})
-    total_debt: uint256 = self._total_debt.initial_debt * rate_mul / self._total_debt.rate_mul
-    self._total_debt.initial_debt = unsafe_sub(max(total_debt, d_debt), d_debt)
-    self._total_debt.rate_mul = rate_mul
-
-    self._save_rate()
-
-
-@external
-@nonreentrant('lock')
-def repay_extended(callbacker: address, calldata: Bytes[10**4] = b"",  _for: address = msg.sender):
-    """
-    @notice Repay loan but get a stablecoin for that from callback (to deleverage)
-    @param callbacker Address of the callback contract
-    @param callback_args Extra arguments for the callback (up to 5) such as min_amount etc
-    @param _for Address to repay for
-    """
-    assert self._check_approval(_for)
-
-    # Before callback
-    ns: int256[2] = AMM.read_user_tick_numbers(_for)
-    xy: uint256[2] = AMM.withdraw(_for, 10**18)
-    debt: uint256 = 0
-    rate_mul: uint256 = 0
-    debt, rate_mul = self._debt(_for)
-    self.transferFrom(COLLATERAL_TOKEN, AMM.address, callbacker, xy[1])
-
-    # For compatibility
-    callback_sig: bytes4 = CALLBACK_REPAY_WITH_BYTES
-    if calldata == b"":
-        callback_sig = CALLBACK_REPAY
-    cb: CallbackData = self.execute_callback(
-        callbacker, callback_sig, _for, xy[0], xy[1], debt, calldata)
-
-    # After callback
-    total_stablecoins: uint256 = cb.stablecoins + xy[0]
+    total_stablecoins: uint256 = _d_debt + xy[0] + cb.stablecoins
     assert total_stablecoins > 0  # dev: no coins to repay
-
-    # d_debt: uint256 = min(debt, total_stablecoins)
-
     d_debt: uint256 = 0
 
     # If we have more stablecoins than the debt - full repayment and closing the position
     if total_stablecoins >= debt:
         d_debt = debt
         debt = 0
-        self._remove_from_list(_for)
+        if callbacker == empty(address):
+            xy = AMM.withdraw(_for, 10 ** 18)
 
-        # Transfer debt to self, everything else to _for
-        self.transferFrom(BORROWED_TOKEN, callbacker, self, cb.stablecoins)
-        self.transferFrom(BORROWED_TOKEN, AMM.address, self, xy[0])
+        # Transfer all stablecoins to self
+        if xy[0] > 0:
+            # Only allow full repayment when underwater for the sender to do
+            assert approval
+            self.transferFrom(BORROWED_TOKEN, AMM.address, self, xy[0])
+        if cb.stablecoins > 0:
+            self.transferFrom(BORROWED_TOKEN, callbacker, self, cb.stablecoins)
+        if _d_debt > 0:
+            self.transferFrom(BORROWED_TOKEN, msg.sender, self, _d_debt)
+
+        # Transfer stablecoins excess to _for
         if total_stablecoins > d_debt:
             self.transfer(BORROWED_TOKEN, _for, unsafe_sub(total_stablecoins, d_debt))
-        self.transferFrom(COLLATERAL_TOKEN, callbacker, _for, cb.collateral)
+        # Transfer collateral to _for
+        if callbacker == empty(address):
+            if xy[1] > 0:
+                self.transferFrom(COLLATERAL_TOKEN, AMM.address, _for, xy[1])
+        else:
+            if cb.collateral > 0:
+                self.transferFrom(COLLATERAL_TOKEN, callbacker, _for, cb.collateral)
 
+        self._remove_from_list(_for)
         log UserState(_for, 0, 0, 0, 0, 0)
-
-    # Else - partial repayment -> deleverage, but only if we are not underwater
+        log Repay(_for, xy[1], d_debt)
+    # Else - partial repayment
     else:
+        active_band: int256 = AMM.active_band_with_skip()
+        assert active_band <= max_active_band
+
+        d_debt = total_stablecoins
+        debt = unsafe_sub(debt, d_debt)
+        ns: int256[2] = AMM.read_user_tick_numbers(_for)
         size: int256 = unsafe_sub(ns[1], ns[0])
-        assert ns[0] > cb.active_band
-        d_debt = cb.stablecoins  # cb.stablecoins <= total_stablecoins < debt
-        debt = unsafe_sub(debt, cb.stablecoins)
+        liquidation_discount: uint256 = self.liquidation_discounts[_for]
 
-        # Not in liquidation - can move bands
-        n1: int256 = self._calculate_debt_n1(cb.collateral, debt, convert(unsafe_add(size, 1), uint256), _for)
-        n2: int256 = n1 + size
-        AMM.deposit_range(_for, cb.collateral, n1, n2)
-        liquidation_discount: uint256 = self.liquidation_discount
-        self.liquidation_discounts[_for] = liquidation_discount
+        if ns[0] > active_band:
+            # Not in soft-liquidation - can use callback and move bands
+            new_collateral: uint256 = cb.collateral
+            if callbacker == empty(address):
+                xy = AMM.withdraw(_for, 10**18)
+                new_collateral = xy[1]
+            ns[0] = self._calculate_debt_n1(new_collateral, debt, convert(unsafe_add(size, 1), uint256), _for)
+            ns[1] = ns[0] + size
+            AMM.deposit_range(_for, new_collateral, ns[0], ns[1])
+        else:
+            # Underwater - cannot use callback or move bands but can avoid a bad liquidation
+            xy = AMM.get_sum_xy(_for)
+            assert callbacker == empty(address)
 
-        self.transferFrom(COLLATERAL_TOKEN, callbacker, AMM.address, cb.collateral)
-        # Stablecoin is all spent to repay debt -> all goes to self
-        self.transferFrom(BORROWED_TOKEN, callbacker, self, cb.stablecoins)
-        # We are above active band, so xy[0] is 0 anyway
+        if approval:
+            # Update liquidation discount only if we are that same user. No rugs
+            liquidation_discount = self.liquidation_discount
+            self.liquidation_discounts[_for] = liquidation_discount
+        else:
+            # Doesn't allow non-sender to repay in a way which ends with unhealthy state
+            # full = False to make this condition non-manipulatable (and also cheaper on gas)
+            assert self._health(_for, debt, False, liquidation_discount) > 0
 
-        log UserState(_for, cb.collateral, debt, n1, n2, liquidation_discount)
-        xy[1] -= cb.collateral
+        if cb.stablecoins > 0:
+            self.transferFrom(BORROWED_TOKEN, callbacker, self, cb.stablecoins)
+        if _d_debt > 0:
+            self.transferFrom(BORROWED_TOKEN, msg.sender, self, _d_debt)
 
-        # No need to check _health() because it's the _for
+        log UserState(_for, xy[1], debt, ns[0], ns[1], liquidation_discount)
+        log Repay(_for, 0, d_debt)
 
-    # Common calls which we will do regardless of whether it's a full repay or not
-    log Repay(_for, xy[1], d_debt)
     self.repaid += d_debt
+
     self.loan[_for] = Loan({initial_debt: debt, rate_mul: rate_mul})
     total_debt: uint256 = self._total_debt.initial_debt * rate_mul / self._total_debt.rate_mul
     self._total_debt.initial_debt = unsafe_sub(max(total_debt, d_debt), d_debt)
