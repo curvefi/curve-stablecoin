@@ -575,7 +575,7 @@ def max_p_base() -> uint256:
         if n1 <= n_min:
             break
         p_base_prev: uint256 = p_base
-        p_base = unsafe_div(p_base * A, Aminus1)
+        p_base = AMM.p_oracle_up(n1)
         if p_base > p_oracle:
             return p_base_prev
 
