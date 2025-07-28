@@ -432,6 +432,37 @@ def loan_exists(user: address) -> bool:
     return self.loan[user].initial_debt > 0
 
 
+@internal
+@view
+def _get_total_debt() -> uint256:
+    """
+    @notice Total debt of this controller
+    """
+    rate_mul: uint256 = AMM.get_rate_mul()
+    loan: Loan = self._total_debt
+    return loan.initial_debt * rate_mul / loan.rate_mul
+
+
+@internal
+def _update_total_debt(d_debt: uint256, rate_mul: uint256, is_increase: bool) -> Loan:
+    """
+    @param d_debt Change in debt amount (unsigned)
+    @param rate_mul New rate_mul
+    @param is_increase Whether debt increases or decreases
+    @notice Update total debt of this controller
+    """
+    loan: Loan = self._total_debt
+    loan.initial_debt = loan.initial_debt * rate_mul / loan.rate_mul
+    if is_increase:
+        loan.initial_debt += d_debt
+        assert loan.initial_debt <= self.borrow_cap, "Borrow cap exceeded"
+    else:
+        loan.initial_debt = unsafe_sub(max(loan.initial_debt, d_debt), d_debt)
+    loan.rate_mul = rate_mul
+    self._total_debt = loan
+
+    return loan
+
 # No decorator because used in monetary policy
 @external
 @view
@@ -439,9 +470,7 @@ def total_debt() -> uint256:
     """
     @notice Total debt of this controller
     """
-    rate_mul: uint256 = AMM.get_rate_mul()
-    loan: Loan = self._total_debt
-    return loan.initial_debt * rate_mul / loan.rate_mul
+    return self._get_total_debt()
 
 
 @internal
@@ -601,9 +630,7 @@ def max_borrowable(collateral: uint256, N: uint256, current_debt: uint256 = 0, u
     x: uint256 = unsafe_sub(max(unsafe_div(y_effective * self.max_p_base(), 10**18), 1), 1)
     x = unsafe_div(x * (10**18 - 10**14), unsafe_mul(10**18, BORROWED_PRECISION))  # Make it a bit smaller
 
-    rate_mul: uint256 = AMM.get_rate_mul()
-    loan: Loan = self._total_debt
-    _total_debt: uint256 = loan.initial_debt * rate_mul / loan.rate_mul
+    _total_debt: uint256 = self._get_total_debt()
     _cap: uint256 = unsafe_sub(max(self.borrow_cap, _total_debt), _total_debt)
     _cap = min(self._borrowed_balance() + current_debt, _cap)
     return min(x, _cap)  # Cannot borrow beyond the amount of coins Controller has or beyond borrow_cap
@@ -704,10 +731,7 @@ def _create_loan(collateral: uint256, debt: uint256, N: uint256, _for: address):
     self.loan_ix[_for] = n_loans
     self.n_loans = unsafe_add(n_loans, 1)
 
-    new_total_debt: uint256 = self._total_debt.initial_debt * rate_mul / self._total_debt.rate_mul + debt
-    assert new_total_debt <= self.borrow_cap, "Borrow cap exceeded"
-    self._total_debt.initial_debt = new_total_debt
-    self._total_debt.rate_mul = rate_mul
+    self._update_total_debt(debt, rate_mul, True)
 
     AMM.deposit_range(_for, collateral, n1, n2)
     self.lent += debt
@@ -798,10 +822,7 @@ def _add_collateral_borrow(d_collateral: uint256, d_debt: uint256, _for: address
         liquidation_discount = self.liquidation_discounts[_for]
 
     if d_debt != 0:
-        new_total_debt: uint256 = self._total_debt.initial_debt * rate_mul / self._total_debt.rate_mul + d_debt
-        assert new_total_debt <= self.borrow_cap, "Borrow cap exceeded"
-        self._total_debt.initial_debt = new_total_debt
-        self._total_debt.rate_mul = rate_mul
+        self._update_total_debt(d_debt, rate_mul, True)
 
     if remove_collateral:
         log RemoveCollateral(_for, d_collateral)
@@ -995,9 +1016,7 @@ def repay(_d_debt: uint256, _for: address = msg.sender, max_active_band: int256 
     self.repaid += d_debt
 
     self.loan[_for] = Loan({initial_debt: debt, rate_mul: rate_mul})
-    total_debt: uint256 = self._total_debt.initial_debt * rate_mul / self._total_debt.rate_mul
-    self._total_debt.initial_debt = unsafe_sub(max(total_debt, d_debt), d_debt)
-    self._total_debt.rate_mul = rate_mul
+    self._update_total_debt(d_debt, rate_mul, False)
 
     self._save_rate()
 
@@ -1172,9 +1191,7 @@ def _liquidate(user: address, min_x: uint256, health_limit: uint256, frac: uint2
         log UserState(user, 0, 0, 0, 0, 0)  # Not logging partial removeal b/c we have not enough info
         self._remove_from_list(user)
 
-    d: uint256 = self._total_debt.initial_debt * rate_mul / self._total_debt.rate_mul
-    self._total_debt.initial_debt = unsafe_sub(max(d, debt), debt)
-    self._total_debt.rate_mul = rate_mul
+    self._update_total_debt(debt, rate_mul, False)
 
     self._save_rate()
 
@@ -1381,11 +1398,8 @@ def admin_fees() -> uint256:
     """
     @notice Calculate the amount of fees obtained from the interest
     """
-    rate_mul: uint256 = AMM.get_rate_mul()
-    loan: Loan = self._total_debt
-    loan.initial_debt = loan.initial_debt * rate_mul / loan.rate_mul
     processed: uint256 = self.processed
-    return unsafe_sub(max(loan.initial_debt + self.repaid, processed), processed)
+    return unsafe_sub(max(self._get_total_debt() + self.repaid, processed), processed)
 
 
 @external
@@ -1398,11 +1412,7 @@ def collect_fees() -> uint256:
 
     # Borrowing-based fees
     rate_mul: uint256 = AMM.get_rate_mul()
-    loan: Loan = self._total_debt
-    loan.initial_debt = loan.initial_debt * rate_mul / loan.rate_mul
-    loan.rate_mul = rate_mul
-    self._total_debt = loan
-
+    loan: Loan = self._update_total_debt(0, rate_mul, False)
     self._save_rate()
 
     # Cumulative amount which would have been repaid if all the debt was repaid now
