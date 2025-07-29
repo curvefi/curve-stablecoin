@@ -30,7 +30,7 @@ if __name__ == '__main__':
 
     oracle_code = boa.load_partial('contracts/price_oracles/L2/CryptoFromPoolArbitrum.vy')
     agg_oracle_code = boa.load_partial('contracts/price_oracles/L2/CryptoFromPoolsRateArbitrumWAgg.vy')
-    factory = boa.load_partial('contracts/lending/OneWayLendingFactoryL2.vy').at(FACTORY)
+    factory = boa.load_partial('contracts/lending/deprecated/OneWayLendingFactoryL2.vy').at(FACTORY)
 
     import IPython
     IPython.embed()
