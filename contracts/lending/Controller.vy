@@ -210,7 +210,7 @@ def __init__(
     self.loan_discount = loan_discount
     self._total_debt.rate_mul = 10**18
 
-    A = amm.A()
+    A = AMM.A()
     Aminus1 = unsafe_sub(A, 1)
     LOGN_A_RATIO = self.wad_ln(unsafe_div(A * 10**18, unsafe_sub(A, 1)))
     MAX_AMM_FEE = min(unsafe_div(10**18 * MIN_TICKS, A), 10**17)
