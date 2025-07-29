@@ -1,10 +1,13 @@
 # @version 0.3.10
+# pragma optimize codesize
+# pragma evm-version shanghai
 """
-@title Vault
-@notice ERC4626+ Vault for lending with crvUSD using LLAMMA algorithm
+@title LlamaLend Vault
+@notice ERC4626+ Vault for lending using LLAMMA algorithm
 @author Curve.Fi
-@license Copyright (c) Curve.Fi, 2020-2024 - all rights reserved
+@license Copyright (c) Curve.Fi, 2020-2025 - all rights reserved
 """
+
 from vyper.interfaces import ERC20 as ERC20Spec
 from vyper.interfaces import ERC20Detailed
 

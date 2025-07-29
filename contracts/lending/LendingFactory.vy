@@ -1,9 +1,11 @@
 # @version 0.3.10
+# pragma optimize codesize
+# pragma evm-version shanghai
 """
-@title OneWayLendingFactory
+@title LlamaLend Factory
 @notice Factory of non-rehypothecated lending vaults: collateral is not being lent out.
 @author Curve.fi
-@license Copyright (c) Curve.Fi, 2020-2024 - all rights reserved
+@license Copyright (c) Curve.Fi, 2020-2025 - all rights reserved
 """
 
 from vyper.interfaces import ERC20Detailed as ERC20

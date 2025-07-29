@@ -4,7 +4,7 @@
 """
 @title LlamaLend Controller
 @author Curve.Fi
-@license Copyright (c) Curve.Fi, 2020-2024 - all rights reserved
+@license Copyright (c) Curve.Fi, 2020-2025 - all rights reserved
 """
 
 interface LLAMMA:
