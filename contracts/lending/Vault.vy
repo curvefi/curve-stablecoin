@@ -22,19 +22,13 @@ interface ERC20:
     def name() -> String[64]: view
 
 interface AMM:
-    def set_admin(_admin: address): nonpayable
     def rate() -> uint256: view
 
 interface Controller:
     def total_debt() -> uint256: view
     def borrowed_balance() -> uint256: view
-    def monetary_policy() -> address: view
     def check_lock() -> bool: view
     def save_rate(): nonpayable
-
-interface PriceOracle:
-    def price() -> uint256: view
-    def price_w() -> uint256: nonpayable
 
 interface Factory:
     def admin() -> address: view
@@ -70,16 +64,6 @@ event Withdraw:
 event SetMaxSupply:
     max_supply: uint256
 
-
-# Limits
-MIN_A: constant(uint256) = 2
-MAX_A: constant(uint256) = 10000
-MIN_FEE: constant(uint256) = 10**6  # 1e-12, still needs to be above 0
-MAX_FEE: constant(uint256) = 10**17  # 10%
-MAX_LOAN_DISCOUNT: constant(uint256) = 5 * 10**17
-MIN_LIQUIDATION_DISCOUNT: constant(uint256) = 10**16
-ADMIN_FEE: constant(uint256) = 0
-
 # These are virtual shares from method proposed by OpenZeppelin
 # see: https://blog.openzeppelin.com/a-novel-defense-against-erc4626-inflation-attacks
 # and
@@ -88,9 +72,7 @@ DEAD_SHARES: constant(uint256) = 1000
 MIN_ASSETS: constant(uint256) = 10000
 
 borrowed_token: public(ERC20)
-collateral_token: public(ERC20)
 
-price_oracle: public(PriceOracle)
 amm: public(AMM)
 controller: public(Controller)
 factory: public(Factory)
@@ -99,7 +81,6 @@ maxSupply: public(uint256)
 
 deposited: public(uint256)  # cumulative amount of assets ever deposited
 withdrawn: public(uint256)  # cumulative amount of assets ever withdrawn
-
 
 # ERC20 publics
 
@@ -128,97 +109,26 @@ def __init__():
     self.borrowed_token = ERC20(0x0000000000000000000000000000000000000001)
 
 
-@internal
-@pure
-def ln_int(_x: uint256) -> int256:
-    """
-    @notice Logarithm ln() function based on log2. Not very gas-efficient but brief
-    """
-    # adapted from: https://medium.com/coinmonks/9aef8515136e
-    # and vyper log implementation
-    # This can be much more optimal but that's not important here
-    x: uint256 = _x
-    res: uint256 = 0
-    for i in range(8):
-        t: uint256 = 2**(7 - i)
-        p: uint256 = 2**t
-        if x >= p * 10**18:
-            x /= p
-            res += t * 10**18
-    d: uint256 = 10**18
-    for i in range(59):  # 18 decimals: math.log2(10**10) == 59.7
-        if (x >= 2 * 10**18):
-            res += d
-            x /= 2
-        x = x * x / 10**18
-        d /= 2
-    # Now res = log2(x)
-    # ln(x) = log2(x) / log2(e)
-    return convert(res * 10**18 / 1442695040888963328, int256)
-
-
 @external
 def initialize(
-        amm_impl: address,
-        controller_impl: address,
+        amm: AMM,
+        controller: Controller,
         borrowed_token: ERC20,
-        collateral_token: ERC20,
-        A: uint256,
-        fee: uint256,
-        price_oracle: PriceOracle,  # Factory makes from template if needed, deploying with a from_pool()
-        monetary_policy: address,  # Standard monetary policy set in factory
-        loan_discount: uint256,
-        liquidation_discount: uint256
-    ) -> (address, address):
+    ):
     """
     @notice Initializer for vaults
-    @param amm_impl AMM implementation (blueprint)
-    @param controller_impl Controller implementation (blueprint)
+    @param amm Address of the AMM
+    @param controller Address of the Controller
     @param borrowed_token Token which is being borrowed
-    @param collateral_token Token used for collateral
-    @param A Amplification coefficient: band size is ~1/A
-    @param fee Fee for swaps in AMM (for ETH markets found to be 0.6%)
-    @param price_oracle Already initialized price oracle
-    @param monetary_policy Already initialized monetary policy
-    @param loan_discount Maximum discount. LTV = sqrt(((A - 1) / A) ** 4) - loan_discount
-    @param liquidation_discount Liquidation discount. LT = sqrt(((A - 1) / A) ** 4) - liquidation_discount
     """
     assert self.borrowed_token.address == empty(address)
 
     self.borrowed_token = borrowed_token
-    self.collateral_token = collateral_token
-    self.price_oracle = price_oracle
-
-    assert A >= MIN_A and A <= MAX_A, "Wrong A"
-    assert fee <= MAX_FEE, "Fee too high"
-    assert fee >= MIN_FEE, "Fee too low"
-    assert liquidation_discount >= MIN_LIQUIDATION_DISCOUNT, "Liquidation discount too low"
-    assert loan_discount <= MAX_LOAN_DISCOUNT, "Loan discount too high"
-    assert loan_discount > liquidation_discount, "need loan_discount>liquidation_discount"
-
-    p: uint256 = price_oracle.price()  # This also validates price oracle ABI
-    assert p > 0
-    assert price_oracle.price_w() == p
-    A_ratio: uint256 = 10**18 * A / (A - 1)
-
     borrowed_precision: uint256 = 10**(18 - borrowed_token.decimals())
 
-    amm: address = create_from_blueprint(
-        amm_impl,
-        borrowed_token.address, borrowed_precision,
-        collateral_token.address, 10**(18 - collateral_token.decimals()),
-        A, isqrt(A_ratio * 10**18), self.ln_int(A_ratio),
-        p, fee, ADMIN_FEE, price_oracle.address,
-        code_offset=3)
-    controller: address = create_from_blueprint(
-        controller_impl,
-        empty(address), monetary_policy, loan_discount, liquidation_discount, amm,
-        code_offset=3)
-    AMM(amm).set_admin(controller)
-
-    self.amm = AMM(amm)
-    self.controller = Controller(controller)
     self.factory = Factory(msg.sender)
+    self.amm = amm
+    self.controller = controller
 
     # ERC20 set up
     self.precision = borrowed_precision
@@ -229,10 +139,6 @@ def initialize(
     self.symbol = concat(SYMBOL_PREFIX, borrowed_symbol)
 
     self.maxSupply = max_value(uint256)
-
-    # No events because it's the only market we would ever create in this contract
-
-    return controller, amm
 
 
 @external

@@ -40,13 +40,12 @@ interface MonetaryPolicy:
     def rate_write() -> uint256: nonpayable
 
 interface Vault:
-    def admin() -> address: view
-    def fee_receiver() -> address: view
-    def borrowed_token() -> address: view
-    def collateral_token() -> address: view
     def deposited() -> uint256: view
     def withdrawn() -> uint256: view
 
+interface Factory:
+    def admin() -> address: view
+    def fee_receiver() -> address: view
 
 event UserState:
     user: indexed(address)
@@ -121,7 +120,10 @@ struct CallbackData:
     collateral: uint256
 
 
+FACTORY: immutable(Factory)
 VAULT: immutable(Vault)
+AMM: immutable(LLAMMA)
+
 MAX_LOAN_DISCOUNT: constant(uint256) = 5 * 10**17
 MIN_LIQUIDATION_DISCOUNT: constant(uint256) = 10**16 # Start liquidating when threshold reached
 MAX_TICKS: constant(int256) = 50
@@ -156,7 +158,6 @@ COLLATERAL_PRECISION: immutable(uint256)
 BORROWED_TOKEN: immutable(ERC20)
 BORROWED_PRECISION: immutable(uint256)
 
-AMM: immutable(LLAMMA)
 A: immutable(uint256)
 Aminus1: immutable(uint256)
 LOGN_A_RATIO: immutable(int256)  # log(A / (A - 1))
@@ -180,21 +181,28 @@ admin_fee: public(uint256)
 
 @external
 def __init__(
+        vault: address,
+        amm: address,
+        borrowed_token: address,
         collateral_token: address,
         monetary_policy: address,
         loan_discount: uint256,
         liquidation_discount: uint256,
-        amm: address):
+):
     """
     @notice Controller constructor deployed by the factory from blueprint
+    @param vault Vault address (Already deployed as proxy)
+    @param amm AMM address (Already deployed from blueprint)
+    @param borrowed_token Token to use for borrowed
     @param collateral_token Token to use for collateral
     @param monetary_policy Address of monetary policy
     @param loan_discount Discount of the maximum loan size compare to get_x_down() value
     @param liquidation_discount Discount of the maximum loan size compare to
            get_x_down() for "bad liquidation" purposes
-    @param amm AMM address (Already deployed from blueprint)
     """
-    VAULT = Vault(msg.sender)
+    FACTORY = Factory(msg.sender)
+    VAULT = Vault(vault)
+    AMM = LLAMMA(amm)
 
     self.monetary_policy = MonetaryPolicy(monetary_policy)
 
@@ -202,19 +210,17 @@ def __init__(
     self.loan_discount = loan_discount
     self._total_debt.rate_mul = 10**18
 
-    AMM = LLAMMA(amm)
-    _A: uint256 = LLAMMA(amm).A()
-    A = _A
-    Aminus1 = unsafe_sub(_A, 1)
-    LOGN_A_RATIO = self.wad_ln(unsafe_div(_A * 10**18, unsafe_sub(_A, 1)))
+    A = amm.A()
+    Aminus1 = unsafe_sub(A, 1)
+    LOGN_A_RATIO = self.wad_ln(unsafe_div(A * 10**18, unsafe_sub(A, 1)))
     MAX_AMM_FEE = min(unsafe_div(10**18 * MIN_TICKS, A), 10**17)
 
-    COLLATERAL_TOKEN = ERC20(Vault(msg.sender).collateral_token())
-    BORROWED_TOKEN = ERC20(Vault(msg.sender).borrowed_token())
+    COLLATERAL_TOKEN = ERC20(collateral_token)
+    BORROWED_TOKEN = ERC20(borrowed_token)
     COLLATERAL_PRECISION = pow_mod256(10, 18 - COLLATERAL_TOKEN.decimals())
     BORROWED_PRECISION = pow_mod256(10, 18 - BORROWED_TOKEN.decimals())
 
-    SQRT_BAND_RATIO = isqrt(unsafe_div(10**36 * _A, unsafe_sub(_A, 1)))
+    SQRT_BAND_RATIO = isqrt(unsafe_div(10**36 * A, unsafe_sub(A, 1)))
 
     assert BORROWED_TOKEN.approve(msg.sender, max_value(uint256), default_return_value=True)
 
@@ -335,9 +341,18 @@ def wad_ln(x: uint256) -> int256:
 
 @external
 @pure
-def factory() -> Vault:
+def factory() -> Factory:
     """
     @notice Address of the factory
+    """
+    return FACTORY
+
+
+@external
+@pure
+def vault() -> Vault:
+    """
+    @notice Address of the vault
     """
     return VAULT
 
@@ -1323,7 +1338,7 @@ def set_amm_fee(fee: uint256):
     @notice Set the AMM fee (factory admin only)
     @param fee The fee which should be no higher than MAX_AMM_FEE
     """
-    assert msg.sender == VAULT.admin()
+    assert msg.sender == FACTORY.admin()
     assert fee <= MAX_AMM_FEE and fee >= MIN_AMM_FEE, "Fee"
     AMM.set_fee(fee)
 
@@ -1335,7 +1350,7 @@ def set_monetary_policy(monetary_policy: address):
     @notice Set monetary policy contract
     @param monetary_policy Address of the monetary policy contract
     """
-    assert msg.sender == VAULT.admin()
+    assert msg.sender == FACTORY.admin()
     self.monetary_policy = MonetaryPolicy(monetary_policy)
     MonetaryPolicy(monetary_policy).rate_write()
     log SetMonetaryPolicy(monetary_policy)
@@ -1349,7 +1364,7 @@ def set_borrowing_discounts(loan_discount: uint256, liquidation_discount: uint25
     @param loan_discount Discount which defines LTV
     @param liquidation_discount Discount where bad liquidation starts
     """
-    assert msg.sender == VAULT.admin()
+    assert msg.sender == FACTORY.admin()
     assert loan_discount > liquidation_discount
     assert liquidation_discount >= MIN_LIQUIDATION_DISCOUNT
     assert loan_discount <= MAX_LOAN_DISCOUNT
@@ -1364,7 +1379,7 @@ def set_callback(cb: address):
     """
     @notice Set liquidity mining callback
     """
-    assert msg.sender == VAULT.admin()
+    assert msg.sender == FACTORY.admin()
     AMM.set_callback(cb)
     log SetLMCallback(cb)
 
@@ -1377,7 +1392,7 @@ def set_borrow_cap(_borrow_cap: uint256):
     @dev Only callable by the factory admin
     @param _borrow_cap New borrow cap in units of borrowed_token
     """
-    assert msg.sender == VAULT.admin()
+    assert msg.sender == FACTORY.admin()
     self.borrow_cap = _borrow_cap
     log SetBorrowCap(_borrow_cap)
 
@@ -1387,7 +1402,7 @@ def set_admin_fee(admin_fee: uint256):
     """
     @param admin_fee The fee which should be no higher than MAX_ADMIN_FEE
     """
-    assert msg.sender == VAULT.admin()
+    assert msg.sender == FACTORY.admin()
     assert admin_fee <= MAX_ADMIN_FEE, "admin_fee is higher than MAX_ADMIN_FEE"
     self.admin_fee = admin_fee
 
@@ -1408,7 +1423,7 @@ def collect_fees() -> uint256:
     """
     @notice Collect the fees charged as a fraction of interest.
     """
-    _to: address = VAULT.fee_receiver()
+    _to: address = FACTORY.fee_receiver()
 
     # Borrowing-based fees
     rate_mul: uint256 = AMM.get_rate_mul()

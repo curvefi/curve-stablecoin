@@ -6,19 +6,11 @@
 @license Copyright (c) Curve.Fi, 2020-2024 - all rights reserved
 """
 
+from vyper.interfaces import ERC20Detailed as ERC20
+
+
 interface Vault:
-    def initialize(
-        amm_impl: address,
-        controller_impl: address,
-        borrowed_token: address,
-        collateral_token: address,
-        A: uint256,
-        fee: uint256,
-        price_oracle: address,
-        monetary_policy: address,
-        loan_discount: uint256,
-        liquidation_discount: uint256
-    ) -> (address, address): nonpayable
+    def initialize(amm: address, controller: address, borrowed_token: address): nonpayable
     def amm() -> address: view
     def controller() -> address: view
     def borrowed_token() -> address: view
@@ -30,15 +22,15 @@ interface Controller:
     def monetary_policy() -> address: view
 
 interface AMM:
-    def get_dy(i: uint256, j: uint256, in_amount: uint256) -> uint256: view
-    def get_dx(i: uint256, j: uint256, out_amount: uint256) -> uint256: view
-    def get_dydx(i: uint256, j: uint256, out_amount: uint256) -> (uint256, uint256): view
-    def exchange(i: uint256, j: uint256, in_amount: uint256, min_amount: uint256, _for: address) -> uint256[2]: nonpayable
-    def exchange_dy(i: uint256, j: uint256, out_amount: uint256, max_amount: uint256, _for: address) -> uint256[2]: nonpayable
+    def set_admin(_admin: address): nonpayable
 
 interface Pool:
     def price_oracle(i: uint256 = 0) -> uint256: view  # Universal method!
     def coins(i: uint256) -> address: view
+
+interface PriceOracle:
+    def price() -> uint256: view
+    def price_w() -> uint256: nonpayable
 
 
 event SetImplementations:
@@ -80,7 +72,12 @@ STABLECOIN: public(immutable(address))
 # Even governance cannot go beyond these rates before a new code is shipped
 MIN_RATE: public(constant(uint256)) = 10**15 / (365 * 86400)  # 0.1%
 MAX_RATE: public(constant(uint256)) = 10**19 / (365 * 86400)  # 1000%
-
+MIN_A: constant(uint256) = 2
+MAX_A: constant(uint256) = 10000
+MIN_FEE: constant(uint256) = 10**6  # 1e-12, still needs to be above 0
+MAX_FEE: constant(uint256) = 10**17  # 10%
+MAX_LOAN_DISCOUNT: constant(uint256) = 5 * 10**17
+MIN_LIQUIDATION_DISCOUNT: constant(uint256) = 10**16
 
 # Implementations which can be changed by governance
 amm_impl: public(address)
@@ -152,6 +149,35 @@ def __init__(
 
 
 @internal
+@pure
+def ln_int(_x: uint256) -> int256:
+    """
+    @notice Logarithm ln() function based on log2. Not very gas-efficient but brief
+    """
+    # adapted from: https://medium.com/coinmonks/9aef8515136e
+    # and vyper log implementation
+    # This can be much more optimal but that's not important here
+    x: uint256 = _x
+    res: uint256 = 0
+    for i in range(8):
+        t: uint256 = 2**(7 - i)
+        p: uint256 = 2**t
+        if x >= p * 10**18:
+            x /= p
+            res += t * 10**18
+    d: uint256 = 10**18
+    for i in range(59):  # 18 decimals: math.log2(10**10) == 59.7
+        if (x >= 2 * 10**18):
+            res += d
+            x /= 2
+        x = x * x / 10**18
+        d /= 2
+    # Now res = log2(x)
+    # ln(x) = log2(x) / log2(e)
+    return convert(res * 10**18 / 1442695040888963328, int256)
+
+
+@internal
 def _create(
         borrowed_token: address,
         collateral_token: address,
@@ -163,13 +189,18 @@ def _create(
         name: String[64],
         min_borrow_rate: uint256,
         max_borrow_rate: uint256
-    ) -> Vault:
+    ) -> address[3]:
     """
     @notice Internal method for creation of the vault
     """
     assert borrowed_token != collateral_token, "Same token"
     assert borrowed_token == STABLECOIN or collateral_token == STABLECOIN
-    vault: Vault = Vault(create_minimal_proxy_to(self.vault_impl))
+    assert A >= MIN_A and A <= MAX_A, "Wrong A"
+    assert fee <= MAX_FEE, "Fee too high"
+    assert fee >= MIN_FEE, "Fee too low"
+    assert liquidation_discount >= MIN_LIQUIDATION_DISCOUNT, "Liquidation discount too low"
+    assert loan_discount <= MAX_LOAN_DISCOUNT, "Loan discount too high"
+    assert loan_discount > liquidation_discount, "need loan_discount>liquidation_discount"
 
     min_rate: uint256 = self.min_default_borrow_rate
     max_rate: uint256 = self.max_default_borrow_rate
@@ -181,19 +212,32 @@ def _create(
     monetary_policy: address = create_from_blueprint(
         self.monetary_policy_impl, borrowed_token, min_rate, max_rate, code_offset=3)
 
-    controller: address = empty(address)
-    amm: address = empty(address)
-    controller, amm = vault.initialize(
-        self.amm_impl, self.controller_impl,
+    A_ratio: uint256 = 10**18 * A / (A - 1)
+    p: uint256 = PriceOracle(price_oracle).price()  # This also validates price oracle ABI
+    assert p > 0
+    assert PriceOracle(price_oracle).price_w() == p
+
+    vault: Vault = Vault(create_minimal_proxy_to(self.vault_impl))
+    amm: address = create_from_blueprint(
+        self.amm_impl,
+        borrowed_token, 10**(18 - ERC20(borrowed_token).decimals()),
+        collateral_token, 10**(18 - ERC20(collateral_token).decimals()),
+        A, isqrt(A_ratio * 10**18), self.ln_int(A_ratio),
+        p, fee, convert(0, uint256), price_oracle,
+        code_offset=3)
+    controller: address = create_from_blueprint(
+        self.controller_impl,
+        vault, amm,
         borrowed_token, collateral_token,
-        A, fee,
-        price_oracle,
-        monetary_policy,
-        loan_discount, liquidation_discount
-    )
+        monetary_policy, loan_discount, liquidation_discount,
+        code_offset=3)
+    AMM(amm).set_admin(controller)
+
+    vault.initialize(amm, controller, borrowed_token)
 
     market_count: uint256 = self.market_count
-    log NewVault(market_count, collateral_token, borrowed_token, vault.address, controller, amm, price_oracle, monetary_policy)
+    log NewVault(market_count, collateral_token, borrowed_token,
+                 vault.address, controller, amm, price_oracle, monetary_policy)
     self.vaults[market_count] = vault
     self.amms[market_count] = AMM(amm)
     self._vaults_index[vault] = market_count + 2**128
@@ -208,7 +252,7 @@ def _create(
     self.token_to_vaults[token][market_count] = vault
     self.token_market_count[token] = market_count + 1
 
-    return vault
+    return [vault.address, controller, amm]
 
 
 @external
@@ -225,7 +269,7 @@ def create(
         min_borrow_rate: uint256 = 0,
         max_borrow_rate: uint256 = 0,
         supply_limit: uint256 = max_value(uint256)
-    ) -> Vault:
+    ) -> address[3]:
     """
     @notice Creation of the vault using user-supplied price oracle contract
     @param borrowed_token Token which is being borrowed
@@ -240,11 +284,12 @@ def create(
     @param max_borrow_rate Custom maximum borrow rate (otherwise max_default_borrow_rate)
     @param supply_limit Supply cap
     """
-    vault: Vault = self._create(borrowed_token, collateral_token, A, fee, loan_discount, liquidation_discount,
+    res: address[3] = self._create(borrowed_token, collateral_token, A, fee, loan_discount, liquidation_discount,
                                 price_oracle, name, min_borrow_rate, max_borrow_rate)
     if supply_limit < max_value(uint256):
-        vault.set_max_supply(supply_limit)
-    return vault
+        Vault(res[0]).set_max_supply(supply_limit)
+
+    return res
 
 
 @external
@@ -261,7 +306,7 @@ def create_from_pool(
         min_borrow_rate: uint256 = 0,
         max_borrow_rate: uint256 = 0,
         supply_limit: uint256 = max_value(uint256)
-    ) -> Vault:
+    ) -> address[3]:
     """
     @notice Creation of the vault using existing oraclized Curve pool as a price oracle
     @param borrowed_token Token which is being borrowed
@@ -301,11 +346,14 @@ def create_from_pool(
     price_oracle: address = create_from_blueprint(
         self.pool_price_oracle_impl, pool, N, borrowed_ix, collateral_ix, code_offset=3)
 
-    vault: Vault = self._create(borrowed_token, collateral_token, A, fee, loan_discount, liquidation_discount,
-                                price_oracle, name, min_borrow_rate, max_borrow_rate)
+    res: address[3] = self._create(
+        borrowed_token, collateral_token, A, fee, loan_discount, liquidation_discount,
+        price_oracle, name, min_borrow_rate, max_borrow_rate,
+    )
     if supply_limit < max_value(uint256):
-        vault.set_max_supply(supply_limit)
-    return vault
+        Vault(res[0]).set_max_supply(supply_limit)
+
+    return res
 
 
 @view
