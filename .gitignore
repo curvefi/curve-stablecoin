@@ -19,3 +19,4 @@ venv
 /scripts/networks.py
 /brownie-deploy-emas/build
 .coverage
+.claude
