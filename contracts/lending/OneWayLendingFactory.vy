@@ -2,7 +2,6 @@
 """
 @title OneWayLendingFactory
 @notice Factory of non-rehypothecated lending vaults: collateral is not being lent out.
-       Although Vault.vy allows both, we should have this simpler version and rehypothecating version.
 @author Curve.fi
 @license Copyright (c) Curve.Fi, 2020-2024 - all rights reserved
 """
@@ -57,6 +56,9 @@ event SetDefaultRates:
 event SetAdmin:
     admin: address
 
+event SetFeeReceiver:
+    fee_receiver: address
+
 event NewVault:
     id: indexed(uint256)
     collateral_token: indexed(address)
@@ -95,6 +97,7 @@ max_default_borrow_rate: public(uint256)
 
 # Admin is supposed to be the DAO
 admin: public(address)
+fee_receiver: public(address)
 
 # Vaults can only be created but not removed
 vaults: public(Vault[10**18])
@@ -119,7 +122,9 @@ def __init__(
         pool_price_oracle: address,
         monetary_policy: address,
         gauge: address,
-        admin: address):
+        admin: address,
+        fee_receiver: address,
+):
     """
     @notice Factory which creates one-way lending vaults (e.g. collateral is non-borrowable)
     @param stablecoin Address of crvUSD. Only crvUSD-containing markets are allowed
@@ -129,6 +134,7 @@ def __init__(
     @param monetary_policy Address for implementation of monetary policy
     @param gauge Address for gauge implementation
     @param admin Admin address (DAO)
+    @param fee_receiver Receiver of interest and admin fees
     """
     STABLECOIN = stablecoin
     self.amm_impl = amm
@@ -142,6 +148,7 @@ def __init__(
     self.max_default_borrow_rate = 50 * 10**16 / (365 * 86400)
 
     self.admin = admin
+    self.fee_receiver = fee_receiver
 
 
 @internal
@@ -426,6 +433,19 @@ def set_admin(admin: address):
     assert msg.sender == self.admin
     self.admin = admin
     log SetAdmin(admin)
+
+
+@external
+@nonreentrant('lock')
+def set_fee_receiver(fee_receiver: address):
+    """
+    @notice Set fee receiver who earns interest (DAO)
+    @param fee_receiver Address of the receiver
+    """
+    assert msg.sender == self.admin
+    assert fee_receiver != empty(address)
+    self.fee_receiver = fee_receiver
+    log SetFeeReceiver(fee_receiver)
 
 
 @external
