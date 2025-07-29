@@ -94,7 +94,6 @@ fee_receiver: public(address)
 
 # Vaults can only be created but not removed
 vaults: public(Vault[10**18])
-amms: public(AMM[10**18])
 _vaults_index: HashMap[Vault, uint256]
 market_count: public(uint256)
 
@@ -231,7 +230,6 @@ def _create(
     log NewVault(market_count, collateral_token, borrowed_token,
                  vault.address, controller, amm, price_oracle, monetary_policy)
     self.vaults[market_count] = vault
-    self.amms[market_count] = AMM(amm)
     self._vaults_index[vault] = market_count + 2**128
     self.names[market_count] = name
 
@@ -352,6 +350,12 @@ def create_from_pool(
 @external
 def controllers(n: uint256) -> address:
     return self.vaults[n].controller()
+
+
+@view
+@external
+def amms(n: uint256) -> address:
+    return self.vaults[n].amm()
 
 
 @view
