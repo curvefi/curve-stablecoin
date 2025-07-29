@@ -75,6 +75,7 @@ DEAD_SHARES: constant(uint256) = 1000
 MIN_ASSETS: constant(uint256) = 10000
 
 borrowed_token: public(ERC20)
+collateral_token: public(ERC20)
 
 amm: public(AMM)
 controller: public(Controller)
@@ -117,17 +118,20 @@ def initialize(
         amm: AMM,
         controller: Controller,
         borrowed_token: ERC20,
+        collateral_token: ERC20,
     ):
     """
     @notice Initializer for vaults
     @param amm Address of the AMM
     @param controller Address of the Controller
     @param borrowed_token Token which is being borrowed
+    @param collateral_token Token which is being collateral
     """
     assert self.borrowed_token.address == empty(address)
 
     self.borrowed_token = borrowed_token
     borrowed_precision: uint256 = 10**(18 - borrowed_token.decimals())
+    self.collateral_token = collateral_token
 
     self.factory = Factory(msg.sender)
     self.amm = amm

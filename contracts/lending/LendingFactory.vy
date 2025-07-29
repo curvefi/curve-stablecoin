@@ -12,7 +12,7 @@ from vyper.interfaces import ERC20Detailed as ERC20
 
 
 interface Vault:
-    def initialize(amm: address, controller: address, borrowed_token: address): nonpayable
+    def initialize(amm: address, controller: address, borrowed_token: address, collateral_token: address): nonpayable
     def amm() -> address: view
     def controller() -> address: view
     def borrowed_token() -> address: view
@@ -224,7 +224,7 @@ def _create(
         code_offset=3)
     AMM(amm).set_admin(controller)
 
-    vault.initialize(amm, controller, borrowed_token)
+    vault.initialize(amm, controller, borrowed_token, collateral_token)
 
     market_count: uint256 = self.market_count
     log NewVault(market_count, collateral_token, borrowed_token,
