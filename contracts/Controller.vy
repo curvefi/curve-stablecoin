@@ -320,26 +320,6 @@ def _get_total_debt() -> uint256:
     return loan.initial_debt * rate_mul // loan.rate_mul
 
 
-@internal
-def _update_total_debt(d_debt: uint256, rate_mul: uint256, is_increase: bool) -> Loan:
-    """
-    @param d_debt Change in debt amount (unsigned)
-    @param rate_mul New rate_mul
-    @param is_increase Whether debt increases or decreases
-    @notice Update total debt of this controller
-    """
-    loan: Loan = self._total_debt
-    loan.initial_debt = loan.initial_debt * rate_mul // loan.rate_mul
-    if is_increase:
-        loan.initial_debt += d_debt
-        assert loan.initial_debt <= self.borrow_cap, "Borrow cap exceeded"
-    else:
-        loan.initial_debt = unsafe_sub(max(loan.initial_debt, d_debt), d_debt)
-    loan.rate_mul = rate_mul
-    self._total_debt = loan
-
-    return loan
-
 # No decorator because used in monetary policy
 @external
 @view 
@@ -822,8 +802,8 @@ def repay(_d_debt: uint256, _for: address = msg.sender, max_active_band: int256 
             self.transfer(BORROWED_TOKEN, _for, unsafe_sub(total_stablecoins, d_debt))
         # Transfer collateral to _for
         if callbacker == empty(address):
-        if xy[1] > 0:
-            self.transferFrom(COLLATERAL_TOKEN, AMM.address, _for, xy[1])
+            if xy[1] > 0:
+                self.transferFrom(COLLATERAL_TOKEN, AMM.address, _for, xy[1])
         else:
             if cb.collateral > 0:
                 self.transferFrom(COLLATERAL_TOKEN, callbacker, _for, cb.collateral)
@@ -856,10 +836,10 @@ def repay(_d_debt: uint256, _for: address = msg.sender, max_active_band: int256 
             xy = staticcall AMM.get_sum_xy(_for)
             assert callbacker == empty(address)
 
-            if approval:
-                # Update liquidation discount only if we are that same user. No rugs
-                liquidation_discount = self.liquidation_discount
-                self.liquidation_discounts[_for] = liquidation_discount
+        if approval:
+            # Update liquidation discount only if we are that same user. No rugs
+            liquidation_discount = self.liquidation_discount
+            self.liquidation_discounts[_for] = liquidation_discount
         else:
             # Doesn't allow non-sender to repay in a way which ends with unhealthy state
             # full = False to make this condition non-manipulatable (and also cheaper on gas)
