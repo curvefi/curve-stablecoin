@@ -1,0 +1,304 @@
+from contracts.interfaces import ILMGauge
+from contracts.interfaces import IPriceOracle
+# Structs
+
+struct UserTicks:
+    ns: int256
+    ticks: uint256[25]
+
+
+struct DetailedTrade:
+    in_amount: uint256
+    out_amount: uint256
+    n1: int256
+    n2: int256
+    ticks_in: DynArray[uint256, 50]
+    last_tick_j: uint256
+
+
+# Events
+
+event TokenExchange:
+    buyer: address
+    sold_id: uint256
+    tokens_sold: uint256
+    bought_id: uint256
+    tokens_bought: uint256
+
+
+event Deposit:
+    provider: address
+    amount: uint256
+    n1: int256
+    n2: int256
+
+
+event Withdraw:
+    provider: address
+    amount_borrowed: uint256
+    amount_collateral: uint256
+
+
+event SetRate:
+    rate: uint256
+    rate_mul: uint256
+    time: uint256
+
+
+event SetFee:
+    fee: uint256
+
+
+# Functions
+
+@external
+def set_admin(_admin: address):
+    ...
+
+
+@view
+@external
+def coins(i: uint256) -> address:
+    ...
+
+
+@view
+@external
+def price_oracle() -> uint256:
+    ...
+
+
+@view
+@external
+def dynamic_fee() -> uint256:
+    ...
+
+
+@view
+@external
+def get_rate_mul() -> uint256:
+    ...
+
+
+@view
+@external
+def get_base_price() -> uint256:
+    ...
+
+
+@view
+@external
+def p_current_up(n: int256) -> uint256:
+    ...
+
+
+@view
+@external
+def p_current_down(n: int256) -> uint256:
+    ...
+
+
+@view
+@external
+def p_oracle_up(n: int256) -> uint256:
+    ...
+
+
+@view
+@external
+def p_oracle_down(n: int256) -> uint256:
+    ...
+
+
+@view
+@external
+def get_p() -> uint256:
+    ...
+
+
+@view
+@external
+def read_user_tick_numbers(user: address) -> int256[2]:
+    ...
+
+
+@view
+@external
+def can_skip_bands(n_end: int256) -> bool:
+    ...
+
+
+@view
+@external
+def active_band_with_skip() -> int256:
+    ...
+
+
+@view
+@external
+def has_liquidity(user: address) -> bool:
+    ...
+
+
+@external
+def deposit_range(user: address, amount: uint256, n1: int256, n2: int256):
+    ...
+
+
+@external
+def withdraw(user: address, frac: uint256) -> uint256[2]:
+    ...
+
+
+@view
+@external
+def get_dy(i: uint256, j: uint256, in_amount: uint256) -> uint256:
+    ...
+
+
+@view
+@external
+def get_dxdy(i: uint256, j: uint256, in_amount: uint256) -> (uint256, uint256):
+    ...
+
+
+@view
+@external
+def get_dx(i: uint256, j: uint256, out_amount: uint256) -> uint256:
+    ...
+
+
+@view
+@external
+def get_dydx(i: uint256, j: uint256, out_amount: uint256) -> (uint256, uint256):
+    ...
+
+
+@external
+def exchange(i: uint256, j: uint256, in_amount: uint256, min_amount: uint256, _for: address) -> uint256[2]:
+    ...
+
+
+@external
+def exchange_dy(i: uint256, j: uint256, out_amount: uint256, max_amount: uint256, _for: address) -> uint256[2]:
+    ...
+
+
+@view
+@external
+def get_y_up(user: address) -> uint256:
+    ...
+
+
+@view
+@external
+def get_x_down(user: address) -> uint256:
+    ...
+
+
+@view
+@external
+def get_sum_xy(user: address) -> uint256[2]:
+    ...
+
+
+@view
+@external
+def get_xy(user: address) -> DynArray[uint256, 50][2]:
+    ...
+
+
+@view
+@external
+def get_amount_for_price(p: uint256) -> (uint256, bool):
+    ...
+
+
+@external
+def set_rate(rate: uint256) -> uint256:
+    ...
+
+
+@external
+def set_fee(fee: uint256):
+    ...
+
+
+@external
+def set_callback(liquidity_mining_callback: ILMGauge):
+    ...
+
+
+@view
+@external
+def admin() -> address:
+    ...
+
+
+@view
+@external
+def A() -> uint256:
+    ...
+
+
+@view
+@external
+def fee() -> uint256:
+    ...
+
+
+@view
+@external
+def rate() -> uint256:
+    ...
+
+
+@view
+@external
+def active_band() -> int256:
+    ...
+
+
+@view
+@external
+def min_band() -> int256:
+    ...
+
+
+@view
+@external
+def max_band() -> int256:
+    ...
+
+
+# TODO check with vyper team
+# @view
+# @external
+# def price_oracle_contract() -> IPriceOracle:
+    # ...
+
+
+@view
+@external
+def bands_x(arg0: int256) -> uint256:
+    ...
+
+
+@view
+@external
+def bands_y(arg0: int256) -> uint256:
+    ...
+
+
+# TODO check with vyper team
+# @view
+# @external
+# def user_shares(arg0: address) -> UserTicks:
+    # ...
+
+# TODO check with vyper team
+# @view
+# @external
+# def liquidity_mining_callback() -> ILMGauge:
+    # ...
+

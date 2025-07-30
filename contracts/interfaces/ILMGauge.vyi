@@ -1,0 +1,8 @@
+# TODO import this one?
+MAX_TICKS_UINT: constant(uint256) = 50
+
+def callback_collateral_shares(n: int256, collateral_per_share: DynArray[uint256, MAX_TICKS_UINT], size: uint256):
+    ...
+
+def callback_user_shares(user: address, n: int256, user_shares: DynArray[uint256, MAX_TICKS_UINT], size: uint256): 
+    ...

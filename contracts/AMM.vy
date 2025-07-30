@@ -34,52 +34,18 @@
 # (f + x) * (g + y) = Inv = p_oracle * A**2 * y0**2
 # =======================
 
-interface ERC20:
-    def transfer(_to: address, _value: uint256) -> bool: nonpayable
-    def transferFrom(_from: address, _to: address, _value: uint256) -> bool: nonpayable
-    def approve(_spender: address, _value: uint256) -> bool: nonpayable
+from contracts.interfaces import IAMM
+implements: IAMM
 
-interface PriceOracle:
-    def price() -> uint256: view
-    def price_w() -> uint256: nonpayable
+from contracts.interfaces import IPriceOracle
+from contracts.interfaces import ILMGauge
 
-interface LMGauge:
-    def callback_collateral_shares(n: int256, collateral_per_share: DynArray[uint256, MAX_TICKS_UINT], size: uint256): nonpayable
-    def callback_user_shares(user: address, n: int256, user_shares: DynArray[uint256, MAX_TICKS_UINT], size: uint256): nonpayable
-
-
-event TokenExchange:
-    buyer: indexed(address)
-    sold_id: uint256
-    tokens_sold: uint256
-    bought_id: uint256
-    tokens_bought: uint256
-
-event Deposit:
-    provider: indexed(address)
-    amount: uint256
-    n1: int256
-    n2: int256
-
-event Withdraw:
-    provider: indexed(address)
-    amount_borrowed: uint256
-    amount_collateral: uint256
-
-event SetRate:
-    rate: uint256
-    rate_mul: uint256
-    time: uint256
-
-event SetFee:
-    fee: uint256
-
+from ethereum.ercs import IERC20
 
 MAX_TICKS: constant(int256) = 50
 MAX_TICKS_UINT: constant(uint256) = 50
 MAX_SKIP_TICKS: constant(int256) = 1024
 MAX_SKIP_TICKS_UINT: constant(uint256) = 1024
-
 
 struct UserTicks:
     ns: int256  # packs n1 and n2, each is int128
@@ -94,9 +60,9 @@ struct DetailedTrade:
     last_tick_j: uint256
 
 
-BORROWED_TOKEN: immutable(ERC20)    # x
+BORROWED_TOKEN: immutable(IERC20)    # x
 BORROWED_PRECISION: immutable(uint256)
-COLLATERAL_TOKEN: immutable(ERC20)  # y
+COLLATERAL_TOKEN: immutable(IERC20)  # y
 COLLATERAL_PRECISION: immutable(uint256)
 BASE_PRICE: immutable(uint256)
 admin: public(address)
@@ -117,7 +83,7 @@ active_band: public(int256)
 min_band: public(int256)
 max_band: public(int256)
 
-price_oracle_contract: public(immutable(PriceOracle))
+price_oracle_contract: public(immutable(IPriceOracle))
 old_p_o: uint256
 old_dfee: uint256
 prev_p_o_time: uint256
@@ -131,7 +97,7 @@ total_shares: HashMap[int256, uint256]
 user_shares: public(HashMap[address, UserTicks])
 DEAD_SHARES: constant(uint256) = 1000
 
-liquidity_mining_callback: public(LMGauge)
+liquidity_mining_callback: public(ILMGauge)
 
 
 @deploy
@@ -162,9 +128,9 @@ def __init__(
     @param _price_oracle_contract External price oracle which has price() and price_w() methods
            which both return current price of collateral multiplied by 1e18
     """
-    BORROWED_TOKEN = ERC20(_borrowed_token)
+    BORROWED_TOKEN = IERC20(_borrowed_token)
     BORROWED_PRECISION = _borrowed_precision
-    COLLATERAL_TOKEN = ERC20(_collateral_token)
+    COLLATERAL_TOKEN = IERC20(_collateral_token)
     COLLATERAL_PRECISION = _collateral_precision
     A = _A
     BASE_PRICE = _base_price
@@ -174,7 +140,7 @@ def __init__(
     Aminus12 = pow_mod256(unsafe_sub(A, 1), 2)
 
     self.fee = fee
-    price_oracle_contract = PriceOracle(_price_oracle_contract)
+    price_oracle_contract = IPriceOracle(_price_oracle_contract)
     self.prev_p_o_time = block.timestamp
     self.old_p_o = staticcall price_oracle_contract.price()
 
@@ -194,7 +160,7 @@ def __init__(
 
 
 @internal
-def approve_max(token: ERC20, _admin: address):
+def approve_max(token: IERC20, _admin: address):
     """
     Approve max in a separate function because it uses less bytespace than
     calling directly, and gas doesn't matter in set_admin
@@ -703,7 +669,7 @@ def deposit_range(user: address, amount: uint256, n1: int256, n2: int256):
     assert self.user_shares[user].ticks[0] == 0  # dev: User must have no liquidity
     self.user_shares[user].ns = unsafe_add(n1, unsafe_mul(n2, 2**128))
 
-    lm: LMGauge = self.liquidity_mining_callback
+    lm: ILMGauge = self.liquidity_mining_callback
 
     # Autoskip bands if we can
     for i: uint256 in range(MAX_SKIP_TICKS_UINT + 1):
@@ -747,7 +713,7 @@ def deposit_range(user: address, amount: uint256, n1: int256, n2: int256):
 
     self.save_user_shares(user, user_shares)
 
-    log Deposit(provider=user, amount=amount, n1=n1, n2=n2)
+    log IAMM.Deposit(provider=user, amount=amount, n1=n1, n2=n2)
 
     if lm.address != empty(address):
         success: bool = False
@@ -774,7 +740,7 @@ def withdraw(user: address, frac: uint256) -> uint256[2]:
     assert msg.sender == self.admin
     assert frac <= 10**18
 
-    lm: LMGauge = self.liquidity_mining_callback
+    lm: ILMGauge = self.liquidity_mining_callback
 
     ns: int256[2] = self._read_user_tick_numbers(user)
     n: int256 = ns[0]
@@ -840,7 +806,7 @@ def withdraw(user: address, frac: uint256) -> uint256[2]:
 
     total_x = unsafe_div(total_x, BORROWED_PRECISION)
     total_y = unsafe_div(total_y, COLLATERAL_PRECISION)
-    log Withdraw(provider=user, amount_borrowed=total_x, amount_collateral=total_y)
+    log IAMM.Withdraw(provider=user, amount_borrowed=total_x, amount_collateral=total_y)
 
     if lm.address != empty(address):
         success: bool = False
@@ -1080,11 +1046,11 @@ def _exchange(i: uint256, j: uint256, amount: uint256, minmax_amount: uint256, _
     if amount == 0:
         return [0, 0]
 
-    lm: LMGauge = self.liquidity_mining_callback
+    lm: ILMGauge = self.liquidity_mining_callback
     collateral_shares: DynArray[uint256, MAX_TICKS_UINT] = []
 
-    in_coin: ERC20 = BORROWED_TOKEN
-    out_coin: ERC20 = COLLATERAL_TOKEN
+    in_coin: IERC20 = BORROWED_TOKEN
+    out_coin: IERC20 = COLLATERAL_TOKEN
     in_precision: uint256 = BORROWED_PRECISION
     out_precision: uint256 = COLLATERAL_PRECISION
     if i == 1:
@@ -1138,7 +1104,7 @@ def _exchange(i: uint256, j: uint256, amount: uint256, minmax_amount: uint256, _
 
     self.active_band = out.n2
 
-    log TokenExchange(buyer=_for, sold_id=i, tokens_sold=in_amount_done, bought_id=j, tokens_bought=out_amount_done)
+    log IAMM.TokenExchange(buyer=_for, sold_id=i, tokens_sold=in_amount_done, bought_id=j, tokens_bought=out_amount_done)
 
     if lm.address != empty(address):
         success: bool = False
@@ -1701,7 +1667,7 @@ def set_rate(rate: uint256) -> uint256:
     self.rate_mul = rate_mul
     self.rate_time = block.timestamp
     self.rate = rate
-    log SetRate(rate=rate, rate_mul=rate_mul, time=block.timestamp)
+    log IAMM.SetRate(rate=rate, rate_mul=rate_mul, time=block.timestamp)
     return rate_mul
 
 
@@ -1714,12 +1680,12 @@ def set_fee(fee: uint256):
     """
     assert msg.sender == self.admin
     self.fee = fee
-    log SetFee(fee=fee)
+    log IAMM.SetFee(fee=fee)
 
 
 # nonreentrant decorator is in Controller which is admin
 @external
-def set_callback(liquidity_mining_callback: LMGauge):
+def set_callback(liquidity_mining_callback: ILMGauge):
     """
     @notice Set a gauge address with callbacks for liquidity mining for collateral
     @param liquidity_mining_callback Gauge address
