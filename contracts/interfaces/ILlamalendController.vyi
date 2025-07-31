@@ -1,0 +1,2 @@
+event SetBorrowCap:
+    borrow_cap: uint256

@@ -271,11 +271,10 @@ def max_band() -> int256:
     ...
 
 
-# TODO check with vyper team
-# @view
-# @external
-# def price_oracle_contract() -> IPriceOracle:
-    # ...
+@view
+@external
+def price_oracle_contract() -> IPriceOracle:
+    ...
 
 
 @view
@@ -290,15 +289,14 @@ def bands_y(arg0: int256) -> uint256:
     ...
 
 
-# TODO check with vyper team
-# @view
-# @external
-# def user_shares(arg0: address) -> UserTicks:
-    # ...
+@view
+@external
+def user_shares(arg0: address) -> UserTicks:
+    ...
 
-# TODO check with vyper team
-# @view
-# @external
-# def liquidity_mining_callback() -> ILMGauge:
-    # ...
+
+@view
+@external
+def liquidity_mining_callback() -> ILMGauge:
+    ...
 

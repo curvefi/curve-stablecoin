@@ -1,5 +1,5 @@
-# TODO import this one?
-MAX_TICKS_UINT: constant(uint256) = 50
+from contracts import constants as c
+MAX_TICKS_UINT: constant(uint256) = c.MAX_TICKS_UINT
 
 def callback_collateral_shares(n: int256, collateral_per_share: DynArray[uint256, MAX_TICKS_UINT], size: uint256):
     ...

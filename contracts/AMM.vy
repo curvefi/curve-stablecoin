@@ -42,22 +42,16 @@ from contracts.interfaces import ILMGauge
 
 from ethereum.ercs import IERC20
 
+from contracts import constants as c
+
+
+# TODO common constants
 MAX_TICKS: constant(int256) = 50
-MAX_TICKS_UINT: constant(uint256) = 50
+MAX_TICKS_UINT: constant(uint256) = c.MAX_TICKS_UINT
 MAX_SKIP_TICKS: constant(int256) = 1024
 MAX_SKIP_TICKS_UINT: constant(uint256) = 1024
-
-struct UserTicks:
-    ns: int256  # packs n1 and n2, each is int128
-    ticks: uint256[MAX_TICKS_UINT // 2]  # Share fractions packed 2 per slot
-
-struct DetailedTrade:
-    in_amount: uint256
-    out_amount: uint256
-    n1: int256
-    n2: int256
-    ticks_in: DynArray[uint256, MAX_TICKS_UINT]
-    last_tick_j: uint256
+# TODO create vyper issue
+DEAD_SHARES: constant(uint256) = c.DEAD_SHARES
 
 
 BORROWED_TOKEN: immutable(IERC20)    # x
@@ -83,7 +77,15 @@ active_band: public(int256)
 min_band: public(int256)
 max_band: public(int256)
 
-price_oracle_contract: public(immutable(IPriceOracle))
+_price_oracle_contract: immutable(IPriceOracle)
+
+# TODO This is a workaround for a compiler bug
+@view
+@external
+def price_oracle_contract() -> IPriceOracle:
+    return _price_oracle_contract
+
+
 old_p_o: uint256
 old_dfee: uint256
 prev_p_o_time: uint256
@@ -94,10 +96,17 @@ bands_x: public(HashMap[int256, uint256])
 bands_y: public(HashMap[int256, uint256])
 
 total_shares: HashMap[int256, uint256]
-user_shares: public(HashMap[address, UserTicks])
-DEAD_SHARES: constant(uint256) = 1000
+user_shares: public(HashMap[address, IAMM.UserTicks])
 
-liquidity_mining_callback: public(ILMGauge)
+
+_liquidity_mining_callback: ILMGauge
+
+# TODO compiler bug workaround
+# TODO report issue
+@view
+@external
+def liquidity_mining_callback() -> ILMGauge:
+    return self._liquidity_mining_callback
 
 
 @deploy
@@ -112,7 +121,7 @@ def __init__(
         _base_price: uint256,
         fee: uint256,
         admin_fee: uint256,
-        _price_oracle_contract: address,
+        price_oracle_contract: address,
     ):
     """
     @notice LLAMMA constructor
@@ -140,9 +149,9 @@ def __init__(
     Aminus12 = pow_mod256(unsafe_sub(A, 1), 2)
 
     self.fee = fee
-    price_oracle_contract = IPriceOracle(_price_oracle_contract)
+    _price_oracle_contract = IPriceOracle(price_oracle_contract)
     self.prev_p_o_time = block.timestamp
-    self.old_p_o = staticcall price_oracle_contract.price()
+    self.old_p_o = staticcall _price_oracle_contract.price()
 
     self.rate_mul = 10**18
 
@@ -265,12 +274,12 @@ def get_dynamic_fee(p_o: uint256, p_o_up: uint256) -> uint256:
 @internal
 @view
 def _price_oracle_ro() -> uint256[2]:
-    return self.limit_p_o(staticcall price_oracle_contract.price())
+    return self.limit_p_o(staticcall _price_oracle_contract.price())
 
 
 @internal
 def _price_oracle_w() -> uint256[2]:
-    p: uint256[2] = self.limit_p_o(extcall price_oracle_contract.price_w())
+    p: uint256[2] = self.limit_p_o(extcall _price_oracle_contract.price_w())
     self.prev_p_o_time = block.timestamp
     self.old_p_o = p[0]
     self.old_dfee = p[1]
@@ -669,7 +678,7 @@ def deposit_range(user: address, amount: uint256, n1: int256, n2: int256):
     assert self.user_shares[user].ticks[0] == 0  # dev: User must have no liquidity
     self.user_shares[user].ns = unsafe_add(n1, unsafe_mul(n2, 2**128))
 
-    lm: ILMGauge = self.liquidity_mining_callback
+    lm: ILMGauge = self._liquidity_mining_callback
 
     # Autoskip bands if we can
     for i: uint256 in range(MAX_SKIP_TICKS_UINT + 1):
@@ -740,7 +749,7 @@ def withdraw(user: address, frac: uint256) -> uint256[2]:
     assert msg.sender == self.admin
     assert frac <= 10**18
 
-    lm: ILMGauge = self.liquidity_mining_callback
+    lm: ILMGauge = self._liquidity_mining_callback
 
     ns: int256[2] = self._read_user_tick_numbers(user)
     n: int256 = ns[0]
@@ -825,7 +834,7 @@ def withdraw(user: address, frac: uint256) -> uint256[2]:
 
 @internal
 @view
-def calc_swap_out(pump: bool, in_amount: uint256, p_o: uint256[2], in_precision: uint256, out_precision: uint256) -> DetailedTrade:
+def calc_swap_out(pump: bool, in_amount: uint256, p_o: uint256[2], in_precision: uint256, out_precision: uint256) -> IAMM.DetailedTrade:
     """
     @notice Calculate the amount which can be obtained as a result of exchange.
             If couldn't exchange all - will also update the amount which was actually used.
@@ -842,7 +851,7 @@ def calc_swap_out(pump: bool, in_amount: uint256, p_o: uint256[2], in_precision:
     # pump = False: collateral (ETH) in, borrowable (USD) out; going down
     min_band: int256 = self.min_band
     max_band: int256 = self.max_band
-    out: DetailedTrade = empty(DetailedTrade)
+    out: IAMM.DetailedTrade = empty(IAMM.DetailedTrade)
     out.n2 = self.active_band
     p_o_up: uint256 = self._p_oracle_up(out.n2)
     x: uint256 = self.bands_x[out.n2]
@@ -970,7 +979,7 @@ def calc_swap_out(pump: bool, in_amount: uint256, p_o: uint256[2], in_precision:
 
 @internal
 @view
-def _get_dxdy(i: uint256, j: uint256, amount: uint256, is_in: bool) -> DetailedTrade:
+def _get_dxdy(i: uint256, j: uint256, amount: uint256, is_in: bool) -> IAMM.DetailedTrade:
     """
     @notice Method to use to calculate out amount and spent in amount
     @param i Input coin index
@@ -982,7 +991,7 @@ def _get_dxdy(i: uint256, j: uint256, amount: uint256, is_in: bool) -> DetailedT
     # i = 0: borrowable (USD) in, collateral (ETH) out; going up
     # i = 1: collateral (ETH) in, borrowable (USD) out; going down
     assert (i == 0 and j == 1) or (i == 1 and j == 0), "Wrong index"
-    out: DetailedTrade = empty(DetailedTrade)
+    out: IAMM.DetailedTrade = empty(IAMM.DetailedTrade)
     if amount == 0:
         return out
     in_precision: uint256 = COLLATERAL_PRECISION
@@ -1025,7 +1034,7 @@ def get_dxdy(i: uint256, j: uint256, in_amount: uint256) -> (uint256, uint256):
     @param in_amount Amount of input coin to swap
     @return A tuple with in_amount used and out_amount returned
     """
-    out: DetailedTrade = self._get_dxdy(i, j, in_amount, True)
+    out: IAMM.DetailedTrade = self._get_dxdy(i, j, in_amount, True)
     return (out.in_amount, out.out_amount)
 
 
@@ -1046,7 +1055,7 @@ def _exchange(i: uint256, j: uint256, amount: uint256, minmax_amount: uint256, _
     if amount == 0:
         return [0, 0]
 
-    lm: ILMGauge = self.liquidity_mining_callback
+    lm: ILMGauge = self._liquidity_mining_callback
     collateral_shares: DynArray[uint256, MAX_TICKS_UINT] = []
 
     in_coin: IERC20 = BORROWED_TOKEN
@@ -1059,7 +1068,7 @@ def _exchange(i: uint256, j: uint256, amount: uint256, minmax_amount: uint256, _
         out_precision = BORROWED_PRECISION
         out_coin = BORROWED_TOKEN
 
-    out: DetailedTrade = empty(DetailedTrade)
+    out: IAMM.DetailedTrade = empty(IAMM.DetailedTrade)
     if use_in_amount:
         out = self.calc_swap_out(i == 0, amount * in_precision, p_o, in_precision, out_precision)
     else:
@@ -1122,7 +1131,7 @@ def _exchange(i: uint256, j: uint256, amount: uint256, minmax_amount: uint256, _
 
 @internal
 @view
-def calc_swap_in(pump: bool, out_amount: uint256, p_o: uint256[2], in_precision: uint256, out_precision: uint256) -> DetailedTrade:
+def calc_swap_in(pump: bool, out_amount: uint256, p_o: uint256[2], in_precision: uint256, out_precision: uint256) -> IAMM.DetailedTrade:
     """
     @notice Calculate the input amount required to receive the desired output amount.
             If couldn't exchange all - will also update the amount which was actually received.
@@ -1138,7 +1147,7 @@ def calc_swap_in(pump: bool, out_amount: uint256, p_o: uint256[2], in_precision:
     # pump = False: collateral (ETH) in, borrowable (USD) out; going down
     min_band: int256 = self.min_band
     max_band: int256 = self.max_band
-    out: DetailedTrade = empty(DetailedTrade)
+    out: IAMM.DetailedTrade = empty(IAMM.DetailedTrade)
     out.n2 = self.active_band
     p_o_up: uint256 = self._p_oracle_up(out.n2)
     x: uint256 = self.bands_x[out.n2]
@@ -1274,7 +1283,7 @@ def get_dx(i: uint256, j: uint256, out_amount: uint256) -> uint256:
     """
     # i = 0: borrowable (USD) in, collateral (ETH) out; going up
     # i = 1: collateral (ETH) in, borrowable (USD) out; going down
-    trade: DetailedTrade = self._get_dxdy(i, j, out_amount, False)
+    trade: IAMM.DetailedTrade = self._get_dxdy(i, j, out_amount, False)
     assert trade.out_amount == out_amount
     return trade.in_amount
 
@@ -1292,7 +1301,7 @@ def get_dydx(i: uint256, j: uint256, out_amount: uint256) -> (uint256, uint256):
     """
     # i = 0: borrowable (USD) in, collateral (ETH) out; going up
     # i = 1: collateral (ETH) in, borrowable (USD) out; going down
-    out: DetailedTrade = self._get_dxdy(i, j, out_amount, False)
+    out: IAMM.DetailedTrade = self._get_dxdy(i, j, out_amount, False)
     return (out.out_amount, out.in_amount)
 
 
@@ -1691,4 +1700,4 @@ def set_callback(liquidity_mining_callback: ILMGauge):
     @param liquidity_mining_callback Gauge address
     """
     assert msg.sender == self.admin
-    self.liquidity_mining_callback = liquidity_mining_callback
+    self._liquidity_mining_callback = liquidity_mining_callback

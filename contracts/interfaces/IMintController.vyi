@@ -1,0 +1,10 @@
+@view
+@external
+def minted() -> uint256:
+    ...
+
+
+@view
+@external
+def redeemed() -> uint256:
+    ...

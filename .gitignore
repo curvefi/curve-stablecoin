@@ -20,3 +20,4 @@ venv
 /brownie-deploy-emas/build
 .coverage
 .claude
+.vscode

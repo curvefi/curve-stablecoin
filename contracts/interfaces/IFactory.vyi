@@ -1,0 +1,15 @@
+from ethereum.ercs import IERC20
+
+@view
+def stablecoin() -> IERC20:
+    ...
+
+@view
+def admin() -> address:
+    ...
+
+@view
+def fee_receiver() -> address:
+    ...
+
+# TODO double check view decorators on non generated interfaces
