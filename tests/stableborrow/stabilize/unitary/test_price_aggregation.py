@@ -10,6 +10,9 @@ def test_price_aggregator(stableswap_a, stableswap_b, stablecoin_a, agg, admin):
     assert agg.price_pairs(0)[0].lower() == stableswap_a.address.lower()
     assert agg.price_pairs(1)[0].lower() == stableswap_b.address.lower()
 
+    # Make ema_tvl and D_oracle (between old and -ng pools) equal
+    for i in range(2):
+        agg.eval(f"self.last_tvl[{i}] = self.price_pairs[{i}].pool.totalSupply()")
     with boa.env.anchor():
         with boa.env.prank(admin):
             stablecoin_a._mint_for_testing(admin, amount)
