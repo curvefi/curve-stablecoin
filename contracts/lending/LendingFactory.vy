@@ -211,8 +211,8 @@ def _create(
     vault: Vault = Vault(create_minimal_proxy_to(self.vault_impl))
     amm: address = create_from_blueprint(
         self.amm_impl,
-        borrowed_token, 10**(18 - ERC20(borrowed_token).decimals()),
-        collateral_token, 10**(18 - ERC20(collateral_token).decimals()),
+        borrowed_token, 10**convert(18 - ERC20(borrowed_token).decimals(), uint256),
+        collateral_token, 10**convert(18 - ERC20(collateral_token).decimals(), uint256),
         A, isqrt(A_ratio * 10**18), self.ln_int(A_ratio),
         p, fee, convert(0, uint256), price_oracle,
         code_offset=3)
