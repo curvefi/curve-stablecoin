@@ -17,7 +17,6 @@ interface Vault:
     def controller() -> address: view
     def borrowed_token() -> address: view
     def collateral_token() -> address: view
-    def price_oracle() -> address: view
     def set_max_supply(_value: uint256): nonpayable
 
 interface Controller:
@@ -25,6 +24,7 @@ interface Controller:
 
 interface AMM:
     def set_admin(_admin: address): nonpayable
+    def price_oracle_contract() -> address: view
 
 interface Pool:
     def price_oracle(i: uint256 = 0) -> uint256: view  # Universal method!
@@ -373,7 +373,7 @@ def collateral_tokens(n: uint256) -> address:
 @view
 @external
 def price_oracles(n: uint256) -> address:
-    return self.vaults[n].price_oracle()
+    return AMM(self.vaults[n].amm()).price_oracle_contract()
 
 
 @view
