@@ -26,7 +26,7 @@ class StatefulLendBorrow(RuleBasedStateMachine):
         super().__init__()
         self.controller = self.filled_controller
         self.amm = self.market_amm
-        self.debt_ceiling = self.borrowed_token.balanceOf(self.controller)
+        self.debt_ceiling = self.controller.borrowed_balance()
         self.collateral_mul = 10**(18 - self.collateral_token.decimals())
         self.borrowed_mul = 10**(18 - self.borrowed_token.decimals())
         self.preexisting_supply = self.borrowed_token.totalSupply() - self.borrowed_token.balanceOf(self.controller)
@@ -134,7 +134,6 @@ class StatefulLendBorrow(RuleBasedStateMachine):
         with self.health_calculator(user, 0, -amount):
             with boa.env.prank(user):
                 if amount == 0:
-                    self.controller.repay(amount, user)
                     return
                 if not self.controller.loan_exists(user):
                     with boa.reverts("Loan doesn't exist"):

@@ -39,13 +39,12 @@ def hacker(accounts):
 
 
 @pytest.fixture(scope="module")
-def factory_new(factory_partial, stablecoin, amm_impl, controller_impl, vault_impl, price_oracle_impl, mpolicy_impl, gauge_impl, admin):
+def factory_new(factory_partial, stablecoin, amm_impl, controller_impl, vault_impl, price_oracle_impl, mpolicy_impl, admin):
     with boa.env.prank(admin):
         return factory_partial.deploy(
             stablecoin.address,
             amm_impl, controller_impl, vault_impl,
-            price_oracle_impl, mpolicy_impl, gauge_impl,
-            admin)
+            price_oracle_impl, mpolicy_impl, admin, admin)
 
 
 @pytest.fixture(scope="module")
@@ -54,27 +53,26 @@ def amm_old_interface():
 
 
 @pytest.fixture(scope="module")
-def factory_old(factory_partial, stablecoin, controller_impl, vault_impl, price_oracle_impl, mpolicy_impl, gauge_impl, amm_old_interface, admin):
+def factory_old(factory_partial, stablecoin, controller_impl, vault_impl, price_oracle_impl, mpolicy_impl, amm_old_interface, admin):
     with boa.env.prank(admin):
         amm_impl = amm_old_interface.deploy_as_blueprint()
         return factory_partial.deploy(
             stablecoin.address,
             amm_impl, controller_impl, vault_impl,
-            price_oracle_impl, mpolicy_impl, gauge_impl,
-            admin)
+            price_oracle_impl, mpolicy_impl, admin, admin)
 
 
 @pytest.fixture(scope='module')
-def vault_new(factory_new, vault_impl, borrowed_token, collateral_token, price_oracle, admin):
+def vault_new(factory_new, vault_interface, borrowed_token, collateral_token, price_oracle, admin):
     with boa.env.prank(admin):
         price_oracle.set_price(int(1e18))
 
-        vault = vault_impl.at(
+        vault = vault_interface.at(
             factory_new.create(
                 borrowed_token.address, collateral_token.address,
                 100, int(0.002 * 1e18), int(0.09 * 1e18), int(0.06 * 1e18),
                 price_oracle.address, "Test"
-            )
+            )[0]
         )
 
         boa.env.time_travel(120)
@@ -83,16 +81,16 @@ def vault_new(factory_new, vault_impl, borrowed_token, collateral_token, price_o
 
 
 @pytest.fixture(scope='module')
-def vault_old(factory_old, vault_impl, borrowed_token, collateral_token, price_oracle, admin):
+def vault_old(factory_old, vault_interface, borrowed_token, collateral_token, price_oracle, admin):
     with boa.env.prank(admin):
         price_oracle.set_price(int(1e18))
 
-        vault = vault_impl.at(
+        vault = vault_interface.at(
             factory_old.create(
                 borrowed_token.address, collateral_token.address,
                 100, int(0.006 * 1e18), int(0.09 * 1e18), int(0.06 * 1e18),
                 price_oracle.address, "Test"
-            )
+            )[0]
         )
 
         boa.env.time_travel(120)
@@ -101,8 +99,12 @@ def vault_old(factory_old, vault_impl, borrowed_token, collateral_token, price_o
 
 
 @pytest.fixture(scope='module')
-def controller_new(vault_new, controller_interface):
-    return controller_interface.at(vault_new.controller())
+def controller_new(vault_new, controller_interface, admin):
+    controller = controller_interface.at(vault_new.controller())
+    with boa.env.prank(admin):
+        controller.set_borrow_cap(2 ** 256 - 1)
+
+    return controller
 
 
 @pytest.fixture(scope='module')
@@ -111,8 +113,12 @@ def amm_new(vault_new, amm_interface):
 
 
 @pytest.fixture(scope='module')
-def controller_old(vault_old, controller_interface):
-    return controller_interface.at(vault_old.controller())
+def controller_old(vault_old, controller_interface, admin):
+    controller = controller_interface.at(vault_old.controller())
+    with boa.env.prank(admin):
+        controller.set_borrow_cap(2 ** 256 - 1)
+
+    return controller
 
 
 @pytest.fixture(scope='module')

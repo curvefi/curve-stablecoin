@@ -16,7 +16,7 @@ def amm_impl(amm_interface, admin):
 
 @pytest.fixture(scope="session")
 def controller_interface():
-    return boa.load_partial('contracts/Controller.vy')
+    return boa.load_partial('contracts/lending/Controller.vy')
 
 
 @pytest.fixture(scope="session")
@@ -28,6 +28,11 @@ def controller_impl(controller_interface, admin):
 @pytest.fixture(scope="module")
 def stablecoin(get_borrowed_token):
     return get_borrowed_token(18)
+
+
+@pytest.fixture(scope="session")
+def vault_interface():
+    return boa.load_partial('contracts/lending/Vault.vy')
 
 
 @pytest.fixture(scope="session")
@@ -59,24 +64,17 @@ def mpolicy_impl(mpolicy_interface, admin):
 
 
 @pytest.fixture(scope="session")
-def gauge_impl(admin):
-    with boa.env.prank(admin):
-        return boa.load_partial('contracts/testing/MockGauge.vy').deploy_as_blueprint()
-
-
-@pytest.fixture(scope="session")
 def factory_partial():
-    return boa.load_partial('contracts/lending/OneWayLendingFactory.vy')
+    return boa.load_partial('contracts/lending/LendingFactory.vy')
 
 
 @pytest.fixture(scope="module")
-def factory(factory_partial, stablecoin, amm_impl, controller_impl, vault_impl, price_oracle_impl, mpolicy_impl, gauge_impl, admin):
+def factory(factory_partial, stablecoin, amm_impl, controller_impl, vault_impl, price_oracle_impl, mpolicy_impl, admin):
     with boa.env.prank(admin):
         return factory_partial.deploy(
             stablecoin.address,
             amm_impl, controller_impl, vault_impl,
-            price_oracle_impl, mpolicy_impl, gauge_impl,
-            admin)
+            price_oracle_impl, mpolicy_impl, admin, admin)
 
 
 @pytest.fixture(scope="module", params=product([2, 6, 8, 18], [True, False]))
@@ -103,25 +101,32 @@ def borrowed_token(tokens_for_vault):
 
 
 @pytest.fixture(scope="module")
-def vault(factory, vault_impl, collateral_token, borrowed_token, price_oracle, admin):
+def vault_controller_amm(factory, borrowed_token, collateral_token, price_oracle, admin):
     with boa.env.prank(admin):
-        return vault_impl.at(
-            factory.create(
-                borrowed_token.address, collateral_token.address,
-                100, int(0.006 * 1e18), int(0.09 * 1e18), int(0.06 * 1e18),
-                price_oracle.address, "Test vault"
-            )
+        return factory.create(
+            borrowed_token.address, collateral_token.address,
+            100, int(0.006 * 1e18), int(0.09 * 1e18), int(0.06 * 1e18),
+            price_oracle.address, "Test vault"
         )
 
 
 @pytest.fixture(scope="module")
-def market_controller(vault, controller_interface):
-    return controller_interface.at(vault.controller())
+def vault(vault_interface, vault_controller_amm):
+    return vault_interface.at(vault_controller_amm[0])
 
 
 @pytest.fixture(scope="module")
-def market_amm(vault, amm_interface):
-    return amm_interface.at(vault.amm())
+def market_controller(controller_interface, vault_controller_amm, admin):
+    controller = controller_interface.at(vault_controller_amm[1])
+    with boa.env.prank(admin):
+        controller.set_borrow_cap(2**256 - 1)
+
+    return controller
+
+
+@pytest.fixture(scope="module")
+def market_amm(amm_interface, vault_controller_amm):
+    return amm_interface.at(vault_controller_amm[2])
 
 
 @pytest.fixture(scope="module")
