@@ -132,6 +132,8 @@ class BigFuzz(RuleBasedStateMachine):
         user = self.accounts[uid]
         debt = self.market_controller.debt(user)
         amount = int(ratio * debt)
+        if amount == 0:
+            return
         diff = amount - self.borrowed_token.balanceOf(user)
         if diff > 0:
             with boa.env.prank(user):
@@ -289,8 +291,8 @@ class BigFuzz(RuleBasedStateMachine):
                         self.borrowed_token._mint_for_testing(user, diff)
                     if emode == USE_FRACTION:
                         try:
-                            self.market_controller.liquidate_extended(
-                                    user, 0, frac, ZERO_ADDRESS, [])
+                            self.market_controller.liquidate(
+                                    user, 0, frac, ZERO_ADDRESS, b'')
                         except Exception:
                             if self.market_controller.debt(user) * frac // 10**18 == 0:
                                 return
@@ -298,9 +300,9 @@ class BigFuzz(RuleBasedStateMachine):
                     elif emode == USE_CALLBACKS:
                         self.borrowed_token.transfer(self.fake_leverage.address, self.borrowed_token.balanceOf(user))
                         try:
-                            self.market_controller.liquidate_extended(
+                            self.market_controller.liquidate(
                                     user, 0, frac,
-                                    self.fake_leverage.address, [])
+                                    self.fake_leverage.address, b'')
                         except Exception:
                             if self.market_controller.debt(user) * frac // 10**18 == 0:
                                 return
@@ -331,13 +333,13 @@ class BigFuzz(RuleBasedStateMachine):
             with boa.env.prank(liquidator):
                 with boa.reverts():
                     if emode == USE_FRACTION:
-                        self.market_controller.liquidate_extended(
-                                user, 0, frac, ZERO_ADDRESS, [])
+                        self.market_controller.liquidate(
+                                user, 0, frac, ZERO_ADDRESS, b'')
                     elif emode == USE_CALLBACKS:
                         self.borrowed_token.transfer(self.fake_leverage.address, self.borrowed_token.balanceOf(user))
-                        self.market_controller.liquidate_extended(
+                        self.market_controller.liquidate(
                                 user, 0, frac,
-                                self.fake_leverage.address, [])
+                                self.fake_leverage.address, b'')
                     else:
                         self.market_controller.liquidate(user, 0)
                     if emode == USE_CALLBACKS:
@@ -353,13 +355,13 @@ class BigFuzz(RuleBasedStateMachine):
                 if health >= health_limit:
                     with boa.reverts():
                         if emode == USE_FRACTION:
-                            self.market_controller.liquidate_extended(
-                                    user, 0, frac, ZERO_ADDRESS, [])
+                            self.market_controller.liquidate(
+                                    user, 0, frac, ZERO_ADDRESS, b'')
                         elif emode == USE_CALLBACKS:
                             self.borrowed_token.transfer(self.fake_leverage.address, self.borrowed_token.balanceOf(user))
-                            self.market_controller.liquidate_extended(
+                            self.market_controller.liquidate(
                                     user, 0, frac,
-                                    self.fake_leverage.address, [])
+                                    self.fake_leverage.address, b'')
                         else:
                             self.market_controller.liquidate(user, 0)
                     if emode == USE_CALLBACKS:
@@ -368,8 +370,8 @@ class BigFuzz(RuleBasedStateMachine):
                 else:
                     if emode == USE_FRACTION:
                         try:
-                            self.market_controller.liquidate_extended(
-                                    user, 0, frac, ZERO_ADDRESS, [])
+                            self.market_controller.liquidate(
+                                    user, 0, frac, ZERO_ADDRESS, b'')
                         except Exception:
                             if self.market_controller.debt(user) * frac // 10**18 == 0:
                                 return
@@ -377,9 +379,9 @@ class BigFuzz(RuleBasedStateMachine):
                     elif emode == USE_CALLBACKS:
                         self.borrowed_token.transfer(self.fake_leverage.address, self.borrowed_token.balanceOf(user))
                         try:
-                            self.market_controller.liquidate_extended(
+                            self.market_controller.liquidate(
                                     user, 0, frac,
-                                    self.fake_leverage.address, [])
+                                    self.fake_leverage.address, b'')
                         except Exception:
                             if self.market_controller.debt(user) * frac // 10**18 == 0:
                                 return
@@ -419,12 +421,12 @@ class BigFuzz(RuleBasedStateMachine):
     def debt_supply(self):
         total_debt = self.market_controller.total_debt()
         if total_debt == 0:
-            assert self.market_controller.minted() <= self.market_controller.redeemed()  # Paid back more than lent out
+            assert self.market_controller.lent() <= self.market_controller.repaid()  # Paid back more than lent out
         assert abs(sum(self.market_controller.debt(u) for u in self.accounts) - total_debt) <= 10
 
     @invariant()
     def minted_redeemed(self):
-        assert self.market_controller.redeemed() + self.market_controller.total_debt() >= self.market_controller.minted()
+        assert self.market_controller.repaid() + self.market_controller.total_debt() >= self.market_controller.lent()
 
 
 def test_big_fuzz(
