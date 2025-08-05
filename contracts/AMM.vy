@@ -77,6 +77,7 @@ active_band: public(int256)
 min_band: public(int256)
 max_band: public(int256)
 
+# TODO setter
 _price_oracle_contract: immutable(IPriceOracle)
 
 # TODO This is a workaround for a compiler bug
