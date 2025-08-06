@@ -94,8 +94,8 @@ MAX_ADMIN_FEE: constant(uint256) = 2 * 10**17  # 20%
 def __init__(
     vault: IVault,
     amm: IAMM,
-    collateral_token: IERC20,
     borrowed_token: IERC20,
+    collateral_token: IERC20,
     monetary_policy: IMonetaryPolicy,
     loan_discount: uint256,
     liquidation_discount: uint256,
