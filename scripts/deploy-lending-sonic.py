@@ -125,7 +125,7 @@ if __name__ == '__main__':
     mpolicy_impl = boa.load_partial('contracts/mpolicies/SemilogMonetaryPolicy.vy', compiler_args=SONIC_ARGS).deploy_as_blueprint()
     gauge_factory = ABIContractFactory.from_abi_dict(GAUGE_FACTORY_ABI).at(GAUGE_FACTORY)
 
-    factory = boa.load_partial('contracts/lending/OneWayLendingFactoryL2.vy', compiler_args=SONIC_ARGS).deploy(
+    factory = boa.load_partial('contracts/lending/deprecated/OneWayLendingFactoryL2.vy', compiler_args=SONIC_ARGS).deploy(
             CRVUSD,
             amm_impl, controller_impl, vault_impl,
             price_oracle_impl, mpolicy_impl, GAUGE_FACTORY,

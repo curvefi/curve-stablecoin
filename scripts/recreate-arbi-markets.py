@@ -47,7 +47,7 @@ if __name__ == '__main__':
         boa.env.add_account(babe_raw)
         boa.env._fork_try_prefetch_state = False
 
-    factory = boa.load_partial('contracts/lending/OneWayLendingFactoryL2.vy').at(FACTORY)
+    factory = boa.load_partial('contracts/lending/deprecated/OneWayLendingFactoryL2.vy').at(FACTORY)
     gauge_factory = boa.from_etherscan(factory.gauge_factory(), name="GaugeFactory", uri="https://api.arbiscan.io/api", api_key=ARBISCAN_API_KEY)
 
     gauges = {}

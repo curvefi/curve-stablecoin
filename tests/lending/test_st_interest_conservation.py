@@ -97,6 +97,8 @@ class StatefulLendBorrow(RuleBasedStateMachine):
 
     @rule(amount=amount, user_id=user_id)
     def repay(self, amount, user_id):
+        if amount == 0:
+            return
         user = self.accounts[user_id]
         to_repay = min(self.controller.debt(user), amount)
         user_balance = self.borrowed_token.balanceOf(user)

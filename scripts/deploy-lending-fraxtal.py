@@ -113,7 +113,7 @@ if __name__ == '__main__':
     gauge_factory = ABIContractFactory.from_abi_dict(GAUGE_FACTORY_ABI).at(GAUGE_FACTORY)
 
     factory = boa.load(
-            'contracts/lending/OneWayLendingFactoryL2.vy',
+            'contracts/lending/deprecated/OneWayLendingFactoryL2.vy',
             CRVUSD,
             amm_impl, controller_impl, vault_impl,
             price_oracle_impl, mpolicy_impl, GAUGE_FACTORY,

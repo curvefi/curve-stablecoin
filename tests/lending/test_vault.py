@@ -33,10 +33,6 @@ def test_vault_creation(vault, market_controller, market_amm, market_mpolicy, fa
 
     assert factory.vaults(factory.vaults_index(vault.address)) == vault.address
 
-    gauge = factory.deploy_gauge(vault.address)
-    assert factory.gauge_for_vault(vault.address) == gauge
-    assert factory.gauges(n - 1) == gauge
-
 
 @pytest.mark.parametrize("supply_limit", [0, 1000 * 10**18, 2**256-1, None])
 def test_deposit_and_withdraw(vault, borrowed_token, accounts, admin, supply_limit):

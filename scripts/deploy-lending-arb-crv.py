@@ -60,7 +60,7 @@ if __name__ == '__main__':
 
     gauge_factory = ABIContractFactory.from_abi_dict(GAUGE_FACTORY_ABI).at(GAUGE_FACTORY)
 
-    factory = boa.load_partial('contracts/lending/OneWayLendingFactoryL2.vy').at(FACTORY)
+    factory = boa.load_partial('contracts/lending/deprecated/OneWayLendingFactoryL2.vy').at(FACTORY)
 
     # Deploy CRV long market
     name = "CRV-long"
