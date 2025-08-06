@@ -1,4 +1,4 @@
-# @version 0.3.10
+# pragma version 0.4.3
 # pragma optimize codesize
 # pragma evm-version shanghai
 """
@@ -8,61 +8,20 @@
 @license Copyright (c) Curve.Fi, 2020-2025 - all rights reserved
 """
 
-from vyper.interfaces import ERC20 as ERC20Spec
-from vyper.interfaces import ERC20Detailed
+from ethereum.ercs import IERC20
+from ethereum.ercs import IERC20Detailed 
+from ethereum.ercs import IERC4626
 
+from contracts.interfaces import IAMM
+from contracts.interfaces import ILlamalendController as IController
+from contracts.interfaces import IFactory
 
-implements: ERC20Spec
-implements: ERC20Detailed
+from contracts import constants as c
 
+implements: IERC20
+implements: IERC20Detailed
+# implements: IERC4626
 
-interface ERC20:
-    def transferFrom(_from: address, _to: address, _value: uint256) -> bool: nonpayable
-    def transfer(_to: address, _value: uint256) -> bool: nonpayable
-    def decimals() -> uint256: view
-    def balanceOf(_from: address) -> uint256: view
-    def symbol() -> String[32]: view
-    def name() -> String[64]: view
-
-interface AMM:
-    def rate() -> uint256: view
-
-interface Controller:
-    def total_debt() -> uint256: view
-    def borrowed_balance() -> uint256: view
-    def check_lock() -> bool: view
-    def save_rate(): nonpayable
-
-interface Factory:
-    def admin() -> address: view
-
-
-# ERC20 events
-
-event Approval:
-    owner: indexed(address)
-    spender: indexed(address)
-    value: uint256
-
-event Transfer:
-    sender: indexed(address)
-    receiver: indexed(address)
-    value: uint256
-
-# ERC4626 events
-
-event Deposit:
-    sender: indexed(address)
-    owner: indexed(address)
-    assets: uint256
-    shares: uint256
-
-event Withdraw:
-    sender: indexed(address)
-    receiver: indexed(address)
-    owner: indexed(address)
-    assets: uint256
-    shares: uint256
 
 event SetMaxSupply:
     max_supply: uint256
@@ -71,15 +30,15 @@ event SetMaxSupply:
 # see: https://blog.openzeppelin.com/a-novel-defense-against-erc4626-inflation-attacks
 # and
 # https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/token/ERC20/extensions/ERC4626.sol
-DEAD_SHARES: constant(uint256) = 1000
+DEAD_SHARES: constant(uint256) = c.DEAD_SHARES
 MIN_ASSETS: constant(uint256) = 10000
 
-borrowed_token: public(ERC20)
-collateral_token: public(ERC20)
+borrowed_token: public(IERC20)
+collateral_token: public(IERC20)
 
-amm: public(AMM)
-controller: public(Controller)
-factory: public(Factory)
+amm: public(IAMM)
+controller: public(IController)
+factory: public(IFactory)
 
 maxSupply: public(uint256)
 
@@ -102,7 +61,7 @@ totalSupply: public(uint256)
 precision: uint256
 
 
-@external
+@deploy
 def __init__():
     """
     @notice Template for Vault implementation
@@ -110,15 +69,15 @@ def __init__():
     # The contract is made a "normal" template (not blueprint) so that we can get contract address before init
     # This is needed if we want to create a rehypothecation dual-market with two vaults
     # where vaults are collaterals of each other
-    self.borrowed_token = ERC20(0x0000000000000000000000000000000000000001)
+    self.borrowed_token = IERC20(0x0000000000000000000000000000000000000001)
 
 
 @external
 def initialize(
-        amm: AMM,
-        controller: Controller,
-        borrowed_token: ERC20,
-        collateral_token: ERC20,
+        amm: IAMM,
+        controller: IController,
+        borrowed_token: IERC20,
+        collateral_token: IERC20,
     ):
     """
     @notice Initializer for vaults
@@ -130,16 +89,16 @@ def initialize(
     assert self.borrowed_token.address == empty(address)
 
     self.borrowed_token = borrowed_token
-    borrowed_precision: uint256 = 10**(18 - borrowed_token.decimals())
+    borrowed_precision: uint256 = 10**(18 - convert(staticcall IERC20Detailed(borrowed_token.address).decimals(), uint256))
     self.collateral_token = collateral_token
 
-    self.factory = Factory(msg.sender)
+    self.factory = IFactory(msg.sender)
     self.amm = amm
     self.controller = controller
 
     # ERC20 set up
     self.precision = borrowed_precision
-    borrowed_symbol: String[32] = borrowed_token.symbol()
+    borrowed_symbol: String[32] = staticcall IERC20Detailed(borrowed_token.address).symbol()
     self.name = concat(NAME_PREFIX, borrowed_symbol)
     # Symbol must be String[32], but we do String[34]. It doesn't affect contracts which read it (they will truncate)
     # However this will be changed as soon as Vyper can *properly* manipulate strings
@@ -153,38 +112,38 @@ def set_max_supply(max_supply: uint256):
     """
     @notice Set maximum depositable supply
     """
-    assert msg.sender == self.factory.admin() or msg.sender == self.factory.address
+    assert msg.sender == staticcall self.factory.admin() or msg.sender == self.factory.address
     self.maxSupply = max_supply
-    log SetMaxSupply(max_supply)
+    log SetMaxSupply(max_supply=max_supply)
 
 
 @external
 @view
-@nonreentrant('lock')
+@nonreentrant
 def borrow_apr() -> uint256:
     """
     @notice Borrow APR (annualized and 1e18-based)
     """
-    return self.amm.rate() * (365 * 86400)
+    return staticcall self.amm.rate() * (365 * 86400)
 
 
 @external
 @view
-@nonreentrant('lock')
+@nonreentrant
 def lend_apr() -> uint256:
     """
     @notice Lending APR (annualized and 1e18-based)
     """
-    debt: uint256 = self.controller.total_debt()
+    debt: uint256 = staticcall self.controller.total_debt()
     if debt == 0:
         return 0
     else:
-        return self.amm.rate() * (365 * 86400) * debt / self._total_assets()
+        return staticcall self.amm.rate() * (365 * 86400) * debt // self._total_assets()
 
 
 @external
 @view
-def asset() -> ERC20:
+def asset() -> IERC20:
     """
     @notice Asset which is the same as borrowed_token
     """
@@ -195,12 +154,12 @@ def asset() -> ERC20:
 @view
 def _total_assets() -> uint256:
     # admin fee should be accounted for here when enabled
-    return self.controller.borrowed_balance() + self.controller.total_debt()
+    return staticcall self.controller.borrowed_balance() + staticcall self.controller.total_debt()
 
 
 @external
 @view
-@nonreentrant('lock')
+@nonreentrant
 def totalAssets() -> uint256:
     """
     @notice Total assets which can be lent out or be in reserve
@@ -219,9 +178,9 @@ def _convert_to_shares(assets: uint256, is_floor: bool = True,
     numerator: uint256 = (self.totalSupply + DEAD_SHARES) * assets * precision
     denominator: uint256 = (total_assets * precision + 1)
     if is_floor:
-        return numerator / denominator
+        return numerator // denominator
     else:
-        return (numerator + denominator - 1) / denominator
+        return (numerator + denominator - 1) // denominator
 
 
 @internal
@@ -235,37 +194,37 @@ def _convert_to_assets(shares: uint256, is_floor: bool = True,
     numerator: uint256 = shares * (total_assets * precision + 1)
     denominator: uint256 = (self.totalSupply + DEAD_SHARES) * precision
     if is_floor:
-        return numerator / denominator
+        return numerator // denominator
     else:
-        return (numerator + denominator - 1) / denominator
+        return (numerator + denominator - 1) // denominator
 
 
 @external
 @view
-@nonreentrant('lock')
+@nonreentrant
 def pricePerShare(is_floor: bool = True) -> uint256:
     """
     @notice Method which shows how much one pool share costs in asset tokens if they are normalized to 18 decimals
     """
     supply: uint256 = self.totalSupply
     if supply == 0:
-        return 10**18 / DEAD_SHARES
+        return 10**18 // DEAD_SHARES
     else:
         precision: uint256 = self.precision
         numerator: uint256 = 10**18 * (self._total_assets() * precision + 1)
         denominator: uint256 = (supply + DEAD_SHARES)
         pps: uint256 = 0
         if is_floor:
-            pps = numerator / denominator
+            pps = numerator // denominator
         else:
-            pps = (numerator + denominator - 1) / denominator
+            pps = (numerator + denominator - 1) // denominator
         assert pps > 0
         return pps
 
 
 @external
 @view
-@nonreentrant('lock')
+@nonreentrant
 def convertToShares(assets: uint256) -> uint256:
     """
     @notice Returns the amount of shares which the Vault would exchange for the given amount of shares provided
@@ -275,7 +234,7 @@ def convertToShares(assets: uint256) -> uint256:
 
 @external
 @view
-@nonreentrant('lock')
+@nonreentrant
 def convertToAssets(shares: uint256) -> uint256:
     """
     @notice Returns the amount of assets that the Vault would exchange for the amount of shares provided
@@ -299,7 +258,7 @@ def maxDeposit(receiver: address) -> uint256:
 
 @external
 @view
-@nonreentrant('lock')
+@nonreentrant
 def previewDeposit(assets: uint256) -> uint256:
     """
     @notice Returns the amount of shares which can be obtained upon depositing assets
@@ -308,23 +267,23 @@ def previewDeposit(assets: uint256) -> uint256:
 
 
 @external
-@nonreentrant('lock')
+@nonreentrant
 def deposit(assets: uint256, receiver: address = msg.sender) -> uint256:
     """
     @notice Deposit assets in return for whatever number of shares corresponds to the current conditions
     @param assets Amount of assets to deposit
     @param receiver Receiver of the shares who is optional. If not specified - receiver is the sender
     """
-    controller: Controller = self.controller
+    controller: IController = self.controller
     total_assets: uint256 = self._total_assets()
     assert total_assets + assets >= MIN_ASSETS, "Need more assets"
     assert total_assets + assets <= self.maxSupply, "Supply limit"
     to_mint: uint256 = self._convert_to_shares(assets, True, total_assets)
-    assert self.borrowed_token.transferFrom(msg.sender, controller.address, assets, default_return_value=True)
+    assert extcall self.borrowed_token.transferFrom(msg.sender, controller.address, assets, default_return_value=True)
     self.deposited += assets
     self._mint(receiver, to_mint)
-    controller.save_rate()
-    log Deposit(msg.sender, receiver, assets, to_mint)
+    extcall controller.save_rate()
+    log IERC4626.Deposit(sender=msg.sender, owner=receiver, assets=assets, shares=to_mint)
     return to_mint
 
 
@@ -344,7 +303,7 @@ def maxMint(receiver: address) -> uint256:
 
 @external
 @view
-@nonreentrant('lock')
+@nonreentrant
 def previewMint(shares: uint256) -> uint256:
     """
     @notice Calculate the amount of assets which is needed to exactly mint the given amount of shares
@@ -353,51 +312,51 @@ def previewMint(shares: uint256) -> uint256:
 
 
 @external
-@nonreentrant('lock')
+@nonreentrant
 def mint(shares: uint256, receiver: address = msg.sender) -> uint256:
     """
     @notice Mint given amount of shares taking whatever number of assets it requires
     @param shares Number of sharess to mint
     @param receiver Optional receiver for the shares. If not specified - it's the sender
     """
-    controller: Controller = self.controller
+    controller: IController = self.controller
     total_assets: uint256 = self._total_assets()
     assets: uint256 = self._convert_to_assets(shares, False, total_assets)
     assert total_assets + assets >= MIN_ASSETS, "Need more assets"
     assert total_assets + assets <= self.maxSupply, "Supply limit"
-    assert self.borrowed_token.transferFrom(msg.sender, controller.address, assets, default_return_value=True)
+    assert extcall self.borrowed_token.transferFrom(msg.sender, controller.address, assets, default_return_value=True)
     self.deposited += assets
     self._mint(receiver, shares)
-    controller.save_rate()
-    log Deposit(msg.sender, receiver, assets, shares)
+    extcall controller.save_rate()
+    log IERC4626.Deposit(sender=msg.sender, owner=receiver, assets=assets, shares=shares)
     return assets
 
 
 @external
 @view
-@nonreentrant('lock')
+@nonreentrant
 def maxWithdraw(owner: address) -> uint256:
     """
     @notice Maximum amount of assets which a given user can withdraw. Aware of both user's balance and available liquidity
     """
     return min(
         self._convert_to_assets(self.balanceOf[owner]),
-        self.controller.borrowed_balance())
+        staticcall self.controller.borrowed_balance())
 
 
 @external
 @view
-@nonreentrant('lock')
+@nonreentrant
 def previewWithdraw(assets: uint256) -> uint256:
     """
     @notice Calculate number of shares which gets burned when withdrawing given amount of asset
     """
-    assert assets <= self.controller.borrowed_balance()
+    assert assets <= staticcall self.controller.borrowed_balance()
     return self._convert_to_shares(assets, False)
 
 
 @external
-@nonreentrant('lock')
+@nonreentrant
 def withdraw(assets: uint256, receiver: address = msg.sender, owner: address = msg.sender) -> uint256:
     """
     @notice Withdraw given amount of asset and burn the corresponding amount of vault shares
@@ -413,30 +372,30 @@ def withdraw(assets: uint256, receiver: address = msg.sender, owner: address = m
         if allowance != max_value(uint256):
             self._approve(owner, msg.sender, allowance - shares)
 
-    controller: Controller = self.controller
+    controller: IController = self.controller
     self._burn(owner, shares)
-    assert self.borrowed_token.transferFrom(controller.address, receiver, assets, default_return_value=True)
+    assert extcall self.borrowed_token.transferFrom(controller.address, receiver, assets, default_return_value=True)
     self.withdrawn += assets
-    controller.save_rate()
-    log Withdraw(msg.sender, receiver, owner, assets, shares)
+    extcall controller.save_rate()
+    log IERC4626.Withdraw(sender=msg.sender, receiver=receiver, owner=owner, assets=assets, shares=shares)
     return shares
 
 
 @external
 @view
-@nonreentrant('lock')
+@nonreentrant
 def maxRedeem(owner: address) -> uint256:
     """
     @notice Calculate maximum amount of shares which a given user can redeem
     """
     return min(
-        self._convert_to_shares(self.controller.borrowed_balance(), False),
+        self._convert_to_shares(staticcall self.controller.borrowed_balance(), False),
         self.balanceOf[owner])
 
 
 @external
 @view
-@nonreentrant('lock')
+@nonreentrant
 def previewRedeem(shares: uint256) -> uint256:
     """
     @notice Calculate the amount of assets which can be obtained by redeeming the given amount of shares
@@ -447,12 +406,12 @@ def previewRedeem(shares: uint256) -> uint256:
 
     else:
         assets_to_redeem: uint256 = self._convert_to_assets(shares)
-        assert assets_to_redeem <= self.controller.borrowed_balance()
+        assert assets_to_redeem <= staticcall self.controller.borrowed_balance()
         return assets_to_redeem
 
 
 @external
-@nonreentrant('lock')
+@nonreentrant
 def redeem(shares: uint256, receiver: address = msg.sender, owner: address = msg.sender) -> uint256:
     """
     @notice Burn given amount of shares and give corresponding assets to the user
@@ -474,11 +433,11 @@ def redeem(shares: uint256, receiver: address = msg.sender, owner: address = msg
         else:
             raise "Need more assets"
     self._burn(owner, shares)
-    controller: Controller = self.controller
-    assert self.borrowed_token.transferFrom(controller.address, receiver, assets_to_redeem, default_return_value=True)
+    controller: IController = self.controller
+    assert extcall self.borrowed_token.transferFrom(controller.address, receiver, assets_to_redeem, default_return_value=True)
     self.withdrawn += assets_to_redeem
-    controller.save_rate()
-    log Withdraw(msg.sender, receiver, owner, assets_to_redeem, shares)
+    extcall controller.save_rate()
+    log IERC4626.Withdraw(sender=msg.sender, receiver=receiver, owner=owner, assets=assets_to_redeem, shares=shares)
     return assets_to_redeem
 
 
@@ -488,7 +447,7 @@ def redeem(shares: uint256, receiver: address = msg.sender, owner: address = msg
 def _approve(_owner: address, _spender: address, _value: uint256):
     self.allowance[_owner][_spender] = _value
 
-    log Approval(_owner, _spender, _value)
+    log IERC20.Approval(owner=_owner, spender=_spender, value=_value)
 
 
 @internal
@@ -496,7 +455,7 @@ def _burn(_from: address, _value: uint256):
     self.balanceOf[_from] -= _value
     self.totalSupply -= _value
 
-    log Transfer(_from, empty(address), _value)
+    log IERC20.Transfer(sender=_from, receiver=empty(address), value=_value)
 
 
 @internal
@@ -504,7 +463,7 @@ def _mint(_to: address, _value: uint256):
     self.balanceOf[_to] += _value
     self.totalSupply += _value
 
-    log Transfer(empty(address), _to, _value)
+    log IERC20.Transfer(sender=empty(address), receiver=_to, value=_value)
 
 
 @internal
@@ -514,7 +473,7 @@ def _transfer(_from: address, _to: address, _value: uint256):
     self.balanceOf[_from] -= _value
     self.balanceOf[_to] += _value
 
-    log Transfer(_from, _to, _value)
+    log IERC20.Transfer(sender=_from, receiver=_to, value=_value)
 
 
 @external
@@ -609,4 +568,4 @@ def decreaseAllowance(_spender: address, _sub_value: uint256) -> bool:
 @external
 @view
 def admin() -> address:
-    return self.factory.admin()
+    return staticcall self.factory.admin()
