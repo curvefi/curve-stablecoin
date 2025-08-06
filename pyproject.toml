@@ -1,26 +1,23 @@
-[tool.poetry]
+[project]
 name = "curve-stablecoin"
 version = "0.2.0"
-description = ""
-authors = ["Michael Egorov <michael@curve.fi>"]
+description = "Curve Stablecoin contracts and tests"
 readme = "README.md"
-packages = []
-package-mode = false
+requires-python = ">=3.10,<4"
+authors = [
+    { name = "Michael Egorov", email = "michael@curve.fi" }
+]
 
-[tool.poetry.dependencies]
-python = ">=3.10,<4"
-vyper = "0.4.3"
-poetry = "^1"
-titanoboa = "0.2.6"
-hypothesis = "^6.99.0"
-pdbpp = "^0.10.3"
-jedi = "^0.19.0"
-pytest-xdist = "^3.5"
-pytest-forked = "^1.6.0"
-ipython = "^8"
-cytoolz = "^0.12"
-snekmate = "^0.1.1"
+dependencies = [
+    "vyper==0.4.3",
+    "titanoboa>=0.2.7",
+    "hypothesis>=6.99.0",
+    "pytest>=8.0.0",
+    "pytest-xdist>=3.5",
+    "pytest-forked>=1.6.0",
+    "pytest-cov>=4.0.0",
+    "snekmate>=0.1.1",
+]
 
-[build-system]
-requires = ["poetry-core"]
-build-backend = "poetry.core.masonry.api"
+[tool.uv]
+package = false  # This is not a Python package
