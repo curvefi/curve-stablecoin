@@ -99,7 +99,6 @@ def __init__(
     monetary_policy: IMonetaryPolicy,
     loan_discount: uint256,
     liquidation_discount: uint256,
-    borrow_cap: uint256,
 ):
     """
     @notice Controller constructor deployed by the factory from blueprint
@@ -110,8 +109,6 @@ def __init__(
            get_x_down() for "bad liquidation" purposes
     @param amm AMM address (Already deployed from blueprint)
     """
-    # TODO set to zero
-    self._set_borrow_cap(borrow_cap)
     VAULT = vault
 
     ctrl.__init__(
