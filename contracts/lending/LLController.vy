@@ -86,7 +86,7 @@ collected: public(uint256)
 
 
 # Unlike mint markets admin fee here is can be less than 100%
-admin_fee_percentage: public(uint256)
+admin_fee: public(uint256)
 # TODO check this
 MAX_ADMIN_FEE: constant(uint256) = 2 * 10**17  # 20%
 
@@ -226,7 +226,7 @@ def borrow_more(
 
 @external
 def collect_fees() -> uint256:
-    fees: uint256 = core._collect_fees(self.admin_fee_percentage)
+    fees: uint256 = core._collect_fees(self.admin_fee)
     self.collected += fees
     return fees
 
@@ -255,4 +255,4 @@ def set_admin_fee(admin_fee: uint256):
     """
     core._check_admin()
     assert admin_fee <= MAX_ADMIN_FEE, "admin_fee is higher than MAX_ADMIN_FEE"
-    self.admin_fee_percentage = admin_fee
+    self.admin_fee = admin_fee
