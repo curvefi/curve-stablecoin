@@ -1,0 +1,42 @@
+from contracts.interfaces import IVault
+
+# Events
+
+event SetBorrowCap:
+    borrow_cap: uint256
+
+
+@view
+@external
+def vault() -> IVault:
+    ...
+
+
+@external
+def set_borrow_cap(_borrow_cap: uint256):
+    ...
+
+
+@external
+def set_admin_fee(admin_fee: uint256):
+    ...
+
+
+@view
+@external
+def lent() -> uint256:
+    ...
+
+
+@view
+@external
+def collected() -> uint256:
+    ...
+
+
+@view
+@external
+def admin_fee() -> uint256:
+    ...
+
+

@@ -1,0 +1,26 @@
+from ethereum.ercs import IERC20
+
+@view
+def collateral_token() -> IERC20:
+    ...
+
+@view
+def borrowed_token() -> IERC20:
+    ...
+
+@view
+def deposited() -> uint256:
+    ...
+
+@view
+def withdrawn() -> uint256:
+    ...
+
+@view
+def admin() -> address:
+    ...
+
+@view
+def fee_receiver() -> address:
+    ...
+    
