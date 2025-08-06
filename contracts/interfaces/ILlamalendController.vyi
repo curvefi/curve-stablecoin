@@ -1,6 +1,356 @@
 from contracts.interfaces import IVault
 
+from ethereum.ercs import IERC20 
+from contracts.interfaces import ILMGauge
+from contracts.interfaces import IAMM
+from contracts.interfaces import IMonetaryPolicy
+from contracts.interfaces import IFactory
+
 # Events
+
+event Repay:
+    user: address
+    collateral_decrease: uint256
+    loan_decrease: uint256
+
+
+event Liquidate:
+    liquidator: address
+    user: address
+    collateral_received: uint256
+    stablecoin_received: uint256
+    debt: uint256
+
+
+event UserState:
+    user: address
+    collateral: uint256
+    debt: uint256
+    n1: int256
+    n2: int256
+    liquidation_discount: uint256
+
+
+event RemoveCollateral:
+    user: address
+    collateral_decrease: uint256
+
+
+event Borrow:
+    user: address
+    collateral_increase: uint256
+    loan_increase: uint256
+
+
+event SetLMCallback:
+    callback: ILMGauge
+
+
+event SetBorrowingDiscounts:
+    loan_discount: uint256
+    liquidation_discount: uint256
+
+
+event SetMonetaryPolicy:
+    monetary_policy: IMonetaryPolicy
+
+
+event Approval:
+    owner: address
+    spender: address
+    allow: bool
+
+
+event SetExtraHealth:
+    user: address
+    health: uint256
+
+
+event CollectFees:
+    amount: uint256
+    new_supply: uint256
+
+
+# Structs 
+
+struct Position:
+    user: address
+    x: uint256
+    y: uint256
+    debt: uint256
+    health: int256
+
+
+struct Loan:
+    initial_debt: uint256
+    rate_mul: uint256
+
+
+struct CallbackData:
+    active_band: int256
+    stablecoins: uint256
+    collateral: uint256
+
+# Functions
+
+@view
+@external
+def monetary_policy() -> IMonetaryPolicy:
+    ...
+
+
+@view
+@external
+def minted() -> uint256:
+    ...
+
+
+@view
+@external
+def redeemed() -> uint256:
+    ...
+
+
+@view
+@external
+def max_borrowable(collateral: uint256, N: uint256, current_debt: uint256, user: address) -> uint256:
+    ...
+
+
+@external
+def liquidate(user: address, min_x: uint256, _frac: uint256, callbacker: address, calldata: Bytes[10000]):
+    ...
+
+
+@external
+def borrow_more(collateral: uint256, debt: uint256, _for: address, callbacker: address, calldata: Bytes[10000]):
+    ...
+
+
+@external
+def set_callback(cb: ILMGauge):
+    ...
+
+
+@external
+def set_borrowing_discounts(loan_discount: uint256, liquidation_discount: uint256):
+    ...
+
+
+@external
+def set_monetary_policy(monetary_policy: IMonetaryPolicy):
+    ...
+
+
+@external
+def create_loan(collateral: uint256, debt: uint256, N: uint256, _for: address, callbacker: address, calldata: Bytes[10000]):
+    ...
+
+
+@external
+def set_amm_fee(fee: uint256):
+    ...
+
+
+@external
+def repay(_d_debt: uint256, _for: address, max_active_band: int256, callbacker: address, calldata: Bytes[10000]):
+    ...
+
+
+@external
+def approve(_spender: address, _allow: bool):
+    ...
+
+
+@external
+def set_extra_health(_value: uint256):
+    ...
+
+
+@external
+def save_rate():
+    ...
+
+
+@external
+def collect_fees() -> uint256:
+    ...
+
+
+@external
+def add_collateral(collateral: uint256, _for: address):
+    ...
+
+
+@external
+def remove_collateral(collateral: uint256, _for: address):
+    ...
+
+
+@view
+@external
+def amm() -> IAMM:
+    ...
+
+
+@view
+@external
+def collateral_token() -> IERC20:
+    ...
+
+
+@view
+@external
+def borrowed_token() -> IERC20:
+    ...
+
+
+@view
+@external
+def debt(user: address) -> uint256:
+    ...
+
+
+@view
+@external
+def loan_exists(user: address) -> bool:
+    ...
+
+
+@view
+@external
+def total_debt() -> uint256:
+    ...
+
+
+@view
+@external
+def min_collateral(debt: uint256, N: uint256, user: address) -> uint256:
+    ...
+
+
+@view
+@external
+def calculate_debt_n1(collateral: uint256, debt: uint256, N: uint256, user: address) -> int256:
+    ...
+
+
+@view
+@external
+def user_prices(user: address) -> uint256[2]:
+    ...
+
+
+@view
+@external
+def amm_price() -> uint256:
+    ...
+
+
+@view
+@external
+def user_state(user: address) -> uint256[4]:
+    ...
+
+
+@view
+@external
+def health_calculator(user: address, d_collateral: int256, d_debt: int256, full: bool, N: uint256) -> int256:
+    ...
+
+
+@view
+@external
+def tokens_to_liquidate(user: address, frac: uint256) -> uint256:
+    ...
+
+
+@view
+@external
+def health(user: address, full: bool) -> int256:
+    ...
+
+
+@view
+@external
+def users_to_liquidate(_from: uint256, _limit: uint256) -> DynArray[Position, 1000]:
+    ...
+
+
+@view
+@external
+def admin_fees() -> uint256:
+    ...
+
+
+@view
+@external
+def factory() -> IFactory:
+    ...
+
+
+@view
+@external
+def liquidation_discount() -> uint256:
+    ...
+
+
+@view
+@external
+def loan_discount() -> uint256:
+    ...
+
+
+@view
+@external
+def approval(arg0: address, arg1: address) -> bool:
+    ...
+
+
+@view
+@external
+def extra_health(arg0: address) -> uint256:
+    ...
+
+
+@view
+@external
+def liquidation_discounts(arg0: address) -> uint256:
+    ...
+
+
+@view
+@external
+def loans(arg0: uint256) -> address:
+    ...
+
+
+@view
+@external
+def loan_ix(arg0: address) -> uint256:
+    ...
+
+
+@view
+@external
+def n_loans() -> uint256:
+    ...
+
+
+@view
+@external
+def repaid() -> uint256:
+    ...
+
+
+@view
+@external
+def processed() -> uint256:
+    ...
+
+
+
+# EXTRA THINGS FOR LLAMALEND CONTROLLER
 
 event SetBorrowCap:
     borrow_cap: uint256
@@ -39,4 +389,9 @@ def collected() -> uint256:
 def admin_fee() -> uint256:
     ...
 
+
+@view
+@external
+def borrowed_balance() -> uint256:
+    ...
 

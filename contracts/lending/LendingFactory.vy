@@ -1,4 +1,4 @@
-# @version 0.3.10
+# pragma version 0.4.3
 # pragma optimize codesize
 # pragma evm-version shanghai
 """
@@ -8,67 +8,23 @@
 @license Copyright (c) Curve.Fi, 2020-2025 - all rights reserved
 """
 
-from vyper.interfaces import ERC20Detailed as ERC20
-
-
-interface Vault:
-    def initialize(amm: address, controller: address, borrowed_token: address, collateral_token: address): nonpayable
-    def amm() -> address: view
-    def controller() -> address: view
-    def borrowed_token() -> address: view
-    def collateral_token() -> address: view
-    def set_max_supply(_value: uint256): nonpayable
-
-interface Controller:
-    def monetary_policy() -> address: view
-
-interface AMM:
-    def set_admin(_admin: address): nonpayable
-    def price_oracle_contract() -> address: view
-
-interface Pool:
-    def price_oracle(i: uint256 = 0) -> uint256: view  # Universal method!
-    def coins(i: uint256) -> address: view
-
-interface PriceOracle:
-    def price() -> uint256: view
-    def price_w() -> uint256: nonpayable
-
-
-event SetImplementations:
-    amm: address
-    controller: address
-    vault: address
-    price_oracle: address
-    monetary_policy: address
-
-event SetDefaultRates:
-    min_rate: uint256
-    max_rate: uint256
-
-event SetAdmin:
-    admin: address
-
-event SetFeeReceiver:
-    fee_receiver: address
-
-event NewVault:
-    id: indexed(uint256)
-    collateral_token: indexed(address)
-    borrowed_token: indexed(address)
-    vault: address
-    controller: address
-    amm: address
-    price_oracle: address
-    monetary_policy: address
+from ethereum.ercs import IERC20
+from ethereum.ercs import IERC20Detailed
+from contracts.interfaces import IVault
+from contracts.interfaces import ILlamalendController as IController
+from contracts.interfaces import IAMM
+from contracts.interfaces import IPool
+from contracts.interfaces import IPriceOracle
+from contracts.interfaces import ILendingFactory 
+implements: ILendingFactory
 
 
 STABLECOIN: public(immutable(address))
 
 # These are limits for default borrow rates, NOT actual min and max rates.
 # Even governance cannot go beyond these rates before a new code is shipped
-MIN_RATE: public(constant(uint256)) = 10**15 / (365 * 86400)  # 0.1%
-MAX_RATE: public(constant(uint256)) = 10**19 / (365 * 86400)  # 1000%
+MIN_RATE: public(constant(uint256)) = 10**15 // (365 * 86400)  # 0.1%
+MAX_RATE: public(constant(uint256)) = 10**19 // (365 * 86400)  # 1000%
 MIN_A: constant(uint256) = 2
 MAX_A: constant(uint256) = 10000
 MIN_FEE: constant(uint256) = 10**6  # 1e-12, still needs to be above 0
@@ -83,7 +39,7 @@ vault_impl: public(address)
 pool_price_oracle_impl: public(address)
 monetary_policy_impl: public(address)
 
-# Actual min/max borrow rates when creating new markets
+# Actual min//max borrow rates when creating new markets
 # for example, 0.5% -> 50% is a good choice
 min_default_borrow_rate: public(uint256)
 max_default_borrow_rate: public(uint256)
@@ -93,18 +49,18 @@ admin: public(address)
 fee_receiver: public(address)
 
 # Vaults can only be created but not removed
-vaults: public(Vault[10**18])
-_vaults_index: HashMap[Vault, uint256]
+vaults: public(IVault[10**18])
+_vaults_index: HashMap[IVault, uint256]
 market_count: public(uint256)
 
 # Index to find vaults by a non-crvUSD token
-token_to_vaults: public(HashMap[address, Vault[10**18]])
+token_to_vaults: public(HashMap[address, IVault[10**18]])
 token_market_count: public(HashMap[address, uint256])
 
 names: public(HashMap[uint256, String[64]])
 
 
-@external
+@deploy
 def __init__(
         stablecoin: address,
         amm: address,
@@ -132,8 +88,8 @@ def __init__(
     self.pool_price_oracle_impl = pool_price_oracle
     self.monetary_policy_impl = monetary_policy
 
-    self.min_default_borrow_rate = 5 * 10**15 / (365 * 86400)
-    self.max_default_borrow_rate = 50 * 10**16 / (365 * 86400)
+    self.min_default_borrow_rate = 5 * 10**15 // (365 * 86400)
+    self.max_default_borrow_rate = 50 * 10**16 // (365 * 86400)
 
     self.admin = admin
     self.fee_receiver = fee_receiver
@@ -145,27 +101,27 @@ def ln_int(_x: uint256) -> int256:
     """
     @notice Logarithm ln() function based on log2. Not very gas-efficient but brief
     """
-    # adapted from: https://medium.com/coinmonks/9aef8515136e
+    # adapted from: https://medium.com//coinmonks//9aef8515136e
     # and vyper log implementation
     # This can be much more optimal but that's not important here
     x: uint256 = _x
     res: uint256 = 0
-    for i in range(8):
+    for i: uint256 in range(8):
         t: uint256 = 2**(7 - i)
         p: uint256 = 2**t
         if x >= p * 10**18:
-            x /= p
+            x //= p
             res += t * 10**18
     d: uint256 = 10**18
-    for i in range(59):  # 18 decimals: math.log2(10**10) == 59.7
+    for i: uint256 in range(59):  # 18 decimals: math.log2(10**10) == 59.7
         if (x >= 2 * 10**18):
             res += d
-            x /= 2
-        x = x * x / 10**18
-        d /= 2
+            x //= 2
+        x = x * x // 10**18
+        d //= 2
     # Now res = log2(x)
-    # ln(x) = log2(x) / log2(e)
-    return convert(res * 10**18 / 1442695040888963328, int256)
+    # ln(x) = log2(x) // log2(e)
+    return convert(res * 10**18 // 1442695040888963328, int256)
 
 
 @internal
@@ -203,16 +159,16 @@ def _create(
     monetary_policy: address = create_from_blueprint(
         self.monetary_policy_impl, borrowed_token, min_rate, max_rate, code_offset=3)
 
-    A_ratio: uint256 = 10**18 * A / (A - 1)
-    p: uint256 = PriceOracle(price_oracle).price()  # This also validates price oracle ABI
+    A_ratio: uint256 = 10**18 * A // (A - 1)
+    p: uint256 = staticcall IPriceOracle(price_oracle).price()  # This also validates price oracle ABI
     assert p > 0
-    assert PriceOracle(price_oracle).price_w() == p
+    assert extcall IPriceOracle(price_oracle).price_w() == p
 
-    vault: Vault = Vault(create_minimal_proxy_to(self.vault_impl))
+    vault: IVault = IVault(create_minimal_proxy_to(self.vault_impl))
     amm: address = create_from_blueprint(
         self.amm_impl,
-        borrowed_token, 10**convert(18 - ERC20(borrowed_token).decimals(), uint256),
-        collateral_token, 10**convert(18 - ERC20(collateral_token).decimals(), uint256),
+        borrowed_token, 10**convert(18 - staticcall IERC20Detailed(borrowed_token).decimals(), uint256),
+        collateral_token, 10**convert(18 - staticcall IERC20Detailed(collateral_token).decimals(), uint256),
         A, isqrt(A_ratio * 10**18), self.ln_int(A_ratio),
         p, fee, convert(0, uint256), price_oracle,
         code_offset=3)
@@ -222,13 +178,21 @@ def _create(
         borrowed_token, collateral_token,
         monetary_policy, loan_discount, liquidation_discount,
         code_offset=3)
-    AMM(amm).set_admin(controller)
+    extcall IAMM(amm).set_admin(controller)
 
-    vault.initialize(amm, controller, borrowed_token, collateral_token)
+    extcall vault.initialize(IAMM(amm), controller, IERC20(borrowed_token), IERC20(collateral_token))
 
     market_count: uint256 = self.market_count
-    log NewVault(market_count, collateral_token, borrowed_token,
-                 vault.address, controller, amm, price_oracle, monetary_policy)
+    log ILendingFactory.NewVault(
+        id=market_count,
+        collateral_token=collateral_token,
+        borrowed_token=borrowed_token,
+        vault=vault.address,
+        controller=controller,
+        amm=amm,
+        price_oracle=price_oracle,
+        monetary_policy=monetary_policy
+    )
     self.vaults[market_count] = vault
     self._vaults_index[vault] = market_count + 2**128
     self.names[market_count] = name
@@ -246,7 +210,7 @@ def _create(
 
 
 @external
-@nonreentrant('lock')
+@nonreentrant
 def create(
         borrowed_token: address,
         collateral_token: address,
@@ -264,10 +228,10 @@ def create(
     @notice Creation of the vault using user-supplied price oracle contract
     @param borrowed_token Token which is being borrowed
     @param collateral_token Token used for collateral
-    @param A Amplification coefficient: band size is ~1/A
+    @param A Amplification coefficient: band size is ~1//A
     @param fee Fee for swaps in AMM (for ETH markets found to be 0.6%)
-    @param loan_discount Maximum discount. LTV = sqrt(((A - 1) / A) ** 4) - loan_discount
-    @param liquidation_discount Liquidation discount. LT = sqrt(((A - 1) / A) ** 4) - liquidation_discount
+    @param loan_discount Maximum discount. LTV = sqrt(((A - 1) // A) ** 4) - loan_discount
+    @param liquidation_discount Liquidation discount. LT = sqrt(((A - 1) // A) ** 4) - liquidation_discount
     @param price_oracle Custom price oracle contract
     @param name Human-readable market name
     @param min_borrow_rate Custom minimum borrow rate (otherwise min_default_borrow_rate)
@@ -277,13 +241,13 @@ def create(
     res: address[3] = self._create(borrowed_token, collateral_token, A, fee, loan_discount, liquidation_discount,
                                 price_oracle, name, min_borrow_rate, max_borrow_rate)
     if supply_limit < max_value(uint256):
-        Vault(res[0]).set_max_supply(supply_limit)
+        extcall IVault(res[0]).set_max_supply(supply_limit)
 
     return res
 
 
 @external
-@nonreentrant('lock')
+@nonreentrant
 def create_from_pool(
         borrowed_token: address,
         collateral_token: address,
@@ -301,10 +265,10 @@ def create_from_pool(
     @notice Creation of the vault using existing oraclized Curve pool as a price oracle
     @param borrowed_token Token which is being borrowed
     @param collateral_token Token used for collateral
-    @param A Amplification coefficient: band size is ~1/A
+    @param A Amplification coefficient: band size is ~1//A
     @param fee Fee for swaps in AMM (for ETH markets found to be 0.6%)
-    @param loan_discount Maximum discount. LTV = sqrt(((A - 1) / A) ** 4) - loan_discount
-    @param liquidation_discount Liquidation discount. LT = sqrt(((A - 1) / A) ** 4) - liquidation_discount
+    @param loan_discount Maximum discount. LTV = sqrt(((A - 1) // A) ** 4) - loan_discount
+    @param liquidation_discount Liquidation discount. LT = sqrt(((A - 1) // A) ** 4) - liquidation_discount
     @param pool Curve tricrypto-ng, twocrypto-ng or stableswap-ng pool which has non-manipulatable price_oracle().
                 Must contain both collateral_token and borrowed_token.
     @param name Human-readable market name
@@ -316,12 +280,12 @@ def create_from_pool(
     borrowed_ix: uint256 = 100
     collateral_ix: uint256 = 100
     N: uint256 = 0
-    for i in range(10):
+    for i: uint256 in range(10):
         success: bool = False
         res: Bytes[32] = empty(Bytes[32])
         success, res = raw_call(
             pool,
-            _abi_encode(i, method_id=method_id("coins(uint256)")),
+            abi_encode(i, method_id=method_id("coins(uint256)")),
             max_outsize=32, is_static_call=True, revert_on_failure=False)
         coin: address = convert(res, address)
         if not success or coin == empty(address):
@@ -341,7 +305,7 @@ def create_from_pool(
         price_oracle, name, min_borrow_rate, max_borrow_rate,
     )
     if supply_limit < max_value(uint256):
-        Vault(res[0]).set_max_supply(supply_limit)
+        extcall IVault(res[0]).set_max_supply(supply_limit)
 
     return res
 
@@ -349,47 +313,47 @@ def create_from_pool(
 @view
 @external
 def controllers(n: uint256) -> address:
-    return self.vaults[n].controller()
+    return staticcall self.vaults[n].controller()
 
 
 @view
 @external
 def amms(n: uint256) -> address:
-    return self.vaults[n].amm()
+    return (staticcall self.vaults[n].amm()).address
 
 
 @view
 @external
 def borrowed_tokens(n: uint256) -> address:
-    return self.vaults[n].borrowed_token()
+    return (staticcall self.vaults[n].borrowed_token()).address
 
 
 @view
 @external
 def collateral_tokens(n: uint256) -> address:
-    return self.vaults[n].collateral_token()
+    return (staticcall self.vaults[n].collateral_token()).address
 
 
 @view
 @external
 def price_oracles(n: uint256) -> address:
-    return AMM(self.vaults[n].amm()).price_oracle_contract()
+    return (staticcall (staticcall self.vaults[n].amm()).price_oracle_contract()).address
 
 
 @view
 @external
 def monetary_policies(n: uint256) -> address:
-    return Controller(self.vaults[n].controller()).monetary_policy()
+    return (staticcall IController(staticcall self.vaults[n].controller()).monetary_policy()).address
 
 
 @view
 @external
-def vaults_index(vault: Vault) -> uint256:
+def vaults_index(vault: IVault) -> uint256:
     return self._vaults_index[vault] - 2**128
 
 
 @external
-@nonreentrant('lock')
+@nonreentrant
 def set_implementations(controller: address, amm: address, vault: address,
                         pool_price_oracle: address, monetary_policy: address):
     """
@@ -414,11 +378,17 @@ def set_implementations(controller: address, amm: address, vault: address,
     if monetary_policy != empty(address):
         self.monetary_policy_impl = monetary_policy
 
-    log SetImplementations(amm, controller, vault, pool_price_oracle, monetary_policy)
+    log ILendingFactory.SetImplementations(
+        amm=amm,
+        controller=controller,
+        vault=vault,
+        price_oracle=pool_price_oracle,
+        monetary_policy=monetary_policy
+    )
 
 
 @external
-@nonreentrant('lock')
+@nonreentrant
 def set_default_rates(min_rate: uint256, max_rate: uint256):
     """
     @notice Change min and max default borrow rates for creating new markets
@@ -434,11 +404,11 @@ def set_default_rates(min_rate: uint256, max_rate: uint256):
     self.min_default_borrow_rate = min_rate
     self.max_default_borrow_rate = max_rate
 
-    log SetDefaultRates(min_rate, max_rate)
+    log ILendingFactory.SetDefaultRates(min_rate=min_rate, max_rate=max_rate)
 
 
 @external
-@nonreentrant('lock')
+@nonreentrant
 def set_admin(admin: address):
     """
     @notice Set admin of the factory (should end up with DAO)
@@ -446,11 +416,11 @@ def set_admin(admin: address):
     """
     assert msg.sender == self.admin
     self.admin = admin
-    log SetAdmin(admin)
+    log ILendingFactory.SetAdmin(admin=admin)
 
 
 @external
-@nonreentrant('lock')
+@nonreentrant
 def set_fee_receiver(fee_receiver: address):
     """
     @notice Set fee receiver who earns interest (DAO)
@@ -459,11 +429,11 @@ def set_fee_receiver(fee_receiver: address):
     assert msg.sender == self.admin
     assert fee_receiver != empty(address)
     self.fee_receiver = fee_receiver
-    log SetFeeReceiver(fee_receiver)
+    log ILendingFactory.SetFeeReceiver(fee_receiver=fee_receiver)
 
 
 @external
 @view
 def coins(vault_id: uint256) -> address[2]:
-    vault: Vault = self.vaults[vault_id]
-    return [vault.borrowed_token(), vault.collateral_token()]
+    vault: IVault = self.vaults[vault_id]
+    return [(staticcall vault.borrowed_token()).address, (staticcall vault.collateral_token()).address]

@@ -16,7 +16,7 @@ def amm_impl(amm_interface, admin):
 
 @pytest.fixture(scope="session")
 def controller_interface():
-    return boa.load_partial('contracts/lending/Controller.vy')
+    return boa.load_partial('contracts/lending/LLController.vy')
 
 
 @pytest.fixture(scope="session")

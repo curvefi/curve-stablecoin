@@ -1,0 +1,28 @@
+event SetImplementations:
+    amm: address
+    controller: address
+    vault: address
+    price_oracle: address
+    monetary_policy: address
+
+event SetDefaultRates:
+    min_rate: uint256
+    max_rate: uint256
+
+event SetAdmin:
+    admin: address
+
+event SetFeeReceiver:
+    fee_receiver: address
+
+event NewVault:
+    id: indexed(uint256)
+    collateral_token: indexed(address)
+    borrowed_token: indexed(address)
+    vault: address
+    controller: address
+    amm: address
+    price_oracle: address
+    monetary_policy: address
+
+# TODO populate this
