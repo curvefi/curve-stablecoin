@@ -5,6 +5,7 @@ from contracts.interfaces import ILMGauge
 from contracts.interfaces import IAMM
 from contracts.interfaces import IMonetaryPolicy
 from contracts.interfaces import IFactory
+from contracts.interfaces import IMintController
 
 # Events
 
@@ -70,26 +71,6 @@ event CollectFees:
     amount: uint256
     new_supply: uint256
 
-
-# Structs 
-
-struct Position:
-    user: address
-    x: uint256
-    y: uint256
-    debt: uint256
-    health: int256
-
-
-struct Loan:
-    initial_debt: uint256
-    rate_mul: uint256
-
-
-struct CallbackData:
-    active_band: int256
-    stablecoins: uint256
-    collateral: uint256
 
 # Functions
 
@@ -273,7 +254,7 @@ def health(user: address, full: bool) -> int256:
 
 @view
 @external
-def users_to_liquidate(_from: uint256, _limit: uint256) -> DynArray[Position, 1000]:
+def users_to_liquidate(_from: uint256, _limit: uint256) -> DynArray[IMintController.Position, 1000]:
     ...
 
 
