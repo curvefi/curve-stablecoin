@@ -346,9 +346,3 @@ def repaid() -> uint256:
 def processed() -> uint256:
     ...
 
-
-@view
-@external
-def admin_fee() -> uint256:
-    ...
-

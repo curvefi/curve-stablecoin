@@ -117,8 +117,6 @@ processed: public(uint256)
 
 # unused for mint controller as it overlaps with debt ceiling
 borrow_cap: uint256
-# left uninitialized at zero in mint markets
-admin_fee: public(uint256)
 
 
 @deploy
@@ -1159,10 +1157,8 @@ def repay(
 
 
 @internal
-def _collect_fees() -> uint256:
-    """
-    @notice Collect the fees charged as a fraction of interest.
-    """
+def _collect_fees(admin_fee: uint256) -> uint256:
+
     # TODO add early termination condition for admin fee == 0
     _to: address = staticcall FACTORY.fee_receiver()
 
@@ -1179,7 +1175,7 @@ def _collect_fees() -> uint256:
     if to_be_repaid > processed:
         self.processed = to_be_repaid
         fees: uint256 = (
-            unsafe_sub(to_be_repaid, processed) * self.admin_fee // 10**18
+            unsafe_sub(to_be_repaid, processed) * admin_fee // 10**18
         )
         self.transfer(BORROWED_TOKEN, _to, fees)
         log IController.CollectFees(amount=fees, new_supply=loan.initial_debt)
@@ -1224,8 +1220,12 @@ def save_rate():
 
 @external
 def collect_fees() -> uint256:
-    fees: uint256 = self._collect_fees()
-    return fees
+    """
+    @notice Collect the fees charged as interest.
+    """
+    # In mint controller, 100% (WAD) fees are
+    # collected as admin fees.
+    return self._collect_fees(WAD)
 
 
 @external

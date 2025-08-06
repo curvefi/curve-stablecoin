@@ -33,3 +33,10 @@ def lent() -> uint256:
 def collected() -> uint256:
     ...
 
+
+@view
+@external
+def admin_fee_percentage() -> uint256:
+    ...
+
+
