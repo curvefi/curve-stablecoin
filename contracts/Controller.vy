@@ -423,7 +423,7 @@ def _calculate_debt_n1(
         assert staticcall AMM.can_skip_bands(n1 - 1), "Debt too high"
 
     assert (
-        staticcall AMM.p_oracle_up(n1) < staticcall AMM.price_oracle()
+        staticcall AMM.p_oracle_up(n1) <= staticcall AMM.price_oracle()
     ), "Debt too high"
 
     return n1
