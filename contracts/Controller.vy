@@ -964,14 +964,19 @@ def repay(
         if callbacker == empty(address):
             xy = extcall AMM.withdraw(_for, 10**18)
 
+        total_stablecoins = 0
         if xy[0] > 0:
             # Only allow full repayment when underwater for the sender to do
             assert approval
             self.transferFrom(BORROWED_TOKEN, AMM.address, self, xy[0])
+            total_stablecoins += xy[0]
         if cb.stablecoins > 0:
             self.transferFrom(BORROWED_TOKEN, callbacker, self, cb.stablecoins)
-        if _d_debt > 0:
-            self.transferFrom(BORROWED_TOKEN, msg.sender, self, _d_debt)
+            total_stablecoins += cb.stablecoins
+        if total_stablecoins < d_debt:
+            _d_debt_effective: uint256 = unsafe_sub(d_debt, xy[0] + cb.stablecoins)  # <= _d_debt
+            self.transferFrom(BORROWED_TOKEN, msg.sender, self, _d_debt_effective)
+            total_stablecoins += _d_debt_effective
 
         if total_stablecoins > d_debt:
             self.transfer(
