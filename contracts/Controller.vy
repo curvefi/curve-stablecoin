@@ -159,11 +159,6 @@ def __init__(
     self.loan_discount = loan_discount
     self._total_debt.rate_mul = 10**18
 
-    # TODO check what this is needed for
-    assert extcall BORROWED_TOKEN.approve(
-        msg.sender, max_value(uint256), default_return_value=True
-    )
-
 
 @view
 @external

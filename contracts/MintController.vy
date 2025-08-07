@@ -34,3 +34,5 @@ def __init__(
         liquidation_discount,
         amm,
     )
+
+    assert extcall core.BORROWED_TOKEN.approve(core.FACTORY, max_value(uint256), default_return_value=True)
