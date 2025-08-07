@@ -136,7 +136,7 @@ def __init__(
     Aminus1 = A - 1
 
     # TODO check math (removed unsafe)
-    LOGN_A_RATIO = math._wad_ln(convert(A * WAD // A - 1, int256))
+    LOGN_A_RATIO = math._wad_ln(convert(A * WAD // (A - 1), int256))
     # TODO check math
     SQRT_BAND_RATIO = isqrt(10**36 * A // (A - 1))
 
