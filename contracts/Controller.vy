@@ -1209,9 +1209,9 @@ def _get_f_remove(frac: uint256, health_limit: uint256) -> uint256:
 def liquidate(
     user: address,
     min_x: uint256,
-    _frac: uint256,
-    callbacker: address,
-    calldata: Bytes[10**4],
+    _frac: uint256 = 10 ** 18,
+    callbacker: address = empty(address),
+    calldata: Bytes[10 ** 4] = b""
 ):
     """
     @notice Perform a bad liquidation (or self-liquidation) of user if health is not good
