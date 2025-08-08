@@ -50,7 +50,7 @@ MAX_TICKS: constant(int256) = 50
 MAX_TICKS_UINT: constant(uint256) = c.MAX_TICKS_UINT
 MAX_SKIP_TICKS: constant(int256) = 1024
 MAX_SKIP_TICKS_UINT: constant(uint256) = 1024
-# TODO create vyper issue
+# https://github.com/vyperlang/vyper/issues/4723
 DEAD_SHARES: constant(uint256) = c.DEAD_SHARES
 
 
@@ -101,8 +101,7 @@ user_shares: public(HashMap[address, IAMM.UserTicks])
 
 _liquidity_mining_callback: ILMGauge
 
-# TODO compiler bug workaround
-# TODO report issue
+# https://github.com/vyperlang/vyper/issues/4721
 @view
 @external
 def liquidity_mining_callback() -> ILMGauge:
