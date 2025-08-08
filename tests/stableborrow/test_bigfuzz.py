@@ -6,6 +6,7 @@ from hypothesis import settings
 from hypothesis import strategies as st
 from hypothesis.stateful import RuleBasedStateMachine, run_state_machine_as_test, rule, invariant
 
+from tests.utils.constants import ZERO_ADDRESS
 
 # Variables and methods to check
 # * A
@@ -16,8 +17,6 @@ from hypothesis.stateful import RuleBasedStateMachine, run_state_machine_as_test
 # * set_debt_ceiling
 # * set_borrowing_discounts
 # * collect AMM fees
-
-ZERO_ADDRESS = "0x0000000000000000000000000000000000000000"
 USE_FRACTION = 1
 USE_CALLBACKS = 2
 

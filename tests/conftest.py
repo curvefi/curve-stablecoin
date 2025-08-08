@@ -6,6 +6,7 @@ from typing import Any, Callable
 import boa
 import pytest
 from hypothesis import settings
+from tests.utils.deployers import ERC20_MOCK_DEPLOYER, DUMMY_PRICE_ORACLE_DEPLOYER
 
 
 boa.env.enable_fast_mode()
@@ -45,7 +46,7 @@ def admin():
 
 @pytest.fixture(scope="session")
 def token_mock():
-    return boa.load_partial('contracts/testing/ERC20Mock.vy')
+    return ERC20_MOCK_DEPLOYER
 
 
 @pytest.fixture(scope="session")
@@ -72,5 +73,5 @@ def collateral_token(get_collateral_token):
 @pytest.fixture(scope="session")
 def price_oracle(admin):
     with boa.env.prank(admin):
-        oracle = boa.load('contracts/testing/DummyPriceOracle.vy', admin, PRICE * 10**18)
+        oracle = DUMMY_PRICE_ORACLE_DEPLOYER.deploy(admin, PRICE * 10**18)
         return oracle

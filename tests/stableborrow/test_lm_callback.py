@@ -2,12 +2,13 @@ import boa
 import pytest
 from collections import defaultdict
 from ..conftest import approx
+from tests.utils.deployers import DUMMY_LM_CALLBACK_DEPLOYER
 
 
 @pytest.fixture(scope="module")
 def lm_callback(market_amm, market_controller, admin):
     with boa.env.prank(admin):
-        cb = boa.load('contracts/testing/DummyLMCallback.vy', market_amm.address)
+        cb = DUMMY_LM_CALLBACK_DEPLOYER.deploy(market_amm.address)
         market_controller.set_callback(cb.address)
         return cb
 

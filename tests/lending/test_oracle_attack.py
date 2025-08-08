@@ -12,6 +12,7 @@ import pytest
 
 from hypothesis import given, settings
 from hypothesis import strategies as st
+from tests.utils.deployers import OLD_AMM_DEPLOYER
 
 
 MAX = 2**256 - 1
@@ -49,7 +50,7 @@ def factory_new(factory_partial, stablecoin, amm_impl, controller_impl, vault_im
 
 @pytest.fixture(scope="module")
 def amm_old_interface():
-    return boa.load_partial('contracts/testing/OldAMM.vy')
+    return OLD_AMM_DEPLOYER
 
 
 @pytest.fixture(scope="module")

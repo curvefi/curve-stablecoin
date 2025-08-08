@@ -1,8 +1,9 @@
-# @version 0.4.1
+# @version 0.4.3
 #pragma optimize gas
 #pragma evm-version shanghai
 
 
+# TODO use vyi interfaces
 interface PriceOracle:
     def price() -> uint256: view
     def price_w() -> uint256: nonpayable

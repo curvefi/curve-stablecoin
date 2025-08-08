@@ -21,3 +21,5 @@ venv
 .claude
 .vscode
 .venv
+prof
+.prof

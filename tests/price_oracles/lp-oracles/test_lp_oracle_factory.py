@@ -1,6 +1,6 @@
 import boa
-
-ZERO_ADDRESS = "0x0000000000000000000000000000000000000000"
+from tests.utils.deployers import LP_ORACLE_STABLE_DEPLOYER, LP_ORACLE_CRYPTO_DEPLOYER
+from tests.utils.constants import ZERO_ADDRESS
 
 
 def test_lp_oracle_stable_factory(lp_oracle_factory, proxy_factory, get_stable_swap, stable_swap_no_argument, coin0_oracle, broken_contract, admin):
@@ -33,7 +33,7 @@ def test_lp_oracle_stable_factory(lp_oracle_factory, proxy_factory, get_stable_s
 
         with boa.env.anchor():
             oracle, proxy = lp_oracle_factory.deploy_oracle(stable_swap, coin0_oracle, False)
-            oracle = boa.load_partial('contracts/price_oracles/lp-oracles/LPOracleStable.vy').at(oracle)
+            oracle = LP_ORACLE_STABLE_DEPLOYER.at(oracle)
             assert oracle.address == lp_oracle_factory.get_oracle(stable_swap, coin0_oracle)
             assert proxy == ZERO_ADDRESS
             assert oracle.POOL() == stable_swap.address
@@ -41,7 +41,7 @@ def test_lp_oracle_stable_factory(lp_oracle_factory, proxy_factory, get_stable_s
             assert oracle.price_w() == _get_lp_stable_price(stable_swap) * coin0_oracle.price_w() // 10**18
 
         oracle, proxy = lp_oracle_factory.deploy_oracle(stable_swap, coin0_oracle)
-        oracle = boa.load_partial('contracts/price_oracles/lp-oracles/LPOracleStable.vy').at(oracle)
+        oracle = LP_ORACLE_STABLE_DEPLOYER.at(oracle)
         assert oracle.address == lp_oracle_factory.get_oracle(stable_swap, coin0_oracle)
         assert proxy == proxy_factory.get_proxy(oracle)
         assert oracle.POOL() == stable_swap.address
@@ -70,7 +70,7 @@ def test_lp_oracle_crypto_factory(lp_oracle_factory, proxy_factory, crypto_swap,
 
     with boa.env.anchor():
         oracle, proxy = lp_oracle_factory.deploy_oracle(crypto_swap, coin0_oracle, False)
-        oracle = boa.load_partial('contracts/price_oracles/lp-oracles/LPOracleCrypto.vy').at(oracle)
+        oracle = LP_ORACLE_CRYPTO_DEPLOYER.at(oracle)
         assert oracle.address == lp_oracle_factory.get_oracle(crypto_swap, coin0_oracle)
         assert proxy == ZERO_ADDRESS
         assert oracle.POOL() == crypto_swap.address
@@ -78,7 +78,7 @@ def test_lp_oracle_crypto_factory(lp_oracle_factory, proxy_factory, crypto_swap,
         assert oracle.price_w() == crypto_swap.lp_price() * coin0_oracle.price_w() // 10**18
 
     oracle, proxy = lp_oracle_factory.deploy_oracle(crypto_swap, coin0_oracle)
-    oracle = boa.load_partial('contracts/price_oracles/lp-oracles/LPOracleCrypto.vy').at(oracle)
+    oracle = LP_ORACLE_CRYPTO_DEPLOYER.at(oracle)
     assert oracle.address == lp_oracle_factory.get_oracle(crypto_swap, coin0_oracle)
     assert proxy == proxy_factory.get_proxy(oracle)
     assert oracle.POOL() == crypto_swap.address

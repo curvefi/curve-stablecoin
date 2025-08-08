@@ -3,6 +3,12 @@ import pytest
 from hypothesis import given
 from hypothesis import settings
 from hypothesis import strategies as st
+from tests.utils.deployers import (
+    MOCK_FACTORY_DEPLOYER,
+    MOCK_MARKET_DEPLOYER,
+    MOCK_RATE_SETTER_DEPLOYER,
+    SECONDARY_MONETARY_POLICY_DEPLOYER
+)
 
 
 MIN_UTIL = 10**16
@@ -15,17 +21,17 @@ RATE0 = int(0.1 * 1e18 / 365 / 86400)
 
 @pytest.fixture(scope="module")
 def factory():
-    return boa.load('contracts/testing/MockFactory.vy')
+    return MOCK_FACTORY_DEPLOYER.deploy()
 
 
 @pytest.fixture(scope="module")
 def controller():
-    return boa.load('contracts/testing/MockMarket.vy')
+    return MOCK_MARKET_DEPLOYER.deploy()
 
 
 @pytest.fixture(scope="module")
 def amm():
-    return boa.load('contracts/testing/MockRateSetter.vy', RATE0)
+    return MOCK_RATE_SETTER_DEPLOYER.deploy(RATE0)
 
 
 @pytest.fixture(scope="module")
@@ -35,7 +41,7 @@ def borrowed_token(get_borrowed_token):
 
 @pytest.fixture(scope="module")
 def mp(factory, amm, borrowed_token):
-    return boa.load('contracts/mpolicies/SecondaryMonetaryPolicy.vy', factory, amm, borrowed_token,
+    return SECONDARY_MONETARY_POLICY_DEPLOYER.deploy(factory, amm, borrowed_token,
                     int(0.85 * 1e18), int(0.5 * 1e18), int(3 * 1e18), 0)
 
 
