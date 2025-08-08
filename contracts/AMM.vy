@@ -1,4 +1,4 @@
-# pragma version 0.4.1
+# pragma version 0.4.3
 """
 @title LLAMMA - crvUSD AMM
 @author Curve.Fi
@@ -77,14 +77,13 @@ active_band: public(int256)
 min_band: public(int256)
 max_band: public(int256)
 
-# TODO setter
-_price_oracle_contract: immutable(IPriceOracle)
+_price_oracle_contract: IPriceOracle  
 
-# TODO This is a workaround for a compiler bug
+# https://github.com/vyperlang/vyper/issues/4721
 @view
 @external
 def price_oracle_contract() -> IPriceOracle:
-    return _price_oracle_contract
+    return self._price_oracle_contract
 
 
 old_p_o: uint256
@@ -112,9 +111,9 @@ def liquidity_mining_callback() -> ILMGauge:
 
 @deploy
 def __init__(
-        _borrowed_token: address,
+        _borrowed_token: IERC20,
         _borrowed_precision: uint256,
-        _collateral_token: address,
+        _collateral_token: IERC20,
         _collateral_precision: uint256,
         _A: uint256,
         _sqrt_band_ratio: uint256,
@@ -122,7 +121,7 @@ def __init__(
         _base_price: uint256,
         fee: uint256,
         admin_fee: uint256,
-        price_oracle_contract: address,
+        price_oracle_contract: IPriceOracle,
     ):
     """
     @notice LLAMMA constructor
@@ -138,9 +137,9 @@ def __init__(
     @param _price_oracle_contract External price oracle which has price() and price_w() methods
            which both return current price of collateral multiplied by 1e18
     """
-    BORROWED_TOKEN = IERC20(_borrowed_token)
+    BORROWED_TOKEN = _borrowed_token
     BORROWED_PRECISION = _borrowed_precision
-    COLLATERAL_TOKEN = IERC20(_collateral_token)
+    COLLATERAL_TOKEN = _collateral_token
     COLLATERAL_PRECISION = _collateral_precision
     A = _A
     BASE_PRICE = _base_price
@@ -150,9 +149,9 @@ def __init__(
     Aminus12 = pow_mod256(unsafe_sub(A, 1), 2)
 
     self.fee = fee
-    _price_oracle_contract = IPriceOracle(price_oracle_contract)
+    self._price_oracle_contract = price_oracle_contract
     self.prev_p_o_time = block.timestamp
-    self.old_p_o = staticcall _price_oracle_contract.price()
+    self.old_p_o = staticcall self._price_oracle_contract.price()
 
     self.rate_mul = 10**18
 
@@ -275,12 +274,12 @@ def get_dynamic_fee(p_o: uint256, p_o_up: uint256) -> uint256:
 @internal
 @view
 def _price_oracle_ro() -> uint256[2]:
-    return self.limit_p_o(staticcall _price_oracle_contract.price())
+    return self.limit_p_o(staticcall self._price_oracle_contract.price())
 
 
 @internal
 def _price_oracle_w() -> uint256[2]:
-    p: uint256[2] = self.limit_p_o(extcall _price_oracle_contract.price_w())
+    p: uint256[2] = self.limit_p_o(extcall self._price_oracle_contract.price_w())
     self.prev_p_o_time = block.timestamp
     self.old_p_o = p[0]
     self.old_dfee = p[1]
@@ -1702,3 +1701,15 @@ def set_callback(liquidity_mining_callback: ILMGauge):
     """
     assert msg.sender == self.admin
     self._liquidity_mining_callback = liquidity_mining_callback
+
+
+@external
+@nonreentrant
+def set_price_oracle(_price_oracle: IPriceOracle):
+    """
+    @notice Set a new price oracle contract. Can only be called by admin (Controller)
+    @param _price_oracle New price oracle contract
+    """
+    assert msg.sender == self.admin
+    self._price_oracle_contract = _price_oracle
+    log IAMM.SetPriceOracle(price_oracle=_price_oracle)

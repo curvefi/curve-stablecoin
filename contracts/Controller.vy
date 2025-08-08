@@ -11,6 +11,7 @@ from contracts.interfaces import IAMM
 from contracts.interfaces import IMonetaryPolicy
 from contracts.interfaces import ILMGauge
 from contracts.interfaces import IFactory
+from contracts.interfaces import IPriceOracle
 from ethereum.ercs import IERC20
 from ethereum.ercs import IERC20Detailed
 
@@ -75,6 +76,7 @@ MAX_SKIP_TICKS: constant(uint256) = 1024
 MAX_P_BASE_BANDS: constant(int256) = 5
 
 MAX_RATE: constant(uint256) = 43959106799  # 300% APY
+MAX_ORACLE_PRICE_DEVIATION: constant(uint256) = WAD // 2 # 50% deviation
 
 ################################################################
 #                           STORAGE                            #
@@ -83,8 +85,8 @@ MAX_RATE: constant(uint256) = 43959106799  # 300% APY
 liquidation_discount: public(uint256)
 loan_discount: public(uint256)
 _monetary_policy: IMonetaryPolicy
-# TODO can't mark it as public, likely a compiler bug
-# TODO make an issue
+
+# https://github.com/vyperlang/vyper/issues/4721
 @external
 @view
 def monetary_policy() -> IMonetaryPolicy:
@@ -135,9 +137,7 @@ def __init__(
     A = staticcall AMM.A()
     Aminus1 = A - 1
 
-    # TODO check math (removed unsafe)
     LOGN_A_RATIO = math._wad_ln(convert(A * WAD // (A - 1), int256))
-    # TODO check math
     SQRT_BAND_RATIO = isqrt(10**36 * A // (A - 1))
 
     MAX_AMM_FEE = min(WAD * MIN_TICKS_UINT // A, 10**17)
@@ -211,6 +211,31 @@ def _update_total_debt(
     self._total_debt = loan
 
     return loan
+
+
+@external
+def set_price_oracle(price_oracle: IPriceOracle, max_deviation: uint256):
+    """
+    @notice Set a new price oracle for the AMM
+    @param price_oracle New price oracle contract
+    @param max_deviation Maximum allowed deviation for the new oracle
+        Can be set to max_value(uint256) to skip the check if oracle is broken.
+    """
+    self._check_admin()
+    assert max_deviation <= MAX_ORACLE_PRICE_DEVIATION or max_deviation == max_value(uint256) # dev: invalid max deviation
+    
+    # Validate the new oracle has required methods
+    new_price: uint256 = extcall price_oracle.price_w()
+    
+    # Check price deviation isn't too high
+    current_oracle: IPriceOracle = staticcall AMM.price_oracle_contract()
+    old_price: uint256 = staticcall current_oracle.price()
+    if max_deviation != max_value(uint256):
+        delta: uint256 = new_price - old_price if old_price < new_price else old_price - new_price
+        max_delta: uint256 = old_price * max_deviation // WAD
+        assert delta <= max_delta, "deviation>max"
+    
+    extcall AMM.set_price_oracle(price_oracle)
 
 
 @external
