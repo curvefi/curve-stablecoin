@@ -13,13 +13,10 @@ from ethereum.ercs import IERC20Detailed
 from contracts.interfaces import IVault
 from contracts.interfaces import ILlamalendController as IController
 from contracts.interfaces import IAMM
-from contracts.interfaces import IPool
 from contracts.interfaces import IPriceOracle
-from contracts.interfaces import ILendingFactory 
+from contracts.interfaces import ILendingFactory
 implements: ILendingFactory
 
-
-STABLECOIN: public(immutable(address))
 
 # These are limits for default borrow rates, NOT actual min and max rates.
 # Even governance cannot go beyond these rates before a new code is shipped
@@ -53,16 +50,11 @@ vaults: public(IVault[10**18])
 _vaults_index: HashMap[IVault, uint256]
 market_count: public(uint256)
 
-# Index to find vaults by a non-crvUSD token
-token_to_vaults: public(HashMap[address, IVault[10**18]])
-token_market_count: public(HashMap[address, uint256])
-
 names: public(HashMap[uint256, String[64]])
 
 
 @deploy
 def __init__(
-        stablecoin: address,
         amm: address,
         controller: address,
         vault: address,
@@ -73,7 +65,6 @@ def __init__(
 ):
     """
     @notice Factory which creates one-way lending vaults (e.g. collateral is non-borrowable)
-    @param stablecoin Address of crvUSD. Only crvUSD-containing markets are allowed
     @param amm Address of AMM implementation
     @param controller Address of Controller implementation
     @param pool_price_oracle Address of implementation for price oracle factory (prices from pools)
@@ -81,7 +72,6 @@ def __init__(
     @param admin Admin address (DAO)
     @param fee_receiver Receiver of interest and admin fees
     """
-    STABLECOIN = stablecoin
     self.amm_impl = amm
     self.controller_impl = controller
     self.vault_impl = vault
@@ -141,7 +131,6 @@ def _create(
     @notice Internal method for creation of the vault
     """
     assert borrowed_token != collateral_token, "Same token"
-    assert borrowed_token == STABLECOIN or collateral_token == STABLECOIN
     assert A >= MIN_A and A <= MAX_A, "Wrong A"
     assert fee <= MAX_FEE, "Fee too high"
     assert fee >= MIN_FEE, "Fee too low"
@@ -196,15 +185,7 @@ def _create(
     self.vaults[market_count] = vault
     self._vaults_index[vault] = market_count + 2**128
     self.names[market_count] = name
-
     self.market_count = market_count + 1
-
-    token: address = borrowed_token
-    if borrowed_token == STABLECOIN:
-        token = collateral_token
-    market_count = self.token_market_count[token]
-    self.token_to_vaults[token][market_count] = vault
-    self.token_market_count[token] = market_count + 1
 
     return [vault.address, controller, amm]
 

@@ -69,12 +69,9 @@ def factory_partial():
 
 
 @pytest.fixture(scope="module")
-def factory(factory_partial, stablecoin, amm_impl, controller_impl, vault_impl, price_oracle_impl, mpolicy_impl, admin):
+def factory(factory_partial, amm_impl, controller_impl, vault_impl, price_oracle_impl, mpolicy_impl, admin):
     with boa.env.prank(admin):
-        return factory_partial.deploy(
-            stablecoin.address,
-            amm_impl, controller_impl, vault_impl,
-            price_oracle_impl, mpolicy_impl, admin, admin)
+        return factory_partial.deploy(amm_impl, controller_impl, vault_impl, price_oracle_impl, mpolicy_impl, admin, admin)
 
 
 @pytest.fixture(scope="module", params=product([2, 6, 8, 18], [True, False]))

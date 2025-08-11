@@ -39,12 +39,9 @@ def hacker(accounts):
 
 
 @pytest.fixture(scope="module")
-def factory_new(factory_partial, stablecoin, amm_impl, controller_impl, vault_impl, price_oracle_impl, mpolicy_impl, admin):
+def factory_new(factory_partial, amm_impl, controller_impl, vault_impl, price_oracle_impl, mpolicy_impl, admin):
     with boa.env.prank(admin):
-        return factory_partial.deploy(
-            stablecoin.address,
-            amm_impl, controller_impl, vault_impl,
-            price_oracle_impl, mpolicy_impl, admin, admin)
+        return factory_partial.deploy(amm_impl, controller_impl, vault_impl, price_oracle_impl, mpolicy_impl, admin, admin)
 
 
 @pytest.fixture(scope="module")
@@ -53,13 +50,10 @@ def amm_old_interface():
 
 
 @pytest.fixture(scope="module")
-def factory_old(factory_partial, stablecoin, controller_impl, vault_impl, price_oracle_impl, mpolicy_impl, amm_old_interface, admin):
+def factory_old(factory_partial, controller_impl, vault_impl, price_oracle_impl, mpolicy_impl, amm_old_interface, admin):
     with boa.env.prank(admin):
         amm_impl = amm_old_interface.deploy_as_blueprint()
-        return factory_partial.deploy(
-            stablecoin.address,
-            amm_impl, controller_impl, vault_impl,
-            price_oracle_impl, mpolicy_impl, admin, admin)
+        return factory_partial.deploy(amm_impl, controller_impl, vault_impl, price_oracle_impl, mpolicy_impl, admin, admin)
 
 
 @pytest.fixture(scope='module')
