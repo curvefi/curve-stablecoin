@@ -50,6 +50,7 @@ FACTORY: immutable(IFactory)
 from contracts import constants as c
 
 WAD: constant(uint256) = c.WAD
+SWAD: constant(int256) = c.SWAD
 DEAD_SHARES: constant(uint256) = c.DEAD_SHARES
 
 MIN_AMM_FEE: constant(uint256) = 10**6  # 1e-12, still needs to be above 0
@@ -1103,13 +1104,13 @@ def _health(
     @return Health: > 0 = good.
     """
     assert debt > 0, "Loan doesn't exist"
-    health: int256 = WAD - convert(liquidation_discount, int256)
+    health: int256 = SWAD - convert(liquidation_discount, int256)
     health = (
         unsafe_div(
             convert(staticcall AMM.get_x_down(user), int256) * health,
             convert(debt, int256),
         )
-        - WAD
+        - SWAD
     )
 
     if full:
@@ -1199,7 +1200,7 @@ def health_calculator(
         )
 
     health: int256 = unsafe_div(x_eff, debt)
-    health = health - unsafe_div(health * ld, WAD) - WAD
+    health = health - unsafe_div(health * ld, SWAD) - SWAD
 
     if full:
         if n1 > active_band:  # We are not in liquidation mode
