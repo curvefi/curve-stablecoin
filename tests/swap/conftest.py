@@ -1,33 +1,37 @@
 import boa
 import pytest
 from boa.interpret import VyperContract
-
-ZERO_ADDRESS = "0x0000000000000000000000000000000000000000"
+from tests.utils.deployers import (
+    STABLESWAP_DEPLOYER,
+    SWAP_FACTORY_DEPLOYER,
+    ERC20_MOCK_DEPLOYER
+)
+from tests.utils.constants import ZERO_ADDRESS
 
 
 @pytest.fixture(scope="session")
 def swap_impl(admin):
     with boa.env.prank(admin):
-        return boa.load('contracts/Stableswap.vy')
+        return STABLESWAP_DEPLOYER.deploy()
 
 
 @pytest.fixture(scope="session")
 def swap_deployer(swap_impl, admin):
     with boa.env.prank(admin):
-        deployer = boa.load('contracts/testing/SwapFactory.vy', swap_impl.address)
+        deployer = SWAP_FACTORY_DEPLOYER.deploy(swap_impl.address)
         return deployer
 
 
 @pytest.fixture(scope="session")
 def redeemable_coin(admin):
     with boa.env.prank(admin):
-        return boa.load('contracts/testing/ERC20Mock.vy', "Unbranded Redeemable USD", "urUSD", 6)
+        return ERC20_MOCK_DEPLOYER.deploy("Unbranded Redeemable USD", "urUSD", 6)
 
 
 @pytest.fixture(scope="session")
 def volatile_coin(admin):
     with boa.env.prank(admin):
-        return boa.load('contracts/testing/ERC20Mock.vy', "Volatile USD", "vUSD", 18)
+        return ERC20_MOCK_DEPLOYER.deploy("Volatile USD", "vUSD", 18)
 
 
 @pytest.fixture(scope="session")

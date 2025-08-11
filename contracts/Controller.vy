@@ -11,6 +11,7 @@ from contracts.interfaces import IAMM
 from contracts.interfaces import IMonetaryPolicy
 from contracts.interfaces import ILMGauge
 from contracts.interfaces import IFactory
+from contracts.interfaces import IPriceOracle
 from ethereum.ercs import IERC20
 from ethereum.ercs import IERC20Detailed
 
@@ -49,6 +50,7 @@ FACTORY: immutable(IFactory)
 from contracts import constants as c
 
 WAD: constant(uint256) = c.WAD
+SWAD: constant(int256) = c.SWAD
 DEAD_SHARES: constant(uint256) = c.DEAD_SHARES
 
 MIN_AMM_FEE: constant(uint256) = 10**6  # 1e-12, still needs to be above 0
@@ -65,6 +67,7 @@ CALLBACK_LIQUIDATE: constant(bytes4) = method_id(
     "callback_liquidate(address,uint256,uint256,uint256,bytes)",
     output_type=bytes4,
 )
+CALLDATA_MAX_SIZE: constant(uint256) = 10**4
 
 MAX_LOAN_DISCOUNT: constant(uint256) = 5 * 10**17
 MIN_LIQUIDATION_DISCOUNT: constant(uint256) = 10**16
@@ -75,6 +78,7 @@ MAX_SKIP_TICKS: constant(uint256) = 1024
 MAX_P_BASE_BANDS: constant(int256) = 5
 
 MAX_RATE: constant(uint256) = 43959106799  # 300% APY
+MAX_ORACLE_PRICE_DEVIATION: constant(uint256) = WAD // 2 # 50% deviation
 
 ################################################################
 #                           STORAGE                            #
@@ -83,8 +87,8 @@ MAX_RATE: constant(uint256) = 43959106799  # 300% APY
 liquidation_discount: public(uint256)
 loan_discount: public(uint256)
 _monetary_policy: IMonetaryPolicy
-# TODO can't mark it as public, likely a compiler bug
-# TODO make an issue
+
+# https://github.com/vyperlang/vyper/issues/4721
 @external
 @view
 def monetary_policy() -> IMonetaryPolicy:
@@ -135,9 +139,7 @@ def __init__(
     A = staticcall AMM.A()
     Aminus1 = A - 1
 
-    # TODO check math (removed unsafe)
     LOGN_A_RATIO = math._wad_ln(convert(A * WAD // (A - 1), int256))
-    # TODO check math
     SQRT_BAND_RATIO = isqrt(10**36 * A // (A - 1))
 
     MAX_AMM_FEE = min(WAD * MIN_TICKS_UINT // A, 10**17)
@@ -157,7 +159,7 @@ def __init__(
     self._monetary_policy = monetary_policy
     self.liquidation_discount = liquidation_discount
     self.loan_discount = loan_discount
-    self._total_debt.rate_mul = 10**18
+    self._total_debt.rate_mul = WAD
 
 
 @view
@@ -211,6 +213,32 @@ def _update_total_debt(
     self._total_debt = loan
 
     return loan
+
+
+@external
+def set_price_oracle(price_oracle: IPriceOracle, max_deviation: uint256):
+    """
+    @notice Set a new price oracle for the AMM
+    @param price_oracle New price oracle contract
+    @param max_deviation Maximum allowed deviation for the new oracle
+        Can be set to max_value(uint256) to skip the check if oracle is broken.
+    """
+    self._check_admin()
+    assert max_deviation <= MAX_ORACLE_PRICE_DEVIATION or max_deviation == max_value(uint256) # dev: invalid max deviation
+    
+    # Validate the new oracle has required methods
+    extcall price_oracle.price_w()
+    new_price: uint256 = staticcall price_oracle.price()
+    
+    # Check price deviation isn't too high
+    current_oracle: IPriceOracle = staticcall AMM.price_oracle_contract()
+    old_price: uint256 = staticcall current_oracle.price()
+    if max_deviation != max_value(uint256):
+        delta: uint256 = new_price - old_price if old_price < new_price else old_price - new_price
+        max_delta: uint256 = old_price * max_deviation // WAD
+        assert delta <= max_delta, "deviation>max"
+    
+    extcall AMM.set_price_oracle(price_oracle)
 
 
 @external
@@ -349,14 +377,14 @@ def get_y_effective(
     d_y_effective: uint256 = unsafe_div(
         collateral
         * unsafe_sub(
-            10**18,
+            WAD,
             min(
                 discount
                 + unsafe_div(
-                    (DEAD_SHARES * 10**18),
+                    (DEAD_SHARES * WAD),
                     max(unsafe_div(collateral, N), DEAD_SHARES),
                 ),
-                10**18,
+                WAD,
             ),
         ),
         unsafe_mul(SQRT_BAND_RATIO, N),
@@ -438,7 +466,7 @@ def max_p_base() -> uint256:
     p_oracle: uint256 = staticcall AMM.price_oracle()
     # Should be correct unless price changes suddenly by MAX_P_BASE_BANDS+ bands
     n1: int256 = math._wad_ln(
-        convert(staticcall AMM.get_base_price() * 10**18 // p_oracle, int256)
+        convert(staticcall AMM.get_base_price() * WAD // p_oracle, int256)
     )
     if n1 < 0:
         n1 -= (
@@ -521,10 +549,10 @@ def _max_borrowable(
     )
 
     x: uint256 = unsafe_sub(
-        max(unsafe_div(y_effective * self.max_p_base(), 10**18), 1), 1
+        max(unsafe_div(y_effective * self.max_p_base(), WAD), 1), 1
     )
     x = unsafe_div(
-        x * (10**18 - 10**14), unsafe_mul(10**18, BORROWED_PRECISION)
+        x * (WAD - 10**14), unsafe_mul(WAD, BORROWED_PRECISION)
     )  # Make it a bit smaller
 
     return min(x, cap)
@@ -547,10 +575,10 @@ def min_collateral(
     return unsafe_div(
         unsafe_div(
             debt
-            * unsafe_mul(10**18, BORROWED_PRECISION) // self.max_p_base()
+            * unsafe_mul(WAD, BORROWED_PRECISION) // self.max_p_base()
             * 10
             ** 18 // self.get_y_effective(
-                10**18, N, self.loan_discount + self.extra_health[user]
+                WAD, N, self.loan_discount + self.extra_health[user]
             )
             + unsafe_add(
                 unsafe_mul(N, unsafe_add(N, 2 * DEAD_SHARES)),
@@ -558,8 +586,8 @@ def min_collateral(
             ),
             COLLATERAL_PRECISION,
         )
-        * 10**18,
-        10**18 - 10**14,
+        * WAD,
+        WAD - 10**14,
     )
 
 
@@ -605,7 +633,7 @@ def execute_callback(
     stablecoins: uint256,
     collateral: uint256,
     debt: uint256,
-    calldata: Bytes[10**4],
+    calldata: Bytes[CALLDATA_MAX_SIZE],
 ) -> IController.CallbackData:
     assert callbacker != COLLATERAL_TOKEN.address
     assert callbacker != BORROWED_TOKEN.address
@@ -642,7 +670,7 @@ def _create_loan(
     N: uint256,
     _for: address,
     callbacker: address = empty(address),
-    calldata: Bytes[10**4] = b"",
+    calldata: Bytes[CALLDATA_MAX_SIZE] = b"",
 ) -> uint256:
     if _for != tx.origin:
         # We can create a loan for tx.origin (for example when wrapping ETH with EOA),
@@ -719,7 +747,7 @@ def create_loan(
     N: uint256,
     _for: address = msg.sender,
     callbacker: address = empty(address),
-    calldata: Bytes[10**4] = b"",
+    calldata: Bytes[CALLDATA_MAX_SIZE] = b"",
 ):
     """
     @notice Create loan but pass stablecoin to a callback first so that it can build leverage
@@ -756,7 +784,7 @@ def _add_collateral_borrow(
     assert debt > 0, "Loan doesn't exist"
     debt += d_debt
 
-    xy: uint256[2] = extcall AMM.withdraw(_for, 10**18)
+    xy: uint256[2] = extcall AMM.withdraw(_for, WAD)
     assert xy[0] == 0, "Already in underwater mode"
     if remove_collateral:
         xy[1] -= d_collateral
@@ -769,7 +797,7 @@ def _add_collateral_borrow(
             # = 2 * 10**18 * 10**(18 - borrow_decimals) / 10**(collateral_decimals)
             assert (
                 d_collateral * staticcall AMM.price_oracle()
-                > 2 * 10**18 * BORROWED_PRECISION // COLLATERAL_PRECISION
+                > 2 * WAD * BORROWED_PRECISION // COLLATERAL_PRECISION
             )
     ns: int256[2] = staticcall AMM.read_user_tick_numbers(_for)
     size: uint256 = convert(unsafe_add(unsafe_sub(ns[1], ns[0]), 1), uint256)
@@ -843,7 +871,7 @@ def borrow_more(
     debt: uint256,
     _for: address = msg.sender,
     callbacker: address = empty(address),
-    calldata: Bytes[10**4] = b"",
+    calldata: Bytes[CALLDATA_MAX_SIZE] = b"",
 ):
     """
     @notice Borrow more stablecoins while adding more collateral using a callback (to leverage more)
@@ -868,7 +896,7 @@ def _borrow_more(
     debt: uint256,
     _for: address = msg.sender,
     callbacker: address = empty(address),
-    calldata: Bytes[10**4] = b"",
+    calldata: Bytes[CALLDATA_MAX_SIZE] = b"",
 ) -> uint256:
     if debt == 0:
         return 0
@@ -927,7 +955,7 @@ def repay(
     _for: address = msg.sender,
     max_active_band: int256 = max_value(int256),
     callbacker: address = empty(address),
-    calldata: Bytes[10**4] = b"",
+    calldata: Bytes[CALLDATA_MAX_SIZE] = b"",
 ):
     """
     @notice Repay debt (partially or fully)
@@ -947,7 +975,7 @@ def repay(
     cb: IController.CallbackData = empty(IController.CallbackData)
     if callbacker != empty(address):
         assert approval
-        xy = extcall AMM.withdraw(_for, 10**18)
+        xy = extcall AMM.withdraw(_for, WAD)
         self.transferFrom(COLLATERAL_TOKEN, AMM.address, callbacker, xy[1])
         cb = self.execute_callback(
             callbacker, CALLBACK_REPAY, _for, xy[0], xy[1], debt, calldata
@@ -962,7 +990,7 @@ def repay(
         d_debt = debt
         debt = 0
         if callbacker == empty(address):
-            xy = extcall AMM.withdraw(_for, 10**18)
+            xy = extcall AMM.withdraw(_for, WAD)
 
         total_stablecoins = 0
         if xy[0] > 0:
@@ -1013,7 +1041,7 @@ def repay(
             # Not in soft-liquidation - can use callback and move bands
             new_collateral: uint256 = cb.collateral
             if callbacker == empty(address):
-                xy = extcall AMM.withdraw(_for, 10**18)
+                xy = extcall AMM.withdraw(_for, WAD)
                 new_collateral = xy[1]
             ns[0] = self._calculate_debt_n1(
                 new_collateral,
@@ -1077,13 +1105,13 @@ def _health(
     @return Health: > 0 = good.
     """
     assert debt > 0, "Loan doesn't exist"
-    health: int256 = 10**18 - convert(liquidation_discount, int256)
+    health: int256 = SWAD - convert(liquidation_discount, int256)
     health = (
         unsafe_div(
             convert(staticcall AMM.get_x_down(user), int256) * health,
             convert(debt, int256),
         )
-        - 10**18
+        - SWAD
     )
 
     if full:
@@ -1157,7 +1185,7 @@ def health_calculator(
         n1 = ns[0]
         x_eff = convert(
             staticcall AMM.get_x_down(user)
-            * unsafe_mul(10**18, BORROWED_PRECISION),
+            * unsafe_mul(WAD, BORROWED_PRECISION),
             int256,
         )
 
@@ -1173,7 +1201,7 @@ def health_calculator(
         )
 
     health: int256 = unsafe_div(x_eff, debt)
-    health = health - unsafe_div(health * ld, 10**18) - 10**18
+    health = health - unsafe_div(health * ld, SWAD) - SWAD
 
     if full:
         if n1 > active_band:  # We are not in liquidation mode
@@ -1189,17 +1217,17 @@ def health_calculator(
 @pure
 def _get_f_remove(frac: uint256, health_limit: uint256) -> uint256:
     # f_remove = ((1 + h / 2) / (1 + h) * (1 - frac) + frac) * frac
-    f_remove: uint256 = 10**18
-    if frac < 10**18:
+    f_remove: uint256 = WAD
+    if frac < WAD:
         f_remove = unsafe_div(
             unsafe_mul(
-                unsafe_add(10**18, unsafe_div(health_limit, 2)),
-                unsafe_sub(10**18, frac),
+                unsafe_add(WAD, unsafe_div(health_limit, 2)),
+                unsafe_sub(WAD, frac),
             ),
-            unsafe_add(10**18, health_limit),
+            unsafe_add(WAD, health_limit),
         )
         f_remove = unsafe_div(
-            unsafe_mul(unsafe_add(f_remove, frac), frac), 10**18
+            unsafe_mul(unsafe_add(f_remove, frac), frac), WAD
         )
 
     return f_remove
@@ -1234,9 +1262,8 @@ def liquidate(
 
     final_debt: uint256 = debt
     # TODO shouldn't clamp max
-    frac: uint256 = min(_frac, 10**18)
-    # TODO use wads
-    debt = unsafe_div(debt * frac + (10**18 - 1), 10**18)
+    frac: uint256 = min(_frac, WAD)
+    debt = unsafe_div(debt * frac + (WAD - 1), WAD)
     assert debt > 0
     final_debt = unsafe_sub(final_debt, debt)
 
@@ -1328,7 +1355,7 @@ def liquidate(
 
 @view
 @external
-def tokens_to_liquidate(user: address, frac: uint256 = 10**18) -> uint256:
+def tokens_to_liquidate(user: address, frac: uint256 = WAD) -> uint256:
     """
     @notice Calculate the amount of stablecoins to have in liquidator's wallet to liquidate a user
     @param user Address of the user to liquidate
@@ -1341,9 +1368,9 @@ def tokens_to_liquidate(user: address, frac: uint256 = 10**18) -> uint256:
     stablecoins: uint256 = unsafe_div(
         (staticcall AMM.get_sum_xy(user))[0]
         * self._get_f_remove(frac, health_limit),
-        10**18,
+        WAD,
     )
-    debt: uint256 = unsafe_div(self._debt(user)[0] * frac, 10**18)
+    debt: uint256 = unsafe_div(self._debt(user)[0] * frac, WAD)
 
     return unsafe_sub(max(debt, stablecoins), stablecoins)
 
@@ -1404,7 +1431,6 @@ def amm_price() -> uint256:
     """
     @notice Current price from the AMM
     @dev Marked as reentrant because AMM has a nonreentrant decorator
-    # TODO check if @reentrant is actually needed
     """
     return staticcall AMM.get_p()
 
@@ -1521,8 +1547,9 @@ def collect_fees() -> uint256:
 
 @internal
 def _collect_fees(admin_fee: uint256) -> uint256:
+    if admin_fee == 0:
+        return 0
 
-    # TODO add early termination condition for admin fee == 0
     _to: address = staticcall FACTORY.fee_receiver()
 
     # Borrowing-based fees
@@ -1538,7 +1565,7 @@ def _collect_fees(admin_fee: uint256) -> uint256:
     if to_be_repaid > processed:
         self.processed = to_be_repaid
         fees: uint256 = (
-            unsafe_sub(to_be_repaid, processed) * admin_fee // 10**18
+            unsafe_sub(to_be_repaid, processed) * admin_fee // WAD
         )
         self.transfer(BORROWED_TOKEN, _to, fees)
         log IController.CollectFees(amount=fees, new_supply=loan.initial_debt)

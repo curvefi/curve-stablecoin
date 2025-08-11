@@ -1,6 +1,18 @@
 import boa
 import pytest
 import random
+from tests.utils.deployers import (
+    WETH_DEPLOYER,
+    DUMMY_PRICE_ORACLE_DEPLOYER,
+    MOCK_STABLE_SWAP_DEPLOYER,
+    MOCK_CRYPTO_SWAP_DEPLOYER,
+    MOCK_STABLE_SWAP_NO_ARGUMENT_DEPLOYER,
+    PROXY_ORACLE_DEPLOYER,
+    PROXY_ORACLE_FACTORY_DEPLOYER,
+    LP_ORACLE_STABLE_DEPLOYER,
+    LP_ORACLE_CRYPTO_DEPLOYER,
+    LP_ORACLE_FACTORY_DEPLOYER
+)
 
 @pytest.fixture(scope="session")
 def user(accounts):
@@ -10,13 +22,13 @@ def user(accounts):
 @pytest.fixture(scope="module")
 def broken_contract(admin):
     with boa.env.prank(admin):
-        return boa.load('contracts/testing/WETH.vy')
+        return WETH_DEPLOYER.deploy()
 
 
 @pytest.fixture(scope="module")
 def coin0_oracle(admin):
     with boa.env.prank(admin):
-        return boa.load('contracts/testing/DummyPriceOracle.vy', admin, random.randint(99 * 10**17, 101 * 10**17))
+        return DUMMY_PRICE_ORACLE_DEPLOYER.deploy(admin, random.randint(99 * 10**17, 101 * 10**17))
 
 
 @pytest.fixture(scope="module")
@@ -24,7 +36,7 @@ def get_stable_swap(admin):
     def f(N):
         prices = [random.randint(10**16, 10**23) for i in range(N - 1)]
         with boa.env.prank(admin):
-            return boa.load('contracts/price_oracles/lp-oracles/testing/MockStableSwap.vy', admin, prices)
+            return MOCK_STABLE_SWAP_DEPLOYER.deploy(admin, prices)
 
     return f
 
@@ -32,50 +44,50 @@ def get_stable_swap(admin):
 @pytest.fixture(scope="module")
 def crypto_swap(admin):
     with boa.env.prank(admin):
-        return boa.load('contracts/price_oracles/lp-oracles/testing/MockCryptoSwap.vy', admin, random.randint(10**16, 10**23))
+        return MOCK_CRYPTO_SWAP_DEPLOYER.deploy(admin, random.randint(10**16, 10**23))
 
 
 @pytest.fixture(scope="module")
 def stable_swap_no_argument(admin):
     with boa.env.prank(admin):
-        return boa.load('contracts/price_oracles/lp-oracles/testing/MockStableSwapNoArgument.vy', admin, random.randint(10**16, 10**23))
+        return MOCK_STABLE_SWAP_NO_ARGUMENT_DEPLOYER.deploy(admin, random.randint(10**16, 10**23))
 
 
 @pytest.fixture(scope="module")
 def proxy_impl(admin):
     with boa.env.prank(admin):
-        return boa.load('contracts/price_oracles/proxy/ProxyOracle.vy')
+        return PROXY_ORACLE_DEPLOYER.deploy()
 
 
 @pytest.fixture(scope="module")
 def proxy_factory(admin, proxy_impl):
     with boa.env.prank(admin):
-        return boa.load('contracts/price_oracles/proxy/ProxyOracleFactory.vy', admin, proxy_impl)
+        return PROXY_ORACLE_FACTORY_DEPLOYER.deploy(admin, proxy_impl)
 
 
 @pytest.fixture(scope="module")
 def lp_oracle_stable_impl(admin):
     with boa.env.prank(admin):
-        return boa.load_partial('contracts/price_oracles/lp-oracles/LPOracleStable.vy').deploy_as_blueprint()
+        return LP_ORACLE_STABLE_DEPLOYER.deploy_as_blueprint()
 
 
 @pytest.fixture(scope="module")
 def lp_oracle_crypto_impl(admin):
     with boa.env.prank(admin):
-        return boa.load_partial('contracts/price_oracles/lp-oracles/LPOracleCrypto.vy').deploy_as_blueprint()
+        return LP_ORACLE_CRYPTO_DEPLOYER.deploy_as_blueprint()
 
 
 @pytest.fixture(scope="module")
 def lp_oracle_factory(admin, lp_oracle_stable_impl, lp_oracle_crypto_impl, proxy_factory):
     with boa.env.prank(admin):
-        return boa.load('contracts/price_oracles/lp-oracles/LPOracleFactory.vy', admin, lp_oracle_stable_impl, lp_oracle_crypto_impl, proxy_factory)
+        return LP_ORACLE_FACTORY_DEPLOYER.deploy(admin, lp_oracle_stable_impl, lp_oracle_crypto_impl, proxy_factory)
 
 
 @pytest.fixture(scope="module")
 def get_lp_oracle_stable(admin):
     def f(pool, coin0_oracle):
         with boa.env.prank(admin):
-            return boa.load('contracts/price_oracles/lp-oracles/LPOracleStable.vy', pool, coin0_oracle)
+            return LP_ORACLE_STABLE_DEPLOYER.deploy(pool, coin0_oracle)
 
     return f
 
@@ -84,6 +96,6 @@ def get_lp_oracle_stable(admin):
 def get_lp_oracle_crypto(admin):
     def f(pool, coin0_oracle):
         with boa.env.prank(admin):
-            return boa.load('contracts/price_oracles/lp-oracles/LPOracleCrypto.vy', pool, coin0_oracle)
+            return LP_ORACLE_CRYPTO_DEPLOYER.deploy(pool, coin0_oracle)
 
     return f

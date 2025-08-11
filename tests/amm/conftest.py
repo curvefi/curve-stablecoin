@@ -1,6 +1,7 @@
 import boa
 import pytest
 from math import sqrt, log
+from tests.utils.deployers import AMM_DEPLOYER
 
 PRICE = 3000
 
@@ -14,7 +15,7 @@ def borrowed_token(get_borrowed_token):
 def get_amm(price_oracle, admin, accounts):
     def f(collateral_token, borrowed_token):
         with boa.env.prank(admin):
-            amm = boa.load('contracts/AMM.vy',
+            amm = AMM_DEPLOYER.deploy(
                            borrowed_token.address, 10**(18 - borrowed_token.decimals()),
                            collateral_token.address, 10**(18 - collateral_token.decimals()),
                            100, int(sqrt(100/99) * 1e18), int(log(100/99) * 1e18),

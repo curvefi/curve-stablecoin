@@ -1,0 +1,61 @@
+name: tests-boa
+
+on: [push]
+
+env:
+  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  # RPC_ETHEREUM: ${{ secrets.RPC_ETHEREUM }}
+
+jobs:
+  tests:
+    name: ${{ matrix.folder }} (${{ matrix.venom.name }})
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        folder:
+          - "tests/flashloan"
+          - "tests/lm_callback"
+          - "tests/amm"
+          - "tests/lending"
+          - "tests/price_oracles"
+          - "tests/swap"
+        venom:
+          - { name: "standard mode", value: false }
+          # - { name: "venom mode", value: true }
+    continue-on-error: ${{ matrix.venom.value }}
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          version: "0.8.7"
+          enable-cache: true  # Enables built-in caching for uv
+
+      - name: Cache Compiler Installations
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.vvm
+          key: compiler-cache-${{ hashFiles('**/uv.lock') }}
+
+      - name: Set up Python 3.12.6
+        run: uv python install 3.12.6
+
+      - name: Install Requirements
+        run: uv sync 
+
+      - name: Install Nightly Vyper if Venom is enabled
+        if: ${{ matrix.venom.value }}
+        run: |
+          uv pip install --force-reinstall 'git+https://github.com/vyperlang/vyper.git@master#egg=vyper'
+
+      - name: Run tests
+        run: |
+          export VENOM=${{ matrix.venom.value }}
+          uv run pytest ${{ matrix.folder }} -n auto
+        #   source .venv/bin/activate
+        #   uv pip freeze

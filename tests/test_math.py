@@ -3,6 +3,7 @@ import boa
 from math import log2, sqrt, exp, log
 from hypothesis import given, settings
 from hypothesis import strategies as st
+from tests.utils.deployers import OPTIMIZE_MATH_DEPLOYER
 
 SETTINGS = dict(max_examples=2000)
 
@@ -10,7 +11,7 @@ SETTINGS = dict(max_examples=2000)
 @pytest.fixture(scope="module")
 def optimized_math(admin):
     with boa.env.prank(admin):
-        return boa.load('contracts/testing/OptimizeMath.vy')
+        return OPTIMIZE_MATH_DEPLOYER.deploy()
 
 
 @given(st.integers(min_value=0, max_value=2**256-1))

@@ -1,8 +1,26 @@
 import boa
 import pytest
 from ...conftest import approx
-
-ZERO_ADDRESS = "0x0000000000000000000000000000000000000000"
+from tests.utils.deployers import (
+    ERC20_MOCK_DEPLOYER,
+    STABLESWAP_DEPLOYER,
+    SWAP_FACTORY_DEPLOYER,
+    MOCK_RATE_ORACLE_DEPLOYER,
+    CURVE_STABLESWAP_FACTORY_NG_DEPLOYER,
+    CURVE_STABLESWAP_NG_DEPLOYER,
+    CURVE_STABLESWAP_NG_MATH_DEPLOYER,
+    CURVE_STABLESWAP_NG_VIEWS_DEPLOYER,
+    AGGREGATE_STABLE_PRICE3_DEPLOYER,
+    TRICRYPTO_MOCK_DEPLOYER,
+    CRYPTO_WITH_STABLE_PRICE_DEPLOYER,
+    CRYPTO_WITH_STABLE_PRICE_AND_CHAINLINK_DEPLOYER,
+    MOCK_PEG_KEEPER_DEPLOYER,
+    PEG_KEEPER_REGULATOR_DEPLOYER,
+    PEG_KEEPER_V2_DEPLOYER,
+    AGG_MONETARY_POLICY2_DEPLOYER,
+    CHAINLINK_AGGREGATOR_MOCK_DEPLOYER
+)
+from tests.utils.constants import ZERO_ADDRESS
 BASE_AMOUNT = 10**6
 
 
@@ -35,31 +53,31 @@ def collateral_token(get_collateral_token):
 @pytest.fixture(scope="module")
 def stablecoin_a(admin):
     with boa.env.prank(admin):
-        return boa.load('contracts/testing/ERC20Mock.vy', "USDa", "USDa", 6)
+        return ERC20_MOCK_DEPLOYER.deploy("USDa", "USDa", 6)
 
 
 @pytest.fixture(scope="module")
 def stablecoin_b(admin):
     with boa.env.prank(admin):
-        return boa.load('contracts/testing/ERC20Mock.vy', "USDb", "USDb", 18)
+        return ERC20_MOCK_DEPLOYER.deploy("USDb", "USDb", 18)
 
 
 @pytest.fixture(scope="module")
 def swap_impl(admin):
     with boa.env.prank(admin):
-        return boa.load('contracts/Stableswap.vy')
+        return STABLESWAP_DEPLOYER.deploy()
 
 
 @pytest.fixture(scope="module")
 def swap_deployer(swap_impl, admin):
     with boa.env.prank(admin):
-        deployer = boa.load('contracts/testing/SwapFactory.vy', swap_impl.address)
+        deployer = SWAP_FACTORY_DEPLOYER.deploy(swap_impl.address)
         return deployer
 
 
 @pytest.fixture(scope="module")
 def rate_oracle(swap_impl, admin):
-    return boa.load('contracts/testing/MockRateOracle.vy')
+    return MOCK_RATE_ORACLE_DEPLOYER.deploy()
 
 
 @pytest.fixture(scope="module")
@@ -67,17 +85,17 @@ def swap_impl_ng(admin, swap_deployer, rate_oracle):
     with boa.env.prank(admin):
         # Do not forget `git submodule init` and `git submodule update`
         prefix = "contracts/testing/stableswap-ng/contracts/main"
-        factory = boa.load(f"{prefix}/CurveStableSwapFactoryNG.vy", admin, admin)
+        factory = CURVE_STABLESWAP_FACTORY_NG_DEPLOYER.deploy(admin, admin)
         swap_deployer.eval(f'self.factory_ng = FactoryNG({factory.address})')
         swap_deployer.eval(f'self.rate_oracle = {rate_oracle.address}')
 
-        impl = boa.load_partial(f"{prefix}/CurveStableSwapNG.vy").deploy_as_blueprint()
+        impl = CURVE_STABLESWAP_NG_DEPLOYER.deploy_as_blueprint()
         factory.set_pool_implementations(0, impl)
 
-        math = boa.load(f"{prefix}/CurveStableSwapNGMath.vy")
+        math = CURVE_STABLESWAP_NG_MATH_DEPLOYER.deploy()
         factory.set_math_implementation(math)
 
-        views = boa.load(f"{prefix}/CurveStableSwapNGViews.vy")
+        views = CURVE_STABLESWAP_NG_VIEWS_DEPLOYER.deploy()
         factory.set_views_implementation(views)
         return impl
 
@@ -129,7 +147,7 @@ def redeemable_tokens(stablecoin_a, stablecoin_b):
 @pytest.fixture(scope="module")
 def price_aggregator(stablecoin, stableswap_a, stableswap_b, admin):
     with boa.env.prank(admin):
-        agg = boa.load('contracts/price_oracles/AggregateStablePrice3.vy', stablecoin.address, 10**15, admin)
+        agg = AGGREGATE_STABLE_PRICE3_DEPLOYER.deploy(stablecoin.address, 10**15, admin)
         agg.add_price_pair(stableswap_a.address)
         agg.add_price_pair(stableswap_b.address)
         return agg
@@ -138,7 +156,7 @@ def price_aggregator(stablecoin, stableswap_a, stableswap_b, admin):
 @pytest.fixture(scope="module")
 def dummy_tricrypto(stablecoin_a, admin):
     with boa.env.prank(admin):
-        pool = boa.load('contracts/testing/TricryptoMock.vy',
+        pool = TRICRYPTO_MOCK_DEPLOYER.deploy(
                         [stablecoin_a.address,
                          "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2",
                          "0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599"])
@@ -167,8 +185,7 @@ def agg(stablecoin, stablecoin_a, stablecoin_b, stableswap_a, stableswap_b, pric
 @pytest.fixture(scope="module")
 def crypto_agg(dummy_tricrypto, agg, stableswap_a, admin):
     with boa.env.prank(admin):
-        crypto_agg = boa.load(
-            'contracts/price_oracles/CryptoWithStablePrice.vy',
+        crypto_agg = CRYPTO_WITH_STABLE_PRICE_DEPLOYER.deploy(
             dummy_tricrypto.address,
             0,
             stableswap_a,
@@ -182,8 +199,7 @@ def crypto_agg(dummy_tricrypto, agg, stableswap_a, admin):
 @pytest.fixture(scope="module")
 def crypto_agg_with_external_oracle(dummy_tricrypto, agg, stableswap_a, chainlink_price_oracle, admin):
     with boa.env.prank(admin):
-        crypto_agg = boa.load(
-            'contracts/price_oracles/CryptoWithStablePriceAndChainlink.vy',
+        crypto_agg = CRYPTO_WITH_STABLE_PRICE_AND_CHAINLINK_DEPLOYER.deploy(
             dummy_tricrypto.address,
             0,
             stableswap_a,
@@ -200,14 +216,13 @@ def crypto_agg_with_external_oracle(dummy_tricrypto, agg, stableswap_a, chainlin
 def mock_peg_keepers(stablecoin):
     """ Make Regulator always pass order of prices check """
     return [
-        boa.load('contracts/testing/MockPegKeeper.vy', price, stablecoin) for price in [0, 2 ** 256 - 1]
+        MOCK_PEG_KEEPER_DEPLOYER.deploy(price, stablecoin) for price in [0, 2 ** 256 - 1]
     ]
 
 
 @pytest.fixture(scope="module")
 def reg(agg, stablecoin, mock_peg_keepers, receiver, admin):
-    regulator = boa.load(
-        'contracts/stabilizer/PegKeeperRegulator.vy',
+    regulator = PEG_KEEPER_REGULATOR_DEPLOYER.deploy(
         stablecoin, agg, receiver, admin, admin
     )
     with boa.env.prank(admin):
@@ -223,8 +238,7 @@ def peg_keepers(stablecoin_a, stablecoin_b, stableswap_a, stableswap_b, controll
     with boa.env.prank(admin):
         for (coin, pool) in [(stablecoin_a, stableswap_a), (stablecoin_b, stableswap_b)]:
             pks.append(
-                    boa.load(
-                        'contracts/stabilizer/PegKeeperV2.vy',
+                    PEG_KEEPER_V2_DEPLOYER.deploy(
                         pool.address, 2 * 10**4,
                         controller_factory.address, reg.address, admin)
             )
@@ -235,8 +249,7 @@ def peg_keepers(stablecoin_a, stablecoin_b, stableswap_a, stableswap_b, controll
 @pytest.fixture(scope="module")
 def agg_monetary_policy(peg_keepers, agg, controller_factory, admin):
     with boa.env.prank(admin):
-        mp = boa.load(
-                'contracts/mpolicies/AggMonetaryPolicy2.vy',
+        mp = AGG_MONETARY_POLICY2_DEPLOYER.deploy(
                 admin,
                 agg.address,
                 controller_factory.address,
@@ -398,4 +411,4 @@ def mint_alice(alice, stablecoin, redeemable_tokens, swaps, initial_amounts, _mi
 
 @pytest.fixture(scope="module")
 def chainlink_price_oracle(admin):
-    return boa.load('contracts/testing/ChainlinkAggregatorMock.vy', 8, admin, 1000)
+    return CHAINLINK_AGGREGATOR_MOCK_DEPLOYER.deploy(8, admin, 1000)

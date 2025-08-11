@@ -4,6 +4,7 @@ from boa import BoaError
 from hypothesis import given, settings
 from hypothesis import strategies as st
 from ..conftest import approx
+from tests.utils.constants import ZERO_ADDRESS
 
 
 N = 5
@@ -180,7 +181,7 @@ def test_tokens_to_liquidate(accounts, admin, controller_for_liquidation, market
             stablecoin.transfer(fee_receiver, 10**10)
 
         with boa.env.prank(fee_receiver):
-            controller.liquidate_extended(user, 0, frac, "0x0000000000000000000000000000000000000000", [])
+            controller.liquidate_extended(user, 0, frac, ZERO_ADDRESS, [])
 
         balance = stablecoin.balanceOf(fee_receiver)
 
