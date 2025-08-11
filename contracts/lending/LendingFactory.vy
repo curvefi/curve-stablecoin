@@ -95,6 +95,7 @@ def __init__(
     self.fee_receiver = fee_receiver
 
 
+# TODO use snekmate's 
 @internal
 @pure
 def ln_int(_x: uint256) -> int256:

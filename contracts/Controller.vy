@@ -227,7 +227,8 @@ def set_price_oracle(price_oracle: IPriceOracle, max_deviation: uint256):
     assert max_deviation <= MAX_ORACLE_PRICE_DEVIATION or max_deviation == max_value(uint256) # dev: invalid max deviation
     
     # Validate the new oracle has required methods
-    new_price: uint256 = extcall price_oracle.price_w()
+    extcall price_oracle.price_w()
+    new_price: uint256 = staticcall price_oracle.price()
     
     # Check price deviation isn't too high
     current_oracle: IPriceOracle = staticcall AMM.price_oracle_contract()
