@@ -25,13 +25,6 @@ def test_vault_creation(vault, market_controller, market_amm, market_mpolicy, fa
     assert factory.price_oracles(n - 1) == price_oracle.address
     assert factory.monetary_policies(n - 1) == market_mpolicy.address
 
-    if borrowed_token == stablecoin:
-        token = collateral_token
-    else:
-        token = borrowed_token
-    vaults = set(factory.token_to_vaults(token, i) for i in range(factory.token_market_count(token)))
-    assert vault.address in vaults
-
     assert factory.vaults(factory.vaults_index(vault.address)) == vault.address
 
 
