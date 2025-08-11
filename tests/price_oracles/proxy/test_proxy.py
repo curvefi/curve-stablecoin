@@ -1,6 +1,6 @@
 import boa
-
-ZERO_ADDRESS = "0x0000000000000000000000000000000000000000"
+from tests.utils.deployers import PROXY_ORACLE_DEPLOYER
+from tests.utils.constants import ZERO_ADDRESS
 
 
 def test_proxy(proxy_factory, get_price_oracle, user, admin, broken_price_oracle):
@@ -12,7 +12,7 @@ def test_proxy(proxy_factory, get_price_oracle, user, admin, broken_price_oracle
         with boa.reverts("price() call failed"):
             proxy_factory.deploy_proxy_oracle(zero_oracle)
         proxy_address = proxy_factory.deploy_proxy_oracle(oracle1)
-    proxy = boa.load_partial('contracts/price_oracles/proxy/ProxyOracle.vy').at(proxy_address)
+    proxy = PROXY_ORACLE_DEPLOYER.at(proxy_address)
 
     assert proxy.factory() == proxy_factory.address
     assert proxy.oracle() == oracle1.address

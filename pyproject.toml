@@ -10,14 +10,22 @@ authors = [
 
 dependencies = [
     "vyper==0.4.3",
-    "titanoboa>=0.2.7",
+    "snekmate>=0.1.1",
+]
+
+[dependency-groups]
+dev = [
+    "titanoboa",
     "hypothesis>=6.99.0",
     "pytest>=8.0.0",
     "pytest-xdist>=3.5",
     "pytest-forked>=1.6.0",
     "pytest-cov>=4.0.0",
-    "snekmate>=0.1.1",
+    "pytest-profiling>=1.8.1",
 ]
+
+[tool.uv.sources]
+titanoboa = { git = "https://github.com/vyperlang/titanoboa", rev = "a508f2adac3c05a5bfcc09b7d64f9be46c0bab17" }
 
 [tool.uv]
 package = false  # This is not a Python package

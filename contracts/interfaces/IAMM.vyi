@@ -49,6 +49,10 @@ event SetFee:
     fee: uint256
 
 
+event SetPriceOracle:
+    price_oracle: IPriceOracle
+
+
 # Functions
 
 @external
@@ -226,6 +230,11 @@ def set_fee(fee: uint256):
 
 @external
 def set_callback(liquidity_mining_callback: ILMGauge):
+    ...
+
+
+@external
+def set_price_oracle(_price_oracle: IPriceOracle):
     ...
 
 

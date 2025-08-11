@@ -1,4 +1,6 @@
 import boa
+from tests.utils.deployers import LM_CALLBACK_WITH_REVERTS_DEPLOYER
+from tests.utils.constants import ZERO_ADDRESS
 
 WEEK = 7 * 86400
 
@@ -16,7 +18,7 @@ def test_add_new_lm_callback(
     alice = accounts[0]
 
     # Remove current LM Callback
-    market_controller.set_callback("0x0000000000000000000000000000000000000000", sender=admin)
+    market_controller.set_callback(ZERO_ADDRESS, sender=admin)
 
     boa.env.time_travel(seconds=2 * WEEK + 5)
     collateral_token._mint_for_testing(alice, 10**22, sender=admin)
@@ -39,7 +41,7 @@ def test_add_new_lm_callback(
 
     # Wire up the new LM Callback reverting on any AMM interaction
     with boa.env.prank(admin):
-        new_cb = boa.load('contracts/testing/LMCallbackWithReverts.vy')
+        new_cb = LM_CALLBACK_WITH_REVERTS_DEPLOYER.deploy()
         market_controller.set_callback(new_cb)
         gauge_controller.add_gauge(new_cb.address, 0, 10 ** 18)
 

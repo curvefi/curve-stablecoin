@@ -1,9 +1,8 @@
 import boa
 import pytest
 from hypothesis import strategies as st, given
-
-
-ZERO_ADDRESS = "0x0000000000000000000000000000000000000000"
+from tests.utils.deployers import MOCK_PEG_KEEPER_DEPLOYER
+from tests.utils.constants import ZERO_ADDRESS
 ADMIN_ACTIONS_DEADLINE = 3 * 86400
 
 
@@ -62,7 +61,7 @@ def test_price_order(peg_keepers, mock_peg_keepers, swaps, initial_amounts, stab
 
 
 def test_aggregator_price(peg_keepers, mock_peg_keepers, reg, agg, admin, stablecoin):
-    mock_peg_keeper = boa.load('contracts/testing/MockPegKeeper.vy', 10 ** 18, stablecoin)
+    mock_peg_keeper = MOCK_PEG_KEEPER_DEPLOYER.deploy(10 ** 18, stablecoin)
     for peg_keeper in peg_keepers:
         stablecoin.eval(f"self.balanceOf[{peg_keeper.address}] += {10 ** 18}")
     with boa.env.prank(admin):
@@ -225,7 +224,7 @@ def preset_peg_keepers(reg, admin, stablecoin):
     with boa.env.prank(admin):
         reg.remove_peg_keepers(get_peg_keepers(reg))
     return [
-        boa.load('contracts/testing/MockPegKeeper.vy', (1 + i) * 10 ** 18, stablecoin).address for i in range(8)
+        MOCK_PEG_KEEPER_DEPLOYER.deploy((1 + i) * 10 ** 18, stablecoin).address for i in range(8)
     ]
 
 

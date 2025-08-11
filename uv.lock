@@ -395,26 +395,36 @@ name = "curve-stablecoin"
 version = "0.2.0"
 source = { virtual = "." }
 dependencies = [
+    { name = "snekmate" },
+    { name = "vyper" },
+]
+
+[package.dev-dependencies]
+dev = [
     { name = "hypothesis" },
     { name = "pytest" },
     { name = "pytest-cov" },
     { name = "pytest-forked" },
+    { name = "pytest-profiling" },
     { name = "pytest-xdist" },
-    { name = "snekmate" },
     { name = "titanoboa" },
-    { name = "vyper" },
 ]
 
 [package.metadata]
 requires-dist = [
+    { name = "snekmate", specifier = ">=0.1.1" },
+    { name = "vyper", specifier = "==0.4.3" },
+]
+
+[package.metadata.requires-dev]
+dev = [
     { name = "hypothesis", specifier = ">=6.99.0" },
     { name = "pytest", specifier = ">=8.0.0" },
     { name = "pytest-cov", specifier = ">=4.0.0" },
     { name = "pytest-forked", specifier = ">=1.6.0" },
+    { name = "pytest-profiling", specifier = ">=1.8.1" },
     { name = "pytest-xdist", specifier = ">=3.5" },
-    { name = "snekmate", specifier = ">=0.1.1" },
-    { name = "titanoboa", specifier = ">=0.2.7" },
-    { name = "vyper", specifier = "==0.4.3" },
+    { name = "titanoboa", git = "https://github.com/vyperlang/titanoboa?rev=a508f2adac3c05a5bfcc09b7d64f9be46c0bab17" },
 ]
 
 [[package]]
@@ -663,6 +673,15 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/d9/29/d40217cbe2f6b1359e00c6c307bb3fc876ba74068cbab3dde77f03ca0dc4/ghp-import-2.1.0.tar.gz", hash = "sha256:9c535c4c61193c2df8871222567d7fd7e5014d835f97dc7b7439069e2413d343", size = 10943 }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/f7/ec/67fbef5d497f86283db54c22eec6f6140243aae73265799baaaa19cd17fb/ghp_import-2.1.0-py3-none-any.whl", hash = "sha256:8337dd7b50877f163d4c0289bc1f1c7f127550241988d568c1db512c4324a619", size = 11034 },
+]
+
+[[package]]
+name = "gprof2dot"
+version = "2025.4.14"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/bb/fd/cad13fa1f7a463a607176432c4affa33ea162f02f58cc36de1d40d3e6b48/gprof2dot-2025.4.14.tar.gz", hash = "sha256:35743e2d2ca027bf48fa7cba37021aaf4a27beeae1ae8e05a50b55f1f921a6ce", size = 39536 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/71/ed/89d760cb25279109b89eb52975a7b5479700d3114a2421ce735bfb2e7513/gprof2dot-2025.4.14-py3-none-any.whl", hash = "sha256:0742e4c0b4409a5e8777e739388a11e1ed3750be86895655312ea7c20bd0090e", size = 37555 },
 ]
 
 [[package]]
@@ -1292,6 +1311,20 @@ wheels = [
 ]
 
 [[package]]
+name = "pytest-profiling"
+version = "1.8.1"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "gprof2dot" },
+    { name = "pytest" },
+    { name = "six" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/44/74/806cafd6f2108d37979ec71e73b2ff7f7db88eabd19d3b79c5d6cc229c36/pytest-profiling-1.8.1.tar.gz", hash = "sha256:3f171fa69d5c82fa9aab76d66abd5f59da69135c37d6ae5bf7557f1b154cb08d", size = 33135 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/e3/ac/c428c66241a144617a8af7a28e2e055e1438d23b949b62ac4b401a69fb79/pytest_profiling-1.8.1-py3-none-any.whl", hash = "sha256:3dd8713a96298b42d83de8f5951df3ada3e61b3e5d2a06956684175529e17aea", size = 9929 },
+]
+
+[[package]]
 name = "pytest-xdist"
 version = "3.8.0"
 source = { registry = "https://pypi.org/simple" }
@@ -1521,7 +1554,7 @@ wheels = [
 [[package]]
 name = "titanoboa"
 version = "0.2.7"
-source = { registry = "https://pypi.org/simple" }
+source = { git = "https://github.com/vyperlang/titanoboa?rev=a508f2adac3c05a5bfcc09b7d64f9be46c0bab17#a508f2adac3c05a5bfcc09b7d64f9be46c0bab17" }
 dependencies = [
     { name = "eth-abi" },
     { name = "eth-account" },
@@ -1537,10 +1570,6 @@ dependencies = [
     { name = "typing-extensions" },
     { name = "vvm" },
     { name = "vyper" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/9c/85/2cfd05b649cf173714ea7a2b3597228b7a577cab7fe4696e67879b8784b7/titanoboa-0.2.7.tar.gz", hash = "sha256:4fb931747bf9beb05ea39b149878bb7d89525bcfacf1a903e4d14da91f7c49de", size = 99921 }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/da/fd/25ccd329bb68c2251b1fbb30aa799cfaca67ab262b2da05c5997e6b73e38/titanoboa-0.2.7-py3-none-any.whl", hash = "sha256:75771f5e8183c073f2c37d8925f583abd2c6b56eae4d087dbf1e33f809ea7ca5", size = 111582 },
 ]
 
 [[package]]

@@ -1,18 +1,13 @@
-# @version 0.4.1
-#pragma optimize gas
-#pragma evm-version shanghai
+# pragma version 0.4.3
+from contracts.interfaces import IPriceOracle
+from contracts import constants as c
 
 
-interface PriceOracle:
-    def price() -> uint256: view
-    def price_w() -> uint256: nonpayable
-
-
-COIN0_ORACLE: public(immutable(PriceOracle))
+COIN0_ORACLE: public(immutable(IPriceOracle))
 
 
 @deploy
-def __init__(coin0_oracle: PriceOracle):
+def __init__(coin0_oracle: IPriceOracle):
     COIN0_ORACLE = coin0_oracle
 
 
@@ -22,7 +17,7 @@ def _coin0_oracle_price() -> uint256:
     if COIN0_ORACLE.address != empty(address):
         return staticcall COIN0_ORACLE.price()
     else:
-        return 10**18
+        return c.WAD
 
 
 @internal
@@ -30,4 +25,4 @@ def _coin0_oracle_price_w() -> uint256:
     if COIN0_ORACLE.address != empty(address):
         return extcall COIN0_ORACLE.price_w()
     else:
-        return 10**18
+        return c.WAD

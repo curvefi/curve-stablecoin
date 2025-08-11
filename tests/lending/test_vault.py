@@ -6,6 +6,7 @@ from hypothesis.stateful import RuleBasedStateMachine, run_state_machine_as_test
 from ..conftest import approx
 
 
+# TODO get this from contract directly
 DEAD_SHARES = 1000
 
 
