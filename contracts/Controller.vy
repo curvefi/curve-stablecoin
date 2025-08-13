@@ -17,7 +17,8 @@ from ethereum.ercs import IERC20Detailed
 
 from contracts.interfaces import IMintController as IController
 
-implements: IController
+# TODO
+# implements: IController
 
 from snekmate.utils import math
 
@@ -53,9 +54,6 @@ WAD: constant(uint256) = c.WAD
 SWAD: constant(int256) = c.SWAD
 DEAD_SHARES: constant(uint256) = c.DEAD_SHARES
 
-MIN_AMM_FEE: constant(uint256) = 10**6  # 1e-12, still needs to be above 0
-MIN_TICKS_UINT: constant(uint256) = 4
-
 CALLBACK_DEPOSIT: constant(bytes4) = method_id(
     "callback_deposit(address,uint256,uint256,uint256,bytes)",
     output_type=bytes4,
@@ -74,11 +72,11 @@ MIN_LIQUIDATION_DISCOUNT: constant(uint256) = 10**16
 MAX_TICKS: constant(int256) = 50
 MAX_TICKS_UINT: constant(uint256) = c.MAX_TICKS_UINT
 MIN_TICKS: constant(int256) = 4
+MIN_TICKS_UINT: constant(uint256) = c.MIN_TICKS_UINT
 MAX_SKIP_TICKS: constant(uint256) = 1024
 MAX_P_BASE_BANDS: constant(int256) = 5
 
 MAX_RATE: constant(uint256) = 43959106799  # 300% APY
-MAX_ORACLE_PRICE_DEVIATION: constant(uint256) = WAD // 2 # 50% deviation
 
 ################################################################
 #                           STORAGE                            #
@@ -142,7 +140,6 @@ def __init__(
     LOGN_A_RATIO = math._wad_ln(convert(A * WAD // (A - 1), int256))
     SQRT_BAND_RATIO = isqrt(10**36 * A // (A - 1))
 
-    MAX_AMM_FEE = min(WAD * MIN_TICKS_UINT // A, 10**17)
 
     COLLATERAL_TOKEN = _collateral_token
     collateral_decimals: uint256 = convert(
@@ -175,10 +172,7 @@ def redeemed() -> uint256:
     return self.repaid
 
 
-@internal
-@view
-def _check_admin():
-    assert msg.sender == staticcall FACTORY.admin(), "only admin"
+
 
 
 @internal
@@ -213,32 +207,6 @@ def _update_total_debt(
     self._total_debt = loan
 
     return loan
-
-
-@external
-def set_price_oracle(price_oracle: IPriceOracle, max_deviation: uint256):
-    """
-    @notice Set a new price oracle for the AMM
-    @param price_oracle New price oracle contract
-    @param max_deviation Maximum allowed deviation for the new oracle
-        Can be set to max_value(uint256) to skip the check if oracle is broken.
-    """
-    self._check_admin()
-    assert max_deviation <= MAX_ORACLE_PRICE_DEVIATION or max_deviation == max_value(uint256) # dev: invalid max deviation
-    
-    # Validate the new oracle has required methods
-    extcall price_oracle.price_w()
-    new_price: uint256 = staticcall price_oracle.price()
-    
-    # Check price deviation isn't too high
-    current_oracle: IPriceOracle = staticcall AMM.price_oracle_contract()
-    old_price: uint256 = staticcall current_oracle.price()
-    if max_deviation != max_value(uint256):
-        delta: uint256 = new_price - old_price if old_price < new_price else old_price - new_price
-        max_delta: uint256 = old_price * max_deviation // WAD
-        assert delta <= max_delta, "deviation>max"
-    
-    extcall AMM.set_price_oracle(price_oracle)
 
 
 @external
@@ -695,7 +663,7 @@ def _create_loan(
 
     assert self.loan[_for].initial_debt == 0, "Loan already created"
     assert N > MIN_TICKS_UINT - 1, "Need more ticks"
-    assert N < MAX_TICKS_UINT + 1, "Need less ticks"
+    assert N < MAX_TICKS_UINT + 1 # dev: need less ticks
 
     n1: int256 = self._calculate_debt_n1(collateral, debt, N, _for)
     n2: int256 = n1 + convert(unsafe_sub(N, 1), int256)
@@ -1467,60 +1435,38 @@ def user_state(user: address) -> uint256[4]:
         convert(unsafe_add(unsafe_sub(ns[1], ns[0]), 1), uint256),
     ]
 
-
 @external
-@reentrant
-def set_amm_fee(fee: uint256):
-    """
-    @notice Set the AMM fee (factory admin only)
-    @dev Reentrant because AMM is nonreentrant TODO check this one
-    @param fee The fee which should be no higher than MAX_AMM_FEE
-    """
-    self._check_admin()
-    assert fee <= MAX_AMM_FEE and fee >= MIN_AMM_FEE, "Fee"
-    extcall AMM.set_fee(fee)
-
-
-@external
-def set_monetary_policy(monetary_policy: IMonetaryPolicy):
-    """
-    @notice Set monetary policy contract
-    @param monetary_policy Address of the monetary policy contract
-    """
-    self._check_admin()
-    self._monetary_policy = monetary_policy
-    extcall monetary_policy.rate_write()
-    log IController.SetMonetaryPolicy(monetary_policy=monetary_policy)
-
-
-@external
-def set_borrowing_discounts(
-    loan_discount: uint256, liquidation_discount: uint256
+def set_params(
+    monetary_policy: IMonetaryPolicy,
+    loan_discount: uint256,
+    liquidation_discount: uint256
 ):
-    """
-    @notice Set discounts at which we can borrow (defines max LTV) and where bad liquidation starts
-    @param loan_discount Discount which defines LTV
-    @param liquidation_discount Discount where bad liquidation starts
-    """
     self._check_admin()
-    assert loan_discount > liquidation_discount
-    assert liquidation_discount >= MIN_LIQUIDATION_DISCOUNT
-    assert loan_discount <= MAX_LOAN_DISCOUNT
-    self.liquidation_discount = liquidation_discount
-    self.loan_discount = loan_discount
-    log IController.SetBorrowingDiscounts(
-        loan_discount=loan_discount, liquidation_discount=liquidation_discount
-    )
+    if monetary_policy != empty(IMonetaryPolicy):
+        # """
+        # @notice Set monetary policy contract
+        # @param monetary_policy Address of the monetary policy contract
+        # """
+        self._monetary_policy = monetary_policy
+        extcall monetary_policy.rate_write()
+        log IController.SetMonetaryPolicy(monetary_policy=monetary_policy)
+    if loan_discount != max_value(uint256) and liquidation_discount != max_value(uint256):
+        # """
+        # @notice Set discounts at which we can borrow (defines max LTV) and where bad liquidation starts
+        # @param loan_discount Discount which defines LTV
+        # @param liquidation_discount Discount where bad liquidation starts
+        # """
+        assert loan_discount > liquidation_discount
+        assert liquidation_discount >= MIN_LIQUIDATION_DISCOUNT
+        assert loan_discount <= MAX_LOAN_DISCOUNT
+        self.liquidation_discount = liquidation_discount
+        self.loan_discount = loan_discount
+        log IController.SetBorrowingDiscounts(
+            loan_discount=loan_discount, liquidation_discount=liquidation_discount
+        )
 
 
-@external
-def set_callback(cb: ILMGauge):
-    """
-    @notice Set liquidity mining callback
-    """
-    self._check_admin()
-    extcall AMM.set_callback(cb)
-    log IController.SetLMCallback(callback=cb)
+
 
 
 @external

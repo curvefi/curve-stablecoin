@@ -16,11 +16,12 @@ from contracts.interfaces import IVault
 
 from contracts.interfaces import IMintController as IController
 
-implements: IController
+# TODO
+# implements: IController
 
 from contracts.interfaces import ILlamalendController
 
-implements: ILlamalendController
+# implements: ILlamalendController
 
 from snekmate.utils import math
 
@@ -64,10 +65,11 @@ exports: (
     core.factory,
     core.liquidate,
     core.repay,
-    core.set_amm_fee,
-    core.set_borrowing_discounts,
-    core.set_callback,
-    core.set_monetary_policy,
+    # core.set_amm_fee,
+    # core.set_borrowing_discounts,
+    # core.set_callback,
+    # core.set_monetary_policy,
+    # core.set_price_oracle, # TODO add to interface
     # For backward compatibility
     core.minted,
     core.redeemed,

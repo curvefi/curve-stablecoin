@@ -35,7 +35,8 @@
 # =======================
 
 from contracts.interfaces import IAMM
-implements: IAMM
+# TODO 
+# implements: IAMM
 
 from contracts.interfaces import IPriceOracle
 from contracts.interfaces import ILMGauge
@@ -1663,52 +1664,44 @@ def get_amount_for_price(p: uint256) -> (uint256, bool):
 
 
 @external
-@nonreentrant
-def set_rate(rate: uint256) -> uint256:
-    """
-    @notice Set interest rate. That affects the dependence of AMM base price over time
-    @param rate New rate in units of int(fraction * 1e18) per second
-    @return rate_mul multiplier (e.g. 1.0 + integral(rate, dt))
-    """
+def set_params(
+    rate: uint256,
+    fee: uint256,
+    liquidity_mining_callback: ILMGauge,
+    _price_oracle: IPriceOracle,
+):
+    # TODO change admin
     assert msg.sender == self.admin
-    rate_mul: uint256 = self._rate_mul()
-    self.rate_mul = rate_mul
-    self.rate_time = block.timestamp
-    self.rate = rate
-    log IAMM.SetRate(rate=rate, rate_mul=rate_mul, time=block.timestamp)
-    return rate_mul
-
-
-@external
-@nonreentrant
-def set_fee(fee: uint256):
-    """
-    @notice Set AMM fee
-    @param fee Fee where 1e18 == 100%
-    """
-    assert msg.sender == self.admin
-    self.fee = fee
-    log IAMM.SetFee(fee=fee)
-
-
-# nonreentrant decorator is in Controller which is admin
-@external
-def set_callback(liquidity_mining_callback: ILMGauge):
-    """
-    @notice Set a gauge address with callbacks for liquidity mining for collateral
-    @param liquidity_mining_callback Gauge address
-    """
-    assert msg.sender == self.admin
-    self._liquidity_mining_callback = liquidity_mining_callback
-
-
-@external
-@nonreentrant
-def set_price_oracle(_price_oracle: IPriceOracle):
-    """
-    @notice Set a new price oracle contract. Can only be called by admin (Controller)
-    @param _price_oracle New price oracle contract
-    """
-    assert msg.sender == self.admin
-    self._price_oracle_contract = _price_oracle
-    log IAMM.SetPriceOracle(price_oracle=_price_oracle)
+    if rate != max_value(uint256):
+        # """
+        # @notice Set interest rate. That affects the dependence of AMM base price over time
+        # @param rate New rate in units of int(fraction * 1e18) per second
+        # @return rate_mul multiplier (e.g. 1.0 + integral(rate, dt))
+        # """
+        rate_mul: uint256 = self._rate_mul()
+        self.rate_mul = rate_mul
+        self.rate_time = block.timestamp
+        self.rate = rate
+        log IAMM.SetRate(rate=rate, rate_mul=rate_mul, time=block.timestamp)
+    if fee != max_value(uint256):
+        # """
+        # @notice Set AMM fee
+        # @param fee Fee where 1e18 == 100%
+        # """
+        self.fee = fee
+        log IAMM.SetFee(fee=fee)
+    if liquidity_mining_callback != empty(ILMGauge):
+        # TODO nonreentrant decorator is in Controller which is admin
+        # TODO no event?
+        # """
+        # @notice Set a gauge address with callbacks for liquidity mining for collateral
+        # @param liquidity_mining_callback Gauge address
+        # """
+        self._liquidity_mining_callback = liquidity_mining_callback
+    if _price_oracle != empty(IPriceOracle):
+        # """
+        # @notice Set a new price oracle contract. Can only be called by admin (Controller)
+        # @param _price_oracle New price oracle contract
+        # """
+        self._price_oracle_contract = _price_oracle
+        log IAMM.SetPriceOracle(price_oracle=_price_oracle)

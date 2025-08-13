@@ -309,3 +309,7 @@ def user_shares(arg0: address) -> UserTicks:
 def liquidity_mining_callback() -> ILMGauge:
     ...
 
+
+@external
+def set_params(rate: uint256, fee: uint256, liquidity_mining_callback: ILMGauge, _price_oracle: IPriceOracle):
+    ...
