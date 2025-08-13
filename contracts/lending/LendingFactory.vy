@@ -146,6 +146,7 @@ def _create(
     if max_borrow_rate > 0:
         max_rate = max_borrow_rate
     assert min_rate >= MIN_RATE and max_rate <= MAX_RATE and min_rate <= max_rate, "Wrong rates"
+    # TODO code offset is not required anymore
     monetary_policy: address = create_from_blueprint(
         self.monetary_policy_impl, borrowed_token, min_rate, max_rate, code_offset=3)
 
@@ -222,6 +223,7 @@ def create(
     """
     res: address[3] = self._create(borrowed_token, collateral_token, A, fee, loan_discount, liquidation_discount,
                                 price_oracle, name, min_borrow_rate, max_borrow_rate)
+    # TODO duplicate code
     if supply_limit < max_value(uint256):
         extcall IVault(res[0]).set_max_supply(supply_limit)
 
@@ -286,6 +288,7 @@ def create_from_pool(
         borrowed_token, collateral_token, A, fee, loan_discount, liquidation_discount,
         price_oracle, name, min_borrow_rate, max_borrow_rate,
     )
+    # TODO duplicate code
     if supply_limit < max_value(uint256):
         extcall IVault(res[0]).set_max_supply(supply_limit)
 

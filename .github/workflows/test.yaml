@@ -19,6 +19,7 @@ jobs:
           - "tests/lending"
           - "tests/price_oracles"
           - "tests/swap"
+          - "tests/controller"
         venom:
           - { name: "standard mode", value: false }
           # - { name: "venom mode", value: true }

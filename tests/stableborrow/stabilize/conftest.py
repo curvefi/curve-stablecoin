@@ -53,13 +53,13 @@ def collateral_token(get_collateral_token):
 @pytest.fixture(scope="module")
 def stablecoin_a(admin):
     with boa.env.prank(admin):
-        return ERC20_MOCK_DEPLOYER.deploy("USDa", "USDa", 6)
+        return ERC20_MOCK_DEPLOYER.deploy(6)
 
 
 @pytest.fixture(scope="module")
 def stablecoin_b(admin):
     with boa.env.prank(admin):
-        return ERC20_MOCK_DEPLOYER.deploy("USDb", "USDb", 18)
+        return ERC20_MOCK_DEPLOYER.deploy(18)
 
 
 @pytest.fixture(scope="module")

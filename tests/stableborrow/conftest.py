@@ -5,7 +5,7 @@ from tests.utils.deployers import (
     STABLECOIN_DEPLOYER,
     WETH_DEPLOYER,
     CONTROLLER_FACTORY_DEPLOYER,
-    CONTROLLER_DEPLOYER,
+    MINT_CONTROLLER_DEPLOYER,
     AMM_DEPLOYER,
     CONSTANT_MONETARY_POLICY_DEPLOYER,
     FAKE_LEVERAGE_DEPLOYER
@@ -46,7 +46,7 @@ def controller_prefactory(controller_factory_impl, stablecoin, weth, admin, acco
 
 @pytest.fixture(scope="session")
 def controller_interface():
-    return CONTROLLER_DEPLOYER
+    return MINT_CONTROLLER_DEPLOYER
 
 
 @pytest.fixture(scope="session")

@@ -58,7 +58,7 @@ class AggMonetaryPolicyCreation(RuleBasedStateMachine):
     def add_stablecoin(self, digits):
         with boa.env.prank(self.admin):
             # Deploy a stablecoin
-            fedUSD = self.ERC20.deploy("USD%s" % digits, "USD%s" % digits, digits)
+            fedUSD = self.ERC20.deploy(digits)
             # Deploy a swap
             n = self.swap_deployer.n()
             self.swap_deployer.deploy(fedUSD, self.stablecoin)

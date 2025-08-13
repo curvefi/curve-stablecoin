@@ -25,13 +25,13 @@ def swap_deployer(swap_impl, admin):
 @pytest.fixture(scope="session")
 def redeemable_coin(admin):
     with boa.env.prank(admin):
-        return ERC20_MOCK_DEPLOYER.deploy("Unbranded Redeemable USD", "urUSD", 6)
+        return ERC20_MOCK_DEPLOYER.deploy(6)
 
 
 @pytest.fixture(scope="session")
 def volatile_coin(admin):
     with boa.env.prank(admin):
-        return ERC20_MOCK_DEPLOYER.deploy("Volatile USD", "vUSD", 18)
+        return ERC20_MOCK_DEPLOYER.deploy(18)
 
 
 @pytest.fixture(scope="session")

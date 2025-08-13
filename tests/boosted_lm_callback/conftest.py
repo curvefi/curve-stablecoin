@@ -9,7 +9,7 @@ from tests.utils.deployers import (
     STABLECOIN_DEPLOYER,
     WETH_DEPLOYER,
     CONTROLLER_FACTORY_DEPLOYER,
-    CONTROLLER_DEPLOYER,
+    MINT_CONTROLLER_DEPLOYER,
     AMM_DEPLOYER,
     CONSTANT_MONETARY_POLICY_DEPLOYER,
     BOOSTED_LM_CALLBACK_DEPLOYER,
@@ -79,7 +79,7 @@ def controller_prefactory(stablecoin, weth, admin, accounts):
 
 @pytest.fixture(scope="module")
 def controller_interface():
-    return CONTROLLER_DEPLOYER
+    return MINT_CONTROLLER_DEPLOYER
 
 
 @pytest.fixture(scope="module")

@@ -53,7 +53,7 @@ def token_mock():
 def get_collateral_token(token_mock, admin) -> Callable[[int], Any]:
     def f(digits):
         with boa.env.prank(admin):
-            return token_mock.deploy("Colalteral", "ETH", digits)
+            return token_mock.deploy(digits)
     return f
 
 
@@ -61,7 +61,7 @@ def get_collateral_token(token_mock, admin) -> Callable[[int], Any]:
 def get_borrowed_token(token_mock, admin) -> Callable[[int], Any]:
     def f(digits):
         with boa.env.prank(admin):
-            return token_mock.deploy("Rugworks USD", "rUSD", digits)
+            return token_mock.deploy(digits)
     return f
 
 

@@ -35,4 +35,4 @@ def __init__(
         amm,
     )
 
-    assert extcall core.BORROWED_TOKEN.approve(core.FACTORY, max_value(uint256), default_return_value=True)
+    assert extcall core.BORROWED_TOKEN.approve(core.FACTORY.address, max_value(uint256), default_return_value=True)
