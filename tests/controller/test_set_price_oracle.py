@@ -9,6 +9,7 @@ from tests.utils.deployers import (
 )
 from tests.utils.constants import MAX_UINT256, MAX_ORACLE_PRICE_DEVIATION
 
+
 @pytest.fixture(scope="module")
 def decimals():
     # Overrides global fixture as these tests don't
@@ -171,7 +172,7 @@ def test_price_deviation_check_exceeds_limit(controller, different_price_oracle,
     # 10% price difference, but only 5% max deviation allowed
     max_deviation = 5 * 10**16  # 5%
     
-    with boa.reverts("deviation>max"):
+    with boa.reverts(dev="deviation > max"):
         controller.set_price_oracle(different_price_oracle, max_deviation, sender=admin)
 
 

@@ -234,7 +234,7 @@ def set_price_oracle(price_oracle: IPriceOracle, max_deviation: uint256):
     if max_deviation != max_value(uint256):
         delta: uint256 = new_price - old_price if old_price < new_price else old_price - new_price
         max_delta: uint256 = old_price * max_deviation // WAD
-        assert delta <= max_delta, "deviation>max"
+        assert delta <= max_delta # dev: deviation > max
     
     extcall AMM.set_price_oracle(price_oracle)
 
@@ -624,6 +624,12 @@ def transfer(token: IERC20, _to: address, amount: uint256):
 
 
 @internal
+@view
+def _check_loan_exists(debt: uint256):
+    assert debt > 0, "No loan"
+
+
+@internal
 def execute_callback(
     callbacker: address,
     callback_sig: bytes4,
@@ -779,11 +785,11 @@ def _add_collateral_borrow(
     debt: uint256 = 0
     rate_mul: uint256 = 0
     debt, rate_mul = self._debt(_for)
-    assert debt > 0, "Loan doesn't exist"
+    self._check_loan_exists(debt)
     debt += d_debt
 
     xy: uint256[2] = extcall AMM.withdraw(_for, WAD)
-    assert xy[0] == 0, "Already in underwater mode"
+    assert xy[0] == 0, "Underwater"
     if remove_collateral:
         xy[1] -= d_collateral
     else:
@@ -966,7 +972,7 @@ def repay(
     debt: uint256 = 0
     rate_mul: uint256 = 0
     debt, rate_mul = self._debt(_for)
-    assert debt > 0, "Loan doesn't exist"
+    self._check_loan_exists(debt)
     approval: bool = self._check_approval(_for)
     xy: uint256[2] = empty(uint256[2])
 
@@ -1102,7 +1108,7 @@ def _health(
     @param liquidation_discount Liquidation discount to use (can be 0)
     @return Health: > 0 = good.
     """
-    assert debt > 0, "Loan doesn't exist"
+    self._check_loan_exists(debt)
     health: int256 = SWAD - convert(liquidation_discount, int256)
     health = (
         unsafe_div(
@@ -1165,7 +1171,7 @@ def health_calculator(
     collateral: int256 = 0
     x_eff: int256 = 0
     debt += d_debt
-    assert debt > 0, "Non-positive debt"
+    assert debt > 0, "debt<0"
 
     active_band: int256 = staticcall AMM.active_band_with_skip()
 
@@ -1256,7 +1262,7 @@ def liquidate(
     if health_limit != 0:
         assert (
             self._health(user, debt, True, health_limit) < 0
-        ), "Not enough rekt"
+        ) # dev: not enough rekt
 
     final_debt: uint256 = debt
     # TODO shouldn't clamp max
@@ -1303,7 +1309,7 @@ def liquidate(
                 debt,
                 calldata,
             )
-            assert cb.stablecoins >= to_repay, "not enough proceeds"
+            assert cb.stablecoins >= to_repay, "no enough proceeds"
             if cb.stablecoins > to_repay:
                 self.transferFrom(
                     BORROWED_TOKEN,

@@ -68,6 +68,7 @@ exports: (
     core.set_borrowing_discounts,
     core.set_callback,
     core.set_monetary_policy,
+    core.set_price_oracle,
     # For backward compatibility
     core.minted,
     core.redeemed,
@@ -256,5 +257,5 @@ def set_admin_fee(admin_fee: uint256):
     @param admin_fee The fee which should be no higher than MAX_ADMIN_FEE
     """
     core._check_admin()
-    assert admin_fee <= MAX_ADMIN_FEE, "admin_fee is higher than MAX_ADMIN_FEE"
+    assert admin_fee <= MAX_ADMIN_FEE # dev: admin_fee is higher than MAX_ADMIN_FEE
     self.admin_fee = admin_fee
