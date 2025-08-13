@@ -30,7 +30,6 @@ MAX_AMM_FEE: immutable(
     uint256
 )  # let's set to MIN_TICKS / A: for example, 4% max fee for A=100
 A: immutable(uint256)
-Aminus1: immutable(uint256)
 LOGN_A_RATIO: immutable(int256)  # log(A / (A - 1))
 SQRT_BAND_RATIO: immutable(uint256)
 
@@ -137,7 +136,6 @@ def __init__(
     AMM = _AMM
 
     A = staticcall AMM.A()
-    Aminus1 = A - 1
 
     LOGN_A_RATIO = math._wad_ln(convert(A * WAD // (A - 1), int256))
     SQRT_BAND_RATIO = isqrt(10**36 * A // (A - 1))
@@ -393,7 +391,7 @@ def get_y_effective(
     for i: uint256 in range(1, MAX_TICKS_UINT):
         if i == N:
             break
-        d_y_effective = unsafe_div(d_y_effective * Aminus1, A)
+        d_y_effective = unsafe_div(d_y_effective * unsafe_sub(A, 1), A)
         y_effective = unsafe_add(y_effective, d_y_effective)
     return y_effective
 
