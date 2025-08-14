@@ -21,8 +21,8 @@ def controller_for_liquidation(stablecoin, collateral_token, market_controller, 
         with boa.env.prank(admin):
             market_controller.set_amm_fee(10**6)
             monetary_policy.set_rate(int(1e18 * 1.0 / 365 / 86400))  # 100% APY
-            collateral_token._mint_for_testing(user, collateral_amount)
-            collateral_token._mint_for_testing(user2, collateral_amount)
+            boa.deal(collateral_token, user, collateral_amount)
+            boa.deal(collateral_token, user2, collateral_amount)
             stablecoin.approve(market_amm, 2**256-1)
             stablecoin.approve(market_controller, 2**256-1)
             collateral_token.approve(market_controller, 2**256-1)
@@ -111,7 +111,7 @@ def test_liquidate_callback(accounts, admin, stablecoin, collateral_token, contr
         # we do it by borrowing
         if f != 10**18:
             with boa.env.prank(fee_receiver):
-                collateral_token._mint_for_testing(fee_receiver, 10**18)
+                boa.deal(collateral_token, fee_receiver, 10**18)
                 collateral_token.approve(controller.address, 2**256-1)
                 debt2 = controller.max_borrowable(10**18, 5)
                 controller.create_loan(10**18, debt2, 5)

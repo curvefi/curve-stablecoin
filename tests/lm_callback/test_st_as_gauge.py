@@ -178,7 +178,7 @@ def test_state_machine(
 ):
     for acct in accounts[:5]:
         with boa.env.prank(admin):
-            collateral_token._mint_for_testing(acct, 1000 * 10**18)
+            boa.deal(collateral_token, acct, 1000 * 10**18)
             crv.transfer(acct, 10 ** 20)
 
         with boa.env.prank(acct):

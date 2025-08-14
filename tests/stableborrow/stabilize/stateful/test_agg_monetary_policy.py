@@ -117,7 +117,7 @@ class AggMonetaryPolicyCreation(RuleBasedStateMachine):
             n = _n % len(self.swaps)
             x = [int(amount * self.one_usd[n]), int(split * amount * 1e18)]
             with boa.env.prank(self.admin):
-                self.stablecoins[n]._mint_for_testing(self.admin, 2 * x[0])
+                boa.deal(self.stablecoins[n], self.admin, 2 * x[0])
                 self.swaps[n].add_liquidity(x, 0)
                 # Add twice to record the price for MA
                 self.swaps[n].add_liquidity(x, 0)

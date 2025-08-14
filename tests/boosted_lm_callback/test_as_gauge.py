@@ -26,7 +26,7 @@ def test_gauge_integral_one_user(accounts, admin, collateral_token, crv, boosted
         checkpoint_supply = 0
         checkpoint_balance = 0
 
-        collateral_token._mint_for_testing(alice, 1000 * 10**18, sender=admin)
+        boa.deal(collateral_token, alice, 1000 * 10**18)
 
         def update_integral():
             nonlocal checkpoint, checkpoint_rate, integral, checkpoint_balance, checkpoint_supply
@@ -114,8 +114,8 @@ def test_gauge_integral(accounts, admin, collateral_token, crv, boosted_lm_callb
 
         # Let Alice and Bob have about the same collateral token amount
         with boa.env.prank(admin):
-            collateral_token._mint_for_testing(alice, 1000 * 10**18)
-            collateral_token._mint_for_testing(bob, 1000 * 10**18)
+            boa.deal(collateral_token, alice, 1000 * 10**18)
+            boa.deal(collateral_token, bob, 1000 * 10**18)
 
         def update_integral():
             nonlocal checkpoint, checkpoint_rate, integral, checkpoint_balance, checkpoint_supply
@@ -255,8 +255,8 @@ def test_mining_with_votelock(
 
     # Let Alice and Bob have about the same collateral token amount
     with boa.env.prank(admin):
-        collateral_token._mint_for_testing(alice, 1000 * 10 ** 18)
-        collateral_token._mint_for_testing(bob, 1000 * 10 ** 18)
+        boa.deal(collateral_token, alice, 1000 * 10 ** 18)
+        boa.deal(collateral_token, bob, 1000 * 10 ** 18)
 
     collateral_token.approve(market_controller.address, MAX_UINT256, sender=alice)
     collateral_token.approve(market_controller.address, MAX_UINT256, sender=bob)

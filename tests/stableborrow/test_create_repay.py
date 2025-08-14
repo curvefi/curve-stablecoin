@@ -10,7 +10,7 @@ def test_create_loan(controller_factory, stablecoin, collateral_token, market_co
     with boa.env.anchor():
         with boa.env.prank(user):
             initial_amount = 10**25
-            collateral_token._mint_for_testing(user, initial_amount)
+            boa.deal(collateral_token, user, initial_amount)
             c_amount = int(2 * 1e6 * 1e18 * 1.5 / 3000)
 
             l_amount = 2 * 10**6 * 10**18
@@ -69,7 +69,7 @@ def existing_loan(collateral_token, market_controller, accounts):
     n = 5
 
     with boa.env.prank(user):
-        collateral_token._mint_for_testing(user, c_amount)
+        boa.deal(collateral_token, user, c_amount)
         market_controller.create_loan(c_amount, l_amount, n)
 
 
@@ -124,7 +124,7 @@ def test_add_collateral(stablecoin, collateral_token, market_controller, existin
 
         n_before_0, n_before_1 = market_amm.read_user_tick_numbers(user)
         with boa.env.prank(user):
-            collateral_token._mint_for_testing(user, c_amount)
+            boa.deal(collateral_token, user, c_amount)
             market_controller.add_collateral(c_amount, user)
         n_after_0, n_after_1 = market_amm.read_user_tick_numbers(user)
 

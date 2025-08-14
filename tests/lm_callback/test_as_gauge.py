@@ -18,7 +18,7 @@ def test_gauge_integral_one_user(accounts, admin, collateral_token, crv, lm_call
         checkpoint_supply = 0
         checkpoint_balance = 0
 
-        collateral_token._mint_for_testing(alice, 1000 * 10**18, sender=admin)
+        boa.deal(collateral_token, alice, 1000 * 10**18)
 
         def update_integral():
             nonlocal checkpoint, checkpoint_rate, integral, checkpoint_balance, checkpoint_supply
@@ -102,8 +102,8 @@ def test_gauge_integral(accounts, admin, collateral_token, crv, lm_callback, mar
 
         # Let Alice and Bob have about the same collateral token amount
         with boa.env.prank(admin):
-            collateral_token._mint_for_testing(alice, 1000 * 10**18)
-            collateral_token._mint_for_testing(bob, 1000 * 10**18)
+            boa.deal(collateral_token, alice, 1000 * 10**18)
+            boa.deal(collateral_token, bob, 1000 * 10**18)
 
         def update_integral():
             nonlocal checkpoint, checkpoint_rate, integral, checkpoint_balance, checkpoint_supply
@@ -241,7 +241,7 @@ def test_set_killed(
     boa.env.time_travel(seconds=2 * WEEK + 5)
 
     with boa.env.prank(admin):
-        collateral_token._mint_for_testing(alice, 1000 * 10 ** 18)
+        boa.deal(collateral_token, alice, 1000 * 10 ** 18)
 
     # Alice creates loan
     market_controller.create_loan(10**21, 10**21 * 2600, 10, sender=alice)

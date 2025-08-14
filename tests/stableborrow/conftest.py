@@ -126,7 +126,7 @@ def get_fake_leverage(stablecoin, admin):
         with boa.env.prank(admin):
             leverage = FAKE_LEVERAGE_DEPLOYER.deploy(stablecoin.address, collateral_token.address,
                                 market_controller.address, 3000 * 10**18)
-            collateral_token._mint_for_testing(leverage.address, 1000 * 10**collateral_token.decimals())
+            boa.deal(collateral_token, leverage.address, 1000 * 10**collateral_token.decimals())
             return leverage
     return f
 

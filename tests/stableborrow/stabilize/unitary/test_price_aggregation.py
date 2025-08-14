@@ -12,7 +12,7 @@ def test_price_aggregator(stableswap_a, stableswap_b, stablecoin_a, agg, admin):
 
     with boa.env.anchor():
         with boa.env.prank(admin):
-            stablecoin_a._mint_for_testing(admin, amount)
+            boa.deal(stablecoin_a, admin, amount)
             stableswap_a.exchange(0, 1, amount, 0)
             p = stableswap_a.get_p()
             assert p > 10**18 * 1.01
@@ -47,7 +47,7 @@ def test_crypto_agg(dummy_tricrypto, crypto_agg, stableswap_a, stablecoin_a, adm
             assert approx(p, 1000 * 10**18, 1e-10)
 
             amount = 300_000 * 10**6
-            stablecoin_a._mint_for_testing(admin, amount)
+            boa.deal(stablecoin_a, admin, amount)
             stableswap_a.exchange(0, 1, amount, 0)
 
             boa.env.time_travel(200_000)

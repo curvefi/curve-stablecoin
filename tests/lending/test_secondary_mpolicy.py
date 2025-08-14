@@ -72,7 +72,7 @@ def test_mp(mp, factory, controller, borrowed_token, amm, total_debt, balance, u
         assert max_ratio <= MAX_HIGH_RATIO and max_ratio >= 10**18
 
     controller.set_debt(total_debt)
-    borrowed_token._mint_for_testing(controller.address, balance)
+    boa.deal(borrowed_token, controller.address, balance)
 
     rate = mp.rate(controller.address)
 

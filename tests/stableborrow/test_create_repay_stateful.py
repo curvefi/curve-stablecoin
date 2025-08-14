@@ -65,7 +65,7 @@ class StatefulLendBorrow(RuleBasedStateMachine):
                 return
 
             try:
-                self.collateral_token._mint_for_testing(user, c_amount)
+                boa.deal(self.collateral_token, user, c_amount)
             except Exception:
                 return  # Probably overflow
 
@@ -110,7 +110,7 @@ class StatefulLendBorrow(RuleBasedStateMachine):
                 return
 
             try:
-                self.collateral_token._mint_for_testing(user, c_amount)
+                boa.deal(self.collateral_token, user, c_amount)
             except Exception:
                 return  # Probably overflow
 
@@ -136,7 +136,7 @@ class StatefulLendBorrow(RuleBasedStateMachine):
 
         with boa.env.prank(user):
             try:
-                self.collateral_token._mint_for_testing(user, c_amount)
+                boa.deal(self.collateral_token, user, c_amount)
             except Exception:
                 return  # Probably overflow
 

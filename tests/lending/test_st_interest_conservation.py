@@ -32,7 +32,7 @@ class StatefulLendBorrow(RuleBasedStateMachine):
         self.debt_ceiling = 10**6 * 10**(self.borrowed_token.decimals())
         with boa.env.prank(self.accounts[0]):
             self.borrowed_token.approve(self.vault.address, 2**256 - 1)
-            self.borrowed_token._mint_for_testing(self.accounts[0], self.debt_ceiling)
+            boa.deal(self.borrowed_token, self.accounts[0], self.debt_ceiling)
             self.vault.deposit(self.debt_ceiling)
 
     @rule(c_amount=c_amount, amount=amount, n=n, user_id=user_id)
@@ -67,7 +67,7 @@ class StatefulLendBorrow(RuleBasedStateMachine):
                 return
 
             try:
-                self.collateral._mint_for_testing(user, c_amount)
+                boa.deal(self.collateral, user, c_amount)
             except Exception:
                 return  # Probably overflow
 
@@ -103,7 +103,7 @@ class StatefulLendBorrow(RuleBasedStateMachine):
         to_repay = min(self.controller.debt(user), amount)
         user_balance = self.borrowed_token.balanceOf(user)
         if to_repay > user_balance:
-            self.borrowed_token._mint_for_testing(user, to_repay - user_balance)
+            boa.deal(self.borrowed_token, user, to_repay - user_balance)
 
         with boa.env.prank(user):
             if amount == 0:
@@ -123,7 +123,7 @@ class StatefulLendBorrow(RuleBasedStateMachine):
 
         with boa.env.prank(user):
             try:
-                self.collateral._mint_for_testing(user, c_amount)
+                boa.deal(self.collateral, user, c_amount)
             except Exception:
                 return  # Probably overflow
 
@@ -157,7 +157,7 @@ class StatefulLendBorrow(RuleBasedStateMachine):
                 return
 
             try:
-                self.collateral._mint_for_testing(user, c_amount)
+                boa.deal(self.collateral, user, c_amount)
             except Exception:
                 return  # Probably overflow
 

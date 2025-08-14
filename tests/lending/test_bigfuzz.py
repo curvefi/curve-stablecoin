@@ -66,7 +66,7 @@ class BigFuzz(RuleBasedStateMachine):
         user = self.accounts[uid]
         balance = self.borrowed_token.balanceOf(user)
         if balance < asset_amount:
-            self.borrowed_token._mint_for_testing(user, asset_amount - balance)
+            boa.deal(self.borrowed_token, user, asset_amount - balance)
         with boa.env.prank(user):
             if self.vault.totalAssets() + asset_amount < 10000:
                 with boa.reverts():
@@ -93,7 +93,7 @@ class BigFuzz(RuleBasedStateMachine):
         y = y // self.collateral_mul
         user = self.accounts[uid]
         with boa.env.prank(user):
-            self.collateral_token._mint_for_testing(user, y)
+            boa.deal(self.collateral_token, user, y)
             max_debt = self.market_controller.max_borrowable(y, n)
             if not self.check_debt_ceiling(debt):
                 with boa.reverts():
@@ -137,7 +137,7 @@ class BigFuzz(RuleBasedStateMachine):
         diff = amount - self.borrowed_token.balanceOf(user)
         if diff > 0:
             with boa.env.prank(user):
-                self.borrowed_token._mint_for_testing(user, diff)
+                boa.deal(self.borrowed_token, user, diff)
         with boa.env.prank(user):
             if debt == 0 and amount > 0:
                 with boa.reverts():
@@ -159,7 +159,7 @@ class BigFuzz(RuleBasedStateMachine):
         if exists:
             n1, n2 = self.market_amm.read_user_tick_numbers(user)
             n0 = self.market_amm.active_band()
-        self.collateral_token._mint_for_testing(user, y)
+        boa.deal(self.collateral_token, user, y)
 
         with boa.env.prank(user):
             if (exists and n1 > n0 and self.market_amm.p_oracle_up(n1) < self.market_amm.price_oracle()) or y == 0:
@@ -205,7 +205,7 @@ class BigFuzz(RuleBasedStateMachine):
     def borrow_more(self, y, ratio, uid):
         y = y // self.collateral_mul
         user = self.accounts[uid]
-        self.collateral_token._mint_for_testing(user, y)
+        boa.deal(self.collateral_token, user, y)
 
         with boa.env.prank(user):
             if not self.market_controller.loan_exists(user):
@@ -256,10 +256,10 @@ class BigFuzz(RuleBasedStateMachine):
             amount, is_pump = self.market_amm.get_amount_for_price(p)
             if amount > 0:
                 if is_pump:
-                    self.borrowed_token._mint_for_testing(user, amount)
+                    boa.deal(self.borrowed_token, user, amount)
                     self.market_amm.exchange(0, 1, amount, 0)
                 else:
-                    self.collateral_token._mint_for_testing(user, amount)
+                    boa.deal(self.collateral_token, user, amount)
                     self.market_amm.exchange(1, 0, amount, 0)
 
     @rule(r=ratio, is_pump=is_pump, uid=user_id)
@@ -268,11 +268,11 @@ class BigFuzz(RuleBasedStateMachine):
         with boa.env.prank(user):
             if is_pump:
                 amount = int(r * self.borrowed_token.totalSupply())
-                self.borrowed_token._mint_for_testing(user, amount)
+                boa.deal(self.borrowed_token, user, amount)
                 self.market_amm.exchange(0, 1, amount, 0)
             else:
                 amount = int(r * self.collateral_token.totalSupply())
-                self.collateral_token._mint_for_testing(user, amount)
+                boa.deal(self.collateral_token, user, amount)
                 self.market_amm.exchange(1, 0, amount, 0)
 
     @rule(emode=extended_mode, frac=liquidate_frac)
@@ -288,7 +288,7 @@ class BigFuzz(RuleBasedStateMachine):
                     debt = self.market_controller.debt(user)
                     diff = debt - self.borrowed_token.balanceOf(user)
                     if diff > 0:
-                        self.borrowed_token._mint_for_testing(user, diff)
+                        boa.deal(self.borrowed_token, user, diff)
                     if emode == USE_FRACTION:
                         try:
                             self.market_controller.liquidate(
@@ -328,7 +328,7 @@ class BigFuzz(RuleBasedStateMachine):
             debt = self.market_controller.debt(user)
             diff = debt - self.borrowed_token.balanceOf(user)
             if diff > 0:
-                self.borrowed_token._mint_for_testing(liquidator, diff)
+                boa.deal(self.borrowed_token, liquidator, diff)
 
             with boa.env.prank(liquidator):
                 with boa.reverts():

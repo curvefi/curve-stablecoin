@@ -16,7 +16,7 @@ def test_monetary_policy(filled_controller, collateral_token, borrowed_token, ma
     if to_borrow > 0 and c_amount > 0:
         with boa.env.prank(admin):
             collateral_token.approve(filled_controller, 2**256 - 1)
-            collateral_token._mint_for_testing(admin, c_amount)
+            boa.deal(collateral_token, admin, c_amount)
             if to_borrow > available:
                 with boa.reverts():
                     filled_controller.create_loan(c_amount, to_borrow, 5)

@@ -30,7 +30,7 @@ class StatefulExchange(RuleBasedStateMachine):
             try:
                 with boa.env.prank(self.admin):
                     self.amm.deposit_range(user, amount, n1, n2)
-                    self.collateral_token._mint_for_testing(self.amm.address, amount)
+                    boa.deal(collateral_token, self.amm.address, amount)
             except Exception as e:
                 if 'Amount too low' in str(e):
                     assert amount // (dn + 1) <= 100
@@ -53,7 +53,7 @@ class StatefulExchange(RuleBasedStateMachine):
             in_token = self.collateral_token
         u_amount = in_token.balanceOf(u)
         if amount > u_amount:
-            in_token._mint_for_testing(u, amount - u_amount)
+            boa.deal(in_token, u, amount - u_amount)
         with boa.env.prank(u):
             self.amm.exchange(i, j, amount, 0)
 
@@ -88,7 +88,7 @@ class StatefulExchange(RuleBasedStateMachine):
         if n < 50:
             _, dy = self.amm.get_dxdy(1, 0, to_swap)
             if dy > 0:
-                self.collateral_token._mint_for_testing(u, to_swap)
+                boa.deal(collateral_token, u, to_swap)
                 with boa.env.prank(u):
                     self.amm.exchange(1, 0, to_swap, 0)
                 left_in_amm = sum(self.amm.bands_y(n) for n in range(42))

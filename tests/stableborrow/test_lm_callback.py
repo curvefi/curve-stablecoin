@@ -22,7 +22,7 @@ def test_lm_callback(collateral_token, lm_callback, market_amm, market_controlle
     debt = 5 * 10**18 * 3000
     for i, acc in enumerate(accounts[:10]):
         with boa.env.prank(acc):
-            collateral_token._mint_for_testing(acc, amount)
+            boa.deal(collateral_token, acc, amount)
             market_controller.create_loan(amount, debt, 5 + i)
 
     user_amounts = defaultdict(int)

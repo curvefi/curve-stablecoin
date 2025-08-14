@@ -30,8 +30,8 @@ def test_simple_exchange(
 
     # Let Alice and Bob have about the same collateral token amount
     with boa.env.prank(admin):
-        collateral_token._mint_for_testing(alice, 1000 * 10 ** 18)
-        collateral_token._mint_for_testing(bob, 1000 * 10 ** 18)
+        boa.deal(collateral_token, alice, 1000 * 10 ** 18)
+        boa.deal(collateral_token, bob, 1000 * 10 ** 18)
 
     # Alice and Bob create loan
     market_controller.create_loan(10**21, 10**21 * 2600, 10, sender=alice)
@@ -95,8 +95,8 @@ def test_gauge_integral_with_exchanges(
 
         # Let Alice and Bob have about the same collateral token amount
         with boa.env.prank(admin):
-            collateral_token._mint_for_testing(alice, 1000 * 10**18)
-            collateral_token._mint_for_testing(bob, 1000 * 10**18)
+            boa.deal(collateral_token, alice, 1000 * 10**18)
+            boa.deal(collateral_token, bob, 1000 * 10**18)
 
         def update_integral():
             nonlocal checkpoint, checkpoint_rate, integral, checkpoint_balance, checkpoint_supply
@@ -289,8 +289,8 @@ def test_full_repay_underwater(
 
         # Let Alice and Bob have about the same collateral token amount
         with boa.env.prank(admin):
-            collateral_token._mint_for_testing(alice, 1000 * 10**18)
-            collateral_token._mint_for_testing(bob, 1000 * 10**18)
+            boa.deal(collateral_token, alice, 1000 * 10**18)
+            boa.deal(collateral_token, bob, 1000 * 10**18)
 
         dt = randrange(1, YEAR // 5)
         boa.env.time_travel(seconds=dt)

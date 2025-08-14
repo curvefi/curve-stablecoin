@@ -25,11 +25,11 @@ def test_immediate(amm, price_oracle, collateral_token, borrowed_token, accounts
         price_oracle.set_price(p_o)
         amm.set_fee(0)
         amm.deposit_range(user, deposit_amount, n1, n1+dn)
-        collateral_token._mint_for_testing(amm.address, deposit_amount)
+        boa.deal(collateral_token, amm.address, deposit_amount)
     pump_amount = int(p_o * deposit_amount / 10**18 * f_pump / 10**12)
     p_before = amm.get_p()
     with boa.env.prank(user):
-        borrowed_token._mint_for_testing(user, pump_amount)
+        boa.deal(borrowed_token, user, pump_amount)
         boa.env.time_travel(600)  # To reset the prev p_o counter
         amm.exchange(0, 1, pump_amount, 0)
         while True:
@@ -46,13 +46,13 @@ def test_immediate(amm, price_oracle, collateral_token, borrowed_token, accounts
     if is_pump:
         trade_amount = int(p_o * deposit_amount / 10**18 * f_trade / 10**12)
         with boa.env.prank(user):
-            borrowed_token._mint_for_testing(user, trade_amount)
+            boa.deal(borrowed_token, user, trade_amount)
         i = 0
         j = 1
     else:
         trade_amount = int(deposit_amount * f_trade)
         with boa.env.prank(user):
-            collateral_token._mint_for_testing(user, trade_amount)
+            boa.deal(collateral_token, user, trade_amount)
         i = 1
         j = 0
 
@@ -80,13 +80,13 @@ def test_immediate_above_p0(amm, price_oracle, collateral_token, borrowed_token,
     with boa.env.prank(admin):
         amm.set_fee(0)
         amm.deposit_range(user, deposit_amount, 6, 6)
-        collateral_token._mint_for_testing(amm.address, deposit_amount)
+        boa.deal(collateral_token, amm.address, deposit_amount)
 
     p_before = amm.get_p()
 
     pump_amount = 3000 * deposit_amount * 147 // 10**18 // 10**12
     with boa.env.prank(user):
-        borrowed_token._mint_for_testing(user, pump_amount)
+        boa.deal(borrowed_token, user, pump_amount)
         amm.exchange(0, 1, pump_amount, 0)
 
     p_after_1 = amm.get_p()
@@ -94,7 +94,7 @@ def test_immediate_above_p0(amm, price_oracle, collateral_token, borrowed_token,
     y0 = amm.get_y_up(user)
 
     trade_amount = deposit_amount * 52469 // 10**18
-    collateral_token._mint_for_testing(user, trade_amount)
+    boa.deal(collateral_token, user, trade_amount)
 
     with boa.env.prank(user):
         amm.exchange(1, 0, trade_amount, 0)
@@ -122,13 +122,13 @@ def test_immediate_in_band(amm, price_oracle, collateral_token, borrowed_token, 
     with boa.env.prank(admin):
         amm.set_fee(0)
         amm.deposit_range(user, deposit_amount, 4, 4)
-        collateral_token._mint_for_testing(amm.address, deposit_amount)
+        boa.deal(collateral_token, amm.address, deposit_amount)
 
     p_before = amm.get_p()
 
     pump_amount = 137
     with boa.env.prank(user):
-        borrowed_token._mint_for_testing(user, pump_amount)
+        boa.deal(borrowed_token, user, pump_amount)
         amm.exchange(0, 1, pump_amount, 0)
 
     p_after_1 = amm.get_p()
@@ -137,7 +137,7 @@ def test_immediate_in_band(amm, price_oracle, collateral_token, borrowed_token, 
 
     trade_amount = 2690425910633510  # 181406004646580
     with boa.env.prank(user):
-        borrowed_token._mint_for_testing(user, trade_amount)
+        boa.deal(borrowed_token, user, trade_amount)
         amm.exchange(0, 1, trade_amount, 0)
 
     p_after_2 = amm.get_p()
@@ -172,7 +172,7 @@ def test_adiabatic(amm, price_oracle, collateral_token, borrowed_token, accounts
     with boa.env.prank(admin):
         amm.set_fee(0)
         amm.deposit_range(user, deposit_amount, dn, n1+dn)
-        collateral_token._mint_for_testing(amm.address, deposit_amount)
+        boa.deal(collateral_token, amm.address, deposit_amount)
         for i in range(2):
             boa.env.time_travel(600)
             price_oracle.set_price(p_o_1)
@@ -198,11 +198,11 @@ def test_adiabatic(amm, price_oracle, collateral_token, borrowed_token, accounts
         if is_pump:
             i = 0
             j = 1
-            borrowed_token._mint_for_testing(user, amount)
+            boa.deal(borrowed_token, user, amount)
         else:
             i = 1
             j = 0
-            collateral_token._mint_for_testing(user, amount)
+            boa.deal(collateral_token, user, amount)
 
         with boa.env.prank(user):
             amm.exchange(i, j, amount, 0)

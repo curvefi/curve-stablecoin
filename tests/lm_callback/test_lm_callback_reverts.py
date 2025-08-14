@@ -21,7 +21,7 @@ def test_add_new_lm_callback(
     market_controller.set_callback(ZERO_ADDRESS, sender=admin)
 
     boa.env.time_travel(seconds=2 * WEEK + 5)
-    collateral_token._mint_for_testing(alice, 10**22, sender=admin)
+    boa.deal(collateral_token, alice, 10**22)
 
 
     alice_balances0 = [stablecoin.balanceOf(alice), collateral_token.balanceOf(alice)]

@@ -24,9 +24,9 @@ def test_add_new_lm_callback(
     boa.env.time_travel(seconds=2 * WEEK + 5)
 
     # Create loan
-    collateral_token._mint_for_testing(alice, 10**22, sender=admin)
+    boa.deal(collateral_token, alice, 10**22)
     market_controller.create_loan(10**21, 10**21 * 2600, 10, sender=alice)
-    collateral_token._mint_for_testing(bob, 10**22, sender=admin)
+    boa.deal(collateral_token, bob, 10**22)
     market_controller.create_loan(10**21, 10**21 * 2600, 10, sender=bob)
 
     # Wire up the new LM Callback to the gauge controller to have proper rates and stuff

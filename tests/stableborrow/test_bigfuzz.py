@@ -87,7 +87,7 @@ class BigFuzz(RuleBasedStateMachine):
         y = y // self.collateral_mul
         user = self.accounts[uid]
         with boa.env.prank(user):
-            self.collateral_token._mint_for_testing(user, y)
+            boa.deal(self.collateral_token, user, y)
             max_debt = self.market_controller.max_borrowable(y, n)
             if not self.check_debt_ceiling(debt):
                 with boa.reverts():
@@ -149,7 +149,7 @@ class BigFuzz(RuleBasedStateMachine):
         if exists:
             n1, n2 = self.market_amm.read_user_tick_numbers(user)
             n0 = self.market_amm.active_band()
-        self.collateral_token._mint_for_testing(user, y)
+        boa.deal(self.collateral_token, user, y)
 
         with boa.env.prank(user):
             if (exists and n1 > n0 and self.market_amm.p_oracle_up(n1) < self.market_amm.price_oracle()) or y == 0:
@@ -195,7 +195,7 @@ class BigFuzz(RuleBasedStateMachine):
     def borrow_more(self, y, ratio, uid):
         y = y // self.collateral_mul
         user = self.accounts[uid]
-        self.collateral_token._mint_for_testing(user, y)
+        boa.deal(self.collateral_token, user, y)
 
         with boa.env.prank(user):
             if not self.market_controller.loan_exists(user):
@@ -248,7 +248,7 @@ class BigFuzz(RuleBasedStateMachine):
                 if is_pump:
                     self.market_amm.exchange(0, 1, amount, 0)
                 else:
-                    self.collateral_token._mint_for_testing(user, amount)
+                    boa.deal(self.collateral_token, user, amount)
                     self.market_amm.exchange(1, 0, amount, 0)
 
     @rule(r=ratio, is_pump=is_pump, uid=user_id)
@@ -271,7 +271,7 @@ class BigFuzz(RuleBasedStateMachine):
                         pass
             else:
                 amount = int(r * self.collateral_token.totalSupply())
-                self.collateral_token._mint_for_testing(user, amount)
+                boa.deal(self.collateral_token, user, amount)
                 self.market_amm.exchange(1, 0, amount, 0)
         self.remove_stablecoins(user)
 

@@ -29,7 +29,7 @@ def test_dydx_limits(amm, amounts, accounts, ns, dns, collateral_token, admin, b
         for user, amount, n1, dn in zip(accounts[1:6], amounts, ns, dns):
             n2 = n1 + dn
             amm.deposit_range(user, amount, n1, n2)
-            collateral_token._mint_for_testing(amm.address, amount)
+            boa.deal(collateral_token, amm.address, amount)
 
     # Swap 0
     dx, dy = amm.get_dydx(0, 1, 0)
@@ -77,7 +77,7 @@ def test_dydx_compare_to_dxdy(amm, amounts, accounts, ns, dns, collateral_token,
         for user, amount, n1, dn in zip(accounts[1:6], amounts, ns, dns):
             n2 = n1 + dn
             amm.deposit_range(user, amount, n1, n2)
-            collateral_token._mint_for_testing(amm.address, amount)
+            boa.deal(collateral_token, amm.address, amount)
 
     # Swap 0
     dy, dx = amm.get_dydx(0, 1, 0)
@@ -142,7 +142,7 @@ def test_exchange_dy_down_up(amm, amounts, accounts, ns, dns, amount, borrowed_t
                     amm.deposit_range(user, amount, n1, n2)
             else:
                 amm.deposit_range(user, amount, n1, n2)
-                collateral_token._mint_for_testing(amm.address, amount)
+                boa.deal(collateral_token, amm.address, amount)
 
     p_before = amm.get_p()
 
@@ -152,7 +152,7 @@ def test_exchange_dy_down_up(amm, amounts, accounts, ns, dns, amount, borrowed_t
     dy2, dx2 = amm.get_dydx(0, 1, dy)
     assert dy == dy2
     assert approx(dx, dx2, 1e-6)
-    borrowed_token._mint_for_testing(u, dx2)
+    boa.deal(borrowed_token, u, dx2)
     with boa.env.prank(u):
         with boa.reverts("Slippage"):
             amm.exchange_dy(0, 1, dy2, dx2 - 1)  # crvUSD --> ETH
@@ -177,7 +177,7 @@ def test_exchange_dy_down_up(amm, amounts, accounts, ns, dns, amount, borrowed_t
     assert abs(dx - expected_in_amount) <= 2 * (fee + 0.01) * expected_in_amount
     assert out_amount - dy <= 1
 
-    collateral_token._mint_for_testing(u, dx - collateral_token.balanceOf(u))
+    boa.deal(collateral_token, u, dx - collateral_token.balanceOf(u))
     dy_measured = borrowed_token.balanceOf(u)
     dx_measured = collateral_token.balanceOf(u)
     with boa.env.prank(u):

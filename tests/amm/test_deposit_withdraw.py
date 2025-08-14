@@ -28,7 +28,7 @@ def test_deposit_withdraw(amm, amounts, accounts, ns, dns, fracs, collateral_tok
                     amm.deposit_range(user, amount, n1, n2)
             else:
                 amm.deposit_range(user, amount, n1, n2)
-                collateral_token._mint_for_testing(amm.address, amount)
+                boa.deal(collateral_token, amm.address, amount)
                 deposits[user] = amount
                 assert collateral_token.balanceOf(user) == 0
 

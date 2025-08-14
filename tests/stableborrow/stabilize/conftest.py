@@ -169,8 +169,8 @@ def dummy_tricrypto(stablecoin_a, admin):
 def agg(stablecoin, stablecoin_a, stablecoin_b, stableswap_a, stableswap_b, price_aggregator, admin):
     with boa.env.anchor():
         with boa.env.prank(admin):
-            stablecoin_a._mint_for_testing(admin, 500000 * 10**6)
-            stablecoin_b._mint_for_testing(admin, 500000 * 10**18)
+            boa.deal(stablecoin_a, admin, 500000 * 10**6)
+            boa.deal(stablecoin_b, admin, 500000 * 10**18)
 
             stablecoin_a.approve(stableswap_a.address, 2**256-1)
             stablecoin.approve(stableswap_a.address, 2**256-1)
@@ -308,14 +308,14 @@ def _mint(stablecoin, collateral_token, market_controller_agg):
                 if amount > 0:
                     if coin == stablecoin:
                         collateral_amount = amount * 50 // 3000
-                        collateral_token._mint_for_testing(acct, collateral_amount)
+                        boa.deal(collateral_token, acct, collateral_amount)
                         if market_controller_agg.debt(acct) == 0:
                             collateral_token.approve(market_controller_agg.address, 2**256 - 1)
                             market_controller_agg.create_loan(collateral_amount, amount, 5)
                         else:
                             market_controller_agg.borrow_more(collateral_amount, amount)
                     else:
-                        coin._mint_for_testing(acct, amount)
+                        boa.deal(coin, acct, amount)
     return f
 
 
@@ -337,7 +337,7 @@ def provide_token_to_peg_keepers_no_sleep(initial_amounts, swaps, peg_keepers, r
             # Mint necessary amount of redeemable token
             rtoken.approve(pk.address, 2**256 - 1)
             amount = amount_r * 5
-            rtoken._mint_for_testing(alice, amount)
+            boa.deal(rtoken, alice, amount)
 
             # Add redeemable token's liquidity to the stableswap pool
             swap.add_liquidity([amount, 0], 0)

@@ -41,7 +41,7 @@ def test_immediate(amm, price_oracle, collateral_token, borrowed_token, accounts
         price_oracle.set_price(p_o)
         amm.set_fee(0)
         amm.deposit_range(user, deposit_amount, n1, n1+dn)
-        collateral_token._mint_for_testing(amm.address, deposit_amount)
+        boa.deal(collateral_token, amm.address, deposit_amount)
         while True:
             p_internal = amm.price_oracle()
             boa.env.time_travel(600)  # To reset the prev p_o counter
@@ -53,7 +53,7 @@ def test_immediate(amm, price_oracle, collateral_token, borrowed_token, accounts
     pump_recv_amount = int(deposit_amount * f_pump)
     pump_recv_amount, pump_amount = amm.get_dydx(0, 1, pump_recv_amount)
     with boa.env.prank(user):
-        borrowed_token._mint_for_testing(user, pump_amount)
+        boa.deal(borrowed_token, user, pump_amount)
         amm.exchange_dy(0, 1, pump_recv_amount, pump_amount)
 
     prices.append(amm.get_p())
@@ -63,14 +63,14 @@ def test_immediate(amm, price_oracle, collateral_token, borrowed_token, accounts
         trade_recv_amount = int(deposit_amount * f_trade)
         trade_recv_amount, trade_amount = amm.get_dydx(0, 1, trade_recv_amount)
         with boa.env.prank(user):
-            borrowed_token._mint_for_testing(user, trade_amount)
+            boa.deal(borrowed_token, user, trade_amount)
         i = 0
         j = 1
     else:
         trade_recv_amount = int(p_o * deposit_amount / 10**collateral_decimals * f_trade / 10**(collateral_decimals - borrowed_decimals))
         trade_recv_amount, trade_amount = amm.get_dydx(1, 0, trade_recv_amount)
         with boa.env.prank(user):
-            collateral_token._mint_for_testing(user, trade_amount)
+            boa.deal(collateral_token, user, trade_amount)
         i = 1
         j = 0
 
@@ -108,7 +108,7 @@ def test_adiabatic(amm, price_oracle, collateral_token, borrowed_token, accounts
     with boa.env.prank(admin):
         amm.set_fee(0)
         amm.deposit_range(user, deposit_amount, dn, n1+dn)
-        collateral_token._mint_for_testing(amm.address, deposit_amount)
+        boa.deal(collateral_token, amm.address, deposit_amount)
         for i in range(2):
             boa.env.time_travel(600)
             price_oracle.set_price(p_o_1)
@@ -136,13 +136,13 @@ def test_adiabatic(amm, price_oracle, collateral_token, borrowed_token, accounts
             j = 1
             recv_amount = amm.get_dy(i, j, amount)
             _amount = amm.get_dx(i, j, recv_amount)
-            borrowed_token._mint_for_testing(user, _amount)
+            boa.deal(borrowed_token, user, _amount)
         else:
             i = 1
             j = 0
             recv_amount = amm.get_dy(i, j, amount)
             _amount = amm.get_dx(i, j, recv_amount)
-            collateral_token._mint_for_testing(user, _amount)
+            boa.deal(collateral_token, user, _amount)
 
         with boa.env.prank(user):
             amm.exchange_dy(i, j, recv_amount, _amount)

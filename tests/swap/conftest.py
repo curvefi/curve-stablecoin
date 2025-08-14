@@ -50,8 +50,8 @@ def swap(swap_deployer, swap_impl, redeemable_coin, volatile_coin, admin):
 @pytest.fixture(scope="session")
 def swap_w_d(swap, redeemable_coin, volatile_coin, accounts, admin):
     with boa.env.prank(admin):
-        redeemable_coin._mint_for_testing(admin, 10**6 * 10**6)
-        volatile_coin._mint_for_testing(admin, 10**6 * 10**18)
+        boa.deal(redeemable_coin, admin, 10**6 * 10**6)
+        boa.deal(volatile_coin, admin, 10**6 * 10**18)
         redeemable_coin.approve(swap.address, 2**256 - 1)
         volatile_coin.approve(swap.address, 2**256 - 1)
         swap.add_liquidity([10**6 * 10**6, 10**6 * 10**18], 0)

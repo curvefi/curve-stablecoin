@@ -12,7 +12,7 @@ def test_leverage(collateral_token, stablecoin, market_controller, market_amm, f
     controller_mint = stablecoin.balanceOf(market_controller.address)
 
     with boa.env.prank(user):
-        collateral_token._mint_for_testing(user, amount)
+        boa.deal(collateral_token, user, amount)
 
         market_controller.create_loan_extended(amount, amount * 2 * 3000, 5, fake_leverage.address, [int(amount * 1.5)])
         assert collateral_token.balanceOf(user) == 0
@@ -43,7 +43,7 @@ def test_leverage_property(collateral_token, stablecoin, market_controller, mark
     user = accounts[0]
 
     with boa.env.prank(user):
-        collateral_token._mint_for_testing(user, amount)
+        boa.deal(collateral_token, user, amount)
 
         debt = int(loan_mul * amount * 3000)
         if (debt // 3000) <= collateral_token.balanceOf(fake_leverage.address) and debt > 0:
@@ -64,7 +64,7 @@ def test_leverage_property(collateral_token, stablecoin, market_controller, mark
         more_debt = int(loan_more_mul * amount * 3000)
         if (more_debt // 3000) <= collateral_token.balanceOf(fake_leverage.address):
             if more_debt > 0:
-                collateral_token._mint_for_testing(user, amount)
+                boa.deal(collateral_token, user, amount)
             market_controller.borrow_more_extended(amount, more_debt, fake_leverage.address, [0])
             debt += more_debt
             if more_debt > 0:

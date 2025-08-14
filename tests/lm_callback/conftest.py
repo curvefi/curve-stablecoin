@@ -50,7 +50,7 @@ def minter(admin, crv, gauge_controller):
 @pytest.fixture(scope="module")
 def chad(collateral_token, admin):
     _chad = boa.env.generate_address()
-    collateral_token._mint_for_testing(_chad, 10**25, sender=admin)
+    boa.deal(collateral_token, _chad, 10**25)
 
     return _chad
 
