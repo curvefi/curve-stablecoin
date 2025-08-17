@@ -1,4 +1,5 @@
 MAX_TICKS_UINT: constant(uint256) = 50
+MIN_TICKS_UINT: constant(uint256) = 4
 MAX_TICKS: constant(int256) = 50
 
 DEAD_SHARES: constant(uint256) = 1000

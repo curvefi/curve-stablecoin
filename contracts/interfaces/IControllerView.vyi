@@ -1,0 +1,39 @@
+from contracts.interfaces import IMintController
+
+# Functions
+
+@view
+@external
+def health_calculator(user: address, d_collateral: int256, d_debt: int256, full: bool, N: uint256) -> int256:
+    ...
+
+
+@view
+@external
+def users_to_liquidate(_from: uint256, _limit: uint256) -> DynArray[IMintController.Position, 1000]:
+    ...
+
+
+@view
+@external
+def user_prices(user: address) -> uint256[2]:
+    ...
+
+
+@view
+@external
+def user_state(user: address) -> uint256[4]:
+    ...
+
+
+@view
+@external
+def max_borrowable(collateral: uint256, N: uint256, current_debt: uint256, user: address) -> uint256:
+    ...
+
+
+@view
+@external
+def min_collateral(debt: uint256, N: uint256, user: address) -> uint256:
+    ...
+

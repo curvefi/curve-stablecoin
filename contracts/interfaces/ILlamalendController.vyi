@@ -376,3 +376,9 @@ def admin_fee() -> uint256:
 def borrowed_balance() -> uint256:
     ...
 
+
+@external
+@view
+def borrow_cap() -> uint256:
+    ...
+

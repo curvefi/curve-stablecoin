@@ -49,7 +49,6 @@ exports: (
     core.loan_exists,
     core.loan_ix,
     core.loans,
-    core.min_collateral,
     core.monetary_policy,
     core.n_loans,
     core.remove_collateral,
@@ -57,9 +56,6 @@ exports: (
     core.set_extra_health,
     core.tokens_to_liquidate,
     core.total_debt,
-    core.user_prices,
-    core.user_state,
-    core.users_to_liquidate,
     core.admin_fees,
     core.factory,
     core.liquidate,
@@ -69,11 +65,17 @@ exports: (
     core.set_callback,
     core.set_monetary_policy,
     core.set_price_oracle,
-    # For backward compatibility
-    core.minted,
-    core.redeemed,
     core.processed,
     core.repaid,
+    # From view contract
+    core.user_prices,
+    core.user_state,
+    core.users_to_liquidate,
+    core.min_collateral,
+    core.max_borrowable,
+    # For compatibility with mint markets ABI
+    core.minted,
+    core.redeemed,
 )
 # TODO reorder exports in a way that make sense
 
@@ -101,6 +103,7 @@ def __init__(
     monetary_policy: IMonetaryPolicy,
     loan_discount: uint256,
     liquidation_discount: uint256,
+    view_impl: address,
 ):
     """
     @notice Controller constructor deployed by the factory from blueprint
@@ -120,9 +123,22 @@ def __init__(
         loan_discount,
         liquidation_discount,
         amm,
+        view_impl,
     )
 
-    assert extcall core.BORROWED_TOKEN.approve(VAULT.address, max_value(uint256), default_return_value=True)
+    core.borrow_cap = 0
+    assert extcall core.BORROWED_TOKEN.approve(
+        VAULT.address, max_value(uint256), default_return_value=True
+    )
+
+
+@external
+@view
+def borrow_cap() -> uint256:
+    """
+    @notice Current borrow cap
+    """
+    return core.borrow_cap
 
 
 @external
@@ -153,35 +169,7 @@ def borrowed_balance() -> uint256:
     return self._borrowed_balance()
 
 
-@external
-@view
-def max_borrowable(
-    collateral: uint256,
-    N: uint256,
-    current_debt: uint256 = 0,
-    user: address = empty(address),
-) -> uint256:
-    """
-    @notice Calculation of maximum which can be borrowed (details in comments)
-    @param collateral Collateral amount against which to borrow
-    @param N number of bands to have the deposit into
-    @param current_debt Current debt of the user (if any)
-    @param user User to calculate the value for (only necessary for nonzero extra_health)
-    @return Maximum amount of stablecoin to borrow
-    """
-    # Cannot borrow beyond the amount of coins Controller has or beyond borrow_cap
-    _total_debt: uint256 = core._get_total_debt()
-    cap: uint256 = unsafe_sub(max(core.borrow_cap, _total_debt), _total_debt)
-    cap = min(self._borrowed_balance() + current_debt, cap)
-
-    return core._max_borrowable(
-        collateral,
-        N,
-        cap,
-        current_debt,
-        user,
-    )
-
+# TODO delete deprecated and legacy files
 
 @external
 def create_loan(
@@ -257,5 +245,7 @@ def set_admin_fee(admin_fee: uint256):
     @param admin_fee The fee which should be no higher than MAX_ADMIN_FEE
     """
     core._check_admin()
-    assert admin_fee <= MAX_ADMIN_FEE # dev: admin_fee is higher than MAX_ADMIN_FEE
+    assert (
+        admin_fee <= MAX_ADMIN_FEE
+    )  # dev: admin_fee is higher than MAX_ADMIN_FEE
     self.admin_fee = admin_fee
