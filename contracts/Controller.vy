@@ -1202,7 +1202,7 @@ def liquidate(
     if health_limit != 0:
         assert (
             self._health(user, debt, True, health_limit) < 0
-        )  # dev: not enough rekt
+        ), "Not enough rekt"
 
     final_debt: uint256 = debt
     # TODO shouldn't clamp max
