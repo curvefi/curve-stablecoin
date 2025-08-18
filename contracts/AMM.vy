@@ -77,7 +77,7 @@ active_band: public(int256)
 min_band: public(int256)
 max_band: public(int256)
 
-_price_oracle_contract: IPriceOracle  
+_price_oracle_contract: IPriceOracle
 
 # https://github.com/vyperlang/vyper/issues/4721
 @view
@@ -778,10 +778,8 @@ def withdraw(user: address, frac: uint256) -> uint256[2]:
         x -= dx
         y -= dy
 
-        # If withdrawal is the last one - withdraw dust to the user
+        # If withdrawal is the last one - leave dust in the AMM
         if new_shares == 0:
-            dx += x
-            dy += y
             x = 0
             y = 0
 
@@ -1233,7 +1231,7 @@ def calc_swap_in(pump: bool, out_amount: uint256, p_o: uint256[2], in_precision:
                         dy: uint256 = unsafe_div(y_dest * antifee, 10**18)  # MORE than y_dest
                         out.out_amount = out_amount
                         out.in_amount += dy
-                        out.ticks_in[j] = y + dy 
+                        out.ticks_in[j] = y + dy
                         break
 
                     else:
