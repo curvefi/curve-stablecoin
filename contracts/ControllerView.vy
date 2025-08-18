@@ -13,7 +13,7 @@ from snekmate.utils import math
 
 # https://github.com/vyperlang/vyper/issues/4723
 MIN_TICKS_UINT: constant(uint256) = c.MIN_TICKS_UINT
-MAX_TICKS_UINT: constant(uint256) = c.MIN_TICKS_UINT
+MAX_TICKS_UINT: constant(uint256) = c.MAX_TICKS_UINT
 DEAD_SHARES: constant(uint256) = c.DEAD_SHARES
 WAD: constant(uint256) = c.WAD
 SWAD: constant(int256) = c.SWAD
@@ -301,8 +301,8 @@ def _max_borrowable(
     collateral: uint256,
     N: uint256,
     cap: uint256,
-    current_debt: uint256 = 0,
-    user: address = empty(address),
+    current_debt: uint256,
+    user: address,
 ) -> uint256:
 
     # Calculation of maximum which can be borrowed.
@@ -349,7 +349,7 @@ def max_borrowable(
     @notice Natspec for this function is available in its controller contract
     """
     # Cannot borrow beyond the amount of coins Controller has
-    cap: uint256 = staticcall BORROWED_TOKEN.balanceOf(self) + current_debt
+    cap: uint256 = staticcall BORROWED_TOKEN.balanceOf(CONTROLLER.address) + current_debt
 
     return self._max_borrowable(
         collateral,
