@@ -13,7 +13,7 @@ compiler_args_default = {"experimental_codegen": False}
 # Contracts with #pragma optimize codesize
 compiler_args_codesize = {**compiler_args_default, "optimize": OptimizationLevel.CODESIZE}
 
-# Contracts with #pragma optimize gas  
+# Contracts with #pragma optimize gas
 compiler_args_gas = {**compiler_args_default, "optimize": OptimizationLevel.GAS}
 
 # Contract paths
@@ -33,8 +33,17 @@ CONSTANTS_DEPLOYER = boa.load_partial(BASE_CONTRACT_PATH + "constants.vy", compi
 AMM_DEPLOYER = boa.load_partial(BASE_CONTRACT_PATH + "AMM.vy", compiler_args=compiler_args_default)
 # Controller.vy has #pragma optimize codesize
 CONTROLLER_DEPLOYER = boa.load_partial(BASE_CONTRACT_PATH + "Controller.vy", compiler_args=compiler_args_codesize)
+CONTROLLER_VIEW_DEPLOYER = boa.load_partial(BASE_CONTRACT_PATH + "ControllerView.vy", compiler_args=compiler_args_codesize)
+controller_view_impl = CONTROLLER_VIEW_DEPLOYER.deploy_as_blueprint()
 # MintController.vy has #pragma optimize codesize
-MINT_CONTROLLER_DEPLOYER = boa.load_partial(BASE_CONTRACT_PATH + "MintController.vy", compiler_args=compiler_args_codesize)
+# view_impl address has to be set in MintController.vy
+with open(BASE_CONTRACT_PATH + "MintController.vy", "r") as f:
+    mint_controller_code = f.read()
+mint_controller_code = mint_controller_code.replace(
+    "empty(address),  # to replace at deployment with view blueprint", f"{controller_view_impl.address},", 1
+)
+assert f"{controller_view_impl.address}," in mint_controller_code
+MINT_CONTROLLER_DEPLOYER = boa.loads_partial(mint_controller_code, compiler_args=compiler_args_codesize)
 CONTROLLER_FACTORY_DEPLOYER = boa.load_partial(BASE_CONTRACT_PATH + "ControllerFactory.vy", compiler_args=compiler_args_default)
 STABLECOIN_DEPLOYER = boa.load_partial(BASE_CONTRACT_PATH + "Stablecoin.vy", compiler_args=compiler_args_default)
 STABLESWAP_DEPLOYER = boa.load_partial(BASE_CONTRACT_PATH + "Stableswap.vy", compiler_args=compiler_args_default)
@@ -78,7 +87,6 @@ PEG_KEEPER_REGULATOR_DEPLOYER = boa.load_partial(STABILIZER_CONTRACT_PATH + "Peg
 
 # Callback contracts
 LM_CALLBACK_DEPLOYER = boa.load_partial(BASE_CONTRACT_PATH + "LMCallback.vy", compiler_args=compiler_args_default)
-BOOSTED_LM_CALLBACK_DEPLOYER = boa.load_partial(BASE_CONTRACT_PATH + "BoostedLMCallback.vy", compiler_args=compiler_args_default)
 
 # Testing/Mock contracts
 ERC20_MOCK_DEPLOYER = boa.load_partial(TESTING_CONTRACT_PATH + "ERC20Mock.vy", compiler_args=compiler_args_default)
