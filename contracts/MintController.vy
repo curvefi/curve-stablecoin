@@ -9,7 +9,7 @@
     factory for mint markets.
 """
 
-import Controller as core
+from contracts import Controller as core
 initializes: core
 
 # Usually a bad practice to expose through
