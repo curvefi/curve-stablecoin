@@ -689,13 +689,13 @@ def _create_loan(
             calldata,
         ).collateral
 
-    collateral = collateral + more_collateral
+    total_collateral: uint256 = collateral + more_collateral
 
     assert self.loan[_for].initial_debt == 0, "Loan already created"
     assert N > MIN_TICKS_UINT - 1, "Need more ticks"
     assert N < MAX_TICKS_UINT + 1, "Need less ticks"
 
-    n1: int256 = self._calculate_debt_n1(collateral, debt, N, _for)
+    n1: int256 = self._calculate_debt_n1(total_collateral, debt, N, _for)
     n2: int256 = n1 + convert(unsafe_sub(N, 1), int256)
 
     rate_mul: uint256 = staticcall AMM.get_rate_mul()
@@ -710,21 +710,21 @@ def _create_loan(
 
     self._update_total_debt(debt, rate_mul, True)
 
-    extcall AMM.deposit_range(_for, collateral, n1, n2)
+    extcall AMM.deposit_range(_for, total_collateral, n1, n2)
 
     self.processed += debt
     self._save_rate()
 
     log IController.UserState(
         user=_for,
-        collateral=collateral,
+        collateral=total_collateral,
         debt=debt,
         n1=n1,
         n2=n2,
         liquidation_discount=liquidation_discount,
     )
     log IController.Borrow(
-        user=_for, collateral_increase=collateral, loan_increase=debt
+        user=_for, collateral_increase=total_collateral, loan_increase=debt
     )
 
     self.transferFrom(COLLATERAL_TOKEN, msg.sender, AMM.address, collateral)
