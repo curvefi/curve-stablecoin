@@ -200,7 +200,9 @@ def _set_view(view_impl: address):
         AMM,
         A,
         COLLATERAL_TOKEN,
+        COLLATERAL_PRECISION,
         BORROWED_TOKEN,
+        BORROWED_PRECISION,
     )
     self._view = IView(view)
 

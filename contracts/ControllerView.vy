@@ -39,7 +39,9 @@ def __init__(
     _amm: IAMM,
     _A: uint256,
     _collateral_token: IERC20,
+    _collateral_precision: uint256,
     _borrowed_token: IERC20,
+    _borrowed_precision: uint256,
 ):
     """
     @notice Initialize the ControllerView contract
@@ -51,13 +53,9 @@ def __init__(
     AMM = _amm
     A = _A
     COLLATERAL_TOKEN = _collateral_token
-    COLLATERAL_PRECISION = convert(
-        staticcall IERC20Detailed(COLLATERAL_TOKEN.address).decimals(), uint256
-    )
+    COLLATERAL_PRECISION = _collateral_precision
     BORROWED_TOKEN = _borrowed_token
-    BORROWED_PRECISION = convert(
-        staticcall IERC20Detailed(BORROWED_TOKEN.address).decimals(), uint256
-    )
+    BORROWED_PRECISION = _borrowed_precision
 
 
 @view
