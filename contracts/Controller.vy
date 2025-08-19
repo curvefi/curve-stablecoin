@@ -176,7 +176,6 @@ def __init__(
     self._set_view(view_impl)
 
 
-# TODO expose in ll
 @external
 def set_view(view_impl: address):
     """
@@ -207,8 +206,7 @@ def _set_view(view_impl: address):
     )
     self._view = IView(view)
 
-
-    # TODO event
+    log IController.SetView(view=view)
 
 
 @view

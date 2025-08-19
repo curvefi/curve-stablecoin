@@ -209,9 +209,6 @@ def health_calculator(
     return health
 
 
-# TODO LLController View
-
-
 @view
 @external
 def users_to_liquidate(
@@ -357,7 +354,9 @@ def max_borrowable(
     @notice Natspec for this function is available in its controller contract
     """
     # Cannot borrow beyond the amount of coins Controller has
-    cap: uint256 = staticcall BORROWED_TOKEN.balanceOf(CONTROLLER.address) + current_debt
+    cap: uint256 = (
+        staticcall BORROWED_TOKEN.balanceOf(CONTROLLER.address) + current_debt
+    )
 
     return self._max_borrowable(
         collateral,
