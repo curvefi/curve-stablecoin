@@ -28,8 +28,8 @@ def approve_all():
 
 
 @external
-def callback_deposit(user: address, stablecoins_no_use: uint256, collateral: uint256, debt: uint256, extra_args: DynArray[uint256, 5]) -> uint256[2]:
-    min_amount: uint256 = extra_args[0]
+def callback_deposit(user: address, stablecoins_no_use: uint256, collateral: uint256, debt: uint256, calldata: Bytes[10**4]) -> uint256[2]:
+    min_amount: uint256 = _abi_decode(calldata, (uint256))
     assert STABLECOIN.balanceOf(self) >= debt
     amount_out: uint256 = debt * 10**18 / self.price
     assert amount_out >= min_amount
@@ -37,8 +37,8 @@ def callback_deposit(user: address, stablecoins_no_use: uint256, collateral: uin
 
 
 @external
-def callback_repay(user: address, stablecoins: uint256, collateral: uint256, debt: uint256, extra_args: DynArray[uint256, 5]) -> uint256[2]:
-    frac: uint256 = extra_args[0]
+def callback_repay(user: address, stablecoins: uint256, collateral: uint256, debt: uint256, calldata: Bytes[10**4]) -> uint256[2]:
+    frac: uint256 = _abi_decode(calldata, (uint256))
     s_diff: uint256 = (debt - stablecoins) * frac / 10**18
     # Instead of returning collateral - what_was_spent we could unwrap and send
     # ETH from here to user (if it was ETH), so no need to do it in controller
@@ -46,5 +46,5 @@ def callback_repay(user: address, stablecoins: uint256, collateral: uint256, deb
 
 
 @external
-def callback_liquidate(sender: address, stablecoins: uint256, collateral: uint256, debt: uint256, extra_args: DynArray[uint256, 5]) -> uint256[2]:
+def callback_liquidate(sender: address, stablecoins: uint256, collateral: uint256, debt: uint256, calldata: Bytes[10**4]) -> uint256[2]:
     return [STABLECOIN.balanceOf(self), collateral]
