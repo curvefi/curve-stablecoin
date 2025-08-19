@@ -10,8 +10,6 @@
 @custom:security security@curve.fi
 """
 
-# TODO restore comments that have been cut to make the bytecode fit
-
 from contracts.interfaces import IAMM
 from contracts.interfaces import IMonetaryPolicy
 from contracts.interfaces import ILMGauge
@@ -20,6 +18,7 @@ from contracts.interfaces import IPriceOracle
 from ethereum.ercs import IERC20
 from ethereum.ercs import IERC20Detailed
 
+# TODO just rename interface of mint controller to "icontroller"
 from contracts.interfaces import IMintController as IController
 from contracts.interfaces import IControllerView as IView
 
@@ -33,11 +32,12 @@ from snekmate.utils import math
 ################################################################
 
 AMM: immutable(IAMM)
-MAX_AMM_FEE: immutable(
-    uint256
-)  # let's set to MIN_TICKS / A: for example, 4% max fee for A=100
+# TODO move this comment to init
+# let's set to MIN_TICKS / A: for example, 4% max fee for A=100
+MAX_AMM_FEE: immutable(uint256)
 A: immutable(uint256)
-LOGN_A_RATIO: immutable(int256)  # log(A / (A - 1))
+# log(A / (A - 1))
+LOGN_A_RATIO: immutable(int256)
 SQRT_BAND_RATIO: immutable(uint256)
 
 COLLATERAL_TOKEN: immutable(IERC20)
@@ -50,8 +50,7 @@ FACTORY: immutable(IFactory)
 #                          CONSTANTS                           #
 ################################################################
 
-# TODO add version
-
+version: public(constant(String[5])) = c.__version__
 
 from contracts import constants as c
 
@@ -115,11 +114,12 @@ loan: HashMap[address, IController.Loan]
 liquidation_discounts: public(HashMap[address, uint256])
 _total_debt: IController.Loan
 
-# TODO uniform comment style
-
-loans: public(address[2**64 - 1])  # Enumerate existing loans
-loan_ix: public(HashMap[address, uint256])  # Position of the loan in the list
-n_loans: public(uint256)  # Number of nonzero loans
+# Enumerate existing loans
+loans: public(address[2**64 - 1])
+# Position of the loan in the list
+loan_ix: public(HashMap[address, uint256])
+# Number of nonzero loans
+n_loans: public(uint256)
 
 # cumulative amount of assets ever repaid (including admin fees)
 repaid: public(uint256)
@@ -292,7 +292,7 @@ def set_price_oracle(price_oracle: IPriceOracle, max_deviation: uint256):
             else old_price - new_price
         )
         max_delta: uint256 = old_price * max_deviation // WAD
-        assert delta <= max_delta  # dev: deviation > max
+        assert delta <= max_delta, "delta>max"
 
     extcall AMM.set_price_oracle(price_oracle)
 

@@ -135,6 +135,12 @@ def __init__(
 
 @external
 @view
+def version() -> String[10]:
+    return concat(core.version, "-lend")
+
+
+@external
+@view
 def borrow_cap() -> uint256:
     """
     @notice Current borrow cap
