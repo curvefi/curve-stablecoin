@@ -525,38 +525,6 @@ def _calculate_debt_n1(
     return n1
 
 
-# TODO delete
-@internal
-@view
-def max_p_base() -> uint256:
-    """
-    @notice Calculate max base price including skipping bands
-    """
-    p_oracle: uint256 = staticcall AMM.price_oracle()
-    # Should be correct unless price changes suddenly by MAX_P_BASE_BANDS+ bands
-    n1: int256 = math._wad_ln(
-        convert(staticcall AMM.get_base_price() * WAD // p_oracle, int256)
-    )
-    if n1 < 0:
-        n1 -= (
-            LOGN_A_RATIO - 1
-        )  # This is to deal with vyper's rounding of negative numbers
-    n1 = unsafe_div(n1, LOGN_A_RATIO) + MAX_P_BASE_BANDS
-    n_min: int256 = staticcall AMM.active_band_with_skip()
-    n1 = max(n1, n_min + 1)
-    p_base: uint256 = staticcall AMM.p_oracle_up(n1)
-
-    for i: uint256 in range(MAX_SKIP_TICKS + 1):
-        n1 -= 1
-        if n1 <= n_min:
-            break
-        p_base_prev: uint256 = p_base
-        p_base = staticcall AMM.p_oracle_up(n1)
-        if p_base > p_oracle:
-            return p_base_prev
-    return p_base
-
-
 @external
 @view
 def max_borrowable(
