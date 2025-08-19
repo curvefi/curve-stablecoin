@@ -101,7 +101,6 @@ class StatefulLendBorrow(RuleBasedStateMachine):
 
         with boa.env.prank(user):
             if amount == 0:
-                self.controller.repay(amount, user)
                 return
 
             if not self.controller.loan_exists(user):

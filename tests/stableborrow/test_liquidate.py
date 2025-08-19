@@ -4,7 +4,6 @@ from boa import BoaError
 from hypothesis import given, settings
 from hypothesis import strategies as st
 from ..conftest import approx
-from tests.utils.constants import ZERO_ADDRESS
 
 
 N = 5
@@ -28,7 +27,7 @@ def controller_for_liquidation(stablecoin, collateral_token, market_controller, 
             collateral_token.approve(market_controller, 2**256-1)
         with boa.env.prank(user2):
             collateral_token.approve(market_controller, 2**256-1)
-        debt = market_controller.max_borrowable(collateral_amount, N)
+        debt = market_controller.max_borrowable(collateral_amount, N) * 99 // 100
 
         with boa.env.prank(user):
             market_controller.create_loan(collateral_amount, debt, N)
@@ -122,10 +121,10 @@ def test_liquidate_callback(accounts, admin, stablecoin, collateral_token, contr
         b = stablecoin.balanceOf(fee_receiver)
         stablecoin.transfer(fake_leverage.address, b)
         health_before = controller.health(user)
+
         try:
             dy = collateral_token.balanceOf(fee_receiver)
-            controller.liquidate_extended(user, int(0.999 * f * x / 1e18), frac,
-                                          fake_leverage.address, [])
+            controller.liquidate(user, int(0.999 * f * x / 1e18), frac, fake_leverage.address, b'')
             dy = collateral_token.balanceOf(fee_receiver) - dy
             dx = stablecoin.balanceOf(fee_receiver) - b
             if f > 0:
@@ -181,7 +180,7 @@ def test_tokens_to_liquidate(accounts, admin, controller_for_liquidation, market
             stablecoin.transfer(fee_receiver, 10**10)
 
         with boa.env.prank(fee_receiver):
-            controller.liquidate_extended(user, 0, frac, ZERO_ADDRESS, [])
+            controller.liquidate(user, 0, frac)
 
         balance = stablecoin.balanceOf(fee_receiver)
 
