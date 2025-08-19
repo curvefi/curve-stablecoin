@@ -5,6 +5,9 @@
 @title crvUSD Controller
 @author Curve.Fi
 @license Copyright (c) Curve.Fi, 2020-2025 - all rights reserved
+@notice Main contract to interact with a Llamalend mint market. Each
+    contract is specific to a single mint market.
+@custom:security security@curve.fi
 """
 
 # TODO restore comments that have been cut to make the bytecode fit

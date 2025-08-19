@@ -5,6 +5,9 @@
 @title LlamaLend Controller
 @author Curve.Fi
 @license Copyright (c) Curve.Fi, 2020-2025 - all rights reserved
+@notice Main contract to interact with a Llamalend lend market. Each
+    contract is specific to a single mint market.
+@custom:security security@curve.fi
 """
 
 from ethereum.ercs import IERC20
@@ -24,10 +27,8 @@ implements: ILlamalendController
 
 from snekmate.utils import math
 
-# TODO rename to core
 from contracts import Controller as core
 
-# TODO rename to core
 initializes: core
 
 exports: (

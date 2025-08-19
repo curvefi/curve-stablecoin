@@ -7,9 +7,11 @@
 @license Copyright (c) Curve.Fi, 2020-2025 - all rights reserved
 @notice This is just a simple adapter not to have to deploy a new
     factory for mint markets.
+@custom:security security@curve.fi
 """
 
 from contracts import Controller as core
+
 initializes: core
 
 # Usually a bad practice to expose through

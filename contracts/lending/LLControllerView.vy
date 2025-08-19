@@ -1,3 +1,13 @@
+# pragma version 0.4.3
+# pragma nonreentrancy on
+"""
+@title Llamalend Controller View Contract
+@author Curve.Fi
+@license Copyright (c) Curve.Fi, 2020-2025 - all rights reserved
+@notice This contract never requires any direct interaction as the
+    main controller contract forwards all relevant calls.
+"""
+
 from ethereum.ercs import IERC20
 from contracts.interfaces import IMintController as IController
 from contracts.interfaces import ILlamalendController
