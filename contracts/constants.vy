@@ -1,3 +1,4 @@
+__version__: constant(String[5]) = "2.0.0"
 MAX_TICKS_UINT: constant(uint256) = 50
 MIN_TICKS_UINT: constant(uint256) = 4
 MAX_TICKS: constant(int256) = 50

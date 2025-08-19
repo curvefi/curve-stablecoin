@@ -1,5 +1,13 @@
 # pragma version 0.4.3
 # pragma nonreentrancy on
+"""
+@title Controller View Contract
+@author Curve.Fi
+@license Copyright (c) Curve.Fi, 2020-2025 - all rights reserved
+@notice This contract never requires any direct interaction as the
+    main controller contract forwards all relevant calls.
+@custom:security security@curve.fi
+"""
 
 from contracts.interfaces import IAMM
 from contracts.interfaces import IMintController as IController
@@ -199,9 +207,6 @@ def health_calculator(
     return health
 
 
-# TODO LLController View
-
-
 @view
 @external
 def users_to_liquidate(
@@ -347,7 +352,9 @@ def max_borrowable(
     @notice Natspec for this function is available in its controller contract
     """
     # Cannot borrow beyond the amount of coins Controller has
-    cap: uint256 = staticcall BORROWED_TOKEN.balanceOf(CONTROLLER.address) + current_debt
+    cap: uint256 = (
+        staticcall BORROWED_TOKEN.balanceOf(CONTROLLER.address) + current_debt
+    )
 
     return self._max_borrowable(
         collateral,

@@ -5,9 +5,10 @@
 @title crvUSD Controller
 @author Curve.Fi
 @license Copyright (c) Curve.Fi, 2020-2025 - all rights reserved
+@notice Main contract to interact with a Llamalend mint market. Each
+    contract is specific to a single mint market.
+@custom:security security@curve.fi
 """
-
-# TODO restore comments that have been cut to make the bytecode fit
 
 from contracts.interfaces import IAMM
 from contracts.interfaces import IMonetaryPolicy
@@ -17,6 +18,7 @@ from contracts.interfaces import IPriceOracle
 from ethereum.ercs import IERC20
 from ethereum.ercs import IERC20Detailed
 
+# TODO just rename interface of mint controller to "icontroller"
 from contracts.interfaces import IMintController as IController
 from contracts.interfaces import IControllerView as IView
 
@@ -30,11 +32,12 @@ from snekmate.utils import math
 ################################################################
 
 AMM: immutable(IAMM)
-MAX_AMM_FEE: immutable(
-    uint256
-)  # let's set to MIN_TICKS / A: for example, 4% max fee for A=100
+# TODO move this comment to init
+# let's set to MIN_TICKS / A: for example, 4% max fee for A=100
+MAX_AMM_FEE: immutable(uint256)
 A: immutable(uint256)
-LOGN_A_RATIO: immutable(int256)  # log(A / (A - 1))
+# log(A / (A - 1))
+LOGN_A_RATIO: immutable(int256)
 SQRT_BAND_RATIO: immutable(uint256)
 
 COLLATERAL_TOKEN: immutable(IERC20)
@@ -47,8 +50,7 @@ FACTORY: immutable(IFactory)
 #                          CONSTANTS                           #
 ################################################################
 
-# TODO add version
-
+version: public(constant(String[5])) = c.__version__
 
 from contracts import constants as c
 
@@ -112,11 +114,12 @@ loan: HashMap[address, IController.Loan]
 liquidation_discounts: public(HashMap[address, uint256])
 _total_debt: IController.Loan
 
-# TODO uniform comment style
-
-loans: public(address[2**64 - 1])  # Enumerate existing loans
-loan_ix: public(HashMap[address, uint256])  # Position of the loan in the list
-n_loans: public(uint256)  # Number of nonzero loans
+# Enumerate existing loans
+loans: public(address[2**64 - 1])
+# Position of the loan in the list
+loan_ix: public(HashMap[address, uint256])
+# Number of nonzero loans
+n_loans: public(uint256)
 
 # cumulative amount of assets ever repaid (including admin fees)
 repaid: public(uint256)
@@ -173,7 +176,6 @@ def __init__(
     self._set_view(view_impl)
 
 
-# TODO expose in ll
 @external
 def set_view(view_impl: address):
     """
@@ -206,8 +208,7 @@ def _set_view(view_impl: address):
     )
     self._view = IView(view)
 
-
-    # TODO event
+    log IController.SetView(view=view)
 
 
 @view
@@ -291,7 +292,7 @@ def set_price_oracle(price_oracle: IPriceOracle, max_deviation: uint256):
             else old_price - new_price
         )
         max_delta: uint256 = old_price * max_deviation // WAD
-        assert delta <= max_delta  # dev: deviation > max
+        assert delta <= max_delta, "delta>max"
 
     extcall AMM.set_price_oracle(price_oracle)
 
@@ -522,38 +523,6 @@ def _calculate_debt_n1(
     ), "Debt too high"
 
     return n1
-
-
-# TODO delete
-@internal
-@view
-def max_p_base() -> uint256:
-    """
-    @notice Calculate max base price including skipping bands
-    """
-    p_oracle: uint256 = staticcall AMM.price_oracle()
-    # Should be correct unless price changes suddenly by MAX_P_BASE_BANDS+ bands
-    n1: int256 = math._wad_ln(
-        convert(staticcall AMM.get_base_price() * WAD // p_oracle, int256)
-    )
-    if n1 < 0:
-        n1 -= (
-            LOGN_A_RATIO - 1
-        )  # This is to deal with vyper's rounding of negative numbers
-    n1 = unsafe_div(n1, LOGN_A_RATIO) + MAX_P_BASE_BANDS
-    n_min: int256 = staticcall AMM.active_band_with_skip()
-    n1 = max(n1, n_min + 1)
-    p_base: uint256 = staticcall AMM.p_oracle_up(n1)
-
-    for i: uint256 in range(MAX_SKIP_TICKS + 1):
-        n1 -= 1
-        if n1 <= n_min:
-            break
-        p_base_prev: uint256 = p_base
-        p_base = staticcall AMM.p_oracle_up(n1)
-        if p_base > p_oracle:
-            return p_base_prev
-    return p_base
 
 
 @external

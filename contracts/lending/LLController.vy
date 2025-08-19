@@ -5,6 +5,9 @@
 @title LlamaLend Controller
 @author Curve.Fi
 @license Copyright (c) Curve.Fi, 2020-2025 - all rights reserved
+@notice Main contract to interact with a Llamalend lend market. Each
+    contract is specific to a single mint market.
+@custom:security security@curve.fi
 """
 
 from ethereum.ercs import IERC20
@@ -24,18 +27,23 @@ implements: ILlamalendController
 
 from snekmate.utils import math
 
-# TODO rename to core
 from contracts import Controller as core
 
-# TODO rename to core
 initializes: core
 
 exports: (
+    # Loan management
     core.add_collateral,
+    core.approve,
+    core.remove_collateral,
+    core.repay,
+    core.set_extra_health,
+    core.liquidate,
+    core.save_rate,
+    # Getters
     core.amm,
     core.amm_price,
     core.approval,
-    core.approve,
     core.borrowed_token,
     core.calculate_debt_n1,
     core.collateral_token,
@@ -51,22 +59,19 @@ exports: (
     core.loans,
     core.monetary_policy,
     core.n_loans,
-    core.remove_collateral,
-    core.save_rate,
-    core.set_extra_health,
     core.tokens_to_liquidate,
     core.total_debt,
     core.admin_fees,
     core.factory,
-    core.liquidate,
-    core.repay,
+    core.processed,
+    core.repaid,
+    # Setters
+    core.set_view,
     core.set_amm_fee,
     core.set_borrowing_discounts,
     core.set_callback,
     core.set_monetary_policy,
     core.set_price_oracle,
-    core.processed,
-    core.repaid,
     # From view contract
     core.user_prices,
     core.user_state,
@@ -92,6 +97,8 @@ collected: public(uint256)
 admin_fee: public(uint256)
 # TODO check this
 MAX_ADMIN_FEE: constant(uint256) = 2 * 10**17  # 20%
+
+# TODO add natrix
 
 
 @deploy
@@ -130,6 +137,12 @@ def __init__(
     assert extcall core.BORROWED_TOKEN.approve(
         VAULT.address, max_value(uint256), default_return_value=True
     )
+
+
+@external
+@view
+def version() -> String[10]:
+    return concat(core.version, "-lend")
 
 
 @external
