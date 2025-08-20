@@ -591,7 +591,7 @@ def transfer(token: IERC20, _to: address, amount: uint256):
 @internal
 @view
 def _check_loan_exists(debt: uint256):
-    assert debt > 0, "No loan"
+    assert debt > 0, "Loan doesn't exist"
 
 
 @internal
