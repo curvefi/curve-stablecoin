@@ -1,6 +1,6 @@
 """
 Deploy function for the complete llamalend protocol suite.
-Provides deployment of both mint and lending protocols with all necessary contracts.
+Provides deployment of both mint and lending markets with all necessary contracts.
 """
 
 import boa

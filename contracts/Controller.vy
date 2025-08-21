@@ -227,6 +227,7 @@ def redeemed() -> uint256:
 @internal
 @view
 def _check_admin():
+    # TODO possibly some things can be moved from ownership to param votes?
     assert msg.sender == staticcall FACTORY.admin(), "only admin"
 
 

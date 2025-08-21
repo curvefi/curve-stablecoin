@@ -51,10 +51,6 @@ def __init__(
     _borrowed_token: IERC20,
     _borrowed_precision: uint256,
 ):
-    """
-    @notice Initialize the ControllerView contract
-    @param _controller Address of the Controller contract
-    """
     CONTROLLER = _controller
     SQRT_BAND_RATIO = _sqrt_band_ratio
     LOGN_A_RATIO = _logn_a_ratio

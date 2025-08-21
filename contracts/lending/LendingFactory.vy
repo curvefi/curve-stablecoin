@@ -61,7 +61,7 @@ def __init__(
         vault: address,
         pool_price_oracle: address,
         monetary_policy: address,
-        admin: address,
+        admin: address, # TODO also add params votes?
         fee_receiver: address,
 ):
     """
@@ -79,6 +79,7 @@ def __init__(
     self.pool_price_oracle_impl = pool_price_oracle
     self.monetary_policy_impl = monetary_policy
 
+    # TODO is this actually useful?
     self.min_default_borrow_rate = 5 * 10**15 // (365 * 86400)
     self.max_default_borrow_rate = 50 * 10**16 // (365 * 86400)
 
@@ -126,6 +127,7 @@ def _create(
     assert p > 0
     assert extcall IPriceOracle(price_oracle).price_w() == p
 
+    # TODO better diff blueprints from minimal proxy targets in naming
     vault: IVault = IVault(create_minimal_proxy_to(self.vault_impl))
     amm: address = create_from_blueprint(
         self.amm_impl,
@@ -313,7 +315,7 @@ def vaults_index(vault: IVault) -> uint256:
 def set_implementations(controller: address, amm: address, vault: address,
                         pool_price_oracle: address, monetary_policy: address):
     """
-    @notice Set new implementations (blueprints) for controller, amm, vault, pool price oracle and monetary polcy.
+    @notice Set new implementations (blueprints) for controller, amm, vault, pool price oracle and monetary policy.
             Doesn't change existing ones
     @param controller Address of the controller blueprint
     @param amm Address of the AMM blueprint
