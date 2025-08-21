@@ -4,7 +4,10 @@ Provides deployment of both mint and lending markets with all necessary contract
 """
 
 import boa
+from boa.contracts.vyper.vyper_contract import VyperDeployer, VyperBlueprint, VyperContract
 from typing import Dict, Any
+
+
 from tests.utils.deployers import (
     # Core contracts
     STABLECOIN_DEPLOYER,
@@ -15,6 +18,7 @@ from tests.utils.deployers import (
     # Lending contracts
     VAULT_DEPLOYER,
     LL_CONTROLLER_DEPLOYER,
+    LL_CONTROLLER_VIEW_DEPLOYER,
     LENDING_FACTORY_DEPLOYER,
     
     # Price oracles
@@ -31,11 +35,26 @@ from tests.utils.deployers import (
 )
 
 
+class Blueprints:
+    def __init__(self, **deployers: VyperDeployer):
+        for name, deployer in deployers.items():
+            setattr(self, name, deployer.deploy_as_blueprint())
+
+    amm: VyperBlueprint
+    mint_controller: VyperBlueprint
+    ll_controller: VyperBlueprint
+    ll_controller_view: VyperBlueprint
+    price_oracle: VyperBlueprint
+    mpolicy: VyperBlueprint
+
+
+# TODO rename to Llamalend
 class Protocol:
     """
     Protocol deployment and management class for llamalend.
     Handles deployment of core infrastructure and creation of markets.
     """
+        
     
     def __init__(
         self,
@@ -51,74 +70,75 @@ class Protocol:
         self.admin = boa.env.generate_address("admin")
         self.fee_receiver = boa.env.generate_address("fee_receiver")
 
+        # Deploy all blueprints
+        self.blueprints = Blueprints(
+            amm=AMM_DEPLOYER,
+            mint_controller=MINT_CONTROLLER_DEPLOYER,
+            ll_controller=LL_CONTROLLER_DEPLOYER,
+            ll_controller_view=LL_CONTROLLER_VIEW_DEPLOYER,
+            price_oracle=CRYPTO_FROM_POOL_DEPLOYER,
+            mpolicy=SEMILOG_MONETARY_POLICY_DEPLOYER
+        )
+
         # Deploy core infrastructure
         with boa.env.prank(self.admin):
             # Deploy stablecoin
             self.crvUSD = STABLECOIN_DEPLOYER.deploy('Curve USD', 'crvUSD')
-            
-            # Deploy WETH
-            self.weth = WETH_DEPLOYER.deploy()
-            
-            # Deploy shared AMM implementation (used by both mint and lending)
-            self.amm_impl = AMM_DEPLOYER.deploy_as_blueprint()
-            
-            # Deploy a dummy price oracle for testing
-            self.price_oracle = DUMMY_PRICE_ORACLE_DEPLOYER.deploy(self.admin, initial_price)
-            
-            # Deploy Mint Protocol
-            # Deploy controller implementation
-            self.mint_controller_impl = MINT_CONTROLLER_DEPLOYER.deploy_as_blueprint()
-            
-            # Deploy controller factory
-            self.mint_factory = CONTROLLER_FACTORY_DEPLOYER.deploy(
-                self.crvUSD.address,
-                self.admin,
-                self.fee_receiver,
-                self.weth.address
-            )
-            
-            # Set implementations on factory
-            self.mint_factory.set_implementations(
-                self.mint_controller_impl.address,
-                self.amm_impl.address
-            )
-            
-            # Set stablecoin minter to factory
-            self.crvUSD.set_minter(self.mint_factory.address)
-            
-            # Deploy monetary policy for mint markets
-            self.mint_monetary_policy = CONSTANT_MONETARY_POLICY_DEPLOYER.deploy(self.admin)
-            self.mint_monetary_policy.set_rate(0)  # 0% by default
-            
-            # Deploy Lending Protocol
-            # Deploy vault implementation
-            self.vault_impl = VAULT_DEPLOYER.deploy()
-            
-            # Deploy lending controller implementation
-            self.ll_controller_impl = LL_CONTROLLER_DEPLOYER.deploy_as_blueprint()
-            
-            # Deploy price oracle implementation for lending
-            self.price_oracle_impl = CRYPTO_FROM_POOL_DEPLOYER.deploy_as_blueprint()
-            
-            # Deploy monetary policy implementation for lending
-            self.mpolicy_impl = SEMILOG_MONETARY_POLICY_DEPLOYER.deploy_as_blueprint()
-            
-            # Deploy lending factory
-            self.lending_factory = LENDING_FACTORY_DEPLOYER.deploy(
-                self.amm_impl.address,
-                self.ll_controller_impl.address,
-                self.vault_impl.address,
-                self.price_oracle_impl.address,
-                self.mpolicy_impl.address,
-                self.admin,
-                self.fee_receiver
-            )
-    
+            self.__init_mint_markets(initial_price)
+            self.__init_lend_markets()
+
+
+    def __init_mint_markets(self, initial_price):
+        # Deploy WETH
+        self.weth = WETH_DEPLOYER.deploy()
+        
+        # Deploy a dummy price oracle for testing
+        self.price_oracle = DUMMY_PRICE_ORACLE_DEPLOYER.deploy(self.admin, initial_price)
+        
+        # Deploy Mint Protocol
+        # Deploy controller factory
+        self.mint_factory = CONTROLLER_FACTORY_DEPLOYER.deploy(
+            self.crvUSD.address,
+            self.admin,
+            self.fee_receiver,
+            self.weth.address
+        )
+        
+        # Set implementations on factory using blueprints
+        self.mint_factory.set_implementations(
+            self.blueprints.mint_controller.address,
+            self.blueprints.amm.address
+        )
+        
+        # Set stablecoin minter to factory
+        self.crvUSD.set_minter(self.mint_factory.address)
+        
+        # Deploy monetary policy for mint markets
+        self.mint_monetary_policy = CONSTANT_MONETARY_POLICY_DEPLOYER.deploy(self.admin)
+
+
+    def __init_lend_markets(self):
+        # Deploy Lending Protocol
+        # Deploy vault implementation
+        self.vault_impl = VAULT_DEPLOYER.deploy()
+        
+        # Deploy lending factory
+        self.lending_factory = LENDING_FACTORY_DEPLOYER.deploy(
+            self.blueprints.amm.address,
+            self.blueprints.ll_controller.address,
+            self.vault_impl.address,
+            self.blueprints.price_oracle.address,
+            self.blueprints.ll_controller_view.address,
+            self.blueprints.mpolicy.address,
+            self.admin,
+            self.fee_receiver
+        )
+
     def create_mint_market(
         self,
-        collateral_token: Any,
-        price_oracle: Any,
-        monetary_policy: Any,
+        collateral_token: VyperContract,
+        price_oracle: VyperContract,
+        monetary_policy: VyperContract,
         A: int,
         amm_fee: int,
         admin_fee: int,
@@ -166,13 +186,13 @@ class Protocol:
     
     def create_lending_market(
         self,
-        borrowed_token: Any,
+        borrowed_token: VyperContract,
         collateral_token: Any,
         A: int,
         fee: int,
         loan_discount: int,
         liquidation_discount: int,
-        price_oracle: Any,
+        price_oracle: VyperContract,
         name: str,
         min_borrow_rate: int,
         max_borrow_rate: int
@@ -195,72 +215,56 @@ class Protocol:
         Returns:
             Dictionary with 'vault', 'controller', 'amm', 'oracle', and 'monetary_policy' addresses
         """
-        with boa.env.prank(self.admin):
-            vault, controller, amm = self.lending_factory.create(
-                borrowed_token.address,
-                collateral_token.address,
-                A,
-                fee,
-                loan_discount,
-                liquidation_discount,
-                price_oracle.address,
-                name,
-                min_borrow_rate,
-                max_borrow_rate
-            )
-            
-            return {
-                'vault': vault,
-                'controller': controller,
-                'amm': amm
-            }
-    
-    def get_deployed_contracts(self) -> Dict[str, Any]:
-        """
-        Get all deployed contracts in the protocol.
+        result = self.lending_factory.create(
+            borrowed_token.address,
+            collateral_token.address,
+            A,
+            fee,
+            loan_discount,
+            liquidation_discount,
+            price_oracle.address,
+            name,
+            min_borrow_rate,
+            max_borrow_rate
+        )
         
-        Returns:
-            Dictionary containing all deployed contract addresses
-        """
         return {
-            'admin': self.admin,
-            'crvUSD': self.crvUSD,
-            'weth': self.weth,
-            'amm_impl': self.amm_impl,
-            'price_oracle': self.price_oracle,
-            'mint_factory': self.mint_factory,
-            'mint_controller_impl': self.mint_controller_impl,
-            'mint_monetary_policy': self.mint_monetary_policy,
-            'lending_factory': self.lending_factory,
-            'vault_impl': self.vault_impl,
-            'll_controller_impl': self.ll_controller_impl,
-            'price_oracle_impl': self.price_oracle_impl,
-            'mpolicy_impl': self.mpolicy_impl
+            'vault': result[0],
+            'controller': result[1],
+            'amm': result[2]
         }
+    
 
 if __name__ == "__main__":
-    # import cProfile
-    # import pstats
-    
-    # profiler = cProfile.Profile()
-    # profiler.enable()
-    
     proto = Protocol()
+    
+    # Test mint market creation
     collat = ERC20_MOCK_DEPLOYER.deploy(18)
-    proto.create_mint_market(
+    mint_market = proto.create_mint_market(
         collat,
         proto.price_oracle,
         proto.mint_monetary_policy,
-        A=1000,
+        A=100,
         amm_fee=10**16,
         admin_fee=0,
-        loan_discount= int(0.8 * 10**18),
-        liquidation_discount=int(0.85 * 10**18),
-        debt_ceiling=1000 * 10**18
+        loan_discount=9 * 10**16,  # 9%
+        liquidation_discount=6 * 10**16,  # 6%
+        debt_ceiling=10**6 * 10**18
     )
     
-    # profiler.disable()
-    # stats = pstats.Stats(profiler)
-    # stats.dump_stats('protocol_deploy.prof')
-    # print("Profile saved to protocol_deploy.prof")
-    # print("Run: snakeviz protocol_deploy.prof")
+    # Test lending market creation
+    borrowed_token = ERC20_MOCK_DEPLOYER.deploy(18)
+    collat_token = ERC20_MOCK_DEPLOYER.deploy(18)
+    
+    lending_market = proto.create_lending_market(
+        borrowed_token=borrowed_token,
+        collateral_token=collat_token,
+        A=100,
+        fee=6 * 10**15,  # 0.6%
+        loan_discount=9 * 10**16,  # 9%
+        liquidation_discount=6 * 10**16,  # 6%
+        price_oracle=proto.price_oracle,
+        name="Test Vault",
+        min_borrow_rate=5 * 10**15 // (365 * 86400),  # 0.5% APR
+        max_borrow_rate=50 * 10**16 // (365 * 86400)  # 50% APR
+    )
