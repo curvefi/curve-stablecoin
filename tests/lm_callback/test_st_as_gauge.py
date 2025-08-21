@@ -148,7 +148,8 @@ class StateMachine(RuleBasedStateMachine):
                 initial_collateral = self.collateral_token.balanceOf(account)
                 collateral_in_amm = integral["collateral"]
                 debt = self.market_controller.user_state(account)[2]
-                self.market_controller.repay(debt)
+                if debt > 0:
+                    self.market_controller.repay(debt)
                 self.update_integrals(account)
 
                 assert not self.market_controller.loan_exists(account)
