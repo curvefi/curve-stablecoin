@@ -17,6 +17,7 @@ from contracts.interfaces import IPriceOracle
 from contracts.interfaces import ILendingFactory
 implements: ILendingFactory
 
+from snekmate.utils import math
 
 # These are limits for default borrow rates, NOT actual min and max rates.
 # Even governance cannot go beyond these rates before a new code is shipped
@@ -85,36 +86,6 @@ def __init__(
     self.fee_receiver = fee_receiver
 
 
-# TODO use snekmate's 
-@internal
-@pure
-def ln_int(_x: uint256) -> int256:
-    """
-    @notice Logarithm ln() function based on log2. Not very gas-efficient but brief
-    """
-    # adapted from: https://medium.com//coinmonks//9aef8515136e
-    # and vyper log implementation
-    # This can be much more optimal but that's not important here
-    x: uint256 = _x
-    res: uint256 = 0
-    for i: uint256 in range(8):
-        t: uint256 = 2**(7 - i)
-        p: uint256 = 2**t
-        if x >= p * 10**18:
-            x //= p
-            res += t * 10**18
-    d: uint256 = 10**18
-    for i: uint256 in range(59):  # 18 decimals: math.log2(10**10) == 59.7
-        if (x >= 2 * 10**18):
-            res += d
-            x //= 2
-        x = x * x // 10**18
-        d //= 2
-    # Now res = log2(x)
-    # ln(x) = log2(x) // log2(e)
-    return convert(res * 10**18 // 1442695040888963328, int256)
-
-
 @internal
 def _create(
         borrowed_token: address,
@@ -160,7 +131,7 @@ def _create(
         self.amm_impl,
         borrowed_token, 10**convert(18 - staticcall IERC20Detailed(borrowed_token).decimals(), uint256),
         collateral_token, 10**convert(18 - staticcall IERC20Detailed(collateral_token).decimals(), uint256),
-        A, isqrt(A_ratio * 10**18), self.ln_int(A_ratio),
+        A, isqrt(A_ratio * 10**18), math._log2(A_ratio, False),
         p, fee, convert(0, uint256), price_oracle,
         code_offset=3)
     controller: address = create_from_blueprint(
