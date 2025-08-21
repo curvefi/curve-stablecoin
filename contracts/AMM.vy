@@ -728,11 +728,17 @@ def deposit_range(user: address, amount: uint256, n1: int256, n2: int256):
         res: Bytes[32] = empty(Bytes[32])
         success, res = raw_call(
             lm.address,
-            abi_encode(method_id("callback_collateral_shares(int256,uint256[],uint256)"), n1, collateral_shares, n_bands),
+            abi_encode(
+                n1, collateral_shares, n_bands,
+                method_id=method_id("callback_collateral_shares(int256,uint256[],uint256)")
+            ),
             max_outsize=32, revert_on_failure=False)
         success, res = raw_call(
             lm.address,
-            abi_encode(method_id("callback_user_shares(address,int256,uint256[],uint256)"), user, n1, empty(DynArray[uint256, MAX_TICKS_UINT]), n_bands),
+            abi_encode(
+                user, n1, empty(DynArray[uint256, MAX_TICKS_UINT]), n_bands,
+                method_id=method_id("callback_user_shares(address,int256,uint256[],uint256)")
+            ),
             max_outsize=32, revert_on_failure=False)
 
 
@@ -819,11 +825,17 @@ def withdraw(user: address, frac: uint256) -> uint256[2]:
         res: Bytes[32] = empty(Bytes[32])
         success, res = raw_call(
             lm.address,
-            abi_encode(method_id("callback_collateral_shares(int256,uint256[],uint256)"), ns[0], empty(DynArray[uint256, MAX_TICKS_UINT]), len(old_user_shares)),
+            abi_encode(
+                ns[0], empty(DynArray[uint256, MAX_TICKS_UINT]), len(old_user_shares),
+                method_id=method_id("callback_collateral_shares(int256,uint256[],uint256)")
+            ),
             max_outsize=32, revert_on_failure=False)
         success, res = raw_call(
             lm.address,
-            abi_encode(method_id("callback_user_shares(address,int256,uint256[],uint256)"), user, ns[0], old_user_shares, len(old_user_shares)),
+            abi_encode(
+                user, ns[0], old_user_shares, len(old_user_shares),
+                method_id=method_id("callback_user_shares(address,int256,uint256[],uint256)")
+            ),
             max_outsize=32, revert_on_failure=False)
 
     return [total_x, total_y]
@@ -1117,7 +1129,10 @@ def _exchange(i: uint256, j: uint256, amount: uint256, minmax_amount: uint256, _
         res: Bytes[32] = empty(Bytes[32])
         success, res = raw_call(
             lm.address,
-            abi_encode(method_id("callback_collateral_shares(int256,uint256[],uint256)"), n_start, collateral_shares, len(collateral_shares)),
+            abi_encode(
+                n_start, collateral_shares, len(collateral_shares),
+                method_id=method_id("callback_collateral_shares(int256,uint256[],uint256)")
+            ),
             max_outsize=32, revert_on_failure=False)
 
     assert extcall in_coin.transferFrom(msg.sender, self, in_amount_done, default_return_value=True)
