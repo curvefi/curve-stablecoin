@@ -51,6 +51,7 @@ STABLESWAP_DEPLOYER = boa.load_partial(BASE_CONTRACT_PATH + "Stableswap.vy", com
 # Lending contracts - all have #pragma optimize codesize
 VAULT_DEPLOYER = boa.load_partial(LENDING_CONTRACT_PATH + "Vault.vy", compiler_args=compiler_args_codesize)
 LL_CONTROLLER_DEPLOYER = boa.load_partial(LENDING_CONTRACT_PATH + "LLController.vy", compiler_args=compiler_args_codesize)
+LL_CONTROLLER_VIEW_DEPLOYER = boa.load_partial(LENDING_CONTRACT_PATH + "LLControllerView.vy", compiler_args=compiler_args_default)
 LENDING_FACTORY_DEPLOYER = boa.load_partial(LENDING_CONTRACT_PATH + "LendingFactory.vy", compiler_args=compiler_args_codesize)
 
 # Flashloan contracts
