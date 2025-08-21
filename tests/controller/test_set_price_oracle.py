@@ -1,9 +1,6 @@
 import pytest
 import boa
 from tests.utils.deployers import (
-    MINT_CONTROLLER_DEPLOYER,
-    LL_CONTROLLER_DEPLOYER,
-    AMM_DEPLOYER,
     DUMMY_PRICE_ORACLE_DEPLOYER,
     ERC20_MOCK_DEPLOYER,
 )
@@ -57,39 +54,17 @@ def market(request, mint_market, lend_market):
 @pytest.fixture()
 def controller(market):
     """Parametrized controller fixture that works with both market types."""
-    # Check if it's a mint market by looking for 'controller' key structure
-    # Mint markets have 'controller' and 'amm'
-    # Lending markets have 'vault', 'controller', 'amm', 'oracle', 'monetary_policy'
-    if 'vault' in market:
-        # It's a lending market
-        return LL_CONTROLLER_DEPLOYER.at(market['controller'])
-    else:
-        # It's a mint market
-        return MINT_CONTROLLER_DEPLOYER.at(market['controller'])
+    return market['controller']
 
 @pytest.fixture()
 def amm(market):
-    return AMM_DEPLOYER.at(market['amm'])
+    return market['amm']
 
 
 @pytest.fixture(scope="module")
 def new_oracle(admin):
     """Deploy a new price oracle for testing."""
     return DUMMY_PRICE_ORACLE_DEPLOYER.deploy(admin, 3000 * 10**18, sender=admin)
-
-
-@pytest.fixture(scope="module")
-def different_price_oracle(admin):
-    """Deploy an oracle with a different price for testing price deviation."""
-    # 10% higher price
-    return DUMMY_PRICE_ORACLE_DEPLOYER.deploy(admin, 3300 * 10**18, sender=admin)
-
-
-@pytest.fixture(scope="module")
-def high_deviation_oracle(admin):
-    """Deploy an oracle with high price deviation for testing."""
-    # 60% higher price - exceeds MAX_ORACLE_PRICE_DEVIATION
-    return DUMMY_PRICE_ORACLE_DEPLOYER.deploy(admin, 4800 * 10**18, sender=admin)
 
 
 def test_default_behavior(controller, amm, new_oracle, admin):
@@ -129,6 +104,13 @@ def test_max_deviation_validation_boundary(controller, new_oracle, admin, amm):
     assert amm.price_oracle_contract() == new_oracle.address
 
 
+@pytest.fixture(scope="module")
+def high_deviation_oracle(admin):
+    """Deploy an oracle with high price deviation for testing."""
+    # 60% higher price - exceeds MAX_ORACLE_PRICE_DEVIATION
+    return DUMMY_PRICE_ORACLE_DEPLOYER.deploy(admin, 4800 * 10**18, sender=admin)
+
+
 def test_max_deviation_skip_check(controller, high_deviation_oracle, admin, amm, proto):
     """Test that max_value(uint256) skips deviation check."""
     # Verify high_deviation_oracle is ~60% higher than initial oracle
@@ -156,6 +138,13 @@ def test_oracle_validation_missing_methods(controller, broken_oracle, admin):
     # Should revert when trying to call price_w() on broken oracle
     with boa.reverts():
         controller.set_price_oracle(broken_oracle, max_deviation, sender=admin)
+
+
+@pytest.fixture(scope="module")
+def different_price_oracle(admin):
+    """Deploy an oracle with a different price for testing price deviation."""
+    # 10% higher price
+    return DUMMY_PRICE_ORACLE_DEPLOYER.deploy(admin, 3300 * 10**18, sender=admin)
 
 
 def test_price_deviation_check_within_limit(controller, different_price_oracle, admin, amm):

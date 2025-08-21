@@ -161,28 +161,28 @@ class Protocol:
             debt_ceiling: Maximum debt for this market (e.g., 10**6 * 10**18)
         
         Returns:
-            Dictionary with 'controller' and 'amm' addresses
+            Dictionary with 'controller' and 'amm' contracts
         """
-        with boa.env.prank(self.admin):
-            self.mint_factory.add_market(
-                collateral_token.address,
-                A,
-                amm_fee,
-                admin_fee,
-                price_oracle.address,
-                monetary_policy.address,
-                loan_discount,
-                liquidation_discount,
-                debt_ceiling
-            )
+        self.mint_factory.add_market(
+            collateral_token.address,
+            A,
+            amm_fee,
+            admin_fee,
+            price_oracle.address,
+            monetary_policy.address,
+            loan_discount,
+            liquidation_discount,
+            debt_ceiling,
+            sender=self.admin
+        )
             
-            controller_address = self.mint_factory.get_controller(collateral_token.address)
-            amm_address = self.mint_factory.get_amm(collateral_token.address)
+        controller_address = self.mint_factory.get_controller(collateral_token.address)
+        amm_address = self.mint_factory.get_amm(collateral_token.address)
             
-            return {
-                'controller': controller_address,
-                'amm': amm_address
-            }
+        return {
+            'controller': MINT_CONTROLLER_DEPLOYER.at(controller_address),
+            'amm': AMM_DEPLOYER.at(amm_address)
+        }
     
     def create_lending_market(
         self,
@@ -213,7 +213,7 @@ class Protocol:
             max_borrow_rate: Maximum borrow rate (e.g., 50 * 10**16 for 50%)
         
         Returns:
-            Dictionary with 'vault', 'controller', 'amm', 'oracle', and 'monetary_policy' addresses
+            Dictionary with 'vault', 'controller', 'amm' contracts.
         """
         result = self.lending_factory.create(
             borrowed_token.address,
@@ -229,9 +229,9 @@ class Protocol:
         )
         
         return {
-            'vault': result[0],
-            'controller': result[1],
-            'amm': result[2]
+            'vault': VAULT_DEPLOYER.at(result[0]),
+            'controller': LL_CONTROLLER_DEPLOYER.at(result[1]),
+            'amm': AMM_DEPLOYER.at(result[2])
         }
     
 
