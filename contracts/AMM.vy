@@ -77,13 +77,13 @@ active_band: public(int256)
 min_band: public(int256)
 max_band: public(int256)
 
-_price_oracle_contract: IPriceOracle
+_price_oracle: IPriceOracle
 
 # https://github.com/vyperlang/vyper/issues/4721
 @view
 @external
 def price_oracle_contract() -> IPriceOracle:
-    return self._price_oracle_contract
+    return self._price_oracle
 
 
 old_p_o: uint256
@@ -118,9 +118,9 @@ def __init__(
         _sqrt_band_ratio: uint256,
         _log_A_ratio: int256,
         _base_price: uint256,
-        fee: uint256,
-        admin_fee: uint256,
-        price_oracle_contract: IPriceOracle,
+        _fee: uint256,
+        _admin_fee: uint256,
+        _price_oracle: IPriceOracle,
     ):
     """
     @notice LLAMMA constructor
@@ -131,9 +131,9 @@ def __init__(
     @param _sqrt_band_ratio Precomputed int(sqrt(A / (A - 1)) * 1e18)
     @param _log_A_ratio Precomputed int(ln(A / (A - 1)) * 1e18)
     @param _base_price Typically the initial crypto price at which AMM is deployed. Will correspond to band 0
-    @param fee Relative fee of the AMM: int(fee * 1e18)
-    @param admin_fee DEPRECATED, left for backward compatibility
-    @param _price_oracle_contract External price oracle which has price() and price_w() methods
+    @param _fee Relative fee of the AMM: int(fee * 1e18)
+    @param _admin_fee DEPRECATED, left for backward compatibility
+    @param _price_oracle External price oracle which has price() and price_w() methods
            which both return current price of collateral multiplied by 1e18
     """
     BORROWED_TOKEN = _borrowed_token
@@ -147,10 +147,10 @@ def __init__(
     A2 = pow_mod256(A, 2)
     Aminus12 = pow_mod256(unsafe_sub(A, 1), 2)
 
-    self.fee = fee
-    self._price_oracle_contract = price_oracle_contract
+    self.fee = _fee
+    self._price_oracle = _price_oracle
     self.prev_p_o_time = block.timestamp
-    self.old_p_o = staticcall self._price_oracle_contract.price()
+    self.old_p_o = staticcall self._price_oracle.price()
 
     self.rate_mul = 10**18
 
@@ -273,12 +273,12 @@ def get_dynamic_fee(p_o: uint256, p_o_up: uint256) -> uint256:
 @internal
 @view
 def _price_oracle_ro() -> uint256[2]:
-    return self.limit_p_o(staticcall self._price_oracle_contract.price())
+    return self.limit_p_o(staticcall self._price_oracle.price())
 
 
 @internal
 def _price_oracle_w() -> uint256[2]:
-    p: uint256[2] = self.limit_p_o(extcall self._price_oracle_contract.price_w())
+    p: uint256[2] = self.limit_p_o(extcall self._price_oracle.price_w())
     self.prev_p_o_time = block.timestamp
     self.old_p_o = p[0]
     self.old_dfee = p[1]
@@ -1723,5 +1723,5 @@ def set_price_oracle(_price_oracle: IPriceOracle):
     @param _price_oracle New price oracle contract
     """
     assert msg.sender == self.admin
-    self._price_oracle_contract = _price_oracle
+    self._price_oracle = _price_oracle
     log IAMM.SetPriceOracle(price_oracle=_price_oracle)
