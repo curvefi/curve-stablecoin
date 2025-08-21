@@ -172,7 +172,7 @@ def test_price_deviation_check_exceeds_limit(controller, different_price_oracle,
     # 10% price difference, but only 5% max deviation allowed
     max_deviation = 5 * 10**16  # 5%
     
-    with boa.reverts(dev="deviation > max"):
+    with boa.reverts("delta>max"):
         controller.set_price_oracle(different_price_oracle, max_deviation, sender=admin)
 
 
