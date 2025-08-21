@@ -36,6 +36,7 @@ controller_impl: public(address)
 vault_impl: public(address)
 pool_price_oracle_impl: public(address)
 monetary_policy_impl: public(address)
+view_impl: public(address)
 
 # Actual min//max borrow rates when creating new markets
 # for example, 0.5% -> 50% is a good choice
@@ -56,10 +57,11 @@ names: public(HashMap[uint256, String[64]])
 
 @deploy
 def __init__(
-        amm: address,
-        controller: address,
-        vault: address,
-        pool_price_oracle: address,
+        amm_impl: address,
+        controller_impl: address,
+        vault_impl: address,
+        pool_price_oracle_impl: address,
+        view_impl: address,
         monetary_policy: address,
         admin: address, # TODO also add params votes?
         fee_receiver: address,
@@ -73,11 +75,15 @@ def __init__(
     @param admin Admin address (DAO)
     @param fee_receiver Receiver of interest and admin fees
     """
-    self.amm_impl = amm
-    self.controller_impl = controller
-    self.vault_impl = vault
-    self.pool_price_oracle_impl = pool_price_oracle
+    # TODO impl vs blueprint is confusing
+    self.amm_impl = amm_impl
+    self.controller_impl = controller_impl
+    self.vault_impl = vault_impl
+    # TODO everyone is forced to have the same price oracle?
+    self.pool_price_oracle_impl = pool_price_oracle_impl
+    # TODO everyone is forced to have the same monetary policy?
     self.monetary_policy_impl = monetary_policy
+    self.view_impl = view_impl
 
     # TODO is this actually useful?
     self.min_default_borrow_rate = 5 * 10**15 // (365 * 86400)
@@ -140,7 +146,10 @@ def _create(
         self.controller_impl,
         vault, amm,
         borrowed_token, collateral_token,
-        monetary_policy, loan_discount, liquidation_discount,
+        monetary_policy,
+        loan_discount,
+        liquidation_discount,
+        self.view_impl,
         code_offset=3)
     extcall IAMM(amm).set_admin(controller)
 
@@ -312,8 +321,14 @@ def vaults_index(vault: IVault) -> uint256:
 
 @external
 @nonreentrant
-def set_implementations(controller: address, amm: address, vault: address,
-                        pool_price_oracle: address, monetary_policy: address):
+def set_implementations(
+    controller: address,
+    amm: address,
+    vault: address,
+    pool_price_oracle: address,
+    monetary_policy: address,
+    view: address,
+):
     """
     @notice Set new implementations (blueprints) for controller, amm, vault, pool price oracle and monetary policy.
             Doesn't change existing ones
@@ -322,6 +337,7 @@ def set_implementations(controller: address, amm: address, vault: address,
     @param vault Address of the Vault template
     @param pool_price_oracle Address of the pool price oracle blueprint
     @param monetary_policy Address of the monetary policy blueprint
+    @param view Address of the view contract blueprint
     """
     assert msg.sender == self.admin
 
@@ -335,13 +351,16 @@ def set_implementations(controller: address, amm: address, vault: address,
         self.pool_price_oracle_impl = pool_price_oracle
     if monetary_policy != empty(address):
         self.monetary_policy_impl = monetary_policy
+    if view != empty(address):
+        self.view_impl = view
 
     log ILendingFactory.SetImplementations(
         amm=amm,
         controller=controller,
         vault=vault,
         price_oracle=pool_price_oracle,
-        monetary_policy=monetary_policy
+        monetary_policy=monetary_policy,
+        view=view
     )
 
 

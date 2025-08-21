@@ -36,7 +36,9 @@ def __init__(
     _amm: IAMM,
     _A: uint256,
     _collateral_token: IERC20,
+    _collateral_precision: uint256,
     _borrowed_token: IERC20,
+    _borrowed_precision: uint256
 ):
     core.__init__(
         _controller,
@@ -45,7 +47,9 @@ def __init__(
         _amm,
         _A,
         _collateral_token,
+        _collateral_precision,
         _borrowed_token,
+        _borrowed_precision
     )
 
 
