@@ -6,7 +6,7 @@ from contextlib import contextmanager
 from hypothesis import settings
 from hypothesis import strategies as st
 from hypothesis.stateful import RuleBasedStateMachine, run_state_machine_as_test, rule, invariant
-from ..conftest import approx
+import pytest
 
 
 DEAD_SHARES = 1000
@@ -51,8 +51,8 @@ class StatefulLendBorrow(RuleBasedStateMachine):
 
                 # If we are here - no exception has happened in the wrapped function
                 assert calculation_success
-                assert approx(self.controller.health(user), future_health, 1e-4, 1e18 / debt)
-                assert approx(self.controller.health(user, True), future_health_full, 1e-4, 1e18 / debt)
+                assert self.controller.health(user) == pytest.approx(future_health, rel=1e-4, abs=1e18 / debt)
+                assert self.controller.health(user, True) == pytest.approx(future_health_full, rel=1e-4, abs=1e18 / debt)
 
             except AllGood:
                 pass

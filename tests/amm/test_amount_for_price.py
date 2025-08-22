@@ -1,5 +1,5 @@
 import boa
-from ..conftest import approx
+import pytest
 from hypothesis import given, settings
 from hypothesis import strategies as st
 from ..utils import mint_for_testing
@@ -72,8 +72,8 @@ def test_amount_for_price(price_oracle, amm, accounts, collateral_token, borrowe
 
     n_final = amm.active_band()
 
-    assert approx(p_max, amm.p_current_up(n2), 1e-8)
-    assert approx(p_min, amm.p_current_down(n1), 1e-8)
+    assert p_max == pytest.approx(amm.p_current_up(n2), rel=1e-8)
+    assert p_min == pytest.approx(amm.p_current_down(n1), rel=1e-8)
 
     if abs(n_final - n0) < 50 - 1:
         A = amm.A()
@@ -87,14 +87,14 @@ def test_amount_for_price(price_oracle, amm, accounts, collateral_token, borrowe
                 return
 
         if p_final > p_min * (1 + prec) and p_final < p_max * (1 - prec):
-            assert approx(p, p_final, prec)
+            assert p == pytest.approx(p_final, rel=prec)
 
         elif p_final >= p_max * (1 - prec):
-            if not approx(p, p_max, prec):
+            if not p == pytest.approx(p_max, rel=prec):
                 assert n_final > n2
 
         elif p_final <= p_min * (1 + prec):
-            if not approx(p, p_min, prec):
+            if not p == pytest.approx(p_min, rel=prec):
                 assert n_final < n1
 
 

@@ -1,5 +1,5 @@
 import boa
-from ..conftest import approx
+import pytest
 from hypothesis import given
 from hypothesis import strategies as st
 from ..utils import mint_for_testing
@@ -27,7 +27,7 @@ def test_dxdy_limits(amm, amounts, accounts, ns, dns, collateral_token, admin):
     dx, dy = amm.get_dxdy(0, 1, 10**2)  # $0.0001
     assert dx == 10**2
     if min(ns) == 1:
-        assert approx(dy, dx * 10**(18 - 6) / 3000, 4e-2 + 2 * min(ns) / amm.A())
+        assert dy == pytest.approx(dx * 10**(18 - 6) / 3000, rel=4e-2 + 2 * min(ns) / amm.A())
     else:
         assert dy <= dx * 10**(18 - 6) / 3000
     dx, dy = amm.get_dxdy(1, 0, 10**16)  # No liquidity
@@ -69,7 +69,7 @@ def test_exchange_down_up(amm, amounts, accounts, ns, dns, amount,
     assert dx <= amount
     dx2, dy2 = amm.get_dxdy(0, 1, dx)
     assert dx == dx2
-    assert approx(dy, dy2, 1e-6)
+    assert dy == pytest.approx(dy2, rel=1e-6)
     mint_for_testing(borrowed_token, u, dx2)
     with boa.env.prank(u):
         amm.exchange(0, 1, dx2, 0)
@@ -88,7 +88,7 @@ def test_exchange_down_up(amm, amounts, accounts, ns, dns, amount,
     expected_out_amount = dx2
 
     dx, dy = amm.get_dxdy(1, 0, in_amount)
-    assert approx(dx, in_amount, 5e-4)  # Not precise because fee is charged on different directions
+    assert dx == pytest.approx(in_amount, rel=5e-4)  # Not precise because fee is charged on different directions
     assert dy <= expected_out_amount
     assert abs(dy - expected_out_amount) <= 2 * fee * expected_out_amount
 

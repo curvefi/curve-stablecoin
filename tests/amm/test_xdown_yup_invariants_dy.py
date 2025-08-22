@@ -2,7 +2,6 @@ from hypothesis import given, settings
 from hypothesis import strategies as st
 import boa
 import pytest
-from ..conftest import approx
 from ..utils import mint_for_testing
 """
 Test that get_x_down and get_y_up don't change:
@@ -87,8 +86,8 @@ def test_immediate(amm, price_oracle, collateral_token, borrowed_token, accounts
 
     fee = max(abs(max(prices) - p_o), abs(p_o - min(prices))) / (4 * min(p_o, *prices))
 
-    assert approx(x0, x1, fee, 100)
-    assert approx(y0, y1, fee, 100)
+    assert x0 == pytest.approx(x1, rel=fee, abs=100)
+    assert y0 == pytest.approx(y1, rel=fee, abs=100)
 
 
 @given(
@@ -158,8 +157,8 @@ def test_adiabatic(amm, price_oracle, collateral_token, borrowed_token, accounts
         assert x >= x0 * (1 - precision)
         assert y >= y0 * (1 - precision)
 
-        assert approx(x, x0, precision + fee_component * (k + 1))
-        assert approx(y, y0, precision + fee_component * (k + 1))
+        assert x == pytest.approx(x0, rel=precision + fee_component * (k + 1))
+        assert y == pytest.approx(y0, rel=precision + fee_component * (k + 1))
 
         if k != N_STEPS - 1:
             p_o = int(p_o * p_o_mul)

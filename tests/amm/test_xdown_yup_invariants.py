@@ -1,7 +1,7 @@
 from hypothesis import given, settings
 from hypothesis import strategies as st
 import boa
-from ..conftest import approx
+import pytest
 from ..utils import mint_for_testing
 """
 Test that get_x_down and get_y_up don't change:
@@ -70,8 +70,8 @@ def test_immediate(amm, price_oracle, collateral_token, borrowed_token, accounts
 
     fee = max(abs(max(p_after_1, p_after_2, p_before) - p_o), abs(p_o - min(p_after_1, p_after_2, p_before))) / (4 * min(p_after_1, p_after_2, p_before))
 
-    assert approx(x0, x1, fee, 100)
-    assert approx(y0, y1, fee, 100)
+    assert x0 == pytest.approx(x1, rel=fee, abs=100)
+    assert y0 == pytest.approx(y1, rel=fee, abs=100)
 
 
 def test_immediate_above_p0(amm, price_oracle, collateral_token, borrowed_token, accounts, admin):
@@ -111,9 +111,9 @@ def test_immediate_above_p0(amm, price_oracle, collateral_token, borrowed_token,
 
     fee = max(abs(p_after_1 - p_before), abs(p_after_2 - p_before)) / (4 * min(p_after_1, p_after_2, p_before))
 
-    assert approx(y0, deposit_amount, fee)
-    assert approx(x0, x1, fee)
-    assert approx(y0, y1, fee)
+    assert y0 == pytest.approx(deposit_amount, rel=fee)
+    assert x0 == pytest.approx(x1, rel=fee)
+    assert y0 == pytest.approx(y1, rel=fee)
 
 
 def test_immediate_in_band(amm, price_oracle, collateral_token, borrowed_token, accounts, admin):
@@ -152,9 +152,9 @@ def test_immediate_in_band(amm, price_oracle, collateral_token, borrowed_token, 
 
     fee = max(abs(p_after_1 - p_before), abs(p_after_2 - p_before)) / (4 * min(p_after_1, p_after_2, p_before))
 
-    assert approx(y0, deposit_amount, fee)
-    assert approx(x0, x1, fee)
-    assert approx(y0, y1, fee)
+    assert y0 == pytest.approx(deposit_amount, rel=fee)
+    assert x0 == pytest.approx(x1, rel=fee)
+    assert y0 == pytest.approx(y1, rel=fee)
 
 
 @given(
@@ -218,8 +218,8 @@ def test_adiabatic(amm, price_oracle, collateral_token, borrowed_token, accounts
         assert x >= x0 * (1 - precision)
         assert y >= y0 * (1 - precision)
 
-        assert approx(x, x0, precision + fee_component * (k + 1))
-        assert approx(y, y0, precision + fee_component * (k + 1))
+        assert x == pytest.approx(x0, rel=precision + fee_component * (k + 1))
+        assert y == pytest.approx(y0, rel=precision + fee_component * (k + 1))
 
         if k != N_STEPS - 1:
             p_o = int(p_o * p_o_mul)

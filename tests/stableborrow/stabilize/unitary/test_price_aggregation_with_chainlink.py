@@ -1,4 +1,3 @@
-from ....conftest import approx
 import boa
 import pytest
 
@@ -58,10 +57,9 @@ def test_crypto_agg(
             boa.env.time_travel(200_000)
 
             p = crypto_agg_with_external_oracle.price()
-            assert approx(
-                p,
+            assert p == pytest.approx(
                 true_raw_price(internal_price_2, external_oracle_price) * 10**18,
-                1e-10,
+                rel=1e-10,
             )
 
             amount = 300_000 * 10**6

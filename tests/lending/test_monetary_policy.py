@@ -1,7 +1,7 @@
 import boa
+import pytest
 from hypothesis import given
 from hypothesis import strategies as st
-from ..conftest import approx
 
 min_default_borrow_rate = 5 * 10**15 // (365 * 86400)
 max_default_borrow_rate = 50 * 10**16 // (365 * 86400)
@@ -27,4 +27,4 @@ def test_monetary_policy(filled_controller, collateral_token, borrowed_token, ma
                 assert rate >= min_default_borrow_rate * (1 - 1e-5)
                 assert rate <= max_default_borrow_rate * (1 + 1e-5)
                 theoretical_rate = min_default_borrow_rate * (max_default_borrow_rate / min_default_borrow_rate)**fill
-                assert approx(rate, theoretical_rate, 1e-4)
+                assert rate == pytest.approx(theoretical_rate, rel=1e-4)

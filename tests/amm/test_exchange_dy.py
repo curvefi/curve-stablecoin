@@ -1,6 +1,5 @@
 import boa
 import pytest
-from ..conftest import approx
 from hypothesis import given
 from hypothesis import strategies as st
 from ..utils import mint_for_testing
@@ -42,7 +41,7 @@ def test_dydx_limits(amm, amounts, accounts, ns, dns, collateral_token, admin, b
     dy, dx = amm.get_dydx(0, 1, 10**(collateral_decimals - 6))  # 0.000001 ETH
     assert dy == 10**12
     if min(ns) == 1:
-        assert approx(dx, dy * 3000 / 10**(collateral_decimals - borrowed_decimals), 4e-2 + 2 * min(ns) / amm.A())
+        assert dx == pytest.approx(dy * 3000 / 10**(collateral_decimals - borrowed_decimals), rel=4e-2 + 2 * min(ns) / amm.A())
     else:
         assert dx >= dy * 3000 / 10**(collateral_decimals - borrowed_decimals)
     dy, dx = amm.get_dydx(1, 0, 10**(borrowed_decimals - 4))  # No liquidity
@@ -152,7 +151,7 @@ def test_exchange_dy_down_up(amm, amounts, accounts, ns, dns, amount, borrowed_t
     assert dy <= amount
     dy2, dx2 = amm.get_dydx(0, 1, dy)
     assert dy == dy2
-    assert approx(dx, dx2, 1e-6)
+    assert dx == pytest.approx(dx2, rel=1e-6)
     mint_for_testing(borrowed_token, u, dx2)
     with boa.env.prank(u):
         with boa.reverts("Slippage"):

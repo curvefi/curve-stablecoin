@@ -1,6 +1,6 @@
 import boa
 from random import random, randrange
-from ..conftest import approx
+import pytest
 
 MAX_UINT256 = 2 ** 256 - 1
 YEAR = 365 * 86400
@@ -82,7 +82,7 @@ def test_gauge_integral_one_user(accounts, admin, collateral_token, crv, lm_call
             update_integral()
             print(i, dt / 86400, integral, lm_callback.integrate_fraction(alice))
             crv_reward = lm_callback.integrate_fraction(alice)
-            assert approx(crv_reward, integral, 1e-14)
+            assert crv_reward == pytest.approx(integral, rel=1e-14)
             minter.mint(lm_callback.address, sender=alice)
             assert crv.balanceOf(alice) == crv_reward
 
@@ -218,7 +218,7 @@ def test_gauge_integral(accounts, admin, collateral_token, crv, lm_callback, mar
 
                 update_integral()
                 print(i, dt / 86400, integral, lm_callback.integrate_fraction(alice))
-                assert approx(lm_callback.integrate_fraction(alice), integral, 1e-14)
+                assert lm_callback.integrate_fraction(alice) == pytest.approx(integral, rel=1e-14)
 
             with boa.env.prank(bob):
                 crv_balance = crv.balanceOf(bob)

@@ -3,7 +3,6 @@ import pytest
 from hypothesis import settings
 from hypothesis import strategies as st
 from hypothesis.stateful import RuleBasedStateMachine, run_state_machine_as_test, rule, invariant
-from ..conftest import approx
 
 
 # TODO get this from contract directly
@@ -75,7 +74,7 @@ class StatefulVault(RuleBasedStateMachine):
     @invariant()
     def inv_aprs(self):
         if self.was_used:
-            assert approx(self.vault.borrow_apr() / 1e18, 0.005, 1e-5)
+            assert self.vault.borrow_apr() / 1e18 == pytest.approx(0.005, rel=1e-5)
         else:
             assert self.vault.borrow_apr() == 0
         assert self.vault.lend_apr() == 0
@@ -91,7 +90,7 @@ class StatefulVault(RuleBasedStateMachine):
         assert pps <= 1e18 // 1000 * 1.1  # Cannot pump much due to min assets limits (this test only pupms via rounding errors)
         if self.total_assets > 100000:
             if self.pps:
-                assert approx(pps, self.pps, 1e-2)
+                assert pps == pytest.approx(self.pps, rel=1e-2)
             else:
                 self.pps = pps
 

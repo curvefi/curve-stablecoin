@@ -2,7 +2,7 @@ import boa
 from hypothesis import settings
 from hypothesis import strategies as st
 from hypothesis.stateful import RuleBasedStateMachine, run_state_machine_as_test, rule, invariant
-from ..conftest import approx
+import pytest
 
 
 class StateMachine(RuleBasedStateMachine):
@@ -84,7 +84,7 @@ class StateMachine(RuleBasedStateMachine):
             r2 = self.integrals[user]["integral"]
             assert (r1 > 0) == (r2 > 0)
             if r1 > 0:
-                assert approx(r1, r2, 1e-13) or abs(r1 - r2) < 100
+                assert r1 == pytest.approx(r2, rel=1e-13) or abs(r1 - r2) < 100
 
     @rule(uid=user_id, withdraw_pct=withdraw_pct, repay_pct=repay_pct)
     def withdraw(self, uid, withdraw_pct, repay_pct):
@@ -128,7 +128,7 @@ class StateMachine(RuleBasedStateMachine):
             r2 = self.integrals[user]["integral"]
             assert (r1 > 0) == (r2 > 0)
             if r1 > 0:
-                assert approx(r1, r2, 1e-13) or abs(r1 - r2) < 100
+                assert r1 == pytest.approx(r2, rel=1e-13) or abs(r1 - r2) < 100
 
     @rule(target_band_pct=target_band_pct, target_price_pct=target_price_pct)
     def trade(self, target_band_pct, target_price_pct):
@@ -180,7 +180,7 @@ class StateMachine(RuleBasedStateMachine):
             r2 = self.integrals[user]["integral"]
             assert (r1 > 0) == (r2 > 0)
             if r1 > 0:
-                assert approx(r1, r2, 1e-13) or abs(r1 - r2) < 100
+                assert r1 == pytest.approx(r2, rel=1e-13) or abs(r1 - r2) < 100
 
     @rule(uid=user_id)
     def claim_crv(self, uid):
@@ -204,11 +204,11 @@ class StateMachine(RuleBasedStateMachine):
         for account, integral in self.integrals.items():
             y1 = self.lm_callback.user_collateral(account)
             y2 = integral["collateral"]
-            assert approx(y1, y2, 1e-14) or abs(y1 - y2) < 100000  # Seems ok for 18 decimals
+            assert y1 == pytest.approx(y2, rel=1e-14) or abs(y1 - y2) < 100000  # Seems ok for 18 decimals
 
         Y1 = self.lm_callback.total_collateral()
         Y2 = sum([i["collateral"] for i in self.integrals.values()])
-        assert approx(Y1, Y2, 1e-13) or abs(Y1 - Y2) < 100000  # Seems ok for 18 decimals
+        assert Y1 == pytest.approx(Y2, rel=1e-13) or abs(Y1 - Y2) < 100000  # Seems ok for 18 decimals
 
     def teardown(self):
         """
@@ -230,7 +230,7 @@ class StateMachine(RuleBasedStateMachine):
                 r2 = integral["integral"]
                 assert (r1 > 0) == (r2 > 0)
                 if r1 > 0:
-                    assert approx(r1, r2, 1e-13) or abs(r1 - r2) < 100
+                    assert r1 == pytest.approx(r2, rel=1e-13) or abs(r1 - r2) < 100
 
                 crv_balance = self.crv.balanceOf(account)
                 with boa.env.anchor():

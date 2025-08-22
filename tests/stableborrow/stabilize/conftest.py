@@ -1,6 +1,5 @@
 import boa
 import pytest
-from ...conftest import approx
 from tests.utils.deployers import (
     ERC20_MOCK_DEPLOYER,
     STABLESWAP_DEPLOYER,
@@ -349,7 +348,7 @@ def provide_token_to_peg_keepers_no_sleep(initial_amounts, swaps, peg_keepers, r
             rtoken_mul = 10 ** (18 - rtoken.decimals())
             remove_amount = (swap.balances(0) * rtoken_mul - swap.balances(1)) // rtoken_mul
             swap.remove_liquidity_imbalance([remove_amount, 0], 2**256 - 1)
-            assert approx(swap.balances(0), swap.balances(1) // rtoken_mul, 1e-6)
+            assert swap.balances(0) == pytest.approx(swap.balances(1) // rtoken_mul, rel=1e-6)
 
 
 @pytest.fixture(scope="module")
