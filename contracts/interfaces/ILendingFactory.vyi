@@ -4,6 +4,7 @@ event SetImplementations:
     vault: address
     price_oracle: address
     monetary_policy: address
+    view: address
 
 event SetDefaultRates:
     min_rate: uint256

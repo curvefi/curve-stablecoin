@@ -1,4 +1,5 @@
 import boa
+from eth_abi import encode
 from ..conftest import approx
 
 from hypothesis import given, settings
@@ -12,24 +13,33 @@ def test_leverage(collateral_token, stablecoin, market_controller, market_amm, f
     controller_mint = stablecoin.balanceOf(market_controller.address)
 
     with boa.env.prank(user):
-        collateral_token._mint_for_testing(user, amount)
+        boa.deal(collateral_token, user, amount)
 
-        market_controller.create_loan_extended(amount, amount * 2 * 3000, 5, fake_leverage.address, [int(amount * 1.5)])
-        assert collateral_token.balanceOf(user) == 0
+        calldata = encode(["uint256"], [int(amount * 1.5)])
+        fake_leverage_balances1 = [stablecoin.balanceOf(fake_leverage), collateral_token.balanceOf(fake_leverage)]
+        market_controller.create_loan(amount, amount * 2 * 3000, 5, user, fake_leverage.address, calldata)
+        fake_leverage_balances2 = [stablecoin.balanceOf(fake_leverage), collateral_token.balanceOf(fake_leverage)]
         assert collateral_token.balanceOf(market_amm.address) == 3 * amount
         assert market_amm.get_sum_xy(user) == [0, 3 * amount]
         assert market_controller.debt(user) == amount * 2 * 3000
         assert stablecoin.balanceOf(user) == 0
+        assert collateral_token.balanceOf(user) == 0
+        assert fake_leverage_balances2[0] - fake_leverage_balances1[0] == amount * 2 * 3000, 5
+        assert fake_leverage_balances1[1] - fake_leverage_balances2[1] == 2 * amount
 
-        market_controller.repay_extended(fake_leverage.address, [10**18])
+        calldata = encode(["uint256"], [10**18])
+        market_controller.repay(0, user, market_amm.active_band(), fake_leverage.address, calldata)
+        fake_leverage_balances3 = [stablecoin.balanceOf(fake_leverage), collateral_token.balanceOf(fake_leverage)]
         assert market_controller.debt(user) == 0
         assert collateral_token.balanceOf(market_amm.address) == 0
         assert stablecoin.balanceOf(market_amm.address) == 0
         assert market_amm.get_sum_xy(user) == [0, 0]
         assert collateral_token.balanceOf(market_controller.address) == 0
         assert stablecoin.balanceOf(market_controller.address) == controller_mint
-        assert collateral_token.balanceOf(user) == amount
         assert stablecoin.balanceOf(user) == 0
+        assert collateral_token.balanceOf(user) == amount
+        assert fake_leverage_balances3[0] == fake_leverage_balances1[0]
+        assert fake_leverage_balances3[1] == fake_leverage_balances1[1]
 
 
 @given(
@@ -43,14 +53,15 @@ def test_leverage_property(collateral_token, stablecoin, market_controller, mark
     user = accounts[0]
 
     with boa.env.prank(user):
-        collateral_token._mint_for_testing(user, amount)
+        boa.deal(collateral_token, user, amount)
 
         debt = int(loan_mul * amount * 3000)
+        calldata = encode(["uint256"], [0])
         if (debt // 3000) <= collateral_token.balanceOf(fake_leverage.address) and debt > 0:
-            market_controller.create_loan_extended(amount, debt, 5, fake_leverage.address, [0])
+            market_controller.create_loan(amount, debt, 5, user, fake_leverage.address, calldata)
         else:
             with boa.reverts():
-                market_controller.create_loan_extended(amount, debt, 5, fake_leverage.address, [0])
+                market_controller.create_loan(amount, debt, 5, user, fake_leverage.address, calldata)
             return
         assert collateral_token.balanceOf(user) == 0
         expected_collateral = int((1 + loan_mul) * amount)
@@ -64,8 +75,8 @@ def test_leverage_property(collateral_token, stablecoin, market_controller, mark
         more_debt = int(loan_more_mul * amount * 3000)
         if (more_debt // 3000) <= collateral_token.balanceOf(fake_leverage.address):
             if more_debt > 0:
-                collateral_token._mint_for_testing(user, amount)
-            market_controller.borrow_more_extended(amount, more_debt, fake_leverage.address, [0])
+                boa.deal(collateral_token, user, amount)
+            market_controller.borrow_more(amount, more_debt, user, fake_leverage.address, calldata)
             debt += more_debt
             if more_debt > 0:
                 assert collateral_token.balanceOf(user) == 0
@@ -79,15 +90,16 @@ def test_leverage_property(collateral_token, stablecoin, market_controller, mark
 
         else:
             with boa.reverts():
-                market_controller.borrow_more_extended(amount, more_debt, fake_leverage.address, [0])
+                market_controller.borrow_more(amount, more_debt, user, fake_leverage.address, calldata)
 
         s0 = stablecoin.balanceOf(market_controller.address)
 
+        calldata = encode(["uint256"], [int(repay_mul * 1e18)])
         if debt * int(repay_mul * 1e18) // 10**18 >= 1:
-            market_controller.repay_extended(fake_leverage.address, [int(repay_mul * 1e18)])
+            market_controller.repay(0, user, market_amm.active_band(), fake_leverage.address, calldata)
         else:
             with boa.reverts():
-                market_controller.repay_extended(fake_leverage.address, [int(repay_mul * 1e18)])
+                market_controller.repay(0, user, market_amm.active_band(), fake_leverage.address, calldata)
             return
         assert market_controller.debt(user) == debt - debt * int(repay_mul * 1e18) // 10**18
         if repay_mul == 1.0:

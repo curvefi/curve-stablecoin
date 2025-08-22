@@ -69,6 +69,10 @@ event CollectFees:
     new_supply: uint256
 
 
+event SetView:
+    view: address
+
+
 # Structs 
 
 struct Position:
@@ -345,4 +349,14 @@ def repaid() -> uint256:
 @external
 def processed() -> uint256:
     ...
+
+@view
+@external
+def version() -> String[1]:
+    ...
+    
+@external
+def set_view(view_impl: address):
+    ...
+
 

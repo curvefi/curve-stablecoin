@@ -1,4 +1,4 @@
-# pragma version 0.4.1
+# pragma version 0.4.3
 """
 @title LLAMMA - crvUSD AMM
 @author Curve.Fi
@@ -50,7 +50,7 @@ MAX_TICKS: constant(int256) = 50
 MAX_TICKS_UINT: constant(uint256) = c.MAX_TICKS_UINT
 MAX_SKIP_TICKS: constant(int256) = 1024
 MAX_SKIP_TICKS_UINT: constant(uint256) = 1024
-# TODO create vyper issue
+# https://github.com/vyperlang/vyper/issues/4723
 DEAD_SHARES: constant(uint256) = c.DEAD_SHARES
 
 
@@ -77,14 +77,13 @@ active_band: public(int256)
 min_band: public(int256)
 max_band: public(int256)
 
-# TODO setter
-_price_oracle_contract: immutable(IPriceOracle)
+_price_oracle: IPriceOracle
 
-# TODO This is a workaround for a compiler bug
+# https://github.com/vyperlang/vyper/issues/4721
 @view
 @external
 def price_oracle_contract() -> IPriceOracle:
-    return _price_oracle_contract
+    return self._price_oracle
 
 
 old_p_o: uint256
@@ -102,8 +101,7 @@ user_shares: public(HashMap[address, IAMM.UserTicks])
 
 _liquidity_mining_callback: ILMGauge
 
-# TODO compiler bug workaround
-# TODO report issue
+# https://github.com/vyperlang/vyper/issues/4721
 @view
 @external
 def liquidity_mining_callback() -> ILMGauge:
@@ -112,17 +110,17 @@ def liquidity_mining_callback() -> ILMGauge:
 
 @deploy
 def __init__(
-        _borrowed_token: address,
+        _borrowed_token: IERC20,
         _borrowed_precision: uint256,
-        _collateral_token: address,
+        _collateral_token: IERC20,
         _collateral_precision: uint256,
         _A: uint256,
         _sqrt_band_ratio: uint256,
         _log_A_ratio: int256,
         _base_price: uint256,
-        fee: uint256,
-        admin_fee: uint256,
-        price_oracle_contract: address,
+        _fee: uint256,
+        _admin_fee: uint256,
+        _price_oracle: IPriceOracle,
     ):
     """
     @notice LLAMMA constructor
@@ -133,14 +131,14 @@ def __init__(
     @param _sqrt_band_ratio Precomputed int(sqrt(A / (A - 1)) * 1e18)
     @param _log_A_ratio Precomputed int(ln(A / (A - 1)) * 1e18)
     @param _base_price Typically the initial crypto price at which AMM is deployed. Will correspond to band 0
-    @param fee Relative fee of the AMM: int(fee * 1e18)
-    @param admin_fee DEPRECATED, left for backward compatibility
-    @param _price_oracle_contract External price oracle which has price() and price_w() methods
+    @param _fee Relative fee of the AMM: int(fee * 1e18)
+    @param _admin_fee DEPRECATED, left for backward compatibility
+    @param _price_oracle External price oracle which has price() and price_w() methods
            which both return current price of collateral multiplied by 1e18
     """
-    BORROWED_TOKEN = IERC20(_borrowed_token)
+    BORROWED_TOKEN = _borrowed_token
     BORROWED_PRECISION = _borrowed_precision
-    COLLATERAL_TOKEN = IERC20(_collateral_token)
+    COLLATERAL_TOKEN = _collateral_token
     COLLATERAL_PRECISION = _collateral_precision
     A = _A
     BASE_PRICE = _base_price
@@ -149,10 +147,10 @@ def __init__(
     A2 = pow_mod256(A, 2)
     Aminus12 = pow_mod256(unsafe_sub(A, 1), 2)
 
-    self.fee = fee
-    _price_oracle_contract = IPriceOracle(price_oracle_contract)
+    self.fee = _fee
+    self._price_oracle = _price_oracle
     self.prev_p_o_time = block.timestamp
-    self.old_p_o = staticcall _price_oracle_contract.price()
+    self.old_p_o = staticcall self._price_oracle.price()
 
     self.rate_mul = 10**18
 
@@ -275,12 +273,12 @@ def get_dynamic_fee(p_o: uint256, p_o_up: uint256) -> uint256:
 @internal
 @view
 def _price_oracle_ro() -> uint256[2]:
-    return self.limit_p_o(staticcall _price_oracle_contract.price())
+    return self.limit_p_o(staticcall self._price_oracle.price())
 
 
 @internal
 def _price_oracle_w() -> uint256[2]:
-    p: uint256[2] = self.limit_p_o(extcall _price_oracle_contract.price_w())
+    p: uint256[2] = self.limit_p_o(extcall self._price_oracle.price_w())
     self.prev_p_o_time = block.timestamp
     self.old_p_o = p[0]
     self.old_dfee = p[1]
@@ -730,11 +728,17 @@ def deposit_range(user: address, amount: uint256, n1: int256, n2: int256):
         res: Bytes[32] = empty(Bytes[32])
         success, res = raw_call(
             lm.address,
-            abi_encode(method_id("callback_collateral_shares(int256,uint256[],uint256)"), n1, collateral_shares, n_bands),
+            abi_encode(
+                n1, collateral_shares, n_bands,
+                method_id=method_id("callback_collateral_shares(int256,uint256[],uint256)")
+            ),
             max_outsize=32, revert_on_failure=False)
         success, res = raw_call(
             lm.address,
-            abi_encode(method_id("callback_user_shares(address,int256,uint256[],uint256)"), user, n1, empty(DynArray[uint256, MAX_TICKS_UINT]), n_bands),
+            abi_encode(
+                user, n1, empty(DynArray[uint256, MAX_TICKS_UINT]), n_bands,
+                method_id=method_id("callback_user_shares(address,int256,uint256[],uint256)")
+            ),
             max_outsize=32, revert_on_failure=False)
 
 
@@ -780,10 +784,8 @@ def withdraw(user: address, frac: uint256) -> uint256[2]:
         x -= dx
         y -= dy
 
-        # If withdrawal is the last one - withdraw dust to the user
+        # If withdrawal is the last one - leave dust in the AMM
         if new_shares == 0:
-            dx += x
-            dy += y
             x = 0
             y = 0
 
@@ -823,11 +825,17 @@ def withdraw(user: address, frac: uint256) -> uint256[2]:
         res: Bytes[32] = empty(Bytes[32])
         success, res = raw_call(
             lm.address,
-            abi_encode(method_id("callback_collateral_shares(int256,uint256[],uint256)"), ns[0], empty(DynArray[uint256, MAX_TICKS_UINT]), len(old_user_shares)),
+            abi_encode(
+                ns[0], empty(DynArray[uint256, MAX_TICKS_UINT]), len(old_user_shares),
+                method_id=method_id("callback_collateral_shares(int256,uint256[],uint256)")
+            ),
             max_outsize=32, revert_on_failure=False)
         success, res = raw_call(
             lm.address,
-            abi_encode(method_id("callback_user_shares(address,int256,uint256[],uint256)"), user, ns[0], old_user_shares, len(old_user_shares)),
+            abi_encode(
+                user, ns[0], old_user_shares, len(old_user_shares),
+                method_id=method_id("callback_user_shares(address,int256,uint256[],uint256)")
+            ),
             max_outsize=32, revert_on_failure=False)
 
     return [total_x, total_y]
@@ -1121,7 +1129,10 @@ def _exchange(i: uint256, j: uint256, amount: uint256, minmax_amount: uint256, _
         res: Bytes[32] = empty(Bytes[32])
         success, res = raw_call(
             lm.address,
-            abi_encode(method_id("callback_collateral_shares(int256,uint256[],uint256)"), n_start, collateral_shares, len(collateral_shares)),
+            abi_encode(
+                n_start, collateral_shares, len(collateral_shares),
+                method_id=method_id("callback_collateral_shares(int256,uint256[],uint256)")
+            ),
             max_outsize=32, revert_on_failure=False)
 
     assert extcall in_coin.transferFrom(msg.sender, self, in_amount_done, default_return_value=True)
@@ -1235,7 +1246,7 @@ def calc_swap_in(pump: bool, out_amount: uint256, p_o: uint256[2], in_precision:
                         dy: uint256 = unsafe_div(y_dest * antifee, 10**18)  # MORE than y_dest
                         out.out_amount = out_amount
                         out.in_amount += dy
-                        out.ticks_in[j] = y + dy 
+                        out.ticks_in[j] = y + dy
                         break
 
                     else:
@@ -1702,3 +1713,15 @@ def set_callback(liquidity_mining_callback: ILMGauge):
     """
     assert msg.sender == self.admin
     self._liquidity_mining_callback = liquidity_mining_callback
+
+
+@external
+@nonreentrant
+def set_price_oracle(_price_oracle: IPriceOracle):
+    """
+    @notice Set a new price oracle contract. Can only be called by admin (Controller)
+    @param _price_oracle New price oracle contract
+    """
+    assert msg.sender == self.admin
+    self._price_oracle = _price_oracle
+    log IAMM.SetPriceOracle(price_oracle=_price_oracle)

@@ -1,6 +1,7 @@
 import boa
 import pytest
 from ..conftest import PRICE, approx
+from tests.utils.deployers import EMA_PRICE_ORACLE_DEPLOYER
 
 
 @pytest.fixture(scope="module")
@@ -8,7 +9,7 @@ def ema_price_oracle(price_oracle, admin):
     with boa.env.prank(admin):
         signature = price_oracle.price.args_abi_type(0)[0]
         signature = b'\x00' * (32 - len(signature)) + signature
-        return boa.load('contracts/price_oracles/EmaPriceOracle.vy', 10000, price_oracle.address, signature)
+        return EMA_PRICE_ORACLE_DEPLOYER.deploy(10000, price_oracle.address, signature)
 
 
 def test_price_oracle(price_oracle, amm):

@@ -24,7 +24,7 @@ def make_profit(swaps, redeemable_tokens, stablecoin, alice, admin, set_fee):
             set_fee(swap, 10**9)
 
             with boa.env.prank(alice):
-                rtoken._mint_for_testing(alice, exchange_amount)
+                boa.deal(rtoken, alice, exchange_amount)
                 rtoken.approve(swap.address, exchange_amount)
                 out = swap.exchange(0, 1, exchange_amount, 0)
 

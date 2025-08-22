@@ -10,7 +10,7 @@ def existing_loan(collateral_token, market_controller, accounts):
     n = 5
 
     with boa.env.prank(user):
-        collateral_token._mint_for_testing(user, c_amount)
+        boa.deal(collateral_token, user, c_amount)
         market_controller.create_loan(c_amount, l_amount, n)
 
 
@@ -24,10 +24,10 @@ def test_create_loan(controller_factory, stablecoin, collateral_token, market_co
 
     with boa.env.prank(user):
         with boa.env.anchor():
-            collateral_token._mint_for_testing(user, initial_amount)
+            boa.deal(collateral_token, user, initial_amount)
             market_controller.create_loan(c_amount, l_amount, 5)
 
-    collateral_token._mint_for_testing(someone_else, initial_amount)
+    boa.deal(collateral_token, someone_else, initial_amount)
 
     with boa.env.anchor():
         with boa.env.prank(someone_else):
@@ -141,7 +141,7 @@ def controller_for_liquidation(stablecoin, collateral_token, market_controller, 
 
         debt = market_controller.max_borrowable(collateral_amount, N)
         with boa.env.prank(user):
-            collateral_token._mint_for_testing(user, collateral_amount)
+            boa.deal(collateral_token, user, collateral_amount)
             stablecoin.approve(market_amm, 2**256-1)
             stablecoin.approve(market_controller, 2**256-1)
             collateral_token.approve(market_controller, 2**256-1)
@@ -167,12 +167,7 @@ def controller_for_liquidation(stablecoin, collateral_token, market_controller, 
             monetary_policy.set_rate(0)
 
         # Ensure approved account has enough to liquidate
-        with boa.env.prank(someone_else):
-            collateral_token._mint_for_testing(someone_else, collateral_amount)
-            stablecoin.approve(market_amm, 2**256-1)
-            stablecoin.approve(market_controller, 2**256-1)
-            collateral_token.approve(market_controller, 2**256-1)
-            market_controller.create_loan(collateral_amount, debt, N)
+        boa.deal(stablecoin, someone_else, debt)
 
         return market_controller
 
@@ -182,7 +177,7 @@ def controller_for_liquidation(stablecoin, collateral_token, market_controller, 
 def test_self_liquidate(stablecoin, collateral_token, controller_for_liquidation, market_amm, accounts):
     user = accounts[1]
     someone_else = accounts[2]
-    controller = controller_for_liquidation(sleep_time=40 * 86400, user=user, someone_else=someone_else)
+    controller = controller_for_liquidation(sleep_time=30 * 86400, user=user, someone_else=someone_else)
 
     x = market_amm.get_sum_xy(user)[0]
 

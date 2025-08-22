@@ -39,7 +39,7 @@ class AdiabaticTrader(RuleBasedStateMachine):
                                     n))
         user = self.accounts[0]
         with boa.env.prank(user):
-            self.collateral._mint_for_testing(user, collateral_amount)
+            boa.deal(collateral, user, collateral_amount)
             loan_amount = self.controller.max_borrowable(collateral_amount, n)
             self.controller.create_loan(collateral_amount, loan_amount, n)
             self.borrowed_token.transfer(self.accounts[1], loan_amount)
@@ -59,7 +59,7 @@ class AdiabaticTrader(RuleBasedStateMachine):
                             return
                     self.amm.exchange(0, 1, amount, 0)
                 else:
-                    self.collateral._mint_for_testing(user, amount)
+                    boa.deal(collateral, user, amount)
                     self.amm.exchange(1, 0, amount, 0)
 
     @rule(oracle_step=oracle_step)
@@ -79,7 +79,7 @@ class AdiabaticTrader(RuleBasedStateMachine):
                 self.amm.exchange(0, 1, amount, 0)
             else:
                 amount = int(self.collateral_amount * amount_fraction)
-                self.collateral._mint_for_testing(user, amount)
+                boa.deal(collateral, user, amount)
                 self.amm.exchange(1, 0, amount, 0)
 
     @rule(t=t)

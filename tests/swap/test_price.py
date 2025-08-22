@@ -15,7 +15,7 @@ def test_price(swap_w_d, redeemable_coin, volatile_coin, accounts, amount, ix):
     from_coin = [redeemable_coin, volatile_coin][ix]
     amount *= 10**(from_coin.decimals())
     with boa.env.prank(user):
-        from_coin._mint_for_testing(user, amount)
+        boa.deal(from_coin, user, amount)
         swap_w_d.exchange(ix, 1-ix, amount, 0)
         dy = swap_w_d.get_dy(0, 1, 10**6)
         p1 = 10**18 / dy
@@ -34,7 +34,7 @@ def test_ema(swap_w_d, redeemable_coin, volatile_coin, accounts, amount, ix, dt0
     from_coin = [redeemable_coin, volatile_coin][ix]
     amount *= 10**(from_coin.decimals())
     with boa.env.prank(user):
-        from_coin._mint_for_testing(user, amount)
+        boa.deal(from_coin, user, amount)
         boa.env.time_travel(dt0)
         swap_w_d.exchange(ix, 1-ix, amount, 0)
         # Time didn't pass yet

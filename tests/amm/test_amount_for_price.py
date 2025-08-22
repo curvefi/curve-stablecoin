@@ -25,7 +25,7 @@ def test_amount_for_price(price_oracle, amm, accounts, collateral_token, borrowe
     # Initial deposit
     with boa.env.prank(admin):
         amm.deposit_range(user, deposit_amount, n1, n2)
-        collateral_token._mint_for_testing(amm.address, deposit_amount)
+        boa.deal(collateral_token, amm.address, deposit_amount)
 
     prices = [oracle_price]
     prices.append(amm.get_p())
@@ -34,7 +34,7 @@ def test_amount_for_price(price_oracle, amm, accounts, collateral_token, borrowe
         # Dump some to be somewhere inside the bands
         eamount = int(deposit_amount * amm.get_p() // 10**18 * init_trade_frac)
         if eamount > 0:
-            borrowed_token._mint_for_testing(user, eamount)
+            boa.deal(borrowed_token, user, eamount)
         boa.env.time_travel(600)  # To reset the prev p_o counter
         amm.exchange(0, 1, eamount, 0)
         n0 = amm.active_band()
@@ -49,11 +49,11 @@ def test_amount_for_price(price_oracle, amm, accounts, collateral_token, borrowe
         assert is_pump == (p_final >= p_initial)
 
         if is_pump:
-            borrowed_token._mint_for_testing(user, amount)
+            boa.deal(borrowed_token, user, amount)
             amm.exchange(0, 1, amount, 0)
 
         else:
-            collateral_token._mint_for_testing(user, amount)
+            boa.deal(collateral_token, user, amount)
             amm.exchange(1, 0, amount, 0)
 
     p = amm.get_p()

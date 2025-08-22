@@ -20,7 +20,7 @@ def test_rewards_kill(
     boa.env.time_travel(seconds=2 * WEEK + 5)
 
     with boa.env.prank(admin):
-        collateral_token._mint_for_testing(alice, 1000 * 10 ** 18)
+        boa.deal(collateral_token, alice, 1000 * 10 ** 18)
 
     market_controller.create_loan(10**21, 10**21 * 2600, 10, sender=alice)
 
@@ -69,7 +69,7 @@ def test_rewards_kill_unkill(
     boa.env.time_travel(seconds=2 * WEEK + 5)
 
     with boa.env.prank(admin):
-        collateral_token._mint_for_testing(alice, 1000 * 10 ** 18)
+        boa.deal(collateral_token, alice, 1000 * 10 ** 18)
 
     market_controller.create_loan(10**21, 10**21 * 2600, 10, sender=alice)
 

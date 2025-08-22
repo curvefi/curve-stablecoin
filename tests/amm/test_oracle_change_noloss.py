@@ -31,10 +31,10 @@ def test_buy_with_shift(amm, collateral_token, borrowed_token, price_oracle, acc
     # Deposit
     with boa.env.prank(admin):
         amm.deposit_range(user, collateral_amount, n1, n1 + dn)
-        collateral_token._mint_for_testing(amm.address, collateral_amount)
+        boa.deal(collateral_token, amm.address, collateral_amount)
 
     # Swap stablecoin for collateral
-    borrowed_token._mint_for_testing(user, amount)
+    boa.deal(borrowed_token, user, amount)
     with boa.env.prank(user):
         amm.exchange(0, 1, amount, 0)
     b = borrowed_token.balanceOf(user)
@@ -49,7 +49,7 @@ def test_buy_with_shift(amm, collateral_token, borrowed_token, price_oracle, acc
         price_oracle.set_price(int(price_oracle.price() * price_shift))
 
     # Trade back
-    collateral_token._mint_for_testing(user, 10**24)  # BIG
+    boa.deal(collateral_token, user, 10**24)  # BIG
     with boa.env.prank(user):
         amm.exchange(1, 0, 10**24, 0)
     # Check that we cleaned up the last band
@@ -78,10 +78,10 @@ def test_sell_with_shift(amm, collateral_token, borrowed_token, price_oracle, ac
     # Deposit
     with boa.env.prank(admin):
         amm.deposit_range(user, collateral_amount, n1, n1 + dn)
-        collateral_token._mint_for_testing(amm.address, collateral_amount)
+        boa.deal(collateral_token, amm.address, collateral_amount)
 
     # Swap max (buy)
-    borrowed_token._mint_for_testing(user, MANY)
+    boa.deal(borrowed_token, user, MANY)
     with boa.env.prank(user):
         amm.exchange(0, 1, MANY, 0)
 
@@ -125,10 +125,10 @@ def test_no_untradable_funds(amm, collateral_token, borrowed_token, price_oracle
     # Deposit
     with boa.env.prank(admin):
         amm.deposit_range(user, collateral_amount, n1, n1 + dn)
-        collateral_token._mint_for_testing(amm.address, collateral_amount)
+        boa.deal(collateral_token, amm.address, collateral_amount)
 
     # Swap stablecoin for collateral
-    borrowed_token._mint_for_testing(user, amount)
+    boa.deal(borrowed_token, user, amount)
     with boa.env.prank(user):
         amm.exchange(0, 1, amount, 0)
     b = borrowed_token.balanceOf(user)
@@ -143,7 +143,7 @@ def test_no_untradable_funds(amm, collateral_token, borrowed_token, price_oracle
         price_oracle.set_price(int(price_oracle.price() * price_shift))
 
     # Trade back
-    collateral_token._mint_for_testing(user, 10**24)  # BIG
+    boa.deal(collateral_token, user, 10**24)  # BIG
     with boa.env.prank(user):
         amm.exchange(1, 0, 10**24, 0)
     # Check that we cleaned up the last band
@@ -170,10 +170,10 @@ def test_no_untradable_funds_in(amm, collateral_token, borrowed_token, price_ora
     # Deposit
     with boa.env.prank(admin):
         amm.deposit_range(user, collateral_amount, n1, n1 + dn)
-        collateral_token._mint_for_testing(amm.address, collateral_amount)
+        boa.deal(collateral_token, amm.address, collateral_amount)
 
     # Swap stablecoin for collateral
-    borrowed_token._mint_for_testing(user, amount)
+    boa.deal(borrowed_token, user, amount)
     with boa.env.prank(user):
         amm.exchange(0, 1, amount, 0)
     b = borrowed_token.balanceOf(user)
@@ -188,7 +188,7 @@ def test_no_untradable_funds_in(amm, collateral_token, borrowed_token, price_ora
         price_oracle.set_price(int(price_oracle.price() * price_shift))
 
     # Trade back
-    collateral_token._mint_for_testing(user, 10**24)  # BIG
+    boa.deal(collateral_token, user, 10**24)  # BIG
     with boa.env.prank(user):
         price_oracle.price_w()
         amm.exchange_dy(1, 0, 2**256 - 1, 10**24)

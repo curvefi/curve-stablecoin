@@ -23,8 +23,8 @@ def test_simple_exchange(
 
     # Let Alice and Bob have about the same collateral token amount
     with boa.env.prank(admin):
-        collateral_token._mint_for_testing(alice, 1000 * 10 ** 18)
-        collateral_token._mint_for_testing(bob, 1000 * 10 ** 18)
+        boa.deal(collateral_token, alice, 1000 * 10 ** 18)
+        boa.deal(collateral_token, bob, 1000 * 10 ** 18)
 
     # Alice and Bob create loan
     market_controller.create_loan(10**21, 10**21 * 2600, 10, sender=alice)
@@ -88,8 +88,8 @@ def test_gauge_integral_with_exchanges(
 
         # Let Alice and Bob have about the same collateral token amount
         with boa.env.prank(admin):
-            collateral_token._mint_for_testing(alice, 1000 * 10**18)
-            collateral_token._mint_for_testing(bob, 1000 * 10**18)
+            boa.deal(collateral_token, alice, 1000 * 10**18)
+            boa.deal(collateral_token, bob, 1000 * 10**18)
 
         def update_integral():
             nonlocal checkpoint, checkpoint_rate, integral, checkpoint_balance, checkpoint_supply
@@ -105,7 +105,7 @@ def test_gauge_integral_with_exchanges(
                 integral += rate_x_time * checkpoint_balance // checkpoint_supply
             checkpoint_rate = rate1
             checkpoint = t1
-            checkpoint_supply = collateral_token.balanceOf(market_amm) - market_amm.admin_fees_y()
+            checkpoint_supply = collateral_token.balanceOf(market_amm)
             checkpoint_balance = market_amm.get_sum_xy(alice)[1]
 
         # Now let's have a loop where Bob always deposit or withdraws,
@@ -238,7 +238,7 @@ def test_gauge_integral_with_exchanges(
             boa.env.time_travel(seconds=dt)
             print("Time travel", dt)
 
-            total_collateral_from_amm = collateral_token.balanceOf(market_amm) - market_amm.admin_fees_y()
+            total_collateral_from_amm = collateral_token.balanceOf(market_amm)
             total_collateral_from_lm_cb = lm_callback.total_collateral()
             print("Total collateral:", total_collateral_from_amm, total_collateral_from_lm_cb)
             if total_collateral_from_amm > 0 and total_collateral_from_lm_cb > 0:
@@ -280,8 +280,8 @@ def test_full_repay_underwater(
 
         # Let Alice and Bob have about the same collateral token amount
         with boa.env.prank(admin):
-            collateral_token._mint_for_testing(alice, 1000 * 10**18)
-            collateral_token._mint_for_testing(bob, 1000 * 10**18)
+            boa.deal(collateral_token, alice, 1000 * 10**18)
+            boa.deal(collateral_token, bob, 1000 * 10**18)
 
         dt = randrange(1, YEAR // 5)
         boa.env.time_travel(seconds=dt)
@@ -300,7 +300,7 @@ def test_full_repay_underwater(
             market_controller.create_loan(amount_alice, int(amount_alice * 500), 10)
             print("Alice deposits:", amount_alice)
 
-        print(collateral_token.balanceOf(market_amm) - market_amm.admin_fees_y(),
+        print(collateral_token.balanceOf(market_amm),
               lm_callback.total_collateral())
 
         dt = randrange(1, YEAR // 5)
@@ -332,7 +332,7 @@ def test_full_repay_underwater(
         print("Bob repays (full):", debt_bob)
         print("Bob withdraws (full):", amount_bob)
 
-        total_collateral_from_amm = collateral_token.balanceOf(market_amm) - market_amm.admin_fees_y()
+        total_collateral_from_amm = collateral_token.balanceOf(market_amm)
         total_collateral_from_lm_cb = lm_callback.total_collateral()
         print("Total collateral:", total_collateral_from_amm, total_collateral_from_lm_cb)
         assert approx(total_collateral_from_amm, total_collateral_from_lm_cb, 1e-15)

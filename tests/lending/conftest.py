@@ -1,11 +1,21 @@
 import boa
 import pytest
 from itertools import product
+from tests.utils.deployers import (
+    AMM_DEPLOYER,
+    LL_CONTROLLER_DEPLOYER,
+    VAULT_DEPLOYER,
+    CRYPTO_FROM_POOL_DEPLOYER,
+    SEMILOG_MONETARY_POLICY_DEPLOYER,
+    LENDING_FACTORY_DEPLOYER,
+    ERC20_MOCK_DEPLOYER,
+    FAKE_LEVERAGE_DEPLOYER
+)
 
 
 @pytest.fixture(scope="session")
 def amm_interface():
-    return boa.load_partial('contracts/AMM.vy')
+    return AMM_DEPLOYER
 
 
 @pytest.fixture(scope="session")
@@ -16,7 +26,7 @@ def amm_impl(amm_interface, admin):
 
 @pytest.fixture(scope="session")
 def controller_interface():
-    return boa.load_partial('contracts/lending/LLController.vy')
+    return LL_CONTROLLER_DEPLOYER
 
 
 @pytest.fixture(scope="session")
@@ -32,18 +42,18 @@ def stablecoin(get_borrowed_token):
 
 @pytest.fixture(scope="session")
 def vault_interface():
-    return boa.load_partial('contracts/lending/Vault.vy')
+    return VAULT_DEPLOYER
 
 
 @pytest.fixture(scope="session")
 def vault_impl(admin):
     with boa.env.prank(admin):
-        return boa.load('contracts/lending/Vault.vy')
+        return VAULT_DEPLOYER.deploy()
 
 
 @pytest.fixture(scope="session")
 def price_oracle_interface():
-    return boa.load_partial('contracts/price_oracles/CryptoFromPool.vy')
+    return CRYPTO_FROM_POOL_DEPLOYER
 
 
 @pytest.fixture(scope="session")
@@ -54,7 +64,7 @@ def price_oracle_impl(price_oracle_interface, admin):
 
 @pytest.fixture(scope="session")
 def mpolicy_interface():
-    return boa.load_partial('contracts/mpolicies/SemilogMonetaryPolicy.vy')
+    return SEMILOG_MONETARY_POLICY_DEPLOYER
 
 
 @pytest.fixture(scope="session")
@@ -65,16 +75,13 @@ def mpolicy_impl(mpolicy_interface, admin):
 
 @pytest.fixture(scope="session")
 def factory_partial():
-    return boa.load_partial('contracts/lending/LendingFactory.vy')
+    return LENDING_FACTORY_DEPLOYER
 
 
 @pytest.fixture(scope="module")
-def factory(factory_partial, stablecoin, amm_impl, controller_impl, vault_impl, price_oracle_impl, mpolicy_impl, admin):
+def factory(factory_partial, amm_impl, controller_impl, vault_impl, price_oracle_impl, mpolicy_impl, admin):
     with boa.env.prank(admin):
-        return factory_partial.deploy(
-            stablecoin.address,
-            amm_impl, controller_impl, vault_impl,
-            price_oracle_impl, mpolicy_impl, admin, admin)
+        return factory_partial.deploy(amm_impl, controller_impl, vault_impl, price_oracle_impl, mpolicy_impl, admin, admin)
 
 
 @pytest.fixture(scope="module", params=product([2, 6, 8, 18], [True, False]))
@@ -136,14 +143,14 @@ def market_mpolicy(market_controller, mpolicy_interface):
 
 @pytest.fixture(scope="session")
 def mock_token_interface():
-    return boa.load_partial('contracts/testing/ERC20Mock.vy')
+    return ERC20_MOCK_DEPLOYER
 
 
 @pytest.fixture(scope="module")
 def filled_controller(vault, borrowed_token, market_controller, admin):
     with boa.env.prank(admin):
         amount = 100 * 10**6 * 10**(borrowed_token.decimals())
-        borrowed_token._mint_for_testing(admin, amount)
+        boa.deal(borrowed_token, admin, amount)
         borrowed_token.approve(vault.address, 2**256 - 1)
         vault.deposit(amount)
     return market_controller
@@ -152,7 +159,7 @@ def filled_controller(vault, borrowed_token, market_controller, admin):
 @pytest.fixture(scope="module")
 def fake_leverage(collateral_token, borrowed_token, market_controller, admin):
     with boa.env.prank(admin):
-        leverage = boa.load('contracts/testing/FakeLeverage.vy', borrowed_token.address, collateral_token.address,
+        leverage = FAKE_LEVERAGE_DEPLOYER.deploy(borrowed_token.address, collateral_token.address,
                             market_controller.address, 3000 * 10**18)
-        collateral_token._mint_for_testing(leverage.address, 1000 * 10**collateral_token.decimals())
+        boa.deal(collateral_token, leverage.address, 1000 * 10**collateral_token.decimals())
         return leverage

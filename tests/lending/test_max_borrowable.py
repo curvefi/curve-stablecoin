@@ -17,7 +17,7 @@ def test_max_borrowable(borrowed_token, collateral_token, market_amm, filled_con
     # Create some liquidity and go into the band
     with boa.env.prank(admin):
         c_amount = 10**collateral_token.decimals()
-        collateral_token._mint_for_testing(admin, c_amount)
+        boa.deal(collateral_token, admin, c_amount)
         collateral_token.approve(filled_controller, 2**256-1)
         filled_controller.create_loan(c_amount, filled_controller.max_borrowable(c_amount, 5), 5)
         borrowed_token.approve(market_amm.address, 2**256-1)
@@ -54,7 +54,7 @@ def test_min_collateral(borrowed_token, collateral_token, market_amm, filled_con
     # Create some liquidity and go into the band
     with boa.env.prank(admin):
         c_amount = 10**collateral_token.decimals()
-        collateral_token._mint_for_testing(admin, c_amount)
+        boa.deal(collateral_token, admin, c_amount)
         collateral_token.approve(filled_controller, 2**256-1)
         filled_controller.create_loan(c_amount, filled_controller.max_borrowable(c_amount, 5), 5)
         borrowed_token.approve(market_amm.address, 2**256-1)

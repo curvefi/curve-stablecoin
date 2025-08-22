@@ -12,7 +12,7 @@ def test_create_loan(controller_factory, stablecoin, collateral_token, market_co
 
     with boa.env.prank(user):
         initial_amount = 10**25
-        collateral_token._mint_for_testing(user, initial_amount)
+        boa.deal(collateral_token, user, initial_amount)
         c_amount = int(2 * 1e6 * 1e18 * 1.5 / 3000)
         max_l_amount = market_controller.max_borrowable(c_amount, 5)
         loan_discount = market_controller.loan_discount() / 1e18

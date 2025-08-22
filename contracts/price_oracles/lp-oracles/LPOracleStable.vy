@@ -1,7 +1,4 @@
-# @version 0.4.1
-#pragma optimize gas
-#pragma evm-version shanghai
-
+# pragma version 0.4.3
 """
 @title LPOracleStable
 @author Curve.Fi
@@ -10,11 +7,10 @@
         Then it chains with another oracle (target_coin/coin0) to get the final price.
 """
 
+from contracts.interfaces import IPriceOracle
+from contracts.interfaces import IStablePool
+from contracts import constants as c
 
-interface StablePool:
-    def coins(i: uint256) -> address: view
-    def price_oracle(i: uint256 = 0) -> uint256: view  # Universal method!
-    def get_virtual_price() -> uint256: view
 
 import lp_oracle_lib
 initializes: lp_oracle_lib
@@ -22,13 +18,13 @@ exports: lp_oracle_lib.COIN0_ORACLE
 
 MAX_COINS: constant(uint256) = 8
 
-POOL: public(immutable(StablePool))
+POOL: public(immutable(IStablePool))
 NO_ARGUMENT: public(immutable(bool))
 N_COINS: public(immutable(uint256))
 
 
 @deploy
-def __init__(_pool: StablePool, _coin0_oracle: lp_oracle_lib.PriceOracle):
+def __init__(_pool: IStablePool, _coin0_oracle: IPriceOracle):
     no_argument: bool = False
 
     # Init variables for raw calls
@@ -73,7 +69,7 @@ def __init__(_pool: StablePool, _coin0_oracle: lp_oracle_lib.PriceOracle):
 def _price_in_coin0() -> uint256:
     min_p: uint256 = max_value(uint256)
     for i: uint256 in range(N_COINS, bound=MAX_COINS):
-        p_oracle: uint256 = 10 ** 18
+        p_oracle: uint256 = c.WAD
         if i > 0:
             if NO_ARGUMENT:
                 p_oracle = staticcall POOL.price_oracle()
@@ -83,15 +79,15 @@ def _price_in_coin0() -> uint256:
         if p_oracle < min_p:
             min_p = p_oracle
 
-    return min_p * (staticcall POOL.get_virtual_price()) // 10**18
+    return min_p * (staticcall POOL.get_virtual_price()) // c.WAD
 
 
 @external
 @view
 def price() -> uint256:
-    return self._price_in_coin0() * lp_oracle_lib._coin0_oracle_price() // 10 ** 18
+    return self._price_in_coin0() * lp_oracle_lib._coin0_oracle_price() // c.WAD
 
 
 @external
 def price_w() -> uint256:
-    return self._price_in_coin0() * lp_oracle_lib._coin0_oracle_price_w() // 10 ** 18
+    return self._price_in_coin0() * lp_oracle_lib._coin0_oracle_price_w() // c.WAD

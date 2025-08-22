@@ -12,6 +12,7 @@ import pytest
 
 from hypothesis import given, settings
 from hypothesis import strategies as st
+from tests.utils.deployers import OLD_AMM_DEPLOYER
 
 
 MAX = 2**256 - 1
@@ -39,27 +40,21 @@ def hacker(accounts):
 
 
 @pytest.fixture(scope="module")
-def factory_new(factory_partial, stablecoin, amm_impl, controller_impl, vault_impl, price_oracle_impl, mpolicy_impl, admin):
+def factory_new(factory_partial, amm_impl, controller_impl, vault_impl, price_oracle_impl, mpolicy_impl, admin):
     with boa.env.prank(admin):
-        return factory_partial.deploy(
-            stablecoin.address,
-            amm_impl, controller_impl, vault_impl,
-            price_oracle_impl, mpolicy_impl, admin, admin)
+        return factory_partial.deploy(amm_impl, controller_impl, vault_impl, price_oracle_impl, mpolicy_impl, admin, admin)
 
 
 @pytest.fixture(scope="module")
 def amm_old_interface():
-    return boa.load_partial('contracts/testing/OldAMM.vy')
+    return OLD_AMM_DEPLOYER
 
 
 @pytest.fixture(scope="module")
-def factory_old(factory_partial, stablecoin, controller_impl, vault_impl, price_oracle_impl, mpolicy_impl, amm_old_interface, admin):
+def factory_old(factory_partial, controller_impl, vault_impl, price_oracle_impl, mpolicy_impl, amm_old_interface, admin):
     with boa.env.prank(admin):
         amm_impl = amm_old_interface.deploy_as_blueprint()
-        return factory_partial.deploy(
-            stablecoin.address,
-            amm_impl, controller_impl, vault_impl,
-            price_oracle_impl, mpolicy_impl, admin, admin)
+        return factory_partial.deploy(amm_impl, controller_impl, vault_impl, price_oracle_impl, mpolicy_impl, admin, admin)
 
 
 @pytest.fixture(scope='module')
@@ -152,21 +147,21 @@ def template_vuln_test(vault, controller, amm, admin, borrowed_token, price_orac
     # add crvUSD to the vault
     with boa.env.prank(admin):
         b_amount = int(1_000_000_000e18)
-        borrowed_token._mint_for_testing(admin, b_amount)
+        boa.deal(borrowed_token, admin, b_amount)
         borrowed_token.approve(vault.address, MAX)
         vault.deposit(b_amount)
 
     # victim creates a loan
     with boa.env.prank(victim):
         victim_borrow = int((1 - victim_gap) * controller.max_borrowable(victim_collateral_lent, victim_bins))
-        collateral_token._mint_for_testing(victim, victim_collateral_lent)
+        boa.deal(collateral_token, victim, victim_collateral_lent)
         controller.create_loan(victim_collateral_lent, victim_borrow, victim_bins)
         initial_health = controller.health(victim, True) / 1e18
         # print("Victim health", initial_health)
 
     # hacker manipulates price oracle and liquidates the victim
     with boa.env.prank(hacker):
-        borrowed_token._mint_for_testing(hacker, hacker_crvusd_reserves)
+        boa.deal(borrowed_token, hacker, hacker_crvusd_reserves)
         spent, received = amm.exchange(0, 1, hacker_crvusd_reserves, 0)
         # print(f"Bought {received/1e18:.3f} for {spent/1e18:.2f}")
 

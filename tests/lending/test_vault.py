@@ -6,6 +6,7 @@ from hypothesis.stateful import RuleBasedStateMachine, run_state_machine_as_test
 from ..conftest import approx
 
 
+# TODO get this from contract directly
 DEAD_SHARES = 1000
 
 
@@ -24,13 +25,6 @@ def test_vault_creation(vault, market_controller, market_amm, market_mpolicy, fa
     assert factory.price_oracles(n - 1) == price_oracle.address
     assert factory.monetary_policies(n - 1) == market_mpolicy.address
 
-    if borrowed_token == stablecoin:
-        token = collateral_token
-    else:
-        token = borrowed_token
-    vaults = set(factory.token_to_vaults(token, i) for i in range(factory.token_market_count(token)))
-    assert vault.address in vaults
-
     assert factory.vaults(factory.vaults_index(vault.address)) == vault.address
 
 
@@ -39,7 +33,7 @@ def test_deposit_and_withdraw(vault, borrowed_token, accounts, admin, supply_lim
     one_token = 10 ** borrowed_token.decimals()
     amount = 10**6 * one_token
     user = accounts[1]
-    borrowed_token._mint_for_testing(user, amount)
+    boa.deal(borrowed_token, user, amount)
 
     if supply_limit is not None:
         with boa.env.prank(admin):
@@ -105,7 +99,7 @@ class StatefulVault(RuleBasedStateMachine):
     def deposit(self, user_id, assets):
         assets = assets // self.precision
         user = self.accounts[user_id]
-        self.borrowed_token._mint_for_testing(user, assets)
+        boa.deal(self.borrowed_token, user, assets)
         to_mint = self.vault.previewDeposit(assets)
         d_vault_balance = self.vault.balanceOf(user)
         d_user_tokens = self.borrowed_token.balanceOf(user)
@@ -129,7 +123,7 @@ class StatefulVault(RuleBasedStateMachine):
         assets = assets // self.precision
         user_from = self.accounts[user_from]
         user_to = self.accounts[user_to]
-        self.borrowed_token._mint_for_testing(user_from, assets)
+        boa.deal(self.borrowed_token, user_from, assets)
         to_mint = self.vault.previewDeposit(assets)
         d_vault_balance = self.vault.balanceOf(user_to)
         d_user_tokens = self.borrowed_token.balanceOf(user_from)
@@ -152,7 +146,7 @@ class StatefulVault(RuleBasedStateMachine):
     def mint(self, user_id, shares):
         user = self.accounts[user_id]
         assets = self.vault.previewMint(shares)
-        self.borrowed_token._mint_for_testing(user, assets)
+        boa.deal(self.borrowed_token, user, assets)
         d_vault_balance = self.vault.balanceOf(user)
         d_user_tokens = self.borrowed_token.balanceOf(user)
         with boa.env.prank(user):
@@ -175,7 +169,7 @@ class StatefulVault(RuleBasedStateMachine):
         user_from = self.accounts[user_from]
         user_to = self.accounts[user_to]
         assets = self.vault.previewMint(shares)
-        self.borrowed_token._mint_for_testing(user_from, assets)
+        boa.deal(self.borrowed_token, user_from, assets)
         d_vault_balance = self.vault.balanceOf(user_to)
         d_user_tokens = self.borrowed_token.balanceOf(user_from)
         with boa.env.prank(user_from):

@@ -2,6 +2,7 @@ import boa
 import pytest
 from hypothesis import strategies as st
 from hypothesis import given, settings
+from tests.utils.deployers import TEST_PACKING_DEPLOYER
 
 MAX_N = 2**127 - 1
 MIN_N = -2**127 + 1  # <- not -2**127!
@@ -10,7 +11,7 @@ MIN_N = -2**127 + 1  # <- not -2**127!
 @pytest.fixture(scope="module")
 def packing(admin):
     with boa.env.prank(admin):
-        return boa.load('contracts/testing/TestPacking.vy')
+        return TEST_PACKING_DEPLOYER.deploy()
 
 
 @given(

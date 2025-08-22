@@ -7,9 +7,11 @@
 @license Copyright (c) Curve.Fi, 2020-2025 - all rights reserved
 @notice This is just a simple adapter not to have to deploy a new
     factory for mint markets.
+@custom:security security@curve.fi
 """
 
-import Controller as core
+from contracts import Controller as core
+
 initializes: core
 
 # Usually a bad practice to expose through
@@ -33,6 +35,10 @@ def __init__(
         loan_discount,
         liquidation_discount,
         amm,
+        empty(address),  # to replace at deployment with view blueprint
     )
 
-    assert extcall core.BORROWED_TOKEN.approve(core.FACTORY, max_value(uint256), default_return_value=True)
+    # TODO do this differently
+    assert extcall core.BORROWED_TOKEN.approve(
+        core.FACTORY.address, max_value(uint256), default_return_value=True
+    )

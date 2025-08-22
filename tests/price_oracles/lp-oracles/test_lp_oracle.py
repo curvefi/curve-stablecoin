@@ -1,6 +1,6 @@
 import boa
 
-ZERO_ADDRESS = "0x0000000000000000000000000000000000000000"
+from tests.utils.constants import ZERO_ADDRESS
 
 
 def _get_lp_stable_price(stable_swap):

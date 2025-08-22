@@ -65,7 +65,7 @@ class StatefulLendBorrow(RuleBasedStateMachine):
                 return
 
             try:
-                self.collateral_token._mint_for_testing(user, c_amount)
+                boa.deal(self.collateral_token, user, c_amount)
             except Exception:
                 return  # Probably overflow
 
@@ -92,7 +92,6 @@ class StatefulLendBorrow(RuleBasedStateMachine):
         user = self.accounts[user_id]
         with boa.env.prank(user):
             if amount == 0:
-                self.controller.repay(amount, user)
                 return
             if not self.controller.loan_exists(user):
                 with boa.reverts("Loan doesn't exist"):
@@ -110,7 +109,7 @@ class StatefulLendBorrow(RuleBasedStateMachine):
                 return
 
             try:
-                self.collateral_token._mint_for_testing(user, c_amount)
+                boa.deal(self.collateral_token, user, c_amount)
             except Exception:
                 return  # Probably overflow
 
@@ -136,7 +135,7 @@ class StatefulLendBorrow(RuleBasedStateMachine):
 
         with boa.env.prank(user):
             try:
-                self.collateral_token._mint_for_testing(user, c_amount)
+                boa.deal(self.collateral_token, user, c_amount)
             except Exception:
                 return  # Probably overflow
 

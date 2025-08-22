@@ -13,13 +13,11 @@ from ethereum.ercs import IERC20Detailed
 from contracts.interfaces import IVault
 from contracts.interfaces import ILlamalendController as IController
 from contracts.interfaces import IAMM
-from contracts.interfaces import IPool
 from contracts.interfaces import IPriceOracle
-from contracts.interfaces import ILendingFactory 
+from contracts.interfaces import ILendingFactory
 implements: ILendingFactory
 
-
-STABLECOIN: public(immutable(address))
+from snekmate.utils import math
 
 # These are limits for default borrow rates, NOT actual min and max rates.
 # Even governance cannot go beyond these rates before a new code is shipped
@@ -38,6 +36,7 @@ controller_impl: public(address)
 vault_impl: public(address)
 pool_price_oracle_impl: public(address)
 monetary_policy_impl: public(address)
+view_impl: public(address)
 
 # Actual min//max borrow rates when creating new markets
 # for example, 0.5% -> 50% is a good choice
@@ -53,27 +52,22 @@ vaults: public(IVault[10**18])
 _vaults_index: HashMap[IVault, uint256]
 market_count: public(uint256)
 
-# Index to find vaults by a non-crvUSD token
-token_to_vaults: public(HashMap[address, IVault[10**18]])
-token_market_count: public(HashMap[address, uint256])
-
 names: public(HashMap[uint256, String[64]])
 
 
 @deploy
 def __init__(
-        stablecoin: address,
-        amm: address,
-        controller: address,
-        vault: address,
-        pool_price_oracle: address,
+        amm_impl: address,
+        controller_impl: address,
+        vault_impl: address,
+        pool_price_oracle_impl: address,
+        view_impl: address,
         monetary_policy: address,
-        admin: address,
+        admin: address, # TODO also add params votes?
         fee_receiver: address,
 ):
     """
     @notice Factory which creates one-way lending vaults (e.g. collateral is non-borrowable)
-    @param stablecoin Address of crvUSD. Only crvUSD-containing markets are allowed
     @param amm Address of AMM implementation
     @param controller Address of Controller implementation
     @param pool_price_oracle Address of implementation for price oracle factory (prices from pools)
@@ -81,47 +75,22 @@ def __init__(
     @param admin Admin address (DAO)
     @param fee_receiver Receiver of interest and admin fees
     """
-    STABLECOIN = stablecoin
-    self.amm_impl = amm
-    self.controller_impl = controller
-    self.vault_impl = vault
-    self.pool_price_oracle_impl = pool_price_oracle
+    # TODO impl vs blueprint is confusing
+    self.amm_impl = amm_impl
+    self.controller_impl = controller_impl
+    self.vault_impl = vault_impl
+    # TODO everyone is forced to have the same price oracle?
+    self.pool_price_oracle_impl = pool_price_oracle_impl
+    # TODO everyone is forced to have the same monetary policy?
     self.monetary_policy_impl = monetary_policy
+    self.view_impl = view_impl
 
+    # TODO is this actually useful?
     self.min_default_borrow_rate = 5 * 10**15 // (365 * 86400)
     self.max_default_borrow_rate = 50 * 10**16 // (365 * 86400)
 
     self.admin = admin
     self.fee_receiver = fee_receiver
-
-
-@internal
-@pure
-def ln_int(_x: uint256) -> int256:
-    """
-    @notice Logarithm ln() function based on log2. Not very gas-efficient but brief
-    """
-    # adapted from: https://medium.com//coinmonks//9aef8515136e
-    # and vyper log implementation
-    # This can be much more optimal but that's not important here
-    x: uint256 = _x
-    res: uint256 = 0
-    for i: uint256 in range(8):
-        t: uint256 = 2**(7 - i)
-        p: uint256 = 2**t
-        if x >= p * 10**18:
-            x //= p
-            res += t * 10**18
-    d: uint256 = 10**18
-    for i: uint256 in range(59):  # 18 decimals: math.log2(10**10) == 59.7
-        if (x >= 2 * 10**18):
-            res += d
-            x //= 2
-        x = x * x // 10**18
-        d //= 2
-    # Now res = log2(x)
-    # ln(x) = log2(x) // log2(e)
-    return convert(res * 10**18 // 1442695040888963328, int256)
 
 
 @internal
@@ -141,7 +110,6 @@ def _create(
     @notice Internal method for creation of the vault
     """
     assert borrowed_token != collateral_token, "Same token"
-    assert borrowed_token == STABLECOIN or collateral_token == STABLECOIN
     assert A >= MIN_A and A <= MAX_A, "Wrong A"
     assert fee <= MAX_FEE, "Fee too high"
     assert fee >= MIN_FEE, "Fee too low"
@@ -156,6 +124,7 @@ def _create(
     if max_borrow_rate > 0:
         max_rate = max_borrow_rate
     assert min_rate >= MIN_RATE and max_rate <= MAX_RATE and min_rate <= max_rate, "Wrong rates"
+    # TODO code offset is not required anymore
     monetary_policy: address = create_from_blueprint(
         self.monetary_policy_impl, borrowed_token, min_rate, max_rate, code_offset=3)
 
@@ -164,19 +133,23 @@ def _create(
     assert p > 0
     assert extcall IPriceOracle(price_oracle).price_w() == p
 
+    # TODO better diff blueprints from minimal proxy targets in naming
     vault: IVault = IVault(create_minimal_proxy_to(self.vault_impl))
     amm: address = create_from_blueprint(
         self.amm_impl,
         borrowed_token, 10**convert(18 - staticcall IERC20Detailed(borrowed_token).decimals(), uint256),
         collateral_token, 10**convert(18 - staticcall IERC20Detailed(collateral_token).decimals(), uint256),
-        A, isqrt(A_ratio * 10**18), self.ln_int(A_ratio),
+        A, isqrt(A_ratio * 10**18), math._log2(A_ratio, False),
         p, fee, convert(0, uint256), price_oracle,
         code_offset=3)
     controller: address = create_from_blueprint(
         self.controller_impl,
         vault, amm,
         borrowed_token, collateral_token,
-        monetary_policy, loan_discount, liquidation_discount,
+        monetary_policy,
+        loan_discount,
+        liquidation_discount,
+        self.view_impl,
         code_offset=3)
     extcall IAMM(amm).set_admin(controller)
 
@@ -196,15 +169,7 @@ def _create(
     self.vaults[market_count] = vault
     self._vaults_index[vault] = market_count + 2**128
     self.names[market_count] = name
-
     self.market_count = market_count + 1
-
-    token: address = borrowed_token
-    if borrowed_token == STABLECOIN:
-        token = collateral_token
-    market_count = self.token_market_count[token]
-    self.token_to_vaults[token][market_count] = vault
-    self.token_market_count[token] = market_count + 1
 
     return [vault.address, controller, amm]
 
@@ -240,6 +205,7 @@ def create(
     """
     res: address[3] = self._create(borrowed_token, collateral_token, A, fee, loan_discount, liquidation_discount,
                                 price_oracle, name, min_borrow_rate, max_borrow_rate)
+    # TODO duplicate code
     if supply_limit < max_value(uint256):
         extcall IVault(res[0]).set_max_supply(supply_limit)
 
@@ -304,6 +270,7 @@ def create_from_pool(
         borrowed_token, collateral_token, A, fee, loan_discount, liquidation_discount,
         price_oracle, name, min_borrow_rate, max_borrow_rate,
     )
+    # TODO duplicate code
     if supply_limit < max_value(uint256):
         extcall IVault(res[0]).set_max_supply(supply_limit)
 
@@ -354,16 +321,23 @@ def vaults_index(vault: IVault) -> uint256:
 
 @external
 @nonreentrant
-def set_implementations(controller: address, amm: address, vault: address,
-                        pool_price_oracle: address, monetary_policy: address):
+def set_implementations(
+    controller: address,
+    amm: address,
+    vault: address,
+    pool_price_oracle: address,
+    monetary_policy: address,
+    view: address,
+):
     """
-    @notice Set new implementations (blueprints) for controller, amm, vault, pool price oracle and monetary polcy.
+    @notice Set new implementations (blueprints) for controller, amm, vault, pool price oracle and monetary policy.
             Doesn't change existing ones
     @param controller Address of the controller blueprint
     @param amm Address of the AMM blueprint
     @param vault Address of the Vault template
     @param pool_price_oracle Address of the pool price oracle blueprint
     @param monetary_policy Address of the monetary policy blueprint
+    @param view Address of the view contract blueprint
     """
     assert msg.sender == self.admin
 
@@ -377,13 +351,16 @@ def set_implementations(controller: address, amm: address, vault: address,
         self.pool_price_oracle_impl = pool_price_oracle
     if monetary_policy != empty(address):
         self.monetary_policy_impl = monetary_policy
+    if view != empty(address):
+        self.view_impl = view
 
     log ILendingFactory.SetImplementations(
         amm=amm,
         controller=controller,
         vault=vault,
         price_oracle=pool_price_oracle,
-        monetary_policy=monetary_policy
+        monetary_policy=monetary_policy,
+        view=view
     )
 
 

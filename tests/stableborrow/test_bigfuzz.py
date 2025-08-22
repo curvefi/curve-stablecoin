@@ -6,6 +6,7 @@ from hypothesis import settings
 from hypothesis import strategies as st
 from hypothesis.stateful import RuleBasedStateMachine, run_state_machine_as_test, rule, invariant
 
+from tests.utils.constants import ZERO_ADDRESS
 
 # Variables and methods to check
 # * A
@@ -16,8 +17,6 @@ from hypothesis.stateful import RuleBasedStateMachine, run_state_machine_as_test
 # * set_debt_ceiling
 # * set_borrowing_discounts
 # * collect AMM fees
-
-ZERO_ADDRESS = "0x0000000000000000000000000000000000000000"
 USE_FRACTION = 1
 USE_CALLBACKS = 2
 
@@ -88,7 +87,7 @@ class BigFuzz(RuleBasedStateMachine):
         y = y // self.collateral_mul
         user = self.accounts[uid]
         with boa.env.prank(user):
-            self.collateral_token._mint_for_testing(user, y)
+            boa.deal(self.collateral_token, user, y)
             max_debt = self.market_controller.max_borrowable(y, n)
             if not self.check_debt_ceiling(debt):
                 with boa.reverts():
@@ -133,13 +132,13 @@ class BigFuzz(RuleBasedStateMachine):
                 with boa.reverts():
                     self.market_controller.repay(amount, user)
             else:
-                if amount > 0 and (
-                        (amount >= debt and (debt > self.stablecoin.balanceOf(user) + self.market_amm.get_sum_xy(user)[0]))
-                        or (amount < debt and (amount > self.stablecoin.balanceOf(user)))):
-                    with boa.reverts():
+                if amount > 0:
+                    if ((amount >= debt and (debt > self.stablecoin.balanceOf(user) + self.market_amm.get_sum_xy(user)[0]))
+                            or (amount < debt and (amount > self.stablecoin.balanceOf(user)))):
+                        with boa.reverts():
+                            self.market_controller.repay(amount, user)
+                    else:
                         self.market_controller.repay(amount, user)
-                else:
-                    self.market_controller.repay(amount, user)
         self.remove_stablecoins(user)
 
     @rule(y=collateral_amount, uid=user_id)
@@ -150,7 +149,7 @@ class BigFuzz(RuleBasedStateMachine):
         if exists:
             n1, n2 = self.market_amm.read_user_tick_numbers(user)
             n0 = self.market_amm.active_band()
-        self.collateral_token._mint_for_testing(user, y)
+        boa.deal(self.collateral_token, user, y)
 
         with boa.env.prank(user):
             if (exists and n1 > n0 and self.market_amm.p_oracle_up(n1) < self.market_amm.price_oracle()) or y == 0:
@@ -196,7 +195,7 @@ class BigFuzz(RuleBasedStateMachine):
     def borrow_more(self, y, ratio, uid):
         y = y // self.collateral_mul
         user = self.accounts[uid]
-        self.collateral_token._mint_for_testing(user, y)
+        boa.deal(self.collateral_token, user, y)
 
         with boa.env.prank(user):
             if not self.market_controller.loan_exists(user):
@@ -249,7 +248,7 @@ class BigFuzz(RuleBasedStateMachine):
                 if is_pump:
                     self.market_amm.exchange(0, 1, amount, 0)
                 else:
-                    self.collateral_token._mint_for_testing(user, amount)
+                    boa.deal(self.collateral_token, user, amount)
                     self.market_amm.exchange(1, 0, amount, 0)
 
     @rule(r=ratio, is_pump=is_pump, uid=user_id)
@@ -272,7 +271,7 @@ class BigFuzz(RuleBasedStateMachine):
                         pass
             else:
                 amount = int(r * self.collateral_token.totalSupply())
-                self.collateral_token._mint_for_testing(user, amount)
+                boa.deal(self.collateral_token, user, amount)
                 self.market_amm.exchange(1, 0, amount, 0)
         self.remove_stablecoins(user)
 
@@ -290,8 +289,7 @@ class BigFuzz(RuleBasedStateMachine):
                 with boa.env.prank(user):
                     if emode == USE_FRACTION:
                         try:
-                            self.market_controller.liquidate_extended(
-                                    user, 0, frac, ZERO_ADDRESS, [])
+                            self.market_controller.liquidate(user, 0, frac)
                         except Exception:
                             if self.market_controller.debt(user) * frac // 10**18 == 0:
                                 return
@@ -299,9 +297,7 @@ class BigFuzz(RuleBasedStateMachine):
                     elif emode == USE_CALLBACKS:
                         self.stablecoin.transfer(self.fake_leverage.address, self.stablecoin.balanceOf(user))
                         try:
-                            self.market_controller.liquidate_extended(
-                                    user, 0, frac,
-                                    self.fake_leverage.address, [])
+                            self.market_controller.liquidate(user, 0, frac, self.fake_leverage.address, b'')
                         except Exception:
                             if self.market_controller.debt(user) * frac // 10**18 == 0:
                                 return
@@ -329,13 +325,10 @@ class BigFuzz(RuleBasedStateMachine):
             with boa.env.prank(liquidator):
                 with boa.reverts():
                     if emode == USE_FRACTION:
-                        self.market_controller.liquidate_extended(
-                                user, 0, frac, ZERO_ADDRESS, [])
+                        self.market_controller.liquidate(user, 0, frac)
                     elif emode == USE_CALLBACKS:
                         self.stablecoin.transfer(self.fake_leverage.address, self.stablecoin.balanceOf(user))
-                        self.market_controller.liquidate_extended(
-                                user, 0, frac,
-                                self.fake_leverage.address, [])
+                        self.market_controller.liquidate(user, 0, frac, self.fake_leverage.address, b'')
                     else:
                         self.market_controller.liquidate(user, 0)
                     if emode == USE_CALLBACKS:
@@ -351,13 +344,10 @@ class BigFuzz(RuleBasedStateMachine):
                 if health >= health_limit:
                     with boa.reverts():
                         if emode == USE_FRACTION:
-                            self.market_controller.liquidate_extended(
-                                    user, 0, frac, ZERO_ADDRESS, [])
+                            self.market_controller.liquidate(user, 0, frac)
                         elif emode == USE_CALLBACKS:
                             self.stablecoin.transfer(self.fake_leverage.address, self.stablecoin.balanceOf(user))
-                            self.market_controller.liquidate_extended(
-                                    user, 0, frac,
-                                    self.fake_leverage.address, [])
+                            self.market_controller.liquidate(user, 0, frac, self.fake_leverage.address, b'')
                         else:
                             self.market_controller.liquidate(user, 0)
                     if emode == USE_CALLBACKS:
@@ -366,8 +356,7 @@ class BigFuzz(RuleBasedStateMachine):
                 else:
                     if emode == USE_FRACTION:
                         try:
-                            self.market_controller.liquidate_extended(
-                                    user, 0, frac, ZERO_ADDRESS, [])
+                            self.market_controller.liquidate(user, 0, frac)
                         except Exception:
                             if self.market_controller.debt(user) * frac // 10**18 == 0:
                                 return
@@ -375,9 +364,7 @@ class BigFuzz(RuleBasedStateMachine):
                     elif emode == USE_CALLBACKS:
                         self.stablecoin.transfer(self.fake_leverage.address, self.stablecoin.balanceOf(user))
                         try:
-                            self.market_controller.liquidate_extended(
-                                    user, 0, frac,
-                                    self.fake_leverage.address, [])
+                            self.market_controller.liquidate(user, 0, frac, self.fake_leverage.address, b'')
                         except Exception:
                             if self.market_controller.debt(user) * frac // 10**18 == 0:
                                 return

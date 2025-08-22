@@ -41,7 +41,7 @@ class StateMachine(RuleBasedStateMachine):
                 integral["integral"] += rate_x_time * integral["collateral"] // self.checkpoint_total_collateral
             integral["checkpoint"] = t1
             integral["collateral"] = self.market_amm.get_sum_xy(acct)[1]
-        self.checkpoint_total_collateral = self.collateral_token.balanceOf(self.market_amm) - self.market_amm.admin_fees_y()
+        self.checkpoint_total_collateral = self.collateral_token.balanceOf(self.market_amm)
         self.checkpoint_rate = rate1
 
     @rule(uid=user_id, deposit_pct=deposit_pct, borrow_pct=borrow_pct)
@@ -219,7 +219,8 @@ class StateMachine(RuleBasedStateMachine):
                 initial_collateral = self.collateral_token.balanceOf(account)
                 collateral_in_amm = integral["collateral"]
                 debt = self.market_controller.user_state(account)[2]
-                self.market_controller.repay(debt)
+                if debt > 0:
+                    self.market_controller.repay(debt)
                 self.update_integrals()
 
                 assert not self.market_controller.loan_exists(account)
@@ -253,7 +254,7 @@ def test_state_machine(
 ):
     for acct in accounts[:5]:
         with boa.env.prank(admin):
-            collateral_token._mint_for_testing(acct, 1000 * 10**18)
+            boa.deal(collateral_token, acct, 1000 * 10**18)
             crv.transfer(acct, 10 ** 20)
 
         with boa.env.prank(acct):

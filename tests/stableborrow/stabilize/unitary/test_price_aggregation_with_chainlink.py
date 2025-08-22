@@ -65,7 +65,7 @@ def test_crypto_agg(
             )
 
             amount = 300_000 * 10**6
-            stablecoin_a._mint_for_testing(admin, amount)
+            boa.deal(stablecoin_a, admin, amount)
             stableswap_a.exchange(0, 1, amount, 0)
 
             boa.env.time_travel(200_000)

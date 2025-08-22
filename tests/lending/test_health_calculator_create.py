@@ -18,7 +18,7 @@ def test_health_calculator_create(market_amm, filled_controller, collateral_toke
     except Exception:
         calculator_fail = True
 
-    collateral_token._mint_for_testing(user, collateral)
+    boa.deal(collateral_token, user, collateral)
 
     with boa.env.prank(user):
         try:

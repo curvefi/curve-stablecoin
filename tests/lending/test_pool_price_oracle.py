@@ -1,18 +1,23 @@
 import boa
 import pytest
 from itertools import permutations
+from tests.utils.deployers import (
+    MOCK_SWAP2_DEPLOYER,
+    MOCK_SWAP3_DEPLOYER,
+    CRYPTO_FROM_POOL_DEPLOYER
+)
 
 
 @pytest.fixture()
 def swap2(admin):
     with boa.env.prank(admin):
-        return boa.load('contracts/testing/MockSwap2.vy')
+        return MOCK_SWAP2_DEPLOYER.deploy()
 
 
 @pytest.fixture()
 def swap3(admin):
     with boa.env.prank(admin):
-        return boa.load('contracts/testing/MockSwap3.vy')
+        return MOCK_SWAP3_DEPLOYER.deploy()
 
 
 @pytest.mark.parametrize("coin_ids", [[0, 1], [1, 0]] + list(permutations([0, 1, 2])))
@@ -23,7 +28,7 @@ def test_oracle(swap2, swap3, coin_ids):
     else:
         swap = swap3
     borrowed_ix, collateral_ix = coin_ids[:2]
-    oracle = boa.load('contracts/price_oracles/CryptoFromPool.vy', swap, N, borrowed_ix, collateral_ix)
+    oracle = CRYPTO_FROM_POOL_DEPLOYER.deploy(swap, N, borrowed_ix, collateral_ix)
 
     p0 = 0.1
     for p in [1, 10, 100]:

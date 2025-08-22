@@ -12,8 +12,6 @@ interface ILLAMMA:
     def coins(i: uint256) -> address: view
     def get_sum_xy(user: address) -> uint256[2]: view
     def read_user_tick_numbers(user: address) -> int256[2]: view
-    def read_user_ticks(user: address, ns: int256[2]) -> DynArray[uint256, MAX_TICKS_UINT]: view
-    def admin_fees_y() -> uint256: view
     def user_shares(user: address) -> UserTicks: view
 
 interface CRV20:
@@ -157,7 +155,7 @@ def _checkpoint_collateral_shares(n_start: int256, collateral_per_share: DynArra
         new_rate = 0
 
     # Transfers from/to AMM always happen after LM Callback calls, so this value is taken BEFORE the action
-    total_collateral: uint256 = staticcall COLLATERAL_TOKEN.balanceOf(AMM.address) - staticcall AMM.admin_fees_y()
+    total_collateral: uint256 = staticcall COLLATERAL_TOKEN.balanceOf(AMM.address)
     delta_rpc: uint256 = 0
 
     if total_collateral > 0 and block.timestamp > I_rpc.t:  # XXX should we not loop when total_collateral == 0?
@@ -279,7 +277,7 @@ def total_collateral() -> uint256:
     """
     @return Total collateral amount in LlamaLend/crvUSD AMM
     """
-    return staticcall COLLATERAL_TOKEN.balanceOf(AMM.address) - staticcall AMM.admin_fees_y()
+    return staticcall COLLATERAL_TOKEN.balanceOf(AMM.address)
 
 
 @external
@@ -362,7 +360,7 @@ def set_killed(_is_killed: bool):
     @dev When killed, the gauge always yields a rate of 0 and so cannot mint CRV
     @param _is_killed Killed status to set
     """
-    assert msg.sender == staticcall LENDING_FACTORY.admin()  # dev: only owner
+    assert msg.sender == staticcall LENDING_FACTORY.admin(), "only owner"
     self._checkpoint_collateral_shares(0, [], 0)
     self.is_killed = _is_killed
     log SetKilled(is_killed=_is_killed)
