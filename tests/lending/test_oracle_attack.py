@@ -12,7 +12,7 @@ import pytest
 
 from hypothesis import given, settings
 from hypothesis import strategies as st
-from tests.utils.deployers import OLD_AMM_DEPLOYER
+from tests.utils.deployers import LENDING_FACTORY_DEPLOYER, OLD_AMM_DEPLOYER
 
 
 MAX = 2**256 - 1
@@ -40,9 +40,9 @@ def hacker(accounts):
 
 
 @pytest.fixture(scope="module")
-def factory_new(factory_partial, amm_impl, controller_impl, vault_impl, price_oracle_impl, mpolicy_impl, admin):
+def factory_new(amm_impl, controller_impl, vault_impl, price_oracle_impl, mpolicy_impl, admin):
     with boa.env.prank(admin):
-        return factory_partial.deploy(amm_impl, controller_impl, vault_impl, price_oracle_impl, mpolicy_impl, admin, admin)
+        return LENDING_FACTORY_DEPLOYER.deploy(amm_impl, controller_impl, vault_impl, price_oracle_impl, mpolicy_impl, admin, admin)
 
 
 @pytest.fixture(scope="module")
@@ -51,10 +51,11 @@ def amm_old_interface():
 
 
 @pytest.fixture(scope="module")
-def factory_old(factory_partial, controller_impl, vault_impl, price_oracle_impl, mpolicy_impl, amm_old_interface, admin):
+def factory_old(controller_impl, vault_impl, price_oracle_impl, mpolicy_impl, amm_old_interface, admin):
+    # TODO is this really the old factory? I don't think so
     with boa.env.prank(admin):
         amm_impl = amm_old_interface.deploy_as_blueprint()
-        return factory_partial.deploy(amm_impl, controller_impl, vault_impl, price_oracle_impl, mpolicy_impl, admin, admin)
+        return LENDING_FACTORY_DEPLOYER.deploy(amm_impl, controller_impl, vault_impl, price_oracle_impl, mpolicy_impl, admin, admin)
 
 
 @pytest.fixture(scope='module')
