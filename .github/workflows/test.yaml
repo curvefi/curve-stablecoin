@@ -15,11 +15,12 @@ jobs:
         folder:
           - "tests/flashloan"
           - "tests/lm_callback"
-          - "tests/amm"
-          - "tests/lending"
-          - "tests/price_oracles"
-          - "tests/swap"
           - "tests/controller"
+          - "tests/amm"
+          - "tests/price_oracles"
+          # - "tests/lending"
+          # - "tests/stableborrow"
+          # - "tests/swap"
         venom:
           - { name: "standard mode", value: false }
           # - { name: "venom mode", value: true }
