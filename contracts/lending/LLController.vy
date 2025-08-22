@@ -82,7 +82,6 @@ exports: (
     core.minted,
     core.redeemed,
 )
-# TODO reorder exports in a way that make sense
 
 VAULT: immutable(IVault)
 
