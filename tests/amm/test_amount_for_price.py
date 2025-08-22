@@ -2,6 +2,7 @@ import boa
 from ..conftest import approx
 from hypothesis import given, settings
 from hypothesis import strategies as st
+from ..utils import mint_for_testing
 
 
 @given(
@@ -25,7 +26,7 @@ def test_amount_for_price(price_oracle, amm, accounts, collateral_token, borrowe
     # Initial deposit
     with boa.env.prank(admin):
         amm.deposit_range(user, deposit_amount, n1, n2)
-        boa.deal(collateral_token, amm.address, deposit_amount)
+        mint_for_testing(collateral_token, amm.address, deposit_amount)
 
     prices = [oracle_price]
     prices.append(amm.get_p())
@@ -34,7 +35,7 @@ def test_amount_for_price(price_oracle, amm, accounts, collateral_token, borrowe
         # Dump some to be somewhere inside the bands
         eamount = int(deposit_amount * amm.get_p() // 10**18 * init_trade_frac)
         if eamount > 0:
-            boa.deal(borrowed_token, user, eamount)
+            mint_for_testing(borrowed_token, user, eamount)
         boa.env.time_travel(600)  # To reset the prev p_o counter
         amm.exchange(0, 1, eamount, 0)
         n0 = amm.active_band()
@@ -49,11 +50,11 @@ def test_amount_for_price(price_oracle, amm, accounts, collateral_token, borrowe
         assert is_pump == (p_final >= p_initial)
 
         if is_pump:
-            boa.deal(borrowed_token, user, amount)
+            mint_for_testing(borrowed_token, user, amount)
             amm.exchange(0, 1, amount, 0)
 
         else:
-            boa.deal(collateral_token, user, amount)
+            mint_for_testing(collateral_token, user, amount)
             amm.exchange(1, 0, amount, 0)
 
     p = amm.get_p()

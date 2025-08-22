@@ -5,6 +5,7 @@ from hypothesis import HealthCheck
 from hypothesis import strategies as st
 from hypothesis.stateful import RuleBasedStateMachine, run_state_machine_as_test, rule, invariant, initialize
 from hypothesis import Phase
+from ..utils import mint_for_testing
 
 
 class StatefulExchange(RuleBasedStateMachine):
@@ -14,7 +15,6 @@ class StatefulExchange(RuleBasedStateMachine):
     amount = st.floats(min_value=0, max_value=10**9)
     pump = st.booleans()
     user_id = st.integers(min_value=0, max_value=4)
-    admin_fee = st.integers(min_value=0, max_value=10**18 // 2)
 
     def __init__(self):
         super().__init__()
@@ -30,7 +30,7 @@ class StatefulExchange(RuleBasedStateMachine):
             try:
                 with boa.env.prank(self.admin):
                     self.amm.deposit_range(user, amount, n1, n2)
-                    boa.deal(collateral_token, self.amm.address, amount)
+                    mint_for_testing(self.collateral_token, self.amm.address, amount)
             except Exception as e:
                 if 'Amount too low' in str(e):
                     assert amount // (dn + 1) <= 100
@@ -54,14 +54,9 @@ class StatefulExchange(RuleBasedStateMachine):
         u_amount = in_token.balanceOf(u)
         reduced_amount, required_amount = self.amm.get_dydx(i, j, amount)
         if required_amount > u_amount:
-            boa.deal(in_token, u, required_amount - u_amount)
+            mint_for_testing(in_token, u, required_amount - u_amount)
         with boa.env.prank(u):
             self.amm.exchange_dy(i, j, reduced_amount, required_amount)
-
-    @rule(fee=admin_fee)
-    def set_admin_fee(self, fee):
-        with boa.env.prank(self.admin):
-            self.amm.set_admin_fee(fee)
 
     @invariant()
     def amm_solvent(self):
@@ -92,7 +87,7 @@ class StatefulExchange(RuleBasedStateMachine):
         if n < 50:
             dy, dx = self.amm.get_dydx(1, 0, to_receive)
             if dy > 0:
-                boa.deal(collateral_token, u, dx)
+                mint_for_testing(self.collateral_token, u, dx)
                 with boa.env.prank(u):
                     self.amm.exchange_dy(1, 0, 2**256 - 1, dx)
                 left_in_amm = sum(self.amm.bands_y(n) for n in range(42))

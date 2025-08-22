@@ -2,6 +2,7 @@ import boa
 from ..conftest import approx
 from hypothesis import given
 from hypothesis import strategies as st
+from ..utils import mint_for_testing
 
 
 DEAD_SHARES = 10**3
@@ -28,7 +29,7 @@ def test_deposit_withdraw(amm, amounts, accounts, ns, dns, fracs, collateral_tok
                     amm.deposit_range(user, amount, n1, n2)
             else:
                 amm.deposit_range(user, amount, n1, n2)
-                boa.deal(collateral_token, amm.address, amount)
+                mint_for_testing(collateral_token, amm.address, amount)
                 deposits[user] = amount
                 assert collateral_token.balanceOf(user) == 0
 
