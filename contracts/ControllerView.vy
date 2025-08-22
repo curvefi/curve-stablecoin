@@ -361,7 +361,6 @@ def max_borrowable(
     )
 
 
-# TODO use pointers to natpsec
 @external
 @view
 def min_collateral(
