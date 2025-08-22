@@ -227,7 +227,6 @@ def redeemed() -> uint256:
 @internal
 @view
 def _check_admin():
-    # TODO possibly some things can be moved from ownership to param votes?
     assert msg.sender == staticcall FACTORY.admin(), "only admin"
 
 
@@ -378,12 +377,6 @@ def _debt(user: address) -> (uint256, uint256):
         )  # loan.rate_mul is nonzero because we just had % successful
         return (debt, rate_mul)
 
-
-# TODO check if needed
-# @internal
-# @view
-# def _get_y_effective(collateral: uint256, N: uint256, discount: uint256) -> uint256:
-#     return core._get_y_effective(collateral, N, discount, SQRT_BAND_RATIO, A)
 
 @external
 @view
@@ -1320,7 +1313,7 @@ def users_to_liquidate(
 
 @view
 @external
-@reentrant  # TODO make this consistent
+@reentrant  
 def amm_price() -> uint256:
     """
     @notice Current price from the AMM
