@@ -61,7 +61,6 @@ exports: (
     core.n_loans,
     core.tokens_to_liquidate,
     core.total_debt,
-    core.admin_fees,
     core.factory,
     core.processed,
     core.repaid,
@@ -225,6 +224,12 @@ def borrow_more(
     )
 
     self.lent += _debt
+
+
+@external
+@view
+def admin_fees() -> uint256:
+    return core._admin_fees(self.admin_fee)
 
 
 @external
