@@ -535,9 +535,10 @@ def max_borrowable(
     @param user User to calculate the value for (only necessary for nonzero extra_health)
     @return Maximum amount of stablecoin to borrow
     """
-    return staticcall self._view.max_borrowable(
-        collateral, N, current_debt, user
-    )
+    # Cannot borrow beyond the amount of coins Controller has
+    cap: uint256 = staticcall BORROWED_TOKEN.balanceOf(self) + current_debt
+
+    return staticcall self._view.max_borrowable(collateral, N, cap, user)
 
 
 @external
