@@ -17,7 +17,9 @@ from tests.utils.deployers import (
     PEG_KEEPER_REGULATOR_DEPLOYER,
     PEG_KEEPER_V2_DEPLOYER,
     AGG_MONETARY_POLICY2_DEPLOYER,
-    CHAINLINK_AGGREGATOR_MOCK_DEPLOYER
+    CHAINLINK_AGGREGATOR_MOCK_DEPLOYER,
+    AMM_DEPLOYER,
+    LL_CONTROLLER_DEPLOYER
 )
 from tests.utils.constants import ZERO_ADDRESS
 BASE_AMOUNT = 10**6
@@ -45,8 +47,8 @@ def bob(accounts):
 
 
 @pytest.fixture(scope="module")
-def collateral_token(get_collateral_token):
-    return get_collateral_token(18)
+def collateral_token():
+    return ERC20_MOCK_DEPLOYER.deploy(18)
 
 
 @pytest.fixture(scope="module")
@@ -274,8 +276,8 @@ def market_agg(controller_factory, collateral_token, agg_monetary_policy, crypto
 
 
 @pytest.fixture(scope="module")
-def market_amm_agg(market, collateral_token, stablecoin, amm_impl, amm_interface, accounts):
-    amm = amm_interface.at(market.get_amm(collateral_token.address))
+def market_amm_agg(market, collateral_token, stablecoin, amm_impl, accounts):
+    amm = AMM_DEPLOYER.at(market.get_amm(collateral_token.address))
     for acc in accounts:
         with boa.env.prank(acc):
             collateral_token.approve(amm.address, 2**256-1)
@@ -284,8 +286,8 @@ def market_amm_agg(market, collateral_token, stablecoin, amm_impl, amm_interface
 
 
 @pytest.fixture(scope="module")
-def market_controller_agg(market_agg, stablecoin, collateral_token, controller_impl, controller_interface, controller_factory, accounts):
-    controller = controller_interface.at(market_agg.get_controller(collateral_token.address))
+def market_controller_agg(market_agg, stablecoin, collateral_token, controller_impl, controller_factory, accounts):
+    controller = LL_CONTROLLER_DEPLOYER.at(market_agg.get_controller(collateral_token.address))
     for acc in accounts:
         with boa.env.prank(acc):
             collateral_token.approve(controller.address, 2**256-1)

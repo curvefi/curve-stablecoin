@@ -1,4 +1,5 @@
 import boa
+from tests.utils.deployers import AMM_DEPLOYER, LL_CONTROLLER_DEPLOYER
 
 
 def test_stablecoin_admin(controller_factory, stablecoin, accounts):
@@ -20,8 +21,7 @@ def test_impl(controller_factory, controller_impl, amm_impl):
     assert controller_factory.amm_implementation() == amm_impl.address
 
 
-def test_add_market(controller_factory, collateral_token, price_oracle, monetary_policy, admin,
-                    controller_interface, amm_interface):
+def test_add_market(controller_factory, collateral_token, price_oracle, monetary_policy, admin):
     # token: address, A: uint256, fee: uint256, admin_fee: uint256,
     # _price_oracle_contract: address,
     # monetary_policy: address, loan_discount: uint256, liquidation_discount: uint256,
@@ -37,8 +37,8 @@ def test_add_market(controller_factory, collateral_token, price_oracle, monetary
             assert controller_factory.n_collaterals() == 1
             assert controller_factory.collaterals(0).lower() == collateral_token.address.lower()
 
-            controller = controller_interface.at(controller_factory.get_controller(collateral_token.address))
-            amm = amm_interface.at(controller_factory.get_amm(collateral_token.address))
+            controller = LL_CONTROLLER_DEPLOYER.at(controller_factory.get_controller(collateral_token.address))
+            amm = AMM_DEPLOYER.at(controller_factory.get_amm(collateral_token.address))
 
             assert controller.factory().lower() == controller_factory.address.lower()
             assert controller.collateral_token().lower() == collateral_token.address.lower()

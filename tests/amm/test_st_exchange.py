@@ -6,6 +6,7 @@ from hypothesis import strategies as st
 from hypothesis.stateful import RuleBasedStateMachine, run_state_machine_as_test, rule, invariant, initialize
 from hypothesis import Phase
 from ..utils import mint_for_testing
+from tests.utils.deployers import ERC20_MOCK_DEPLOYER
 
 
 class StatefulExchange(RuleBasedStateMachine):
@@ -92,15 +93,15 @@ class StatefulExchange(RuleBasedStateMachine):
 
 @pytest.mark.parametrize("borrowed_digits", [6, 8, 18])
 @pytest.mark.parametrize("collateral_digits", [6, 8, 18])
-def test_exchange(admin, accounts, get_amm, get_collateral_token, get_borrowed_token,
+def test_exchange(admin, accounts, get_amm,
                   borrowed_digits, collateral_digits):
     StatefulExchange.TestCase.settings = settings(max_examples=20, stateful_step_count=10,
                                                   phases=(Phase.explicit, Phase.reuse, Phase.generate, Phase.target),
                                                   suppress_health_check=[HealthCheck.data_too_large])
     accounts = accounts[:5]
 
-    borrowed_token = get_borrowed_token(borrowed_digits)
-    collateral_token = get_collateral_token(collateral_digits)
+    borrowed_token = ERC20_MOCK_DEPLOYER.deploy(borrowed_digits)
+    collateral_token = ERC20_MOCK_DEPLOYER.deploy(collateral_digits)
     amm = get_amm(collateral_token, borrowed_token)
 
     for k, v in locals().items():
@@ -108,14 +109,14 @@ def test_exchange(admin, accounts, get_amm, get_collateral_token, get_borrowed_t
     run_state_machine_as_test(StatefulExchange)
 
 
-def test_raise_at_dy_back(admin, accounts, get_amm, get_collateral_token, get_borrowed_token):
+def test_raise_at_dy_back(admin, accounts, get_amm):
     accounts = accounts[:5]
 
     borrowed_digits = 18
     collateral_digits = 18
 
-    borrowed_token = get_borrowed_token(borrowed_digits)
-    collateral_token = get_collateral_token(collateral_digits)
+    borrowed_token = ERC20_MOCK_DEPLOYER.deploy(borrowed_digits)
+    collateral_token = ERC20_MOCK_DEPLOYER.deploy(collateral_digits)
     amm = get_amm(collateral_token, borrowed_token)
 
     for k, v in locals().items():
@@ -133,14 +134,14 @@ def test_raise_at_dy_back(admin, accounts, get_amm, get_collateral_token, get_bo
     state.teardown()
 
 
-def test_raise_rounding(admin, accounts, get_amm, get_collateral_token, get_borrowed_token):
+def test_raise_rounding(admin, accounts, get_amm):
     accounts = accounts[:5]
 
     borrowed_digits = 16
     collateral_digits = 18
 
-    borrowed_token = get_borrowed_token(borrowed_digits)
-    collateral_token = get_collateral_token(collateral_digits)
+    borrowed_token = ERC20_MOCK_DEPLOYER.deploy(borrowed_digits)
+    collateral_token = ERC20_MOCK_DEPLOYER.deploy(collateral_digits)
     amm = get_amm(collateral_token, borrowed_token)
 
     for k, v in locals().items():
@@ -152,14 +153,14 @@ def test_raise_rounding(admin, accounts, get_amm, get_collateral_token, get_borr
     state.teardown()
 
 
-def test_raise_rounding_2(admin, accounts, get_amm, get_collateral_token, get_borrowed_token):
+def test_raise_rounding_2(admin, accounts, get_amm):
     accounts = accounts[:5]
 
     borrowed_digits = 18
     collateral_digits = 18
 
-    borrowed_token = get_borrowed_token(borrowed_digits)
-    collateral_token = get_collateral_token(collateral_digits)
+    borrowed_token = ERC20_MOCK_DEPLOYER.deploy(borrowed_digits)
+    collateral_token = ERC20_MOCK_DEPLOYER.deploy(collateral_digits)
     amm = get_amm(collateral_token, borrowed_token)
 
     for k, v in locals().items():
@@ -177,14 +178,14 @@ def test_raise_rounding_2(admin, accounts, get_amm, get_collateral_token, get_bo
     state.teardown()
 
 
-def test_raise_rounding_3(admin, accounts, get_amm, get_collateral_token, get_borrowed_token):
+def test_raise_rounding_3(admin, accounts, get_amm):
     accounts = accounts[:5]
 
     borrowed_digits = 17
     collateral_digits = 18
 
-    borrowed_token = get_borrowed_token(borrowed_digits)
-    collateral_token = get_collateral_token(collateral_digits)
+    borrowed_token = ERC20_MOCK_DEPLOYER.deploy(borrowed_digits)
+    collateral_token = ERC20_MOCK_DEPLOYER.deploy(collateral_digits)
     amm = get_amm(collateral_token, borrowed_token)
 
     for k, v in locals().items():

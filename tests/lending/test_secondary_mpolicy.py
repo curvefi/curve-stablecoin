@@ -4,6 +4,7 @@ from hypothesis import given
 from hypothesis import settings
 from hypothesis import strategies as st
 from tests.utils.deployers import (
+    ERC20_MOCK_DEPLOYER,
     MOCK_FACTORY_DEPLOYER,
     MOCK_MARKET_DEPLOYER,
     MOCK_RATE_SETTER_DEPLOYER,
@@ -35,8 +36,8 @@ def amm():
 
 
 @pytest.fixture(scope="module")
-def borrowed_token(get_borrowed_token):
-    return get_borrowed_token(18)
+def borrowed_token():
+    return ERC20_MOCK_DEPLOYER.deploy(18)
 
 
 @pytest.fixture(scope="module")

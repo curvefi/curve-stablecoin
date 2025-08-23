@@ -3,6 +3,7 @@ from hypothesis import strategies as st
 import boa
 import pytest
 from ..utils import mint_for_testing
+from tests.utils.deployers import ERC20_MOCK_DEPLOYER
 """
 Test that get_x_down and get_y_up don't change:
 * if we do trades at constant p_o (immediate trades)
@@ -11,8 +12,8 @@ Test that get_x_down and get_y_up don't change:
 
 
 @pytest.fixture(scope="module")
-def borrowed_token(get_borrowed_token):
-    return get_borrowed_token(18)
+def borrowed_token():
+    return ERC20_MOCK_DEPLOYER.deploy(18)
 
 
 @pytest.fixture(scope="module")

@@ -45,25 +45,15 @@ def controller_prefactory(controller_factory_impl, stablecoin, weth, admin, acco
 
 
 @pytest.fixture(scope="session")
-def controller_interface():
-    return MINT_CONTROLLER_DEPLOYER
-
-
-@pytest.fixture(scope="session")
-def controller_impl(controller_interface, admin):
+def controller_impl(admin):
     with boa.env.prank(admin):
-        return controller_interface.deploy_as_blueprint()
+        return MINT_CONTROLLER_DEPLOYER.deploy_as_blueprint()
 
 
 @pytest.fixture(scope="session")
-def amm_interface():
-    return AMM_DEPLOYER
-
-
-@pytest.fixture(scope="session")
-def amm_impl(amm_interface, admin):
+def amm_impl(admin):
     with boa.env.prank(admin):
-        return amm_interface.deploy_as_blueprint()
+        return AMM_DEPLOYER.deploy_as_blueprint()
 
 
 @pytest.fixture(scope="module")
@@ -110,13 +100,13 @@ def market(get_market, collateral_token):
 
 
 @pytest.fixture(scope="module")
-def market_amm(market, collateral_token, stablecoin, amm_interface, accounts):
-    return amm_interface.at(market.get_amm(collateral_token.address))
+def market_amm(market, collateral_token, stablecoin, accounts):
+    return AMM_DEPLOYER.at(market.get_amm(collateral_token.address))
 
 
 @pytest.fixture(scope="module")
-def market_controller(market, stablecoin, collateral_token, controller_interface, accounts):
-    return controller_interface.at(market.get_controller(collateral_token.address))
+def market_controller(market, stablecoin, collateral_token, accounts):
+    return MINT_CONTROLLER_DEPLOYER.at(market.get_controller(collateral_token.address))
 
 
 @pytest.fixture(scope="module")
