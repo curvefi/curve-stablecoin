@@ -294,17 +294,16 @@ def _max_p_base() -> uint256:
     return p_base
 
 
-@external
+@internal
 @view
-def max_borrowable(
+def _max_borrowable(
     collateral: uint256,
     N: uint256,
     cap: uint256,
+    current_debt: uint256,
     user: address,
 ) -> uint256:
-    """
-    @notice Natspec for this function is available in its controller contract
-    """
+
     # Calculation of maximum which can be borrowed.
     # It corresponds to a minimum between the amount corresponding to price_oracle
     # and the one given by the min reachable band.
@@ -335,6 +334,31 @@ def max_borrowable(
     )  # Make it a bit smaller
 
     return min(x, cap)
+
+
+@external
+@view
+def max_borrowable(
+    collateral: uint256,
+    N: uint256,
+    current_debt: uint256 = 0,
+    user: address = empty(address),
+) -> uint256:
+    """
+    @notice Natspec for this function is available in its controller contract
+    """
+    # Cannot borrow beyond the amount of coins Controller has
+    cap: uint256 = (
+        staticcall BORROWED_TOKEN.balanceOf(CONTROLLER.address) + current_debt
+    )
+
+    return self._max_borrowable(
+        collateral,
+        N,
+        cap,
+        current_debt,
+        user,
+    )
 
 
 @external

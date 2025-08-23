@@ -72,6 +72,7 @@ exports: (
     core.user_state,
     core.users_to_liquidate,
     core.min_collateral,
+    core.max_borrowable,
     # For compatibility with mint markets ABI
     core.minted,
     core.redeemed,
@@ -175,32 +176,7 @@ def borrowed_balance() -> uint256:
     return self._borrowed_balance()
 
 
-@external
-@view
-def max_borrowable(
-        collateral: uint256,
-        N: uint256,
-        current_debt: uint256 = 0,
-        user: address = empty(address),
-) -> uint256:
-    """
-    @notice Calculation of maximum which can be borrowed (details in comments)
-    @param collateral Collateral amount against which to borrow
-    @param N number of bands to have the deposit into
-    @param current_debt Current debt of the user (if any)
-    @param user User to calculate the value for (only necessary for nonzero extra_health)
-    @return Maximum amount of stablecoin to borrow
-    """
-    # Cannot borrow beyond the amount of borrow_cap or borrowed_balance
-    total_debt: uint256 = core._get_total_debt()
-    cap: uint256 = unsafe_sub(max(core.borrow_cap, total_debt), total_debt)  # don't exceed borrow_cap
-    cap = min(self._borrowed_balance() + current_debt, cap)  # don't exceed borrowed_balance
-
-    return staticcall core._view.max_borrowable(collateral, N, cap, user)
-
-
 # TODO delete deprecated and legacy files
-
 
 @external
 def create_loan(
