@@ -11,9 +11,7 @@
 """
 
 from ethereum.ercs import IERC20
-from ethereum.ercs import IERC20Detailed
 from contracts.interfaces import IAMM
-from contracts.interfaces import ILMGauge
 from contracts.interfaces import IMonetaryPolicy
 from contracts.interfaces import IVault
 
@@ -24,8 +22,6 @@ implements: IController
 from contracts.interfaces import ILlamalendController
 
 implements: ILlamalendController
-
-from snekmate.utils import math
 
 from contracts import Controller as core
 
