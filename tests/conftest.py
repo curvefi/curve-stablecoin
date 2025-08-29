@@ -3,7 +3,7 @@ from datetime import timedelta
 
 import boa
 import pytest
-from hypothesis import settings
+from hypothesis import settings, Phase
 from tests.utils.deploy import Protocol
 from tests.utils.deployers import (
     ERC20_MOCK_DEPLOYER, 
@@ -18,8 +18,8 @@ PRICE = 3000
 TESTING_DECIMALS = [2, 6, 8, 9, 18]
 
 
+settings.register_profile("no-shrink", settings(phases=list(Phase)[:4]), deadline=timedelta(seconds=1000))
 settings.register_profile("default", deadline=timedelta(seconds=1000))
-# TODO add no shrink profile
 settings.load_profile(os.getenv(u"HYPOTHESIS_PROFILE", "default"))
 
 
