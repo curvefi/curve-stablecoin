@@ -182,5 +182,5 @@ for position in positions:
     except:
         continue
 
-with open('./test_frac5.txt', 'w') as f:
+with open('frac5_calc.txt', 'w') as f:
     f.write(res)
