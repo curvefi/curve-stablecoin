@@ -2,7 +2,8 @@ from hypothesis import given, settings
 from hypothesis import strategies as st
 import boa
 import pytest
-from ..conftest import approx
+from ..utils import mint_for_testing
+from tests.utils.deployers import ERC20_MOCK_DEPLOYER
 """
 Test that get_x_down and get_y_up don't change:
 * if we do trades at constant p_o (immediate trades)
@@ -11,8 +12,8 @@ Test that get_x_down and get_y_up don't change:
 
 
 @pytest.fixture(scope="module")
-def borrowed_token(get_borrowed_token):
-    return get_borrowed_token(18)
+def borrowed_token():
+    return ERC20_MOCK_DEPLOYER.deploy(18)
 
 
 @pytest.fixture(scope="module")
@@ -41,7 +42,7 @@ def test_immediate(amm, price_oracle, collateral_token, borrowed_token, accounts
         price_oracle.set_price(p_o)
         amm.set_fee(0)
         amm.deposit_range(user, deposit_amount, n1, n1+dn)
-        boa.deal(collateral_token, amm.address, deposit_amount)
+        mint_for_testing(collateral_token, amm.address, deposit_amount)
         while True:
             p_internal = amm.price_oracle()
             boa.env.time_travel(600)  # To reset the prev p_o counter
@@ -53,7 +54,7 @@ def test_immediate(amm, price_oracle, collateral_token, borrowed_token, accounts
     pump_recv_amount = int(deposit_amount * f_pump)
     pump_recv_amount, pump_amount = amm.get_dydx(0, 1, pump_recv_amount)
     with boa.env.prank(user):
-        boa.deal(borrowed_token, user, pump_amount)
+        mint_for_testing(borrowed_token, user, pump_amount)
         amm.exchange_dy(0, 1, pump_recv_amount, pump_amount)
 
     prices.append(amm.get_p())
@@ -63,14 +64,14 @@ def test_immediate(amm, price_oracle, collateral_token, borrowed_token, accounts
         trade_recv_amount = int(deposit_amount * f_trade)
         trade_recv_amount, trade_amount = amm.get_dydx(0, 1, trade_recv_amount)
         with boa.env.prank(user):
-            boa.deal(borrowed_token, user, trade_amount)
+            mint_for_testing(borrowed_token, user, trade_amount)
         i = 0
         j = 1
     else:
         trade_recv_amount = int(p_o * deposit_amount / 10**collateral_decimals * f_trade / 10**(collateral_decimals - borrowed_decimals))
         trade_recv_amount, trade_amount = amm.get_dydx(1, 0, trade_recv_amount)
         with boa.env.prank(user):
-            boa.deal(collateral_token, user, trade_amount)
+            mint_for_testing(collateral_token, user, trade_amount)
         i = 1
         j = 0
 
@@ -86,8 +87,8 @@ def test_immediate(amm, price_oracle, collateral_token, borrowed_token, accounts
 
     fee = max(abs(max(prices) - p_o), abs(p_o - min(prices))) / (4 * min(p_o, *prices))
 
-    assert approx(x0, x1, fee, 100)
-    assert approx(y0, y1, fee, 100)
+    assert x0 == pytest.approx(x1, rel=fee, abs=100)
+    assert y0 == pytest.approx(y1, rel=fee, abs=100)
 
 
 @given(
@@ -108,7 +109,7 @@ def test_adiabatic(amm, price_oracle, collateral_token, borrowed_token, accounts
     with boa.env.prank(admin):
         amm.set_fee(0)
         amm.deposit_range(user, deposit_amount, dn, n1+dn)
-        boa.deal(collateral_token, amm.address, deposit_amount)
+        mint_for_testing(collateral_token, amm.address, deposit_amount)
         for i in range(2):
             boa.env.time_travel(600)
             price_oracle.set_price(p_o_1)
@@ -136,13 +137,13 @@ def test_adiabatic(amm, price_oracle, collateral_token, borrowed_token, accounts
             j = 1
             recv_amount = amm.get_dy(i, j, amount)
             _amount = amm.get_dx(i, j, recv_amount)
-            boa.deal(borrowed_token, user, _amount)
+            mint_for_testing(borrowed_token, user, _amount)
         else:
             i = 1
             j = 0
             recv_amount = amm.get_dy(i, j, amount)
             _amount = amm.get_dx(i, j, recv_amount)
-            boa.deal(collateral_token, user, _amount)
+            mint_for_testing(collateral_token, user, _amount)
 
         with boa.env.prank(user):
             amm.exchange_dy(i, j, recv_amount, _amount)
@@ -157,8 +158,8 @@ def test_adiabatic(amm, price_oracle, collateral_token, borrowed_token, accounts
         assert x >= x0 * (1 - precision)
         assert y >= y0 * (1 - precision)
 
-        assert approx(x, x0, precision + fee_component * (k + 1))
-        assert approx(y, y0, precision + fee_component * (k + 1))
+        assert x == pytest.approx(x0, rel=precision + fee_component * (k + 1))
+        assert y == pytest.approx(y0, rel=precision + fee_component * (k + 1))
 
         if k != N_STEPS - 1:
             p_o = int(p_o * p_o_mul)

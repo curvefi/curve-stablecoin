@@ -54,8 +54,6 @@ class Protocol:
     Protocol deployment and management class for llamalend.
     Handles deployment of core infrastructure and creation of markets.
     """
-        
-    
     def __init__(
         self,
         initial_price: int = 3000 * 10**18
@@ -145,7 +143,7 @@ class Protocol:
         loan_discount: int,
         liquidation_discount: int,
         debt_ceiling: int
-    ) -> Dict[str, Any]:
+    ) -> Dict[str, VyperContract]:
         """
         Create a new mint market in the Controller Factory.
         
@@ -196,7 +194,7 @@ class Protocol:
         name: str,
         min_borrow_rate: int,
         max_borrow_rate: int
-    ) -> Dict[str, Any]:
+    ) -> Dict[str, VyperContract]:
         """
         Create a new lending market in the Lending Factory.
         

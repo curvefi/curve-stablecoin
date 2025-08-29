@@ -3,7 +3,7 @@ from hypothesis import settings
 from hypothesis import strategies as st
 from hypothesis.stateful import RuleBasedStateMachine, run_state_machine_as_test, rule, invariant
 from random import random
-from ..conftest import approx
+import pytest
 
 
 class StateMachine(RuleBasedStateMachine):
@@ -63,7 +63,7 @@ class StateMachine(RuleBasedStateMachine):
 
                 assert self.collateral_token.balanceOf(user) == balance - value
                 if self.integrals[user]["integral"] > 0 and self.lm_callback.integrate_fraction(user) > 0:
-                    assert approx(self.lm_callback.integrate_fraction(user), self.integrals[user]["integral"], 1e-13)
+                    assert self.lm_callback.integrate_fraction(user) == pytest.approx(self.integrals[user]["integral"], rel=1e-13)
 
     @rule(uid=user_id, value=value)
     def withdraw(self, uid, value):
@@ -92,7 +92,7 @@ class StateMachine(RuleBasedStateMachine):
 
             assert self.collateral_token.balanceOf(user) == balance + remove_amount
             if self.integrals[user]["integral"] > 0 and self.lm_callback.integrate_fraction(user) > 0:
-                assert approx(self.lm_callback.integrate_fraction(user), self.integrals[user]["integral"], 1e-13)
+                assert self.lm_callback.integrate_fraction(user) == pytest.approx(self.integrals[user]["integral"], rel=1e-13)
 
     @rule(dt=time)
     def advance_time(self, dt):
@@ -114,7 +114,7 @@ class StateMachine(RuleBasedStateMachine):
             r2 = self.integrals[user]["integral"]
             assert (r1 > 0) == (r2 > 0)
             if r1 > 0:
-                assert approx(r1, r2, 1e-13)
+                assert r1 == pytest.approx(r2, rel=1e-13)
 
     @rule(uid=user_id)
     def claim_crv(self, uid):
@@ -159,7 +159,7 @@ class StateMachine(RuleBasedStateMachine):
                 r2 = integral["integral"]
                 assert (r1 > 0) == (r2 > 0)
                 if r1 > 0:
-                    assert approx(r1, r2, 1e-13)
+                    assert r1 == pytest.approx(r2, rel=1e-13)
 
                 crv_balance = self.crv.balanceOf(account)
                 with boa.env.anchor():

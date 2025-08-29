@@ -12,7 +12,8 @@ from tests.utils.deployers import (
     AMM_DEPLOYER,
     CONSTANT_MONETARY_POLICY_DEPLOYER,
     LM_CALLBACK_DEPLOYER,
-    BLOCK_COUNTER_DEPLOYER
+    BLOCK_COUNTER_DEPLOYER,
+    LL_CONTROLLER_DEPLOYER
 )
 
 
@@ -77,25 +78,15 @@ def controller_prefactory(stablecoin, weth, admin, accounts):
 
 
 @pytest.fixture(scope="module")
-def controller_interface():
-    return MINT_CONTROLLER_DEPLOYER
-
-
-@pytest.fixture(scope="module")
-def controller_impl(controller_interface, admin):
+def controller_impl(admin):
     with boa.env.prank(admin):
-        return controller_interface.deploy_as_blueprint()
+        return MINT_CONTROLLER_DEPLOYER.deploy_as_blueprint()
 
 
 @pytest.fixture(scope="module")
-def amm_interface():
-    return AMM_DEPLOYER
-
-
-@pytest.fixture(scope="module")
-def amm_impl(stablecoin, amm_interface, admin):
+def amm_impl(stablecoin, admin):
     with boa.env.prank(admin):
-        return amm_interface.deploy_as_blueprint()
+        return AMM_DEPLOYER.deploy_as_blueprint()
 
 
 @pytest.fixture(scope="module")
@@ -145,13 +136,13 @@ def market(get_market, collateral_token):
 
 
 @pytest.fixture(scope="module")
-def market_amm(market, collateral_token, stablecoin, amm_interface, accounts):
-    return amm_interface.at(market.get_amm(collateral_token.address))
+def market_amm(market, collateral_token, stablecoin, accounts):
+    return AMM_DEPLOYER.at(market.get_amm(collateral_token.address))
 
 
 @pytest.fixture(scope="module")
-def market_controller(market, stablecoin, collateral_token, controller_interface, controller_factory, accounts):
-    return controller_interface.at(market.get_controller(collateral_token.address))
+def market_controller(market, stablecoin, collateral_token, controller_factory, accounts):
+    return LL_CONTROLLER_DEPLOYER.at(market.get_controller(collateral_token.address))
 
 
 @pytest.fixture(scope="module")

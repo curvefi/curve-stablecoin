@@ -1,7 +1,7 @@
 import boa
+import pytest
 from hypothesis import given, settings
 from hypothesis import strategies as st
-from ..conftest import approx
 
 
 DEAD_SHARES = 1000
@@ -39,8 +39,8 @@ def test_max_borrowable(borrowed_token, collateral_token, market_amm, filled_con
     filled_controller.calculate_debt_n1(collateral_amount, max_borrowable, n)
 
     min_collateral = filled_controller.min_collateral(max_borrowable, n)
-    assert approx(min_collateral,
-                  collateral_amount, 1e-6 + (n**2 + n * DEAD_SHARES) * (
+    assert min_collateral == pytest.approx(
+                  collateral_amount, rel=1e-6 + (n**2 + n * DEAD_SHARES) * (
                       1 / min(min_collateral, collateral_amount) + 1 / max_borrowable))
 
 

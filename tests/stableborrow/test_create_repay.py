@@ -2,7 +2,6 @@ import boa
 import pytest
 from hypothesis import given
 from hypothesis import strategies as st
-from ..conftest import approx
 
 
 def test_create_loan(controller_factory, stablecoin, collateral_token, market_controller, market_amm, monetary_policy, accounts):
@@ -41,13 +40,13 @@ def test_create_loan(controller_factory, stablecoin, collateral_token, market_co
 
             p_up, p_down = market_controller.user_prices(user)
             p_lim = l_amount / c_amount / (1 - market_controller.loan_discount()/1e18)
-            assert approx(p_lim, (p_down * p_up)**0.5 / 1e18, 2 / market_amm.A())
+            assert p_lim == pytest.approx((p_down * p_up)**0.5 / 1e18, rel=2 / market_amm.A())
 
             h = market_controller.health(user) / 1e18 + 0.02
             assert h >= 0.05 and h <= 0.06
 
             h = market_controller.health(user, True) / 1e18 + 0.02
-            assert approx(h, c_amount * 3000 / l_amount - 1, 0.02)
+            assert h == pytest.approx(c_amount * 3000 / l_amount - 1, rel=0.02)
 
 
 @given(

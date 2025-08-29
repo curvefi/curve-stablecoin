@@ -5,6 +5,8 @@ from hypothesis import HealthCheck
 from hypothesis import strategies as st
 from hypothesis.stateful import RuleBasedStateMachine, run_state_machine_as_test, rule, invariant, initialize
 from hypothesis import Phase
+from ..utils import mint_for_testing
+from tests.utils.deployers import ERC20_MOCK_DEPLOYER
 
 
 class StatefulExchange(RuleBasedStateMachine):
@@ -14,7 +16,6 @@ class StatefulExchange(RuleBasedStateMachine):
     amount = st.floats(min_value=0, max_value=10**9)
     pump = st.booleans()
     user_id = st.integers(min_value=0, max_value=4)
-    admin_fee = st.integers(min_value=0, max_value=10**18 // 2)
 
     def __init__(self):
         super().__init__()
@@ -30,7 +31,7 @@ class StatefulExchange(RuleBasedStateMachine):
             try:
                 with boa.env.prank(self.admin):
                     self.amm.deposit_range(user, amount, n1, n2)
-                    boa.deal(collateral_token, self.amm.address, amount)
+                    mint_for_testing(self.collateral_token, self.amm.address, amount)
             except Exception as e:
                 if 'Amount too low' in str(e):
                     assert amount // (dn + 1) <= 100
@@ -54,14 +55,9 @@ class StatefulExchange(RuleBasedStateMachine):
         u_amount = in_token.balanceOf(u)
         reduced_amount, required_amount = self.amm.get_dydx(i, j, amount)
         if required_amount > u_amount:
-            boa.deal(in_token, u, required_amount - u_amount)
+            mint_for_testing(in_token, u, required_amount - u_amount)
         with boa.env.prank(u):
             self.amm.exchange_dy(i, j, reduced_amount, required_amount)
-
-    @rule(fee=admin_fee)
-    def set_admin_fee(self, fee):
-        with boa.env.prank(self.admin):
-            self.amm.set_admin_fee(fee)
 
     @invariant()
     def amm_solvent(self):
@@ -92,7 +88,7 @@ class StatefulExchange(RuleBasedStateMachine):
         if n < 50:
             dy, dx = self.amm.get_dydx(1, 0, to_receive)
             if dy > 0:
-                boa.deal(collateral_token, u, dx)
+                mint_for_testing(self.collateral_token, u, dx)
                 with boa.env.prank(u):
                     self.amm.exchange_dy(1, 0, 2**256 - 1, dx)
                 left_in_amm = sum(self.amm.bands_y(n) for n in range(42))
@@ -102,15 +98,14 @@ class StatefulExchange(RuleBasedStateMachine):
 @pytest.mark.parametrize("borrowed_digits", [6, 8, 18])
 @pytest.mark.parametrize("collateral_digits", [6, 8, 18])
 def test_exchange(admin, accounts, get_amm,
-                  get_collateral_token, get_borrowed_token,
                   borrowed_digits, collateral_digits):
     StatefulExchange.TestCase.settings = settings(max_examples=20, stateful_step_count=10,
                                                   phases=(Phase.explicit, Phase.reuse, Phase.generate, Phase.target),
                                                   suppress_health_check=[HealthCheck.data_too_large])
     accounts = accounts[:5]
 
-    borrowed_token = get_borrowed_token(borrowed_digits)
-    collateral_token = get_collateral_token(collateral_digits)
+    borrowed_token = ERC20_MOCK_DEPLOYER.deploy(borrowed_digits)
+    collateral_token = ERC20_MOCK_DEPLOYER.deploy(collateral_digits)
     amm = get_amm(collateral_token, borrowed_token)
 
     for k, v in locals().items():
@@ -118,15 +113,15 @@ def test_exchange(admin, accounts, get_amm,
     run_state_machine_as_test(StatefulExchange)
 
 
-def test_raise_at_dy_back(admin, accounts, get_amm, get_collateral_token, get_borrowed_token):
+def test_raise_at_dy_back(admin, accounts, get_amm):
     StatefulExchange.TestCase.settings = settings(max_examples=200, stateful_step_count=10,
                                                   phases=(Phase.explicit, Phase.reuse, Phase.generate, Phase.target))
     accounts = accounts[:5]
 
     borrowed_digits = 18
     collateral_digits = 18
-    borrowed_token = get_borrowed_token(borrowed_digits)
-    collateral_token = get_collateral_token(collateral_digits)
+    borrowed_token = ERC20_MOCK_DEPLOYER.deploy(borrowed_digits)
+    collateral_token = ERC20_MOCK_DEPLOYER.deploy(collateral_digits)
     amm = get_amm(collateral_token, borrowed_token)
 
     for k, v in locals().items():
@@ -145,15 +140,15 @@ def test_raise_at_dy_back(admin, accounts, get_amm, get_collateral_token, get_bo
     state.teardown()
 
 
-def test_raise_not_enough_left(admin, accounts, get_amm, get_collateral_token, get_borrowed_token):
+def test_raise_not_enough_left(admin, accounts, get_amm):
     StatefulExchange.TestCase.settings = settings(max_examples=200, stateful_step_count=10,
                                                   phases=(Phase.explicit, Phase.reuse, Phase.generate, Phase.target))
     accounts = accounts[:5]
 
     borrowed_digits = 16
     collateral_digits = 13
-    borrowed_token = get_borrowed_token(borrowed_digits)
-    collateral_token = get_collateral_token(collateral_digits)
+    borrowed_token = ERC20_MOCK_DEPLOYER.deploy(borrowed_digits)
+    collateral_token = ERC20_MOCK_DEPLOYER.deploy(collateral_digits)
     amm = get_amm(collateral_token, borrowed_token)
 
     for k, v in locals().items():

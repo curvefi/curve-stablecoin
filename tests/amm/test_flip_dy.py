@@ -1,6 +1,8 @@
 import boa
 import pytest
 from pytest import mark  # noqa
+from ..utils import mint_for_testing
+from tests.utils.deployers import ERC20_MOCK_DEPLOYER
 
 # 1. deposit below (N > 0 in 5 bands)
 # 2. change price_oracle in a cycle downwards (by 15% just in case?)
@@ -12,8 +14,8 @@ STEP = 0.01
 
 
 @pytest.fixture(scope="module")
-def borrowed_token(get_borrowed_token):
-    return get_borrowed_token(18)
+def borrowed_token():
+    return ERC20_MOCK_DEPLOYER.deploy(18)
 
 
 @pytest.fixture(scope="module")
@@ -33,7 +35,7 @@ def test_flip(amm, price_oracle, collateral_token, borrowed_token, accounts, adm
         # We deposit to bands 1..5
         with boa.env.prank(admin):
             amm.deposit_range(depositor, amount_d, 1, 5)
-            boa.deal(collateral_token, amm.address, amount_d)
+            mint_for_testing(collateral_token, amm.address, amount_d)
         p = amm.price_oracle()
 
         initial_y = sum(amm.bands_y(n) for n in range(1, 6))
@@ -53,7 +55,7 @@ def test_flip(amm, price_oracle, collateral_token, borrowed_token, accounts, adm
             while amm.get_p() < p:
                 dy = amm.get_dy(0, 1, dx)
                 dx = amm.get_dx(0, 1, dy)
-                boa.deal(borrowed_token, trader, dx)
+                mint_for_testing(borrowed_token, trader, dx)
                 n1 = amm.active_band()
                 p1 = amm.get_p()
                 assert amm.get_y_up(depositor) * (1 + 1e-13) >= sum(amm.bands_y(n) for n in range(1, 6))
@@ -88,7 +90,7 @@ def test_flip(amm, price_oracle, collateral_token, borrowed_token, accounts, adm
                     with boa.reverts():
                         amm.get_dx(1, 0, dx)
                 if collateral_token.balanceOf(trader) < dy:
-                    boa.deal(collateral_token, trader, dy)
+                    mint_for_testing(collateral_token, trader, dy)
                 n1 = amm.active_band()
                 p1 = amm.get_p()
                 assert amm.get_y_up(depositor) * (1 + 1e-13) >= sum(amm.bands_y(n) for n in range(1, 6))

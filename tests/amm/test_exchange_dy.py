@@ -1,13 +1,14 @@
 import boa
 import pytest
-from ..conftest import approx
 from hypothesis import given
 from hypothesis import strategies as st
+from ..utils import mint_for_testing
+from tests.utils.deployers import ERC20_MOCK_DEPLOYER
 
 
 @pytest.fixture(scope="module")
-def borrowed_token(get_borrowed_token):
-    return get_borrowed_token(18)
+def borrowed_token():
+    return ERC20_MOCK_DEPLOYER.deploy(18)
 
 
 @pytest.fixture(scope="module")
@@ -29,7 +30,7 @@ def test_dydx_limits(amm, amounts, accounts, ns, dns, collateral_token, admin, b
         for user, amount, n1, dn in zip(accounts[1:6], amounts, ns, dns):
             n2 = n1 + dn
             amm.deposit_range(user, amount, n1, n2)
-            boa.deal(collateral_token, amm.address, amount)
+            mint_for_testing(collateral_token, amm.address, amount)
 
     # Swap 0
     dx, dy = amm.get_dydx(0, 1, 0)
@@ -41,7 +42,7 @@ def test_dydx_limits(amm, amounts, accounts, ns, dns, collateral_token, admin, b
     dy, dx = amm.get_dydx(0, 1, 10**(collateral_decimals - 6))  # 0.000001 ETH
     assert dy == 10**12
     if min(ns) == 1:
-        assert approx(dx, dy * 3000 / 10**(collateral_decimals - borrowed_decimals), 4e-2 + 2 * min(ns) / amm.A())
+        assert dx == pytest.approx(dy * 3000 / 10**(collateral_decimals - borrowed_decimals), rel=4e-2 + 2 * min(ns) / amm.A())
     else:
         assert dx >= dy * 3000 / 10**(collateral_decimals - borrowed_decimals)
     dy, dx = amm.get_dydx(1, 0, 10**(borrowed_decimals - 4))  # No liquidity
@@ -77,7 +78,7 @@ def test_dydx_compare_to_dxdy(amm, amounts, accounts, ns, dns, collateral_token,
         for user, amount, n1, dn in zip(accounts[1:6], amounts, ns, dns):
             n2 = n1 + dn
             amm.deposit_range(user, amount, n1, n2)
-            boa.deal(collateral_token, amm.address, amount)
+            mint_for_testing(collateral_token, amm.address, amount)
 
     # Swap 0
     dy, dx = amm.get_dydx(0, 1, 0)
@@ -142,7 +143,7 @@ def test_exchange_dy_down_up(amm, amounts, accounts, ns, dns, amount, borrowed_t
                     amm.deposit_range(user, amount, n1, n2)
             else:
                 amm.deposit_range(user, amount, n1, n2)
-                boa.deal(collateral_token, amm.address, amount)
+                mint_for_testing(collateral_token, amm.address, amount)
 
     p_before = amm.get_p()
 
@@ -151,8 +152,8 @@ def test_exchange_dy_down_up(amm, amounts, accounts, ns, dns, amount, borrowed_t
     assert dy <= amount
     dy2, dx2 = amm.get_dydx(0, 1, dy)
     assert dy == dy2
-    assert approx(dx, dx2, 1e-6)
-    boa.deal(borrowed_token, u, dx2)
+    assert dx == pytest.approx(dx2, rel=1e-6)
+    mint_for_testing(borrowed_token, u, dx2)
     with boa.env.prank(u):
         with boa.reverts("Slippage"):
             amm.exchange_dy(0, 1, dy2, dx2 - 1)  # crvUSD --> ETH
@@ -177,7 +178,7 @@ def test_exchange_dy_down_up(amm, amounts, accounts, ns, dns, amount, borrowed_t
     assert abs(dx - expected_in_amount) <= 2 * (fee + 0.01) * expected_in_amount
     assert out_amount - dy <= 1
 
-    boa.deal(collateral_token, u, dx - collateral_token.balanceOf(u))
+    mint_for_testing(collateral_token, u, dx - collateral_token.balanceOf(u))
     dy_measured = borrowed_token.balanceOf(u)
     dx_measured = collateral_token.balanceOf(u)
     with boa.env.prank(u):

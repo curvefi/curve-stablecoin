@@ -1,5 +1,6 @@
 import boa
 from pytest import mark  # noqa
+from ..utils import mint_for_testing
 
 # 1. deposit below (N > 0 in 5 bands)
 # 2. change price_oracle in a cycle downwards (by 15% just in case?)
@@ -19,7 +20,7 @@ def test_flip(amm, price_oracle, collateral_token, borrowed_token, accounts, adm
         # We deposit to bands 1..5
         with boa.env.prank(admin):
             amm.deposit_range(depositor, AMOUNT_D, 1, 5)
-            boa.deal(collateral_token, amm.address, AMOUNT_D)
+            mint_for_testing(collateral_token, amm.address, AMOUNT_D)
         p = amm.price_oracle()
 
         initial_y = sum(amm.bands_y(n) for n in range(1, 6))
@@ -36,7 +37,7 @@ def test_flip(amm, price_oracle, collateral_token, borrowed_token, accounts, adm
             dx = int(STEP * AMOUNT_D * p / 1e18 / 10**(18-6))
             is_empty = False
             while amm.get_p() < p:
-                boa.deal(borrowed_token, trader, dx)
+                mint_for_testing(borrowed_token, trader, dx)
                 n1 = amm.active_band()
                 p1 = amm.get_p()
                 assert amm.get_y_up(depositor) * (1 + 1e-13) >= sum(amm.bands_y(n) for n in range(1, 6))
@@ -64,7 +65,7 @@ def test_flip(amm, price_oracle, collateral_token, borrowed_token, accounts, adm
             is_empty = False
             while amm.get_p() > p:
                 if collateral_token.balanceOf(trader) < dy:
-                    boa.deal(collateral_token, trader, dy)
+                    mint_for_testing(collateral_token, trader, dy)
                 n1 = amm.active_band()
                 p1 = amm.get_p()
                 assert amm.get_y_up(depositor) * (1 + 1e-13) >= sum(amm.bands_y(n) for n in range(1, 6))

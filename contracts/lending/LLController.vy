@@ -11,9 +11,7 @@
 """
 
 from ethereum.ercs import IERC20
-from ethereum.ercs import IERC20Detailed
 from contracts.interfaces import IAMM
-from contracts.interfaces import ILMGauge
 from contracts.interfaces import IMonetaryPolicy
 from contracts.interfaces import IVault
 
@@ -24,8 +22,6 @@ implements: IController
 from contracts.interfaces import ILlamalendController
 
 implements: ILlamalendController
-
-from snekmate.utils import math
 
 from contracts import Controller as core
 
@@ -61,7 +57,6 @@ exports: (
     core.n_loans,
     core.tokens_to_liquidate,
     core.total_debt,
-    core.admin_fees,
     core.factory,
     core.processed,
     core.repaid,
@@ -82,7 +77,6 @@ exports: (
     core.minted,
     core.redeemed,
 )
-# TODO reorder exports in a way that make sense
 
 VAULT: immutable(IVault)
 
@@ -226,6 +220,12 @@ def borrow_more(
     )
 
     self.lent += _debt
+
+
+@external
+@view
+def admin_fees() -> uint256:
+    return core._admin_fees(self.admin_fee)
 
 
 @external

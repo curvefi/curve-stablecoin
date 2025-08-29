@@ -227,7 +227,6 @@ def redeemed() -> uint256:
 @internal
 @view
 def _check_admin():
-    # TODO possibly some things can be moved from ownership to param votes?
     assert msg.sender == staticcall FACTORY.admin(), "only admin"
 
 
@@ -378,12 +377,6 @@ def _debt(user: address) -> (uint256, uint256):
         )  # loan.rate_mul is nonzero because we just had % successful
         return (debt, rate_mul)
 
-
-# TODO check if needed
-# @internal
-# @view
-# def _get_y_effective(collateral: uint256, N: uint256, discount: uint256) -> uint256:
-#     return core._get_y_effective(collateral, N, discount, SQRT_BAND_RATIO, A)
 
 @external
 @view
@@ -1320,7 +1313,7 @@ def users_to_liquidate(
 
 @view
 @external
-@reentrant  # TODO make this consistent
+@reentrant
 def amm_price() -> uint256:
     """
     @notice Current price from the AMM
@@ -1412,10 +1405,9 @@ def admin_fees() -> uint256:
     """
     @notice Calculate the amount of fees obtained from the interest
     """
-    processed: uint256 = self.processed
-    return unsafe_sub(
-        max(self._get_total_debt() + self.repaid, processed), processed
-    )
+    # In mint controller, 100% (WAD) fees are
+    # collected as admin fees.
+    return self._admin_fees(WAD)
 
 
 @external
@@ -1426,6 +1418,18 @@ def collect_fees() -> uint256:
     # In mint controller, 100% (WAD) fees are
     # collected as admin fees.
     return self._collect_fees(WAD)
+
+
+@internal
+@view
+def _admin_fees(admin_fee: uint256) -> uint256:
+    """
+    @notice Calculate the amount of fees obtained from the interest
+    """
+    processed: uint256 = self.processed
+    return unsafe_sub(
+        max(self._get_total_debt() + self.repaid, processed), processed
+    ) * admin_fee // WAD
 
 
 @internal
@@ -1447,7 +1451,7 @@ def _collect_fees(admin_fee: uint256) -> uint256:
     # Difference between to_be_repaid and processed amount is exactly due to interest charged
     if to_be_repaid > processed:
         self.processed = to_be_repaid
-        fees: uint256 = (unsafe_sub(to_be_repaid, processed) * admin_fee // WAD)
+        fees: uint256 = unsafe_sub(to_be_repaid, processed) * admin_fee // WAD
         self.transfer(BORROWED_TOKEN, _to, fees)
         log IController.CollectFees(amount=fees, new_supply=loan.initial_debt)
         return fees

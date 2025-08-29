@@ -1,7 +1,6 @@
 import boa
 import pytest
 from collections import defaultdict
-from ..conftest import approx
 from tests.utils.deployers import DUMMY_LM_CALLBACK_DEPLOYER
 
 
@@ -33,4 +32,4 @@ def test_lm_callback(collateral_token, lm_callback, market_amm, market_controlle
             user_amounts[acc] += cps * us // 10**18
 
     for acc in accounts[:10]:
-        assert approx(user_amounts[acc], market_amm.get_sum_xy(acc)[1], 1e-5)
+        assert user_amounts[acc] == pytest.approx(market_amm.get_sum_xy(acc)[1], rel=1e-5)

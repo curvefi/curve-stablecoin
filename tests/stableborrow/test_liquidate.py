@@ -3,7 +3,6 @@ import boa
 from boa import BoaError
 from hypothesis import given, settings
 from hypothesis import strategies as st
-from ..conftest import approx
 
 
 N = 5
@@ -55,7 +54,7 @@ def controller_for_liquidation(stablecoin, collateral_token, market_controller, 
             market_controller.collect_fees()
             # Check that we earned the same in admin fees as we need to liquidate
             # Calculation is not precise because of dead shares, but the last withdrawal will put dust in admin fees
-            assert approx(stablecoin.balanceOf(fee_receiver), market_controller.tokens_to_liquidate(user), 1e-10)
+            assert stablecoin.balanceOf(fee_receiver) == pytest.approx(market_controller.tokens_to_liquidate(user), rel=1e-10)
 
         # Borrow some more funds to repay for our overchargings with DEAD_SHARES
         with boa.env.prank(user2):
@@ -185,6 +184,6 @@ def test_tokens_to_liquidate(accounts, admin, controller_for_liquidation, market
         balance = stablecoin.balanceOf(fee_receiver)
 
         if frac < 10**18:
-            assert approx(balance, initial_balance - tokens_to_liquidate, 1e5, abs_precision=1e5)
+            assert balance == pytest.approx(initial_balance - tokens_to_liquidate, rel=1e5, abs=1e5)
         else:
             assert balance != initial_balance - tokens_to_liquidate

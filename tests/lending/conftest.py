@@ -1,93 +1,12 @@
 import boa
 import pytest
-from itertools import product
-from tests.utils.deployers import (
-    AMM_DEPLOYER,
-    LL_CONTROLLER_DEPLOYER,
-    VAULT_DEPLOYER,
-    CRYPTO_FROM_POOL_DEPLOYER,
-    SEMILOG_MONETARY_POLICY_DEPLOYER,
-    LENDING_FACTORY_DEPLOYER,
-    ERC20_MOCK_DEPLOYER,
-    FAKE_LEVERAGE_DEPLOYER
-)
+from tests.utils.deployers import FAKE_LEVERAGE_DEPLOYER, ERC20_MOCK_DEPLOYER
 
-
-@pytest.fixture(scope="session")
-def amm_interface():
-    return AMM_DEPLOYER
-
-
-@pytest.fixture(scope="session")
-def amm_impl(amm_interface, admin):
+@pytest.fixture(scope="module", params=[True, False])
+def tokens_for_vault(admin, stablecoin, decimals, request):
+    stablecoin_is_borrowed = request.param
     with boa.env.prank(admin):
-        return amm_interface.deploy_as_blueprint()
-
-
-@pytest.fixture(scope="session")
-def controller_interface():
-    return LL_CONTROLLER_DEPLOYER
-
-
-@pytest.fixture(scope="session")
-def controller_impl(controller_interface, admin):
-    with boa.env.prank(admin):
-        return controller_interface.deploy_as_blueprint()
-
-
-@pytest.fixture(scope="module")
-def stablecoin(get_borrowed_token):
-    return get_borrowed_token(18)
-
-
-@pytest.fixture(scope="session")
-def vault_interface():
-    return VAULT_DEPLOYER
-
-
-@pytest.fixture(scope="session")
-def vault_impl(admin):
-    with boa.env.prank(admin):
-        return VAULT_DEPLOYER.deploy()
-
-
-@pytest.fixture(scope="session")
-def price_oracle_interface():
-    return CRYPTO_FROM_POOL_DEPLOYER
-
-
-@pytest.fixture(scope="session")
-def price_oracle_impl(price_oracle_interface, admin):
-    with boa.env.prank(admin):
-        return price_oracle_interface.deploy_as_blueprint()
-
-
-@pytest.fixture(scope="session")
-def mpolicy_interface():
-    return SEMILOG_MONETARY_POLICY_DEPLOYER
-
-
-@pytest.fixture(scope="session")
-def mpolicy_impl(mpolicy_interface, admin):
-    with boa.env.prank(admin):
-        return mpolicy_interface.deploy_as_blueprint()
-
-
-@pytest.fixture(scope="session")
-def factory_partial():
-    return LENDING_FACTORY_DEPLOYER
-
-
-@pytest.fixture(scope="module")
-def factory(factory_partial, amm_impl, controller_impl, vault_impl, price_oracle_impl, mpolicy_impl, admin):
-    with boa.env.prank(admin):
-        return factory_partial.deploy(amm_impl, controller_impl, vault_impl, price_oracle_impl, mpolicy_impl, admin, admin)
-
-
-@pytest.fixture(scope="module", params=product([2, 6, 8, 18], [True, False]))
-def tokens_for_vault(get_collateral_token, stablecoin, request):
-    decimals, stablecoin_is_borrowed = request.param
-    token = get_collateral_token(decimals)
+        token = ERC20_MOCK_DEPLOYER.deploy(decimals)
     if stablecoin_is_borrowed:
         borrowed_token = stablecoin
         collateral_token = token
@@ -108,42 +27,45 @@ def borrowed_token(tokens_for_vault):
 
 
 @pytest.fixture(scope="module")
-def vault_controller_amm(factory, borrowed_token, collateral_token, price_oracle, admin):
+def lending_market(proto, borrowed_token, collateral_token, price_oracle, admin):
     with boa.env.prank(admin):
-        return factory.create(
-            borrowed_token.address, collateral_token.address,
-            100, int(0.006 * 1e18), int(0.09 * 1e18), int(0.06 * 1e18),
-            price_oracle.address, "Test vault"
+        result = proto.create_lending_market(
+            borrowed_token=borrowed_token,
+            collateral_token=collateral_token,
+            A=100,
+            fee=int(0.006 * 1e18),
+            loan_discount=int(0.09 * 1e18),
+            liquidation_discount=int(0.06 * 1e18),
+            price_oracle=price_oracle,
+            name="Test vault",
+            min_borrow_rate=int(0.005 * 1e18) // (365 * 86400),  # 0.5% APR
+            max_borrow_rate=int(0.5 * 1e18) // (365 * 86400)  # 50% APR
         )
+        return result
 
 
 @pytest.fixture(scope="module")
-def vault(vault_interface, vault_controller_amm):
-    return vault_interface.at(vault_controller_amm[0])
+def vault(lending_market):
+    return lending_market['vault']
 
 
 @pytest.fixture(scope="module")
-def market_controller(controller_interface, vault_controller_amm, admin):
-    controller = controller_interface.at(vault_controller_amm[1])
+def market_controller(lending_market, admin):
+    controller = lending_market['controller']
     with boa.env.prank(admin):
         controller.set_borrow_cap(2**256 - 1)
-
     return controller
 
 
 @pytest.fixture(scope="module")
-def market_amm(amm_interface, vault_controller_amm):
-    return amm_interface.at(vault_controller_amm[2])
+def market_amm(lending_market):
+    return lending_market['amm']
 
 
 @pytest.fixture(scope="module")
-def market_mpolicy(market_controller, mpolicy_interface):
-    return mpolicy_interface.at(market_controller.monetary_policy())
-
-
-@pytest.fixture(scope="session")
-def mock_token_interface():
-    return ERC20_MOCK_DEPLOYER
+def market_mpolicy(market_controller):
+    from tests.utils.deployers import SEMILOG_MONETARY_POLICY_DEPLOYER
+    return SEMILOG_MONETARY_POLICY_DEPLOYER.at(market_controller.monetary_policy())
 
 
 @pytest.fixture(scope="module")

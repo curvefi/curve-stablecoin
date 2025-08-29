@@ -1,7 +1,8 @@
 import boa
-from ..conftest import approx
+import pytest
 from hypothesis import given
 from hypothesis import strategies as st
+from ..utils import mint_for_testing
 
 
 DEAD_SHARES = 10**3
@@ -28,14 +29,14 @@ def test_deposit_withdraw(amm, amounts, accounts, ns, dns, fracs, collateral_tok
                     amm.deposit_range(user, amount, n1, n2)
             else:
                 amm.deposit_range(user, amount, n1, n2)
-                boa.deal(collateral_token, amm.address, amount)
+                mint_for_testing(collateral_token, amm.address, amount)
                 deposits[user] = amount
                 assert collateral_token.balanceOf(user) == 0
 
         for user, n1 in zip(accounts, ns):
             if user in deposits:
                 if n1 >= 0:
-                    assert approx(amm.get_y_up(user), deposits[user], precisions[user], 25)
+                    assert amm.get_y_up(user) == pytest.approx(deposits[user], rel=precisions[user], abs=25)
                 else:
                     assert amm.get_y_up(user) < deposits[user]  # price manipulation caused loss for user
             else:
@@ -46,7 +47,7 @@ def test_deposit_withdraw(amm, amounts, accounts, ns, dns, fracs, collateral_tok
                 before = amm.get_sum_xy(user)
                 amm.withdraw(user, frac)
                 after = amm.get_sum_xy(user)
-                assert approx(before[1] - after[1], deposits[user] * frac / 1e18, precisions[user], 25 + deposits[user] * precisions[user])
+                assert before[1] - after[1] == pytest.approx(deposits[user] * frac / 1e18, rel=precisions[user], abs=25 + deposits[user] * precisions[user])
             else:
                 with boa.reverts("No deposits"):
                     amm.withdraw(user, frac)

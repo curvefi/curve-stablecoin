@@ -12,16 +12,17 @@ import pytest
 
 from hypothesis import given, settings
 from hypothesis import strategies as st
-from tests.utils.deployers import OLD_AMM_DEPLOYER
+from tests.utils.deployers import LENDING_FACTORY_DEPLOYER, OLD_AMM_DEPLOYER, AMM_DEPLOYER, LL_CONTROLLER_DEPLOYER, VAULT_DEPLOYER, ERC20_MOCK_DEPLOYER
 
 
 MAX = 2**256 - 1
 
 
 @pytest.fixture(scope='module')
-def collateral_token(get_collateral_token):
+def collateral_token(admin):
     decimals = 18
-    return get_collateral_token(decimals)
+    with boa.env.prank(admin):
+        return ERC20_MOCK_DEPLOYER.deploy(decimals)
 
 
 @pytest.fixture(scope='module')
@@ -40,9 +41,9 @@ def hacker(accounts):
 
 
 @pytest.fixture(scope="module")
-def factory_new(factory_partial, amm_impl, controller_impl, vault_impl, price_oracle_impl, mpolicy_impl, admin):
+def factory_new(amm_impl, controller_impl, vault_impl, price_oracle_impl, mpolicy_impl, admin):
     with boa.env.prank(admin):
-        return factory_partial.deploy(amm_impl, controller_impl, vault_impl, price_oracle_impl, mpolicy_impl, admin, admin)
+        return LENDING_FACTORY_DEPLOYER.deploy(amm_impl, controller_impl, vault_impl, price_oracle_impl, mpolicy_impl, admin, admin)
 
 
 @pytest.fixture(scope="module")
@@ -51,18 +52,19 @@ def amm_old_interface():
 
 
 @pytest.fixture(scope="module")
-def factory_old(factory_partial, controller_impl, vault_impl, price_oracle_impl, mpolicy_impl, amm_old_interface, admin):
+def factory_old(controller_impl, vault_impl, price_oracle_impl, mpolicy_impl, amm_old_interface, admin):
+    # TODO is this really the old factory? I don't think so
     with boa.env.prank(admin):
         amm_impl = amm_old_interface.deploy_as_blueprint()
-        return factory_partial.deploy(amm_impl, controller_impl, vault_impl, price_oracle_impl, mpolicy_impl, admin, admin)
+        return LENDING_FACTORY_DEPLOYER.deploy(amm_impl, controller_impl, vault_impl, price_oracle_impl, mpolicy_impl, admin, admin)
 
 
 @pytest.fixture(scope='module')
-def vault_new(factory_new, vault_interface, borrowed_token, collateral_token, price_oracle, admin):
+def vault_new(factory_new, borrowed_token, collateral_token, price_oracle, admin):
     with boa.env.prank(admin):
         price_oracle.set_price(int(1e18))
 
-        vault = vault_interface.at(
+        vault = VAULT_DEPLOYER.at(
             factory_new.create(
                 borrowed_token.address, collateral_token.address,
                 100, int(0.002 * 1e18), int(0.09 * 1e18), int(0.06 * 1e18),
@@ -76,11 +78,11 @@ def vault_new(factory_new, vault_interface, borrowed_token, collateral_token, pr
 
 
 @pytest.fixture(scope='module')
-def vault_old(factory_old, vault_interface, borrowed_token, collateral_token, price_oracle, admin):
+def vault_old(factory_old, borrowed_token, collateral_token, price_oracle, admin):
     with boa.env.prank(admin):
         price_oracle.set_price(int(1e18))
 
-        vault = vault_interface.at(
+        vault = VAULT_DEPLOYER.at(
             factory_old.create(
                 borrowed_token.address, collateral_token.address,
                 100, int(0.006 * 1e18), int(0.09 * 1e18), int(0.06 * 1e18),
@@ -94,8 +96,8 @@ def vault_old(factory_old, vault_interface, borrowed_token, collateral_token, pr
 
 
 @pytest.fixture(scope='module')
-def controller_new(vault_new, controller_interface, admin):
-    controller = controller_interface.at(vault_new.controller())
+def controller_new(vault_new, admin):
+    controller = LL_CONTROLLER_DEPLOYER.at(vault_new.controller())
     with boa.env.prank(admin):
         controller.set_borrow_cap(2 ** 256 - 1)
 
@@ -103,13 +105,13 @@ def controller_new(vault_new, controller_interface, admin):
 
 
 @pytest.fixture(scope='module')
-def amm_new(vault_new, amm_interface):
-    return amm_interface.at(vault_new.amm())
+def amm_new(vault_new):
+    return AMM_DEPLOYER.at(vault_new.amm())
 
 
 @pytest.fixture(scope='module')
-def controller_old(vault_old, controller_interface, admin):
-    controller = controller_interface.at(vault_old.controller())
+def controller_old(vault_old, admin):
+    controller = LL_CONTROLLER_DEPLOYER.at(vault_old.controller())
     with boa.env.prank(admin):
         controller.set_borrow_cap(2 ** 256 - 1)
 
@@ -117,8 +119,8 @@ def controller_old(vault_old, controller_interface, admin):
 
 
 @pytest.fixture(scope='module')
-def amm_old(vault_old, amm_old_interface):
-    return amm_old_interface.at(vault_old.amm())
+def amm_old(vault_old):
+    return OLD_AMM_DEPLOYER.at(vault_old.amm())
 
 
 def template_vuln_test(vault, controller, amm, admin, borrowed_token, price_oracle, collateral_token, victim, hacker,

@@ -1,6 +1,6 @@
 import boa
+import pytest
 from eth_abi import encode
-from ..conftest import approx
 
 from hypothesis import given, settings
 from hypothesis import strategies as st
@@ -65,11 +65,11 @@ def test_leverage_property(collateral_token, stablecoin, market_controller, mark
             return
         assert collateral_token.balanceOf(user) == 0
         expected_collateral = int((1 + loan_mul) * amount)
-        assert approx(collateral_token.balanceOf(market_amm.address), expected_collateral, 1e-9, 10)
+        assert collateral_token.balanceOf(market_amm.address) == pytest.approx(expected_collateral, rel=1e-9, abs=10)
         xy = market_amm.get_sum_xy(user)
         assert xy[0] == 0
-        assert approx(xy[1], expected_collateral, 1e-9, 10)
-        assert approx(market_controller.debt(user), debt, 1e-9, 10)
+        assert xy[1] == pytest.approx(expected_collateral, rel=1e-9, abs=10)
+        assert market_controller.debt(user) == pytest.approx(debt, rel=1e-9, abs=10)
         assert stablecoin.balanceOf(user) == 0
 
         more_debt = int(loan_more_mul * amount * 3000)
@@ -81,11 +81,11 @@ def test_leverage_property(collateral_token, stablecoin, market_controller, mark
             if more_debt > 0:
                 assert collateral_token.balanceOf(user) == 0
                 expected_collateral = int((2 + loan_mul + loan_more_mul) * amount)
-                assert approx(collateral_token.balanceOf(market_amm.address), expected_collateral, 1e-9, 10)
+                assert collateral_token.balanceOf(market_amm.address) == pytest.approx(expected_collateral, rel=1e-9, abs=10)
                 xy = market_amm.get_sum_xy(user)
                 assert xy[0] == 0
-                assert approx(xy[1], expected_collateral, 1e-9, 10)
-                assert approx(market_controller.debt(user), debt, 1e-9, 10)
+                assert xy[1] == pytest.approx(expected_collateral, rel=1e-9, abs=10)
+                assert market_controller.debt(user) == pytest.approx(debt, rel=1e-9, abs=10)
                 assert stablecoin.balanceOf(user) == 0
 
         else:

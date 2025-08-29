@@ -7,6 +7,7 @@ from hypothesis import strategies as st
 from hypothesis.stateful import RuleBasedStateMachine, run_state_machine_as_test, rule, invariant
 
 from tests.utils.constants import ZERO_ADDRESS
+from tests.utils.deployers import AMM_DEPLOYER, LL_CONTROLLER_DEPLOYER
 
 # Variables and methods to check
 # * A
@@ -436,12 +437,13 @@ class BigFuzz(RuleBasedStateMachine):
 @pytest.mark.parametrize("_tmp", range(4))  # This splits the test into 8 small chunks which are easier to parallelize
 @pytest.mark.parametrize("collateral_digits", [8, 18])
 def test_big_fuzz(
-        controller_factory, get_market, monetary_policy, get_collateral_token, collateral_digits, stablecoin, price_oracle,
-        accounts, get_fake_leverage, admin, amm_interface, controller_interface, _tmp):
-    collateral_token = get_collateral_token(collateral_digits)
+        controller_factory, get_market, monetary_policy, collateral_digits, stablecoin, price_oracle,
+        accounts, get_fake_leverage, admin, _tmp):
+    from tests.utils.deployers import ERC20_MOCK_DEPLOYER
+    collateral_token = ERC20_MOCK_DEPLOYER.deploy(collateral_digits)
     market = get_market(collateral_token)
-    market_amm = amm_interface.at(market.get_amm(collateral_token.address))
-    market_controller = controller_interface.at(market.get_controller(collateral_token.address))
+    market_amm = AMM_DEPLOYER.at(market.get_amm(collateral_token.address))
+    market_controller = LL_CONTROLLER_DEPLOYER.at(market.get_controller(collateral_token.address))
     fake_leverage = get_fake_leverage(collateral_token, market_controller)
 
     BigFuzz.TestCase.settings = settings(max_examples=50, stateful_step_count=20)
@@ -746,7 +748,7 @@ def test_debt_too_high_2_users(
 
 
 def test_cannot_create_loan(
-        controller_factory, get_market, amm_interface, controller_interface, monetary_policy, stablecoin, price_oracle,
+        controller_factory, get_market, monetary_policy, stablecoin, price_oracle,
         accounts, get_fake_leverage, admin, collateral_token, market_amm, market_controller):
     fake_leverage = get_fake_leverage(collateral_token, market_controller)
     for k, v in locals().items():

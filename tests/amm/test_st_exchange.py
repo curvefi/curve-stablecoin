@@ -5,6 +5,8 @@ from hypothesis import HealthCheck
 from hypothesis import strategies as st
 from hypothesis.stateful import RuleBasedStateMachine, run_state_machine_as_test, rule, invariant, initialize
 from hypothesis import Phase
+from ..utils import mint_for_testing
+from tests.utils.deployers import ERC20_MOCK_DEPLOYER
 
 
 class StatefulExchange(RuleBasedStateMachine):
@@ -14,7 +16,6 @@ class StatefulExchange(RuleBasedStateMachine):
     amount = st.integers(min_value=0, max_value=10**9 * 10**18)
     pump = st.booleans()
     user_id = st.integers(min_value=0, max_value=4)
-    admin_fee = st.integers(min_value=0, max_value=10**18 / 2)
 
     def __init__(self):
         super().__init__()
@@ -30,7 +31,7 @@ class StatefulExchange(RuleBasedStateMachine):
             try:
                 with boa.env.prank(self.admin):
                     self.amm.deposit_range(user, amount, n1, n2)
-                    boa.deal(collateral_token, self.amm.address, amount)
+                    mint_for_testing(self.collateral_token, self.amm.address, amount)
             except Exception as e:
                 if 'Amount too low' in str(e):
                     assert amount // (dn + 1) <= 100
@@ -53,14 +54,9 @@ class StatefulExchange(RuleBasedStateMachine):
             in_token = self.collateral_token
         u_amount = in_token.balanceOf(u)
         if amount > u_amount:
-            boa.deal(in_token, u, amount - u_amount)
+            mint_for_testing(in_token, u, amount - u_amount)
         with boa.env.prank(u):
             self.amm.exchange(i, j, amount, 0)
-
-    @rule(fee=admin_fee)
-    def set_admin_fee(self, fee):
-        with boa.env.prank(self.admin):
-            self.amm.set_admin_fee(fee)
 
     @invariant()
     def amm_solvent(self):
@@ -88,7 +84,7 @@ class StatefulExchange(RuleBasedStateMachine):
         if n < 50:
             _, dy = self.amm.get_dxdy(1, 0, to_swap)
             if dy > 0:
-                boa.deal(collateral_token, u, to_swap)
+                mint_for_testing(self.collateral_token, u, to_swap)
                 with boa.env.prank(u):
                     self.amm.exchange(1, 0, to_swap, 0)
                 left_in_amm = sum(self.amm.bands_y(n) for n in range(42))
@@ -97,15 +93,15 @@ class StatefulExchange(RuleBasedStateMachine):
 
 @pytest.mark.parametrize("borrowed_digits", [6, 8, 18])
 @pytest.mark.parametrize("collateral_digits", [6, 8, 18])
-def test_exchange(admin, accounts, get_amm, get_collateral_token, get_borrowed_token,
+def test_exchange(admin, accounts, get_amm,
                   borrowed_digits, collateral_digits):
     StatefulExchange.TestCase.settings = settings(max_examples=20, stateful_step_count=10,
                                                   phases=(Phase.explicit, Phase.reuse, Phase.generate, Phase.target),
                                                   suppress_health_check=[HealthCheck.data_too_large])
     accounts = accounts[:5]
 
-    borrowed_token = get_borrowed_token(borrowed_digits)
-    collateral_token = get_collateral_token(collateral_digits)
+    borrowed_token = ERC20_MOCK_DEPLOYER.deploy(borrowed_digits)
+    collateral_token = ERC20_MOCK_DEPLOYER.deploy(collateral_digits)
     amm = get_amm(collateral_token, borrowed_token)
 
     for k, v in locals().items():
@@ -113,14 +109,14 @@ def test_exchange(admin, accounts, get_amm, get_collateral_token, get_borrowed_t
     run_state_machine_as_test(StatefulExchange)
 
 
-def test_raise_at_dy_back(admin, accounts, get_amm, get_collateral_token, get_borrowed_token):
+def test_raise_at_dy_back(admin, accounts, get_amm):
     accounts = accounts[:5]
 
     borrowed_digits = 18
     collateral_digits = 18
 
-    borrowed_token = get_borrowed_token(borrowed_digits)
-    collateral_token = get_collateral_token(collateral_digits)
+    borrowed_token = ERC20_MOCK_DEPLOYER.deploy(borrowed_digits)
+    collateral_token = ERC20_MOCK_DEPLOYER.deploy(collateral_digits)
     amm = get_amm(collateral_token, borrowed_token)
 
     for k, v in locals().items():
@@ -138,14 +134,14 @@ def test_raise_at_dy_back(admin, accounts, get_amm, get_collateral_token, get_bo
     state.teardown()
 
 
-def test_raise_rounding(admin, accounts, get_amm, get_collateral_token, get_borrowed_token):
+def test_raise_rounding(admin, accounts, get_amm):
     accounts = accounts[:5]
 
     borrowed_digits = 16
     collateral_digits = 18
 
-    borrowed_token = get_borrowed_token(borrowed_digits)
-    collateral_token = get_collateral_token(collateral_digits)
+    borrowed_token = ERC20_MOCK_DEPLOYER.deploy(borrowed_digits)
+    collateral_token = ERC20_MOCK_DEPLOYER.deploy(collateral_digits)
     amm = get_amm(collateral_token, borrowed_token)
 
     for k, v in locals().items():
@@ -157,14 +153,14 @@ def test_raise_rounding(admin, accounts, get_amm, get_collateral_token, get_borr
     state.teardown()
 
 
-def test_raise_rounding_2(admin, accounts, get_amm, get_collateral_token, get_borrowed_token):
+def test_raise_rounding_2(admin, accounts, get_amm):
     accounts = accounts[:5]
 
     borrowed_digits = 18
     collateral_digits = 18
 
-    borrowed_token = get_borrowed_token(borrowed_digits)
-    collateral_token = get_collateral_token(collateral_digits)
+    borrowed_token = ERC20_MOCK_DEPLOYER.deploy(borrowed_digits)
+    collateral_token = ERC20_MOCK_DEPLOYER.deploy(collateral_digits)
     amm = get_amm(collateral_token, borrowed_token)
 
     for k, v in locals().items():
@@ -182,14 +178,14 @@ def test_raise_rounding_2(admin, accounts, get_amm, get_collateral_token, get_bo
     state.teardown()
 
 
-def test_raise_rounding_3(admin, accounts, get_amm, get_collateral_token, get_borrowed_token):
+def test_raise_rounding_3(admin, accounts, get_amm):
     accounts = accounts[:5]
 
     borrowed_digits = 17
     collateral_digits = 18
 
-    borrowed_token = get_borrowed_token(borrowed_digits)
-    collateral_token = get_collateral_token(collateral_digits)
+    borrowed_token = ERC20_MOCK_DEPLOYER.deploy(borrowed_digits)
+    collateral_token = ERC20_MOCK_DEPLOYER.deploy(collateral_digits)
     amm = get_amm(collateral_token, borrowed_token)
 
     for k, v in locals().items():

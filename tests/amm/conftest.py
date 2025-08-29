@@ -1,14 +1,14 @@
 import boa
 import pytest
 from math import sqrt, log
-from tests.utils.deployers import AMM_DEPLOYER
+from tests.utils.deployers import AMM_DEPLOYER, ERC20_MOCK_DEPLOYER
 
 PRICE = 3000
 
 
 @pytest.fixture(scope="session")
-def borrowed_token(get_borrowed_token):
-    return get_borrowed_token(6)
+def borrowed_token():
+    return ERC20_MOCK_DEPLOYER.deploy(6)
 
 
 @pytest.fixture(scope="session")

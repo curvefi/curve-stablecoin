@@ -41,25 +41,15 @@ def controller_prefactory(controller_factory_impl, stablecoin, weth, admin, acco
 
 
 @pytest.fixture(scope="session")
-def controller_interface():
-    return FLASH_LENDER_DEPLOYER
-
-
-@pytest.fixture(scope="session")
-def controller_impl(controller_interface, admin):
+def controller_impl(admin):
     with boa.env.prank(admin):
-        return controller_interface.deploy_as_blueprint()
+        return FLASH_LENDER_DEPLOYER.deploy_as_blueprint()
 
 
 @pytest.fixture(scope="session")
-def amm_interface():
-    return AMM_DEPLOYER
-
-
-@pytest.fixture(scope="session")
-def amm_impl(amm_interface, admin):
+def amm_impl(admin):
     with boa.env.prank(admin):
-        return amm_interface.deploy_as_blueprint()
+        return AMM_DEPLOYER.deploy_as_blueprint()
 
 
 @pytest.fixture(scope="session")

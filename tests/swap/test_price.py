@@ -1,8 +1,8 @@
 import boa
+import pytest
 from hypothesis import given, settings
 from hypothesis import strategies as st
 from math import exp
-from ..conftest import approx
 
 
 @given(
@@ -20,7 +20,7 @@ def test_price(swap_w_d, redeemable_coin, volatile_coin, accounts, amount, ix):
         dy = swap_w_d.get_dy(0, 1, 10**6)
         p1 = 10**18 / dy
         p2 = swap_w_d.get_p() / 1e18
-        assert approx(p1, p2, 0.04e-2 * 1.2)
+        assert p1 == pytest.approx(p2, rel=0.04e-2 * 1.2)
 
 
 @given(
@@ -39,9 +39,9 @@ def test_ema(swap_w_d, redeemable_coin, volatile_coin, accounts, amount, ix, dt0
         swap_w_d.exchange(ix, 1-ix, amount, 0)
         # Time didn't pass yet
         p = swap_w_d.get_p()
-        assert approx(swap_w_d.last_price(), p, 1e-5)
-        assert approx(swap_w_d.price_oracle(), 10**18, 1e-5)
+        assert swap_w_d.last_price() == pytest.approx(p, rel=1e-5)
+        assert swap_w_d.price_oracle() == pytest.approx(10**18, rel=1e-5)
         boa.env.time_travel(dt)
         w = exp(-dt / 866)
         p1 = int(10**18 * w + p * (1 - w))
-        assert approx(swap_w_d.price_oracle(), p1, 1e-5)
+        assert swap_w_d.price_oracle() == pytest.approx(p1, rel=1e-5)
