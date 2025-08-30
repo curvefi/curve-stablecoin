@@ -125,7 +125,7 @@ def users_to_liquidate(_controller: address, _from: uint256 = 0, _limit: uint256
 
 
 @external
-def repay_from_position(_controller: address, _user: address, _min_x: uint256):
+def liquidate_partial(_controller: address, _user: address, _min_x: uint256):
     """
     @notice Trigger partial self-liquidation of `user` using FRAC.
             Caller supplies borrowed tokens; receives withdrawn collateral.

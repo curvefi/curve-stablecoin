@@ -84,7 +84,7 @@ def test_users_to_liquidate(
         assert users_to_liquidate[0][0] == user
 
 
-def test_repay_from_position(
+def test_liquidate_partial(
     borrowed_token,
     collateral_token,
     controller_for_liquidation,
@@ -105,7 +105,7 @@ def test_repay_from_position(
     boa.deal(borrowed_token, liquidator, 10**21)
     with boa.env.prank(liquidator):
         borrowed_token.approve(partial_repay_zap.address, 2**256 - 1)
-        partial_repay_zap.repay_from_position(controller.address, user, 0)
+        partial_repay_zap.liquidate_partial(controller.address, user, 0)
 
     h = controller.health(user) / 10**16
     assert h > 1
