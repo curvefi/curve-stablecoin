@@ -28,7 +28,7 @@ def controller_for_liquidation(
 
         debt = filled_controller.max_borrowable(collateral_amount, N)
         with boa.env.prank(user):
-            collateral_token._mint_for_testing(user, collateral_amount)
+            boa.deal(collateral_token, user, collateral_amount)
             borrowed_token.approve(market_amm, 2**256 - 1)
             borrowed_token.approve(filled_controller, 2**256 - 1)
             collateral_token.approve(filled_controller, 2**256 - 1)
