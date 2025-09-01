@@ -86,14 +86,14 @@ def users_to_liquidate(_controller: address, _from: uint256 = 0, _limit: uint256
             to_repay: uint256 = staticcall CONTROLLER.tokens_to_liquidate(user, FRAC)
             total_debt: uint256 = staticcall CONTROLLER.debt(user)
             x_down: uint256 = staticcall AMM.get_x_down(user)
-            ratio: uint256 = unsafe_div(unsafe_mul(x_down, 10 ** 18), total_debt)
+            ratio: uint256 = unsafe_div(unsafe_mul(x_down, WAD), total_debt)
             out.append(IZap.Position(
                 user=user,
                 x=xy[0],
                 y=xy[1],
                 health=h,
                 dx=unsafe_div(xy[1] * ctrl._get_f_remove(FRAC, 0), WAD),
-                dy=unsafe_div(unsafe_mul(to_repay, ratio), 10 ** 18),
+                dy=unsafe_div(unsafe_mul(to_repay, ratio), WAD),
             ))
         ix += 1
     return out
