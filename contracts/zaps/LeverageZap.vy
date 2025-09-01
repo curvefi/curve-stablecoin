@@ -268,12 +268,14 @@ def max_borrowable(controller: address, _user_collateral: uint256, _leverage_col
 
 @internal
 def _transferFrom(token: address, _from: address, _to: address, amount: uint256):
+    # TODO: use contracts.lib.token_lib.transferFrom 
     if amount > 0:
         assert ERC20(token).transferFrom(_from, _to, amount, default_return_value=True)
 
 
 @internal
 def _approve(coin: address, spender: address):
+    # TODO: use contracts.lib.token_lib.max_approve 
     if ERC20(coin).allowance(self, spender) == 0:
         assert ERC20(coin).approve(spender, max_value(uint256), default_return_value=True)
 
