@@ -193,6 +193,7 @@ def _set_view(view_impl: address):
     @notice Set the view implementation
     @param view New view implementation
     """
+    assert view_impl != empty(address) # dev: view implementation is empty address
     self.view_impl = view_impl
     view: address = create_from_blueprint(
         view_impl,
