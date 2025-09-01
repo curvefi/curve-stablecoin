@@ -6,11 +6,6 @@ from tests.utils.deployers import AMM_DEPLOYER, ERC20_MOCK_DEPLOYER
 PRICE = 3000
 
 
-@pytest.fixture(scope="session")
-def borrowed_token():
-    return ERC20_MOCK_DEPLOYER.deploy(6)
-
-
 @pytest.fixture(scope="module")
 def get_amm(price_oracle, admin, accounts):
     def f(collateral_token, borrowed_token):

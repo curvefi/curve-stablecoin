@@ -99,3 +99,9 @@ def token_mock():
 @pytest.fixture(scope="module")
 def collateral_token():
     return ERC20_MOCK_DEPLOYER.deploy(18)
+
+
+@pytest.fixture(scope="module")
+def borrowed_token(decimals):
+    """Parametrized borrowed token using the global `decimals` list."""
+    return ERC20_MOCK_DEPLOYER.deploy(decimals)
