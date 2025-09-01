@@ -11,7 +11,7 @@ def borrowed_token():
     return ERC20_MOCK_DEPLOYER.deploy(6)
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="module")
 def get_amm(price_oracle, admin, accounts):
     def f(collateral_token, borrowed_token):
         with boa.env.prank(admin):
@@ -30,6 +30,6 @@ def get_amm(price_oracle, admin, accounts):
     return f
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="module")
 def amm(collateral_token, borrowed_token, get_amm):
     return get_amm(collateral_token, borrowed_token)
