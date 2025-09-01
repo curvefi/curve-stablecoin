@@ -136,7 +136,7 @@ def liquidate_partial(_controller: address, _user: address, _min_x: uint256):
 
     # surplus amount goes into position repay
     borrowed_amount: uint256 = staticcall BORROWED.balanceOf(self)
-    extcall CONTROLLER.repay(borrowed_amount, _user, max_value(int256), empty(address), b"")
+    extcall CONTROLLER.repay(borrowed_amount, _user)
 
     log IZap.PartialRepay(
         controller=_controller,
