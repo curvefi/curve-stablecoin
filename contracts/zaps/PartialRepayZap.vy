@@ -1,6 +1,5 @@
 # pragma version 0.4.3
 # pragma nonreentrancy on
-# pragma optimize codesize
 
 """
 @title LlamaLendPartialRepayZap
