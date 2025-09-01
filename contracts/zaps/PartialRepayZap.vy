@@ -37,22 +37,7 @@ def __init__(
     HEALTH_THRESHOLD = _health_threshold
 
 
-@internal
-def _approve(token: IERC20, spender: address):
-    if staticcall token.allowance(self, spender) == 0:
-        assert extcall token.approve(spender, max_value(uint256), default_return_value=True)
-
-
-@internal
-def _transferFrom(token: IERC20, _from: address, _to: address, amount: uint256):
-    if amount > 0:
-        assert extcall token.transferFrom(_from, _to, amount, default_return_value=True)
-
-
-@internal
-def _transfer(token: IERC20, _to: address, amount: uint256):
-    if amount > 0:
-        assert extcall token.transfer(_to, amount, default_return_value=True)
+import contracts.lib.token_lib as tkn
 
 
 @internal
@@ -130,7 +115,7 @@ def liquidate_partial(_controller: address, _user: address, _min_x: uint256):
     assert staticcall CONTROLLER.approval(_user, self), "not approved"
     assert staticcall CONTROLLER.health(_user, False) < HEALTH_THRESHOLD, "health too high"
 
-    self._approve(BORROWED, _controller)
+    tkn.max_approve(BORROWED, _controller)
 
     total_debt: uint256 = staticcall CONTROLLER.debt(_user)
     x_down: uint256 = staticcall AMM.get_x_down(_user)
@@ -142,11 +127,11 @@ def liquidate_partial(_controller: address, _user: address, _min_x: uint256):
     to_repay: uint256 = staticcall CONTROLLER.tokens_to_liquidate(_user, FRAC)
     borrowed_from_sender: uint256 = unsafe_div(unsafe_mul(to_repay, ratio), 10 ** 18)
 
-    self._transferFrom(BORROWED, msg.sender, self, borrowed_from_sender)
+    tkn.transferFrom(BORROWED, msg.sender, self, borrowed_from_sender)
 
     extcall CONTROLLER.liquidate(_user, _min_x, FRAC, empty(address), b"")
     collateral_received: uint256 = staticcall COLLATERAL.balanceOf(self)
-    self._transfer(COLLATERAL, msg.sender, collateral_received)
+    tkn.transfer(COLLATERAL, msg.sender, collateral_received)
 
     # surplus amount goes into position repay
     borrowed_amount: uint256 = staticcall BORROWED.balanceOf(self)
