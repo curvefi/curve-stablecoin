@@ -13,7 +13,7 @@ def user(accounts):
     return accounts[0]
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="module")
 def get_price_oracle(admin):
     def f(price):
         with boa.env.prank(admin):
@@ -23,7 +23,7 @@ def get_price_oracle(admin):
     return f
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="module")
 def broken_price_oracle(admin):
     with boa.env.prank(admin):
         oracle = WETH_DEPLOYER.deploy()

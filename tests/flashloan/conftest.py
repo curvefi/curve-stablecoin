@@ -8,7 +8,6 @@ from tests.utils.deployers import (
 
 @pytest.fixture(scope="module")
 def controller_factory(proto):
-    """Return the preconfigured mint factory from Protocol."""
     return proto.mint_factory
 
 
