@@ -570,6 +570,7 @@ def calculate_debt_n1(
 
 @internal
 def transferFrom(token: IERC20, _from: address, _to: address, amount: uint256):
+    # TODO: use contracts.lib.token_lib.transferFrom 
     if amount > 0:
         assert extcall token.transferFrom(
             _from, _to, amount, default_return_value=True
@@ -578,6 +579,7 @@ def transferFrom(token: IERC20, _from: address, _to: address, amount: uint256):
 
 @internal
 def transfer(token: IERC20, _to: address, amount: uint256):
+    # TODO: use contracts.lib.token_lib.transfer
     if amount > 0:
         assert extcall token.transfer(_to, amount, default_return_value=True)
 
@@ -1349,7 +1351,7 @@ def user_state(user: address) -> uint256[4]:
 def set_amm_fee(fee: uint256):
     """
     @notice Set the AMM fee (factory admin only)
-    @dev Reentrant because AMM is nonreentrant TODO check this one
+    @dev Reentrant because AMM is nonreentrant 
     @param fee The fee which should be no higher than MAX_AMM_FEE
     """
     self._check_admin()
