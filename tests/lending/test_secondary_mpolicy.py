@@ -36,11 +36,6 @@ def amm():
 
 
 @pytest.fixture(scope="module")
-def borrowed_token():
-    return ERC20_MOCK_DEPLOYER.deploy(18)
-
-
-@pytest.fixture(scope="module")
 def mp(factory, amm, borrowed_token):
     return SECONDARY_MONETARY_POLICY_DEPLOYER.deploy(factory, amm, borrowed_token,
                     int(0.85 * 1e18), int(0.5 * 1e18), int(3 * 1e18), 0)

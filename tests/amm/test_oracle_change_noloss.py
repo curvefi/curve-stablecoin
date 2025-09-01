@@ -9,11 +9,6 @@ from tests.utils.deployers import ERC20_MOCK_DEPLOYER
 
 
 @pytest.fixture(scope="module")
-def borrowed_token():
-    return ERC20_MOCK_DEPLOYER.deploy(18)
-
-
-@pytest.fixture(scope="module")
 def amm(collateral_token, borrowed_token, get_amm):
     return get_amm(collateral_token, borrowed_token)
 

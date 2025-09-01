@@ -12,11 +12,6 @@ Test that get_x_down and get_y_up don't change:
 
 
 @pytest.fixture(scope="module")
-def borrowed_token():
-    return ERC20_MOCK_DEPLOYER.deploy(18)
-
-
-@pytest.fixture(scope="module")
 def amm(get_amm, borrowed_token, collateral_token):
     return get_amm(collateral_token, borrowed_token)
 

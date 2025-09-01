@@ -7,8 +7,9 @@ from tests.utils.deployers import ERC20_MOCK_DEPLOYER
 
 
 @pytest.fixture(scope="module")
-def borrowed_token():
-    return ERC20_MOCK_DEPLOYER.deploy(18)
+def decimals():
+    """Override global decimals to fix borrowed_token at 18 for this module."""
+    return 18
 
 
 @pytest.fixture(scope="module")
