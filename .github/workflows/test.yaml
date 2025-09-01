@@ -18,6 +18,7 @@ jobs:
           - "tests/controller"
           - "tests/amm"
           - "tests/price_oracles"
+          - "tests/zaps"
           # - "tests/lending"
           # - "tests/stableborrow"
           # - "tests/swap"
