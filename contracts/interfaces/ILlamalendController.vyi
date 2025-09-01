@@ -7,6 +7,8 @@ from contracts.interfaces import IMonetaryPolicy
 from contracts.interfaces import IFactory
 from contracts.interfaces import IMintController
 
+# TODO only keep diff
+
 # Events
 
 event Repay:
@@ -134,7 +136,13 @@ def set_amm_fee(fee: uint256):
 
 
 @external
-def repay(_d_debt: uint256, _for: address, max_active_band: int256, callbacker: address, calldata: Bytes[10000]):
+def repay(
+    _d_debt: uint256,
+    _for: address = msg.sender,
+    max_active_band: int256 = max_value(int256),
+    callbacker: address = empty(address),
+    calldata: Bytes[10000] = b"",
+):
     ...
 
 
