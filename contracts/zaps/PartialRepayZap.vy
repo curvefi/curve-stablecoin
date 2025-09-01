@@ -36,7 +36,7 @@ event PartialRepay:
     user: address
     collateral_decrease: uint256
     borrowed_from_sender: uint256
-    sulprus_repayed: uint256
+    surplus_repaid: uint256
 
 
 @deploy
@@ -159,7 +159,7 @@ def liquidate_partial(_controller: address, _user: address, _min_x: uint256):
     collateral_received: uint256 = staticcall COLLATERAL.balanceOf(self)
     self._transfer(COLLATERAL, msg.sender, collateral_received)
 
-    # sulprus amount goes into position repay
+    # surplus amount goes into position repay
     borrowed_amount: uint256 = staticcall BORROWED.balanceOf(self)
     extcall CONTROLLER.repay(borrowed_amount, _user, max_value(int256), empty(address), b"")
 
@@ -168,5 +168,5 @@ def liquidate_partial(_controller: address, _user: address, _min_x: uint256):
         user=_user,
         collateral_decrease=collateral_received,
         borrowed_from_sender=borrowed_from_sender,
-        sulprus_repayed=borrowed_amount,
+        surplus_repaid=borrowed_amount,
     )
