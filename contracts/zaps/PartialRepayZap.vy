@@ -12,6 +12,7 @@
 from ethereum.ercs import IERC20
 from contracts.interfaces import IAMM
 from contracts.interfaces import ILlamalendController as IController
+from contracts import Controller as ctrl
 from contracts.interfaces import IPartialRepayZap as IZap
 
 from contracts import constants as c
@@ -91,8 +92,8 @@ def users_to_liquidate(_controller: address, _from: uint256 = 0, _limit: uint256
                 x=xy[0],
                 y=xy[1],
                 health=h,
-                dx=unsafe_div(unsafe_mul(to_repay, ratio), 10 ** 18),
-                dy=unsafe_div(xy[1] * self._get_f_remove(FRAC, 0), WAD),
+                dx=unsafe_div(xy[1] * ctrl._get_f_remove(FRAC, 0), WAD),
+                dy=unsafe_div(unsafe_mul(to_repay, ratio), 10 ** 18),
             ))
         ix += 1
     return out
