@@ -120,13 +120,13 @@ def liquidate_partial(_controller: address, _user: address, _min_x: uint256):
 
     total_debt: uint256 = staticcall CONTROLLER.debt(_user)
     x_down: uint256 = staticcall AMM.get_x_down(_user)
-    ratio: uint256 = unsafe_div(unsafe_mul(x_down, 10 ** 18), total_debt)
+    ratio: uint256 = unsafe_div(unsafe_mul(x_down, WAD), total_debt)
 
-    assert ratio > 10 ** 18, "position rekt"
+    assert ratio > WAD, "position rekt"
 
     # Amount of borrowed token the liquidator must supply
     to_repay: uint256 = staticcall CONTROLLER.tokens_to_liquidate(_user, FRAC)
-    borrowed_from_sender: uint256 = unsafe_div(unsafe_mul(to_repay, ratio), 10 ** 18)
+    borrowed_from_sender: uint256 = unsafe_div(unsafe_mul(to_repay, ratio), WAD)
 
     tkn.transferFrom(BORROWED, msg.sender, self, borrowed_from_sender)
 
