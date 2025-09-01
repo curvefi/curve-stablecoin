@@ -1,5 +1,8 @@
 # pragma version 0.4.3
 
+from ethereum.ercs import IERC20
+implements: IERC20
+
 from snekmate.tokens import erc20
 from snekmate.auth import ownable
 

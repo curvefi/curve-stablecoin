@@ -59,6 +59,7 @@ FLASH_LENDER_DEPLOYER = boa.load_partial(FLASHLOAN_CONTRACT_PATH + "FlashLender.
 
 # Monetary policies - all have no pragma
 CONSTANT_MONETARY_POLICY_DEPLOYER = boa.load_partial(TESTING_CONTRACT_PATH + "ConstantMonetaryPolicy.vy", compiler_args=compiler_args_default)
+CONSTANT_MONETARY_POLICY_LENDING_DEPLOYER = boa.load_partial(TESTING_CONTRACT_PATH + "ConstantMonetaryPolicyLending.vy", compiler_args=compiler_args_default)
 SEMILOG_MONETARY_POLICY_DEPLOYER = boa.load_partial(MPOLICIES_CONTRACT_PATH + "SemilogMonetaryPolicy.vy", compiler_args=compiler_args_default)
 SECONDARY_MONETARY_POLICY_DEPLOYER = boa.load_partial(MPOLICIES_CONTRACT_PATH + "SecondaryMonetaryPolicy.vy", compiler_args=compiler_args_default)
 AGG_MONETARY_POLICY2_DEPLOYER = boa.load_partial(MPOLICIES_CONTRACT_PATH + "AggMonetaryPolicy2.vy", compiler_args=compiler_args_default)

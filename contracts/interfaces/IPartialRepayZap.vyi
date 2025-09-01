@@ -1,0 +1,42 @@
+from contracts.interfaces import ILlamalendController as IController
+
+
+event PartialRepay:
+    controller: address
+    user: address
+    collateral_decrease: uint256
+    borrowed_from_sender: uint256
+    surplus_repaid: uint256
+
+
+struct Position:
+    user: address
+    x: uint256
+    y: uint256
+    health: int256
+    dx: uint256  # estimated collateral out for FRAC
+    dy: uint256  # borrowed needed from sender for FRAC
+
+
+@view
+@external
+def users_to_liquidate(_controller: address, _from: uint256, _limit: uint256) -> DynArray[Position, 1000]:
+    ...
+
+
+@external
+def liquidate_partial(_controller: address, _user: address, _min_x: uint256):
+    ...
+
+
+@view
+@external
+def FRAC() -> uint256:
+    ...
+
+
+@view
+@external
+def HEALTH_THRESHOLD() -> int256:
+    ...
+

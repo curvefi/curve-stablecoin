@@ -193,7 +193,8 @@ class Protocol:
         price_oracle: VyperContract,
         name: str,
         min_borrow_rate: int,
-        max_borrow_rate: int
+        max_borrow_rate: int,
+        mpolicy_deployer: VyperDeployer | None = None,
     ) -> Dict[str, VyperContract]:
         """
         Create a new lending market in the Lending Factory.
@@ -226,10 +227,25 @@ class Protocol:
             max_borrow_rate
         )
         
+        vault = VAULT_DEPLOYER.at(result[0])
+        controller = LL_CONTROLLER_DEPLOYER.at(result[1])
+        amm = AMM_DEPLOYER.at(result[2])
+
+        # Optionally override the market's monetary policy after creation.
+        # By default, factory uses self.blueprints.mpolicy (Semilog policy).
+        if mpolicy_deployer is not None:
+            with boa.env.prank(self.admin):
+                custom_mp = mpolicy_deployer.deploy(
+                    borrowed_token.address,
+                    min_borrow_rate,
+                    max_borrow_rate,
+                )
+                controller.set_monetary_policy(custom_mp)
+
         return {
-            'vault': VAULT_DEPLOYER.at(result[0]),
-            'controller': LL_CONTROLLER_DEPLOYER.at(result[1]),
-            'amm': AMM_DEPLOYER.at(result[2])
+            'vault': vault,
+            'controller': controller,
+            'amm': amm,
         }
     
 
