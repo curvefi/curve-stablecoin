@@ -13,7 +13,9 @@ from ethereum.ercs import IERC20
 from contracts.interfaces import IAMM
 from contracts.interfaces import IMintController as IController
 from contracts import Controller as ctrl
+import contracts.lib.token_lib as tkn
 from contracts.interfaces import IPartialRepayZap as IZap
+import contracts.lib.liquidation_lib as liq
 
 from contracts import constants as c
 
@@ -26,9 +28,6 @@ FRAC: public(immutable(uint256))                         # fraction of position 
 HEALTH_THRESHOLD: public(immutable(int256))              # trigger threshold on controller.health(user, false)
 
 
- 
-
-
 @deploy
 def __init__(
         _frac: uint256,                       # e.g. 5e16 == 5%
@@ -36,27 +35,6 @@ def __init__(
     ):
     FRAC = _frac
     HEALTH_THRESHOLD = _health_threshold
-
-
-import contracts.lib.token_lib as tkn
-
-
-@internal
-@pure
-def _get_f_remove(frac: uint256, health_limit: uint256) -> uint256:
-    # f_remove = ((1 + h / 2) / (1 + h) * (1 - frac) + frac) * frac
-    f_remove: uint256 = WAD
-    if frac < WAD:
-        f_remove = unsafe_div(
-            unsafe_mul(
-                unsafe_add(WAD, unsafe_div(health_limit, 2)),
-                unsafe_sub(WAD, frac),
-            ),
-            unsafe_add(WAD, health_limit),
-        )
-        f_remove = unsafe_div(unsafe_mul(unsafe_add(f_remove, frac), frac), WAD)
-
-    return f_remove
 
 
 @external
@@ -72,30 +50,28 @@ def users_to_liquidate(_controller: address, _from: uint256 = 0, _limit: uint256
     CONTROLLER: IController = IController(_controller)
     AMM: IAMM = staticcall CONTROLLER.amm()
 
-    n_loans: uint256 = staticcall CONTROLLER.n_loans()
-    limit: uint256 = _limit if _limit != 0 else n_loans
-    ix: uint256 = _from
+    base_positions: DynArray[IController.Position, 1000] = liq.users_with_health(
+        CONTROLLER, _from, _limit, HEALTH_THRESHOLD, True, self, False
+    )
     out: DynArray[IZap.Position, 1000] = []
-    for i: uint256 in range(10**6):
-        if ix >= n_loans or i == limit:
+    for i: uint256 in range(1000):
+        if i == len(base_positions):
             break
-        user: address = staticcall CONTROLLER.loans(ix)
-        h: int256 = staticcall CONTROLLER.health(user, False)
-        if staticcall CONTROLLER.approval(user, self) and h < HEALTH_THRESHOLD:
-            xy: uint256[2] = staticcall AMM.get_sum_xy(user)
-            to_repay: uint256 = staticcall CONTROLLER.tokens_to_liquidate(user, FRAC)
-            total_debt: uint256 = staticcall CONTROLLER.debt(user)
-            x_down: uint256 = staticcall AMM.get_x_down(user)
-            ratio: uint256 = unsafe_div(unsafe_mul(x_down, WAD), total_debt)
-            out.append(IZap.Position(
-                user=user,
-                x=xy[0],
-                y=xy[1],
-                health=h,
-                dx=unsafe_div(xy[1] * ctrl._get_f_remove(FRAC, 0), WAD),
+        pos: IController.Position = base_positions[i]
+        # Compute zap-specific estimates
+        to_repay: uint256 = staticcall CONTROLLER.tokens_to_liquidate(pos.user, FRAC)
+        x_down: uint256 = staticcall AMM.get_x_down(pos.user)
+        ratio: uint256 = unsafe_div(unsafe_mul(x_down, WAD), pos.debt)
+        out.append(
+            IZap.Position(
+                user=pos.user,
+                x=pos.x,
+                y=pos.y,
+                health=pos.health,
+                dx=unsafe_div(pos.y * ctrl._get_f_remove(FRAC, 0), WAD),
                 dy=unsafe_div(unsafe_mul(to_repay, ratio), WAD),
-            ))
-        ix += 1
+            )
+        )
     return out
 
 
