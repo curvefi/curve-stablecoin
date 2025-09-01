@@ -15,6 +15,7 @@ from contracts.interfaces import ILlamalendController as IController
 
 from contracts import constants as c
 
+# https://github.com/vyperlang/vyper/issues/4723
 WAD: constant(uint256) = c.WAD
 
 FRAC: public(immutable(uint256))                         # fraction of position to repay (1e18 = 100%)
