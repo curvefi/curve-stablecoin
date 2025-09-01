@@ -16,6 +16,7 @@ from ethereum.ercs import IERC20
 from ethereum.ercs import IERC20Detailed
 
 from contracts import Controller as core
+import contracts.lib.liquidation_lib as liq
 from contracts import constants as c
 from snekmate.utils import math
 
@@ -211,27 +212,7 @@ def users_to_liquidate(
     """
     @notice Natspec for this function is available in its controller contract
     """
-    n_loans: uint256 = self._n_loans()
-    limit: uint256 = _limit
-    if _limit == 0:
-        limit = n_loans
-    ix: uint256 = _from
-    out: DynArray[IController.Position, 1000] = []
-    for i: uint256 in range(10**6):
-        if ix >= n_loans or i == limit:
-            break
-        user: address = self._loans(ix)
-        debt: uint256 = self._debt(user)
-        health: int256 = self._health(user, True)
-        if health < 0:
-            xy: uint256[2] = staticcall AMM.get_sum_xy(user)
-            out.append(
-                IController.Position(
-                    user=user, x=xy[0], y=xy[1], debt=debt, health=health
-                )
-            )
-        ix += 1
-    return out
+    return liq.users_with_health(IController(self), _from, _limit, 0, False, empty(address), True)
 
 
 @view
