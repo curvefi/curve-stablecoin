@@ -12,8 +12,11 @@
 from ethereum.ercs import IERC20
 from contracts.interfaces import IAMM
 from contracts.interfaces import ILlamalendController as IController
+from contracts.interfaces import IPartialRepayZap as IZap
 
 from contracts import constants as c
+
+implements: IZap
 
 # https://github.com/vyperlang/vyper/issues/4723
 WAD: constant(uint256) = c.WAD
@@ -22,21 +25,7 @@ FRAC: public(immutable(uint256))                         # fraction of position 
 HEALTH_THRESHOLD: public(immutable(int256))              # trigger threshold on controller.health(user, false)
 
 
-struct Position:
-    user: address
-    x: uint256
-    y: uint256
-    health: int256
-    dx: uint256  # collateral estimated to be withdrawn for FRAC
-    dy: uint256  # borrowed needed for FRAC
-
-
-event PartialRepay:
-    controller: address
-    user: address
-    collateral_decrease: uint256
-    borrowed_from_sender: uint256
-    surplus_repaid: uint256
+ 
 
 
 @deploy
@@ -86,7 +75,7 @@ def _get_f_remove(frac: uint256, health_limit: uint256) -> uint256:
 
 @external
 @view
-def users_to_liquidate(_controller: address, _from: uint256 = 0, _limit: uint256 = 0) -> DynArray[Position, 1000]:
+def users_to_liquidate(_controller: address, _from: uint256 = 0, _limit: uint256 = 0) -> DynArray[IZap.Position, 1000]:
     """
     @notice Returns users eligible for partial self-liquidation through this zap.
     @param _controller Address of the controller
@@ -100,7 +89,7 @@ def users_to_liquidate(_controller: address, _from: uint256 = 0, _limit: uint256
     n_loans: uint256 = staticcall CONTROLLER.n_loans()
     limit: uint256 = _limit if _limit != 0 else n_loans
     ix: uint256 = _from
-    out: DynArray[Position, 1000] = []
+    out: DynArray[IZap.Position, 1000] = []
     for i: uint256 in range(10**6):
         if ix >= n_loans or i == limit:
             break
@@ -112,7 +101,7 @@ def users_to_liquidate(_controller: address, _from: uint256 = 0, _limit: uint256
             total_debt: uint256 = staticcall CONTROLLER.debt(user)
             x_down: uint256 = staticcall AMM.get_x_down(user)
             ratio: uint256 = unsafe_div(unsafe_mul(x_down, 10 ** 18), total_debt)
-            out.append(Position(
+            out.append(IZap.Position(
                 user=user,
                 x=xy[0],
                 y=xy[1],
@@ -163,7 +152,7 @@ def liquidate_partial(_controller: address, _user: address, _min_x: uint256):
     borrowed_amount: uint256 = staticcall BORROWED.balanceOf(self)
     extcall CONTROLLER.repay(borrowed_amount, _user, max_value(int256), empty(address), b"")
 
-    log PartialRepay(
+    log IZap.PartialRepay(
         controller=_controller,
         user=_user,
         collateral_decrease=collateral_received,
