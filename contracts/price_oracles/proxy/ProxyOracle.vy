@@ -9,6 +9,8 @@
 @notice Proxy oracle allowing LlamaLend factory admin to set price oracle contract after deployment
 """
 
+# TODO make more idiomatic
+# TODO align with Llamalend V2 behavior (possibly modules)?
 
 interface IFactory:
     def owner() -> address: view
