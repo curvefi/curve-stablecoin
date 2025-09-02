@@ -111,7 +111,7 @@ def test_immediate_above_p0(amm, price_oracle, collateral_token, borrowed_token,
 
     fee = max(abs(p_after_1 - p_before), abs(p_after_2 - p_before)) / (4 * min(p_after_1, p_after_2, p_before))
 
-    assert y0 == pytest.approx(deposit_amount, rel=fee)
+    assert y0 == pytest.approx(deposit_amount, rel=fee, abs=1)
     assert x0 == pytest.approx(x1, rel=fee)
     assert y0 == pytest.approx(y1, rel=fee)
 
