@@ -23,7 +23,7 @@ class AdiabaticTrader(RuleBasedStateMachine):
         self.borrowed_mul = 10**(18 - self.borrowed_token.decimals())
         self.collateral_mul = 10**(18 - self.collateral_token.decimals())
         with boa.env.prank(self.admin):
-            self.market_mpolicy.set_rates(int(1e18 * 0.04 / 365 / 86400), int(1e18 * 0.04 / 365 / 86400))
+            self.monetary_policy.set_rates(int(1e18 * 0.04 / 365 / 86400), int(1e18 * 0.04 / 365 / 86400))
         for user in self.accounts[:2]:
             with boa.env.prank(user):
                 self.borrowed_token.approve(self.controller, 2**256 - 1)
@@ -89,7 +89,7 @@ class AdiabaticTrader(RuleBasedStateMachine):
     @rule(min_rate=rate, max_rate=rate)
     def change_rate(self, min_rate, max_rate):
         with boa.env.prank(self.admin):
-            self.market_mpolicy.set_rates(min(min_rate, max_rate), max(min_rate, max_rate))
+            self.monetary_policy.set_rates(min(min_rate, max_rate), max(min_rate, max_rate))
 
     @invariant()
     def health(self):
@@ -98,7 +98,7 @@ class AdiabaticTrader(RuleBasedStateMachine):
             assert h > 0
 
 
-def test_adiabatic_follow(market_amm, filled_controller, market_mpolicy, collateral_token, borrowed_token, price_oracle, accounts, admin):
+def test_adiabatic_follow(market_amm, filled_controller, monetary_policy, collateral_token, borrowed_token, price_oracle, accounts, admin):
     AdiabaticTrader.TestCase.settings = settings(max_examples=50, stateful_step_count=50)
     for k, v in locals().items():
         setattr(AdiabaticTrader, k, v)

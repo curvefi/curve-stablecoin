@@ -409,9 +409,9 @@ class BigFuzz(RuleBasedStateMachine):
         with boa.env.prank(self.admin):
             if min_rate > max_rate or min(min_rate, max_rate) < MIN_RATE or max(min_rate, max_rate) > MAX_RATE:
                 with boa.reverts():
-                    self.market_mpolicy.set_rates(min_rate, max_rate)
+                    self.monetary_policy.set_rates(min_rate, max_rate)
             else:
-                self.market_mpolicy.set_rates(min_rate, max_rate)
+                self.monetary_policy.set_rates(min_rate, max_rate)
 
     @rule(dt=time_shift)
     def time_travel(self, dt):
@@ -430,7 +430,7 @@ class BigFuzz(RuleBasedStateMachine):
 
 
 def test_big_fuzz(
-        vault, borrowed_token, collateral_token, market_mpolicy, accounts, admin, market_amm, market_controller,
+        vault, borrowed_token, collateral_token, monetary_policy, accounts, admin, market_amm, market_controller,
         price_oracle, fake_leverage):
     BigFuzz.TestCase.settings = settings(max_examples=2000, stateful_step_count=20)
     # Or quick check

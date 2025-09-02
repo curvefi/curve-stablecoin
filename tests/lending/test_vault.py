@@ -9,11 +9,11 @@ from hypothesis.stateful import RuleBasedStateMachine, run_state_machine_as_test
 DEAD_SHARES = 1000
 
 
-def test_vault_creation(vault, market_controller, market_amm, market_mpolicy, factory, price_oracle,
+def test_vault_creation(vault, market_controller, market_amm, monetary_policy, factory, price_oracle,
                         borrowed_token, collateral_token, stablecoin):
     assert vault.amm() == market_amm.address
     assert vault.controller() == market_controller.address
-    assert market_controller.monetary_policy() == market_mpolicy.address
+    assert market_controller.monetary_policy() == monetary_policy.address
     n = factory.market_count()
     assert n > 0
     assert factory.vaults(n - 1) == vault.address
@@ -22,7 +22,7 @@ def test_vault_creation(vault, market_controller, market_amm, market_mpolicy, fa
     assert factory.borrowed_tokens(n - 1) == borrowed_token.address
     assert factory.collateral_tokens(n - 1) == collateral_token.address
     assert factory.price_oracles(n - 1) == price_oracle.address
-    assert factory.monetary_policies(n - 1) == market_mpolicy.address
+    assert factory.monetary_policies(n - 1) == monetary_policy.address
 
     assert factory.vaults(factory.vaults_index(vault.address)) == vault.address
 

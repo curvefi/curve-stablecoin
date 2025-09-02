@@ -204,9 +204,9 @@ class StatefulLendBorrow(RuleBasedStateMachine):
         with boa.env.prank(self.admin):
             if (min_rate > max_rate or min_rate < MIN_RATE or max_rate < MIN_RATE or min_rate > MAX_RATE or max_rate > MAX_RATE):
                 with boa.reverts():
-                    self.market_mpolicy.set_rates(min_rate, max_rate)
+                    self.monetary_policy.set_rates(min_rate, max_rate)
             else:
-                self.market_mpolicy.set_rates(min_rate, max_rate)
+                self.monetary_policy.set_rates(min_rate, max_rate)
 
     @invariant()
     def sum_of_debts(self):
@@ -225,14 +225,14 @@ class StatefulLendBorrow(RuleBasedStateMachine):
             assert debt + 10 >= supply - b  # Can have error of 1 (rounding) at most per step (and 10 stateful steps)
 
 
-def test_stateful_lendborrow(vault, market_amm, market_controller, market_mpolicy, collateral_token, borrowed_token, accounts, admin):
+def test_stateful_lendborrow(vault, market_amm, market_controller, monetary_policy, collateral_token, borrowed_token, accounts, admin):
     StatefulLendBorrow.TestCase.settings = settings(max_examples=200, stateful_step_count=10)
     for k, v in locals().items():
         setattr(StatefulLendBorrow, k, v)
     run_state_machine_as_test(StatefulLendBorrow)
 
 
-def test_borrow_not_reverting(vault, market_amm, market_controller, market_mpolicy, collateral_token, borrowed_token, accounts, admin):
+def test_borrow_not_reverting(vault, market_amm, market_controller, monetary_policy, collateral_token, borrowed_token, accounts, admin):
     for k, v in locals().items():
         setattr(StatefulLendBorrow, k, v)
     state = StatefulLendBorrow()
