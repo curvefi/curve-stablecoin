@@ -21,7 +21,7 @@ class ShiftedTrader(AdiabaticTrader):
         super().trade_to_price(int(p * (1 + self.price_shift)))
 
 
-def test_adiabatic_shifted(market_amm, filled_controller, market_mpolicy, collateral_token, borrowed_token, price_oracle, accounts, admin):
+def test_adiabatic_shifted(market_amm, filled_controller, monetary_policy, collateral_token, borrowed_token, price_oracle, accounts, admin):
     ShiftedTrader.TestCase.settings = settings(max_examples=50, stateful_step_count=50)
     for k, v in locals().items():
         setattr(ShiftedTrader, k, v)

@@ -13,53 +13,6 @@ def decimals():
     # change behavior with different decimals
     return 18
 
-@pytest.fixture()
-def mint_market(proto, collat):
-    return proto.create_mint_market(
-        collat,
-        proto.price_oracle,
-        proto.mint_monetary_policy,
-        A=1000,
-        amm_fee=10**16,
-        admin_fee=0,
-        loan_discount= int(0.09 * 10**18),
-        liquidation_discount=int(0.06 * 10**18),
-        debt_ceiling=1000 * 10**18
-    )
-
-
-@pytest.fixture()
-def lend_market(proto, collat):
-    return proto.create_lending_market(
-        borrowed_token=proto.crvUSD, # TODO param other tokens
-        collateral_token=collat,
-        A=1000,
-        fee=10**16,
-        loan_discount=int(0.09 * 10**18),
-        liquidation_discount=int(0.06 * 10**18),
-        price_oracle=proto.price_oracle,
-        name="Test Vault",
-        min_borrow_rate=10**15 // (365 * 86400),  # 0.1% APR (per second)
-        max_borrow_rate=10**18 // (365 * 86400)    # 100% APR (per second)
-    )
-
-@pytest.fixture(params=["mint", "lending"])
-def market(request, mint_market, lend_market):
-    """Parametrized fixture that provides both mint and lending markets."""
-    if request.param == "mint":
-        return mint_market
-    else:
-        return lend_market
-
-@pytest.fixture()
-def controller(market):
-    """Parametrized controller fixture that works with both market types."""
-    return market['controller']
-
-@pytest.fixture()
-def amm(market):
-    return market['amm']
-
 
 @pytest.fixture(scope="module")
 def new_oracle(admin):
@@ -203,5 +156,3 @@ def test_same_price_different_oracle(controller, admin, amm):
     # Should succeed even with 0 deviation allowed
     controller.set_price_oracle(same_price_oracle, 0, sender=admin)
     assert amm.price_oracle_contract() == same_price_oracle.address
-
-

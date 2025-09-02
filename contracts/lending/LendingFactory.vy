@@ -139,7 +139,7 @@ def _create(
         self.amm_impl,
         borrowed_token, 10**convert(18 - staticcall IERC20Detailed(borrowed_token).decimals(), uint256),
         collateral_token, 10**convert(18 - staticcall IERC20Detailed(collateral_token).decimals(), uint256),
-        A, isqrt(A_ratio * 10**18), math._log2(A_ratio, False),
+        A, isqrt(A_ratio * 10**18), math._wad_ln(convert(A_ratio, int256)),
         p, fee, convert(0, uint256), price_oracle,
         code_offset=3)
     controller: address = create_from_blueprint(

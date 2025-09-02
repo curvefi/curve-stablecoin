@@ -63,9 +63,19 @@ def market_amm(lending_market):
 
 
 @pytest.fixture(scope="module")
-def market_mpolicy(market_controller):
+def monetary_policy(market_controller, borrowed_token, admin):
     from tests.utils.deployers import SEMILOG_MONETARY_POLICY_DEPLOYER
-    return SEMILOG_MONETARY_POLICY_DEPLOYER.at(market_controller.monetary_policy())
+    # Override default policy with Semilog for lending test suite
+    min_borrow_rate = int(0.005 * 1e18) // (365 * 86400)  # 0.5% APR
+    max_borrow_rate = int(0.5 * 1e18) // (365 * 86400)   # 50% APR
+    with boa.env.prank(admin):
+        mp = SEMILOG_MONETARY_POLICY_DEPLOYER.deploy(
+            borrowed_token.address,
+            min_borrow_rate,
+            max_borrow_rate,
+        )
+        market_controller.set_monetary_policy(mp)
+    return mp
 
 
 @pytest.fixture(scope="module")

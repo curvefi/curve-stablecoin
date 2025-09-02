@@ -27,7 +27,7 @@ from tests.utils.deployers import (
     
     # Monetary policies
     CONSTANT_MONETARY_POLICY_DEPLOYER,
-    SEMILOG_MONETARY_POLICY_DEPLOYER,
+    CONSTANT_MONETARY_POLICY_LENDING_DEPLOYER,
     
     # Testing contracts
     WETH_DEPLOYER,
@@ -75,7 +75,7 @@ class Protocol:
             ll_controller=LL_CONTROLLER_DEPLOYER,
             ll_controller_view=LL_CONTROLLER_VIEW_DEPLOYER,
             price_oracle=CRYPTO_FROM_POOL_DEPLOYER,
-            mpolicy=SEMILOG_MONETARY_POLICY_DEPLOYER
+            mpolicy=CONSTANT_MONETARY_POLICY_LENDING_DEPLOYER
         )
 
         # Deploy core infrastructure
@@ -139,7 +139,6 @@ class Protocol:
         monetary_policy: VyperContract,
         A: int,
         amm_fee: int,
-        admin_fee: int,
         loan_discount: int,
         liquidation_discount: int,
         debt_ceiling: int
@@ -153,7 +152,6 @@ class Protocol:
             monetary_policy: Monetary policy contract for this market
             A: AMM amplification parameter (e.g., 100)
             fee: Trading fee (e.g., 10**16 for 1%)
-            admin_fee: Admin fee share (e.g., 0)
             loan_discount: Loan discount (e.g., 9 * 10**16 for 9%)
             liquidation_discount: Liquidation discount (e.g., 6 * 10**16 for 6%)
             debt_ceiling: Maximum debt for this market (e.g., 10**6 * 10**18)
@@ -165,7 +163,7 @@ class Protocol:
             collateral_token.address,
             A,
             amm_fee,
-            admin_fee,
+            0,  # admin fee deprecated for mint markets
             price_oracle.address,
             monetary_policy.address,
             loan_discount,
@@ -193,7 +191,9 @@ class Protocol:
         price_oracle: VyperContract,
         name: str,
         min_borrow_rate: int,
-        max_borrow_rate: int
+        max_borrow_rate: int,
+        seed_amount: int = 1000 * 10**18,
+        mpolicy_deployer: VyperDeployer | None = None,
     ) -> Dict[str, VyperContract]:
         """
         Create a new lending market in the Lending Factory.
@@ -223,13 +223,36 @@ class Protocol:
             price_oracle.address,
             name,
             min_borrow_rate,
-            max_borrow_rate
+            max_borrow_rate,
+            sender=self.admin
         )
         
+        vault = VAULT_DEPLOYER.at(result[0])
+        controller = LL_CONTROLLER_DEPLOYER.at(result[1])
+        amm = AMM_DEPLOYER.at(result[2])
+
+        # Optionally override the market's monetary policy after creation.
+        # By default, factory uses self.blueprints.mpolicy (Semilog policy).
+        if mpolicy_deployer is not None:
+            with boa.env.prank(self.admin):
+                custom_mp = mpolicy_deployer.deploy(
+                    borrowed_token.address,
+                    min_borrow_rate,
+                    max_borrow_rate,
+                )
+                controller.set_monetary_policy(custom_mp)
+
+        # Seed lending markets by depositing borrowed token into the vault
+        if seed_amount and seed_amount > 0:
+            with boa.env.prank(self.admin):
+                boa.deal(borrowed_token, self.admin, seed_amount)
+                borrowed_token.approve(vault.address, 2**256 - 1)
+                vault.deposit(seed_amount)
+
         return {
-            'vault': VAULT_DEPLOYER.at(result[0]),
-            'controller': LL_CONTROLLER_DEPLOYER.at(result[1]),
-            'amm': AMM_DEPLOYER.at(result[2])
+            'vault': vault,
+            'controller': controller,
+            'amm': amm,
         }
     
 
@@ -244,7 +267,6 @@ if __name__ == "__main__":
         proto.mint_monetary_policy,
         A=100,
         amm_fee=10**16,
-        admin_fee=0,
         loan_discount=9 * 10**16,  # 9%
         liquidation_discount=6 * 10**16,  # 6%
         debt_ceiling=10**6 * 10**18
