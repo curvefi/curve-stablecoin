@@ -5,6 +5,7 @@ on: [push]
 env:
   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
   # RPC_ETHEREUM: ${{ secrets.RPC_ETHEREUM }}
+  HYPOTHESIS_PROFILE: no-shrink
 
 jobs:
   tests:
