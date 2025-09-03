@@ -5,6 +5,7 @@ import pytest
 @pytest.fixture(scope="module")
 def partial_repay_zap(admin):
     with boa.env.prank(admin):
+        # TODO this needs to be moved to deployers
         return boa.load("contracts/zaps/PartialRepayZap.vy", 5 * 10**16, 1 * 10**16)
 
 
