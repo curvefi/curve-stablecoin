@@ -11,6 +11,7 @@ jobs:
     name: ${{ matrix.folder }} (${{ matrix.venom.name }})
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
         folder:
           - "tests/flashloan"
@@ -18,10 +19,10 @@ jobs:
           - "tests/controller"
           - "tests/price_oracles"
           - "tests/zaps"
-          # - "tests/amm"
-          # - "tests/lending"
-          # - "tests/stableborrow"
-          # - "tests/swap"
+          - "tests/amm"
+          - "tests/lending"
+          - "tests/stableborrow"
+          - "tests/swap"
         venom:
           - { name: "standard mode", value: false }
           # - { name: "venom mode", value: true }
