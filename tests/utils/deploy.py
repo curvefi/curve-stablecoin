@@ -232,14 +232,18 @@ class Protocol:
         amm = AMM_DEPLOYER.at(result[2])
 
         # Optionally override the market's monetary policy after creation.
-        # By default, factory uses self.blueprints.mpolicy (Semilog policy).
+        # Important: SemilogMonetaryPolicy expects FACTORY to be msg.sender at deploy time.
+        # Deploy under the LendingFactory as sender, then set via controller (admin = factory admin).
         if mpolicy_deployer is not None:
+            # Deploy with factory as msg.sender so FACTORY immutable is correct
+            custom_mp = mpolicy_deployer.deploy(
+                borrowed_token.address,
+                min_borrow_rate,
+                max_borrow_rate,
+                sender=self.lending_factory.address
+            )
+            # Set on controller with admin privileges
             with boa.env.prank(self.admin):
-                custom_mp = mpolicy_deployer.deploy(
-                    borrowed_token.address,
-                    min_borrow_rate,
-                    max_borrow_rate,
-                )
                 controller.set_monetary_policy(custom_mp)
 
         # Seed lending markets by depositing borrowed token into the vault
