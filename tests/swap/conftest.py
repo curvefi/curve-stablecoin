@@ -9,32 +9,32 @@ from tests.utils.deployers import (
 from tests.utils.constants import ZERO_ADDRESS
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="module")
 def swap_impl(admin):
     with boa.env.prank(admin):
         return STABLESWAP_DEPLOYER.deploy()
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="module")
 def swap_deployer(swap_impl, admin):
     with boa.env.prank(admin):
         deployer = SWAP_FACTORY_DEPLOYER.deploy(swap_impl.address)
         return deployer
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="module")
 def redeemable_coin(admin):
     with boa.env.prank(admin):
         return ERC20_MOCK_DEPLOYER.deploy(6)
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="module")
 def volatile_coin(admin):
     with boa.env.prank(admin):
         return ERC20_MOCK_DEPLOYER.deploy(18)
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="module")
 def swap(swap_deployer, swap_impl, redeemable_coin, volatile_coin, admin):
     with boa.env.prank(admin):
         n = swap_deployer.n()
@@ -47,7 +47,7 @@ def swap(swap_deployer, swap_impl, redeemable_coin, volatile_coin, admin):
         return swap
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="module")
 def swap_w_d(swap, redeemable_coin, volatile_coin, accounts, admin):
     with boa.env.prank(admin):
         boa.deal(redeemable_coin, admin, 10**6 * 10**6)

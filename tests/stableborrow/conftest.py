@@ -27,7 +27,7 @@ def stablecoin(stablecoin_pre, admin):
         return stablecoin_pre.deploy('Curve USD', 'crvUSD')
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="module")
 def weth(admin):
     with boa.env.prank(admin):
         return WETH_DEPLOYER.deploy()
@@ -44,13 +44,13 @@ def controller_prefactory(controller_factory_impl, stablecoin, weth, admin, acco
         return controller_factory_impl.deploy(stablecoin.address, admin, accounts[0], weth.address)
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="module")
 def controller_impl(admin):
     with boa.env.prank(admin):
         return MINT_CONTROLLER_DEPLOYER.deploy_as_blueprint()
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="module")
 def amm_impl(admin):
     with boa.env.prank(admin):
         return AMM_DEPLOYER.deploy_as_blueprint()
@@ -64,7 +64,7 @@ def controller_factory(controller_prefactory, amm_impl, controller_impl, stablec
     return controller_prefactory
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="module")
 def monetary_policy(admin):
     with boa.env.prank(admin):
         policy = CONSTANT_MONETARY_POLICY_DEPLOYER.deploy(admin)
