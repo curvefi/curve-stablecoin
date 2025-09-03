@@ -2,6 +2,8 @@ import boa
 
 
 def mint_for_testing(token, to, amount):
+    # DO NOT USE: this is an old function for backwards compatibility.
+    # When you need this just inline this boa behavior.
     boa.deal(token, to, token.balanceOf(to) + amount)
 
 
