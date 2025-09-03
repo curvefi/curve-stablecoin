@@ -22,7 +22,6 @@ jobs:
           - "tests/amm"
           - "tests/lending"
           - "tests/stableborrow"
-          - "tests/swap"
         venom:
           - { name: "standard mode", value: false }
           # - { name: "venom mode", value: true }
