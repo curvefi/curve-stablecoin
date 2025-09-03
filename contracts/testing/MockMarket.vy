@@ -1,4 +1,4 @@
-# @version 0.3.10
+# pragma version 0.4.3
 
 
 total_debt: public(uint256)

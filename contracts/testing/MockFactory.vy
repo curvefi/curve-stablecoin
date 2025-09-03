@@ -1,4 +1,4 @@
-# @version 0.3.10
+# pragma version 0.4.3
 
 
 interface Controller:
@@ -21,17 +21,17 @@ def add_market(controller: address, ceiling: uint256):
 
 @external
 def set_debt(controller: address, debt: uint256):
-    Controller(controller).set_debt(debt)
+    extcall Controller(controller).set_debt(debt)
 
 
 @external
 @view
 def total_debt() -> uint256:
     total: uint256 = 0
-    for i in range(10000):
+    for i: uint256 in range(10000):
         if i == self.n_collaterals:
             break
-        total += Controller(self.controllers[i]).total_debt()
+        total += staticcall Controller(self.controllers[i]).total_debt()
     return total
 
 

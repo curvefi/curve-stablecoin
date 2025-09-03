@@ -1,4 +1,4 @@
-# @version ^0.3.9
+# pragma version 0.4.3
 """
 @notice Mock ERC20 for testing
 """
@@ -21,8 +21,7 @@ allowances: HashMap[address, HashMap[address, uint256]]
 total_supply: uint256
 
 
-@payable
-@external
+@deploy
 def __init__():
     self.name = "Wrapped Ether"
     self.symbol = "WETH"
@@ -45,7 +44,7 @@ def allowance(_owner : address, _spender : address) -> uint256:
 def transfer(_to : address, _value : uint256) -> bool:
     self.balanceOf[msg.sender] -= _value
     self.balanceOf[_to] += _value
-    log Transfer(msg.sender, _to, _value)
+    log Transfer(_from=msg.sender, _to=_to, _value=_value)
     return True
 
 
@@ -54,14 +53,14 @@ def transferFrom(_from : address, _to : address, _value : uint256) -> bool:
     self.balanceOf[_from] -= _value
     self.balanceOf[_to] += _value
     self.allowances[_from][msg.sender] -= _value
-    log Transfer(_from, _to, _value)
+    log Transfer(_from=_from, _to=_to, _value=_value)
     return True
 
 
 @external
 def approve(_spender : address, _value : uint256) -> bool:
     self.allowances[msg.sender][_spender] = _value
-    log Approval(msg.sender, _spender, _value)
+    log Approval(_owner=msg.sender, _spender=_spender, _value=_value)
     return True
 
 
@@ -69,7 +68,7 @@ def approve(_spender : address, _value : uint256) -> bool:
 def _mint_for_testing(_target: address, _value: uint256) -> bool:
     self.total_supply += _value
     self.balanceOf[_target] += _value
-    log Transfer(empty(address), _target, _value)
+    log Transfer(_from=empty(address), _to=_target, _value=_value)
 
     return True
 

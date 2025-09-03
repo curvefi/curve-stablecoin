@@ -1,4 +1,4 @@
-# @version 0.3.10
+# pragma version 0.4.3
 """
 @title CryptoWithStablePriceWsteth
 @notice Price oracle for tricrypto+wsteth for crvUSD. Not limiting the price with chainlink - relying on tricrypto-ng
@@ -60,7 +60,7 @@ WSTETH: public(immutable(wstETH))
 use_chainlink: public(bool)
 
 
-@external
+@deploy
 def __init__(
         tricrypto: Tricrypto,
         ix: uint256,
@@ -80,10 +80,10 @@ def __init__(
     STAKEDSWAP = staked_swap
     FACTORY = factory
     WSTETH = wsteth
-    _stablecoin: address = stable_aggregator.stablecoin()
+    _stablecoin: address = staticcall stable_aggregator.stablecoin()
     _redeemable: address = empty(address)
     STABLECOIN = _stablecoin
-    coins: address[2] = [stableswap.coins(0), stableswap.coins(1)]
+    coins: address[2] = [staticcall stableswap.coins(0), staticcall stableswap.coins(1)]
     is_inverse: bool = False
     if coins[0] == _stablecoin:
         _redeemable = coins[1]
@@ -93,13 +93,13 @@ def __init__(
         assert coins[1] == _stablecoin
     IS_INVERSE = is_inverse
     REDEEMABLE = _redeemable
-    assert tricrypto.coins(0) == _redeemable
+    assert staticcall tricrypto.coins(0) == _redeemable
 
     self.use_chainlink = True
     CHAINLINK_AGGREGATOR_ETH = chainlink_aggregator_eth
-    CHAINLINK_PRICE_PRECISION_ETH = 10**convert(chainlink_aggregator_eth.decimals(), uint256)
+    CHAINLINK_PRICE_PRECISION_ETH = 10**convert(staticcall chainlink_aggregator_eth.decimals(), uint256)
     CHAINLINK_AGGREGATOR_STETH = chainlink_aggregator_steth
-    CHAINLINK_PRICE_PRECISION_STETH = 10**convert(chainlink_aggregator_steth.decimals(), uint256)
+    CHAINLINK_PRICE_PRECISION_STETH = 10**convert(staticcall chainlink_aggregator_steth.decimals(), uint256)
     BOUND_SIZE = bound_size
 
 
@@ -142,38 +142,38 @@ def redeemable() -> address:
 @internal
 @view
 def _raw_price() -> uint256:
-    p_crypto_r: uint256 = TRICRYPTO.price_oracle(TRICRYPTO_IX)  # d_usdt/d_eth
-    p_stable_r: uint256 = STABLESWAP.price_oracle()             # d_usdt/d_st
-    p_stable_agg: uint256 = STABLESWAP_AGGREGATOR.price()       # d_usd/d_st
+    p_crypto_r: uint256 = staticcall TRICRYPTO.price_oracle(TRICRYPTO_IX)  # d_usdt/d_eth
+    p_stable_r: uint256 = staticcall STABLESWAP.price_oracle()             # d_usdt/d_st
+    p_stable_agg: uint256 = staticcall STABLESWAP_AGGREGATOR.price()       # d_usd/d_st
     if IS_INVERSE:
-        p_stable_r = 10**36 / p_stable_r
-    crv_p: uint256 = p_crypto_r * p_stable_agg / p_stable_r     # d_usd/d_eth
+        p_stable_r = 10**36 // p_stable_r
+    crv_p: uint256 = p_crypto_r * p_stable_agg // p_stable_r     # d_usd/d_eth
 
     use_chainlink: bool = self.use_chainlink
 
     # Limit ETH price
     if use_chainlink:
-        chainlink_lrd: ChainlinkAnswer = CHAINLINK_AGGREGATOR_ETH.latestRoundData()
+        chainlink_lrd: ChainlinkAnswer = staticcall CHAINLINK_AGGREGATOR_ETH.latestRoundData()
         if block.timestamp - min(chainlink_lrd.updated_at, block.timestamp) <= CHAINLINK_STALE_THRESHOLD:
-            chainlink_p: uint256 = convert(chainlink_lrd.answer, uint256) * 10**18 / CHAINLINK_PRICE_PRECISION_ETH
-            lower: uint256 = chainlink_p * (10**18 - BOUND_SIZE) / 10**18
-            upper: uint256 = chainlink_p * (10**18 + BOUND_SIZE) / 10**18
+            chainlink_p: uint256 = convert(chainlink_lrd.answer, uint256) * 10**18 // CHAINLINK_PRICE_PRECISION_ETH
+            lower: uint256 = chainlink_p * (10**18 - BOUND_SIZE) // 10**18
+            upper: uint256 = chainlink_p * (10**18 + BOUND_SIZE) // 10**18
             crv_p = min(max(crv_p, lower), upper)
 
-    p_staked: uint256 = STAKEDSWAP.price_oracle()  # d_eth / d_steth
+    p_staked: uint256 = staticcall STAKEDSWAP.price_oracle()  # d_eth / d_steth
 
     # Limit STETH price
     if use_chainlink:
-        chainlink_lrd: ChainlinkAnswer = CHAINLINK_AGGREGATOR_STETH.latestRoundData()
+        chainlink_lrd: ChainlinkAnswer = staticcall CHAINLINK_AGGREGATOR_STETH.latestRoundData()
         if block.timestamp - min(chainlink_lrd.updated_at, block.timestamp) <= CHAINLINK_STALE_THRESHOLD:
-            chainlink_p: uint256 = convert(chainlink_lrd.answer, uint256) * 10**18 / CHAINLINK_PRICE_PRECISION_STETH
-            lower: uint256 = chainlink_p * (10**18 - BOUND_SIZE) / 10**18
-            upper: uint256 = chainlink_p * (10**18 + BOUND_SIZE) / 10**18
+            chainlink_p: uint256 = convert(chainlink_lrd.answer, uint256) * 10**18 // CHAINLINK_PRICE_PRECISION_STETH
+            lower: uint256 = chainlink_p * (10**18 - BOUND_SIZE) // 10**18
+            upper: uint256 = chainlink_p * (10**18 + BOUND_SIZE) // 10**18
             p_staked = min(max(p_staked, lower), upper)
 
-    p_staked = min(p_staked, 10**18) * WSTETH.stEthPerToken() / 10**18  # d_eth / d_wsteth
+    p_staked = min(p_staked, 10**18) * staticcall WSTETH.stEthPerToken() // 10**18  # d_eth / d_wsteth
 
-    return p_staked * crv_p / 10**18
+    return p_staked * crv_p // 10**18
 
 
 @external
@@ -195,5 +195,5 @@ def price_w() -> uint256:
 
 @external
 def set_use_chainlink(do_it: bool):
-    assert msg.sender == FACTORY.admin()
+    assert msg.sender == staticcall FACTORY.admin()
     self.use_chainlink = do_it

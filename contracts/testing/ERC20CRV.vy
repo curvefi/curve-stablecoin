@@ -1,4 +1,4 @@
-# @version 0.3.10
+# @version 0.4.3
 """
 @title Curve DAO Token
 @author Curve Finance
@@ -8,9 +8,9 @@
      https://eips.ethereum.org/EIPS/eip-20
 """
 
-from vyper.interfaces import ERC20
+from ethereum.ercs import IERC20
 
-implements: ERC20
+implements: IERC20
 
 
 event Transfer:
@@ -60,7 +60,7 @@ YEAR: constant(uint256) = 86400 * 365
 
 # Supply parameters
 INITIAL_SUPPLY: constant(uint256) = 1_303_030_303
-INITIAL_RATE: constant(uint256) = 274_815_283 * 10 ** 18 / YEAR  # leading to 43% premine
+INITIAL_RATE: constant(uint256) = 274_815_283 * 10 ** 18 // YEAR  # leading to 43% premine
 RATE_REDUCTION_TIME: constant(uint256) = YEAR
 RATE_REDUCTION_COEFFICIENT: constant(uint256) = 1189207115002721024  # 2 ** (1/4) * 1e18
 RATE_DENOMINATOR: constant(uint256) = 10 ** 18
@@ -74,7 +74,7 @@ rate: public(uint256)
 start_epoch_supply: uint256
 
 
-@external
+@deploy
 def __init__(_name: String[64], _symbol: String[32], _decimals: uint256):
     """
     @notice Contract constructor
@@ -89,7 +89,7 @@ def __init__(_name: String[64], _symbol: String[32], _decimals: uint256):
     self.balanceOf[msg.sender] = init_supply
     self.total_supply = init_supply
     self.admin = msg.sender
-    log Transfer(ZERO_ADDRESS, msg.sender, init_supply)
+    log Transfer(_from=empty(address), _to=msg.sender, _value=init_supply)
 
     self.start_epoch_time = block.timestamp + INFLATION_DELAY - RATE_REDUCTION_TIME
     self.mining_epoch = -1
@@ -114,11 +114,11 @@ def _update_mining_parameters():
     else:
         _start_epoch_supply += _rate * RATE_REDUCTION_TIME
         self.start_epoch_supply = _start_epoch_supply
-        _rate = _rate * RATE_DENOMINATOR / RATE_REDUCTION_COEFFICIENT
+        _rate = _rate * RATE_DENOMINATOR // RATE_REDUCTION_COEFFICIENT
 
     self.rate = _rate
 
-    log UpdateMiningParameters(block.timestamp, _rate, _start_epoch_supply)
+    log UpdateMiningParameters(time=block.timestamp, rate=_rate, supply=_start_epoch_supply)
 
 
 @external
@@ -194,11 +194,11 @@ def mintable_in_timeframe(start: uint256, end: uint256) -> uint256:
     # Special case if end is in future (not yet minted) epoch
     if end > current_epoch_time + RATE_REDUCTION_TIME:
         current_epoch_time += RATE_REDUCTION_TIME
-        current_rate = current_rate * RATE_DENOMINATOR / RATE_REDUCTION_COEFFICIENT
+        current_rate = current_rate * RATE_DENOMINATOR // RATE_REDUCTION_COEFFICIENT
 
     assert end <= current_epoch_time + RATE_REDUCTION_TIME  # dev: too far in future
 
-    for i in range(999):  # Curve will not work in 1000 years. Darn!
+    for i: uint256 in range(999):  # Curve will not work in 1000 years. Darn!
         if end >= current_epoch_time:
             current_end: uint256 = end
             if current_end > current_epoch_time + RATE_REDUCTION_TIME:
@@ -216,7 +216,7 @@ def mintable_in_timeframe(start: uint256, end: uint256) -> uint256:
                 break
 
         current_epoch_time -= RATE_REDUCTION_TIME
-        current_rate = current_rate * RATE_REDUCTION_COEFFICIENT / RATE_DENOMINATOR  # double-division with rounding made rate a bit less => good
+        current_rate = current_rate * RATE_REDUCTION_COEFFICIENT // RATE_DENOMINATOR  # double-division with rounding made rate a bit less => good
         assert current_rate <= INITIAL_RATE  # This should never happen
 
     return to_mint
@@ -230,9 +230,9 @@ def set_minter(_minter: address):
     @param _minter Address of the minter
     """
     assert msg.sender == self.admin  # dev: admin only
-    assert self.minter == ZERO_ADDRESS  # dev: can set the minter only once, at creation
+    assert self.minter == empty(address)  # dev: can set the minter only once, at creation
     self.minter = _minter
-    log SetMinter(_minter)
+    log SetMinter(minter=_minter)
 
 
 @external
@@ -244,7 +244,7 @@ def set_admin(_admin: address):
     """
     assert msg.sender == self.admin  # dev: admin only
     self.admin = _admin
-    log SetAdmin(_admin)
+    log SetAdmin(admin=_admin)
 
 
 @external
@@ -278,10 +278,10 @@ def transfer(_to : address, _value : uint256) -> bool:
     @param _value The amount to be transferred
     @return bool success
     """
-    assert _to != ZERO_ADDRESS  # dev: transfers to 0x0 are not allowed
+    assert _to != empty(address)  # dev: transfers to 0x0 are not allowed
     self.balanceOf[msg.sender] -= _value
     self.balanceOf[_to] += _value
-    log Transfer(msg.sender, _to, _value)
+    log Transfer(_from=msg.sender, _to=_to, _value=_value)
     return True
 
 
@@ -294,13 +294,13 @@ def transferFrom(_from : address, _to : address, _value : uint256) -> bool:
      @param _value uint256 the amount of tokens to be transferred
      @return bool success
     """
-    assert _to != ZERO_ADDRESS  # dev: transfers to 0x0 are not allowed
+    assert _to != empty(address)  # dev: transfers to 0x0 are not allowed
     # NOTE: vyper does not allow underflows
     #       so the following subtraction would revert on insufficient balance
     self.balanceOf[_from] -= _value
     self.balanceOf[_to] += _value
     self.allowances[_from][msg.sender] -= _value
-    log Transfer(_from, _to, _value)
+    log Transfer(_from=_from, _to=_to, _value=_value)
     return True
 
 
@@ -317,7 +317,7 @@ def approve(_spender : address, _value : uint256) -> bool:
     """
     assert _value == 0 or self.allowances[msg.sender][_spender] == 0
     self.allowances[msg.sender][_spender] = _value
-    log Approval(msg.sender, _spender, _value)
+    log Approval(_owner=msg.sender, _spender=_spender, _value=_value)
     return True
 
 
@@ -331,7 +331,7 @@ def mint(_to: address, _value: uint256) -> bool:
     @return bool success
     """
     assert msg.sender == self.minter  # dev: minter only
-    assert _to != ZERO_ADDRESS  # dev: zero address
+    assert _to != empty(address)  # dev: zero address
 
     if block.timestamp >= self.start_epoch_time + RATE_REDUCTION_TIME:
         self._update_mining_parameters()
@@ -341,7 +341,7 @@ def mint(_to: address, _value: uint256) -> bool:
     self.total_supply = _total_supply
 
     self.balanceOf[_to] += _value
-    log Transfer(ZERO_ADDRESS, _to, _value)
+    log Transfer(_from=empty(address), _to=_to, _value=_value)
 
     return True
 
@@ -357,7 +357,7 @@ def burn(_value: uint256) -> bool:
     self.balanceOf[msg.sender] -= _value
     self.total_supply -= _value
 
-    log Transfer(msg.sender, ZERO_ADDRESS, _value)
+    log Transfer(_from=msg.sender, _to=empty(address), _value=_value)
     return True
 
 

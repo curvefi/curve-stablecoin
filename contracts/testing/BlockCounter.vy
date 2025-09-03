@@ -1,10 +1,10 @@
-# @version 0.3.10
+# version 0.4.3
 
 block_counter: public(uint256)
 time_counter: public(uint256)
 last_time: public(uint256)
 
-@external
+@deploy
 def __init__():
     self.block_counter = 1
     self.time_counter = 0

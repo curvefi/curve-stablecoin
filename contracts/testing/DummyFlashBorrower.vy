@@ -1,6 +1,6 @@
-# @version 0.3.10
+# pragma version 0.4.3
 
-from vyper.interfaces import ERC20
+from ethereum.ercs import IERC20
 
 interface ERC3156FlashLender:
     def flashFee(token: address, amount: uint256) -> uint256: view
@@ -15,7 +15,7 @@ success: bool
 send_back: bool
 
 
-@external
+@deploy
 def __init__(_lender: address):
     """
     @notice FlashBorrower constructor. Gets FlashLender address.
@@ -37,14 +37,14 @@ def onFlashLoan(
     assert msg.sender == LENDER, "FlashBorrower: Untrusted lender"
     assert initiator == self, "FlashBorrower: Untrusted loan initiator"
     assert data == b"", "Non-empty data"
-    assert ERC20(token).balanceOf(self) == amount
+    assert staticcall IERC20(token).balanceOf(self) == amount
     assert fee == 0
 
     self.count += 1
     self.total_amount += amount
 
     if self.send_back:
-        ERC20(token).transfer(LENDER, amount + fee)
+        extcall IERC20(token).transfer(LENDER, amount + fee)
 
     return keccak256("ERC3156FlashBorrower.onFlashLoan")
 
@@ -54,4 +54,4 @@ def flashBorrow(token: address, amount: uint256, send_back: bool = True):
     @notice Initiate a flash loan.
     """
     self.send_back = send_back
-    ERC3156FlashLender(LENDER).flashLoan(self, token, amount, b"")
+    extcall ERC3156FlashLender(LENDER).flashLoan(self, token, amount, b"")
