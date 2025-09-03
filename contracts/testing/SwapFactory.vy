@@ -43,7 +43,7 @@ admin: public(address)
 factory_ng: FactoryNG
 rate_oracle: address
 
-@external
+@deploy
 def __init__(impl: address):
     IMPL = impl
     self.admin = msg.sender
@@ -52,26 +52,26 @@ def __init__(impl: address):
 @external
 def deploy(coin_a: ERC20, coin_b: ERC20) -> address:
     pool: Swap = Swap(create_minimal_proxy_to(IMPL))
-    pool.initialize(
+    extcall pool.initialize(
         "TestName",
         "TST",
-        [address(coin_a), address(coin_b), empty(address), empty(address)],
-        [10**(18 - coin_a.decimals()) * 10**18, 10**(18 - coin_b.decimals()) * 10**18, 0, 0],
+        [coin_a.address, coin_b.address, empty(address), empty(address)],
+        [10**(18 - staticcall coin_a.decimals()) * 10**18, 10**(18 - staticcall coin_b.decimals()) * 10**18, 0, 0],
         100,
         0,
     )
-    self.pools[self.n] = address(pool)
+    self.pools[self.n] = pool.address
     self.n += 1
-    return address(pool)
+    return pool.address
 
 
 @external
 def deploy_ng(coin_a: ERC20, coin_b: ERC20) -> address:
-    assert address(self.factory_ng) != empty(address), "Factory not set"
-    pool: address = self.factory_ng.deploy_plain_pool(
+    assert self.factory_ng.address != empty(address), "Factory not set"
+    pool: address = extcall self.factory_ng.deploy_plain_pool(
         "TestName-ng",
         "TST-ng",
-        [address(coin_a), address(coin_b)],
+        [coin_a.address, coin_b.address],
         100,
         0,
         10000000000,
