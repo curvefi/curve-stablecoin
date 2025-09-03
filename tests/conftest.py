@@ -163,7 +163,7 @@ def market(
         return proto.create_mint_market(
             collateral_token=collateral_token,
             price_oracle=price_oracle,
-            monetary_policy=mint_monetary_policy.address,
+            monetary_policy=mint_monetary_policy,
             A=amm_A,
             amm_fee=amm_fee,
             loan_discount=loan_discount,

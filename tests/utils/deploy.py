@@ -28,6 +28,7 @@ from tests.utils.deployers import (
     # Monetary policies
     CONSTANT_MONETARY_POLICY_DEPLOYER,
     CONSTANT_MONETARY_POLICY_LENDING_DEPLOYER,
+    SEMILOG_MONETARY_POLICY_DEPLOYER,
     
     # Testing contracts
     WETH_DEPLOYER,
@@ -232,19 +233,18 @@ class Protocol:
         amm = AMM_DEPLOYER.at(result[2])
 
         # Optionally override the market's monetary policy after creation.
-        # Important: SemilogMonetaryPolicy expects FACTORY to be msg.sender at deploy time.
-        # Deploy under the LendingFactory as sender, then set via controller (admin = factory admin).
         if mpolicy_deployer is not None:
-            # Deploy with factory as msg.sender so FACTORY immutable is correct
-            custom_mp = mpolicy_deployer.deploy(
-                borrowed_token.address,
-                min_borrow_rate,
-                max_borrow_rate,
-                sender=self.lending_factory.address
-            )
+            # Always deploy with FACTORY as msg.sender so policies that bind FACTORY at
+            # deploy time (e.g., SemilogMonetaryPolicy) initialize correctly.
+            # TODO report issue to boa (sender not available for constructor)
+            with boa.env.prank(self.lending_factory.address):
+                custom_mp = mpolicy_deployer.deploy(
+                    borrowed_token.address,
+                    min_borrow_rate,
+                    max_borrow_rate,
+                )
             # Set on controller with admin privileges
-            with boa.env.prank(self.admin):
-                controller.set_monetary_policy(custom_mp)
+            controller.set_monetary_policy(custom_mp, sender=self.admin)
 
         # Seed lending markets by depositing borrowed token into the vault
         if seed_amount and seed_amount > 0:
