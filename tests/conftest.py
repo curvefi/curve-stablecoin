@@ -54,28 +54,27 @@ def borrowed_token(stablecoin):
     """Default borrowed token for lending tests (crvUSD).
     Specific test modules can override this if needed.
     """
-    # TODO should parametrize to use other tokens
+    # TODO should parametrize to use other tokens in lending
     return stablecoin
 
 
 @pytest.fixture(scope="module")
-def lending_mpolicy_deployer():
-    """Default monetary policy deployer for lending markets: Constant policy.
-    Tests can override to use a different lending policy.
-    """
+def mint_monetary_policy(proto):
+    return proto.mint_monetary_policy
+
+
+@pytest.fixture(scope="module")
+def lending_monetary_policy():
+    """Default monetary policy deployer for lending markets (override in suites)."""
     return CONSTANT_MONETARY_POLICY_LENDING_DEPLOYER
 
 
 @pytest.fixture(scope="module")
-def monetary_policy(market_type, controller):
-    """Monetary policy contract for the current market.
-    Test modules can override by replacing the policy on the controller.
-    """
-    if market_type == "lending":
-        # TODO make both controllers use the same policy through a constructor adapter
-        return CONSTANT_MONETARY_POLICY_LENDING_DEPLOYER.at(controller.monetary_policy())
-    else:
-        return CONSTANT_MONETARY_POLICY_DEPLOYER.at(controller.monetary_policy())
+def monetary_policy(market_type, controller, mint_monetary_policy, lending_monetary_policy):
+    """Actual monetary policy contract bound to this market (post-creation)."""
+    if market_type == "mint":
+        return mint_monetary_policy
+    return lending_monetary_policy.at(controller.monetary_policy())
 
 
 @pytest.fixture(scope="module")
@@ -151,7 +150,8 @@ def market(
     price_oracle,
     seed_liquidity,
     borrowed_token,
-    lending_mpolicy_deployer,
+    mint_monetary_policy,
+    lending_monetary_policy,
     amm_A,
     amm_fee,
     loan_discount,
@@ -163,7 +163,7 @@ def market(
         return proto.create_mint_market(
             collateral_token=collateral_token,
             price_oracle=price_oracle,
-            monetary_policy=proto.mint_monetary_policy,
+            monetary_policy=mint_monetary_policy.address,
             A=amm_A,
             amm_fee=amm_fee,
             loan_discount=loan_discount,
@@ -183,7 +183,7 @@ def market(
             min_borrow_rate=min_borrow_rate,
             max_borrow_rate=max_borrow_rate,
             seed_amount=seed_liquidity,
-            mpolicy_deployer=lending_mpolicy_deployer,
+            mpolicy_deployer=lending_monetary_policy,
         )
 
 
@@ -199,12 +199,20 @@ def controller(market, market_type, admin, borrow_cap):
     return ctrl
 
 
-
-
 @pytest.fixture(scope="module")
 def amm(market):
     """AMM for the current market (mint or lending)."""
     return market['amm']
+
+
+@pytest.fixture(scope="module")
+def vault(market, market_type):
+    """Vault for the current market (mint or lending).
+    Mint markets do not have a vault; return None in that case.
+    """
+    if market_type == "lending":
+        return market["vault"]
+    return None
 
 
 @pytest.fixture(scope="module")
