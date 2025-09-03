@@ -18,8 +18,8 @@ class AdiabaticTrader(RuleBasedStateMachine):
     def __init__(self):
         super().__init__()
         self.collateral = self.collateral_token
-        self.amm = self.market_amm
-        self.controller = self.filled_controller
+        self.amm = self.amm
+        self.controller = self.controller
         self.borrowed_mul = 10**(18 - self.borrowed_token.decimals())
         self.collateral_mul = 10**(18 - self.collateral_token.decimals())
         with boa.env.prank(self.admin):
@@ -98,7 +98,7 @@ class AdiabaticTrader(RuleBasedStateMachine):
             assert h > 0
 
 
-def test_adiabatic_follow(market_amm, filled_controller, monetary_policy, collateral_token, borrowed_token, price_oracle, accounts, admin):
+def test_adiabatic_follow(amm, controller, monetary_policy, collateral_token, borrowed_token, price_oracle, accounts, admin):
     AdiabaticTrader.TestCase.settings = settings(max_examples=50, stateful_step_count=50)
     for k, v in locals().items():
         setattr(AdiabaticTrader, k, v)

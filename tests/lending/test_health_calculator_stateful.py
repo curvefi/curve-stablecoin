@@ -24,8 +24,8 @@ class StatefulLendBorrow(RuleBasedStateMachine):
 
     def __init__(self):
         super().__init__()
-        self.controller = self.filled_controller
-        self.amm = self.market_amm
+        self.controller = self.controller
+        self.amm = self.amm
         self.debt_ceiling = self.controller.borrowed_balance()
         self.collateral_mul = 10**(18 - self.collateral_token.decimals())
         self.borrowed_mul = 10**(18 - self.borrowed_token.decimals())
@@ -251,14 +251,14 @@ class StatefulLendBorrow(RuleBasedStateMachine):
                 assert self.controller.health(user) > 0
 
 
-def test_stateful_lendborrow(market_amm, filled_controller, collateral_token, borrowed_token, accounts):
+def test_stateful_lendborrow(amm, controller, collateral_token, borrowed_token, accounts):
     StatefulLendBorrow.TestCase.settings = settings(max_examples=200, stateful_step_count=20)
     for k, v in locals().items():
         setattr(StatefulLendBorrow, k, v)
     run_state_machine_as_test(StatefulLendBorrow)
 
 
-def test_health_mismatch(market_amm, filled_controller, collateral_token, borrowed_token, accounts):
+def test_health_mismatch(amm, controller, collateral_token, borrowed_token, accounts):
     for k, v in locals().items():
         setattr(StatefulLendBorrow, k, v)
     state = StatefulLendBorrow()
@@ -266,7 +266,7 @@ def test_health_mismatch(market_amm, filled_controller, collateral_token, borrow
     state.health()
     state.sum_of_debts()
     state.create_loan(amount_frac=1.0, c_amount=10000000000000, n=5, user_id=0)
-    debt = filled_controller.debt(accounts[0])
+    debt = controller.debt(accounts[0])
     if debt == 0:
         return
     state.debt_supply()
