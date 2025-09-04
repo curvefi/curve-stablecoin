@@ -1,5 +1,6 @@
 import os
 from datetime import timedelta
+import uuid
 
 import boa
 import pytest
@@ -7,9 +8,27 @@ from hypothesis import settings, Phase
 from tests.utils.deploy import Protocol
 from tests.utils.deployers import (
     ERC20_MOCK_DEPLOYER,
-    CONSTANT_MONETARY_POLICY_DEPLOYER,
     CONSTANT_MONETARY_POLICY_LENDING_DEPLOYER,
 )
+
+def _patch_vvm_eval():
+    def _eval(self, line: str):
+        name = f"_boa_eval_{uuid.uuid4().hex}"
+        assert line.count("\n") == 0
+        body = "".join(f"    {line}") 
+        src = f"def {name}():\n{body}"
+
+        self.inject_function(src)
+        func = getattr(self, name)
+        return func()
+
+
+    boa.contracts.vvm.vvm_contract.VVMContract.eval = _eval
+    return True
+
+
+_patch_vvm_eval()
+
 
 
 boa.env.enable_fast_mode()
