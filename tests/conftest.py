@@ -11,24 +11,6 @@ from tests.utils.deployers import (
     CONSTANT_MONETARY_POLICY_LENDING_DEPLOYER,
 )
 
-def _patch_vvm_eval():
-    def _eval(self, line: str):
-        name = f"_boa_eval_{uuid.uuid4().hex}"
-        assert line.count("\n") == 0
-        body = "".join(f"    {line}") 
-        src = f"@external\ndef {name}():\n{body}"
-
-        self.inject_function(src)
-        func = getattr(self, name)
-        return func()
-
-    # TODO DANGER: this doesn't handle returned value correctly
-    boa.contracts.vvm.vvm_contract.VVMContract.eval = _eval
-
-
-_patch_vvm_eval()
-
-
 
 boa.env.enable_fast_mode()
 
