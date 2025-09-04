@@ -215,7 +215,7 @@ def test_admin(reg, admin, alice, agg, receiver):
 def get_peg_keepers(reg):
     return [
         # pk.get("peg_keeper") for pk in reg._storage.peg_keepers.get()  Available for titanoboa >= 0.1.8
-        reg.peg_keepers(i)[0] for i in range(reg.eval("len(self.peg_keepers)"))
+        reg.peg_keepers(i)[0] for i in range(reg.eval("len(self.peg_keepers)", return_type="uint256"))
     ]
 
 
