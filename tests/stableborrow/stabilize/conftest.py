@@ -85,7 +85,6 @@ def rate_oracle(swap_impl, admin):
 def swap_impl_ng(admin, swap_deployer, rate_oracle):
     with boa.env.prank(admin):
         # Do not forget `git submodule init` and `git submodule update`
-        prefix = "contracts/testing/stableswap-ng/contracts/main"
         factory = CURVE_STABLESWAP_FACTORY_NG_DEPLOYER.deploy(admin, admin)
         swap_deployer.eval(f'self.factory_ng = FactoryNG({factory.address})')
         swap_deployer.eval(f'self.rate_oracle = {rate_oracle.address}')
