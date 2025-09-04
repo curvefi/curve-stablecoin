@@ -24,7 +24,7 @@ interface FactoryNG:
         _ma_exp_time: uint256,
         _implementation_idx: uint256,
         _asset_types: DynArray[uint8, MAX_COINS],
-        _method_ids: DynArray[Bytes[4], MAX_COINS],
+        _method_ids: DynArray[bytes4, MAX_COINS],
         _oracles: DynArray[address, MAX_COINS],
     ) -> address: nonpayable
 
@@ -78,7 +78,7 @@ def deploy_ng(coin_a: ERC20, coin_b: ERC20) -> address:
         866,
         0,
         [1, 1],
-        [method_id("get00()"), method_id("get11()")],
+        [method_id("get00()", output_type=bytes4), method_id("get11()", output_type=bytes4)],
         [self.rate_oracle, self.rate_oracle],
     )
     self.pools[self.n] = pool
