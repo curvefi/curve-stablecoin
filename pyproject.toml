@@ -25,7 +25,7 @@ dev = [
 ]
 
 [tool.uv.sources]
-titanoboa = { git = "https://github.com/vyperlang/titanoboa", rev = "a508f2adac3c05a5bfcc09b7d64f9be46c0bab17" }
+titanoboa = { git = "https://github.com/vyperlang/titanoboa", rev = "master" }
 
 [tool.uv]
 package = false  # This is not a Python package

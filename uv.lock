@@ -424,7 +424,7 @@ dev = [
     { name = "pytest-forked", specifier = ">=1.6.0" },
     { name = "pytest-profiling", specifier = ">=1.8.1" },
     { name = "pytest-xdist", specifier = ">=3.5" },
-    { name = "titanoboa", git = "https://github.com/vyperlang/titanoboa?rev=a508f2adac3c05a5bfcc09b7d64f9be46c0bab17" },
+    { name = "titanoboa", git = "https://github.com/vyperlang/titanoboa?rev=master" },
 ]
 
 [[package]]
@@ -1554,7 +1554,7 @@ wheels = [
 [[package]]
 name = "titanoboa"
 version = "0.2.7"
-source = { git = "https://github.com/vyperlang/titanoboa?rev=a508f2adac3c05a5bfcc09b7d64f9be46c0bab17#a508f2adac3c05a5bfcc09b7d64f9be46c0bab17" }
+source = { git = "https://github.com/vyperlang/titanoboa?rev=master#5360bbae07950ddfd44bc61fd14f656d036c0315" }
 dependencies = [
     { name = "eth-abi" },
     { name = "eth-account" },
