@@ -16,15 +16,14 @@ def _patch_vvm_eval():
         name = f"_boa_eval_{uuid.uuid4().hex}"
         assert line.count("\n") == 0
         body = "".join(f"    {line}") 
-        src = f"def {name}():\n{body}"
+        src = f"@external\ndef {name}():\n{body}"
 
         self.inject_function(src)
         func = getattr(self, name)
         return func()
 
-
+    # TODO DANGER: this doesn't handle returned value correctly
     boa.contracts.vvm.vvm_contract.VVMContract.eval = _eval
-    return True
 
 
 _patch_vvm_eval()
