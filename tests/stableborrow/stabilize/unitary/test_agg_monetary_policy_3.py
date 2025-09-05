@@ -83,9 +83,9 @@ def test_candles(mp, mock_factory, admin):
             controller = controllers[t % 3]
             new_debt = t * 10**5 * 10**18
             mock_factory.set_debt(controller, new_debt)
-            d_total_0, d_for_0 = mp.internal.read_debt(controller, True)
+            d_total_0, d_for_0 = mp.eval(f"self.read_debt({controller}, True)", return_type="(uint256, uint256)")
             mp.rate_write(controller)
-            d_total_1, d_for_1 = mp.internal.read_debt(controller, False)
+            d_total_1, d_for_1 = mp.eval(f"self.read_debt({controller}, False)", return_type="(uint256, uint256)")
             current_total = mock_factory.total_debt()
             assert d_total_0 == d_total_1 <= current_total
             assert d_for_0 == d_for_1
@@ -110,7 +110,7 @@ def test_add_controllers(mp, mock_factory, admin):
     additional_ceilings = [10**7, 10**8, 10**9]
     added_debt = 0
 
-    initial_debt, _ = mp.internal.get_total_debt(ZERO_ADDRESS)
+    initial_debt, _ = mp.eval(f"self.get_total_debt({ZERO_ADDRESS})", return_type="(uint256, uint256)")
 
     with boa.env.prank(admin):
         for ceiling, debt in zip(additional_ceilings, additional_debts):
@@ -120,6 +120,6 @@ def test_add_controllers(mp, mock_factory, admin):
             controller = mock_factory.controllers(mock_factory.n_collaterals() - 1)
             added_debt += debt
             mock_factory.set_debt(controller, debt)
-            total_debt, debt_for = mp.internal.get_total_debt(controller)
+            total_debt, debt_for = mp.eval(f"self.get_total_debt({controller})", return_type="(uint256, uint256)")
             assert total_debt == initial_debt + added_debt
             assert debt_for == debt

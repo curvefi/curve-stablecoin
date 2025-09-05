@@ -72,7 +72,7 @@ def test_new_admin(peg_keepers, admin, alice, bob):
 
         assert pk.admin() == admin
         assert pk.future_admin() == alice
-        assert boa.env.vm.patch.timestamp + ADMIN_ACTIONS_DEADLINE == pk.new_admin_deadline()
+        assert boa.env.evm.patch.timestamp + ADMIN_ACTIONS_DEADLINE == pk.new_admin_deadline()
 
         # apply_new_admin
         boa.env.time_travel(ADMIN_ACTIONS_DEADLINE - 60)
