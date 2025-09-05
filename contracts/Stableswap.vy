@@ -913,7 +913,7 @@ def remove_liquidity_imbalance(
 
     total_supply: uint256 = self.totalSupply
     burn_amount: uint256 = ((D0 - D2) * total_supply // D0) + 1
-    assert burn_amount > 1  # dev: zero tokens burned
+    assert burn_amount > 1, "zero tokens burned"
     assert burn_amount <= _max_burn_amount, "Slippage screwed you"
 
     total_supply -= burn_amount
