@@ -13,10 +13,11 @@ ADMIN_ACTIONS_DEADLINE = 3 * 86400
 
 
 @pytest.fixture(scope="module")
-def offboarding(stablecoin, receiver, admin, peg_keepers):
+def offboarding(receiver, admin, peg_keepers):
+    # TODO should come from deployers
     hr = boa.load(
         'contracts/stabilizer/PegKeeperOffboarding.vy',
-        stablecoin, ZERO_ADDRESS, receiver, admin, admin
+        receiver, admin, admin
     )
     with boa.env.prank(admin):
         for peg_keeper in peg_keepers:
@@ -108,5 +109,4 @@ def test_admin(reg, admin, alice, agg, receiver):
 
         reg.set_admin(alice)
         assert reg.admin() == alice
-
 
