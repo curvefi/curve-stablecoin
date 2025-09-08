@@ -106,7 +106,7 @@ def liquidate_partial(_controller: address, _user: address, _min_x: uint256):
 
     tkn.transferFrom(BORROWED, msg.sender, self, borrowed_from_sender)
 
-    extcall CONTROLLER.liquidate(_user, _min_x, FRAC, empty(address), b"")
+    extcall CONTROLLER.liquidate(_user, _min_x, FRAC)
     collateral_received: uint256 = staticcall COLLATERAL.balanceOf(self)
     tkn.transfer(COLLATERAL, msg.sender, collateral_received)
 

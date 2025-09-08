@@ -120,7 +120,7 @@ def max_borrowable(collateral: uint256, N: uint256, current_debt: uint256, user:
 
 
 @external
-def liquidate(user: address, min_x: uint256, _frac: uint256, callbacker: address, calldata: Bytes[10000]):
+def liquidate(user: address, min_x: uint256, _frac: uint256, callbacker: address = empty(address), calldata: Bytes[10000] = b''):
     ...
 
 
