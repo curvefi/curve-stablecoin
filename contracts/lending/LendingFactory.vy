@@ -327,7 +327,7 @@ def set_implementations(
     vault: address,
     pool_price_oracle: address,
     monetary_policy: address,
-    view: address,
+    view: address, # TODO improve naming
 ):
     """
     @notice Set new implementations (blueprints) for controller, amm, vault, pool price oracle and monetary policy.
