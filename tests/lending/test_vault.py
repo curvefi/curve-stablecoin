@@ -9,16 +9,16 @@ from hypothesis.stateful import RuleBasedStateMachine, run_state_machine_as_test
 DEAD_SHARES = 1000
 
 
-def test_vault_creation(vault, market_controller, market_amm, monetary_policy, factory, price_oracle,
+def test_vault_creation(vault, controller, amm, monetary_policy, factory, price_oracle,
                         borrowed_token, collateral_token, stablecoin):
-    assert vault.amm() == market_amm.address
-    assert vault.controller() == market_controller.address
-    assert market_controller.monetary_policy() == monetary_policy.address
+    assert vault.amm() == amm.address
+    assert vault.controller() == controller.address
+    assert controller.monetary_policy() == monetary_policy.address
     n = factory.market_count()
     assert n > 0
     assert factory.vaults(n - 1) == vault.address
-    assert factory.amms(n - 1) == market_amm.address
-    assert factory.controllers(n - 1) == market_controller.address
+    assert factory.amms(n - 1) == amm.address
+    assert factory.controllers(n - 1) == controller.address
     assert factory.borrowed_tokens(n - 1) == borrowed_token.address
     assert factory.collateral_tokens(n - 1) == collateral_token.address
     assert factory.price_oracles(n - 1) == price_oracle.address
@@ -391,7 +391,7 @@ class StatefulVault(RuleBasedStateMachine):
                 self.vault.approve(user_from, 0)
 
 
-def test_stateful_vault(vault, borrowed_token, accounts, admin, market_amm, market_controller):
+def test_stateful_vault(vault, borrowed_token, accounts, admin, amm, controller):
     StatefulVault.TestCase.settings = settings(max_examples=500, stateful_step_count=50)
     for k, v in locals().items():
         setattr(StatefulVault, k, v)

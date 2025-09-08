@@ -21,8 +21,9 @@ class StatefulLendBorrow(RuleBasedStateMachine):
     def __init__(self):
         super().__init__()
         self.collateral = self.collateral_token
-        self.amm = self.market_amm
-        self.controller = self.market_controller
+        # Use standard fixture names from tests/conftest.py
+        self.amm = self.amm
+        self.controller = self.controller
         self.borrowed_precision = 10**(18 - self.borrowed_token.decimals())
         self.collateral_precision = 10**(18 - self.collateral_token.decimals())
         for u in self.accounts:
@@ -225,14 +226,14 @@ class StatefulLendBorrow(RuleBasedStateMachine):
             assert debt + 10 >= supply - b  # Can have error of 1 (rounding) at most per step (and 10 stateful steps)
 
 
-def test_stateful_lendborrow(vault, market_amm, market_controller, monetary_policy, collateral_token, borrowed_token, accounts, admin):
+def test_stateful_lendborrow(vault, amm, controller, monetary_policy, collateral_token, borrowed_token, accounts, admin):
     StatefulLendBorrow.TestCase.settings = settings(max_examples=200, stateful_step_count=10)
     for k, v in locals().items():
         setattr(StatefulLendBorrow, k, v)
     run_state_machine_as_test(StatefulLendBorrow)
 
 
-def test_borrow_not_reverting(vault, market_amm, market_controller, monetary_policy, collateral_token, borrowed_token, accounts, admin):
+def test_borrow_not_reverting(vault, amm, controller, monetary_policy, collateral_token, borrowed_token, accounts, admin):
     for k, v in locals().items():
         setattr(StatefulLendBorrow, k, v)
     state = StatefulLendBorrow()
