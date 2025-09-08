@@ -1,6 +1,5 @@
 import boa
 import pytest
-import eth_utils
 from ..conftest import PRICE
 from tests.utils.deployers import EMA_PRICE_ORACLE_DEPLOYER
 
@@ -8,13 +7,9 @@ from tests.utils.deployers import EMA_PRICE_ORACLE_DEPLOYER
 @pytest.fixture(scope="module")
 def ema_price_oracle(price_oracle, admin):
     with boa.env.prank(admin):
-        fn_abi = price_oracle.price._abi
-        fn_name = fn_abi["name"]
-        arg_types = ",".join(i["type"] for i in fn_abi["inputs"])
-        signature = f"{fn_name}({arg_types})"
-        signature = eth_utils.keccak(text=signature)[:4]
-        signature = b'\x00' * (32 - len(signature)) + signature
-        return EMA_PRICE_ORACLE_DEPLOYER.deploy(10000, price_oracle.address, signature)
+        selector4 = price_oracle.price.prepare_calldata()[:4]
+        selector32 = selector4.rjust(32, b"\x00")
+        return EMA_PRICE_ORACLE_DEPLOYER.deploy(10000, price_oracle.address, selector32)
 
 
 def test_price_oracle(price_oracle, amm):
