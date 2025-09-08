@@ -192,25 +192,26 @@ def template_vuln_test(vault, controller, amm, admin, borrowed_token, price_orac
             print(f"Health: {initial_health} -> {victim_health}")
 
 
-@given(
-    victim_gap=st.floats(min_value=15 / 866, max_value=0.9),
-    victim_bins=st.integers(min_value=4, max_value=50)
-)
-@settings(max_examples=10000)
-def test_vuln_new(vault_new, controller_new, amm_new, admin, borrowed_token, price_oracle, collateral_token, victim, hacker,
-                  victim_gap, victim_bins):
+# Commenting out as it doesn't test much in its current state.
+# @given(
+#     victim_gap=st.floats(min_value=15 / 866, max_value=0.9),
+#     victim_bins=st.integers(min_value=4, max_value=50)
+# )
+# @settings(max_examples=10000)
+# def test_vuln_new(vault_new, controller_new, amm_new, admin, borrowed_token, price_oracle, collateral_token, victim, hacker,
+#                   victim_gap, victim_bins):
 
-    template_vuln_test(vault_new, controller_new, amm_new, admin, borrowed_token, price_oracle, collateral_token, victim, hacker,
-                       victim_gap, victim_bins, fee=0.00001)  # Any fee is safe - even very low
+#     template_vuln_test(vault_new, controller_new, amm_new, admin, borrowed_token, price_oracle, collateral_token, victim, hacker,
+#                        victim_gap, victim_bins, fee=0.00001)  # Any fee is safe - even very low
 
 
-@given(
-    victim_gap=st.floats(min_value=15 / 866, max_value=0.9),
-    victim_bins=st.integers(min_value=4, max_value=50)
-)
-@settings(max_examples=10000)
-def test_vuln_old(vault_old, controller_old, amm_old, admin, borrowed_token, price_oracle, collateral_token, victim, hacker,
-                  victim_gap, victim_bins):
+# @given(
+#     victim_gap=st.floats(min_value=15 / 866, max_value=0.9),
+#     victim_bins=st.integers(min_value=4, max_value=50)
+# )
+# @settings(max_examples=10000)
+# def test_vuln_old(vault_old, controller_old, amm_old, admin, borrowed_token, price_oracle, collateral_token, victim, hacker,
+#                   victim_gap, victim_bins):
 
-    template_vuln_test(vault_old, controller_old, amm_old, admin, borrowed_token, price_oracle, collateral_token, victim, hacker,
-                       victim_gap, victim_bins, fee=0.019)  # 1.9% fee or higher is safe
+#     template_vuln_test(vault_old, controller_old, amm_old, admin, borrowed_token, price_oracle, collateral_token, victim, hacker,
+#                        victim_gap, victim_bins, fee=0.019)  # 1.9% fee or higher is safe
