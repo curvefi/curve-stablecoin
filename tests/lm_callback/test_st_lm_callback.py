@@ -21,14 +21,14 @@ class StateMachine(RuleBasedStateMachine):
         self.checkpoint_total_collateral = 0
         self.checkpoint_rate = self.crv.rate()
         self.integrals = {addr: {
-            "checkpoint": boa.env.evm.patch.timestamp,
+            "checkpoint": boa.env.timestamp,
             "integral": 0,
             "collateral": 0,
         } for addr in self.accounts[:5]}
 
     def update_integrals(self):
         # Update rewards
-        t1 = boa.env.evm.patch.timestamp
+        t1 = boa.env.timestamp
         t_epoch = self.crv.start_epoch_time_write(sender=self.admin)
         rate1 = self.crv.rate()
         for acct in self.accounts[:5]:

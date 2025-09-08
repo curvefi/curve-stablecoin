@@ -79,7 +79,7 @@ def test_gauge_integral_with_exchanges(
         alice, bob = accounts[:2]
 
         integral = 0  # ∫(balance * rate(t) / totalSupply(t) dt)
-        checkpoint = boa.env.evm.patch.timestamp
+        checkpoint = boa.env.timestamp
         checkpoint_rate = crv.rate()
         checkpoint_supply = 0
         checkpoint_balance = 0
@@ -94,7 +94,7 @@ def test_gauge_integral_with_exchanges(
         def update_integral():
             nonlocal checkpoint, checkpoint_rate, integral, checkpoint_balance, checkpoint_supply
 
-            t1 = boa.env.evm.patch.timestamp
+            t1 = boa.env.timestamp
             t_epoch = crv.start_epoch_time_write(sender=admin)
             rate1 = crv.rate()
             if checkpoint >= t_epoch:

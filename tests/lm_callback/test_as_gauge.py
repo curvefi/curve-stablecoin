@@ -13,7 +13,7 @@ def test_gauge_integral_one_user(accounts, admin, collateral_token, crv, lm_call
         boa.env.time_travel(seconds=WEEK)
         alice_staked = 0
         integral = 0  # ∫(balance * rate(t) / totalSupply(t) dt)
-        checkpoint = boa.env.evm.patch.timestamp
+        checkpoint = boa.env.timestamp
         checkpoint_rate = crv.rate()
         checkpoint_supply = 0
         checkpoint_balance = 0
@@ -23,7 +23,7 @@ def test_gauge_integral_one_user(accounts, admin, collateral_token, crv, lm_call
         def update_integral():
             nonlocal checkpoint, checkpoint_rate, integral, checkpoint_balance, checkpoint_supply
 
-            t1 = boa.env.evm.patch.timestamp
+            t1 = boa.env.timestamp
             rate1 = crv.rate()
             t_epoch = crv.start_epoch_time_write(sender=admin)
             if checkpoint >= t_epoch:
@@ -94,7 +94,7 @@ def test_gauge_integral(accounts, admin, collateral_token, crv, lm_callback, mar
         alice_staked = 0
         bob_staked = 0
         integral = 0  # ∫(balance * rate(t) / totalSupply(t) dt)
-        checkpoint = boa.env.evm.patch.timestamp
+        checkpoint = boa.env.timestamp
         boa.env.time_travel(blocks=1)
         checkpoint_rate = crv.rate()
         checkpoint_supply = 0
@@ -108,7 +108,7 @@ def test_gauge_integral(accounts, admin, collateral_token, crv, lm_callback, mar
         def update_integral():
             nonlocal checkpoint, checkpoint_rate, integral, checkpoint_balance, checkpoint_supply
 
-            t1 = boa.env.evm.patch.timestamp
+            t1 = boa.env.timestamp
             rate1 = crv.rate()
             t_epoch = crv.start_epoch_time()
             if checkpoint >= t_epoch:
