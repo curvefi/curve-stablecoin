@@ -245,6 +245,7 @@ def create_from_pool(
     # Find coins in the pool
     borrowed_ix: uint256 = 100
     collateral_ix: uint256 = 100
+    # TODO duplicated code
     N: uint256 = 0
     for i: uint256 in range(10):
         success: bool = False

@@ -50,6 +50,7 @@ def __init__(
             break
 
         # Find N
+        # TODO duplicate code to modularize
         N: uint256 = 0
         for j in range(MAX_COINS + 1):
             success: bool = False

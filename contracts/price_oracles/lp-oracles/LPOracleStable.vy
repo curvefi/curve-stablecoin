@@ -32,6 +32,7 @@ def __init__(_pool: IStablePool, _coin0_oracle: IPriceOracle):
     success: bool = False
 
     # Find N_COINS
+    # TODO duplicate code to modularize
     for i: uint256 in range(MAX_COINS + 1):
         success, res = raw_call(
             _pool.address,
