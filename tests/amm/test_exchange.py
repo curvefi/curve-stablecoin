@@ -44,24 +44,28 @@ def test_dxdy_limits(amm, amounts, accounts, ns, dns, collateral_token, admin):
 
 
 @given(
-        amounts=st.lists(st.integers(min_value=10**16, max_value=10**6 * 10**18), min_size=5, max_size=5),
+        amounts=st.lists(st.floats(min_value=0.01, max_value=1e6), min_size=5, max_size=5),
         ns=st.lists(st.integers(min_value=1, max_value=20), min_size=5, max_size=5),
         dns=st.lists(st.integers(min_value=0, max_value=20), min_size=5, max_size=5),
-        amount=st.integers(min_value=0, max_value=10**9 * 10**6)
+        amount=st.floats(min_value=0.001, max_value=10e9)
 )
 def test_exchange_down_up(amm, amounts, accounts, ns, dns, amount,
                           borrowed_token, collateral_token, admin):
+    collateral_decimals = collateral_token.decimals()
+    borrowed_decimals = borrowed_token.decimals()
+    amounts = list(map(lambda x: int(x * 10**collateral_decimals), amounts))
+    amount = int(amount * 10**borrowed_decimals)
     u = accounts[6]
 
     with boa.env.prank(admin):
-        for user, amount, n1, dn in zip(accounts[1:6], amounts, ns, dns):
+        for user, amt, n1, dn in zip(accounts[1:6], amounts, ns, dns):
             n2 = n1 + dn
-            if amount // (dn + 1) <= 100:
+            if amt // (dn + 1) <= 100:
                 with boa.reverts("Amount too low"):
-                    amm.deposit_range(user, amount, n1, n2)
+                    amm.deposit_range(user, amt, n1, n2)
             else:
-                amm.deposit_range(user, amount, n1, n2)
-                mint_for_testing(collateral_token, amm.address, amount)
+                amm.deposit_range(user, amt, n1, n2)
+                mint_for_testing(collateral_token, amm.address, amt)
 
     p_before = amm.get_p()
 
