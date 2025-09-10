@@ -3,9 +3,6 @@ import pytest
 from hypothesis import given
 from hypothesis import strategies as st
 
-min_default_borrow_rate = 5 * 10**15 // (365 * 86400)
-max_default_borrow_rate = 50 * 10**16 // (365 * 86400)
-
 
 @given(fill=st.floats(min_value=0.0, max_value=2.0))
 def test_monetary_policy(controller, collateral_token, borrowed_token, monetary_policy, admin, fill):
@@ -23,8 +20,11 @@ def test_monetary_policy(controller, collateral_token, borrowed_token, monetary_
                 return
             else:
                 controller.create_loan(c_amount, to_borrow, 5)
+                # Use the policy’s configured min/max rates bound to this market
+                min_rate = monetary_policy.min_rate()
+                max_rate = monetary_policy.max_rate()
                 rate = monetary_policy.rate(controller.address)
-                assert rate >= min_default_borrow_rate * (1 - 1e-5)
-                assert rate <= max_default_borrow_rate * (1 + 1e-5)
-                theoretical_rate = min_default_borrow_rate * (max_default_borrow_rate / min_default_borrow_rate)**fill
+                assert rate >= min_rate * (1 - 1e-5)
+                assert rate <= max_rate * (1 + 1e-5)
+                theoretical_rate = min_rate * (max_rate / min_rate) ** fill
                 assert rate == pytest.approx(theoretical_rate, rel=1e-4)
