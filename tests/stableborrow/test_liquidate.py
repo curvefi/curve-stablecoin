@@ -172,18 +172,19 @@ def test_tokens_to_liquidate(accounts, admin, controller_for_liquidation, market
 
     with boa.env.anchor():
         controller = controller_for_liquidation(sleep_time=80 * 86400, discount=0)
-        initial_balance = stablecoin.balanceOf(fee_receiver)
         tokens_to_liquidate = controller.tokens_to_liquidate(user, frac)
 
         with boa.env.prank(accounts[2]):
             stablecoin.transfer(fee_receiver, 10**10)
+        initial_balance = stablecoin.balanceOf(fee_receiver)
 
         with boa.env.prank(fee_receiver):
             controller.liquidate(user, 0, frac)
 
         balance = stablecoin.balanceOf(fee_receiver)
+        spent = initial_balance - balance
 
         if frac < 10**18:
-            assert balance == pytest.approx(initial_balance - tokens_to_liquidate, rel=1e5, abs=1e5)
+            assert spent == pytest.approx(tokens_to_liquidate, rel=1e5, abs=1e5)
         else:
             assert balance != initial_balance - tokens_to_liquidate
