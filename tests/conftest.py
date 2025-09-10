@@ -19,8 +19,8 @@ PRICE = 3000
 TESTING_DECIMALS = [2, 6, 8, 9, 18]
 
 
-settings.register_profile("no-shrink", settings(phases=list(Phase)[:4]), deadline=timedelta(seconds=1000))
-settings.register_profile("default", deadline=timedelta(seconds=1000))
+settings.register_profile("no-shrink", settings(phases=list(Phase)[:4]), deadline=timedelta(seconds=1000), print_blob=True)
+settings.register_profile("default", deadline=timedelta(seconds=1000), print_blob=True)
 settings.load_profile(os.getenv(u"HYPOTHESIS_PROFILE", "default"))
 
 
