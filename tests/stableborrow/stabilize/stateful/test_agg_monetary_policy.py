@@ -46,6 +46,16 @@ class AggMonetaryPolicyCreation(RuleBasedStateMachine):
             self.add_stablecoin(d)
             with boa.env.prank(self.admin):
                 self.agg.add_price_pair(self.swaps[-1].address)
+                # Seed minimal liquidity so pools are never empty when EMA TVL updates
+                # This prevents aggregator from having get_virtual_price() return 0
+                fed = self.stablecoins[-1]
+                swap = self.swaps[-1]
+                # Deposit ~1 unit of each side
+                amt_fed = self.one_usd[-1]          # 1 unit in fedUSD base units
+                amt_crvusd = 10**18                 # 1 crvUSD
+                boa.deal(fed, self.admin, amt_fed)
+                boa.deal(self.stablecoin, self.admin, amt_crvusd)
+                swap.add_liquidity([amt_fed, amt_crvusd], 0)
         self.mp = self.MPOLICY.deploy(
             self.admin,
             self.agg.address,
@@ -118,6 +128,7 @@ class AggMonetaryPolicyCreation(RuleBasedStateMachine):
             x = [int(amount * self.one_usd[n]), int(split * amount * 1e18)]
             with boa.env.prank(self.admin):
                 boa.deal(self.stablecoins[n], self.admin, 2 * x[0])
+                boa.deal(self.stablecoin, self.admin, 2 * x[1])
                 self.swaps[n].add_liquidity(x, 0)
                 # Add twice to record the price for MA
                 self.swaps[n].add_liquidity(x, 0)
