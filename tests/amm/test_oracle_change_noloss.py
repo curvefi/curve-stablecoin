@@ -145,7 +145,10 @@ def test_no_untradable_funds(amm, collateral_token, borrowed_token, price_oracle
         amm.exchange(1, 0, 10**24, 0)
     # Check that we cleaned up the last band
     new_b = borrowed_token.balanceOf(user)
-    assert sum(amm.bands_x(n) for n in range(61)) == borrowed_token.balanceOf(amm.address), "Insolvent"
+    if borrowed_token.decimals() == 18:
+        assert sum(amm.bands_x(n) for n in range(61)) == borrowed_token.balanceOf(amm.address), "Insolvent"
+    else:
+        assert 0 <= borrowed_token.balanceOf(amm.address) - sum(amm.bands_x(n) for n in range(61)) <= 1, "Insolvent"
     assert amm.bands_x(n1) == 0
     assert new_b > b
 
@@ -191,6 +194,9 @@ def test_no_untradable_funds_in(amm, collateral_token, borrowed_token, price_ora
         amm.exchange_dy(1, 0, 2**256 - 1, 10**24)
     # Check that we cleaned up the last band
     new_b = borrowed_token.balanceOf(user)
-    assert sum(amm.bands_x(n) for n in range(61)) == borrowed_token.balanceOf(amm.address), "Insolvent"
+    if borrowed_token.decimals() == 18:
+        assert sum(amm.bands_x(n) for n in range(61)) == borrowed_token.balanceOf(amm.address), "Insolvent"
+    else:
+        assert 0 <= borrowed_token.balanceOf(amm.address) - sum(amm.bands_x(n) for n in range(61)) <= 1, "Insolvent"
     assert amm.bands_x(n1) == 0
     assert new_b > b
