@@ -63,7 +63,7 @@ def test_flip(amm, price_oracle, collateral_token, borrowed_token, accounts, adm
                     assert p2 >= p1
                 assert p2 >= amm.p_current_down(n2)
                 assert p2 <= amm.p_current_up(n2)
-                is_empty = sum(amm.bands_y(n) for n in range(1, 6)) <= 10**(18 - collateral_decimals)
+                is_empty = sum(amm.bands_y(n) for n in range(1, 6)) < 10**(18 - collateral_decimals)
                 if is_empty:
                     assert collateral_token.balanceOf(amm) <= 1
                     break
@@ -104,7 +104,7 @@ def test_flip(amm, price_oracle, collateral_token, borrowed_token, accounts, adm
                     assert p2 <= p1
                 assert p2 >= amm.p_current_down(n2)
                 assert p2 <= amm.p_current_up(n2)
-                is_empty = sum(amm.bands_x(n) for n in range(1, 6)) <= 10**(18 - borrowed_decimals)
+                is_empty = sum(amm.bands_x(n) for n in range(1, 6)) < 10**(18 - borrowed_decimals)
                 if is_empty:
                     assert borrowed_token.balanceOf(amm) <= 1
                     break
