@@ -308,4 +308,3 @@ def user_shares(arg0: address) -> UserTicks:
 @external
 def liquidity_mining_callback() -> ILMGauge:
     ...
-

@@ -1,6 +1,6 @@
 from contracts.interfaces import IVault
 
-from ethereum.ercs import IERC20 
+from ethereum.ercs import IERC20
 from contracts.interfaces import ILMGauge
 from contracts.interfaces import IAMM
 from contracts.interfaces import IMonetaryPolicy
@@ -389,4 +389,3 @@ def borrowed_balance() -> uint256:
 @view
 def borrow_cap() -> uint256:
     ...
-

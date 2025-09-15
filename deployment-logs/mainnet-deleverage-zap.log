@@ -1,5 +1,5 @@
-$ ape run scripts/ape-deploy-deleverage-zaps.py deploy --network ethereum:mainnet:alchemy       
-Enter passphrase to permanently unlock 'babe': 
+$ ape run scripts/ape-deploy-deleverage-zaps.py deploy --network ethereum:mainnet:alchemy
+Enter passphrase to permanently unlock 'babe':
 WARNING: Danger! This account will now sign any transaction it's given.
 WARNING: Using cached key for babe
 INFO: Submitted https://etherscan.io/tx/0x94ac333c7237f052290d666db2cf28dc8de99b4c6281c7c173e3c5d6c1683c7b

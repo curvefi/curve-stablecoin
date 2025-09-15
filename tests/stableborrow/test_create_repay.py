@@ -4,7 +4,15 @@ from hypothesis import given
 from hypothesis import strategies as st
 
 
-def test_create_loan(controller_factory, stablecoin, collateral_token, market_controller, market_amm, monetary_policy, accounts):
+def test_create_loan(
+    controller_factory,
+    stablecoin,
+    collateral_token,
+    market_controller,
+    market_amm,
+    monetary_policy,
+    accounts,
+):
     user = accounts[0]
     with boa.env.anchor():
         with boa.env.prank(user):
@@ -17,9 +25,9 @@ def test_create_loan(controller_factory, stablecoin, collateral_token, market_co
                 market_controller.create_loan(c_amount, l_amount, 5)
 
             l_amount = 5 * 10**5 * 10**18
-            with boa.reverts('Need more ticks'):
+            with boa.reverts("Need more ticks"):
                 market_controller.create_loan(c_amount, l_amount, 3)
-            with boa.reverts('Need less ticks'):
+            with boa.reverts("Need less ticks"):
                 market_controller.create_loan(c_amount, l_amount, 400)
 
             with boa.reverts("Debt too high"):
@@ -28,19 +36,23 @@ def test_create_loan(controller_factory, stablecoin, collateral_token, market_co
             # Phew, the loan finally was created
             market_controller.create_loan(c_amount, l_amount, 5)
             # But cannot do it again
-            with boa.reverts('Loan already created'):
+            with boa.reverts("Loan already created"):
                 market_controller.create_loan(c_amount, 1, 5)
 
             assert stablecoin.balanceOf(user) == l_amount
-            assert l_amount == stablecoin.totalSupply() - stablecoin.balanceOf(market_controller)
+            assert l_amount == stablecoin.totalSupply() - stablecoin.balanceOf(
+                market_controller
+            )
             assert collateral_token.balanceOf(user) == initial_amount - c_amount
 
             assert market_controller.total_debt() == l_amount
             assert market_controller.debt(user) == l_amount
 
             p_up, p_down = market_controller.user_prices(user)
-            p_lim = l_amount / c_amount / (1 - market_controller.loan_discount()/1e18)
-            assert p_lim == pytest.approx((p_down * p_up)**0.5 / 1e18, rel=2 / market_amm.A())
+            p_lim = l_amount / c_amount / (1 - market_controller.loan_discount() / 1e18)
+            assert p_lim == pytest.approx(
+                (p_down * p_up) ** 0.5 / 1e18, rel=2 / market_amm.A()
+            )
 
             h = market_controller.health(user) / 1e18 + 0.02
             assert h >= 0.05 and h <= 0.06
@@ -55,8 +67,10 @@ def test_create_loan(controller_factory, stablecoin, collateral_token, market_co
 )
 def test_max_borrowable(market_controller, accounts, collateral_amount, n):
     max_borrowable = market_controller.max_borrowable(collateral_amount, n)
-    with boa.reverts('Debt too high'):
-        market_controller.calculate_debt_n1(collateral_amount, int(max_borrowable * 1.001), n)
+    with boa.reverts("Debt too high"):
+        market_controller.calculate_debt_n1(
+            collateral_amount, int(max_borrowable * 1.001), n
+        )
     market_controller.calculate_debt_n1(collateral_amount, max_borrowable, n)
 
 
@@ -72,13 +86,15 @@ def existing_loan(collateral_token, market_controller, accounts):
         market_controller.create_loan(c_amount, l_amount, n)
 
 
-def test_repay_all(stablecoin, collateral_token, market_controller, existing_loan, accounts):
+def test_repay_all(
+    stablecoin, collateral_token, market_controller, existing_loan, accounts
+):
     user = accounts[0]
     with boa.env.anchor():
         with boa.env.prank(user):
             c_amount = int(2 * 1e6 * 1e18 * 1.5 / 3000)
             amm = market_controller.amm()
-            stablecoin.approve(market_controller, 2**256-1)
+            stablecoin.approve(market_controller, 2**256 - 1)
             market_controller.repay(2**100, user)
             assert market_controller.debt(user) == 0
             assert stablecoin.balanceOf(user) == 0
@@ -88,7 +104,9 @@ def test_repay_all(stablecoin, collateral_token, market_controller, existing_loa
             assert market_controller.total_debt() == 0
 
 
-def test_repay_half(stablecoin, collateral_token, market_controller, existing_loan, market_amm, accounts):
+def test_repay_half(
+    stablecoin, collateral_token, market_controller, existing_loan, market_amm, accounts
+):
     user = accounts[0]
 
     with boa.env.anchor():
@@ -98,7 +116,7 @@ def test_repay_half(stablecoin, collateral_token, market_controller, existing_lo
             to_repay = debt // 2
 
             n_before_0, n_before_1 = market_amm.read_user_tick_numbers(user)
-            stablecoin.approve(market_controller, 2**256-1)
+            stablecoin.approve(market_controller, 2**256 - 1)
             market_controller.repay(to_repay, user)
             n_after_0, n_after_1 = market_amm.read_user_tick_numbers(user)
 
@@ -114,7 +132,9 @@ def test_repay_half(stablecoin, collateral_token, market_controller, existing_lo
             assert market_controller.total_debt() == debt - to_repay
 
 
-def test_add_collateral(stablecoin, collateral_token, market_controller, existing_loan, market_amm, accounts):
+def test_add_collateral(
+    stablecoin, collateral_token, market_controller, existing_loan, market_amm, accounts
+):
     user = accounts[0]
 
     with boa.env.anchor():
@@ -139,7 +159,9 @@ def test_add_collateral(stablecoin, collateral_token, market_controller, existin
         assert market_controller.total_debt() == debt
 
 
-def test_borrow_more(stablecoin, collateral_token, market_controller, existing_loan, market_amm, accounts):
+def test_borrow_more(
+    stablecoin, collateral_token, market_controller, existing_loan, market_amm, accounts
+):
     user = accounts[0]
 
     with boa.env.anchor():

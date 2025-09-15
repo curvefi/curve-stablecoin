@@ -1,6 +1,12 @@
 from hypothesis import settings
 from hypothesis import strategies as st
-from hypothesis.stateful import RuleBasedStateMachine, run_state_machine_as_test, initialize, rule, invariant
+from hypothesis.stateful import (
+    RuleBasedStateMachine,
+    run_state_machine_as_test,
+    initialize,
+    rule,
+    invariant,
+)
 from boa.interpret import VyperContract
 import boa
 from tests.utils.deployers import (
@@ -8,15 +14,18 @@ from tests.utils.deployers import (
     ERC20_MOCK_DEPLOYER,
     PEG_KEEPER_V2_DEPLOYER,
     AGGREGATE_STABLE_PRICE3_DEPLOYER,
-    PEG_KEEPER_REGULATOR_DEPLOYER
+    PEG_KEEPER_REGULATOR_DEPLOYER,
 )
 from tests.utils.constants import ZERO_ADDRESS
+
 RATE0 = 634195839  # 2%
 
 
 class AggMonetaryPolicyCreation(RuleBasedStateMachine):
     digits = st.integers(min_value=6, max_value=18)
-    many_digits = st.lists(st.integers(min_value=6, max_value=18), min_size=1, max_size=5)
+    many_digits = st.lists(
+        st.integers(min_value=6, max_value=18), min_size=1, max_size=5
+    )
     deposit_amount = st.floats(min_value=1, max_value=1e9)
     deposit_split = st.floats(min_value=0.5, max_value=1.5)
     pool_number = st.integers(min_value=0, max_value=10000)
@@ -37,8 +46,12 @@ class AggMonetaryPolicyCreation(RuleBasedStateMachine):
         self.one_usd = []
         self.swaps = []
         self.peg_keepers = []
-        self.agg = AGGREGATE_STABLE_PRICE3_DEPLOYER.deploy(self.stablecoin.address, 10**15, self.admin)
-        self.reg = PEG_KEEPER_REGULATOR_DEPLOYER.deploy(self.stablecoin.address, self.agg, self.admin, self.admin, self.admin)
+        self.agg = AGGREGATE_STABLE_PRICE3_DEPLOYER.deploy(
+            self.stablecoin.address, 10**15, self.admin
+        )
+        self.reg = PEG_KEEPER_REGULATOR_DEPLOYER.deploy(
+            self.stablecoin.address, self.agg, self.admin, self.admin, self.admin
+        )
 
     @initialize(digits=many_digits)
     def initializer(self, digits):
@@ -51,8 +64,8 @@ class AggMonetaryPolicyCreation(RuleBasedStateMachine):
                 fed = self.stablecoins[-1]
                 swap = self.swaps[-1]
                 # Deposit ~1 unit of each side
-                amt_fed = self.one_usd[-1]          # 1 unit in fedUSD base units
-                amt_crvusd = 10**18                 # 1 crvUSD
+                amt_fed = self.one_usd[-1]  # 1 unit in fedUSD base units
+                amt_crvusd = 10**18  # 1 crvUSD
                 boa.deal(fed, self.admin, amt_fed)
                 boa.deal(self.stablecoin, self.admin, amt_crvusd)
                 swap.add_liquidity([amt_fed, amt_crvusd], 0)
@@ -63,7 +76,8 @@ class AggMonetaryPolicyCreation(RuleBasedStateMachine):
             [p.address for p in self.peg_keepers] + [ZERO_ADDRESS] * (5 - len(digits)),
             RATE0,
             2 * 10**16,  # Sigma 2%
-            5 * 10**16)  # Target debt fraction 5%
+            5 * 10**16,
+        )  # Target debt fraction 5%
 
     def add_stablecoin(self, digits):
         with boa.env.prank(self.admin):
@@ -73,16 +87,17 @@ class AggMonetaryPolicyCreation(RuleBasedStateMachine):
             n = self.swap_deployer.n()
             self.swap_deployer.deploy(fedUSD, self.stablecoin)
             addr = self.swap_deployer.pools(n)
-            swap = VyperContract(
-                self.swap_impl.compiler_data,
-                override_address=addr
-            )
+            swap = VyperContract(self.swap_impl.compiler_data, override_address=addr)
             fedUSD.approve(swap.address, 2**256 - 1)
             self.stablecoin.approve(swap.address, 2**256 - 1)
             # Deploy a peg keeper
             pk = self.PK.deploy(
-                    swap.address, 5 * 10**4,
-                    self.controller_factory.address, self.reg.address, self.admin)
+                swap.address,
+                5 * 10**4,
+                self.controller_factory.address,
+                self.reg.address,
+                self.admin,
+            )
         self.stablecoins.append(fedUSD)
         self.swaps.append(swap)
         self.peg_keepers.append(pk)
@@ -143,11 +158,15 @@ class AggMonetaryPolicyCreation(RuleBasedStateMachine):
     def rate_readable(self):
         rate = self.mp.rate()
         rate0 = self.mp.rate0()
-        assert abs((rate - rate0) / (rate0 + RATE0 // 1000)) < 1e6  # Can be huge at small sigma!
+        assert (
+            abs((rate - rate0) / (rate0 + RATE0 // 1000)) < 1e6
+        )  # Can be huge at small sigma!
 
 
 def test_agg_mp(unsafe_factory, swap_deployer, swap_impl, stablecoin, admin):
-    AggMonetaryPolicyCreation.TestCase.settings = settings(max_examples=30, stateful_step_count=20)
+    AggMonetaryPolicyCreation.TestCase.settings = settings(
+        max_examples=30, stateful_step_count=20
+    )
     for k, v in locals().items():
         setattr(AggMonetaryPolicyCreation, k, v)
     run_state_machine_as_test(AggMonetaryPolicyCreation)

@@ -64,9 +64,11 @@ def test_withdraw_dust_debt(
     redeemable_tokens,
     peg_keepers,
     peg_keeper_updater,
-    _mint
+    _mint,
 ):
-    for swap, peg_keeper, initial, rtoken in zip(swaps, peg_keepers, initial_amounts, redeemable_tokens):
+    for swap, peg_keeper, initial, rtoken in zip(
+        swaps, peg_keepers, initial_amounts, redeemable_tokens
+    ):
         rtoken_mul = 10 ** (18 - rtoken.decimals())
         amount = 5 * (initial[1] - 1)
         _mint(alice, [stablecoin], [2 * amount])
@@ -77,7 +79,9 @@ def test_withdraw_dust_debt(
         with boa.env.prank(peg_keeper_updater):
             assert peg_keeper.update()
 
-        assert (swap.balances(1) - (amount - amount // 5)) // rtoken_mul == swap.balances(0)
+        assert (
+            swap.balances(1) - (amount - amount // 5)
+        ) // rtoken_mul == swap.balances(0)
 
         remove_amount = swap.balances(1) - swap.balances(0) * rtoken_mul
         with boa.env.prank(alice):

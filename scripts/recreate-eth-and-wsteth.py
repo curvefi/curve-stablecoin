@@ -48,23 +48,25 @@ high_ratio = int(3e18)
 
 
 def account_load(fname):
-    path = os.path.expanduser(os.path.join('~', '.brownie', 'accounts', fname + '.json'))
-    with open(path, 'r') as f:
+    path = os.path.expanduser(
+        os.path.join("~", ".brownie", "accounts", fname + ".json")
+    )
+    with open(path, "r") as f:
         pkey = account.decode_keyfile_json(json.load(f), getpass())
         return account.Account.from_key(pkey)
 
 
-if __name__ == '__main__':
-    if '--fork' in sys.argv[1:]:
+if __name__ == "__main__":
+    if "--fork" in sys.argv[1:]:
         boa.env.fork(NETWORK)
-        boa.env.eoa = '0xbabe61887f1de2713c6f97e567623453d3C79f67'
+        boa.env.eoa = "0xbabe61887f1de2713c6f97e567623453d3C79f67"
     else:
         boa.set_network_env(NETWORK)
-        boa.env.add_account(account_load('babe'))
+        boa.env.add_account(account_load("babe"))
         boa.env._fork_try_prefetch_state = False
 
-    factory = boa.load_partial('contracts/lending/OneWayLendingFactory.vy').at(FACTORY)
-    policy_deployer = boa.load_partial('contracts/mpolicies/SecondaryMonetaryPolicy.vy')
+    factory = boa.load_partial("contracts/lending/OneWayLendingFactory.vy").at(FACTORY)
+    policy_deployer = boa.load_partial("contracts/mpolicies/SecondaryMonetaryPolicy.vy")
 
     # for ix in [WETH_INDEX, WSTETH_INDEX]:
     for ix in [WSTETH_INDEX]:
@@ -72,9 +74,13 @@ if __name__ == '__main__':
             rate_shift = int(0.03e18 / 365 / 86400)
         else:
             rate_shift = 0
-        old_controller = boa.from_etherscan(factory.controllers(ix), name="Controller", api_key=ETHERSCAN_API_KEY)
-        old_amm = boa.from_etherscan(old_controller.amm(), name="AMM", api_key=ETHERSCAN_API_KEY)
-        name = factory.names(ix) + '2'
+        old_controller = boa.from_etherscan(
+            factory.controllers(ix), name="Controller", api_key=ETHERSCAN_API_KEY
+        )
+        old_amm = boa.from_etherscan(
+            old_controller.amm(), name="AMM", api_key=ETHERSCAN_API_KEY
+        )
+        name = factory.names(ix) + "2"
         vault = factory.create(
             old_controller.borrowed_token(),
             old_controller.collateral_token(),
@@ -85,14 +91,21 @@ if __name__ == '__main__':
             old_amm.price_oracle_contract(),
             name,
             int(0.03e18 / 365 / 86400),
-            int(0.3e18 / 365 / 86400) + rate_shift
+            int(0.3e18 / 365 / 86400) + rate_shift,
         )
-        policy = policy_deployer.deploy(factory.address, WETH_AMM, old_controller.borrowed_token(),
-                                        target_utilization, low_ratio, high_ratio, rate_shift)
+        policy = policy_deployer.deploy(
+            factory.address,
+            WETH_AMM,
+            old_controller.borrowed_token(),
+            target_utilization,
+            low_ratio,
+            high_ratio,
+            rate_shift,
+        )
         gauge = factory.deploy_gauge(vault)
 
         print(name)
-        print(f'Vault: {vault}')
-        print(f'Gauge: {gauge}')
-        print(f'Policy: {policy.address}')
+        print(f"Vault: {vault}")
+        print(f"Gauge: {gauge}")
+        print(f"Policy: {policy.address}")
         print()

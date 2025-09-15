@@ -5,10 +5,18 @@ from hypothesis import strategies as st
 
 
 @given(fill=st.floats(min_value=0.0, max_value=2.0))
-def test_monetary_policy(controller, collateral_token, borrowed_token, monetary_policy, admin, fill):
+def test_monetary_policy(
+    controller, collateral_token, borrowed_token, monetary_policy, admin, fill
+):
     available = borrowed_token.balanceOf(controller.address)
     to_borrow = int(fill * available)
-    c_amount = 2 * 3000 * to_borrow * 10**(18 - borrowed_token.decimals()) // 10**(18 - collateral_token.decimals())
+    c_amount = (
+        2
+        * 3000
+        * to_borrow
+        * 10 ** (18 - borrowed_token.decimals())
+        // 10 ** (18 - collateral_token.decimals())
+    )
 
     if to_borrow > 0 and c_amount > 0:
         with boa.env.prank(admin):

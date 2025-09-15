@@ -1,18 +1,23 @@
 import boa
 from hypothesis import settings
 from hypothesis import strategies as st
-from hypothesis.stateful import RuleBasedStateMachine, run_state_machine_as_test, rule, invariant
+from hypothesis.stateful import (
+    RuleBasedStateMachine,
+    run_state_machine_as_test,
+    rule,
+    invariant,
+)
 
 
 DEAD_SHARES = 1000
-MIN_RATE  = 10**15 // (365 * 86400)  # 0.1%
-MAX_RATE  = 10**19 // (365 * 86400)  # 1000%
+MIN_RATE = 10**15 // (365 * 86400)  # 0.1%
+MAX_RATE = 10**19 // (365 * 86400)  # 1000%
 
 
 class StatefulLendBorrow(RuleBasedStateMachine):
     n = st.integers(min_value=5, max_value=50)
-    amount = st.integers(min_value=0, max_value=2**256-1)
-    c_amount = st.integers(min_value=0, max_value=2**256-1)
+    amount = st.integers(min_value=0, max_value=2**256 - 1)
+    c_amount = st.integers(min_value=0, max_value=2**256 - 1)
     user_id = st.integers(min_value=0, max_value=9)
     t = st.integers(min_value=0, max_value=86400 * 365)
     min_rate = st.integers(min_value=0, max_value=2**255 - 1)
@@ -24,13 +29,13 @@ class StatefulLendBorrow(RuleBasedStateMachine):
         # Use standard fixture names from tests/conftest.py
         self.amm = self.amm
         self.controller = self.controller
-        self.borrowed_precision = 10**(18 - self.borrowed_token.decimals())
-        self.collateral_precision = 10**(18 - self.collateral_token.decimals())
+        self.borrowed_precision = 10 ** (18 - self.borrowed_token.decimals())
+        self.collateral_precision = 10 ** (18 - self.collateral_token.decimals())
         for u in self.accounts:
             with boa.env.prank(u):
-                self.collateral_token.approve(self.controller.address, 2**256-1)
-                self.borrowed_token.approve(self.controller.address, 2**256-1)
-        self.debt_ceiling = 10**6 * 10**(self.borrowed_token.decimals())
+                self.collateral_token.approve(self.controller.address, 2**256 - 1)
+                self.borrowed_token.approve(self.controller.address, 2**256 - 1)
+        self.debt_ceiling = 10**6 * 10 ** (self.borrowed_token.decimals())
         with boa.env.prank(self.accounts[0]):
             self.borrowed_token.approve(self.vault.address, 2**256 - 1)
             boa.deal(self.borrowed_token, self.accounts[0], self.debt_ceiling)
@@ -42,7 +47,7 @@ class StatefulLendBorrow(RuleBasedStateMachine):
 
         with boa.env.prank(user):
             if self.controller.loan_exists(user):
-                with boa.reverts('Loan already created'):
+                with boa.reverts("Loan already created"):
                     self.controller.create_loan(c_amount, amount, n)
                 return
 
@@ -50,9 +55,9 @@ class StatefulLendBorrow(RuleBasedStateMachine):
             try:
                 self.controller.calculate_debt_n1(c_amount, amount, n)
             except Exception as e:
-                too_high = 'Debt too high' in str(e)
+                too_high = "Debt too high" in str(e)
             if too_high:
-                with boa.reverts('Debt too high'):
+                with boa.reverts("Debt too high"):
                     self.controller.create_loan(c_amount, amount, n)
                 return
 
@@ -82,7 +87,14 @@ class StatefulLendBorrow(RuleBasedStateMachine):
                     self.controller.create_loan(c_amount, amount, n)
                     return
                 except Exception as e:
-                    if ('Too deep' in str(e) and c_amount * self.collateral_precision * 3000 / (amount * self.borrowed_precision) < 1e-3) or 'Amount too low' in str(e):
+                    if (
+                        "Too deep" in str(e)
+                        and c_amount
+                        * self.collateral_precision
+                        * 3000
+                        / (amount * self.borrowed_precision)
+                        < 1e-3
+                    ) or "Amount too low" in str(e):
                         return
                     else:
                         raise
@@ -90,10 +102,18 @@ class StatefulLendBorrow(RuleBasedStateMachine):
             try:
                 self.controller.create_loan(c_amount, amount, n)
             except Exception as e:
-                if 'Too deep' in str(e) and (c_amount * 3000 * self.collateral_precision) / (amount * self.borrowed_precision) < 1e-3:
+                if (
+                    "Too deep" in str(e)
+                    and (c_amount * 3000 * self.collateral_precision)
+                    / (amount * self.borrowed_precision)
+                    < 1e-3
+                ):
                     pass
                 else:
-                    if c_amount * self.collateral_precision // n <= (2**128 - 1) // DEAD_SHARES:
+                    if (
+                        c_amount * self.collateral_precision // n
+                        <= (2**128 - 1) // DEAD_SHARES
+                    ):
                         raise
 
     @rule(amount=amount, user_id=user_id)
@@ -137,7 +157,9 @@ class StatefulLendBorrow(RuleBasedStateMachine):
                     self.controller.add_collateral(c_amount, user)
                 return
 
-            if (c_amount + self.amm.get_sum_xy(user)[1]) * self.collateral_precision * self.amm.get_p() > 2**256 - 1:
+            if (
+                c_amount + self.amm.get_sum_xy(user)[1]
+            ) * self.collateral_precision * self.amm.get_p() > 2**256 - 1:
                 with boa.reverts():
                     self.controller.add_collateral(c_amount, user)
                 return
@@ -145,7 +167,9 @@ class StatefulLendBorrow(RuleBasedStateMachine):
             try:
                 self.controller.add_collateral(c_amount, user)
             except Exception:
-                if (c_amount + self.amm.get_sum_xy(user)[1]) * self.collateral_precision < (2**128 - 1) // DEAD_SHARES:
+                if (
+                    c_amount + self.amm.get_sum_xy(user)[1]
+                ) * self.collateral_precision < (2**128 - 1) // DEAD_SHARES:
                     raise
 
     @rule(c_amount=c_amount, amount=amount, user_id=user_id)
@@ -178,9 +202,9 @@ class StatefulLendBorrow(RuleBasedStateMachine):
             try:
                 self.controller.calculate_debt_n1(final_collateral, final_debt, n)
             except Exception as e:
-                too_high = 'Debt too high' in str(e)
+                too_high = "Debt too high" in str(e)
             if too_high:
-                with boa.reverts('Debt too high'):
+                with boa.reverts("Debt too high"):
                     self.controller.borrow_more(c_amount, amount)
                 return
 
@@ -189,7 +213,10 @@ class StatefulLendBorrow(RuleBasedStateMachine):
                     self.controller.borrow_more(c_amount, amount)
                 return
 
-            if final_collateral * self.collateral_precision // n > (2**128 - 1) // DEAD_SHARES:
+            if (
+                final_collateral * self.collateral_precision // n
+                > (2**128 - 1) // DEAD_SHARES
+            ):
                 with boa.reverts():
                     self.controller.borrow_more(c_amount, amount)
                 return
@@ -203,7 +230,13 @@ class StatefulLendBorrow(RuleBasedStateMachine):
     @rule(min_rate=min_rate, max_rate=max_rate)
     def change_rate(self, min_rate, max_rate):
         with boa.env.prank(self.admin):
-            if (min_rate > max_rate or min_rate < MIN_RATE or max_rate < MIN_RATE or min_rate > MAX_RATE or max_rate > MAX_RATE):
+            if (
+                min_rate > max_rate
+                or min_rate < MIN_RATE
+                or max_rate < MIN_RATE
+                or min_rate > MAX_RATE
+                or max_rate > MAX_RATE
+            ):
                 with boa.reverts():
                     self.monetary_policy.set_rates(min_rate, max_rate)
             else:
@@ -223,17 +256,39 @@ class StatefulLendBorrow(RuleBasedStateMachine):
             supply = self.borrowed_token.totalSupply()
             b = self.borrowed_token.balanceOf(self.controller)
             debt = self.controller.total_debt()
-            assert debt + 10 >= supply - b  # Can have error of 1 (rounding) at most per step (and 10 stateful steps)
+            assert (
+                debt + 10 >= supply - b
+            )  # Can have error of 1 (rounding) at most per step (and 10 stateful steps)
 
 
-def test_stateful_lendborrow(vault, amm, controller, monetary_policy, collateral_token, borrowed_token, accounts, admin):
-    StatefulLendBorrow.TestCase.settings = settings(max_examples=200, stateful_step_count=10)
+def test_stateful_lendborrow(
+    vault,
+    amm,
+    controller,
+    monetary_policy,
+    collateral_token,
+    borrowed_token,
+    accounts,
+    admin,
+):
+    StatefulLendBorrow.TestCase.settings = settings(
+        max_examples=200, stateful_step_count=10
+    )
     for k, v in locals().items():
         setattr(StatefulLendBorrow, k, v)
     run_state_machine_as_test(StatefulLendBorrow)
 
 
-def test_borrow_not_reverting(vault, amm, controller, monetary_policy, collateral_token, borrowed_token, accounts, admin):
+def test_borrow_not_reverting(
+    vault,
+    amm,
+    controller,
+    monetary_policy,
+    collateral_token,
+    borrowed_token,
+    accounts,
+    admin,
+):
     for k, v in locals().items():
         setattr(StatefulLendBorrow, k, v)
     state = StatefulLendBorrow()

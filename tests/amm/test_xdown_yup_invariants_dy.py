@@ -3,7 +3,7 @@ from hypothesis import strategies as st
 import boa
 import pytest
 from ..utils import mint_for_testing
-from tests.utils.deployers import ERC20_MOCK_DEPLOYER
+
 """
 Test that get_x_down and get_y_up don't change:
 * if we do trades at constant p_o (immediate trades)
@@ -23,10 +23,23 @@ def amm(get_amm, borrowed_token, collateral_token):
     deposit_amount=st.floats(min_value=1e-9, max_value=1e7),
     f_pump=st.floats(min_value=0, max_value=10),
     f_trade=st.floats(min_value=0, max_value=10),
-    is_pump=st.booleans()
+    is_pump=st.booleans(),
 )
-def test_immediate(amm, price_oracle, collateral_token, borrowed_token, accounts, admin,
-                   p_o, n1, dn, deposit_amount, f_pump, f_trade, is_pump):
+def test_immediate(
+    amm,
+    price_oracle,
+    collateral_token,
+    borrowed_token,
+    accounts,
+    admin,
+    p_o,
+    n1,
+    dn,
+    deposit_amount,
+    f_pump,
+    f_trade,
+    is_pump,
+):
     collateral_decimals = collateral_token.decimals()
     borrowed_decimals = borrowed_token.decimals()
     deposit_amount = int(deposit_amount * 10**collateral_decimals)
@@ -36,7 +49,7 @@ def test_immediate(amm, price_oracle, collateral_token, borrowed_token, accounts
     with boa.env.prank(admin):
         price_oracle.set_price(p_o)
         amm.set_fee(0)
-        amm.deposit_range(user, deposit_amount, n1, n1+dn)
+        amm.deposit_range(user, deposit_amount, n1, n1 + dn)
         mint_for_testing(collateral_token, amm.address, deposit_amount)
         while True:
             p_internal = amm.price_oracle()
@@ -63,7 +76,13 @@ def test_immediate(amm, price_oracle, collateral_token, borrowed_token, accounts
         i = 0
         j = 1
     else:
-        trade_recv_amount = int(p_o * deposit_amount / 10**collateral_decimals * f_trade / 10**(collateral_decimals - borrowed_decimals))
+        trade_recv_amount = int(
+            p_o
+            * deposit_amount
+            / 10**collateral_decimals
+            * f_trade
+            / 10 ** (collateral_decimals - borrowed_decimals)
+        )
         trade_recv_amount, trade_amount = amm.get_dydx(1, 0, trade_recv_amount)
         with boa.env.prank(user):
             mint_for_testing(collateral_token, user, trade_amount)
@@ -94,16 +113,27 @@ def test_immediate(amm, price_oracle, collateral_token, borrowed_token, accounts
     deposit_amount=st.floats(min_value=1, max_value=1e7),
 )
 @settings(max_examples=100)
-def test_adiabatic(amm, price_oracle, collateral_token, borrowed_token, accounts, admin,
-                   p_o_1, p_o_2, n1, dn, deposit_amount):
+def test_adiabatic(
+    amm,
+    price_oracle,
+    collateral_token,
+    borrowed_token,
+    accounts,
+    admin,
+    p_o_1,
+    p_o_2,
+    n1,
+    dn,
+    deposit_amount,
+):
     collateral_decimals = collateral_token.decimals()
-    deposit_amount = int(deposit_amount * 10 ** collateral_decimals)
+    deposit_amount = int(deposit_amount * 10**collateral_decimals)
     N_STEPS = 101
     user = accounts[0]
 
     with boa.env.prank(admin):
         amm.set_fee(0)
-        amm.deposit_range(user, deposit_amount, dn, n1+dn)
+        amm.deposit_range(user, deposit_amount, dn, n1 + dn)
         mint_for_testing(collateral_token, amm.address, deposit_amount)
         for i in range(2):
             boa.env.time_travel(600)
@@ -112,9 +142,17 @@ def test_adiabatic(amm, price_oracle, collateral_token, borrowed_token, accounts
 
     p_o = p_o_1
     p_o_mul = (p_o_2 / p_o_1) ** (1 / (N_STEPS - 1))
-    precision = max(1.5 * abs(p_o_mul - 1) * (dn + 1) * (max(p_o_2, p_o_1) / min(p_o_2, p_o_1)), 1e-6)  # Emprical formula
-    precision += 1 - min(p_o_mul, 1 / p_o_mul)**3  # Dynamic fee component
-    fee_component = 2 * (max(p_o_1, p_o_2, 3000 * 10**18) - min(p_o_1, p_o_2, 3000 * 10**18)) / min(p_o_1, p_o_2, 3000 * 10**18) / N_STEPS
+    precision = max(
+        1.5 * abs(p_o_mul - 1) * (dn + 1) * (max(p_o_2, p_o_1) / min(p_o_2, p_o_1)),
+        1e-6,
+    )  # Emprical formula
+    precision += 1 - min(p_o_mul, 1 / p_o_mul) ** 3  # Dynamic fee component
+    fee_component = (
+        2
+        * (max(p_o_1, p_o_2, 3000 * 10**18) - min(p_o_1, p_o_2, 3000 * 10**18))
+        / min(p_o_1, p_o_2, 3000 * 10**18)
+        / N_STEPS
+    )
 
     x0 = 0
     y0 = 0

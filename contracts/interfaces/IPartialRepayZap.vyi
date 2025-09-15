@@ -39,4 +39,3 @@ def FRAC() -> uint256:
 @external
 def HEALTH_THRESHOLD() -> int256:
     ...
-

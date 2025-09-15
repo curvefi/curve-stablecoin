@@ -25,22 +25,25 @@ FXS = "0x3432B6A60D23Ca0dFCa7761B7ab56459D9C964D0"
 
 
 def account_load(fname):
-    path = os.path.expanduser(os.path.join('~', '.brownie', 'accounts', fname + '.json'))
-    with open(path, 'r') as f:
+    path = os.path.expanduser(
+        os.path.join("~", ".brownie", "accounts", fname + ".json")
+    )
+    with open(path, "r") as f:
         pkey = account.decode_keyfile_json(json.load(f), getpass())
         return account.Account.from_key(pkey)
 
 
-if __name__ == '__main__':
-    if '--fork' in sys.argv[1:]:
+if __name__ == "__main__":
+    if "--fork" in sys.argv[1:]:
         boa.env.fork(NETWORK)
-        boa.env.eoa = '0xbabe61887f1de2713c6f97e567623453d3C79f67'
+        boa.env.eoa = "0xbabe61887f1de2713c6f97e567623453d3C79f67"
     else:
         boa.set_network_env(NETWORK)
-        boa.env.add_account(account_load('babe'))
+        boa.env.add_account(account_load("babe"))
         boa.env._fork_try_prefetch_state = False
 
-    factory = boa.load_partial('contracts/lending/OneWayLendingFactory.vy').at(FACTORY)
+    factory = boa.load_partial("contracts/lending/OneWayLendingFactory.vy").at(FACTORY)
 
     import IPython
+
     IPython.embed()

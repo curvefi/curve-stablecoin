@@ -14,7 +14,15 @@ def existing_loan(collateral_token, market_controller, accounts):
         market_controller.create_loan(c_amount, l_amount, n)
 
 
-def test_create_loan(controller_factory, stablecoin, collateral_token, market_controller, market_amm, monetary_policy, accounts):
+def test_create_loan(
+    controller_factory,
+    stablecoin,
+    collateral_token,
+    market_controller,
+    market_amm,
+    monetary_policy,
+    accounts,
+):
     user = accounts[0]
     someone_else = accounts[1]
 
@@ -44,7 +52,9 @@ def test_create_loan(controller_factory, stablecoin, collateral_token, market_co
             market_controller.create_loan(c_amount, l_amount, 5, user)
 
 
-def test_repay_all(stablecoin, collateral_token, market_controller, existing_loan, accounts):
+def test_repay_all(
+    stablecoin, collateral_token, market_controller, existing_loan, accounts
+):
     user = accounts[0]
     someone_else = accounts[1]
     c_amount = int(2 * 1e6 * 1e18 * 1.5 / 3000)
@@ -60,7 +70,7 @@ def test_repay_all(stablecoin, collateral_token, market_controller, existing_loa
     # because health is still good and loan is not underwater
 
     with boa.env.prank(someone_else):
-        stablecoin.approve(market_controller, 2**256-1)
+        stablecoin.approve(market_controller, 2**256 - 1)
         market_controller.repay(2**100, user)
         assert market_controller.debt(user) == 0
         assert stablecoin.balanceOf(user) == 0
@@ -70,7 +80,9 @@ def test_repay_all(stablecoin, collateral_token, market_controller, existing_loa
         assert market_controller.total_debt() == 0
 
 
-def test_borrow_more(stablecoin, collateral_token, market_controller, existing_loan, market_amm, accounts):
+def test_borrow_more(
+    stablecoin, collateral_token, market_controller, existing_loan, market_amm, accounts
+):
     user = accounts[0]
     someone_else = accounts[1]
 
@@ -103,7 +115,9 @@ def test_borrow_more(stablecoin, collateral_token, market_controller, existing_l
         assert market_controller.total_debt() == debt + more_debt
 
 
-def test_remove_collateral(stablecoin, collateral_token, market_controller, existing_loan, market_amm, accounts):
+def test_remove_collateral(
+    stablecoin, collateral_token, market_controller, existing_loan, market_amm, accounts
+):
     user = accounts[0]
     someone_else = accounts[1]
 
@@ -129,8 +143,15 @@ def test_remove_collateral(stablecoin, collateral_token, market_controller, exis
 
 
 @pytest.fixture(scope="module")
-def controller_for_liquidation(stablecoin, collateral_token, market_controller, market_amm,
-                               price_oracle, monetary_policy, admin):
+def controller_for_liquidation(
+    stablecoin,
+    collateral_token,
+    market_controller,
+    market_amm,
+    price_oracle,
+    monetary_policy,
+    admin,
+):
     def f(sleep_time, user, someone_else):
         N = 5
         collateral_amount = 10**18
@@ -142,9 +163,9 @@ def controller_for_liquidation(stablecoin, collateral_token, market_controller, 
         debt = market_controller.max_borrowable(collateral_amount, N)
         with boa.env.prank(user):
             boa.deal(collateral_token, user, collateral_amount)
-            stablecoin.approve(market_amm, 2**256-1)
-            stablecoin.approve(market_controller, 2**256-1)
-            collateral_token.approve(market_controller, 2**256-1)
+            stablecoin.approve(market_amm, 2**256 - 1)
+            stablecoin.approve(market_controller, 2**256 - 1)
+            collateral_token.approve(market_controller, 2**256 - 1)
             market_controller.create_loan(collateral_amount, debt, N)
 
         health_0 = market_controller.health(user)
@@ -174,10 +195,14 @@ def controller_for_liquidation(stablecoin, collateral_token, market_controller, 
     return f
 
 
-def test_self_liquidate(stablecoin, collateral_token, controller_for_liquidation, market_amm, accounts):
+def test_self_liquidate(
+    stablecoin, collateral_token, controller_for_liquidation, market_amm, accounts
+):
     user = accounts[1]
     someone_else = accounts[2]
-    controller = controller_for_liquidation(sleep_time=30 * 86400, user=user, someone_else=someone_else)
+    controller = controller_for_liquidation(
+        sleep_time=30 * 86400, user=user, someone_else=someone_else
+    )
 
     x = market_amm.get_sum_xy(user)[0]
 

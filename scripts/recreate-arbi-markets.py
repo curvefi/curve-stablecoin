@@ -25,38 +25,57 @@ MINMAX = {
     0: (0.01, 0.25),  # ETH, market at 9.5%
     1: (0.01, 0.25),  # WBTC, market at 8.2%
     5: (0.02, 0.30),  # ARB, market at 11%
-    4: (0.05, 0.40)   # CRV
+    4: (0.05, 0.40),  # CRV
 }
 
 
 def account_load(fname):
-    path = os.path.expanduser(os.path.join('~', '.brownie', 'accounts', fname + '.json'))
-    with open(path, 'r') as f:
+    path = os.path.expanduser(
+        os.path.join("~", ".brownie", "accounts", fname + ".json")
+    )
+    with open(path, "r") as f:
         pkey = account.decode_keyfile_json(json.load(f), getpass())
         return account.Account.from_key(pkey)
 
 
-if __name__ == '__main__':
-    babe_raw = account_load('babe')
+if __name__ == "__main__":
+    babe_raw = account_load("babe")
 
-    if '--fork' in sys.argv[1:]:
+    if "--fork" in sys.argv[1:]:
         boa.env.fork(ARBITRUM)
-        boa.env.eoa = '0xbabe61887f1de2713c6f97e567623453d3C79f67'
+        boa.env.eoa = "0xbabe61887f1de2713c6f97e567623453d3C79f67"
     else:
         boa.set_network_env(ARBITRUM)
         boa.env.add_account(babe_raw)
         boa.env._fork_try_prefetch_state = False
 
-    factory = boa.load_partial('contracts/lending/deprecated/OneWayLendingFactoryL2.vy').at(FACTORY)
-    gauge_factory = boa.from_etherscan(factory.gauge_factory(), name="GaugeFactory", uri="https://api.arbiscan.io/api", api_key=ARBISCAN_API_KEY)
+    factory = boa.load_partial(
+        "contracts/lending/deprecated/OneWayLendingFactoryL2.vy"
+    ).at(FACTORY)
+    gauge_factory = boa.from_etherscan(
+        factory.gauge_factory(),
+        name="GaugeFactory",
+        uri="https://api.arbiscan.io/api",
+        api_key=ARBISCAN_API_KEY,
+    )
 
     gauges = {}
     salts = {}
 
     for ix in INDEXES:
-        old_controller = boa.from_etherscan(factory.controllers(ix), name="Controller", uri="https://api.arbiscan.io/api", api_key=ARBISCAN_API_KEY)
-        old_amm = boa.from_etherscan(old_controller.amm(), name="AMM", uri="https://api.arbiscan.io/api", api_key=ARBISCAN_API_KEY)
-        name = factory.names(ix) + '2'
+        old_controller = boa.from_etherscan(
+            factory.controllers(ix),
+            name="Controller",
+            uri="https://api.arbiscan.io/api",
+            api_key=ARBISCAN_API_KEY,
+        )
+        old_amm = boa.from_etherscan(
+            old_controller.amm(),
+            name="AMM",
+            uri="https://api.arbiscan.io/api",
+            api_key=ARBISCAN_API_KEY,
+        )
+        name = factory.names(ix) + "2"
         vault = factory.create(
             old_controller.borrowed_token(),
             old_controller.collateral_token(),
@@ -67,7 +86,7 @@ if __name__ == '__main__':
             old_amm.price_oracle_contract(),
             name,
             int(MINMAX[ix][0] / 365 / 86400),
-            int(MINMAX[ix][1] / 365 / 86400)
+            int(MINMAX[ix][1] / 365 / 86400),
         )
 
         salt = os.urandom(32)
@@ -76,21 +95,23 @@ if __name__ == '__main__':
         salts[ix] = salt
 
         print(name)
-        print(f'Vault: {vault}')
-        print(f'Salt: {salt.hex()}')
-        print(f'Gauge: {gauge}')
+        print(f"Vault: {vault}")
+        print(f"Salt: {salt.hex()}")
+        print(f"Gauge: {gauge}")
         print()
 
-    if '--fork' in sys.argv[1:]:
+    if "--fork" in sys.argv[1:]:
         boa.env.fork(NETWORK)
-        boa.env.eoa = '0xbabe61887f1de2713c6f97e567623453d3C79f67'
+        boa.env.eoa = "0xbabe61887f1de2713c6f97e567623453d3C79f67"
     else:
         boa.set_network_env(NETWORK)
         boa.env.add_account(babe_raw)
         boa.env._fork_try_prefetch_state = False
 
-    gauge_factory_eth = boa.from_etherscan(gauge_factory.address, name="GaugeFactoryETH", api_key=ETHERSCAN_API_KEY)
+    gauge_factory_eth = boa.from_etherscan(
+        gauge_factory.address, name="GaugeFactoryETH", api_key=ETHERSCAN_API_KEY
+    )
 
     for i in INDEXES:
-        print(f'Deploying a root gauge: {gauges[i]}')
+        print(f"Deploying a root gauge: {gauges[i]}")
         gauge_factory_eth.deploy_gauge(CHAIN_ID, salts[i])

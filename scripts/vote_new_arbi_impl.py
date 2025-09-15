@@ -17,17 +17,24 @@ ARBI_AGENT = "0x452030a5D962d37D97A9D65487663cD5fd9C2B32"
 
 
 def account_load(fname):
-    path = os.path.expanduser(os.path.join('~', '.brownie', 'accounts', fname + '.json'))
-    with open(path, 'r') as f:
+    path = os.path.expanduser(
+        os.path.join("~", ".brownie", "accounts", fname + ".json")
+    )
+    with open(path, "r") as f:
         pkey = account.decode_keyfile_json(json.load(f), getpass())
         return account.Account.from_key(pkey)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     boa.env.fork(networks.ARBITRUM)
-    boa.env.eoa = '0xbabe61887f1de2713c6f97e567623453d3C79f67'
+    boa.env.eoa = "0xbabe61887f1de2713c6f97e567623453d3C79f67"
 
-    factory = boa.from_etherscan(FACTORY, name="L2Factory", uri="https://api.arbiscan.io/api", api_key=networks.ARBISCAN_API_KEY)
+    factory = boa.from_etherscan(
+        FACTORY,
+        name="L2Factory",
+        uri="https://api.arbiscan.io/api",
+        api_key=networks.ARBISCAN_API_KEY,
+    )
 
     controller_impl = factory.controller_impl()
     amm_impl = factory.amm_impl()
@@ -36,11 +43,11 @@ if __name__ == '__main__':
     monetary_policy_impl = factory.monetary_policy_impl()
     gauge_factory = factory.gauge_factory()
 
-    if '--fork' in sys.argv[1:]:
+    if "--fork" in sys.argv[1:]:
         boa.env.fork(networks.NETWORK)
-        boa.env.eoa = '0xbabe61887f1de2713c6f97e567623453d3C79f67'
+        boa.env.eoa = "0xbabe61887f1de2713c6f97e567623453d3C79f67"
     else:
-        babe = account_load('babe')
+        babe = account_load("babe")
         boa.set_network_env(networks.NETWORK)
         boa.env.add_account(babe)
         boa.env._fork_try_prefetch_state = False
@@ -51,32 +58,35 @@ if __name__ == '__main__':
         vault_impl,
         pool_price_oracle_impl,
         monetary_policy_impl,
-        gauge_factory
+        gauge_factory,
     )
 
     arbi_actions = [
         (factory.address, factory_calldata),
     ]
-    actions = [
-        (BROADCASTER, 'broadcast', arbi_actions, 10_000_000, 10**9)
-    ]
+    actions = [(BROADCASTER, "broadcast", arbi_actions, 10_000_000, 10**9)]
     vote_id = curve_dao.create_vote(
         target,
         actions,
         "Update Controller implementation for new LlamaLend markets on Arbitrum to support advanced leverage",
         networks.ETHERSCAN_API_KEY,
-        networks.PINATA_TOKEN
+        networks.PINATA_TOKEN,
     )
     print(vote_id)
 
-    if '--fork' in sys.argv[1:]:
+    if "--fork" in sys.argv[1:]:
         # Simulating the vote
-        assert curve_dao.simulate(vote_id, target['voting'], networks.ETHERSCAN_API_KEY)
+        assert curve_dao.simulate(vote_id, target["voting"], networks.ETHERSCAN_API_KEY)
 
         # Simulating the Arbitrum side
         boa.env.fork(networks.ARBITRUM)
         boa.env.eoa = BROADCASTER
-        agent = boa.from_etherscan(ARBI_AGENT, name="ArbiOwnershipAgent", uri="https://api.arbiscan.io/api", api_key=networks.ARBISCAN_API_KEY)
+        agent = boa.from_etherscan(
+            ARBI_AGENT,
+            name="ArbiOwnershipAgent",
+            uri="https://api.arbiscan.io/api",
+            api_key=networks.ARBISCAN_API_KEY,
+        )
         agent.execute(arbi_actions)
 
         assert CONTROLLER_IMPL == factory.controller_impl()

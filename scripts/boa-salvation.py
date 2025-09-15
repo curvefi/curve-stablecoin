@@ -9,10 +9,10 @@ from eth_account import account
 from boa.network import NetworkEnv
 
 
-RANSOM = 15 * 10 ** 6 * 10 ** 18  # ALTER: bank of crvUSD available
+RANSOM = 15 * 10**6 * 10**18  # ALTER: bank of crvUSD available
 IDX = 3  # ALTER: coin to buy out (TUSD)
 
-NETWORK = f"http://localhost:8545"  # ALTER: provider
+NETWORK = "http://localhost:8545"  # ALTER: provider
 ZERO_ADDRESS = "0x0000000000000000000000000000000000000000"
 
 POOLS = [
@@ -37,14 +37,18 @@ _contracts = {}
 def _pool(idx):
     if POOLS[idx] not in _contracts:
         # _contracts[POOLS[idx]] = boa.load_partial("contracts/StableSwap.vy").at(POOLS[idx])
-        _contracts[POOLS[idx]] = boa.from_etherscan(POOLS[idx], name="StableSwap", api_key=ETHERSCAN_API)
+        _contracts[POOLS[idx]] = boa.from_etherscan(
+            POOLS[idx], name="StableSwap", api_key=ETHERSCAN_API
+        )
     return _contracts[POOLS[idx]]
 
 
 def _peg_keeper(idx):
     if PEG_KEEPERS[idx] not in _contracts:
         # _contracts[PEG_KEEPERS[idx]] = boa.load_partial("contracts/stabilizer/PegKeeper.vy").at(PEG_KEEPERS[idx])
-        _contracts[PEG_KEEPERS[idx]] = boa.from_etherscan(PEG_KEEPERS[idx], name="PegKeeper", api_key=ETHERSCAN_API)
+        _contracts[PEG_KEEPERS[idx]] = boa.from_etherscan(
+            PEG_KEEPERS[idx], name="PegKeeper", api_key=ETHERSCAN_API
+        )
     return _contracts[PEG_KEEPERS[idx]]
 
 
@@ -52,7 +56,9 @@ def _coins(pool):
     coins = [pool]
     for coin in [pool.coins(0), CRVUSD]:
         if coin not in _contracts:
-            _contracts[coin] = boa.from_etherscan(pool.coins(0), name="coin", api_key=ETHERSCAN_API)
+            _contracts[coin] = boa.from_etherscan(
+                pool.coins(0), name="coin", api_key=ETHERSCAN_API
+            )
         coins.append(_contracts[coin])
     return coins
 
@@ -64,7 +70,14 @@ def deploy():
     return salvation.deploy()
 
 
-def buy_out(idx=IDX, ransom=RANSOM, max_total_supply=None, max_price=None, salvation=None, use_all=False):
+def buy_out(
+    idx=IDX,
+    ransom=RANSOM,
+    max_total_supply=None,
+    max_price=None,
+    salvation=None,
+    use_all=False,
+):
     pool, pk = _pool(idx), _peg_keeper(idx)
     if not max_total_supply:
         max_total_supply = pool.totalSupply() * 1001 // 1000
@@ -74,23 +87,25 @@ def buy_out(idx=IDX, ransom=RANSOM, max_total_supply=None, max_price=None, salva
         salvation = deploy()
 
     coins = _coins(pool)
-    initial_balances = [
-        coin.balanceOf(boa.env.eoa) for coin in coins
-    ]
+    initial_balances = [coin.balanceOf(boa.env.eoa) for coin in coins]
 
-    bought_out = salvation.buy_out(pool, pk, ransom, max_total_supply, max_price, use_all)
-    print(f"Bought out: {bought_out / 10 ** 18:>11.2f} crvUSD")
-    print(f"Remaining:  {pk.debt() / 10 ** 18:>11.2f} crvUSD")
+    bought_out = salvation.buy_out(
+        pool, pk, ransom, max_total_supply, max_price, use_all
+    )
+    print(f"Bought out: {bought_out / 10**18:>11.2f} crvUSD")
+    print(f"Remaining:  {pk.debt() / 10**18:>11.2f} crvUSD")
 
     diffs = []
     for coin, initial_balance in zip(coins, initial_balances):
         delimiter = 10 ** coin.decimals()
         new_balance = coin.balanceOf(boa.env.eoa)
         diff = new_balance - initial_balance
-        print(f"{coin.symbol()}: {initial_balance / delimiter:.2f} -> {new_balance / delimiter:.2f} "
-              f"({'+' if diff > 0 else ''}{diff / delimiter:.2f})")
+        print(
+            f"{coin.symbol()}: {initial_balance / delimiter:.2f} -> {new_balance / delimiter:.2f} "
+            f"({'+' if diff > 0 else ''}{diff / delimiter:.2f})"
+        )
         diffs.append(diff)
-    print(f"Total: {diffs[1] / pool.price_oracle() + diffs[2] / 10 ** 18:.2f} crvUSD")
+    print(f"Total: {diffs[1] / pool.price_oracle() + diffs[2] / 10**18:.2f} crvUSD")
 
 
 def simulate(idx=IDX, ransom=RANSOM):
@@ -98,11 +113,13 @@ def simulate(idx=IDX, ransom=RANSOM):
     salvation = deploy()
     to = boa.env.eoa
     if CRVUSD not in _contracts:
-        _contracts[CRVUSD] = boa.from_etherscan(CRVUSD, name="crvUSD", api_key=ETHERSCAN_API)
+        _contracts[CRVUSD] = boa.from_etherscan(
+            CRVUSD, name="crvUSD", api_key=ETHERSCAN_API
+        )
     crvusd = _contracts[CRVUSD]
 
     for i in range(5):  # ALTER: number of iterations
-        if _peg_keeper(idx).debt() < 10 ** 18:  # Small amounts may fail due to fees
+        if _peg_keeper(idx).debt() < 10**18:  # Small amounts may fail due to fees
             print("Peg Keeper is free")
             break
 
@@ -124,20 +141,22 @@ def simulate(idx=IDX, ransom=RANSOM):
 
 
 def account_load(fname):
-    path = os.path.expanduser(os.path.join('~', '.brownie', 'accounts', fname + '.json'))
-    with open(path, 'r') as f:
+    path = os.path.expanduser(
+        os.path.join("~", ".brownie", "accounts", fname + ".json")
+    )
+    with open(path, "r") as f:
         pkey = account.decode_keyfile_json(json.load(f), getpass())
         return account.Account.from_key(pkey)
 
 
-if __name__ == '__main__':
-    if '--fork' in sys.argv[1:]:
+if __name__ == "__main__":
+    if "--fork" in sys.argv[1:]:
         boa.env.fork(NETWORK)
 
-        boa.env.eoa = '0xbabe61887f1de2713c6f97e567623453d3C79f67'
+        boa.env.eoa = "0xbabe61887f1de2713c6f97e567623453d3C79f67"
         simulate()
     else:
         boa.set_env(NetworkEnv(NETWORK))
-        boa.env.add_account(account_load('babe'))  # ALTER: account to use
+        boa.env.add_account(account_load("babe"))  # ALTER: account to use
         boa.env._fork_try_prefetch_state = False
         buy_out()

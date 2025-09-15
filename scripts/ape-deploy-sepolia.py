@@ -1,10 +1,12 @@
 from ape import project, accounts, networks
 from ape.cli import NetworkBoundCommand, network_option
+
 # account_option could be used when in prod?
 import click
 
 from dotenv import load_dotenv
 from pathlib import Path
+
 BASE_DIR = Path(__file__).resolve().parent.parent
 load_dotenv(Path(BASE_DIR, ".env-testnet"))
 
@@ -63,15 +65,15 @@ def deploy_blueprint(contract, account, **kw):
         initcode = bytes.fromhex(initcode.removeprefix("0x"))
     initcode = b"\xfe\x71\x00" + initcode  # eip-5202 preamble version 0
     initcode = (
-        b"\x61" + len(initcode).to_bytes(2, "big") + b"\x3d\x81\x60\x0a\x3d\x39\xf3" + initcode
+        b"\x61"
+        + len(initcode).to_bytes(2, "big")
+        + b"\x3d\x81\x60\x0a\x3d\x39\xf3"
+        + initcode
     )
     if not kw:
-        kw = {'gas_price': project.provider.gas_price}
+        kw = {"gas_price": project.provider.gas_price}
     tx = project.provider.network.ecosystem.create_transaction(
-        chain_id=project.provider.chain_id,
-        data=initcode,
-        nonce=account.nonce,
-        **kw
+        chain_id=project.provider.chain_id, data=initcode, nonce=account.nonce, **kw
     )
     receipt = account.call(tx)
     click.echo(f"blueprint deployed at: {receipt.contract_address}")
@@ -92,20 +94,18 @@ def cli():
 def deploy(network):
     kw = {}
 
-    assert 'sepolia' in network, "This script is ONLY to test on Sepolia"
+    assert "sepolia" in network, "This script is ONLY to test on Sepolia"
 
     # Deployer address
-    account = accounts.load('babe')
+    account = accounts.load("babe")
     account.set_autosign(True)
     max_base_fee = networks.active_provider.base_fee * 2
-    kw = {
-        'max_fee': max_base_fee,
-        'max_priority_fee': min(int(0.5e9), max_base_fee)}
+    kw = {"max_fee": max_base_fee, "max_priority_fee": min(int(0.5e9), max_base_fee)}
 
     temporary_admin = account
 
     # Admin and fee receiver <- DAO if in prod or mainnet-fork
-    if 'mainnet' in network:
+    if "mainnet" in network:
         admin = OWNERSHIP_ADMIN  # Ownership admin
         fee_receiver = FEE_RECEIVER  # 0xECB for fee collection
     else:
@@ -121,7 +121,14 @@ def deploy(network):
         print("Deploying stablecoin")
         stablecoin = account.deploy(project.Stablecoin, FULL_NAME, SHORT_NAME, **kw)
         print("Deploying factory")
-        factory = account.deploy(project.ControllerFactory, stablecoin, temporary_admin, weth, fee_receiver, **kw)
+        factory = account.deploy(
+            project.ControllerFactory,
+            stablecoin,
+            temporary_admin,
+            weth,
+            fee_receiver,
+            **kw,
+        )
 
         print("Deploying Controller and AMM implementations")
         controller_impl = deploy_blueprint(project.Controller, account, **kw)
@@ -136,15 +143,23 @@ def deploy(network):
         swap_factory.add_token_to_whitelist(stablecoin, True, **kw)
 
         # Ownership admin is account temporarily, will need to become OWNERSHIP_ADMIN
-        owner_proxy = account.deploy(project.OwnerProxy,
-                                     temporary_admin, PARAMETER_ADMIN, EMERGENCY_ADMIN,
-                                     swap_factory, ZERO_ADDRESS, **kw)
+        owner_proxy = account.deploy(
+            project.OwnerProxy,
+            temporary_admin,
+            PARAMETER_ADMIN,
+            EMERGENCY_ADMIN,
+            swap_factory,
+            ZERO_ADDRESS,
+            **kw,
+        )
         swap_factory.commit_transfer_ownership(owner_proxy, **kw)
         owner_proxy.accept_transfer_ownership(swap_factory, **kw)
 
         # Set implementations
         stableswap_impl = account.deploy(project.Stableswap, **kw)
-        owner_proxy.set_plain_implementations(swap_factory, 2, [stableswap_impl.address] + [ZERO_ADDRESS] * 9, **kw)
+        owner_proxy.set_plain_implementations(
+            swap_factory, 2, [stableswap_impl.address] + [ZERO_ADDRESS] * 9, **kw
+        )
         owner_proxy.set_gauge_implementation(swap_factory, GAUGE_IMPL, **kw)
 
         pools = {}
@@ -161,16 +176,21 @@ def deploy(network):
                 stable_asset_type,
                 0,  # implentation_idx
                 stable_ma_exp_time,
-                **kw)
+                **kw,
+            )
             # This is a workaround: instead of getting return_value we parse events to get the pool address
             # This is because reading return_value in ape is broken
-            pool = project.Stableswap.at(tx.events.filter(swap_factory.PlainPoolDeployed)[0].pool)
+            pool = project.Stableswap.at(
+                tx.events.filter(swap_factory.PlainPoolDeployed)[0].pool
+            )
             print(f"Stablecoin pool crvUSD/{name} is deployed at {pool.address}")
             pools[name] = pool
 
         # Price aggregator
         print("Deploying stable price aggregator")
-        agg = account.deploy(project.AggregateStablePrice, stablecoin, 10**15, temporary_admin, **kw)
+        agg = account.deploy(
+            project.AggregateStablePrice, stablecoin, 10**15, temporary_admin, **kw
+        )
         for pool in pools.values():
             agg.add_price_pair(pool, **kw)
         agg.set_admin(admin, **kw)  # Alternatively, we can make it ZERO_ADDRESS
@@ -179,15 +199,31 @@ def deploy(network):
         peg_keepers = []
         for pool in pools.values():
             print(f"Deploying a PegKeeper for {pool.name()}")
-            peg_keeper = account.deploy(project.PegKeeper, pool, 1, FEE_RECEIVER, 2 * 10**4, factory, agg,
-                                        admin, **kw)
+            peg_keeper = account.deploy(
+                project.PegKeeper,
+                pool,
+                1,
+                FEE_RECEIVER,
+                2 * 10**4,
+                factory,
+                agg,
+                admin,
+                **kw,
+            )
             peg_keepers.append(peg_keeper)
             factory.set_debt_ceiling(peg_keeper, initial_pk_funds, **kw)
 
-        policy = account.deploy(project.AggMonetaryPolicy, admin, agg, factory,
-                                peg_keepers + [ZERO_ADDRESS] * 2,
-                                policy_rate, policy_sigma, policy_debt_fraction,
-                                **kw)
+        policy = account.deploy(
+            project.AggMonetaryPolicy,
+            admin,
+            agg,
+            factory,
+            peg_keepers + [ZERO_ADDRESS] * 2,
+            policy_rate,
+            policy_sigma,
+            policy_debt_fraction,
+            **kw,
+        )
 
         # Pure ETH
         # price_oracle = account.deploy(
@@ -200,44 +236,54 @@ def deploy(network):
         #     oracle_ema,
         #     oracle_bound_size)
 
-        tricrypto = account.deploy(project.TricryptoMock, [rtokens['USDT'], weth, weth], **kw)
+        tricrypto = account.deploy(
+            project.TricryptoMock, [rtokens["USDT"], weth, weth], **kw
+        )
 
         # sFrxETH
         price_oracle = account.deploy(
-                project.CryptoWithStablePriceAndChainlinkFrxeth,
-                tricrypto,  # Tricrypto
-                1,  # price index with ETH
-                pools["USDT"],
-                FRXETH_POOL,  # staked swap (frxeth/eth)
-                agg,
-                weth,  # ETH/USD Chainlink aggregator - we use any ERC20 here to make the init work
-                SFRXETH,  # sFrxETH
-                600,
-                1,  # 1% bound
-                **kw)
+            project.CryptoWithStablePriceAndChainlinkFrxeth,
+            tricrypto,  # Tricrypto
+            1,  # price index with ETH
+            pools["USDT"],
+            FRXETH_POOL,  # staked swap (frxeth/eth)
+            agg,
+            weth,  # ETH/USD Chainlink aggregator - we use any ERC20 here to make the init work
+            SFRXETH,  # sFrxETH
+            600,
+            1,  # 1% bound
+            **kw,
+        )
 
-        debug_price_oracle = account.deploy(project.DummyPriceOracle, temporary_admin, 3000 * 10**18)
+        debug_price_oracle = account.deploy(
+            project.DummyPriceOracle, temporary_admin, 3000 * 10**18
+        )
 
         factory.add_market(
-            collateral, market_A, market_fee, market_admin_fee,
-            debug_price_oracle, policy,
-            market_loan_discount, market_liquidation_discount,
+            collateral,
+            market_A,
+            market_fee,
+            market_admin_fee,
+            debug_price_oracle,
+            policy,
+            market_loan_discount,
+            market_liquidation_discount,
             market_debt_ceiling,
-            **kw
+            **kw,
         )
 
     amm = project.AMM.at(factory.get_amm(collateral))
     controller = project.Controller.at(factory.get_controller(collateral))
 
-    print('========================')
-    print('Stablecoin:        ', stablecoin.address)
-    print('Factory:           ', factory.address)
-    print('Collateral:        ', collateral)
-    print('AMM:               ', amm.address)
-    print('Controller:        ', controller.address)
-    print('Price Oracle:      ', price_oracle.address)
-    print('Monetary policy:   ', policy.address)
-    print('Swap factory:      ', swap_factory.address)
-    print('Owner proxy:       ', owner_proxy.address)
-    print('Price Aggregator:  ', agg.address)
-    print('PegKeepers:        ', [pk.address for pk in peg_keepers])
+    print("========================")
+    print("Stablecoin:        ", stablecoin.address)
+    print("Factory:           ", factory.address)
+    print("Collateral:        ", collateral)
+    print("AMM:               ", amm.address)
+    print("Controller:        ", controller.address)
+    print("Price Oracle:      ", price_oracle.address)
+    print("Monetary policy:   ", policy.address)
+    print("Swap factory:      ", swap_factory.address)
+    print("Owner proxy:       ", owner_proxy.address)
+    print("Price Aggregator:  ", agg.address)
+    print("PegKeepers:        ", [pk.address for pk in peg_keepers])

@@ -1,5 +1,5 @@
 $ python3 scripts/deploy-lending-fraxtal.py --markets
-Password: 
+Password:
 tx broadcasted: 0xee4792ea06ed20e60e6a34ac549b2693cb012522a039e132ae83c1f12a69018d
 /usr/lib/pypy3.10/functools.py:993: UserWarning: debug_traceTransaction not available! titanoboa will try hard to interact with the network, but this means that titanoboa is not able to do certain safety checks at runtime. it is recommended to switch to a node or provider with debug_traceTransaction.
   val = self.func(instance)

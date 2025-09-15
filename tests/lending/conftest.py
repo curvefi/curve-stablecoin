@@ -25,5 +25,7 @@ def fake_leverage(collateral_token, borrowed_token, controller, admin):
             controller.address,
             3000 * 10**18,
         )
-        boa.deal(collateral_token, leverage.address, 1000 * 10**collateral_token.decimals())
+        boa.deal(
+            collateral_token, leverage.address, 1000 * 10 ** collateral_token.decimals()
+        )
         return leverage

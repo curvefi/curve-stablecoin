@@ -21,7 +21,9 @@ def pytest_configure():
     pytest.ZERO_ADDRESS = "0x0000000000000000000000000000000000000000"
     pytest.POOL_NAME = "crvUSD/{name}"
     pytest.POOL_SYMBOL = "crvUSD{name}"
-    pytest.STABLESWAP_FACTORY_ADDRESS_PROVIDER_ID = 8  # reserve slot for crvusd plain pools factory
+    pytest.STABLESWAP_FACTORY_ADDRESS_PROVIDER_ID = (
+        8  # reserve slot for crvusd plain pools factory
+    )
 
     pytest.stable_A = 500  # initially, can go higher later
     pytest.stable_fee = 1000000  # 0.01%
@@ -33,7 +35,7 @@ def pytest_configure():
 
     pytest.initial_pool_coin_balance = 500_000  # of both coins
     pytest.initial_eth_balance = 1000  # both eth and weth
-    
+
     # registry integration:
     pytest.base_pool_registry = "0xDE3eAD9B2145bBA2EB74007e58ED07308716B725"
     pytest.metaregistry = "0xF98B45FA17DE75FB1aD0e7aFD971b0ca00e379fC"
@@ -42,7 +44,7 @@ def pytest_configure():
     pytest.new_id_created = False
     pytest.max_id_before = 0
     pytest.handler_index = None
-    
+
     # record stablecoin address:
     pytest.stablecoin = pytest.ZERO_ADDRESS
 
@@ -70,13 +72,17 @@ def weth():
 @pytest.fixture(scope="module", autouse=True)
 def forked_user(project, accounts, weth):
     acc = accounts[2]
-    mint_tokens_for_testing(project, acc, pytest.initial_pool_coin_balance, pytest.initial_eth_balance)
+    mint_tokens_for_testing(
+        project, acc, pytest.initial_pool_coin_balance, pytest.initial_eth_balance
+    )
     return acc
 
 
 @pytest.fixture(scope="module", autouse=True)
 def stablecoin(project, forked_admin):
-    _stablecoin = forked_admin.deploy(project.Stablecoin, pytest.FULL_NAME, pytest.SHORT_NAME)
+    _stablecoin = forked_admin.deploy(
+        project.Stablecoin, pytest.FULL_NAME, pytest.SHORT_NAME
+    )
     pytest.stablecoin = _stablecoin.address
     return _stablecoin
 
@@ -154,39 +160,42 @@ def stableswap_impl(project, forked_admin, stableswap_factory, owner_proxy):
 
 @pytest.fixture(scope="module", autouse=True)
 def address_provider(stableswap_factory):
-    
     address_provider = Contract("0x0000000022D53366457F9d5E68Ec105046FC4383")
-    
+
     # Put factory in address provider / registry
     with accounts.use_sender("0x7EeAC6CDdbd1D0B8aF061742D41877D7F707289a"):
         address_provider_admin = Contract(address_provider.admin())
         pytest.max_id_before = address_provider.max_id()
-        
-        if address_provider.get_address(pytest.STABLESWAP_FACTORY_ADDRESS_PROVIDER_ID) == pytest.ZERO_ADDRESS:
-            
+
+        if (
+            address_provider.get_address(pytest.STABLESWAP_FACTORY_ADDRESS_PROVIDER_ID)
+            == pytest.ZERO_ADDRESS
+        ):
             # this branch should not never be executed since the registry slot exists.
             # we test this later.
             address_provider_admin.execute(
                 address_provider,
-                address_provider.add_new_id.encode_input(stableswap_factory, pytest.registry_name),
+                address_provider.add_new_id.encode_input(
+                    stableswap_factory, pytest.registry_name
+                ),
             )
             pytest.new_id_created = True
-        
+
         else:
-            
             address_provider_admin.execute(
                 address_provider,
                 address_provider.set_address.encode_input(
-                    pytest.STABLESWAP_FACTORY_ADDRESS_PROVIDER_ID,
-                    stableswap_factory
+                    pytest.STABLESWAP_FACTORY_ADDRESS_PROVIDER_ID, stableswap_factory
                 ),
-            )    
-        
+            )
+
     return address_provider
 
 
 @pytest.fixture(scope="module", autouse=True)
-def rtokens_pools(project, forked_admin, owner_proxy, stablecoin, stableswap_impl, stableswap_factory):
+def rtokens_pools(
+    project, forked_admin, owner_proxy, stablecoin, stableswap_impl, stableswap_factory
+):
     pools = {}
 
     # Deploy pools
@@ -204,7 +213,9 @@ def rtokens_pools(project, forked_admin, owner_proxy, stablecoin, stableswap_imp
         )
         # This is a workaround: instead of getting return_value we parse events to get the pool address
         # This is because reading return_value in ape is broken
-        pool = project.Stableswap.at(tx.events.filter(stableswap_factory.PlainPoolDeployed)[0].pool)
+        pool = project.Stableswap.at(
+            tx.events.filter(stableswap_factory.PlainPoolDeployed)[0].pool
+        )
         pools[name] = pool
     return pools
 
@@ -218,57 +229,64 @@ def factory_handler(project, stableswap_factory, forked_admin):
 
 @pytest.fixture(scope="module", autouse=True)
 def metaregistry(address_provider, rtokens_pools, factory_handler):
-    
     address_provider_admin = Contract(address_provider.admin())
     _metaregistry = Contract(pytest.metaregistry)
-    
+
     previous_factory_handler = _metaregistry.find_pool_for_coins(
         pytest.stablecoin, pytest.rtokens["USDP"], 0
     )
     factory_handler_integrated = previous_factory_handler != pytest.ZERO_ADDRESS
-    
+
     with accounts.use_sender("0x7EeAC6CDdbd1D0B8aF061742D41877D7F707289a"):
-        
         if not factory_handler_integrated:
-        
             # first integration into metaregistry:
             address_provider_admin.execute(
                 _metaregistry.address,
                 _metaregistry.add_registry_handler.encode_input(factory_handler),
             )
-            
+
         else:  # redeployment, which means update handler index in metaregistry.
-            
             # get index of previous factory handler first:
             for idx in range(1000):
                 if metaregistry.get_registry(idx) == previous_factory_handler:
                     break
-            
+
             # update that idx with newly deployed factory handler:
             address_provider_admin.execute(
                 _metaregistry.address,
                 _metaregistry.update_registry_handler.encode_input(
                     idx, factory_handler.address
-                )
+                ),
             )
-            
+
             assert metaregistry.get_registry(idx) == factory_handler.address
-            
+
     return _metaregistry
 
 
 @pytest.fixture(scope="module", autouse=True)
 def agg_stable_price(project, forked_admin, stablecoin, rtokens_pools):
-    agg = forked_admin.deploy(project.AggregateStablePrice, stablecoin, 10**15, forked_admin)
+    agg = forked_admin.deploy(
+        project.AggregateStablePrice, stablecoin, 10**15, forked_admin
+    )
     for pool in rtokens_pools.values():
         agg.add_price_pair(pool, sender=forked_admin)
-    agg.set_admin(pytest.OWNERSHIP_ADMIN, sender=forked_admin)  # Alternatively, we can make it ZERO_ADDRESS
+    agg.set_admin(
+        pytest.OWNERSHIP_ADMIN, sender=forked_admin
+    )  # Alternatively, we can make it ZERO_ADDRESS
 
     return agg
 
 
 @pytest.fixture(scope="module", autouse=True)
-def peg_keepers(project, forked_admin, forked_fee_receiver, rtokens_pools, controller_factory, agg_stable_price):
+def peg_keepers(
+    project,
+    forked_admin,
+    forked_fee_receiver,
+    rtokens_pools,
+    controller_factory,
+    agg_stable_price,
+):
     peg_keepers = []
     for pool in rtokens_pools.values():
         peg_keeper = forked_admin.deploy(
@@ -318,7 +336,9 @@ def chainlink_aggregator():
 
 
 @pytest.fixture(scope="module", autouse=True)
-def price_oracle_with_chainlink(project, forked_admin, rtokens_pools, agg_stable_price, chainlink_aggregator):
+def price_oracle_with_chainlink(
+    project, forked_admin, rtokens_pools, agg_stable_price, chainlink_aggregator
+):
     return forked_admin.deploy(
         project.CryptoWithStablePriceAndChainlink,
         pytest.TRICRYPTO,
@@ -327,5 +347,5 @@ def price_oracle_with_chainlink(project, forked_admin, rtokens_pools, agg_stable
         agg_stable_price,
         chainlink_aggregator.address,
         600,
-        1
+        1,
     )

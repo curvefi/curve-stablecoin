@@ -2,11 +2,13 @@
 
 from ape import project, accounts, networks
 from ape.cli import NetworkBoundCommand, network_option
+
 # account_option could be used when in prod?
 import click
 
 from dotenv import load_dotenv
 from pathlib import Path
+
 BASE_DIR = Path(__file__).resolve().parent.parent
 load_dotenv(Path(BASE_DIR, ".env"))
 
@@ -34,24 +36,25 @@ def cli():
 )
 @network_option()
 def deploy(network):
-    account = accounts.load('babe')
+    account = accounts.load("babe")
     account.set_autosign(True)
 
     max_fee = networks.active_provider.base_fee * 2
     max_priority_fee = int(0.5e9)
-    kw = {'max_fee': max_fee, 'max_priority_fee': max_priority_fee}
+    kw = {"max_fee": max_fee, "max_priority_fee": max_priority_fee}
 
     with accounts.use_sender(account):
         account.deploy(
-                project.CryptoWithStablePriceWsteth,
-                TRICRYPTO_USDT,
-                1,  # price index with ETH
-                CRVUSD_USDT,  # CRVUSD/USDT
-                STETH_POOL,  # staked swap (steth/eth)
-                AGG,
-                FACTORY,
-                WSTETH,
-                CHAINLINK_ETH,
-                CHAINLINK_STETH,
-                BOUND_SIZE,
-                **kw)
+            project.CryptoWithStablePriceWsteth,
+            TRICRYPTO_USDT,
+            1,  # price index with ETH
+            CRVUSD_USDT,  # CRVUSD/USDT
+            STETH_POOL,  # staked swap (steth/eth)
+            AGG,
+            FACTORY,
+            WSTETH,
+            CHAINLINK_ETH,
+            CHAINLINK_STETH,
+            BOUND_SIZE,
+            **kw,
+        )

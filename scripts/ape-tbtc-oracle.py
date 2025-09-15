@@ -7,6 +7,7 @@ import click
 
 from dotenv import load_dotenv
 from pathlib import Path
+
 BASE_DIR = Path(__file__).resolve().parent.parent
 load_dotenv(Path(BASE_DIR, ".env"))
 
@@ -33,26 +34,27 @@ def cli():
 )
 @network_option()
 def deploy(network):
-    account = accounts.load('babe')
+    account = accounts.load("babe")
     account.set_autosign(True)
 
     max_fee = networks.active_provider.base_fee * 2
     max_priority_fee = int(0.5e9)
-    kw = {'max_fee': max_fee, 'max_priority_fee': max_priority_fee}
+    kw = {"max_fee": max_fee, "max_priority_fee": max_priority_fee}
 
     with accounts.use_sender(account):
         oracle = account.deploy(
-                project.CryptoWithStablePriceTBTC,
-                TRICRYPTO,
-                0,  # price index with TBTC
-                AGG,
-                FACTORY,
-                CHAINLINK_BTC,
-                BOUND_SIZE,
-                **kw)
+            project.CryptoWithStablePriceTBTC,
+            TRICRYPTO,
+            0,  # price index with TBTC
+            AGG,
+            FACTORY,
+            CHAINLINK_BTC,
+            BOUND_SIZE,
+            **kw,
+        )
 
         oracle.price_w(**kw)
 
-    print('========================')
-    print('Price Oracle:      ', oracle.address)
-    print('Price:             ', oracle.price() / 1e18)
+    print("========================")
+    print("Price Oracle:      ", oracle.address)
+    print("Price:             ", oracle.price() / 1e18)

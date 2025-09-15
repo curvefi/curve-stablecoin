@@ -5,7 +5,6 @@ import pytest
 from hypothesis import given, settings, example
 from hypothesis import strategies as st
 from ..utils import mint_for_testing
-from tests.utils.deployers import ERC20_MOCK_DEPLOYER
 
 
 @pytest.fixture(scope="module")
@@ -17,11 +16,21 @@ def amm(collateral_token, borrowed_token, get_amm):
     n1=st.integers(min_value=1, max_value=60),  # Max is probably unreachable
     dn=st.integers(min_value=0, max_value=20),
     amount=st.integers(min_value=10**10, max_value=10**20),
-    price_shift=st.floats(min_value=0.9, max_value=1.1)
+    price_shift=st.floats(min_value=0.9, max_value=1.1),
 )
 @settings(max_examples=1000)
-def test_buy_with_shift(amm, collateral_token, borrowed_token, price_oracle, accounts, admin,
-                        n1, dn, amount, price_shift):
+def test_buy_with_shift(
+    amm,
+    collateral_token,
+    borrowed_token,
+    price_oracle,
+    accounts,
+    admin,
+    n1,
+    dn,
+    amount,
+    price_shift,
+):
     user = accounts[1]
     collateral_amount = 10**18
 
@@ -62,11 +71,21 @@ def test_buy_with_shift(amm, collateral_token, borrowed_token, price_oracle, acc
     n1=st.integers(min_value=1, max_value=20),  # Max is probably unreachable
     dn=st.integers(min_value=0, max_value=20),
     amount=st.integers(min_value=10**10, max_value=10**18),
-    price_shift=st.floats(min_value=0.1, max_value=10)
+    price_shift=st.floats(min_value=0.1, max_value=10),
 )
 @settings(max_examples=1000)
-def test_sell_with_shift(amm, collateral_token, borrowed_token, price_oracle, accounts, admin,
-                         n1, dn, amount, price_shift):
+def test_sell_with_shift(
+    amm,
+    collateral_token,
+    borrowed_token,
+    price_oracle,
+    accounts,
+    admin,
+    n1,
+    dn,
+    amount,
+    price_shift,
+):
     user = accounts[1]
     collateral_amount = 10**18
     MANY = 10**24
@@ -109,12 +128,22 @@ def test_sell_with_shift(amm, collateral_token, borrowed_token, price_oracle, ac
     n1=st.integers(min_value=20, max_value=60),  # Max is probably unreachable
     dn=st.integers(min_value=0, max_value=20),
     amount=st.integers(min_value=1, max_value=10**20),
-    price_shift=st.floats(min_value=0.1, max_value=10)
+    price_shift=st.floats(min_value=0.1, max_value=10),
 )
 @settings(max_examples=1000)
 @example(n1=20, dn=0, amount=4351, price_shift=2.0)  # Leaves small dust
-def test_no_untradable_funds(amm, collateral_token, borrowed_token, price_oracle, accounts, admin,
-                             n1, dn, amount, price_shift):
+def test_no_untradable_funds(
+    amm,
+    collateral_token,
+    borrowed_token,
+    price_oracle,
+    accounts,
+    admin,
+    n1,
+    dn,
+    amount,
+    price_shift,
+):
     # Same as buy test at the beginning
     user = accounts[1]
     collateral_amount = 10**18
@@ -146,9 +175,16 @@ def test_no_untradable_funds(amm, collateral_token, borrowed_token, price_oracle
     # Check that we cleaned up the last band
     new_b = borrowed_token.balanceOf(user)
     if borrowed_token.decimals() == 18:
-        assert sum(amm.bands_x(n) for n in range(61)) == borrowed_token.balanceOf(amm.address), "Insolvent"
+        assert sum(amm.bands_x(n) for n in range(61)) == borrowed_token.balanceOf(
+            amm.address
+        ), "Insolvent"
     else:
-        assert 0 <= borrowed_token.balanceOf(amm.address) - sum(amm.bands_x(n) for n in range(61)) <= 1, "Insolvent"
+        assert (
+            0
+            <= borrowed_token.balanceOf(amm.address)
+            - sum(amm.bands_x(n) for n in range(61))
+            <= 1
+        ), "Insolvent"
     assert amm.bands_x(n1) == 0
     assert new_b > b
 
@@ -157,12 +193,22 @@ def test_no_untradable_funds(amm, collateral_token, borrowed_token, price_oracle
     n1=st.integers(min_value=20, max_value=60),  # Max is probably unreachable
     dn=st.integers(min_value=0, max_value=20),
     amount=st.integers(min_value=1, max_value=10**20),
-    price_shift=st.floats(min_value=0.1, max_value=10)
+    price_shift=st.floats(min_value=0.1, max_value=10),
 )
 @settings(max_examples=1000)
 @example(n1=20, dn=0, amount=4351, price_shift=2.0)  # Leaves small dust
-def test_no_untradable_funds_in(amm, collateral_token, borrowed_token, price_oracle, accounts, admin,
-                                n1, dn, amount, price_shift):
+def test_no_untradable_funds_in(
+    amm,
+    collateral_token,
+    borrowed_token,
+    price_oracle,
+    accounts,
+    admin,
+    n1,
+    dn,
+    amount,
+    price_shift,
+):
     # Same as test_no_untradable_funds but with exchange_dy
     user = accounts[1]
     collateral_amount = 10**18
@@ -195,8 +241,15 @@ def test_no_untradable_funds_in(amm, collateral_token, borrowed_token, price_ora
     # Check that we cleaned up the last band
     new_b = borrowed_token.balanceOf(user)
     if borrowed_token.decimals() == 18:
-        assert sum(amm.bands_x(n) for n in range(61)) == borrowed_token.balanceOf(amm.address), "Insolvent"
+        assert sum(amm.bands_x(n) for n in range(61)) == borrowed_token.balanceOf(
+            amm.address
+        ), "Insolvent"
     else:
-        assert 0 <= borrowed_token.balanceOf(amm.address) - sum(amm.bands_x(n) for n in range(61)) <= 1, "Insolvent"
+        assert (
+            0
+            <= borrowed_token.balanceOf(amm.address)
+            - sum(amm.bands_x(n) for n in range(61))
+            <= 1
+        ), "Insolvent"
     assert amm.bands_x(n1) == 0
     assert new_b > b

@@ -36,4 +36,3 @@ def max_borrowable(collateral: uint256, N: uint256, current_debt: uint256, user:
 @external
 def min_collateral(debt: uint256, N: uint256, user: address) -> uint256:
     ...
-

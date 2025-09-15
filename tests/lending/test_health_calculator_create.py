@@ -8,8 +8,10 @@ from hypothesis import strategies as st
     debt=st.integers(min_value=10**10, max_value=2 * 10**6 * 10**18),
     collateral=st.integers(min_value=10**10, max_value=10**9 * 10**18 // 3000),
 )
-def test_health_calculator_create(amm, controller, collateral_token, collateral, debt, n, accounts):
-    collateral = collateral // 10**(18 - collateral_token.decimals())
+def test_health_calculator_create(
+    amm, controller, collateral_token, collateral, debt, n, accounts
+):
+    collateral = collateral // 10 ** (18 - collateral_token.decimals())
     user = accounts[1]
     calculator_fail = False
     try:

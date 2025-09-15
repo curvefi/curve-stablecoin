@@ -16,8 +16,7 @@ ADMIN_ACTIONS_DEADLINE = 3 * 86400
 def offboarding(receiver, admin, peg_keepers):
     # TODO should come from deployers
     hr = boa.load(
-        'contracts/stabilizer/PegKeeperOffboarding.vy',
-        receiver, admin, admin
+        "contracts/stabilizer/PegKeeperOffboarding.vy", receiver, admin, admin
     )
     with boa.env.prank(admin):
         for peg_keeper in peg_keepers:
@@ -25,10 +24,19 @@ def offboarding(receiver, admin, peg_keepers):
     return hr
 
 
-def test_offboarding(offboarding, stablecoin, peg_keepers, swaps, receiver, admin, alice, peg_keeper_updater):
+def test_offboarding(
+    offboarding,
+    stablecoin,
+    peg_keepers,
+    swaps,
+    receiver,
+    admin,
+    alice,
+    peg_keeper_updater,
+):
     with boa.env.prank(admin):
         for peg_keeper in peg_keepers:
-            stablecoin.eval(f"self.balanceOf[{peg_keeper.address}] += {10 ** 18}")
+            stablecoin.eval(f"self.balanceOf[{peg_keeper.address}] += {10**18}")
 
     for peg_keeper, swap in zip(peg_keepers, swaps):
         assert offboarding.provide_allowed(peg_keeper) == 0
@@ -49,7 +57,7 @@ def test_offboarding(offboarding, stablecoin, peg_keepers, swaps, receiver, admi
 
 def test_set_killed(offboarding, peg_keepers, admin, stablecoin):
     peg_keeper = peg_keepers[0]
-    stablecoin.eval(f"self.balanceOf[{peg_keeper.address}] += {10 ** 18}")
+    stablecoin.eval(f"self.balanceOf[{peg_keeper.address}] += {10**18}")
     with boa.env.prank(admin):
         assert offboarding.is_killed() == 0
 
@@ -60,7 +68,7 @@ def test_set_killed(offboarding, peg_keepers, admin, stablecoin):
         assert offboarding.is_killed() == 1
 
         assert offboarding.provide_allowed(peg_keeper) == 0
-        assert offboarding.withdraw_allowed(peg_keeper) == 2 ** 256 - 1
+        assert offboarding.withdraw_allowed(peg_keeper) == 2**256 - 1
 
         offboarding.set_killed(2)
         assert offboarding.is_killed() == 2
@@ -109,4 +117,3 @@ def test_admin(reg, admin, alice, agg, receiver):
 
         reg.set_admin(alice)
         assert reg.admin() == alice
-

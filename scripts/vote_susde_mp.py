@@ -14,36 +14,36 @@ MPOLICY = "0xf574cBeBBd549273aF82b42cD0230DE9eA6efEF7"
 
 
 def account_load(fname):
-    path = os.path.expanduser(os.path.join('~', '.brownie', 'accounts', fname + '.json'))
-    with open(path, 'r') as f:
+    path = os.path.expanduser(
+        os.path.join("~", ".brownie", "accounts", fname + ".json")
+    )
+    with open(path, "r") as f:
         pkey = account.decode_keyfile_json(json.load(f), getpass())
         return account.Account.from_key(pkey)
 
 
-if __name__ == '__main__':
-    if '--fork' in sys.argv[1:]:
+if __name__ == "__main__":
+    if "--fork" in sys.argv[1:]:
         boa.env.fork(networks.NETWORK)
-        boa.env.eoa = '0xbabe61887f1de2713c6f97e567623453d3C79f67'
+        boa.env.eoa = "0xbabe61887f1de2713c6f97e567623453d3C79f67"
     else:
-        babe = account_load('babe')
+        babe = account_load("babe")
         boa.set_network_env(networks.NETWORK)
         boa.env.add_account(babe)
         boa.env._fork_try_prefetch_state = False
 
-    controller_impl = boa.load_partial('contracts/Controller.vy')
+    controller_impl = boa.load_partial("contracts/Controller.vy")
 
-    actions = [
-        (controller_impl.at(CONTROLLER), 'set_monetary_policy', MPOLICY)
-    ]
+    actions = [(controller_impl.at(CONTROLLER), "set_monetary_policy", MPOLICY)]
     vote_id = curve_dao.create_vote(
         target,
         actions,
         "Set monetary policy for the new sUSDe LlamaLend market, accourding to [https://gov.curve.fi/t/susde-llamalend-market-for-up-to-35x-leverage-with-a-special-monetary-policy/10132/]",
         networks.ETHERSCAN_API_KEY,
-        networks.PINATA_TOKEN
+        networks.PINATA_TOKEN,
     )
     print(vote_id)
 
-    if '--fork' in sys.argv[1:]:
+    if "--fork" in sys.argv[1:]:
         # Simulating the vote
-        assert curve_dao.simulate(vote_id, target['voting'], networks.ETHERSCAN_API_KEY)
+        assert curve_dao.simulate(vote_id, target["voting"], networks.ETHERSCAN_API_KEY)

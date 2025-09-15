@@ -1,6 +1,5 @@
 import os
 from datetime import timedelta
-import uuid
 
 import boa
 import pytest
@@ -19,9 +18,14 @@ PRICE = 3000
 TESTING_DECIMALS = [2, 6, 8, 9, 18]
 
 
-settings.register_profile("no-shrink", settings(phases=list(Phase)[:4]), deadline=timedelta(seconds=1000), print_blob=True)
+settings.register_profile(
+    "no-shrink",
+    settings(phases=list(Phase)[:4]),
+    deadline=timedelta(seconds=1000),
+    print_blob=True,
+)
 settings.register_profile("default", deadline=timedelta(seconds=1000), print_blob=True)
-settings.load_profile(os.getenv(u"HYPOTHESIS_PROFILE", "default"))
+settings.load_profile(os.getenv("HYPOTHESIS_PROFILE", "default"))
 
 
 @pytest.fixture(scope="module")
@@ -42,6 +46,7 @@ def factory(proto):
 @pytest.fixture(scope="module")
 def stablecoin(proto):
     return proto.crvUSD
+
 
 @pytest.fixture(scope="module")
 def collateral_token():
@@ -70,7 +75,9 @@ def lending_monetary_policy():
 
 
 @pytest.fixture(scope="module")
-def monetary_policy(market_type, controller, mint_monetary_policy, lending_monetary_policy):
+def monetary_policy(
+    market_type, controller, mint_monetary_policy, lending_monetary_policy
+):
     """Actual monetary policy contract bound to this market (post-creation)."""
     if market_type == "mint":
         return mint_monetary_policy
@@ -192,7 +199,7 @@ def controller(market, market_type, admin, borrow_cap):
     """Controller for the current market (mint or lending).
     Sets borrow cap for lending markets to `borrow_cap`.
     """
-    ctrl = market['controller']
+    ctrl = market["controller"]
     if market_type == "lending" and borrow_cap is not None:
         with boa.env.prank(admin):
             ctrl.set_borrow_cap(borrow_cap)
@@ -202,7 +209,7 @@ def controller(market, market_type, admin, borrow_cap):
 @pytest.fixture(scope="module")
 def amm(market):
     """AMM for the current market (mint or lending)."""
-    return market['amm']
+    return market["amm"]
 
 
 @pytest.fixture(scope="module")
@@ -231,9 +238,8 @@ def borrow_cap(seed_liquidity):
     return seed_liquidity
 
 
-
-
 # ============== Account Fixtures ==============
+
 
 @pytest.fixture(scope="session")
 def accounts():
@@ -247,9 +253,11 @@ def alice():
 
 # ============== Token Fixtures ==============
 
+
 @pytest.fixture(scope="module", params=TESTING_DECIMALS)
 def decimals(request):
     return request.param
+
 
 @pytest.fixture(scope="session")
 def token_mock():

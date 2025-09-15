@@ -1,4 +1,4 @@
-from ethereum.ercs import IERC20 
+from ethereum.ercs import IERC20
 from contracts.interfaces import ILMGauge
 from contracts.interfaces import IAMM
 from contracts.interfaces import IMonetaryPolicy
@@ -73,7 +73,7 @@ event SetView:
     view: address
 
 
-# Structs 
+# Structs
 
 struct Position:
     user: address
@@ -360,9 +360,7 @@ def processed() -> uint256:
 @external
 def version() -> String[1]:
     ...
-    
+
 @external
 def set_view(view_impl: address):
     ...
-
-

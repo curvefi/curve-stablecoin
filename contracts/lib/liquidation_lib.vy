@@ -42,4 +42,3 @@ def users_with_health(
             )
         ix += 1
     return out
-

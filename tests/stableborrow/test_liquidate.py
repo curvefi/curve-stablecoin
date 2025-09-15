@@ -9,8 +9,16 @@ N = 5
 
 
 @pytest.fixture(scope="module")
-def controller_for_liquidation(stablecoin, collateral_token, market_controller, market_amm,
-                               price_oracle, monetary_policy, admin, accounts):
+def controller_for_liquidation(
+    stablecoin,
+    collateral_token,
+    market_controller,
+    market_amm,
+    price_oracle,
+    monetary_policy,
+    admin,
+    accounts,
+):
     def f(sleep_time, discount):
         user = admin
         user2 = accounts[2]
@@ -21,11 +29,11 @@ def controller_for_liquidation(stablecoin, collateral_token, market_controller, 
             monetary_policy.set_rate(int(1e18 * 1.0 / 365 / 86400))  # 100% APY
             boa.deal(collateral_token, user, collateral_amount)
             boa.deal(collateral_token, user2, collateral_amount)
-            stablecoin.approve(market_amm, 2**256-1)
-            stablecoin.approve(market_controller, 2**256-1)
-            collateral_token.approve(market_controller, 2**256-1)
+            stablecoin.approve(market_amm, 2**256 - 1)
+            stablecoin.approve(market_controller, 2**256 - 1)
+            collateral_token.approve(market_controller, 2**256 - 1)
         with boa.env.prank(user2):
-            collateral_token.approve(market_controller, 2**256-1)
+            collateral_token.approve(market_controller, 2**256 - 1)
         debt = market_controller.max_borrowable(collateral_amount, N) * 99 // 100
 
         with boa.env.prank(user):
@@ -54,7 +62,9 @@ def controller_for_liquidation(stablecoin, collateral_token, market_controller, 
             market_controller.collect_fees()
             # Check that we earned the same in admin fees as we need to liquidate
             # Calculation is not precise because of dead shares, but the last withdrawal will put dust in admin fees
-            assert stablecoin.balanceOf(fee_receiver) == pytest.approx(market_controller.tokens_to_liquidate(user), rel=1e-10)
+            assert stablecoin.balanceOf(fee_receiver) == pytest.approx(
+                market_controller.tokens_to_liquidate(user), rel=1e-10
+            )
 
         # Borrow some more funds to repay for our overchargings with DEAD_SHARES
         with boa.env.prank(user2):
@@ -83,13 +93,28 @@ def test_liquidate(accounts, admin, controller_for_liquidation, market_amm, stab
 
 @given(frac=st.integers(min_value=0, max_value=11 * 10**17))
 @settings(max_examples=200)
-def test_liquidate_callback(accounts, admin, stablecoin, collateral_token, controller_for_liquidation, market_amm, fake_leverage, frac):
+def test_liquidate_callback(
+    accounts,
+    admin,
+    stablecoin,
+    collateral_token,
+    controller_for_liquidation,
+    market_amm,
+    fake_leverage,
+    frac,
+):
     user = admin
     fee_receiver = accounts[0]
     ld = int(0.02 * 1e18)
     if frac < 10**18:
         # f = ((1 + h/2) / (1 + h) * (1 - frac) + frac) * frac
-        f = ((10 ** 18 + ld // 2) * (10 ** 18 - frac) // (10 ** 18 + ld) + frac) * frac // 10 ** 18 // 5 * 5  # The latter part is rounding off for multiple bands
+        f = (
+            ((10**18 + ld // 2) * (10**18 - frac) // (10**18 + ld) + frac)
+            * frac
+            // 10**18
+            // 5
+            * 5
+        )  # The latter part is rounding off for multiple bands
     else:
         f = 10**18
     # Partial liquidation improves health.
@@ -110,7 +135,7 @@ def test_liquidate_callback(accounts, admin, stablecoin, collateral_token, contr
         if f != 10**18:
             with boa.env.prank(fee_receiver):
                 boa.deal(collateral_token, fee_receiver, 10**18)
-                collateral_token.approve(controller.address, 2**256-1)
+                collateral_token.approve(controller.address, 2**256 - 1)
                 debt2 = controller.max_borrowable(10**18, 5)
                 controller.create_loan(10**18, debt2, 5)
                 stablecoin.transfer(fake_leverage.address, debt2)
@@ -123,7 +148,9 @@ def test_liquidate_callback(accounts, admin, stablecoin, collateral_token, contr
 
         try:
             dy = collateral_token.balanceOf(fee_receiver)
-            controller.liquidate(user, int(0.999 * f * x / 1e18), frac, fake_leverage.address, b'')
+            controller.liquidate(
+                user, int(0.999 * f * x / 1e18), frac, fake_leverage.address, b""
+            )
             dy = collateral_token.balanceOf(fee_receiver) - dy
             dx = stablecoin.balanceOf(fee_receiver) - b
             if f > 0:
@@ -140,12 +167,16 @@ def test_liquidate_callback(accounts, admin, stablecoin, collateral_token, contr
                 raise
 
 
-def test_self_liquidate(accounts, admin, controller_for_liquidation, market_amm, stablecoin):
+def test_self_liquidate(
+    accounts, admin, controller_for_liquidation, market_amm, stablecoin
+):
     user = admin
     fee_receiver = accounts[0]
 
     with boa.env.anchor():
-        controller = controller_for_liquidation(sleep_time=40 * 86400, discount=2.5 * 10**16)
+        controller = controller_for_liquidation(
+            sleep_time=40 * 86400, discount=2.5 * 10**16
+        )
 
         with boa.env.prank(accounts[2]):
             stablecoin.transfer(fee_receiver, 10**10)
@@ -166,7 +197,9 @@ def test_self_liquidate(accounts, admin, controller_for_liquidation, market_amm,
 
 
 @given(frac=st.integers(min_value=10**14, max_value=10**18 - 13))
-def test_tokens_to_liquidate(accounts, admin, controller_for_liquidation, market_amm, stablecoin, frac):
+def test_tokens_to_liquidate(
+    accounts, admin, controller_for_liquidation, market_amm, stablecoin, frac
+):
     user = admin
     fee_receiver = accounts[0]
 

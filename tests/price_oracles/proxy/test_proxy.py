@@ -37,8 +37,8 @@ def test_proxy(proxy_factory, get_price_oracle, user, admin, broken_price_oracle
 
     # --- Replace oracle ---
 
-    oracle2 = get_price_oracle(105 * 10 ** 18)
-    oracle_deviation_too_high = get_price_oracle(105 * 10 ** 18 + 1)
+    oracle2 = get_price_oracle(105 * 10**18)
+    oracle_deviation_too_high = get_price_oracle(105 * 10**18 + 1)
     with boa.reverts("Not authorized"):
         proxy.set_price_oracle(oracle2, sender=admin)  # Change only through the factory
     with boa.reverts("ownable: caller is not the owner"):
@@ -52,7 +52,9 @@ def test_proxy(proxy_factory, get_price_oracle, user, admin, broken_price_oracle
         with boa.reverts("Price deviation too high"):
             proxy_factory.replace_oracle(proxy, oracle_deviation_too_high)
         with boa.env.anchor():
-            proxy_factory.replace_oracle(proxy, oracle_deviation_too_high, True)  # skip deviation check
+            proxy_factory.replace_oracle(
+                proxy, oracle_deviation_too_high, True
+            )  # skip deviation check
 
             assert proxy.oracle() == oracle_deviation_too_high.address
             assert proxy_factory.get_proxy(oracle1) == ZERO_ADDRESS

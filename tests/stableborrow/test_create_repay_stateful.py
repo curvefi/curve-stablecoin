@@ -1,10 +1,16 @@
 """
 Stateful test to create and repay loans without moving the price oracle
 """
+
 import boa
 from hypothesis import settings
 from hypothesis import strategies as st
-from hypothesis.stateful import RuleBasedStateMachine, run_state_machine_as_test, rule, invariant
+from hypothesis.stateful import (
+    RuleBasedStateMachine,
+    run_state_machine_as_test,
+    rule,
+    invariant,
+)
 
 
 DEAD_SHARES = 1000
@@ -12,8 +18,8 @@ DEAD_SHARES = 1000
 
 class StatefulLendBorrow(RuleBasedStateMachine):
     n = st.integers(min_value=5, max_value=50)
-    amount = st.integers(min_value=0, max_value=2**256-1)
-    c_amount = st.integers(min_value=0, max_value=2**256-1)
+    amount = st.integers(min_value=0, max_value=2**256 - 1)
+    c_amount = st.integers(min_value=0, max_value=2**256 - 1)
     user_id = st.integers(min_value=0, max_value=9)
 
     def __init__(self):
@@ -23,8 +29,8 @@ class StatefulLendBorrow(RuleBasedStateMachine):
         self.debt_ceiling = self.controller_factory.debt_ceiling(self.controller)
         for u in self.accounts:
             with boa.env.prank(u):
-                self.collateral_token.approve(self.controller, 2**256-1)
-                self.stablecoin.approve(self.controller, 2**256-1)
+                self.collateral_token.approve(self.controller, 2**256 - 1)
+                self.stablecoin.approve(self.controller, 2**256 - 1)
 
     @rule(c_amount=c_amount, amount=amount, n=n, user_id=user_id)
     def create_loan(self, c_amount, amount, n, user_id):
@@ -32,7 +38,7 @@ class StatefulLendBorrow(RuleBasedStateMachine):
 
         with boa.env.prank(user):
             if self.controller.loan_exists(user):
-                with boa.reverts('Loan already created'):
+                with boa.reverts("Loan already created"):
                     self.controller.create_loan(c_amount, amount, n)
                 return
 
@@ -40,16 +46,17 @@ class StatefulLendBorrow(RuleBasedStateMachine):
             try:
                 self.controller.calculate_debt_n1(c_amount, amount, n)
             except Exception as e:
-                too_high = 'Debt too high' in str(e)
+                too_high = "Debt too high" in str(e)
             if too_high:
-                with boa.reverts('Debt too high'):
+                with boa.reverts("Debt too high"):
                     self.controller.create_loan(c_amount, amount, n)
                 return
 
             if self.controller.total_debt() + amount > self.debt_ceiling:
                 if (
-                        (self.controller.total_debt() + amount) * self.amm.get_rate_mul() > 2**256 - 1
-                        or c_amount * self.amm.get_p() > 2**256 - 1
+                    (self.controller.total_debt() + amount) * self.amm.get_rate_mul()
+                    > 2** 256 - 1
+                    or c_amount * self.amm.get_p() > 2** 256 - 1
                 ):
                     with boa.reverts():
                         self.controller.create_loan(c_amount, amount, n)
@@ -59,7 +66,7 @@ class StatefulLendBorrow(RuleBasedStateMachine):
                 return
 
             if amount == 0:
-                with boa.reverts('No loan'):
+                with boa.reverts("No loan"):
                     self.controller.create_loan(c_amount, amount, n)
                     # It's actually division by zero which happens
                 return
@@ -83,8 +90,11 @@ class StatefulLendBorrow(RuleBasedStateMachine):
             try:
                 self.controller.create_loan(c_amount, amount, n)
             except Exception as e:
-                if c_amount // n > 2 * DEAD_SHARES and c_amount // n < (2**128 - 1) // DEAD_SHARES:
-                    if 'Too deep' not in str(e):
+                if (
+                    c_amount // n > 2 * DEAD_SHARES
+                    and c_amount // n < (2**128 - 1) // DEAD_SHARES
+                ):
+                    if "Too deep" not in str(e):
                         raise
 
     @rule(amount=amount, user_id=user_id)
@@ -118,7 +128,9 @@ class StatefulLendBorrow(RuleBasedStateMachine):
                     self.controller.add_collateral(c_amount, user)
                 return
 
-            if (c_amount + self.amm.get_sum_xy(user)[1]) * self.amm.get_p() > 2**256 - 1:
+            if (
+                c_amount + self.amm.get_sum_xy(user)[1]
+            ) * self.amm.get_p() > 2**256 - 1:
                 with boa.reverts():
                     self.controller.add_collateral(c_amount, user)
                 return
@@ -159,14 +171,16 @@ class StatefulLendBorrow(RuleBasedStateMachine):
             try:
                 self.controller.calculate_debt_n1(final_collateral, final_debt, n)
             except Exception as e:
-                too_high = 'Debt too high' in str(e)
+                too_high = "Debt too high" in str(e)
             if too_high:
-                with boa.reverts('Debt too high'):
+                with boa.reverts("Debt too high"):
                     self.controller.borrow_more(c_amount, amount)
                 return
 
             if self.controller.total_debt() + amount > self.debt_ceiling:
-                if (self.controller.total_debt() + amount) * self.amm.get_rate_mul() > 2**256 - 1:
+                if (
+                    self.controller.total_debt() + amount
+                ) * self.amm.get_rate_mul() > 2**256 - 1:
                     with boa.reverts():
                         self.controller.borrow_more(c_amount, amount)
                 else:
@@ -187,11 +201,18 @@ class StatefulLendBorrow(RuleBasedStateMachine):
 
     @invariant()
     def debt_supply(self):
-        assert self.controller.total_debt() == self.stablecoin.totalSupply() - self.stablecoin.balanceOf(self.controller)
+        assert (
+            self.controller.total_debt()
+            == self.stablecoin.totalSupply()
+            - self.stablecoin.balanceOf(self.controller)
+        )
 
     @invariant()
     def sum_of_debts(self):
-        assert sum(self.controller.debt(u) for u in self.accounts) == self.controller.total_debt()
+        assert (
+            sum(self.controller.debt(u) for u in self.accounts)
+            == self.controller.total_debt()
+        )
 
     @invariant()
     def health(self):
@@ -200,14 +221,30 @@ class StatefulLendBorrow(RuleBasedStateMachine):
                 assert self.controller.health(user) > 0
 
 
-def test_stateful_lendborrow(controller_factory, market_amm, market_controller, collateral_token, stablecoin, accounts):
-    StatefulLendBorrow.TestCase.settings = settings(max_examples=500, stateful_step_count=20)
+def test_stateful_lendborrow(
+    controller_factory,
+    market_amm,
+    market_controller,
+    collateral_token,
+    stablecoin,
+    accounts,
+):
+    StatefulLendBorrow.TestCase.settings = settings(
+        max_examples=500, stateful_step_count=20
+    )
     for k, v in locals().items():
         setattr(StatefulLendBorrow, k, v)
     run_state_machine_as_test(StatefulLendBorrow)
 
 
-def test_bad_health_underflow(controller_factory, market_amm, market_controller, collateral_token, stablecoin, accounts):
+def test_bad_health_underflow(
+    controller_factory,
+    market_amm,
+    market_controller,
+    collateral_token,
+    stablecoin,
+    accounts,
+):
     for k, v in locals().items():
         setattr(StatefulLendBorrow, k, v)
     with boa.env.anchor():
@@ -216,26 +253,55 @@ def test_bad_health_underflow(controller_factory, market_amm, market_controller,
         state.health()
 
 
-def test_overflow(controller_factory, market_amm, market_controller, collateral_token, stablecoin, accounts):
+def test_overflow(
+    controller_factory,
+    market_amm,
+    market_controller,
+    collateral_token,
+    stablecoin,
+    accounts,
+):
     for k, v in locals().items():
         setattr(StatefulLendBorrow, k, v)
     with boa.env.anchor():
         state = StatefulLendBorrow()
         state.create_loan(
             amount=407364794483206832621538773467837164307398905518629081113581615337081836,
-            c_amount=41658360764272065869638360137931952069431923873907374062, n=5, user_id=0)
+            c_amount=41658360764272065869638360137931952069431923873907374062,
+            n=5,
+            user_id=0,
+        )
 
 
-def test_health_overflow(controller_factory, market_amm, market_controller, collateral_token, stablecoin, accounts):
+def test_health_overflow(
+    controller_factory,
+    market_amm,
+    market_controller,
+    collateral_token,
+    stablecoin,
+    accounts,
+):
     for k, v in locals().items():
         setattr(StatefulLendBorrow, k, v)
     with boa.env.anchor():
         state = StatefulLendBorrow()
-        state.create_loan(amount=256, c_amount=2787635851270792912435800128182537894764544, n=5, user_id=0)
+        state.create_loan(
+            amount=256,
+            c_amount=2787635851270792912435800128182537894764544,
+            n=5,
+            user_id=0,
+        )
         state.health()
 
 
-def test_health_underflow_2(controller_factory, market_amm, market_controller, collateral_token, stablecoin, accounts):
+def test_health_underflow_2(
+    controller_factory,
+    market_amm,
+    market_controller,
+    collateral_token,
+    stablecoin,
+    accounts,
+):
     for k, v in locals().items():
         setattr(StatefulLendBorrow, k, v)
     with boa.env.anchor():

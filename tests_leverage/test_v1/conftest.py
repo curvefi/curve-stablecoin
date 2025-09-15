@@ -2,15 +2,24 @@ import os
 import pytest
 from pathlib import Path
 from hypothesis import settings
-from ape import project, accounts, Contract
+from ape import project, Contract
 from dotenv import load_dotenv
-from .utils import mint_tokens_for_testing, mint_crvusd_tokens_for_testing, ROUTER_PARAMS, ROUTER_PARAMS_DELEVERAGE, COLLATERALS, CONTROLLERS, LLAMMAS, ROUTERS
+from .utils import (
+    mint_tokens_for_testing,
+    mint_crvusd_tokens_for_testing,
+    ROUTER_PARAMS,
+    ROUTER_PARAMS_DELEVERAGE,
+    COLLATERALS,
+    CONTROLLERS,
+    LLAMMAS,
+    ROUTERS,
+)
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 load_dotenv(Path(BASE_DIR, ".env"))
 
 settings.register_profile("default", max_examples=10, deadline=None)
-settings.load_profile(os.getenv(u"HYPOTHESIS_PROFILE", "default"))
+settings.load_profile(os.getenv("HYPOTHESIS_PROFILE", "default"))
 
 
 """
@@ -60,7 +69,9 @@ def collaterals(user):
     for collateral in COLLATERALS.keys():
         collateral_contracts[collateral] = Contract(COLLATERALS[collateral])
         # No need to give approval for WETH because we will use ETH, but it doesn't matter
-        collateral_contracts[collateral].approve(CONTROLLERS[collateral], 2**256 - 1, sender=user)
+        collateral_contracts[collateral].approve(
+            CONTROLLERS[collateral], 2**256 - 1, sender=user
+        )
     return collateral_contracts
 
 

@@ -6,9 +6,11 @@ from ..utils import mint_for_testing
 
 
 @given(
-        amounts=st.lists(st.integers(min_value=10**16, max_value=10**6 * 10**18), min_size=5, max_size=5),
-        ns=st.lists(st.integers(min_value=1, max_value=20), min_size=5, max_size=5),
-        dns=st.lists(st.integers(min_value=0, max_value=20), min_size=5, max_size=5),
+    amounts=st.lists(
+        st.integers(min_value=10**16, max_value=10**6 * 10**18), min_size=5, max_size=5
+    ),
+    ns=st.lists(st.integers(min_value=1, max_value=20), min_size=5, max_size=5),
+    dns=st.lists(st.integers(min_value=0, max_value=20), min_size=5, max_size=5),
 )
 def test_dxdy_limits(amm, amounts, accounts, ns, dns, collateral_token, admin):
     with boa.env.prank(admin):
@@ -27,30 +29,33 @@ def test_dxdy_limits(amm, amounts, accounts, ns, dns, collateral_token, admin):
     dx, dy = amm.get_dxdy(0, 1, 10**2)  # $0.0001
     assert dx == 10**2
     if min(ns) == 1:
-        assert dy == pytest.approx(dx * 10**(18 - 6) / 3000, rel=4e-2 + 2 * min(ns) / amm.A())
+        assert dy == pytest.approx(
+            dx * 10 ** (18 - 6) / 3000, rel=4e-2 + 2 * min(ns) / amm.A()
+        )
     else:
-        assert dy <= dx * 10**(18 - 6) / 3000
+        assert dy <= dx * 10 ** (18 - 6) / 3000
     dx, dy = amm.get_dxdy(1, 0, 10**16)  # No liquidity
     assert dx == 0
     assert dy == 0  # Rounded down
 
     # Huge swap
     dx, dy = amm.get_dxdy(0, 1, 10**12 * 10**6)
-    assert dx < 10**12 * 10**6               # Less than all is spent
-    assert abs(dy - sum(amounts)) <= 1000    # but everything is bought
+    assert dx < 10**12 * 10**6  # Less than all is spent
+    assert abs(dy - sum(amounts)) <= 1000  # but everything is bought
     dx, dy = amm.get_dxdy(1, 0, 10**12 * 10**18)
     assert dx == 0
     assert dy == 0  # Rounded down
 
 
 @given(
-        amounts=st.lists(st.floats(min_value=0.01, max_value=1e6), min_size=5, max_size=5),
-        ns=st.lists(st.integers(min_value=1, max_value=20), min_size=5, max_size=5),
-        dns=st.lists(st.integers(min_value=0, max_value=20), min_size=5, max_size=5),
-        amount=st.floats(min_value=0.001, max_value=10e9)
+    amounts=st.lists(st.floats(min_value=0.01, max_value=1e6), min_size=5, max_size=5),
+    ns=st.lists(st.integers(min_value=1, max_value=20), min_size=5, max_size=5),
+    dns=st.lists(st.integers(min_value=0, max_value=20), min_size=5, max_size=5),
+    amount=st.floats(min_value=0.001, max_value=10e9),
 )
-def test_exchange_down_up(amm, amounts, accounts, ns, dns, amount,
-                          borrowed_token, collateral_token, admin):
+def test_exchange_down_up(
+    amm, amounts, accounts, ns, dns, amount, borrowed_token, collateral_token, admin
+):
     collateral_decimals = collateral_token.decimals()
     borrowed_decimals = borrowed_token.decimals()
     amounts = list(map(lambda x: int(x * 10**collateral_decimals), amounts))
@@ -85,14 +90,16 @@ def test_exchange_down_up(amm, amounts, accounts, ns, dns, amount,
 
     sum_borrowed = sum(amm.bands_x(i) for i in range(50))
     sum_collateral = sum(amm.bands_y(i) for i in range(50))
-    assert abs(borrowed_token.balanceOf(amm) - sum_borrowed // 10**(18 - 6)) <= 1
+    assert abs(borrowed_token.balanceOf(amm) - sum_borrowed // 10 ** (18 - 6)) <= 1
     assert abs(collateral_token.balanceOf(amm) - sum_collateral) <= 1
 
     in_amount = int(dy2 / 0.98)  # two trades charge 1% twice
     expected_out_amount = dx2
 
     dx, dy = amm.get_dxdy(1, 0, in_amount)
-    assert dx == pytest.approx(in_amount, rel=5e-4)  # Not precise because fee is charged on different directions
+    assert dx == pytest.approx(
+        in_amount, rel=5e-4
+    )  # Not precise because fee is charged on different directions
     assert dy <= expected_out_amount
     assert abs(dy - expected_out_amount) <= 2 * fee * expected_out_amount
 

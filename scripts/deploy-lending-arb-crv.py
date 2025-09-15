@@ -21,51 +21,68 @@ HARDHAT_COMMAND = ["npx", "hardhat", "node", "--fork", ARBITRUM, "--port", "8545
 
 CHAIN_ID = 42161
 GAUGE_FACTORY_ABI = [
-    {"stateMutability": "nonpayable",
-     "type": "function",
-     "name": "deploy_gauge",
-     "inputs": [{"name": "_lp_token", "type": "address"}, {"name": "_salt", "type": "bytes32"}, {"name": "_manager", "type": "address"}],
-     "outputs": [{"name": "", "type": "address"}]},
+    {
+        "stateMutability": "nonpayable",
+        "type": "function",
+        "name": "deploy_gauge",
+        "inputs": [
+            {"name": "_lp_token", "type": "address"},
+            {"name": "_salt", "type": "bytes32"},
+            {"name": "_manager", "type": "address"},
+        ],
+        "outputs": [{"name": "", "type": "address"}],
+    },
 ]
 GAUGE_FACTORY_ABI_ETH = [
-    {"stateMutability": "payable",
-     "type": "function",
-     "name": "deploy_gauge",
-     "inputs": [{"name": "_chain_id", "type": "uint256"}, {"name": "_salt", "type": "bytes32"}],
-     "outputs": [{"name": "", "type": "address"}],
-     "gas": 165352}
+    {
+        "stateMutability": "payable",
+        "type": "function",
+        "name": "deploy_gauge",
+        "inputs": [
+            {"name": "_chain_id", "type": "uint256"},
+            {"name": "_salt", "type": "bytes32"},
+        ],
+        "outputs": [{"name": "", "type": "address"}],
+        "gas": 165352,
+    }
 ]
 
 
 def account_load(fname):
-    path = os.path.expanduser(os.path.join('~', '.brownie', 'accounts', fname + '.json'))
-    with open(path, 'r') as f:
+    path = os.path.expanduser(
+        os.path.join("~", ".brownie", "accounts", fname + ".json")
+    )
+    with open(path, "r") as f:
         pkey = account.decode_keyfile_json(json.load(f), getpass())
         return account.Account.from_key(pkey)
 
 
-if __name__ == '__main__':
-    if '--hardhat' in sys.argv[1:]:
+if __name__ == "__main__":
+    if "--hardhat" in sys.argv[1:]:
         hardhat = subprocess.Popen(HARDHAT_COMMAND)
         sleep(5)
 
-    if '--fork' in sys.argv[1:]:
+    if "--fork" in sys.argv[1:]:
         boa.env.fork(ARBITRUM)
-        boa.env.eoa = '0xbabe61887f1de2713c6f97e567623453d3C79f67'
+        boa.env.eoa = "0xbabe61887f1de2713c6f97e567623453d3C79f67"
     else:
-        babe = account_load('babe')
+        babe = account_load("babe")
         boa.set_network_env(ARBITRUM)
         boa.env.add_account(babe)
         boa.env._fork_try_prefetch_state = False
 
-    gauge_factory = ABIContractFactory.from_abi_dict(GAUGE_FACTORY_ABI).at(GAUGE_FACTORY)
+    gauge_factory = ABIContractFactory.from_abi_dict(GAUGE_FACTORY_ABI).at(
+        GAUGE_FACTORY
+    )
 
-    factory = boa.load_partial('contracts/lending/deprecated/OneWayLendingFactoryL2.vy').at(FACTORY)
+    factory = boa.load_partial(
+        "contracts/lending/deprecated/OneWayLendingFactoryL2.vy"
+    ).at(FACTORY)
 
     # Deploy CRV long market
     name = "CRV-long"
     oracle_pool = "0x845C8bc94610807fCbaB5dd2bc7aC9DAbaFf3c55"  # TriCRV-ARBITRUM
-    collateral = "0x11cDb42B0EB46D95f990BeDD4695A6e3fA034978"   # CRV
+    collateral = "0x11cDb42B0EB46D95f990BeDD4695A6e3fA034978"  # CRV
     borrowed = CRVUSD
     # Same as on ETH mainnet
     A = 30
@@ -74,15 +91,25 @@ if __name__ == '__main__':
     liquidation_discount = int(0.08 * 1e18)
     min_borrow_rate = 5 * 10**16 // (365 * 86400)  # 5%
     max_borrow_rate = 60 * 10**16 // (365 * 86400)  # 60%
-    vault_crv = factory.create_from_pool(borrowed, collateral, A, fee, borrowing_discount, liquidation_discount,
-                                         oracle_pool, name, min_borrow_rate, max_borrow_rate)
+    vault_crv = factory.create_from_pool(
+        borrowed,
+        collateral,
+        A,
+        fee,
+        borrowing_discount,
+        liquidation_discount,
+        oracle_pool,
+        name,
+        min_borrow_rate,
+        max_borrow_rate,
+    )
     salt_crv = os.urandom(32)
     gauge_factory.deploy_gauge(vault_crv, salt_crv, GAUGE_FUNDER)
     print(f"Vault {name}: {vault_crv}, salt: {salt_crv.hex()}")
 
     # Deploy ARB long market
     name = "ARB-long"
-    collateral = "0x912CE59144191C1204E64559FE8253a0e49E6548"   # ARB
+    collateral = "0x912CE59144191C1204E64559FE8253a0e49E6548"  # ARB
     borrowed = CRVUSD
     A = 30
     fee = int(0.0015 * 1e18)
@@ -90,26 +117,38 @@ if __name__ == '__main__':
     liquidation_discount = int(0.08 * 1e18)
     min_borrow_rate = 5 * 10**16 // (365 * 86400)  # 5%
     max_borrow_rate = 60 * 10**16 // (365 * 86400)  # 60%
-    vault_arb = factory.create_from_pool(borrowed, collateral, A, fee, borrowing_discount, liquidation_discount,
-                                         oracle_pool, name, min_borrow_rate, max_borrow_rate)
+    vault_arb = factory.create_from_pool(
+        borrowed,
+        collateral,
+        A,
+        fee,
+        borrowing_discount,
+        liquidation_discount,
+        oracle_pool,
+        name,
+        min_borrow_rate,
+        max_borrow_rate,
+    )
     salt_arb = os.urandom(32)
     gauge_factory.deploy_gauge(vault_arb, salt_arb, GAUGE_FUNDER)
     print(f"Vault {name}: {vault_arb}, salt: {salt_arb.hex()}")
 
-    if '--fork' in sys.argv[1:]:
+    if "--fork" in sys.argv[1:]:
         boa.env.fork(NETWORK)
-        boa.env.eoa = '0xbabe61887f1de2713c6f97e567623453d3C79f67'
+        boa.env.eoa = "0xbabe61887f1de2713c6f97e567623453d3C79f67"
     else:
         boa.set_network_env(NETWORK)
         boa.env.add_account(babe)
         boa.env._fork_try_prefetch_state = False
 
-    gauge_factory_eth = ABIContractFactory.from_abi_dict(GAUGE_FACTORY_ABI_ETH).at(GAUGE_FACTORY)
+    gauge_factory_eth = ABIContractFactory.from_abi_dict(GAUGE_FACTORY_ABI_ETH).at(
+        GAUGE_FACTORY
+    )
 
     gauge_factory_eth.deploy_gauge(CHAIN_ID, salt_crv)
-    if '--fork' not in sys.argv[1:]:
+    if "--fork" not in sys.argv[1:]:
         sleep(30)  # RPCs on Ethereum can change the node, so need to sleep to not fail
     gauge_factory_eth.deploy_gauge(CHAIN_ID, salt_arb)
 
-    if '--hardhat' in sys.argv[1:]:
+    if "--hardhat" in sys.argv[1:]:
         hardhat.wait()

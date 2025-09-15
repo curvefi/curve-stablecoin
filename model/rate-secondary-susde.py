@@ -24,16 +24,16 @@ def plot_rate(alpha, beta, u0, r0, *args, **kw):
     pylab.plot(u, r, *args, **kw)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     beta = 2.5
     r0 = 10
 
-    plot_rate(0.35, 1.5, 0.85, 10, '--', c="gray")
+    plot_rate(0.35, 1.5, 0.85, 10, "--", c="gray")
     plot_rate(0.35, 2.5, 0.8, 10, c="black")
 
     pylab.grid()
-    pylab.xlabel('Utilization')
-    pylab.ylabel('r (%)')
+    pylab.xlabel("Utilization")
+    pylab.ylabel("r (%)")
     pylab.xlim(-0.05, 1.05)
     pylab.ylim(-beta * r0 * 0.05, beta * r0 * 1.05)
     pylab.show()

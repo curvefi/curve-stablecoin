@@ -11,8 +11,9 @@ from tests.utils.deployers import (
     PROXY_ORACLE_FACTORY_DEPLOYER,
     LP_ORACLE_STABLE_DEPLOYER,
     LP_ORACLE_CRYPTO_DEPLOYER,
-    LP_ORACLE_FACTORY_DEPLOYER
+    LP_ORACLE_FACTORY_DEPLOYER,
 )
+
 
 @pytest.fixture(scope="session")
 def user(accounts):
@@ -28,7 +29,9 @@ def broken_contract(admin):
 @pytest.fixture(scope="module")
 def coin0_oracle(admin):
     with boa.env.prank(admin):
-        return DUMMY_PRICE_ORACLE_DEPLOYER.deploy(admin, random.randint(99 * 10**17, 101 * 10**17))
+        return DUMMY_PRICE_ORACLE_DEPLOYER.deploy(
+            admin, random.randint(99 * 10**17, 101 * 10**17)
+        )
 
 
 @pytest.fixture(scope="module")
@@ -50,7 +53,9 @@ def crypto_swap(admin):
 @pytest.fixture(scope="module")
 def stable_swap_no_argument(admin):
     with boa.env.prank(admin):
-        return MOCK_STABLE_SWAP_NO_ARGUMENT_DEPLOYER.deploy(admin, random.randint(10**16, 10**23))
+        return MOCK_STABLE_SWAP_NO_ARGUMENT_DEPLOYER.deploy(
+            admin, random.randint(10**16, 10**23)
+        )
 
 
 @pytest.fixture(scope="module")
@@ -78,9 +83,13 @@ def lp_oracle_crypto_impl(admin):
 
 
 @pytest.fixture(scope="module")
-def lp_oracle_factory(admin, lp_oracle_stable_impl, lp_oracle_crypto_impl, proxy_factory):
+def lp_oracle_factory(
+    admin, lp_oracle_stable_impl, lp_oracle_crypto_impl, proxy_factory
+):
     with boa.env.prank(admin):
-        return LP_ORACLE_FACTORY_DEPLOYER.deploy(admin, lp_oracle_stable_impl, lp_oracle_crypto_impl, proxy_factory)
+        return LP_ORACLE_FACTORY_DEPLOYER.deploy(
+            admin, lp_oracle_stable_impl, lp_oracle_crypto_impl, proxy_factory
+        )
 
 
 @pytest.fixture(scope="module")
