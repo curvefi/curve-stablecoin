@@ -8,9 +8,30 @@ env:
   HYPOTHESIS_PROFILE: no-shrink
 
 jobs:
-  tests:
-    name: ${{ matrix.folder }} (${{ matrix.venom.name }})
+  pre-commit:
+    name: pre-commit
     runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v5
+        with:
+          submodules: recursive
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+
+      - name: Install Python 3.12.6
+        run: uv python install 3.12.6
+
+      - name: Run pre-commit checks
+        run: uvx pre-commit run --all-files --show-diff-on-failure
+
+  tests:
+    name: ${{ matrix.folder }}
+    runs-on: ubuntu-latest
+    needs: pre-commit
     strategy:
       fail-fast: false
       matrix:
@@ -24,20 +45,15 @@ jobs:
           - "tests/lending"
           - "tests/stableborrow --ignore=tests/stableborrow/stabilize"
           - "tests/stableborrow/stabilize"
-        venom:
-          - { name: "standard mode", value: false }
-          # - { name: "venom mode", value: true }
-    continue-on-error: ${{ matrix.venom.value }}
     steps:
       - name: Checkout repo
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           submodules: recursive
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v6
+        uses: astral-sh/setup-uv@v6.7
         with:
-          version: "0.8.7"
           enable-cache: true  # Enables built-in caching for uv
 
       - name: Cache Compiler Installations
@@ -53,14 +69,7 @@ jobs:
       - name: Install Requirements
         run: uv sync
 
-      - name: Install Nightly Vyper if Venom is enabled
-        if: ${{ matrix.venom.value }}
-        run: |
-          uv pip install --force-reinstall 'git+https://github.com/vyperlang/vyper.git@master#egg=vyper'
-
       - name: Run tests
         run: |
           export VENOM=${{ matrix.venom.value }}
           uv run pytest ${{ matrix.folder }} -n auto
-        #   source .venv/bin/activate
-        #   uv pip freeze
