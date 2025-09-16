@@ -14,6 +14,12 @@ from hypothesis.stateful import (
 DEAD_SHARES = 1000
 
 
+@pytest.fixture(scope="module")
+def seed_liquidity():
+    """Override to 0"""
+    return 0
+
+
 def test_vault_creation(
     vault,
     controller,
