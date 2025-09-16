@@ -1,7 +1,21 @@
 from decimal import Decimal
 from hypothesis import note, assume
-from hypothesis.strategies import composite, integers, builds, decimals, SearchStrategy, data, sampled_from
-from hypothesis.stateful import RuleBasedStateMachine, initialize, rule, precondition, invariant
+from hypothesis.strategies import (
+    composite,
+    integers,
+    builds,
+    decimals,
+    SearchStrategy,
+    data,
+    sampled_from,
+)
+from hypothesis.stateful import (
+    RuleBasedStateMachine,
+    initialize,
+    rule,
+    precondition,
+    invariant,
+)
 
 import boa
 
@@ -42,11 +56,21 @@ collaterals = builds(ERC20_MOCK_DEPLOYER.deploy, token_decimals)
 @composite
 def discounts(draw):
     """Draw (loan_discount, liquidation_discount) with loan > liquidation."""
-    liq = draw(integers(min_value=MIN_LIQUIDATION_DISCOUNT, max_value=MAX_LOAN_DISCOUNT - 1))
-    loan = draw(integers(min_value=(max(liq, MIN_LIQUIDATION_DISCOUNT) + 1), max_value=MAX_LOAN_DISCOUNT))
+    liq = draw(
+        integers(min_value=MIN_LIQUIDATION_DISCOUNT, max_value=MAX_LOAN_DISCOUNT - 1)
+    )
+    loan = draw(
+        integers(
+            min_value=(max(liq, MIN_LIQUIDATION_DISCOUNT) + 1),
+            max_value=MAX_LOAN_DISCOUNT,
+        )
+    )
     return loan, liq
 
-def token_amounts(decimal_places: int, min_value: int = 0, max_value: int = None) -> SearchStrategy[int]:
+
+def token_amounts(
+    decimal_places: int, min_value: int = 0, max_value: int = None
+) -> SearchStrategy[int]:
     decs = decimals(
         min_value=min_value,
         max_value=max_value,
@@ -190,6 +214,7 @@ def mint_markets(
 
     return market
 
+
 # ------------ controller interaction params -------------
 
 # TODO eventually fix this in SC
@@ -208,10 +233,11 @@ class ControllerStateful(RuleBasedStateMachine):
         self.controller = market["controller"]
         self.amm = market["amm"]
         self.users = []
-        self.collateral_token = ERC20_MOCK_DEPLOYER.at(self.controller.collateral_token())
+        self.collateral_token = ERC20_MOCK_DEPLOYER.at(
+            self.controller.collateral_token()
+        )
         self.borrowed_token = STABLECOIN_DEPLOYER.at(self.controller.borrowed_token())
         self.borrowed_token.approve(self.controller.address, MAX_UINT256)
-
 
     @rule(N=ticks, data=data())
     def create_loan_rule(self, N, data):
@@ -221,7 +247,10 @@ class ControllerStateful(RuleBasedStateMachine):
         user = boa.env.generate_address(user_label)
 
         # Draw a valid (collateral, debt) pair for this controller and N
-        collateral, debt = data.draw(loan_amounts_for_create(self.controller, N), label=f"loan_amounts_for_create({user_label})")
+        collateral, debt = data.draw(
+            loan_amounts_for_create(self.controller, N),
+            label=f"loan_amounts_for_create({user_label})",
+        )
 
         # Deal collateral on site and approve controller
         note(
@@ -234,7 +263,7 @@ class ControllerStateful(RuleBasedStateMachine):
             self.controller.create_loan(collateral, debt, N)
 
         self.users.append(user)
-        
+
     @invariant()
     def time_passes(self):
         # Snapshot current debts for tracked users
@@ -260,7 +289,9 @@ class ControllerStateful(RuleBasedStateMachine):
         # Current debt and repay amount in [1, debt]
         debt = self.controller.debt(user)
         assume(debt > 0)
-        repay_amount = data.draw(integers(min_value=1, max_value=debt), label="repay_amount")
+        repay_amount = data.draw(
+            integers(min_value=1, max_value=debt), label="repay_amount"
+        )
 
         # Ensure user has enough borrowed tokens and allowance
         borrowed = STABLECOIN_DEPLOYER.at(self.controller.borrowed_token())
@@ -288,7 +319,9 @@ class ControllerStateful(RuleBasedStateMachine):
 
         # Draw increments using the shared strategy
         d_collateral, d_debt = data.draw(
-            loan_increments_for_borrow_more(self.controller, user, N, collateral0, debt0),
+            loan_increments_for_borrow_more(
+                self.controller, user, N, collateral0, debt0
+            ),
             label="borrow_more_increments",
         )
 
@@ -298,7 +331,6 @@ class ControllerStateful(RuleBasedStateMachine):
             # Approve is already set at creation, but re-approve is harmless
             self.collateral_token.approve(self.controller.address, MAX_UINT256)
             self.controller.borrow_more(d_collateral, d_debt)
-
 
     @precondition(lambda self: len(self.users) > 0)
     @rule(data=data())
@@ -318,12 +350,14 @@ class ControllerStateful(RuleBasedStateMachine):
 
         # Draw a safe removal amount, avoid edge rounding by not always taking full
         min_remove = max(1, removable // 64)
-        d_collateral = data.draw(integers(min_value=min_remove, max_value=removable), label="remove_collateral_amount")
+        d_collateral = data.draw(
+            integers(min_value=min_remove, max_value=removable),
+            label="remove_collateral_amount",
+        )
 
         # Call as user
         with boa.env.prank(user):
             self.controller.remove_collateral(d_collateral)
-
 
     @invariant()
     def open_users_invariant(self):
@@ -345,7 +379,9 @@ class ControllerStateful(RuleBasedStateMachine):
 
         note("[HARD LIQUIDATE]")
         for pos in positions:
-            note(f"liquidating user {pos.user} with health {self.controller.health(pos.user, True)}")
+            note(
+                f"liquidating user {pos.user} with health {self.controller.health(pos.user, True)}"
+            )
             required = self.controller.tokens_to_liquidate(pos.user, WAD)
             if required > 0:
                 boa.deal(self.borrowed_token, boa.env.eoa, required)
@@ -355,5 +391,6 @@ class ControllerStateful(RuleBasedStateMachine):
 
         n = self.controller.n_loans()
         self.users = [self.controller.loans(i) for i in range(n)]
+
 
 TestControllerStateful = ControllerStateful.TestCase

@@ -30,8 +30,7 @@ titanoboa = { git = "https://github.com/AlbertoCentonze/titanoboa", rev = "vvm-e
 [tool.uv]
 package = false  # This is not a Python package
 
-[tool.ruff]
-
+[tool.ruff.lint]
 ignore = [
     # Should be eventually fixed
     "E722" ,

@@ -18,7 +18,6 @@ from tests.utils.deployers import (
     AMM_DEPLOYER,
     CONTROLLER_FACTORY_DEPLOYER,
     CONTROLLER_VIEW_DEPLOYER,
-    
     # Lending contracts
     VAULT_DEPLOYER,
     LL_CONTROLLER_DEPLOYER,
@@ -84,7 +83,9 @@ class Protocol:
         # the constructor arguments of the MintController contract, we have to
         # manually patch the code to insert the correct address of the controller view
         # which is only known at runtime.
-        self._mint_controller_deployer = boa.loads_partial(mint_controller_code, compiler_args=compiler_args_codesize)
+        self._mint_controller_deployer = boa.loads_partial(
+            mint_controller_code, compiler_args=compiler_args_codesize
+        )
 
         # Deploy all blueprints
         self.blueprints = Blueprints(
@@ -190,8 +191,8 @@ class Protocol:
         amm_address = self.mint_factory.get_amm(collateral_token.address)
 
         return {
-            'controller': self._mint_controller_deployer.at(controller_address),
-            'amm': AMM_DEPLOYER.at(amm_address)
+            "controller": self._mint_controller_deployer.at(controller_address),
+            "amm": AMM_DEPLOYER.at(amm_address),
         }
 
     def create_lending_market(
