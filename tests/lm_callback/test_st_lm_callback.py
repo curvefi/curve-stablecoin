@@ -105,6 +105,9 @@ class StateMachine(RuleBasedStateMachine):
                 withdraw_amount = collateral_in_amm
             elif self.market_controller.health(user) > 0:
                 repay_amount = int(debt * repay_pct)
+                if repay_amount == 0:
+                    return
+
                 self.market_controller.repay(repay_amount)
                 if is_underwater:
                     # Underwater repay does not trigger callback, so we call checkpoint manually to pass checks below
