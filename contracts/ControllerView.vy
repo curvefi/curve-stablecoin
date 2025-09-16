@@ -212,7 +212,15 @@ def users_to_liquidate(
     """
     @notice Natspec for this function is available in its controller contract
     """
-    return liq.users_with_health(IController(self), _from, _limit, 0, False, empty(address), True)
+    return liq.users_with_health(
+        CONTROLLER,
+        _from,
+        _limit,
+        0,
+        False,
+        empty(address),
+        True,
+    )
 
 
 @view
