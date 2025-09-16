@@ -9,6 +9,12 @@ from hypothesis.stateful import RuleBasedStateMachine, run_state_machine_as_test
 DEAD_SHARES = 1000
 
 
+@pytest.fixture(scope="module")
+def seed_liquidity():
+    """Override to 0"""
+    return 0
+
+
 def test_vault_creation(vault, controller, amm, monetary_policy, factory, price_oracle,
                         borrowed_token, collateral_token, stablecoin):
     assert vault.amm() == amm.address
