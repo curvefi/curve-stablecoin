@@ -91,7 +91,7 @@ def max_borrowable(
     @param N number of bands to have the deposit into
     @param current_debt Current debt of the user (if any)
     @param user User to calculate the value for (only necessary for nonzero extra_health)
-    @return Maximum amount of stablecoin to borrow
+    @return Maximum amount of borrowed asset to borrow
     """
     # Cannot borrow beyond the amount of coins Controller has or beyond borrow_cap
     total_debt: uint256 = self._total_debt()

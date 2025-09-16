@@ -21,7 +21,7 @@ event Liquidate:
     liquidator: address
     user: address
     collateral_received: uint256
-    stablecoin_received: uint256
+    borrowed_received: uint256
     debt: uint256
 
 
