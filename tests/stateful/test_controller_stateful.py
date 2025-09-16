@@ -210,6 +210,7 @@ class ControllerStateful(RuleBasedStateMachine):
         self.users = []
         self.collateral_token = ERC20_MOCK_DEPLOYER.at(self.controller.collateral_token())
         self.borrowed_token = STABLECOIN_DEPLOYER.at(self.controller.borrowed_token())
+        self.borrowed_token.approve(self.controller.address, MAX_UINT256)
 
 
     @rule(N=ticks, data=data())
@@ -338,25 +339,20 @@ class ControllerStateful(RuleBasedStateMachine):
     @precondition(lambda self: len(self.users) > 0)
     @invariant()
     def liquidate(self):
-        underwater_positions = self.controller.users_to_liquidate(0, len(self.users))
+        positions = self.controller.users_to_liquidate(0, len(self.users))
+        if len(positions) == 0:
+            return
 
-        self.controller.users_to_liquidate(0, len(self.users))
-        for pos in underwater_positions:
-            note("[HARD LIQUIDATE]")
+        note("[HARD LIQUIDATE]")
+        for pos in positions:
             note(f"liquidating user {pos.user} with health {self.controller.health(pos.user, True)}")
-            # Choose a fraction so that debt portion to repay fits into x (avoid external funding)
-            frac = 1
-            if pos.debt > 0:
-                # Ceil division guard in contract: debt' = (debt * frac + WAD - 1) // WAD
-                num = pos.x * WAD - (WAD - 1)
-                if num > 0:
-                    frac = max(1, min(WAD, num // pos.debt))
-            self.controller.liquidate(pos.user, 0, frac)
+            required = self.controller.tokens_to_liquidate(pos.user, WAD)
+            if required > 0:
+                boa.deal(self.borrowed_token, boa.env.eoa, required)
+            self.controller.liquidate(pos.user, 0, WAD)
 
-        # After liquidation there should be no more liquidatable users
-        assert len(self.controller.users_to_liquidate(0, 1000)) == 0
+        assert len(self.controller.users_to_liquidate(0, len(self.users))) == 0
 
-        # Keep our local tracking list in sync with on-chain open loans
         n = self.controller.n_loans()
         self.users = [self.controller.loans(i) for i in range(n)]
 
