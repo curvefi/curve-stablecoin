@@ -37,9 +37,17 @@ def __init__(
     HEALTH_THRESHOLD = _health_threshold
 
 
+@internal
+@view
+def _x_down(_controller: IController, _user: address) -> uint256:
+    # Obtain the value of the users collateral if it
+    # was fully soft liquidated into borrowed tokens
+    return staticcall (staticcall _controller.amm()).get_x_down(_user)
+
+
 @external
 @view
-def users_to_liquidate(_controller: address, _from: uint256 = 0, _limit: uint256 = 0) -> DynArray[IZap.Position, 1000]:
+def users_to_liquidate(_controller: IController, _from: uint256 = 0, _limit: uint256 = 0) -> DynArray[IZap.Position, 1000]:
     """
     @notice Returns users eligible for partial self-liquidation through this zap.
     @param _controller Address of the controller
@@ -47,8 +55,8 @@ def users_to_liquidate(_controller: address, _from: uint256 = 0, _limit: uint256
     @param _limit Number of loans to inspect (0 = all)
     @return Dynamic array with position info and zap-specific estimates
     """
-    CONTROLLER: IController = IController(_controller)
-    AMM: IAMM = staticcall CONTROLLER.amm()
+    # Cached only for readability purposes
+    CONTROLLER: IController = _controller
 
     base_positions: DynArray[IController.Position, 1000] = liq.users_with_health(
         CONTROLLER, _from, _limit, HEALTH_THRESHOLD, True, self, False
@@ -58,9 +66,8 @@ def users_to_liquidate(_controller: address, _from: uint256 = 0, _limit: uint256
         if i == len(base_positions):
             break
         pos: IController.Position = base_positions[i]
-        # Compute zap-specific estimates
         to_repay: uint256 = staticcall CONTROLLER.tokens_to_liquidate(pos.user, FRAC)
-        x_down: uint256 = staticcall AMM.get_x_down(pos.user)
+        x_down: uint256 = self._x_down(CONTROLLER, pos.user)
         ratio: uint256 = unsafe_div(unsafe_mul(x_down, WAD), pos.debt)
         out.append(
             IZap.Position(
@@ -76,7 +83,7 @@ def users_to_liquidate(_controller: address, _from: uint256 = 0, _limit: uint256
 
 
 @external
-def liquidate_partial(_controller: address, _user: address, _min_x: uint256):
+def liquidate_partial(_controller: IController, _user: address, _min_x: uint256):
     """
     @notice Trigger partial self-liquidation of `user` using FRAC.
             Caller supplies borrowed tokens; receives withdrawn collateral.
@@ -84,18 +91,19 @@ def liquidate_partial(_controller: address, _user: address, _min_x: uint256):
     @param _user Address of the position owner (must have approved this zap in controller)
     @param _min_x Minimal x withdrawn from AMM to guard against MEV
     """
-    CONTROLLER: IController = IController(_controller)
-    AMM: IAMM = staticcall CONTROLLER.amm()
+    # Cached only for readability purposes
+    CONTROLLER: IController = _controller
+
     BORROWED: IERC20 = staticcall CONTROLLER.borrowed_token()
     COLLATERAL: IERC20 = staticcall CONTROLLER.collateral_token()
 
     assert staticcall CONTROLLER.approval(_user, self), "not approved"
     assert staticcall CONTROLLER.health(_user, False) < HEALTH_THRESHOLD, "health too high"
 
-    tkn.max_approve(BORROWED, _controller)
+    tkn.max_approve(BORROWED, CONTROLLER.address)
 
     total_debt: uint256 = staticcall CONTROLLER.debt(_user)
-    x_down: uint256 = staticcall AMM.get_x_down(_user)
+    x_down: uint256 = self._x_down(CONTROLLER, _user)
     ratio: uint256 = unsafe_div(unsafe_mul(x_down, WAD), total_debt)
 
     assert ratio > WAD, "position rekt"
@@ -104,7 +112,7 @@ def liquidate_partial(_controller: address, _user: address, _min_x: uint256):
     to_repay: uint256 = staticcall CONTROLLER.tokens_to_liquidate(_user, FRAC)
     borrowed_from_sender: uint256 = unsafe_div(unsafe_mul(to_repay, ratio), WAD)
 
-    tkn.transferFrom(BORROWED, msg.sender, self, borrowed_from_sender)
+    tkn.transfer_from(BORROWED, msg.sender, self, borrowed_from_sender)
 
     extcall CONTROLLER.liquidate(_user, _min_x, FRAC)
     collateral_received: uint256 = staticcall COLLATERAL.balanceOf(self)

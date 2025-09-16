@@ -1,8 +1,8 @@
-from contracts.interfaces import ILlamalendController as IController
+from contracts.interfaces import IMintController as IController
 
 
 event PartialRepay:
-    controller: address
+    controller: IController
     user: address
     collateral_decrease: uint256
     borrowed_from_sender: uint256
@@ -20,12 +20,12 @@ struct Position:
 
 @view
 @external
-def users_to_liquidate(_controller: address, _from: uint256, _limit: uint256) -> DynArray[Position, 1000]:
+def users_to_liquidate(_controller: IController, _from: uint256, _limit: uint256) -> DynArray[Position, 1000]:
     ...
 
 
 @external
-def liquidate_partial(_controller: address, _user: address, _min_x: uint256):
+def liquidate_partial(_controller: IController, _user: address, _min_x: uint256):
     ...
 
 
