@@ -16,8 +16,9 @@ from tests.utils.deployers import (
     # Core contracts
     STABLECOIN_DEPLOYER,
     AMM_DEPLOYER,
-    MINT_CONTROLLER_DEPLOYER,
     CONTROLLER_FACTORY_DEPLOYER,
+    CONTROLLER_VIEW_DEPLOYER,
+    
     # Lending contracts
     VAULT_DEPLOYER,
     LL_CONTROLLER_DEPLOYER,
@@ -31,6 +32,8 @@ from tests.utils.deployers import (
     CONSTANT_MONETARY_POLICY_LENDING_DEPLOYER,
     WETH_DEPLOYER,
     ERC20_MOCK_DEPLOYER,
+    # Compiler flags
+    compiler_args_codesize,
 )
 
 
@@ -47,7 +50,7 @@ class Blueprints:
     mpolicy: VyperBlueprint
 
 
-# TODO rename to Llamalend
+# TODO rename to this class to Llamalend and the file to protocol.py
 class Protocol:
     """
     Protocol deployment and management class for llamalend.
@@ -65,10 +68,28 @@ class Protocol:
         self.admin = boa.env.generate_address("admin")
         self.fee_receiver = boa.env.generate_address("fee_receiver")
 
+        controller_view_blueprint = CONTROLLER_VIEW_DEPLOYER.deploy_as_blueprint()
+
+        with open("contracts/MintController.vy", "r") as f:
+            mint_controller_code = f.read()
+        mint_controller_code = mint_controller_code.replace(
+            "empty(address),  # to replace at deployment with view blueprint",
+            f"{controller_view_blueprint.address},",
+            1,
+        )
+        assert f"{controller_view_blueprint.address}," in mint_controller_code
+
+        # This is a bit of a special case that breaks our current conventions around
+        # deployers. The only reason why this was done is because since we can't change
+        # the constructor arguments of the MintController contract, we have to
+        # manually patch the code to insert the correct address of the controller view
+        # which is only known at runtime.
+        self._mint_controller_deployer = boa.loads_partial(mint_controller_code, compiler_args=compiler_args_codesize)
+
         # Deploy all blueprints
         self.blueprints = Blueprints(
             amm=AMM_DEPLOYER,
-            mint_controller=MINT_CONTROLLER_DEPLOYER,
+            mint_controller=self._mint_controller_deployer,
             ll_controller=LL_CONTROLLER_DEPLOYER,
             ll_controller_view=LL_CONTROLLER_VIEW_DEPLOYER,
             price_oracle=CRYPTO_FROM_POOL_DEPLOYER,
@@ -169,8 +190,8 @@ class Protocol:
         amm_address = self.mint_factory.get_amm(collateral_token.address)
 
         return {
-            "controller": MINT_CONTROLLER_DEPLOYER.at(controller_address),
-            "amm": AMM_DEPLOYER.at(amm_address),
+            'controller': self._mint_controller_deployer.at(controller_address),
+            'amm': AMM_DEPLOYER.at(amm_address)
         }
 
     def create_lending_market(
