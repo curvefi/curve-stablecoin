@@ -2,7 +2,13 @@ import boa
 from math import ceil
 from hypothesis import settings
 from hypothesis import strategies as st
-from hypothesis.stateful import RuleBasedStateMachine, run_state_machine_as_test, rule, invariant, initialize
+from hypothesis.stateful import (
+    RuleBasedStateMachine,
+    run_state_machine_as_test,
+    rule,
+    invariant,
+    initialize,
+)
 
 
 class AdiabaticTrader(RuleBasedStateMachine):
@@ -12,7 +18,10 @@ class AdiabaticTrader(RuleBasedStateMachine):
     is_pump = st.booleans()
     n = st.integers(min_value=5, max_value=50)
     t = st.integers(min_value=0, max_value=86400)
-    rate = st.integers(min_value=int(1e18 * 0.001 / 365 / 86400), max_value=int(1e18 * 0.2 / 365 / 86400))
+    rate = st.integers(
+        min_value=int(1e18 * 0.001 / 365 / 86400),
+        max_value=int(1e18 * 0.2 / 365 / 86400),
+    )
     not_enough_allowed = True
 
     def __init__(self):
@@ -20,10 +29,12 @@ class AdiabaticTrader(RuleBasedStateMachine):
         self.collateral = self.collateral_token
         self.amm = self.amm
         self.controller = self.controller
-        self.borrowed_mul = 10**(18 - self.borrowed_token.decimals())
-        self.collateral_mul = 10**(18 - self.collateral_token.decimals())
+        self.borrowed_mul = 10 ** (18 - self.borrowed_token.decimals())
+        self.collateral_mul = 10 ** (18 - self.collateral_token.decimals())
         with boa.env.prank(self.admin):
-            self.monetary_policy.set_rates(int(1e18 * 0.04 / 365 / 86400), int(1e18 * 0.04 / 365 / 86400))
+            self.monetary_policy.set_rates(
+                int(1e18 * 0.04 / 365 / 86400), int(1e18 * 0.04 / 365 / 86400)
+            )
         for user in self.accounts[:2]:
             with boa.env.prank(user):
                 self.borrowed_token.approve(self.controller, 2**256 - 1)
@@ -34,9 +45,13 @@ class AdiabaticTrader(RuleBasedStateMachine):
     @initialize(collateral_amount=collateral_amount, n=n)
     def initializer(self, collateral_amount, n):
         # Calculating so that we create it with a nonzero loan
-        collateral_amount = int(max(collateral_amount / self.collateral_mul,
-                                    n * 10 * ceil(3000 * max(self.borrowed_mul / self.collateral_mul, 1)),
-                                    n))
+        collateral_amount = int(
+            max(
+                collateral_amount / self.collateral_mul,
+                n * 10 * ceil(3000 * max(self.borrowed_mul / self.collateral_mul, 1)),
+                n,
+            )
+        )
         user = self.accounts[0]
         with boa.env.prank(user):
             boa.deal(self.collateral, user, collateral_amount)
@@ -75,7 +90,10 @@ class AdiabaticTrader(RuleBasedStateMachine):
         user = self.accounts[0]
         with boa.env.prank(user):
             if is_pump:
-                amount = min(int(self.loan_amount * amount_fraction), self.borrowed_token.balanceOf(user))
+                amount = min(
+                    int(self.loan_amount * amount_fraction),
+                    self.borrowed_token.balanceOf(user),
+                )
                 self.amm.exchange(0, 1, amount, 0)
             else:
                 amount = int(self.collateral_amount * amount_fraction)
@@ -89,7 +107,9 @@ class AdiabaticTrader(RuleBasedStateMachine):
     @rule(min_rate=rate, max_rate=rate)
     def change_rate(self, min_rate, max_rate):
         with boa.env.prank(self.admin):
-            self.monetary_policy.set_rates(min(min_rate, max_rate), max(min_rate, max_rate))
+            self.monetary_policy.set_rates(
+                min(min_rate, max_rate), max(min_rate, max_rate)
+            )
 
     @invariant()
     def health(self):
@@ -98,8 +118,19 @@ class AdiabaticTrader(RuleBasedStateMachine):
             assert h > 0
 
 
-def test_adiabatic_follow(amm, controller, monetary_policy, collateral_token, borrowed_token, price_oracle, accounts, admin):
-    AdiabaticTrader.TestCase.settings = settings(max_examples=50, stateful_step_count=50)
+def test_adiabatic_follow(
+    amm,
+    controller,
+    monetary_policy,
+    collateral_token,
+    borrowed_token,
+    price_oracle,
+    accounts,
+    admin,
+):
+    AdiabaticTrader.TestCase.settings = settings(
+        max_examples=50, stateful_step_count=50
+    )
     for k, v in locals().items():
         setattr(AdiabaticTrader, k, v)
     run_state_machine_as_test(AdiabaticTrader)

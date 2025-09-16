@@ -7,7 +7,7 @@ def test_params(stablecoin, collateral_token, flash_lender, admin, max_flash_loa
 
     assert flash_lender.fee() == 0
     assert flash_lender.flashFee(stablecoin, 10**18) == 0
-    with boa.reverts('FlashLender: Unsupported currency'):
+    with boa.reverts("FlashLender: Unsupported currency"):
         flash_lender.flashFee(collateral_token, 10**18)
 
     assert flash_lender.maxFlashLoan(stablecoin) == stablecoin.balanceOf(flash_lender)

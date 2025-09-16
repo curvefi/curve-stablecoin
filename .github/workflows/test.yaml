@@ -51,7 +51,7 @@ jobs:
         run: uv python install 3.12.6
 
       - name: Install Requirements
-        run: uv sync 
+        run: uv sync
 
       - name: Install Nightly Vyper if Venom is enabled
         if: ${{ matrix.venom.value }}

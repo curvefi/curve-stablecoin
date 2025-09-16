@@ -1,6 +1,7 @@
 import boa
 
 from tests.utils.constants import ZERO_ADDRESS
+
 ADMIN_ACTIONS_DEADLINE = 3 * 86400
 
 
@@ -16,10 +17,13 @@ def test_parameters(peg_keepers, swaps, stablecoin, admin, reg):
         assert peg_keeper.regulator() == reg.address
 
 
-def test_update_access(peg_keepers, peg_keeper_updater,
-                       add_initial_liquidity,
-                       provide_token_to_peg_keepers,
-                       imbalance_pools):
+def test_update_access(
+    peg_keepers,
+    peg_keeper_updater,
+    add_initial_liquidity,
+    provide_token_to_peg_keepers,
+    imbalance_pools,
+):
     imbalance_pools(1)
     with boa.env.prank(peg_keeper_updater):
         for pk in peg_keepers:

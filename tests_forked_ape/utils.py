@@ -10,7 +10,12 @@ def deploy_test_blueprint(project: Project, contract: Contract, account):
 
     initcode = b"\xfe\x71\x00" + initcode  # eip-5202 preamble version 0
 
-    initcode = b"\x61" + len(initcode).to_bytes(2, "big") + b"\x3d\x81\x60\x0a\x3d\x39\xf3" + initcode
+    initcode = (
+        b"\x61"
+        + len(initcode).to_bytes(2, "big")
+        + b"\x3d\x81\x60\x0a\x3d\x39\xf3"
+        + initcode
+    )
 
     tx = project.provider.network.ecosystem.create_transaction(
         chain_id=project.provider.chain_id,
@@ -25,7 +30,9 @@ def deploy_test_blueprint(project: Project, contract: Contract, account):
     return receipt.contract_address
 
 
-def mint_tokens_for_testing(project: Project, account, stablecoin_amount: int, eth_amount: int):
+def mint_tokens_for_testing(
+    project: Project, account, stablecoin_amount: int, eth_amount: int
+):
     """
     Provides given account with 1M of stablecoins - USDC, USDT, USDP and TUSD and with 1000 ETH and WETH
     Can be used only on local forked mainnet
@@ -64,7 +71,9 @@ def mint_tokens_for_testing(project: Project, account, stablecoin_amount: int, e
     token_contract = Contract("0x0000000000085d4780B73119b644AE5ecd22b376")
     # apply proxy
     try:
-        token_impl = ContractContainer(Contract(token_contract.implementation()).contract_type)
+        token_impl = ContractContainer(
+            Contract(token_contract.implementation()).contract_type
+        )
         token_contract = token_impl.at("0x0000000000085d4780B73119b644AE5ecd22b376")
     except AttributeError:
         # already applied

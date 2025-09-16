@@ -508,9 +508,11 @@ def test_position(position, frac):
     controller_address = position[1]
     user = position[2]
 
-    block = json.loads(Web3.to_json(Web3(HTTPProvider(url)).eth.get_block(block_number)))
+    block = json.loads(
+        Web3.to_json(Web3(HTTPProvider(url)).eth.get_block(block_number))
+    )
 
-    coin = f"ethereum:0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2"
+    coin = "ethereum:0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2"
     prices_url = f"https://coins.llama.fi/prices/historical/{block['timestamp']}/{coin}"
     resp = requests.get(prices_url)
     spot_price = resp.json()["coins"][coin]["price"]
@@ -531,7 +533,9 @@ def test_position(position, frac):
         f"stablecoin: {user_state[1] / 1e18}, debt: {user_state[2] / 1e18}, ratio: {ratio}"
     )
 
-    stablecoin = boa.load_partial("contracts/Stablecoin.vy").at("0xf939E0A03FB07F59A73314E73794Be0E57ac1b4E")
+    stablecoin = boa.load_partial("contracts/Stablecoin.vy").at(
+        "0xf939E0A03FB07F59A73314E73794Be0E57ac1b4E"
+    )
     assert stablecoin.balanceOf(controller_address) > user_state[2]
     stablecoin.transfer(user, user_state[2], sender=controller_address)
     stablecoin.approve(controller_address, 2**256 - 1, sender=user)
@@ -580,7 +584,12 @@ res = ""
 
 for position in positions:
     try:
-        res += test_position(position, 0.05) + "\n" + "-----------------------------" + "\n"
+        res += (
+            test_position(position, 0.05)
+            + "\n"
+            + "-----------------------------"
+            + "\n"
+        )
     except KeyboardInterrupt:
         break
     except:

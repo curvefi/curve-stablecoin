@@ -11,11 +11,23 @@ from ..utils import mint_for_testing
     dn=st.integers(min_value=0, max_value=49),
     deposit_amount=st.integers(min_value=10**12, max_value=10**20),
     init_trade_frac=st.floats(min_value=0.0, max_value=1.0),
-    p_frac=st.floats(min_value=0.1, max_value=10)
+    p_frac=st.floats(min_value=0.1, max_value=10),
 )
 @settings(max_examples=5000)
-def test_amount_for_price(price_oracle, amm, accounts, collateral_token, borrowed_token, admin,
-                          oracle_price, n1, dn, deposit_amount, init_trade_frac, p_frac):
+def test_amount_for_price(
+    price_oracle,
+    amm,
+    accounts,
+    collateral_token,
+    borrowed_token,
+    admin,
+    oracle_price,
+    n1,
+    dn,
+    deposit_amount,
+    init_trade_frac,
+    p_frac,
+):
     user = accounts[0]
     with boa.env.prank(admin):
         amm.set_fee(0)
@@ -79,7 +91,9 @@ def test_amount_for_price(price_oracle, amm, accounts, collateral_token, borrowe
                 # Nothing to pump for OR too far to pump
                 _n_final = max(n_final, n1)
                 p_o_ratio = amm.p_oracle_up(_n_final) / oracle_price
-                assert collateral_token.balanceOf(amm) == 0 or p_o_ratio < a_ratio ** -50 * (1 + 1e-8)
+                assert collateral_token.balanceOf(
+                    amm
+                ) == 0 or p_o_ratio < a_ratio**-50 * (1 + 1e-8)
         else:
             if p_max == p_final:
                 # The AMM gives the wrong price based on n0 band. It should be PUMP, not DUMP
@@ -88,16 +102,26 @@ def test_amount_for_price(price_oracle, amm, accounts, collateral_token, borrowe
                 # Nothing to dump for OR too far to dump
                 _n_final = min(n_final, n2)
                 p_o_ratio = amm.p_oracle_up(_n_final) / oracle_price
-                assert borrowed_token.balanceOf(amm) == 0 or p_o_ratio > a_ratio**50 * (1 - 1e-8)
+                assert borrowed_token.balanceOf(amm) == 0 or p_o_ratio > a_ratio**50 * (
+                    1 - 1e-8
+                )
 
 
-def test_amount_for_price_ticks_too_far(price_oracle, amm, accounts, collateral_token, borrowed_token, admin):
+def test_amount_for_price_ticks_too_far(
+    price_oracle, amm, accounts, collateral_token, borrowed_token, admin
+):
     with boa.env.anchor():
         test_amount_for_price.hypothesis.inner_test(
-            price_oracle, amm, accounts, collateral_token, borrowed_token, admin,
+            price_oracle,
+            amm,
+            accounts,
+            collateral_token,
+            borrowed_token,
+            admin,
             oracle_price=2000000000000000000000,
             n1=50,
             dn=0,
             deposit_amount=1000000000000,
             init_trade_frac=0.0,
-            p_frac=2891564947520759727/1e18)
+            p_frac=2891564947520759727 / 1e18,
+        )

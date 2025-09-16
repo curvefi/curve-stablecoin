@@ -2,7 +2,6 @@ import boa
 import pytest
 from pytest import mark  # noqa
 from ..utils import mint_for_testing
-from tests.utils.deployers import ERC20_MOCK_DEPLOYER
 
 # 1. deposit below (N > 0 in 5 bands)
 # 2. change price_oracle in a cycle downwards (by 15% just in case?)
@@ -44,7 +43,13 @@ def test_flip(amm, price_oracle, collateral_token, borrowed_token, accounts, adm
             # which means that it becomes lower than p, and we need to buy until we have reached p
 
             # trade
-            dx = int(STEP * amount_d * p / 10**collateral_decimals / 10**(collateral_decimals - borrowed_decimals))
+            dx = int(
+                STEP
+                * amount_d
+                * p
+                / 10**collateral_decimals
+                / 10 ** (collateral_decimals - borrowed_decimals)
+            )
             # dy = int(STEP * amount_d)  <-- this leads to LOSS
             is_empty = False
             while amm.get_p() < p:
@@ -53,8 +58,13 @@ def test_flip(amm, price_oracle, collateral_token, borrowed_token, accounts, adm
                 mint_for_testing(borrowed_token, trader, dx)
                 n1 = amm.active_band()
                 p1 = amm.get_p()
-                assert amm.get_y_up(depositor) * (1 + 1e-13) >= sum(amm.bands_y(n) for n in range(1, 6))
-                assert amm.get_x_down(depositor) * (1 + 1e-13) >= 5 * 0.95 * 3000 * 10**borrowed_decimals
+                assert amm.get_y_up(depositor) * (1 + 1e-13) >= sum(
+                    amm.bands_y(n) for n in range(1, 6)
+                )
+                assert (
+                    amm.get_x_down(depositor) * (1 + 1e-13)
+                    >= 5 * 0.95 * 3000 * 10**borrowed_decimals
+                )
                 with boa.env.prank(trader):
                     amm.exchange_dy(0, 1, dy, dx)
                 n2 = amm.active_band()
@@ -63,19 +73,36 @@ def test_flip(amm, price_oracle, collateral_token, borrowed_token, accounts, adm
                     assert p2 >= p1
                 assert p2 >= amm.p_current_down(n2)
                 assert p2 <= amm.p_current_up(n2)
-                is_empty = sum(amm.bands_y(n) for n in range(1, 6)) < 10**(18 - collateral_decimals)
+                is_empty = sum(amm.bands_y(n) for n in range(1, 6)) < 10 ** (
+                    18 - collateral_decimals
+                )
                 if is_empty:
                     assert collateral_token.balanceOf(amm) <= 1
                     break
             if is_empty:
                 break
 
-        converted_x = sum(amm.bands_x(n) for n in range(1, 6)) // 10**(collateral_decimals - borrowed_decimals)
-        assert converted_x >= 5 * 0.95**0.5 * amm.p_oracle_down(1) / 10**collateral_decimals * 10**borrowed_decimals
+        converted_x = sum(amm.bands_x(n) for n in range(1, 6)) // 10 ** (
+            collateral_decimals - borrowed_decimals
+        )
+        assert (
+            converted_x
+            >= 5
+            * 0.95**0.5
+            * amm.p_oracle_down(1)
+            / 10**collateral_decimals
+            * 10**borrowed_decimals
+        )
 
         # Sell until we have 0 coins left
         while True:
-            dx = int(STEP * amount_d * p / 10**collateral_decimals / 10**(collateral_decimals - borrowed_decimals))
+            dx = int(
+                STEP
+                * amount_d
+                * p
+                / 10**collateral_decimals
+                / 10 ** (collateral_decimals - borrowed_decimals)
+            )
             # dy = int(STEP * amount_d)  <-- this leads to INFINITE LOOP
             is_empty = False
             while amm.get_p() > p:
@@ -89,8 +116,13 @@ def test_flip(amm, price_oracle, collateral_token, borrowed_token, accounts, adm
                     mint_for_testing(collateral_token, trader, dy)
                 n1 = amm.active_band()
                 p1 = amm.get_p()
-                assert amm.get_y_up(depositor) * (1 + 1e-13) >= sum(amm.bands_y(n) for n in range(1, 6))
-                assert amm.get_x_down(depositor) * (1 + 1e-13) >= 5 * 0.95 * 3000 * 10**borrowed_decimals
+                assert amm.get_y_up(depositor) * (1 + 1e-13) >= sum(
+                    amm.bands_y(n) for n in range(1, 6)
+                )
+                assert (
+                    amm.get_x_down(depositor) * (1 + 1e-13)
+                    >= 5 * 0.95 * 3000 * 10**borrowed_decimals
+                )
                 with boa.env.prank(trader):
                     if dx == dx_small:
                         amm.exchange_dy(1, 0, dx, dy)
@@ -104,7 +136,9 @@ def test_flip(amm, price_oracle, collateral_token, borrowed_token, accounts, adm
                     assert p2 <= p1
                 assert p2 >= amm.p_current_down(n2)
                 assert p2 <= amm.p_current_up(n2)
-                is_empty = sum(amm.bands_x(n) for n in range(1, 6)) < 10**(18 - borrowed_decimals)
+                is_empty = sum(amm.bands_x(n) for n in range(1, 6)) < 10 ** (
+                    18 - borrowed_decimals
+                )
                 if is_empty:
                     assert borrowed_token.balanceOf(amm) <= 1
                     break

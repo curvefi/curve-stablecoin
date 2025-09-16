@@ -18,14 +18,16 @@ def amm(get_amm, borrowed_token, collateral_token):
 
 
 @given(
-        amounts=st.lists(st.floats(min_value=0.01, max_value=1e6), min_size=5, max_size=5),
-        ns=st.lists(st.integers(min_value=1, max_value=20), min_size=5, max_size=5),
-        dns=st.lists(st.integers(min_value=0, max_value=20), min_size=5, max_size=5),
+    amounts=st.lists(st.floats(min_value=0.01, max_value=1e6), min_size=5, max_size=5),
+    ns=st.lists(st.integers(min_value=1, max_value=20), min_size=5, max_size=5),
+    dns=st.lists(st.integers(min_value=0, max_value=20), min_size=5, max_size=5),
 )
-def test_dydx_limits(amm, amounts, accounts, ns, dns, collateral_token, admin, borrowed_token):
+def test_dydx_limits(
+    amm, amounts, accounts, ns, dns, collateral_token, admin, borrowed_token
+):
     collateral_decimals = collateral_token.decimals()
     borrowed_decimals = borrowed_token.decimals()
-    amounts = list(map(lambda x: int(x * 10 ** collateral_decimals), amounts))
+    amounts = list(map(lambda x: int(x * 10**collateral_decimals), amounts))
 
     with boa.env.prank(admin):
         for user, amount, n1, dn in zip(accounts[1:6], amounts, ns, dns):
@@ -40,13 +42,16 @@ def test_dydx_limits(amm, amounts, accounts, ns, dns, collateral_token, admin, b
     assert dx == dy == 0
 
     # Small swap
-    dy, dx = amm.get_dydx(0, 1, 10**(collateral_decimals - 6))  # 0.000001 ETH
+    dy, dx = amm.get_dydx(0, 1, 10 ** (collateral_decimals - 6))  # 0.000001 ETH
     assert dy == 10**12
     if min(ns) == 1:
-        assert dx == pytest.approx(dy * 3000 / 10**(collateral_decimals - borrowed_decimals), rel=4e-2 + 2 * min(ns) / amm.A())
+        assert dx == pytest.approx(
+            dy * 3000 / 10 ** (collateral_decimals - borrowed_decimals),
+            rel=4e-2 + 2 * min(ns) / amm.A(),
+        )
     else:
-        assert dx >= dy * 3000 / 10**(collateral_decimals - borrowed_decimals)
-    dy, dx = amm.get_dydx(1, 0, 10**(borrowed_decimals - 4))  # No liquidity
+        assert dx >= dy * 3000 / 10 ** (collateral_decimals - borrowed_decimals)
+    dy, dx = amm.get_dydx(1, 0, 10 ** (borrowed_decimals - 4))  # No liquidity
     assert dx == 0
     assert dy == 0  # Rounded down
 
@@ -60,11 +65,13 @@ def test_dydx_limits(amm, amounts, accounts, ns, dns, collateral_token, admin, b
 
 
 @given(
-        amounts=st.lists(st.floats(min_value=0.01, max_value=1e6), min_size=5, max_size=5),
-        ns=st.lists(st.integers(min_value=1, max_value=20), min_size=5, max_size=5),
-        dns=st.lists(st.integers(min_value=0, max_value=20), min_size=5, max_size=5),
+    amounts=st.lists(st.floats(min_value=0.01, max_value=1e6), min_size=5, max_size=5),
+    ns=st.lists(st.integers(min_value=1, max_value=20), min_size=5, max_size=5),
+    dns=st.lists(st.integers(min_value=0, max_value=20), min_size=5, max_size=5),
 )
-def test_dydx_compare_to_dxdy(amm, amounts, accounts, ns, dns, collateral_token, admin, borrowed_token):
+def test_dydx_compare_to_dxdy(
+    amm, amounts, accounts, ns, dns, collateral_token, admin, borrowed_token
+):
     collateral_decimals = collateral_token.decimals()
     borrowed_decimals = borrowed_token.decimals()
     amounts = list(map(lambda x: int(x * 10**collateral_decimals), amounts))
@@ -88,33 +95,33 @@ def test_dydx_compare_to_dxdy(amm, amounts, accounts, ns, dns, collateral_token,
     assert dx == dy == 0
 
     # Small swap
-    dy1, dx1 = amm.get_dydx(0, 1, 10**(collateral_decimals - 2))
+    dy1, dx1 = amm.get_dydx(0, 1, 10 ** (collateral_decimals - 2))
     dx2, dy2 = amm.get_dxdy(0, 1, dx1)
     assert dx1 == dx2
     assert abs(dy1 - dy2) <= collateral_precision
 
-    dx1, dy1 = amm.get_dxdy(0, 1, 10**(borrowed_decimals - 2))
+    dx1, dy1 = amm.get_dxdy(0, 1, 10 ** (borrowed_decimals - 2))
     dy2, dx2 = amm.get_dydx(0, 1, dy1)
     assert abs(dx1 - dx2) <= borrowed_precision
     assert dy1 == dy2
 
-    dy, dx = amm.get_dydx(1, 0, 10**(collateral_decimals - 2))  # No liquidity
+    dy, dx = amm.get_dydx(1, 0, 10 ** (collateral_decimals - 2))  # No liquidity
     assert dx == 0
     assert dy == 0  # Rounded down
 
     # Huge swap
     dy1, dx1 = amm.get_dydx(0, 1, 10**12 * 10**collateral_decimals)
     dx2, dy2 = amm.get_dxdy(0, 1, dx1)
-    assert dy1 < 10**12 * 10**collateral_decimals      # Less than all is desired
-    assert abs(dy1 - sum(amounts)) <= 1000             # but everything is bought
+    assert dy1 < 10**12 * 10**collateral_decimals  # Less than all is desired
+    assert abs(dy1 - sum(amounts)) <= 1000  # but everything is bought
     assert dx1 == dx2
     assert dy2 <= dy1  # We might get less because AMM rounds in its favor
     assert abs(dy1 - dy2) <= collateral_precision
 
     dx1, dy1 = amm.get_dxdy(0, 1, 10**12 * 10**borrowed_decimals)
     dy2, dx2 = amm.get_dydx(0, 1, dy1)
-    assert dx1 < 10**12 * 10**borrowed_decimals        # Less than all is spent
-    assert abs(dy1 - sum(amounts)) <= 1000             # but everything is bought
+    assert dx1 < 10**12 * 10**borrowed_decimals  # Less than all is spent
+    assert abs(dy1 - sum(amounts)) <= 1000  # but everything is bought
     assert dx1 == dx2
     assert dy1 == dy2
 
@@ -124,12 +131,14 @@ def test_dydx_compare_to_dxdy(amm, amounts, accounts, ns, dns, collateral_token,
 
 
 @given(
-        amounts=st.lists(st.floats(min_value=0.01, max_value=1e6), min_size=5, max_size=5),
-        ns=st.lists(st.integers(min_value=1, max_value=20), min_size=5, max_size=5),
-        dns=st.lists(st.integers(min_value=0, max_value=20), min_size=5, max_size=5),
-        amount=st.floats(min_value=0.001, max_value=10e9)
+    amounts=st.lists(st.floats(min_value=0.01, max_value=1e6), min_size=5, max_size=5),
+    ns=st.lists(st.integers(min_value=1, max_value=20), min_size=5, max_size=5),
+    dns=st.lists(st.integers(min_value=0, max_value=20), min_size=5, max_size=5),
+    amount=st.floats(min_value=0.001, max_value=10e9),
 )
-def test_exchange_dy_down_up(amm, amounts, accounts, ns, dns, amount, borrowed_token, collateral_token, admin):
+def test_exchange_dy_down_up(
+    amm, amounts, accounts, ns, dns, amount, borrowed_token, collateral_token, admin
+):
     collateral_decimals = collateral_token.decimals()
     borrowed_decimals = borrowed_token.decimals()
     amounts = list(map(lambda x: int(x * 10**collateral_decimals), amounts))
@@ -167,8 +176,20 @@ def test_exchange_dy_down_up(amm, amounts, accounts, ns, dns, amount, borrowed_t
 
     sum_borrowed = sum(amm.bands_x(i) for i in range(50))
     sum_collateral = sum(amm.bands_y(i) for i in range(50))
-    assert abs(borrowed_token.balanceOf(amm) - sum_borrowed // 10**(18 - borrowed_decimals)) <= 1
-    assert abs(collateral_token.balanceOf(amm) - sum_collateral // 10**(18 - collateral_decimals)) <= 1
+    assert (
+        abs(
+            borrowed_token.balanceOf(amm)
+            - sum_borrowed // 10 ** (18 - borrowed_decimals)
+        )
+        <= 1
+    )
+    assert (
+        abs(
+            collateral_token.balanceOf(amm)
+            - sum_collateral // 10 ** (18 - collateral_decimals)
+        )
+        <= 1
+    )
 
     # ETH --> crvUSD (dx - ETH, dy - crvUSD)
     expected_in_amount = dy2

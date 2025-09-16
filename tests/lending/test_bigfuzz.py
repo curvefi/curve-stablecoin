@@ -3,7 +3,12 @@ from math import log2, ceil
 from boa import BoaError
 from hypothesis import settings
 from hypothesis import strategies as st
-from hypothesis.stateful import RuleBasedStateMachine, run_state_machine_as_test, rule, invariant
+from hypothesis.stateful import (
+    RuleBasedStateMachine,
+    run_state_machine_as_test,
+    rule,
+    invariant,
+)
 
 from tests.utils.constants import ZERO_ADDRESS
 
@@ -43,22 +48,26 @@ class BigFuzz(RuleBasedStateMachine):
     def __init__(self):
         super().__init__()
         self.A = self.amm.A()
-        self.collateral_mul = 10**(18 - self.collateral_token.decimals())
-        self.borrowed_mul = 10**(18 - self.borrowed_token.decimals())
+        self.collateral_mul = 10 ** (18 - self.collateral_token.decimals())
+        self.borrowed_mul = 10 ** (18 - self.borrowed_token.decimals())
         for user in self.accounts:
             with boa.env.prank(user):
-                self.borrowed_token.approve(self.vault.address, 2**256-1)
-                self.borrowed_token.approve(self.amm.address, 2**256-1)
-                self.borrowed_token.approve(self.controller.address, 2**256-1)
-                self.collateral_token.approve(self.amm.address, 2**256-1)
-                self.collateral_token.approve(self.controller.address, 2**256-1)
+                self.borrowed_token.approve(self.vault.address, 2**256 - 1)
+                self.borrowed_token.approve(self.amm.address, 2**256 - 1)
+                self.borrowed_token.approve(self.controller.address, 2**256 - 1)
+                self.collateral_token.approve(self.amm.address, 2**256 - 1)
+                self.collateral_token.approve(self.controller.address, 2**256 - 1)
 
     # Auxiliary methods #
     def check_debt_ceiling(self, amount):
         return self.borrowed_token.balanceOf(self.controller.address) >= amount
 
     def get_max_good_band(self):
-        return ceil(log2(self.amm.get_base_price() / self.amm.price_oracle()) / log2(self.A / (self.A - 1)) + 5)
+        return ceil(
+            log2(self.amm.get_base_price() / self.amm.price_oracle())
+            / log2(self.A / (self.A - 1))
+            + 5
+        )
 
     @rule(uid=user_id, asset_amount=loan_amount)
     def deposit_vault(self, uid, asset_amount):
@@ -79,7 +88,9 @@ class BigFuzz(RuleBasedStateMachine):
         user = self.accounts[uid]
         if shares_amount <= self.vault.maxRedeem(user):
             with boa.env.prank(user):
-                expected_assets = self.vault.totalAssets() - self.vault.previewRedeem(shares_amount)
+                expected_assets = self.vault.totalAssets() - self.vault.previewRedeem(
+                    shares_amount
+                )
                 if expected_assets < 10000 and expected_assets != 0:
                     with boa.reverts():
                         self.vault.redeem(shares_amount)
@@ -99,9 +110,13 @@ class BigFuzz(RuleBasedStateMachine):
                 with boa.reverts():
                     self.controller.create_loan(y, debt, n)
                 return
-            if (debt > max_debt or y * self.collateral_mul // n <= 100 or debt == 0
-                    or self.controller.loan_exists(user)):
-                if debt < max_debt / (0.9999 - 20/(y * self.collateral_mul + 40)):
+            if (
+                debt > max_debt
+                or y * self.collateral_mul // n <= 100
+                or debt == 0
+                or self.controller.loan_exists(user)
+            ):
+                if debt < max_debt / (0.9999 - 20 / (y * self.collateral_mul + 40)):
                     try:
                         self.controller.create_loan(y, debt, n)
                     except Exception:
@@ -111,7 +126,7 @@ class BigFuzz(RuleBasedStateMachine):
                         self.controller.create_loan(y, debt, n)
                     except Exception:
                         return
-                    assert debt < max_debt * (self.A / (self.A - 1))**0.4
+                    assert debt < max_debt * (self.A / (self.A - 1)) ** 0.4
                 return
             else:
                 try:
@@ -144,8 +159,18 @@ class BigFuzz(RuleBasedStateMachine):
                     self.controller.repay(amount, user)
             else:
                 if amount > 0 and (
-                        (amount >= debt and (debt > self.borrowed_token.balanceOf(user) + self.amm.get_sum_xy(user)[0]))
-                        or (amount < debt and (amount > self.borrowed_token.balanceOf(user)))):
+                    (
+                        amount >= debt
+                        and (
+                            debt
+                            > self.borrowed_token.balanceOf(user)
+                            + self.amm.get_sum_xy(user)[0]
+                        )
+                    )
+                    or (
+                        amount < debt and (amount > self.borrowed_token.balanceOf(user))
+                    )
+                ):
                     with boa.reverts():
                         self.controller.repay(amount, user)
                 else:
@@ -162,7 +187,11 @@ class BigFuzz(RuleBasedStateMachine):
         boa.deal(self.collateral_token, user, y)
 
         with boa.env.prank(user):
-            if (exists and n1 > n0 and self.amm.p_oracle_up(n1) < self.amm.price_oracle()) or y == 0:
+            if (
+                exists
+                and n1 > n0
+                and self.amm.p_oracle_up(n1) < self.amm.price_oracle()
+            ) or y == 0:
                 self.controller.add_collateral(y, user)
             else:
                 with boa.reverts():
@@ -216,7 +245,14 @@ class BigFuzz(RuleBasedStateMachine):
                 sx, sy = self.amm.get_sum_xy(user)
                 n1, n2 = self.amm.read_user_tick_numbers(user)
                 n = n2 - n1 + 1
-                amount = int(self.amm.price_oracle() * (sy + y) * self.collateral_mul / 1e18 * ratio / self.borrowed_mul)
+                amount = int(
+                    self.amm.price_oracle()
+                    * (sy + y)
+                    * self.collateral_mul
+                    / 1e18
+                    * ratio
+                    / self.borrowed_mul
+                )
                 current_debt = self.controller.debt(user)
                 final_debt = current_debt + amount
 
@@ -229,7 +265,9 @@ class BigFuzz(RuleBasedStateMachine):
                     max_debt = self.controller.max_borrowable(sy + y, n, current_debt)
                     if final_debt > max_debt and amount > 0:
                         # XXX any borrowed_mul here?
-                        if final_debt < max_debt / (0.9999 - 20/(y * self.collateral_mul + 40) - 1e-9):
+                        if final_debt < max_debt / (
+                            0.9999 - 20 / (y * self.collateral_mul + 40) - 1e-9
+                        ):
                             try:
                                 self.controller.borrow_more(y, amount)
                             except Exception:
@@ -241,7 +279,10 @@ class BigFuzz(RuleBasedStateMachine):
                         try:
                             self.controller.borrow_more(y, amount)
                         except Exception:
-                            if self.get_max_good_band() > self.amm.active_band_with_skip():
+                            if (
+                                self.get_max_good_band()
+                                > self.amm.active_band_with_skip()
+                            ):
                                 # Otherwise (if price desync is too large) - this fail is to be expected
                                 raise
 
@@ -291,18 +332,20 @@ class BigFuzz(RuleBasedStateMachine):
                         boa.deal(self.borrowed_token, user, diff)
                     if emode == USE_FRACTION:
                         try:
-                            self.controller.liquidate(
-                                    user, 0, frac, ZERO_ADDRESS, b'')
+                            self.controller.liquidate(user, 0, frac, ZERO_ADDRESS, b"")
                         except Exception:
                             if self.controller.debt(user) * frac // 10**18 == 0:
                                 return
                             raise
                     elif emode == USE_CALLBACKS:
-                        self.borrowed_token.transfer(self.fake_leverage.address, self.borrowed_token.balanceOf(user))
+                        self.borrowed_token.transfer(
+                            self.fake_leverage.address,
+                            self.borrowed_token.balanceOf(user),
+                        )
                         try:
                             self.controller.liquidate(
-                                    user, 0, frac,
-                                    self.fake_leverage.address, b'')
+                                user, 0, frac, self.fake_leverage.address, b""
+                            )
                         except Exception:
                             if self.controller.debt(user) * frac // 10**18 == 0:
                                 return
@@ -333,55 +376,67 @@ class BigFuzz(RuleBasedStateMachine):
             with boa.env.prank(liquidator):
                 with boa.reverts():
                     if emode == USE_FRACTION:
-                        self.controller.liquidate(
-                                user, 0, frac, ZERO_ADDRESS, b'')
+                        self.controller.liquidate(user, 0, frac, ZERO_ADDRESS, b"")
                     elif emode == USE_CALLBACKS:
-                        self.borrowed_token.transfer(self.fake_leverage.address, self.borrowed_token.balanceOf(user))
+                        self.borrowed_token.transfer(
+                            self.fake_leverage.address,
+                            self.borrowed_token.balanceOf(user),
+                        )
                         self.controller.liquidate(
-                                user, 0, frac,
-                                self.fake_leverage.address, b'')
+                            user, 0, frac, self.fake_leverage.address, b""
+                        )
                     else:
                         self.controller.liquidate(user, 0)
                     if emode == USE_CALLBACKS:
-                        self.borrowed_token.transferFrom(self.fake_leverage.address, liquidator,
-                                                         self.borrowed_token.balanceOf(self.fake_leverage.address))
+                        self.borrowed_token.transferFrom(
+                            self.fake_leverage.address,
+                            liquidator,
+                            self.borrowed_token.balanceOf(self.fake_leverage.address),
+                        )
         else:
             health_limit = self.controller.liquidation_discount()
             try:
                 health = self.controller.health(user, True)
             except Exception as e:
-                assert 'Too deep' in str(e)
+                assert "Too deep" in str(e)
             with boa.env.prank(liquidator):
                 if health >= health_limit:
                     with boa.reverts():
                         if emode == USE_FRACTION:
-                            self.controller.liquidate(
-                                    user, 0, frac, ZERO_ADDRESS, b'')
+                            self.controller.liquidate(user, 0, frac, ZERO_ADDRESS, b"")
                         elif emode == USE_CALLBACKS:
-                            self.borrowed_token.transfer(self.fake_leverage.address, self.borrowed_token.balanceOf(user))
+                            self.borrowed_token.transfer(
+                                self.fake_leverage.address,
+                                self.borrowed_token.balanceOf(user),
+                            )
                             self.controller.liquidate(
-                                    user, 0, frac,
-                                    self.fake_leverage.address, b'')
+                                user, 0, frac, self.fake_leverage.address, b""
+                            )
                         else:
                             self.controller.liquidate(user, 0)
                     if emode == USE_CALLBACKS:
-                        self.borrowed_token.transferFrom(self.fake_leverage.address, liquidator,
-                                                         self.borrowed_token.balanceOf(self.fake_leverage.address))
+                        self.borrowed_token.transferFrom(
+                            self.fake_leverage.address,
+                            liquidator,
+                            self.borrowed_token.balanceOf(self.fake_leverage.address),
+                        )
                 else:
                     if emode == USE_FRACTION:
                         try:
-                            self.controller.liquidate(
-                                    user, 0, frac, ZERO_ADDRESS, b'')
+                            self.controller.liquidate(user, 0, frac, ZERO_ADDRESS, b"")
                         except Exception:
                             if self.controller.debt(user) * frac // 10**18 == 0:
                                 return
                             raise
                     elif emode == USE_CALLBACKS:
-                        self.borrowed_token.transfer(self.fake_leverage.address, self.borrowed_token.balanceOf(user))
+                        self.borrowed_token.transfer(
+                            self.fake_leverage.address,
+                            self.borrowed_token.balanceOf(user),
+                        )
                         try:
                             self.controller.liquidate(
-                                    user, 0, frac,
-                                    self.fake_leverage.address, b'')
+                                user, 0, frac, self.fake_leverage.address, b""
+                            )
                         except Exception:
                             if self.controller.debt(user) * frac // 10**18 == 0:
                                 return
@@ -407,7 +462,11 @@ class BigFuzz(RuleBasedStateMachine):
     @rule(min_rate=rate, max_rate=rate)
     def rule_change_rate(self, min_rate, max_rate):
         with boa.env.prank(self.admin):
-            if min_rate > max_rate or min(min_rate, max_rate) < MIN_RATE or max(min_rate, max_rate) > MAX_RATE:
+            if (
+                min_rate > max_rate
+                or min(min_rate, max_rate) < MIN_RATE
+                or max(min_rate, max_rate) > MAX_RATE
+            ):
                 with boa.reverts():
                     self.monetary_policy.set_rates(min_rate, max_rate)
             else:
@@ -421,17 +480,33 @@ class BigFuzz(RuleBasedStateMachine):
     def debt_supply(self):
         total_debt = self.controller.total_debt()
         if total_debt == 0:
-            assert self.controller.lent() <= self.controller.repaid()  # Paid back more than lent out
-        assert abs(sum(self.controller.debt(u) for u in self.accounts) - total_debt) <= 10
+            assert (
+                self.controller.lent() <= self.controller.repaid()
+            )  # Paid back more than lent out
+        assert (
+            abs(sum(self.controller.debt(u) for u in self.accounts) - total_debt) <= 10
+        )
 
     @invariant()
     def minted_redeemed(self):
-        assert self.controller.repaid() + self.controller.total_debt() >= self.controller.lent()
+        assert (
+            self.controller.repaid() + self.controller.total_debt()
+            >= self.controller.lent()
+        )
 
 
 def test_big_fuzz(
-        vault, borrowed_token, collateral_token, monetary_policy, accounts, admin, amm, controller,
-        price_oracle, fake_leverage):
+    vault,
+    borrowed_token,
+    collateral_token,
+    monetary_policy,
+    accounts,
+    admin,
+    amm,
+    controller,
+    price_oracle,
+    fake_leverage,
+):
     BigFuzz.TestCase.settings = settings(max_examples=2000, stateful_step_count=20)
     # Or quick check
     # BigFuzz.TestCase.settings = settings(max_examples=25, stateful_step_count=20)

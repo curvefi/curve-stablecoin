@@ -3,14 +3,16 @@ import pytest
 
 from .constants import COLLATERALS, CONTROLLERS, CRVUSD, FACTORIES, ROUTER
 from .constants import frxETH as frxETH_address
-from .constants import stETH as stETH_address
 from .settings import WEB3_PROVIDER_URL
 from .utils import Router1inch, get_contract_from_explorer
 
 
 def pytest_generate_tests(metafunc):
     if "collateral_info" in metafunc.fixturenames:
-        collaterals = [{"address": v, "controller": CONTROLLERS[k], "symbol": k} for k, v in COLLATERALS.items()]
+        collaterals = [
+            {"address": v, "controller": CONTROLLERS[k], "symbol": k}
+            for k, v in COLLATERALS.items()
+        ]
 
         metafunc.parametrize(
             "collateral_info",
@@ -21,7 +23,9 @@ def pytest_generate_tests(metafunc):
 
 @pytest.fixture(autouse=True)
 def forked_chain():
-    assert WEB3_PROVIDER_URL is not None, "Provider url is not set, add WEB3_PROVIDER_URL param to env"
+    assert WEB3_PROVIDER_URL is not None, (
+        "Provider url is not set, add WEB3_PROVIDER_URL param to env"
+    )
     boa.env.fork(url=WEB3_PROVIDER_URL)
 
 
@@ -32,7 +36,9 @@ def alice(collateral_info):
 
     with boa.env.prank(user):
         if collateral_info["symbol"] == "sfrxETH":
-            swap = get_contract_from_explorer("0xa1F8A6807c402E4A15ef4EBa36528A3FED24E577")
+            swap = get_contract_from_explorer(
+                "0xa1F8A6807c402E4A15ef4EBa36528A3FED24E577"
+            )
             swap.exchange(0, 1, 2 * 10**18, 1 * 10**18, value=2 * 10**18)
             sfrxETH = get_contract_from_explorer(collateral_info["address"])
             frxETH = get_contract_from_explorer(frxETH_address)

@@ -47,4 +47,3 @@ def set_max_supply(max_supply: uint256):
     ...
 
 # TODO populate + implement
-    

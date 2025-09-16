@@ -1,7 +1,5 @@
 import boa
 
-from tests.utils.constants import ZERO_ADDRESS
-
 
 def _get_lp_stable_price(stable_swap):
     prices = [10**18]
@@ -14,7 +12,14 @@ def _get_lp_stable_price(stable_swap):
     return min(prices)
 
 
-def test_lp_oracle_stable(get_lp_oracle_stable, get_stable_swap, stable_swap_no_argument, coin0_oracle, broken_contract, admin):
+def test_lp_oracle_stable(
+    get_lp_oracle_stable,
+    get_stable_swap,
+    stable_swap_no_argument,
+    coin0_oracle,
+    broken_contract,
+    admin,
+):
     with boa.reverts():
         get_lp_oracle_stable(broken_contract, coin0_oracle)
     with boa.reverts():
@@ -31,7 +36,7 @@ def test_lp_oracle_stable(get_lp_oracle_stable, get_stable_swap, stable_swap_no_
                 with boa.reverts("pool.price_oracle() returns 0"):
                     get_lp_oracle_stable(stable_swap, coin0_oracle)
         else:
-            for i in range(N-1):
+            for i in range(N - 1):
                 with boa.env.anchor():
                     stable_swap.set_price(i, 0, sender=admin)
                     with boa.reverts("pool.price_oracle(i) returns 0"):
@@ -44,11 +49,19 @@ def test_lp_oracle_stable(get_lp_oracle_stable, get_stable_swap, stable_swap_no_
 
         oracle = get_lp_oracle_stable(stable_swap, coin0_oracle)
         assert oracle.POOL() == stable_swap.address
-        assert oracle.price() == _get_lp_stable_price(stable_swap) * coin0_oracle.price() // 10**18
-        assert oracle.price_w() == _get_lp_stable_price(stable_swap) * coin0_oracle.price_w() // 10**18
+        assert (
+            oracle.price()
+            == _get_lp_stable_price(stable_swap) * coin0_oracle.price() // 10**18
+        )
+        assert (
+            oracle.price_w()
+            == _get_lp_stable_price(stable_swap) * coin0_oracle.price_w() // 10**18
+        )
 
 
-def test_lp_oracle_crypto(get_lp_oracle_crypto, crypto_swap, coin0_oracle, broken_contract, admin):
+def test_lp_oracle_crypto(
+    get_lp_oracle_crypto, crypto_swap, coin0_oracle, broken_contract, admin
+):
     with boa.reverts():
         get_lp_oracle_crypto(broken_contract, coin0_oracle)
     with boa.reverts():

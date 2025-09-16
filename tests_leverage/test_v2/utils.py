@@ -6,7 +6,9 @@ from .settings import EXPLORER_TOKEN, EXPLORER_URL, ROUTER_1INCH_TOKEN
 
 
 def get_contract_from_explorer(address: str):
-    return boa.from_etherscan(address=address, name=address, uri=EXPLORER_URL, api_key=EXPLORER_TOKEN)
+    return boa.from_etherscan(
+        address=address, name=address, uri=EXPLORER_URL, api_key=EXPLORER_TOKEN
+    )
 
 
 class Router1inch:

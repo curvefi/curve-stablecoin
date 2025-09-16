@@ -6,15 +6,15 @@ WEEK = 7 * 86400
 
 
 def test_add_new_lm_callback(
-        accounts,
-        admin,
-        collateral_token,
-        crv,
-        market_controller,
-        market_amm,
-        minter,
-        gauge_controller,
-        controller_factory
+    accounts,
+    admin,
+    collateral_token,
+    crv,
+    market_controller,
+    market_amm,
+    minter,
+    gauge_controller,
+    controller_factory,
 ):
     alice, bob = accounts[:2]
 
@@ -31,9 +31,11 @@ def test_add_new_lm_callback(
 
     # Wire up the new LM Callback to the gauge controller to have proper rates and stuff
     with boa.env.prank(admin):
-        new_cb = LM_CALLBACK_DEPLOYER.deploy(market_amm, crv, gauge_controller, minter, controller_factory)
+        new_cb = LM_CALLBACK_DEPLOYER.deploy(
+            market_amm, crv, gauge_controller, minter, controller_factory
+        )
         market_controller.set_callback(new_cb)
-        gauge_controller.add_gauge(new_cb.address, 0, 10 ** 18)
+        gauge_controller.add_gauge(new_cb.address, 0, 10**18)
 
     boa.env.time_travel(WEEK)
     new_cb.user_checkpoint(alice, sender=alice)
@@ -47,7 +49,7 @@ def test_add_new_lm_callback(
     assert rewards == 0
 
     # Bob interacts with the market
-    market_controller.borrow_more(0, 10 ** 18, sender=bob)
+    market_controller.borrow_more(0, 10**18, sender=bob)
 
     boa.env.time_travel(WEEK)
     new_cb.user_checkpoint(alice, sender=alice)
@@ -57,5 +59,5 @@ def test_add_new_lm_callback(
     collateral_from_amm = market_controller.user_state(alice)[0]
     collateral_from_cb = new_cb.user_collateral(alice)
 
-    assert collateral_from_cb == collateral_from_amm == 10 ** 21
+    assert collateral_from_cb == collateral_from_amm == 10**21
     assert rewards > 0

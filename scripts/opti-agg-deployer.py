@@ -25,22 +25,24 @@ admin = "0x28c4A1Fa47EEE9226F8dE7D6AF0a41C62Ca98267"
 
 
 def account_load(fname):
-    path = os.path.expanduser(os.path.join('~', '.brownie', 'accounts', fname + '.json'))
-    with open(path, 'r') as f:
+    path = os.path.expanduser(
+        os.path.join("~", ".brownie", "accounts", fname + ".json")
+    )
+    with open(path, "r") as f:
         pkey = account.decode_keyfile_json(json.load(f), getpass())
         return account.Account.from_key(pkey)
 
 
-if __name__ == '__main__':
-    if '--fork' in sys.argv[1:]:
+if __name__ == "__main__":
+    if "--fork" in sys.argv[1:]:
         boa.env.fork(OPTIMISM)
-        boa.env.eoa = '0xbabe61887f1de2713c6f97e567623453d3C79f67'
+        boa.env.eoa = "0xbabe61887f1de2713c6f97e567623453d3C79f67"
     else:
         boa.set_network_env(OPTIMISM)
-        boa.env.add_account(account_load('babe'))
+        boa.env.add_account(account_load("babe"))
         boa.env._fork_try_prefetch_state = False
 
-    agg_factory = boa.load_partial('contracts/price_oracles/AggregateStablePrice3.vy')
+    agg_factory = boa.load_partial("contracts/price_oracles/AggregateStablePrice3.vy")
     agg = agg_factory.deploy(crvusd, sigma, boa.env.eoa)
 
     for pool in pools:

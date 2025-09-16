@@ -29,18 +29,30 @@ def borrow_cap():
 
 @given(
     victim_gap=st.floats(min_value=15 / 866, max_value=0.9),
-    victim_bins=st.integers(min_value=4, max_value=50)
+    victim_bins=st.integers(min_value=4, max_value=50),
 )
 @settings(max_examples=10000)
 @pytest.mark.xfail(strict=True)
-def test_vuln(vault, controller, amm, admin, borrowed_token, price_oracle, collateral_token, accounts,
-                victim_gap, victim_bins):
+def test_vuln(
+    vault,
+    controller,
+    amm,
+    admin,
+    borrowed_token,
+    price_oracle,
+    collateral_token,
+    accounts,
+    victim_gap,
+    victim_bins,
+):
     victim = accounts[1]
     hacker = accounts[2]
 
     # victim loan
     victim_collateral_lent = int(10_000e18)
-    price_manipulation = 15 / 866  # 866-second price oracle manipulation during 15 second (1 block)
+    price_manipulation = (
+        15 / 866
+    )  # 866-second price oracle manipulation during 15 second (1 block)
     manipulation_time = 13  # time between two blocks
 
     p = price_oracle.price()
@@ -68,7 +80,10 @@ def test_vuln(vault, controller, amm, admin, borrowed_token, price_oracle, colla
 
     # victim creates a loan
     with boa.env.prank(victim):
-        victim_borrow = int((1 - victim_gap) * controller.max_borrowable(victim_collateral_lent, victim_bins))
+        victim_borrow = int(
+            (1 - victim_gap)
+            * controller.max_borrowable(victim_collateral_lent, victim_bins)
+        )
         boa.deal(collateral_token, victim, victim_collateral_lent)
         controller.create_loan(victim_collateral_lent, victim_borrow, victim_bins)
         initial_health = controller.health(victim, True) / 1e18
@@ -101,7 +116,16 @@ def test_vuln(vault, controller, amm, admin, borrowed_token, price_oracle, colla
 
 
 @pytest.mark.xfail(strict=True)
-def test_vuln_lite(vault, controller, amm, admin, borrowed_token, price_oracle, collateral_token, accounts):
+def test_vuln_lite(
+    vault,
+    controller,
+    amm,
+    admin,
+    borrowed_token,
+    price_oracle,
+    collateral_token,
+    accounts,
+):
     victim_gap = 0
     victim_bins = 4
     victim = accounts[1]
@@ -109,7 +133,9 @@ def test_vuln_lite(vault, controller, amm, admin, borrowed_token, price_oracle, 
 
     # victim loan
     victim_collateral_lent = int(10_000_000e18)
-    price_manipulation = 15 / 866  # 866-second price oracle manipulation during 15 second (1 block)
+    price_manipulation = (
+        15 / 866
+    )  # 866-second price oracle manipulation during 15 second (1 block)
     manipulation_time = 13  # time between two blocks
 
     p = price_oracle.price()
@@ -137,7 +163,10 @@ def test_vuln_lite(vault, controller, amm, admin, borrowed_token, price_oracle, 
 
     # victim creates a loan
     with boa.env.prank(victim):
-        victim_borrow = int((1 - victim_gap) * controller.max_borrowable(victim_collateral_lent, victim_bins))
+        victim_borrow = int(
+            (1 - victim_gap)
+            * controller.max_borrowable(victim_collateral_lent, victim_bins)
+        )
         boa.deal(collateral_token, victim, victim_collateral_lent)
         controller.create_loan(victim_collateral_lent, victim_borrow, victim_bins)
         initial_health = controller.health(victim, True) / 1e18

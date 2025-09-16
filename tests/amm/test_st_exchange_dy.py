@@ -3,7 +3,13 @@ import pytest
 from hypothesis import settings
 from hypothesis import HealthCheck
 from hypothesis import strategies as st
-from hypothesis.stateful import RuleBasedStateMachine, run_state_machine_as_test, rule, invariant, initialize
+from hypothesis.stateful import (
+    RuleBasedStateMachine,
+    run_state_machine_as_test,
+    rule,
+    invariant,
+    initialize,
+)
 from hypothesis import Phase
 from ..utils import mint_for_testing
 from tests.utils.deployers import ERC20_MOCK_DEPLOYER
@@ -23,8 +29,8 @@ class StatefulExchange(RuleBasedStateMachine):
 
     @initialize(amounts=amounts, ns=ns, dns=dns)
     def initializer(self, amounts, ns, dns):
-        self.borrowed_mul = 10**(18 - self.borrowed_digits)
-        self.collateral_mul = 10**(18 - self.collateral_digits)
+        self.borrowed_mul = 10 ** (18 - self.borrowed_digits)
+        self.collateral_mul = 10 ** (18 - self.collateral_digits)
         amounts = list(map(lambda x: int(x * 10**self.collateral_digits), amounts))
         for user, amount, n1, dn in zip(self.accounts, amounts, ns, dns):
             n2 = n1 + dn
@@ -33,7 +39,7 @@ class StatefulExchange(RuleBasedStateMachine):
                     self.amm.deposit_range(user, amount, n1, n2)
                     mint_for_testing(self.collateral_token, self.amm.address, amount)
             except Exception as e:
-                if 'Amount too low' in str(e):
+                if "Amount too low" in str(e):
                     assert amount // (dn + 1) <= 100
                 else:
                     raise
@@ -69,7 +75,13 @@ class StatefulExchange(RuleBasedStateMachine):
     @invariant()
     def dy_back(self):
         n = self.amm.active_band()
-        to_receive = self.total_deposited * self.initial_price * 10 // 10**18 // self.borrowed_mul  # Huge amount
+        to_receive = (
+            self.total_deposited
+            * self.initial_price
+            * 10
+            // 10**18
+            // self.borrowed_mul
+        )  # Huge amount
         left_in_amm = sum(self.amm.bands_y(n) for n in range(42))
         if n < 50:
             dy, dx = self.amm.get_dydx(1, 0, to_receive)
@@ -78,13 +90,21 @@ class StatefulExchange(RuleBasedStateMachine):
             else:
                 with boa.reverts():
                     self.amm.get_dx(1, 0, to_receive)
-            assert dx * self.collateral_mul >= self.total_deposited - left_in_amm  # With fees, AMM will have more
+            assert (
+                dx * self.collateral_mul >= self.total_deposited - left_in_amm
+            )  # With fees, AMM will have more
 
     def teardown(self):
         u = self.accounts[0]
         # Trade back and do the check
         n = self.amm.active_band()
-        to_receive = self.total_deposited * self.initial_price * 10 // 10**18 // self.borrowed_mul  # Huge amount
+        to_receive = (
+            self.total_deposited
+            * self.initial_price
+            * 10
+            // 10**18
+            // self.borrowed_mul
+        )  # Huge amount
         if n < 50:
             dy, dx = self.amm.get_dydx(1, 0, to_receive)
             if dy > 0:
@@ -97,11 +117,13 @@ class StatefulExchange(RuleBasedStateMachine):
 
 @pytest.mark.parametrize("borrowed_digits", [6, 8, 18])
 @pytest.mark.parametrize("collateral_digits", [6, 8, 18])
-def test_exchange(admin, accounts, get_amm,
-                  borrowed_digits, collateral_digits):
-    StatefulExchange.TestCase.settings = settings(max_examples=20, stateful_step_count=10,
-                                                  phases=(Phase.explicit, Phase.reuse, Phase.generate, Phase.target),
-                                                  suppress_health_check=[HealthCheck.data_too_large])
+def test_exchange(admin, accounts, get_amm, borrowed_digits, collateral_digits):
+    StatefulExchange.TestCase.settings = settings(
+        max_examples=20,
+        stateful_step_count=10,
+        phases=(Phase.explicit, Phase.reuse, Phase.generate, Phase.target),
+        suppress_health_check=[HealthCheck.data_too_large],
+    )
     accounts = accounts[:5]
 
     borrowed_token = ERC20_MOCK_DEPLOYER.deploy(borrowed_digits)
@@ -114,8 +136,11 @@ def test_exchange(admin, accounts, get_amm,
 
 
 def test_raise_at_dy_back(admin, accounts, get_amm):
-    StatefulExchange.TestCase.settings = settings(max_examples=200, stateful_step_count=10,
-                                                  phases=(Phase.explicit, Phase.reuse, Phase.generate, Phase.target))
+    StatefulExchange.TestCase.settings = settings(
+        max_examples=200,
+        stateful_step_count=10,
+        phases=(Phase.explicit, Phase.reuse, Phase.generate, Phase.target),
+    )
     accounts = accounts[:5]
 
     borrowed_digits = 18
@@ -128,7 +153,9 @@ def test_raise_at_dy_back(admin, accounts, get_amm):
         setattr(StatefulExchange, k, v)
 
     state = StatefulExchange()
-    state.initializer(amounts=[0.0, 0.0, 0.0, 1.0, 1.0], ns=[1, 1, 1, 1, 2], dns=[0, 0, 0, 0, 0])
+    state.initializer(
+        amounts=[0.0, 0.0, 0.0, 1.0, 1.0], ns=[1, 1, 1, 1, 2], dns=[0, 0, 0, 0, 0]
+    )
     state.amm_solvent()
     state.dy_back()
     state.exchange(amount=1.0, pump=True, user_id=0)
@@ -141,8 +168,11 @@ def test_raise_at_dy_back(admin, accounts, get_amm):
 
 
 def test_raise_not_enough_left(admin, accounts, get_amm):
-    StatefulExchange.TestCase.settings = settings(max_examples=200, stateful_step_count=10,
-                                                  phases=(Phase.explicit, Phase.reuse, Phase.generate, Phase.target))
+    StatefulExchange.TestCase.settings = settings(
+        max_examples=200,
+        stateful_step_count=10,
+        phases=(Phase.explicit, Phase.reuse, Phase.generate, Phase.target),
+    )
     accounts = accounts[:5]
 
     borrowed_digits = 16
@@ -155,7 +185,17 @@ def test_raise_not_enough_left(admin, accounts, get_amm):
         setattr(StatefulExchange, k, v)
 
     state = StatefulExchange()
-    state.initializer(amounts=[419403.0765402276, 1.0, 5e-324, 5.960464477539063e-08, 999999.9999999999], ns=[17, 16, 14, 14, 16], dns=[15, 7, 2, 11, 16])
+    state.initializer(
+        amounts=[
+            419403.0765402276,
+            1.0,
+            5e-324,
+            5.960464477539063e-08,
+            999999.9999999999,
+        ],
+        ns=[17, 16, 14, 14, 16],
+        dns=[15, 7, 2, 11, 16],
+    )
     state.amm_solvent()
     state.dy_back()
     state.exchange(amount=6.103515625e-05, pump=True, user_id=2)

@@ -4,7 +4,7 @@ from itertools import permutations
 from tests.utils.deployers import (
     MOCK_SWAP2_DEPLOYER,
     MOCK_SWAP3_DEPLOYER,
-    CRYPTO_FROM_POOL_DEPLOYER
+    CRYPTO_FROM_POOL_DEPLOYER,
 )
 
 

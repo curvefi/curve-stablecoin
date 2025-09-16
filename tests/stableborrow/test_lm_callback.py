@@ -12,8 +12,10 @@ def lm_callback(market_amm, market_controller, admin):
         return cb
 
 
-@pytest.mark.skip('Need to update the mock')
-def test_lm_callback(collateral_token, lm_callback, market_amm, market_controller, accounts):
+@pytest.mark.skip("Need to update the mock")
+def test_lm_callback(
+    collateral_token, lm_callback, market_amm, market_controller, accounts
+):
     """
     This unitary test doesn't do trades etc - that has to be done in a full stateful test
     """
@@ -32,4 +34,6 @@ def test_lm_callback(collateral_token, lm_callback, market_amm, market_controlle
             user_amounts[acc] += cps * us // 10**18
 
     for acc in accounts[:10]:
-        assert user_amounts[acc] == pytest.approx(market_amm.get_sum_xy(acc)[1], rel=1e-5)
+        assert user_amounts[acc] == pytest.approx(
+            market_amm.get_sum_xy(acc)[1], rel=1e-5
+        )

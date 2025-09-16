@@ -2,7 +2,7 @@ $ ape run scripts/ape-deploy-sepolia.py deploy --network ethereum:sepolia:alchem
 
 [notice] A new release of pip is available: 23.0.1 -> 23.1.1
 [notice] To update, run: pip install --upgrade pip
-Enter passphrase to permanently unlock 'babe': 
+Enter passphrase to permanently unlock 'babe':
 WARNING: Danger! This account will now sign any transaction it's given.
 Using cached key for 'babe'
 INFO: Submitted 0xce926cba43811f2d2ec07937b875cea1126057e31a563ab2e3d0d5a558104d79

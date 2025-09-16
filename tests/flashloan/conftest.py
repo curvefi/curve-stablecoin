@@ -1,9 +1,6 @@
 import boa
 import pytest
-from tests.utils.deployers import (
-    FLASH_LENDER_DEPLOYER,
-    DUMMY_FLASH_BORROWER_DEPLOYER
-)
+from tests.utils.deployers import FLASH_LENDER_DEPLOYER, DUMMY_FLASH_BORROWER_DEPLOYER
 
 
 @pytest.fixture(scope="module")
@@ -13,7 +10,7 @@ def controller_factory(proto):
 
 @pytest.fixture(scope="module")
 def max_flash_loan():
-    return 3 * 10**6 * 10 ** 18
+    return 3 * 10**6 * 10**18
 
 
 @pytest.fixture(scope="module")

@@ -6,14 +6,14 @@ WEEK = 7 * 86400
 
 
 def test_add_new_lm_callback(
-        accounts,
-        admin,
-        chad,
-        collateral_token,
-        stablecoin,
-        market_controller,
-        market_amm,
-        gauge_controller,
+    accounts,
+    admin,
+    chad,
+    collateral_token,
+    stablecoin,
+    market_controller,
+    market_amm,
+    gauge_controller,
 ):
     alice = accounts[0]
 
@@ -22,7 +22,6 @@ def test_add_new_lm_callback(
 
     boa.env.time_travel(seconds=2 * WEEK + 5)
     boa.deal(collateral_token, alice, 10**22)
-
 
     alice_balances0 = [stablecoin.balanceOf(alice), collateral_token.balanceOf(alice)]
     chad_balances0 = [stablecoin.balanceOf(chad), collateral_token.balanceOf(chad)]
@@ -43,7 +42,7 @@ def test_add_new_lm_callback(
     with boa.env.prank(admin):
         new_cb = LM_CALLBACK_WITH_REVERTS_DEPLOYER.deploy()
         market_controller.set_callback(new_cb)
-        gauge_controller.add_gauge(new_cb.address, 0, 10 ** 18)
+        gauge_controller.add_gauge(new_cb.address, 0, 10**18)
 
     # Market interactions are still working
     market_amm.exchange(1, 0, 10**20, 0, sender=chad)
@@ -52,7 +51,7 @@ def test_add_new_lm_callback(
     alice_balances2 = [stablecoin.balanceOf(alice), collateral_token.balanceOf(alice)]
     chad_balances2 = [stablecoin.balanceOf(chad), collateral_token.balanceOf(chad)]
 
-    assert alice_balances2[0] - alice_balances1[0] == 10 ** 20
-    assert alice_balances1[1] - alice_balances2[1] == 10 ** 17
+    assert alice_balances2[0] - alice_balances1[0] == 10**20
+    assert alice_balances1[1] - alice_balances2[1] == 10**17
     assert chad_balances1[0] < chad_balances2[0]
     assert chad_balances1[1] > chad_balances2[1]

@@ -5,7 +5,7 @@ from hypothesis import given, settings
 from tests.utils.deployers import TEST_PACKING_DEPLOYER
 
 MAX_N = 2**127 - 1
-MIN_N = -2**127 + 1  # <- not -2**127!
+MIN_N = -(2**127) + 1  # <- not -2**127!
 
 
 @pytest.fixture(scope="module")
@@ -16,7 +16,7 @@ def packing(admin):
 
 @given(
     n1=st.integers(min_value=MIN_N, max_value=MAX_N),
-    n2=st.integers(min_value=MIN_N, max_value=MAX_N)
+    n2=st.integers(min_value=MIN_N, max_value=MAX_N),
 )
 @settings(max_examples=500)
 def test_packing(packing, n1, n2):
