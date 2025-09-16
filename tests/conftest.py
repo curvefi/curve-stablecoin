@@ -1,4 +1,3 @@
-import os
 from datetime import timedelta
 
 import boa
@@ -18,14 +17,20 @@ PRICE = 3000
 TESTING_DECIMALS = [2, 6, 8, 9, 18]
 
 
-settings.register_profile(
+no_shrink = settings.register_profile(
     "no-shrink",
-    settings(phases=list(Phase)[:4]),
+    phases=list(Phase)[:4],
     deadline=timedelta(seconds=1000),
     print_blob=True,
 )
-settings.register_profile("default", deadline=timedelta(seconds=1000), print_blob=True)
-settings.load_profile(os.getenv("HYPOTHESIS_PROFILE", "default"))
+settings.register_profile(
+    "quick",
+    parent=no_shrink,
+    max_examples=3,
+    stateful_step_count=15,
+)
+
+settings.load_profile("no-shrink")
 
 
 @pytest.fixture(scope="module")
