@@ -16,7 +16,7 @@ event Liquidate:
     liquidator: address
     user: address
     collateral_received: uint256
-    stablecoin_received: uint256
+    borrowed_received: uint256
     debt: uint256
 
 
@@ -90,7 +90,7 @@ struct Loan:
 
 struct CallbackData:
     active_band: int256
-    stablecoins: uint256
+    borrowed: uint256
     collateral: uint256
 
 # Functions

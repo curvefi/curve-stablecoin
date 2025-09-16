@@ -188,9 +188,9 @@ def create_loan(
     calldata: Bytes[10**4] = b"",
 ):
     """
-    @notice Create loan but pass stablecoin to a callback first so that it can build leverage
+    @notice Create loan but pass borrowed to a callback first so that it can build leverage
     @param collateral Amount of collateral to use
-    @param debt Stablecoin debt to take
+    @param debt Borrowed asset debt to take
     @param N Number of bands to deposit into (to do autoliquidation-deliquidation),
            can be from MIN_TICKS to MAX_TICKS
     @param _for Address to create the loan for

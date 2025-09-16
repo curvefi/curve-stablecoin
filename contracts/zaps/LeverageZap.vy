@@ -282,12 +282,12 @@ def _approve(coin: address, spender: address):
 
 @external
 @nonreentrant('lock')
-def callback_deposit(user: address, stablecoins: uint256, user_collateral: uint256, d_debt: uint256,
+def callback_deposit(user: address, borrowed: uint256, user_collateral: uint256, d_debt: uint256,
                      callback_args: DynArray[uint256, 10], callback_bytes: Bytes[10**4] = b"") -> uint256[2]:
     """
     @notice Callback method which should be called by controller to create leveraged position
     @param user Address of the user
-    @param stablecoins Always 0
+    @param borrowed Always 0
     @param user_collateral The amount of collateral token provided by user
     @param d_debt The amount to be borrowed (in addition to what has already been borrowed)
     @param callback_args [factory_id, controller_id, user_borrowed]
@@ -318,12 +318,12 @@ def callback_deposit(user: address, stablecoins: uint256, user_collateral: uint2
 
 @external
 @nonreentrant('lock')
-def callback_repay(user: address, stablecoins: uint256, collateral: uint256, debt: uint256,
+def callback_repay(user: address, borrowed: uint256, collateral: uint256, debt: uint256,
                    callback_args: DynArray[uint256,10], callback_bytes: Bytes[10 ** 4] = b"") -> uint256[2]:
     """
     @notice Callback method which should be called by controller to create leveraged position
     @param user Address of the user
-    @param stablecoins The value from user_state
+    @param borrowed The value from user_state
     @param collateral The value from user_state
     @param debt The value from user_state
     @param callback_args [factory_id, controller_id, user_collateral, user_borrowed]

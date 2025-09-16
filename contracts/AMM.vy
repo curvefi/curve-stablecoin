@@ -458,9 +458,9 @@ def p_oracle_down(n: int256) -> uint256:
 def _get_y0(x: uint256, y: uint256, p_o: uint256, p_o_up: uint256) -> uint256:
     """
     @notice Calculate y0 for the invariant based on current liquidity in band.
-            The value of y0 has a meaning of amount of collateral when band has no stablecoin
+            The value of y0 has a meaning of amount of collateral when band has no borrowed tokens
             but current price is equal to both oracle price and upper band price.
-    @param x Amount of stablecoin in band
+    @param x Amount of borrowed in band
     @param y Amount of collateral in band
     @param p_o External oracle price
     @param p_o_up Upper boundary of the band
@@ -488,7 +488,7 @@ def _get_p(n: int256, x: uint256, y: uint256) -> uint256:
     """
     @notice Get current AMM price in band
     @param n Band number
-    @param x Amount of stablecoin in band
+    @param x Amount of borrowed in band
     @param y Amount of collateral in band
     @return Current price at 1e18 base
     """
@@ -749,7 +749,7 @@ def withdraw(user: address, frac: uint256) -> uint256[2]:
     @notice Withdraw liquidity for the user. Only admin contract can do it
     @param user User who owns liquidity
     @param frac Fraction to withdraw (1e18 being 100%)
-    @return Amount of [stablecoins, collateral] withdrawn
+    @return Amount of [borrowed, collateral] withdrawn
     """
     assert msg.sender == self.admin
     assert frac <= 10**18
@@ -1352,9 +1352,9 @@ def exchange_dy(i: uint256, j: uint256, out_amount: uint256, max_amount: uint256
 def get_xy_up(user: address, use_y: bool) -> uint256:
     """
     @notice Measure the amount of y (collateral) in the band n if we adiabatically trade near p_oracle on the way up,
-            or the amount of x (stablecoin) if we trade adiabatically down
+            or the amount of x (borrowed) if we trade adiabatically down
     @param user User the amount is calculated for
-    @param use_y Calculate amount of collateral if True and of stablecoin if False
+    @param use_y Calculate amount of collateral if True and of borrowed if False
     @return Amount of coins
     """
     ns: int256[2] = self._read_user_tick_numbers(user)
@@ -1499,7 +1499,7 @@ def get_y_up(user: address) -> uint256:
 @nonreentrant
 def get_x_down(user: address) -> uint256:
     """
-    @notice Measure the amount of x (stablecoin) if we trade adiabatically down
+    @notice Measure the amount of x (borrowed) if we trade adiabatically down
     @param user User the amount is calculated for
     @return Amount of coins
     """
@@ -1509,10 +1509,10 @@ def get_x_down(user: address) -> uint256:
 @view
 def _get_xy(user: address, is_sum: bool) -> DynArray[uint256, MAX_TICKS_UINT][2]:
     """
-    @notice A low-gas function to measure amounts of stablecoins and collateral which user currently owns
+    @notice A low-gas function to measure amounts of borrowed and collateral tokens which user currently owns
     @param user User address
     @param is_sum Return sum or amounts by bands
-    @return Amounts of (stablecoin, collateral) in a tuple
+    @return Amounts of (borrowed, collateral) in a tuple
     """
     xs: DynArray[uint256, MAX_TICKS_UINT] = []
     ys: DynArray[uint256, MAX_TICKS_UINT] = []
@@ -1548,9 +1548,9 @@ def _get_xy(user: address, is_sum: bool) -> DynArray[uint256, MAX_TICKS_UINT][2]
 @nonreentrant
 def get_sum_xy(user: address) -> uint256[2]:
     """
-    @notice A low-gas function to measure amounts of stablecoins and collateral which user currently owns
+    @notice A low-gas function to measure amounts of borrowed and collateral tokens which user currently owns
     @param user User address
-    @return Amounts of (stablecoin, collateral) in a tuple
+    @return Amounts of (borrowed, collateral) in a tuple
     """
     xy: DynArray[uint256, MAX_TICKS_UINT][2] = self._get_xy(user, True)
     return [xy[0][0], xy[1][0]]
@@ -1560,9 +1560,9 @@ def get_sum_xy(user: address) -> uint256[2]:
 @nonreentrant
 def get_xy(user: address) -> DynArray[uint256, MAX_TICKS_UINT][2]:
     """
-    @notice A low-gas function to measure amounts of stablecoins and collateral by bands which user currently owns
+    @notice A low-gas function to measure amounts of borrowed and collateral tokens by bands which user currently owns
     @param user User address
-    @return Amounts of (stablecoin, collateral) by bands in a tuple
+    @return Amounts of (borrowed, collateral) by bands in a tuple
     """
     return self._get_xy(user, False)
 
