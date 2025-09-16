@@ -1,3 +1,4 @@
+# TODO missing pragmas
 from ethereum.ercs import IERC20
 
 
@@ -8,7 +9,7 @@ def max_approve(token: IERC20, spender: address):
 
 
 @internal
-def transferFrom(token: IERC20, _from: address, _to: address, amount: uint256):
+def transfer_from(token: IERC20, _from: address, _to: address, amount: uint256):
     if amount > 0:
         assert extcall token.transferFrom(_from, _to, amount, default_return_value=True)
 
