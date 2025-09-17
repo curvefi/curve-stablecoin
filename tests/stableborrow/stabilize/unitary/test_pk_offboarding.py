@@ -1,6 +1,8 @@
 import boa
 import pytest
 
+from tests.utils.deployers import PEG_KEEPER_OFFBOARDING_DEPLOYER
+
 pytestmark = pytest.mark.usefixtures(
     "add_initial_liquidity",
     "provide_token_to_peg_keepers",
@@ -14,10 +16,7 @@ ADMIN_ACTIONS_DEADLINE = 3 * 86400
 
 @pytest.fixture(scope="module")
 def offboarding(receiver, admin, peg_keepers):
-    # TODO should come from deployers
-    hr = boa.load(
-        "contracts/stabilizer/PegKeeperOffboarding.vy", receiver, admin, admin
-    )
+    hr = PEG_KEEPER_OFFBOARDING_DEPLOYER.deploy(receiver, admin, admin)
     with boa.env.prank(admin):
         for peg_keeper in peg_keepers:
             peg_keeper.set_new_regulator(hr)

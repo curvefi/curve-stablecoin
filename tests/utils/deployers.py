@@ -166,6 +166,10 @@ PEG_KEEPER_REGULATOR_DEPLOYER = boa.load_partial(
     STABILIZER_CONTRACT_PATH + "PegKeeperRegulator.vy",
     compiler_args=compiler_args_default,
 )
+PEG_KEEPER_OFFBOARDING_DEPLOYER = boa.load_partial(
+    STABILIZER_CONTRACT_PATH + "PegKeeperOffboarding.vy",
+    compiler_args=compiler_args_default,
+)
 
 # Callback contracts
 LM_CALLBACK_DEPLOYER = boa.load_partial(
