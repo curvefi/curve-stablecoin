@@ -8,7 +8,6 @@ from tests.utils.deployers import (
     STABLECOIN_DEPLOYER,
     WETH_DEPLOYER,
     CONTROLLER_FACTORY_DEPLOYER,
-    MINT_CONTROLLER_DEPLOYER,
     AMM_DEPLOYER,
     CONSTANT_MONETARY_POLICY_DEPLOYER,
     LM_CALLBACK_DEPLOYER,
@@ -82,9 +81,8 @@ def controller_prefactory(stablecoin, weth, admin, accounts):
 
 
 @pytest.fixture(scope="module")
-def controller_impl(admin):
-    with boa.env.prank(admin):
-        return MINT_CONTROLLER_DEPLOYER.deploy_as_blueprint()
+def controller_impl(proto):
+    return proto.blueprints.mint_controller
 
 
 @pytest.fixture(scope="module")
