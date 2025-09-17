@@ -15,7 +15,7 @@ from contracts.interfaces import IAMM
 from contracts.interfaces import IMonetaryPolicy
 from contracts.interfaces import IVault
 
-from contracts.interfaces import IMintController as IController
+from contracts.interfaces import IController
 
 implements: IController
 

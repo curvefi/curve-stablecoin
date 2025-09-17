@@ -1,4 +1,4 @@
-from contracts.interfaces import IMintController as IController
+from contracts.interfaces import IController
 from contracts.interfaces import IAMM
 
 
@@ -16,7 +16,7 @@ def users_with_health(
     """
     Enumerate controller loans and return positions with health < threshold.
     Optionally require controller.approval(user, approval_spender).
-    Returns IMintController.Position entries (user, x, y, debt, health).
+    Returns IController.Position entries (user, x, y, debt, health).
     """
     AMM: IAMM = staticcall controller.amm()
 

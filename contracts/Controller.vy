@@ -17,8 +17,7 @@ from contracts.interfaces import IFactory
 from contracts.interfaces import IPriceOracle
 from contracts.interfaces import IERC20
 
-# TODO just rename interface of mint controller to "icontroller"
-from contracts.interfaces import IMintController as IController
+from contracts.interfaces import IController
 from contracts.interfaces import IControllerView as IView
 
 implements: IController

@@ -1,4 +1,4 @@
-from contracts.interfaces import IMintController as IController
+from contracts.interfaces import IController
 
 
 event PartialRepay:

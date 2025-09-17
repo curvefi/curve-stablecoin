@@ -1,4 +1,4 @@
-from contracts.interfaces import IMintController
+from contracts.interfaces import IController
 
 # Functions
 
@@ -10,7 +10,7 @@ def health_calculator(user: address, d_collateral: int256, d_debt: int256, full:
 
 @view
 @external
-def users_to_liquidate(_from: uint256, _limit: uint256) -> DynArray[IMintController.Position, 1000]:
+def users_to_liquidate(_from: uint256, _limit: uint256) -> DynArray[IController.Position, 1000]:
     ...
 
 

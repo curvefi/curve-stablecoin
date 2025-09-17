@@ -9,7 +9,7 @@
 """
 
 from contracts.interfaces import IERC20
-from contracts.interfaces import IMintController as IController
+from contracts.interfaces import IController
 from contracts.interfaces import ILlamalendController
 from contracts.interfaces import IAMM
 from contracts.interfaces import IControllerView
