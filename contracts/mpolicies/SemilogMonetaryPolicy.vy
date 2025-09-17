@@ -133,7 +133,20 @@ def ln_int(_x: uint256) -> int256:
 @internal
 @view
 def calculate_rate(_for: address, d_reserves: int256, d_debt: int256) -> uint256:
-    total_debt: int256 = convert(Controller(_for).total_debt(), int256)
+    total_debt: int256 = 0
+    success: bool = False
+    debt_data: Bytes[32] = empty(Bytes[32])
+    success, debt_data = raw_call(
+        _for,
+        method_id("total_debt()"),
+        max_outsize=32,
+        is_static_call=True,
+        revert_on_failure=False,
+    )
+    data_length: uint256 = len(debt_data)
+    if success and data_length == 32:
+        total_debt = convert(convert(debt_data, uint256), int256)
+
     total_reserves: int256 = convert(BORROWED_TOKEN.balanceOf(_for), int256) + total_debt + d_reserves
     total_debt += d_debt
     assert total_debt >= 0, "Negative debt"
