@@ -11,6 +11,8 @@ from boa.contracts.vyper.vyper_contract import (
 )
 from typing import Dict, Any
 
+from tests.utils.constants import MAX_UINT256
+
 
 from tests.utils.deployers import (
     # Core contracts
@@ -29,6 +31,7 @@ from tests.utils.deployers import (
     # Monetary policies
     CONSTANT_MONETARY_POLICY_DEPLOYER,
     CONSTANT_MONETARY_POLICY_LENDING_DEPLOYER,
+    SEMILOG_MONETARY_POLICY_DEPLOYER,
     WETH_DEPLOYER,
     ERC20_MOCK_DEPLOYER,
     # Compiler flags
@@ -47,6 +50,7 @@ class Blueprints:
     ll_controller_view: VyperBlueprint
     price_oracle: VyperBlueprint
     mpolicy: VyperBlueprint
+    vault: VyperBlueprint
 
 
 # TODO rename to this class to Llamalend and the file to protocol.py
@@ -95,6 +99,7 @@ class Protocol:
             ll_controller_view=LL_CONTROLLER_VIEW_DEPLOYER,
             price_oracle=CRYPTO_FROM_POOL_DEPLOYER,
             mpolicy=CONSTANT_MONETARY_POLICY_LENDING_DEPLOYER,
+            vault=VAULT_DEPLOYER,
         )
 
         # Deploy core infrastructure
@@ -132,17 +137,13 @@ class Protocol:
 
     def __init_lend_markets(self):
         # Deploy Lending Protocol
-        # Deploy vault implementation
-        self.vault_impl = VAULT_DEPLOYER.deploy()
-
         # Deploy lending factory
         self.lending_factory = LENDING_FACTORY_DEPLOYER.deploy(
             self.blueprints.amm.address,
             self.blueprints.ll_controller.address,
-            self.vault_impl.address,
+            self.blueprints.vault.address,
             self.blueprints.price_oracle.address,
             self.blueprints.ll_controller_view.address,
-            self.blueprints.mpolicy.address,
             self.admin,
             self.fee_receiver,
         )
@@ -209,6 +210,7 @@ class Protocol:
         max_borrow_rate: int,
         seed_amount: int = 1000 * 10**18,
         mpolicy_deployer: VyperDeployer | None = None,
+        supply_limit: int = MAX_UINT256,
     ) -> Dict[str, VyperContract]:
         """
         Create a new lending market in the Lending Factory.
@@ -224,10 +226,25 @@ class Protocol:
             name: Name for the vault
             min_borrow_rate: Minimum borrow rate (e.g., 0.5 * 10**16 for 0.5%)
             max_borrow_rate: Maximum borrow rate (e.g., 50 * 10**16 for 50%)
+            seed_amount: Borrowed token amount to seed into the vault post-deployment
+            mpolicy_deployer: Optional monetary policy deployer override
+            supply_limit: Vault supply cap passed to the factory (defaults to MAX_UINT256 for no cap)
 
         Returns:
             Dictionary with 'vault', 'controller', 'amm' contracts.
         """
+        policy_deployer = mpolicy_deployer or CONSTANT_MONETARY_POLICY_LENDING_DEPLOYER
+
+        deploy_args = [
+            borrowed_token.address,
+            min_borrow_rate,
+            max_borrow_rate,
+        ]
+        if policy_deployer is SEMILOG_MONETARY_POLICY_DEPLOYER:
+            deploy_args.append(self.lending_factory.address)
+
+        monetary_policy = policy_deployer.deploy(*deploy_args)
+
         result = self.lending_factory.create(
             borrowed_token.address,
             collateral_token.address,
@@ -236,29 +253,15 @@ class Protocol:
             loan_discount,
             liquidation_discount,
             price_oracle.address,
+            monetary_policy.address,
             name,
-            min_borrow_rate,
-            max_borrow_rate,
+            supply_limit,
             sender=self.admin,
         )
 
         vault = VAULT_DEPLOYER.at(result[0])
         controller = LL_CONTROLLER_DEPLOYER.at(result[1])
         amm = AMM_DEPLOYER.at(result[2])
-
-        # Optionally override the market's monetary policy after creation.
-        if mpolicy_deployer is not None:
-            # Always deploy with FACTORY as msg.sender so policies that bind FACTORY at
-            # deploy time (e.g., SemilogMonetaryPolicy) initialize correctly.
-            # TODO report issue to boa (sender not available for constructor)
-            with boa.env.prank(self.lending_factory.address):
-                custom_mp = mpolicy_deployer.deploy(
-                    borrowed_token.address,
-                    min_borrow_rate,
-                    max_borrow_rate,
-                )
-            # Set on controller with admin privileges
-            controller.set_monetary_policy(custom_mp, sender=self.admin)
 
         # Seed lending markets by depositing borrowed token into the vault
         if seed_amount and seed_amount > 0:
