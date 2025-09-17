@@ -8,8 +8,7 @@
 @license Copyright (c) Curve.Fi, 2020-2025 - all rights reserved
 """
 
-from ethereum.ercs import IERC20
-from ethereum.ercs import IERC20Detailed
+from contracts.interfaces import IERC20
 from ethereum.ercs import IERC4626
 
 from contracts.interfaces import IAMM
@@ -19,13 +18,7 @@ from contracts.interfaces import IFactory
 from contracts import constants as c
 
 implements: IERC20
-implements: IERC20Detailed
-# implements: IERC4626
-
-
-interface IERC20Custom:
-    def decimals() -> uint256: view
-    def symbol() -> String[32]: view
+# implements: IERC4626 TODO fix this
 
 
 event SetMaxSupply:
@@ -66,17 +59,6 @@ totalSupply: public(uint256)
 precision: uint256
 
 
-@deploy
-def __init__():
-    """
-    @notice Template for Vault implementation
-    """
-    # The contract is made a "normal" template (not blueprint) so that we can get contract address before init
-    # This is needed if we want to create a rehypothecation dual-market with two vaults
-    # where vaults are collaterals of each other
-    self.borrowed_token = IERC20(0x0000000000000000000000000000000000000001)
-
-
 @external
 def initialize(
         amm: IAMM,
@@ -94,7 +76,7 @@ def initialize(
     assert self.borrowed_token.address == empty(address)
 
     self.borrowed_token = borrowed_token
-    borrowed_precision: uint256 = 10**(18 - (staticcall IERC20Custom(borrowed_token.address).decimals()))
+    borrowed_precision: uint256 = 10**(18 - convert(staticcall borrowed_token.decimals(), uint256))
     self.collateral_token = collateral_token
 
     self.factory = IFactory(msg.sender)
@@ -103,7 +85,7 @@ def initialize(
 
     # ERC20 set up
     self.precision = borrowed_precision
-    borrowed_symbol: String[32] = staticcall IERC20Custom(borrowed_token.address).symbol()
+    borrowed_symbol: String[32] = staticcall borrowed_token.symbol()
     self.name = concat(NAME_PREFIX, borrowed_symbol)
     # Symbol must be String[32], but we do String[34]. It doesn't affect contracts which read it (they will truncate)
     # However this will be changed as soon as Vyper can *properly* manipulate strings
