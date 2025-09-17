@@ -16,7 +16,8 @@ initializes: core
 
 # Usually a bad practice to expose through
 # `__interface__` but this contract is just
-# an adapter for the constructor of the Controller
+# an adapter to make the construct of Controller
+# compatible with the old mint factory.
 exports: core.__interface__
 
 
@@ -36,9 +37,4 @@ def __init__(
         liquidation_discount,
         amm,
         empty(address),  # to replace at deployment with view blueprint
-    )
-
-    # TODO do this differently
-    assert extcall core.BORROWED_TOKEN.approve(
-        core.FACTORY.address, max_value(uint256), default_return_value=True
     )
