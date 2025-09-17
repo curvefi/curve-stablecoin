@@ -53,8 +53,7 @@ class Blueprints:
     vault: VyperBlueprint
 
 
-# TODO rename to this class to Llamalend and the file to protocol.py
-class Protocol:
+class Llamalend:
     """
     Protocol deployment and management class for llamalend.
     Handles deployment of core infrastructure and creation of markets.

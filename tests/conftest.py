@@ -3,7 +3,6 @@ from datetime import timedelta
 import boa
 import pytest
 from hypothesis import settings, Phase
-from tests.utils.deploy import Protocol
 from tests.utils.deployers import (
     ERC20_MOCK_DEPLOYER,
     CONSTANT_MONETARY_POLICY_LENDING_DEPLOYER,

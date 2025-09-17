@@ -19,7 +19,6 @@ from hypothesis.stateful import (
 
 import boa
 
-from tests.utils.deploy import Protocol
 from tests.utils.deployers import AMM_DEPLOYER, ERC20_MOCK_DEPLOYER, STABLECOIN_DEPLOYER
 from tests.utils.constants import (
     MAX_TICKS,
