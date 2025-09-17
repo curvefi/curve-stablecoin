@@ -4,7 +4,6 @@ on: [push]
 
 env:
   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-  # RPC_ETHEREUM: ${{ secrets.RPC_ETHEREUM }}
   HYPOTHESIS_PROFILE: no-shrink
 
 jobs:
@@ -71,5 +70,4 @@ jobs:
 
       - name: Run tests
         run: |
-          export VENOM=${{ matrix.venom.value }}
           uv run pytest ${{ matrix.folder }} -n auto
