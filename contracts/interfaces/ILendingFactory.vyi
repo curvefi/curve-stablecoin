@@ -10,7 +10,6 @@ event SetBlueprints:
     amm: address
     controller: address
     vault: address
-    price_oracle: address
     controller_view: address
 
 

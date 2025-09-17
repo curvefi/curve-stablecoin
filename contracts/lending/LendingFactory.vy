@@ -77,7 +77,6 @@ def __init__(
     self.amm_blueprint = _amm_blueprint
     self.controller_blueprint = _controller_blueprint
     self.vault_blueprint = _vault_blueprint
-    self.pool_price_oracle_blueprint = _pool_price_oracle_blueprint
     self.controller_view_blueprint = _controller_view_blueprint
 
     ownable.__init__()
@@ -238,7 +237,6 @@ def set_implementations(
     _controller_blueprint: address,
     _amm_blueprint: address,
     _vault_blueprint: address,
-    _pool_price_oracle_blueprint: address,
     _controller_view_blueprint: address,
 ):
     """
@@ -247,7 +245,6 @@ def set_implementations(
     @param _controller_blueprint Address of the controller blueprint
     @param _amm_blueprint Address of the AMM blueprint
     @param _vault_blueprint Address of the Vault blueprint
-    @param _pool_price_oracle_blueprint Address of the pool price oracle blueprint
     @param _controller_view_blueprint Address of the view contract blueprint
     """
     ownable._check_owner()
@@ -258,8 +255,6 @@ def set_implementations(
         self.amm_blueprint = _amm_blueprint
     if _vault_blueprint != empty(address):
         self.vault_blueprint = _vault_blueprint
-    if _pool_price_oracle_blueprint != empty(address):
-        self.pool_price_oracle_blueprint = _pool_price_oracle_blueprint
     if _controller_view_blueprint != empty(address):
         self.controller_view_blueprint = _controller_view_blueprint
 
@@ -267,7 +262,6 @@ def set_implementations(
         amm=_amm_blueprint,
         controller=_controller_blueprint,
         vault=_vault_blueprint,
-        price_oracle=_pool_price_oracle_blueprint,
         controller_view=_controller_view_blueprint,
     )
 
