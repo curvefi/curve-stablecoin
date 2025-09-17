@@ -1173,7 +1173,6 @@ def liquidate(
 
     final_debt: uint256 = debt
     assert _frac <= WAD, "frac>100%"
-    frac: uint256 = min(_frac, WAD)
     debt = unsafe_div(debt * frac + (WAD - 1), WAD)
     assert debt > 0
     final_debt = unsafe_sub(final_debt, debt)
