@@ -117,8 +117,10 @@ def create(
     assert (_loan_discount > _liquidation_discount), "need loan_discount>liquidation_discount"
 
     A_ratio: uint256 = 10**18 * _A // (_A - 1)
-    # TODO validate monetary policy here
-    p: uint256 = (staticcall _price_oracle.price())  # This also validates price oracle ABI
+
+    # Validate price oracle and monetary policy
+    extcall _monetary_policy.rate_write()
+    p: uint256 = (staticcall _price_oracle.price())
     assert p > 0
     assert extcall _price_oracle.price_w() == p
 

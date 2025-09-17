@@ -141,7 +141,6 @@ def __init__(
 
     # In MintController the correct way to limit borrowing
     # is through the debt ceiling.
-    # TODO move this to mint controller
     self.borrow_cap = max_value(uint256)
 
     FACTORY = IFactory(msg.sender)
