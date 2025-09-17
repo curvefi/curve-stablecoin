@@ -573,6 +573,7 @@ def calculate_debt_n1(
 @internal
 @view
 def _check_loan_exists(debt: uint256):
+    # Abstraction to save bytecode on error messages
     assert debt > 0, "Loan doesn't exist"
 
 
