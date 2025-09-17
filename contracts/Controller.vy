@@ -160,7 +160,6 @@ def __init__(
     COLLATERAL_PRECISION = pow_mod256(10, 18 - collateral_decimals)
 
     BORROWED_TOKEN = _borrowed_token
-    # TODO refactor this logic to be shared with view
     borrowed_decimals: uint256 = convert(staticcall BORROWED_TOKEN.decimals(), uint256)
     BORROWED_PRECISION = pow_mod256(10, 18 - borrowed_decimals)
 
@@ -1173,7 +1172,7 @@ def liquidate(
         ), "Not enough rekt"
 
     final_debt: uint256 = debt
-    # TODO shouldn't clamp max
+    assert _frac <= WAD, "frac>100%"
     frac: uint256 = min(_frac, WAD)
     debt = unsafe_div(debt * frac + (WAD - 1), WAD)
     assert debt > 0
