@@ -1173,7 +1173,7 @@ def liquidate(
 
     final_debt: uint256 = debt
     assert _frac <= WAD, "frac>100%"
-    debt = unsafe_div(debt * frac + (WAD - 1), WAD)
+    debt = unsafe_div(debt * _frac + (WAD - 1), WAD)
     assert debt > 0
     final_debt = unsafe_sub(final_debt, debt)
 
@@ -1183,7 +1183,7 @@ def liquidate(
     # where h is health limit.
     # This is less than full h discount but more than no discount
     xy: uint256[2] = extcall AMM.withdraw(
-        user, self._get_f_remove(frac, health_limit)
+        user, self._get_f_remove(_frac, health_limit)
     )  # [stable, collateral]
 
     # x increase in same block -> price up -> good
