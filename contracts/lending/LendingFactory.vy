@@ -118,8 +118,7 @@ def create(
 
     A_ratio: uint256 = 10**18 * _A // (_A - 1)
 
-    # Validate price oracle and monetary policy
-    unused: uint256 = staticcall _monetary_policy.rate()
+    # Validate price oracle
     p: uint256 = (staticcall _price_oracle.price())
     assert p > 0
     assert extcall _price_oracle.price_w() == p
@@ -159,6 +158,9 @@ def create(
     extcall amm.set_admin(controller.address)
 
     extcall vault.initialize(amm, controller.address, _borrowed_token, _collateral_token)
+
+    # Validate monetary policy using controller context
+    extcall _monetary_policy.rate_write(controller.address)
 
     market_count: uint256 = self.market_count
     log ILendingFactory.NewVault(
