@@ -4,7 +4,7 @@ from hypothesis import given, settings
 from hypothesis import strategies as st
 
 
-DEAD_SHARES = 1000
+from tests.utils.constants import DEAD_SHARES
 
 
 @given(

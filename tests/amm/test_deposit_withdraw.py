@@ -5,7 +5,7 @@ from hypothesis import strategies as st
 from ..utils import mint_for_testing
 
 
-DEAD_SHARES = 10**3
+from tests.utils.constants import DEAD_SHARES
 
 
 @given(

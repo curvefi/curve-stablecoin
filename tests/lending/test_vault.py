@@ -9,10 +9,9 @@ from hypothesis.stateful import (
     invariant,
 )
 
-SECONDS_PER_YEAR = 365 * 86400
+from tests.utils.constants import DEAD_SHARES
 
-# TODO get this from contract directly
-DEAD_SHARES = 1000
+SECONDS_PER_YEAR = 365 * 86400
 
 
 @pytest.fixture(scope="module")

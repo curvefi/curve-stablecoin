@@ -9,7 +9,8 @@ from hypothesis.stateful import (
 )
 
 
-DEAD_SHARES = 1000
+from tests.utils.constants import DEAD_SHARES
+
 MIN_RATE = 10**15 // (365 * 86400)  # 0.1%
 MAX_RATE = 10**19 // (365 * 86400)  # 1000%
 

@@ -9,7 +9,7 @@ from hypothesis.stateful import (
 )
 
 
-DEAD_SHARES = 1000
+from tests.utils.constants import DEAD_SHARES
 
 
 class StatefulLendBorrow(RuleBasedStateMachine):

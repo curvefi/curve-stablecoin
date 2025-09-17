@@ -15,7 +15,7 @@ from hypothesis.stateful import (
 import pytest
 
 
-DEAD_SHARES = 1000
+from tests.utils.constants import DEAD_SHARES
 
 
 class AllGood(Exception):

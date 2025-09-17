@@ -135,7 +135,7 @@ if __name__ == "__main__":
     vault_impl = boa.load("contracts/lending/Vault.vy")
     price_oracle_impl = boa.load_partial(
         "contracts/price_oracles/CryptoFromPool.vy"
-    ).deploy_as_blueprint()  # XXX
+    ).deploy_as_blueprint()
     mpolicy_impl = boa.load_partial(
         "contracts/mpolicies/SemilogMonetaryPolicy.vy"
     ).deploy_as_blueprint()
