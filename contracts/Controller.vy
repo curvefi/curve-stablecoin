@@ -32,8 +32,6 @@ from snekmate.utils import math
 ################################################################
 
 AMM: immutable(IAMM)
-# TODO move this comment to init
-# let's set to MIN_TICKS / A: for example, 4% max fee for A=100
 MAX_AMM_FEE: immutable(uint256)
 A: immutable(uint256)
 # log(A / (A - 1))
@@ -154,6 +152,7 @@ def __init__(
     LOGN_A_RATIO = math._wad_ln(convert(A * WAD // (A - 1), int256))
     SQRT_BAND_RATIO = isqrt(10**36 * A // (A - 1))
 
+    # let's set to MIN_TICKS / A: for example, 4% max fee for A=100
     MAX_AMM_FEE = min(WAD * MIN_TICKS_UINT // A, 10**17)
 
     COLLATERAL_TOKEN = _collateral_token
@@ -406,7 +405,6 @@ def total_debt() -> uint256:
     """
     @notice Total debt of this controller
     @dev Marked as reentrant because used by monetary policy
-    # TODO check if @reentrant is actually needed
     """
     return self._get_total_debt()
 
