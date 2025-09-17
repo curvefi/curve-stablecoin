@@ -32,4 +32,4 @@ repos:
     hooks:
       - id: mamushi
         args: [--line-length=100]
-        files: ^contracts/lending/LendingFactory\.vy$ # TODO slowly increase natrix coverage
+        files: ^(contracts/lending/LendingFactory\.vy|contracts/zaps/CreateFromPool\.vy)$ # TODO slowly increase natrix coverage

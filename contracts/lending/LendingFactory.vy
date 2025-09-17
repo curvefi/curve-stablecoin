@@ -1,28 +1,36 @@
 # pragma version 0.4.3
-# pragma optimize codesize
-# pragma evm-version shanghai
+# pragma nonreentrancy on
 """
 @title LlamaLend Factory
-@notice Factory of non-rehypothecated lending vaults: collateral is not being lent out.
+@notice Factory for one-way lending markets powered by LlamaLend AMM
 @author Curve.fi
 @license Copyright (c) Curve.Fi, 2020-2025 - all rights reserved
+@custom:security security@curve.fi
 """
 
-from ethereum.ercs import IERC20
-from ethereum.ercs import IERC20Detailed
+from contracts.interfaces import IERC20
 from contracts.interfaces import IVault
 from contracts.interfaces import ILlamalendController as IController
 from contracts.interfaces import IAMM
 from contracts.interfaces import IPriceOracle
 from contracts.interfaces import ILendingFactory
+from contracts.interfaces import IMonetaryPolicy
+
 implements: ILendingFactory
 
 from snekmate.utils import math
+from snekmate.auth import ownable
 
-# These are limits for default borrow rates, NOT actual min and max rates.
-# Even governance cannot go beyond these rates before a new code is shipped
-MIN_RATE: public(constant(uint256)) = 10**15 // (365 * 86400)  # 0.1%
-MAX_RATE: public(constant(uint256)) = 10**19 // (365 * 86400)  # 1000%
+initializes: ownable
+
+exports: (
+    # owner is not exported as we refer to it as `admin` for backwards compatibility
+    ownable.renounce_ownership,
+    ownable.transfer_ownership,
+)
+
+# TODO move A to constants
+# TODO A this low is unsafe
 MIN_A: constant(uint256) = 2
 MAX_A: constant(uint256) = 10000
 MIN_FEE: constant(uint256) = 10**6  # 1e-12, still needs to be above 0
@@ -31,20 +39,13 @@ MAX_LOAN_DISCOUNT: constant(uint256) = 5 * 10**17
 MIN_LIQUIDATION_DISCOUNT: constant(uint256) = 10**16
 
 # Implementations which can be changed by governance
-amm_impl: public(address)
-controller_impl: public(address)
-vault_impl: public(address)
-pool_price_oracle_impl: public(address)
-monetary_policy_impl: public(address)
-view_impl: public(address)
-
-# Actual min//max borrow rates when creating new markets
-# for example, 0.5% -> 50% is a good choice
-min_default_borrow_rate: public(uint256)
-max_default_borrow_rate: public(uint256)
+amm_blueprint: public(address)
+controller_blueprint: public(address)
+# convert to blueprint
+vault_blueprint: public(address)
+controller_view_blueprint: public(address)
 
 # Admin is supposed to be the DAO
-admin: public(address)
 fee_receiver: public(address)
 
 # Vaults can only be created but not removed
@@ -57,361 +58,245 @@ names: public(HashMap[uint256, String[64]])
 
 @deploy
 def __init__(
-        amm_impl: address,
-        controller_impl: address,
-        vault_impl: address,
-        pool_price_oracle_impl: address,
-        view_impl: address,
-        monetary_policy: address,
-        admin: address, # TODO also add params votes?
-        fee_receiver: address,
+    _amm_blueprint: address,
+    _controller_blueprint: address,
+    _vault_blueprint: address,
+    _pool_price_oracle_blueprint: address,
+    _controller_view_blueprint: address,
+    _admin: address,
+    _fee_receiver: address,
 ):
     """
     @notice Factory which creates one-way lending vaults (e.g. collateral is non-borrowable)
     @param amm Address of AMM implementation
     @param controller Address of Controller implementation
     @param pool_price_oracle Address of implementation for price oracle factory (prices from pools)
-    @param monetary_policy Address for implementation of monetary policy
     @param admin Admin address (DAO)
     @param fee_receiver Receiver of interest and admin fees
     """
-    # TODO impl vs blueprint is confusing
-    self.amm_impl = amm_impl
-    self.controller_impl = controller_impl
-    self.vault_impl = vault_impl
-    # TODO everyone is forced to have the same price oracle?
-    self.pool_price_oracle_impl = pool_price_oracle_impl
-    # TODO everyone is forced to have the same monetary policy?
-    self.monetary_policy_impl = monetary_policy
-    self.view_impl = view_impl
+    self.amm_blueprint = _amm_blueprint
+    self.controller_blueprint = _controller_blueprint
+    self.vault_blueprint = _vault_blueprint
+    self.pool_price_oracle_blueprint = _pool_price_oracle_blueprint
+    self.controller_view_blueprint = _controller_view_blueprint
 
-    # TODO is this actually useful?
-    self.min_default_borrow_rate = 5 * 10**15 // (365 * 86400)
-    self.max_default_borrow_rate = 50 * 10**16 // (365 * 86400)
+    ownable.__init__()
+    ownable._transfer_ownership(_admin)
 
-    self.admin = admin
-    self.fee_receiver = fee_receiver
+    self.fee_receiver = _fee_receiver
 
 
-@internal
-def _create(
-        borrowed_token: address,
-        collateral_token: address,
-        A: uint256,
-        fee: uint256,
-        loan_discount: uint256,
-        liquidation_discount: uint256,
-        price_oracle: address,
-        name: String[64],
-        min_borrow_rate: uint256,
-        max_borrow_rate: uint256
-    ) -> address[3]:
+@external
+def create(
+    _borrowed_token: IERC20,
+    _collateral_token: IERC20,
+    _A: uint256,
+    _fee: uint256,
+    _loan_discount: uint256,
+    _liquidation_discount: uint256,
+    _price_oracle: IPriceOracle,
+    _monetary_policy: IMonetaryPolicy,
+    _name: String[64],
+    _supply_limit: uint256,
+) -> address[3]:
     """
-    @notice Internal method for creation of the vault
+    @notice Creation of the vault using user-supplied price oracle contract
+    @param _borrowed_token Token which is being borrowed
+    @param _collateral_token Token used for collateral
+    @param _A Amplification coefficient: band size is ~1//A
+    @param _fee Fee for swaps in AMM (for ETH markets found to be 0.6%)
+    @param _loan_discount Maximum discount. LTV = sqrt(((A - 1) // A) ** 4) - loan_discount
+    @param _liquidation_discount Liquidation discount. LT = sqrt(((A - 1) // A) ** 4) - liquidation_discount
+    @param _price_oracle Custom price oracle contract
+    @param _name Human-readable market name
+    @param _supply_limit Supply cap
     """
-    assert borrowed_token != collateral_token, "Same token"
-    assert A >= MIN_A and A <= MAX_A, "Wrong A"
-    assert fee <= MAX_FEE, "Fee too high"
-    assert fee >= MIN_FEE, "Fee too low"
-    assert liquidation_discount >= MIN_LIQUIDATION_DISCOUNT, "Liquidation discount too low"
-    assert loan_discount <= MAX_LOAN_DISCOUNT, "Loan discount too high"
-    assert loan_discount > liquidation_discount, "need loan_discount>liquidation_discount"
+    assert _borrowed_token != _collateral_token, "Same token"
+    assert _A >= MIN_A and _A <= MAX_A, "Wrong A"
+    assert _fee <= MAX_FEE, "Fee too high"
+    assert _fee >= MIN_FEE, "Fee too low"
+    assert (_liquidation_discount >= MIN_LIQUIDATION_DISCOUNT), "Liquidation discount too low"
+    assert _loan_discount <= MAX_LOAN_DISCOUNT, "Loan discount too high"
+    assert (_loan_discount > _liquidation_discount), "need loan_discount>liquidation_discount"
 
-    min_rate: uint256 = self.min_default_borrow_rate
-    max_rate: uint256 = self.max_default_borrow_rate
-    if min_borrow_rate > 0:
-        min_rate = min_borrow_rate
-    if max_borrow_rate > 0:
-        max_rate = max_borrow_rate
-    assert min_rate >= MIN_RATE and max_rate <= MAX_RATE and min_rate <= max_rate, "Wrong rates"
-    # TODO code offset is not required anymore
-    monetary_policy: address = create_from_blueprint(
-        self.monetary_policy_impl, borrowed_token, min_rate, max_rate, code_offset=3)
-
-    A_ratio: uint256 = 10**18 * A // (A - 1)
-    p: uint256 = staticcall IPriceOracle(price_oracle).price()  # This also validates price oracle ABI
+    A_ratio: uint256 = 10**18 * _A // (_A - 1)
+    # TODO validate monetary policy here
+    p: uint256 = (staticcall _price_oracle.price())  # This also validates price oracle ABI
     assert p > 0
-    assert extcall IPriceOracle(price_oracle).price_w() == p
+    assert extcall _price_oracle.price_w() == p
 
-    # TODO better diff blueprints from minimal proxy targets in naming
-    vault: IVault = IVault(create_minimal_proxy_to(self.vault_impl))
-    amm: address = create_from_blueprint(
-        self.amm_impl,
-        borrowed_token, 10**convert(18 - staticcall IERC20Detailed(borrowed_token).decimals(), uint256),
-        collateral_token, 10**convert(18 - staticcall IERC20Detailed(collateral_token).decimals(), uint256),
-        A, isqrt(A_ratio * 10**18), math._wad_ln(convert(A_ratio, int256)),
-        p, fee, convert(0, uint256), price_oracle,
-        code_offset=3)
-    controller: address = create_from_blueprint(
-        self.controller_impl,
-        vault, amm,
-        borrowed_token, collateral_token,
-        monetary_policy,
-        loan_discount,
-        liquidation_discount,
-        self.view_impl,
-        code_offset=3)
-    extcall IAMM(amm).set_admin(controller)
+    vault: IVault = IVault(create_from_blueprint(self.vault_blueprint))
+    amm: IAMM = IAMM(
+        create_from_blueprint(
+            self.amm_blueprint,
+            _borrowed_token,
+            10**convert(18 - staticcall _borrowed_token.decimals(), uint256),
+            _collateral_token,
+            10**convert(18 - staticcall _collateral_token.decimals(), uint256),
+            _A,
+            isqrt(A_ratio * 10**18),
+            math._wad_ln(convert(A_ratio, int256)),
+            p,
+            _fee,
+            convert(0, uint256),
+            _price_oracle,
+            code_offset=3,
+        )
+    )
+    controller: IController = IController(
+        create_from_blueprint(
+            self.controller_blueprint,
+            vault,
+            amm,
+            _borrowed_token,
+            _collateral_token,
+            _monetary_policy,
+            _loan_discount,
+            _liquidation_discount,
+            self.controller_view_blueprint,
+            code_offset=3,
+        )
+    )
+    extcall amm.set_admin(controller.address)
 
-    extcall vault.initialize(IAMM(amm), controller, IERC20(borrowed_token), IERC20(collateral_token))
+    extcall vault.initialize(amm, controller.address, _borrowed_token, _collateral_token)
 
     market_count: uint256 = self.market_count
     log ILendingFactory.NewVault(
         id=market_count,
-        collateral_token=collateral_token,
-        borrowed_token=borrowed_token,
-        vault=vault.address,
+        collateral_token=_collateral_token,
+        borrowed_token=_borrowed_token,
+        vault=vault,
         controller=controller,
         amm=amm,
-        price_oracle=price_oracle,
-        monetary_policy=monetary_policy
+        price_oracle=_price_oracle,
+        monetary_policy=_monetary_policy,
     )
     self.vaults[market_count] = vault
+    # Store index with 2**128 offset so missing vault lookups revert (e.g. nonexistent vault would otherwise read index 0)
     self._vaults_index[vault] = market_count + 2**128
-    self.names[market_count] = name
+    self.names[market_count] = _name
     self.market_count = market_count + 1
 
-    return [vault.address, controller, amm]
+    if _supply_limit < max_value(uint256):
+        extcall vault.set_max_supply(_supply_limit)
+
+    return [vault.address, controller.address, amm.address]
 
 
 @external
-@nonreentrant
-def create(
-        borrowed_token: address,
-        collateral_token: address,
-        A: uint256,
-        fee: uint256,
-        loan_discount: uint256,
-        liquidation_discount: uint256,
-        price_oracle: address,
-        name: String[64],
-        min_borrow_rate: uint256 = 0,
-        max_borrow_rate: uint256 = 0,
-        supply_limit: uint256 = max_value(uint256)
-    ) -> address[3]:
-    """
-    @notice Creation of the vault using user-supplied price oracle contract
-    @param borrowed_token Token which is being borrowed
-    @param collateral_token Token used for collateral
-    @param A Amplification coefficient: band size is ~1//A
-    @param fee Fee for swaps in AMM (for ETH markets found to be 0.6%)
-    @param loan_discount Maximum discount. LTV = sqrt(((A - 1) // A) ** 4) - loan_discount
-    @param liquidation_discount Liquidation discount. LT = sqrt(((A - 1) // A) ** 4) - liquidation_discount
-    @param price_oracle Custom price oracle contract
-    @param name Human-readable market name
-    @param min_borrow_rate Custom minimum borrow rate (otherwise min_default_borrow_rate)
-    @param max_borrow_rate Custom maximum borrow rate (otherwise max_default_borrow_rate)
-    @param supply_limit Supply cap
-    """
-    res: address[3] = self._create(borrowed_token, collateral_token, A, fee, loan_discount, liquidation_discount,
-                                price_oracle, name, min_borrow_rate, max_borrow_rate)
-    # TODO duplicate code
-    if supply_limit < max_value(uint256):
-        extcall IVault(res[0]).set_max_supply(supply_limit)
-
-    return res
-
-
-@external
-@nonreentrant
-def create_from_pool(
-        borrowed_token: address,
-        collateral_token: address,
-        A: uint256,
-        fee: uint256,
-        loan_discount: uint256,
-        liquidation_discount: uint256,
-        pool: address,
-        name: String[64],
-        min_borrow_rate: uint256 = 0,
-        max_borrow_rate: uint256 = 0,
-        supply_limit: uint256 = max_value(uint256)
-    ) -> address[3]:
-    """
-    @notice Creation of the vault using existing oraclized Curve pool as a price oracle
-    @param borrowed_token Token which is being borrowed
-    @param collateral_token Token used for collateral
-    @param A Amplification coefficient: band size is ~1//A
-    @param fee Fee for swaps in AMM (for ETH markets found to be 0.6%)
-    @param loan_discount Maximum discount. LTV = sqrt(((A - 1) // A) ** 4) - loan_discount
-    @param liquidation_discount Liquidation discount. LT = sqrt(((A - 1) // A) ** 4) - liquidation_discount
-    @param pool Curve tricrypto-ng, twocrypto-ng or stableswap-ng pool which has non-manipulatable price_oracle().
-                Must contain both collateral_token and borrowed_token.
-    @param name Human-readable market name
-    @param min_borrow_rate Custom minimum borrow rate (otherwise min_default_borrow_rate)
-    @param max_borrow_rate Custom maximum borrow rate (otherwise max_default_borrow_rate)
-    @param supply_limit Supply cap
-    """
-    # Find coins in the pool
-    borrowed_ix: uint256 = 100
-    collateral_ix: uint256 = 100
-    # TODO duplicated code
-    N: uint256 = 0
-    for i: uint256 in range(10):
-        success: bool = False
-        res: Bytes[32] = empty(Bytes[32])
-        success, res = raw_call(
-            pool,
-            abi_encode(i, method_id=method_id("coins(uint256)")),
-            max_outsize=32, is_static_call=True, revert_on_failure=False)
-        coin: address = convert(res, address)
-        if not success or coin == empty(address):
-            break
-        N += 1
-        if coin == borrowed_token:
-            borrowed_ix = i
-        elif coin == collateral_token:
-            collateral_ix = i
-    if collateral_ix == 100 or borrowed_ix == 100:
-        raise "Tokens not in pool"
-    price_oracle: address = create_from_blueprint(
-        self.pool_price_oracle_impl, pool, N, borrowed_ix, collateral_ix, code_offset=3)
-
-    res: address[3] = self._create(
-        borrowed_token, collateral_token, A, fee, loan_discount, liquidation_discount,
-        price_oracle, name, min_borrow_rate, max_borrow_rate,
-    )
-    # TODO duplicate code
-    if supply_limit < max_value(uint256):
-        extcall IVault(res[0]).set_max_supply(supply_limit)
-
-    return res
-
-
 @view
+@reentrant
+def controllers(_n: uint256) -> IController:
+    return IController(staticcall self.vaults[_n].controller())
+
+
 @external
-def controllers(n: uint256) -> address:
-    return staticcall self.vaults[n].controller()
-
-
 @view
+@reentrant
+def amms(_n: uint256) -> IAMM:
+    return staticcall self.vaults[_n].amm()
+
+
 @external
-def amms(n: uint256) -> address:
-    return (staticcall self.vaults[n].amm()).address
-
-
 @view
+@reentrant
+def borrowed_tokens(_n: uint256) -> IERC20:
+    return staticcall self.vaults[_n].borrowed_token()
+
+
 @external
-def borrowed_tokens(n: uint256) -> address:
-    return (staticcall self.vaults[n].borrowed_token()).address
-
-
 @view
+@reentrant
+def collateral_tokens(_n: uint256) -> IERC20:
+    return staticcall self.vaults[_n].collateral_token()
+
+
 @external
-def collateral_tokens(n: uint256) -> address:
-    return (staticcall self.vaults[n].collateral_token()).address
-
-
 @view
+@reentrant
+def price_oracles(_n: uint256) -> IPriceOracle:
+    return staticcall (staticcall self.vaults[_n].amm()).price_oracle_contract()
+
+
 @external
-def price_oracles(n: uint256) -> address:
-    return (staticcall (staticcall self.vaults[n].amm()).price_oracle_contract()).address
-
-
 @view
+@reentrant
+def monetary_policies(_n: uint256) -> IMonetaryPolicy:
+    return staticcall IController(staticcall self.vaults[_n].controller()).monetary_policy()
+
+
 @external
-def monetary_policies(n: uint256) -> address:
-    return (staticcall IController(staticcall self.vaults[n].controller()).monetary_policy()).address
-
-
 @view
-@external
-def vaults_index(vault: IVault) -> uint256:
-    return self._vaults_index[vault] - 2**128
+@reentrant
+def vaults_index(_vault: IVault) -> uint256:
+    return self._vaults_index[_vault] - 2**128
 
 
 @external
-@nonreentrant
 def set_implementations(
-    controller: address,
-    amm: address,
-    vault: address,
-    pool_price_oracle: address,
-    monetary_policy: address,
-    view: address, # TODO improve naming
+    _controller_blueprint: address,
+    _amm_blueprint: address,
+    _vault_blueprint: address,
+    _pool_price_oracle_blueprint: address,
+    _controller_view_blueprint: address,
 ):
     """
     @notice Set new implementations (blueprints) for controller, amm, vault, pool price oracle and monetary policy.
             Doesn't change existing ones
-    @param controller Address of the controller blueprint
-    @param amm Address of the AMM blueprint
-    @param vault Address of the Vault template
-    @param pool_price_oracle Address of the pool price oracle blueprint
-    @param monetary_policy Address of the monetary policy blueprint
-    @param view Address of the view contract blueprint
+    @param _controller_blueprint Address of the controller blueprint
+    @param _amm_blueprint Address of the AMM blueprint
+    @param _vault_blueprint Address of the Vault blueprint
+    @param _pool_price_oracle_blueprint Address of the pool price oracle blueprint
+    @param _controller_view_blueprint Address of the view contract blueprint
     """
-    assert msg.sender == self.admin
+    ownable._check_owner()
 
-    if controller != empty(address):
-        self.controller_impl = controller
-    if amm != empty(address):
-        self.amm_impl = amm
-    if vault != empty(address):
-        self.vault_impl = vault
-    if pool_price_oracle != empty(address):
-        self.pool_price_oracle_impl = pool_price_oracle
-    if monetary_policy != empty(address):
-        self.monetary_policy_impl = monetary_policy
-    if view != empty(address):
-        self.view_impl = view
+    if _controller_blueprint != empty(address):
+        self.controller_blueprint = _controller_blueprint
+    if _amm_blueprint != empty(address):
+        self.amm_blueprint = _amm_blueprint
+    if _vault_blueprint != empty(address):
+        self.vault_blueprint = _vault_blueprint
+    if _pool_price_oracle_blueprint != empty(address):
+        self.pool_price_oracle_blueprint = _pool_price_oracle_blueprint
+    if _controller_view_blueprint != empty(address):
+        self.controller_view_blueprint = _controller_view_blueprint
 
-    log ILendingFactory.SetImplementations(
-        amm=amm,
-        controller=controller,
-        vault=vault,
-        price_oracle=pool_price_oracle,
-        monetary_policy=monetary_policy,
-        view=view
+    log ILendingFactory.SetBlueprints(
+        amm=_amm_blueprint,
+        controller=_controller_blueprint,
+        vault=_vault_blueprint,
+        price_oracle=_pool_price_oracle_blueprint,
+        controller_view=_controller_view_blueprint,
     )
 
 
 @external
-@nonreentrant
-def set_default_rates(min_rate: uint256, max_rate: uint256):
+@view
+@reentrant
+def admin() -> address:
     """
-    @notice Change min and max default borrow rates for creating new markets
-    @param min_rate Minimal borrow rate (0 utilization)
-    @param max_rate Maxumum borrow rate (100% utilization)
+    @notice Get the admin of the factory
     """
-    assert msg.sender == self.admin
-
-    assert min_rate >= MIN_RATE
-    assert max_rate <= MAX_RATE
-    assert max_rate >= min_rate
-
-    self.min_default_borrow_rate = min_rate
-    self.max_default_borrow_rate = max_rate
-
-    log ILendingFactory.SetDefaultRates(min_rate=min_rate, max_rate=max_rate)
+    return ownable.owner
 
 
 @external
-@nonreentrant
-def set_admin(admin: address):
-    """
-    @notice Set admin of the factory (should end up with DAO)
-    @param admin Address of the admin
-    """
-    assert msg.sender == self.admin
-    self.admin = admin
-    log ILendingFactory.SetAdmin(admin=admin)
-
-
-@external
-@nonreentrant
-def set_fee_receiver(fee_receiver: address):
+def set_fee_receiver(_fee_receiver: address):
     """
     @notice Set fee receiver who earns interest (DAO)
-    @param fee_receiver Address of the receiver
+    @param _fee_receiver Address of the receiver
     """
-    assert msg.sender == self.admin
-    assert fee_receiver != empty(address)
-    self.fee_receiver = fee_receiver
-    log ILendingFactory.SetFeeReceiver(fee_receiver=fee_receiver)
+    ownable._check_owner()
+    assert _fee_receiver != empty(address)
+    self.fee_receiver = _fee_receiver
+    log ILendingFactory.SetFeeReceiver(fee_receiver=_fee_receiver)
 
 
 @external
 @view
-def coins(vault_id: uint256) -> address[2]:
-    vault: IVault = self.vaults[vault_id]
-    return [(staticcall vault.borrowed_token()).address, (staticcall vault.collateral_token()).address]
+@reentrant
+def coins(_vault_id: uint256) -> IERC20[2]:
+    vault: IVault = self.vaults[_vault_id]
+    return [staticcall vault.borrowed_token(), staticcall vault.collateral_token()]

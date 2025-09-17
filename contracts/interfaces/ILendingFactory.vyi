@@ -1,29 +1,45 @@
-event SetImplementations:
+from contracts.interfaces import IERC20
+from contracts.interfaces import IAMM
+from contracts.interfaces import ILlamalendController as IController
+from contracts.interfaces import IVault
+from contracts.interfaces import IPriceOracle
+from contracts.interfaces import IMonetaryPolicy
+
+
+event SetBlueprints:
     amm: address
     controller: address
     vault: address
     price_oracle: address
-    monetary_policy: address
-    view: address
+    controller_view: address
 
-event SetDefaultRates:
-    min_rate: uint256
-    max_rate: uint256
-
-event SetAdmin:
-    admin: address
 
 event SetFeeReceiver:
     fee_receiver: address
 
+
 event NewVault:
     id: indexed(uint256)
-    collateral_token: indexed(address)
-    borrowed_token: indexed(address)
-    vault: address
-    controller: address
-    amm: address
-    price_oracle: address
-    monetary_policy: address
+    collateral_token: indexed(IERC20)
+    borrowed_token: indexed(IERC20)
+    vault: IVault
+    controller: IController
+    amm: IAMM
+    price_oracle: IPriceOracle
+    monetary_policy: IMonetaryPolicy
 
+
+def create(
+    _borrowed_token: IERC20,
+    _collateral_token: IERC20,
+    _A: uint256,
+    _fee: uint256,
+    _loan_discount: uint256,
+    _liquidation_discount: uint256,
+    _price_oracle: IPriceOracle,
+    _monetary_policy: IMonetaryPolicy,
+    _name: String[64],
+    _supply_limit: uint256,
+) -> address[3]:
+    ...
 # TODO populate this
