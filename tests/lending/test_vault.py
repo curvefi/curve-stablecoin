@@ -9,9 +9,21 @@ from hypothesis.stateful import (
     invariant,
 )
 
+SECONDS_PER_YEAR = 365 * 86400
 
 # TODO get this from contract directly
 DEAD_SHARES = 1000
+
+
+@pytest.fixture(scope="module")
+def min_borrow_rate():
+    """Keep borrow APR aligned with stateful invariant (0.5% APR)."""
+    return (5 * 10**15) // SECONDS_PER_YEAR
+
+
+@pytest.fixture(scope="module")
+def max_borrow_rate():
+    return (50 * 10**16) // SECONDS_PER_YEAR
 
 
 @pytest.fixture(scope="module")
