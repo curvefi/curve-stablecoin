@@ -1,4 +1,4 @@
-# TODO missing pragmas
+# pragma version 0.4.3
 from contracts.interfaces import IERC20
 
 

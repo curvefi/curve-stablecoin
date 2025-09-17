@@ -44,6 +44,8 @@ from contracts.interfaces import IERC20
 
 from contracts import constants as c
 
+from contracts.lib import token_lib as tkn
+
 
 # TODO common constants
 MAX_TICKS: constant(int256) = 50
@@ -167,15 +169,6 @@ def __init__(
     MAX_ORACLE_DN_POW = pow
 
 
-@internal
-def approve_max(token: IERC20, _admin: address):
-    """
-    Approve max in a separate function because it uses less bytespace than
-    calling directly, and gas doesn't matter in set_admin
-    """
-    assert extcall token.approve(_admin, max_value(uint256), default_return_value=True)
-
-
 @external
 def set_admin(_admin: address):
     """
@@ -184,8 +177,8 @@ def set_admin(_admin: address):
     """
     assert self.admin == empty(address)
     self.admin = _admin
-    self.approve_max(BORROWED_TOKEN, _admin)
-    self.approve_max(COLLATERAL_TOKEN, _admin)
+    tkn.max_approve(BORROWED_TOKEN, _admin)
+    tkn.max_approve(COLLATERAL_TOKEN, _admin)
 
 
 @internal
@@ -1135,8 +1128,8 @@ def _exchange(i: uint256, j: uint256, amount: uint256, minmax_amount: uint256, _
             ),
             max_outsize=32, revert_on_failure=False)
 
-    assert extcall in_coin.transferFrom(msg.sender, self, in_amount_done, default_return_value=True)
-    assert extcall out_coin.transfer(_for, out_amount_done, default_return_value=True)
+    tkn.transfer_from(in_coin, msg.sender, self, in_amount_done)
+    tkn.transfer(out_coin, _for, out_amount_done)
 
     return [in_amount_done, out_amount_done]
 
