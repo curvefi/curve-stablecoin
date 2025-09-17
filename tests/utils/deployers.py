@@ -28,6 +28,7 @@ PRICE_ORACLES_CONTRACT_PATH = "contracts/price_oracles/"
 STABILIZER_CONTRACT_PATH = "contracts/stabilizer/"
 FLASHLOAN_CONTRACT_PATH = "contracts/flashloan/"
 STABLESWAP_NG_PATH = "contracts/testing/stableswap-ng/contracts/main/"
+ZAPS_CONTRACT_PATH = "contracts/zaps/"
 
 # Constants contract (for accessing constants)
 CONSTANTS_DEPLOYER = boa.load_partial(
@@ -38,26 +39,14 @@ CONSTANTS_DEPLOYER = boa.load_partial(
 AMM_DEPLOYER = boa.load_partial(
     BASE_CONTRACT_PATH + "AMM.vy", compiler_args=compiler_args_default
 )
-# Controller.vy has #pragma optimize codesize
 CONTROLLER_DEPLOYER = boa.load_partial(
     BASE_CONTRACT_PATH + "Controller.vy", compiler_args=compiler_args_codesize
 )
 CONTROLLER_VIEW_DEPLOYER = boa.load_partial(
     BASE_CONTRACT_PATH + "ControllerView.vy", compiler_args=compiler_args_codesize
 )
-controller_view_impl = CONTROLLER_VIEW_DEPLOYER.deploy_as_blueprint()
-# MintController.vy has #pragma optimize codesize
-# view_impl address has to be set in MintController.vy
-with open(BASE_CONTRACT_PATH + "MintController.vy", "r") as f:
-    mint_controller_code = f.read()
-mint_controller_code = mint_controller_code.replace(
-    "empty(address),  # to replace at deployment with view blueprint",
-    f"{controller_view_impl.address},",
-    1,
-)
-assert f"{controller_view_impl.address}," in mint_controller_code
-MINT_CONTROLLER_DEPLOYER = boa.loads_partial(
-    mint_controller_code, compiler_args=compiler_args_codesize
+MINT_CONTROLLER_DEPLOYER = boa.load_partial(
+    BASE_CONTRACT_PATH + "MintController.vy", compiler_args=compiler_args_codesize
 )
 CONTROLLER_FACTORY_DEPLOYER = boa.load_partial(
     BASE_CONTRACT_PATH + "ControllerFactory.vy", compiler_args=compiler_args_default
@@ -86,6 +75,11 @@ LENDING_FACTORY_DEPLOYER = boa.load_partial(
 # Flashloan contracts
 FLASH_LENDER_DEPLOYER = boa.load_partial(
     FLASHLOAN_CONTRACT_PATH + "FlashLender.vy", compiler_args=compiler_args_default
+)
+
+# Zap contracts
+PARTIAL_REPAY_ZAP_DEPLOYER = boa.load_partial(
+    ZAPS_CONTRACT_PATH + "PartialRepayZap.vy", compiler_args=compiler_args_default
 )
 
 # Monetary policies - all have no pragma
@@ -191,9 +185,6 @@ WETH_DEPLOYER = boa.load_partial(
 VOTING_ESCROW_DEPLOYER = boa.load_partial(
     TESTING_CONTRACT_PATH + "VotingEscrow.vy", compiler_args=compiler_args_default
 )
-VE_DELEGATION_MOCK_DEPLOYER = boa.load_partial(
-    TESTING_CONTRACT_PATH + "VEDelegationMock.vy", compiler_args=compiler_args_default
-)
 GAUGE_CONTROLLER_DEPLOYER = boa.load_partial(
     TESTING_CONTRACT_PATH + "GaugeController.vy", compiler_args=compiler_args_default
 )
@@ -246,15 +237,6 @@ MOCK_SWAP3_DEPLOYER = boa.load_partial(
 )
 SWAP_FACTORY_DEPLOYER = boa.load_partial(
     TESTING_CONTRACT_PATH + "SwapFactory.vy", compiler_args=compiler_args_default
-)
-OPTIMIZE_MATH_DEPLOYER = boa.load_partial(
-    TESTING_CONTRACT_PATH + "OptimizeMath.vy", compiler_args=compiler_args_default
-)
-TEST_PACKING_DEPLOYER = boa.load_partial(
-    TESTING_CONTRACT_PATH + "TestPacking.vy", compiler_args=compiler_args_default
-)
-OLD_AMM_DEPLOYER = boa.load_partial(
-    TESTING_CONTRACT_PATH + "OldAMM.vy", compiler_args=compiler_args_default
 )
 
 # LP oracle testing contracts
