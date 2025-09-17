@@ -89,10 +89,6 @@ collected: public(uint256)
 
 # Unlike mint markets admin fee here is can be less than 100%
 admin_fee: public(uint256)
-# TODO check this
-MAX_ADMIN_FEE: constant(uint256) = 2 * 10**17  # 20%
-
-# TODO add natrix
 
 
 @deploy
@@ -258,7 +254,4 @@ def set_admin_fee(admin_fee: uint256):
     @param admin_fee The fee which should be no higher than MAX_ADMIN_FEE
     """
     core._check_admin()
-    assert (
-        admin_fee <= MAX_ADMIN_FEE
-    )  # dev: admin_fee is higher than MAX_ADMIN_FEE
     self.admin_fee = admin_fee
