@@ -1,5 +1,5 @@
 # TODO missing pragmas
-from ethereum.ercs import IERC20
+from contracts.interfaces import IERC20
 
 
 @internal

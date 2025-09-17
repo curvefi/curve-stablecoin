@@ -1,6 +1,6 @@
 # pragma version 0.4.3
 
-from ethereum.ercs import IERC20
+from contracts.interfaces import IERC20
 
 rate: public(uint256)
 

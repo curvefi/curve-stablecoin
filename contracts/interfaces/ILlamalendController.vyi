@@ -1,6 +1,5 @@
 from contracts.interfaces import IVault
-
-from ethereum.ercs import IERC20
+from contracts.interfaces import IERC20
 from contracts.interfaces import ILMGauge
 from contracts.interfaces import IAMM
 from contracts.interfaces import IMonetaryPolicy

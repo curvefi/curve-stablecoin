@@ -10,7 +10,7 @@
 @custom:security security@curve.fi
 """
 
-from ethereum.ercs import IERC20
+from contracts.interfaces import IERC20
 from contracts.interfaces import IAMM
 from contracts.interfaces import IMonetaryPolicy
 from contracts.interfaces import IVault

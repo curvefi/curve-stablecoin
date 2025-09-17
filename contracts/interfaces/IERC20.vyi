@@ -48,5 +48,3 @@ def symbol() -> String[1]:
 @view
 def decimals() -> uint8:
     ...
-
-# TODO replace all occurrences of IERC20 with this interface

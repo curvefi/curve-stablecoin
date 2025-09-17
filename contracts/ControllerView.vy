@@ -12,8 +12,7 @@
 from contracts.interfaces import IAMM
 from contracts.interfaces import IMintController as IController
 
-from ethereum.ercs import IERC20
-from ethereum.ercs import IERC20Detailed
+from contracts.interfaces import IERC20
 
 from contracts import Controller as core
 import contracts.lib.liquidation_lib as liq

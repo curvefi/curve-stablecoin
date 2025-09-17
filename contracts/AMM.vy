@@ -40,7 +40,7 @@ implements: IAMM
 from contracts.interfaces import IPriceOracle
 from contracts.interfaces import ILMGauge
 
-from ethereum.ercs import IERC20
+from contracts.interfaces import IERC20
 
 from contracts import constants as c
 

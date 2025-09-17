@@ -8,7 +8,7 @@
     main controller contract forwards all relevant calls.
 """
 
-from ethereum.ercs import IERC20
+from contracts.interfaces import IERC20
 from contracts.interfaces import IMintController as IController
 from contracts.interfaces import ILlamalendController
 from contracts.interfaces import IAMM

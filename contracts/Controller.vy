@@ -15,8 +15,7 @@ from contracts.interfaces import IMonetaryPolicy
 from contracts.interfaces import ILMGauge
 from contracts.interfaces import IFactory
 from contracts.interfaces import IPriceOracle
-from ethereum.ercs import IERC20
-from ethereum.ercs import IERC20Detailed
+from contracts.interfaces import IERC20
 
 # TODO just rename interface of mint controller to "icontroller"
 from contracts.interfaces import IMintController as IController
@@ -157,16 +156,12 @@ def __init__(
     MAX_AMM_FEE = min(WAD * MIN_TICKS_UINT // A, 10**17)
 
     COLLATERAL_TOKEN = _collateral_token
-    collateral_decimals: uint256 = convert(
-        staticcall IERC20Detailed(COLLATERAL_TOKEN.address).decimals(), uint256
-    )
+    collateral_decimals: uint256 = convert(staticcall COLLATERAL_TOKEN.decimals(), uint256)
     COLLATERAL_PRECISION = pow_mod256(10, 18 - collateral_decimals)
 
     BORROWED_TOKEN = _borrowed_token
     # TODO refactor this logic to be shared with view
-    borrowed_decimals: uint256 = convert(
-        staticcall IERC20Detailed(BORROWED_TOKEN.address).decimals(), uint256
-    )
+    borrowed_decimals: uint256 = convert(staticcall BORROWED_TOKEN.decimals(), uint256)
     BORROWED_PRECISION = pow_mod256(10, 18 - borrowed_decimals)
 
     self._monetary_policy = monetary_policy

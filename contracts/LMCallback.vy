@@ -6,7 +6,7 @@
 @notice LM callback works like a gauge for collateral in LlamaLend/crvUSD AMMs
 """
 
-from ethereum.ercs import IERC20
+from contracts.interfaces import IERC20
 
 interface ILLAMMA:
     def coins(i: uint256) -> address: view
