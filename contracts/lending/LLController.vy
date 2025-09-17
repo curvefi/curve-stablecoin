@@ -172,8 +172,6 @@ def borrowed_balance() -> uint256:
     return self._borrowed_balance()
 
 
-# TODO delete deprecated and legacy files
-
 @external
 def create_loan(
     collateral: uint256,
