@@ -58,6 +58,9 @@ totalSupply: public(uint256)
 
 precision: uint256
 
+# Only needed for initialize
+interface IERC20Symbol:
+    def symbol() -> String[32]: view
 
 @external
 def initialize(
@@ -85,7 +88,7 @@ def initialize(
 
     # ERC20 set up
     self.precision = borrowed_precision
-    borrowed_symbol: String[32] = staticcall borrowed_token.symbol()
+    borrowed_symbol: String[32] = staticcall IERC20Symbol(borrowed_token.address).symbol()
     self.name = concat(NAME_PREFIX, borrowed_symbol)
     # Symbol must be String[32], but we do String[34]. It doesn't affect contracts which read it (they will truncate)
     # However this will be changed as soon as Vyper can *properly* manipulate strings
