@@ -29,8 +29,6 @@ exports: (
     ownable.transfer_ownership,
 )
 
-# TODO move A to constants
-# TODO A this low is unsafe
 MIN_A: constant(uint256) = 2
 MAX_A: constant(uint256) = 10000
 MIN_FEE: constant(uint256) = 10**6  # 1e-12, still needs to be above 0
