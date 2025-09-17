@@ -7,7 +7,7 @@ from tests.utils.deployers import (
     ERC20_MOCK_DEPLOYER,
     CONSTANT_MONETARY_POLICY_LENDING_DEPLOYER,
 )
-
+from tests.utils.protocols import Llamalend
 
 boa.env.enable_fast_mode()
 
@@ -34,7 +34,7 @@ settings.load_profile("no-shrink")
 
 @pytest.fixture(scope="module")
 def proto():
-    return Protocol()
+    return Llamalend()
 
 
 @pytest.fixture(scope="module")

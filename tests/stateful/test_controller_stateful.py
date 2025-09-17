@@ -32,6 +32,7 @@ from tests.utils.constants import (
     MIN_LIQUIDATION_DISCOUNT,
     MIN_TICKS,
 )
+from tests.utils.protocols import Llamalend
 
 
 # Debt ceiling has no explicit on-chain limit; choose a realistic test bound
@@ -45,8 +46,8 @@ debt_ceilings = integers(min_value=0, max_value=DEBT_CEILING_MAX)
 token_decimals = integers(min_value=2, max_value=18)
 prices = integers(min_value=int(1e12), max_value=int(1e24))
 
-# A simple strategy to initialize Protocol using Hypothesis builds
-protocols = builds(Protocol, initial_price=prices)
+# A simple strategy to initialize Llamalend using Hypothesis builds
+protocols = builds(Llamalend, initial_price=prices)
 
 # A simple strategy to deploy a collateral token with fuzzed decimals
 collaterals = builds(ERC20_MOCK_DEPLOYER.deploy, token_decimals)
