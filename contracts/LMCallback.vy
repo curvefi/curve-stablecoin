@@ -158,7 +158,7 @@ def _checkpoint_collateral_shares(n_start: int256, collateral_per_share: DynArra
     total_collateral: uint256 = staticcall COLLATERAL_TOKEN.balanceOf(AMM.address)
     delta_rpc: uint256 = 0
 
-    if total_collateral > 0 and block.timestamp > I_rpc.t:  # XXX should we not loop when total_collateral == 0?
+    if total_collateral > 0 and block.timestamp > I_rpc.t:
         extcall GAUGE_CONTROLLER.checkpoint_gauge(self)
         prev_week_time: uint256 = I_rpc.t
         week_time: uint256 = min(unsafe_div(prev_week_time + WEEK, WEEK) * WEEK, block.timestamp)
