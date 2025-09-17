@@ -10,6 +10,7 @@
 @author Curve.fi
 @license Copyright (c) Curve.Fi, 2020-2024 - all rights reserved
 """
+# TODO bump to vyper 0.4.3
 from vyper.interfaces import ERC20
 
 

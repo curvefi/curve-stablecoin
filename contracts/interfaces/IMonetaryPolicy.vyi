@@ -1,2 +1,6 @@
 def rate_write() -> uint256:
     ...
+
+@view
+def rate() -> uint256:
+    ...
