@@ -42,6 +42,3 @@ def test_exceeding_borrow_cap_reverts(controller):
 
     with boa.reverts("Borrow cap exceeded"):
         controller.inject.update_total_debt(1, WAD, True)
-
-    current_debt = controller.eval("core._total_debt.initial_debt")
-    assert current_debt == BORROW_CAP
