@@ -246,9 +246,10 @@ def set_borrow_cap(_borrow_cap: uint256):
 
 
 @external
-def set_admin_fee(admin_fee: uint256):
+def set_admin_fee(_admin_fee: uint256):
     """
-    @param admin_fee The fee which should be no higher than MAX_ADMIN_FEE
+    @param _admin_fee The percentage of interest that goes to the admin, scaled by 1e18
     """
     core._check_admin()
-    self.admin_fee = admin_fee
+    assert _admin_fee <= core.WAD # dev: admin fee higher than 100%
+    self.admin_fee = _admin_fee
