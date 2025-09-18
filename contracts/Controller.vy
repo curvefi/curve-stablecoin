@@ -163,9 +163,7 @@ def __init__(
     BORROWED_PRECISION = pow_mod256(10, 18 - borrowed_decimals)
 
     # This is useless for lending markets, but leaving it doesn't create any harm
-    assert extcall BORROWED_TOKEN.approve(
-        FACTORY.address, max_value(uint256), default_return_value=True
-    )
+    tkn.max_approve(BORROWED_TOKEN, FACTORY.address)
 
     self._monetary_policy = monetary_policy
     self.liquidation_discount = liquidation_discount

@@ -14,7 +14,6 @@ from contracts.interfaces import IERC20
 from contracts.interfaces import IAMM
 from contracts.interfaces import IMonetaryPolicy
 from contracts.interfaces import IVault
-
 from contracts.interfaces import IController
 
 implements: IController
@@ -26,6 +25,8 @@ implements: ILlamalendController
 from contracts import Controller as core
 
 initializes: core
+
+from contracts.lib import token_lib as tkn
 
 exports: (
     # Loan management
@@ -124,9 +125,7 @@ def __init__(
     )
 
     core.borrow_cap = 0
-    assert extcall core.BORROWED_TOKEN.approve(
-        VAULT.address, max_value(uint256), default_return_value=True
-    )
+    tkn.max_approve(core.BORROWED_TOKEN, VAULT.address)
 
 
 @external
