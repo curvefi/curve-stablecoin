@@ -907,7 +907,8 @@ def repay(
 ):
     """
     @notice Repay debt (partially or fully)
-    @param _d_debt The amount of debt to repay from user's wallet. If higher than the current debt - will do full repayment
+    @param _d_debt The amount of debt to repay from user's wallet.
+                   If it's max_value(uint256) or just higher than the current debt - will do full repayment.
     @param _for The user to repay the debt for
     @param max_active_band Don't allow active band to be higher than this (to prevent front-running the repay)
     @param callbacker Address of the callback contract
@@ -929,18 +930,16 @@ def repay(
             callbacker, CALLBACK_REPAY, _for, xy[0], xy[1], debt, calldata
         )
 
-    total_borrowed: uint256 = _d_debt + xy[0] + cb.borrowed
-    assert total_borrowed > 0  # dev: no coins to repay
-    d_debt: uint256 = 0
+    d_debt: uint256 = min(min(_d_debt, debt) + xy[0] + cb.borrowed, debt)
+    assert d_debt > 0  # dev: no coins to repay
 
     # If we have more borrowed tokens than the debt - full repayment and closing the position
-    if total_borrowed >= debt:
-        d_debt = debt
+    if d_debt >= debt:
         debt = 0
         if callbacker == empty(address):
             xy = extcall AMM.withdraw(_for, WAD)
 
-        total_borrowed = 0
+        total_borrowed: uint256 = 0
         if xy[0] > 0:
             # Only allow full repayment when underwater for the sender to do
             assert approval
@@ -983,7 +982,6 @@ def repay(
         active_band: int256 = staticcall AMM.active_band_with_skip()
         assert active_band <= max_active_band
 
-        d_debt = total_borrowed
         debt = unsafe_sub(debt, d_debt)
         ns: int256[2] = staticcall AMM.read_user_tick_numbers(_for)
         size: int256 = unsafe_sub(ns[1], ns[0])
