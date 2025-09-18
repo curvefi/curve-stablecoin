@@ -35,6 +35,7 @@ jobs:
       fail-fast: false
       matrix:
         folder:
+          - "tests/unitary"
           - "tests/flashloan"
           - "tests/lm_callback"
           - "tests/controller"
