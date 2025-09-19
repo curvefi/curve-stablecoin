@@ -1,5 +1,7 @@
 import boa
 
+from tests.utils.constants import MAX_UINT256
+
 
 def mint_for_testing(token, to, amount):
     # DO NOT USE: this is an old function for backwards compatibility.
@@ -11,3 +13,7 @@ def filter_logs(contract, event_name, _strict=False):
     return [
         e for e in contract.get_logs(strict=_strict) if type(e).__name__ == event_name
     ]
+
+
+def max_approve(token, spender, *args, **kwargs):
+    token.approve(spender, MAX_UINT256, *args, **kwargs)
