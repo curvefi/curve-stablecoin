@@ -2,10 +2,10 @@
 # pragma nonreentrancy on
 # pragma optimize codesize
 """
-@title LlamaLend Controller
+@title LlamaLend Lend Market Controller
 @author Curve.Fi
 @license Copyright (c) Curve.Fi, 2020-2025 - all rights reserved
-@notice Main contract to interact with a Llamalend lend market. Each
+@notice Main contract to interact with a Llamalend Lend Market. Each
     contract is specific to a single mint market.
 @custom:security security@curve.fi
 """
@@ -81,14 +81,23 @@ exports: (
 
 VAULT: immutable(IVault)
 
+# https://github.com/vyperlang/vyper/issues/4721
+@external
+@view
+def vault() -> IVault:
+    """
+    @notice Address of the vault
+    """
+    return VAULT
+
+
 
 # cumulative amount of assets ever lent
 lent: public(uint256)
 # cumulative amount of assets collected by admin
 collected: public(uint256)
 
-
-# Unlike mint markets admin fee here is can be less than 100%
+# TODO Rename to admin percentage?
 admin_fee: public(uint256)
 
 
@@ -104,7 +113,7 @@ def __init__(
     view_impl: address,
 ):
     """
-    @notice Controller constructor deployed by the factory from blueprint
+    @notice Lend Controller constructor
     @param collateral_token Token to use for collateral
     @param monetary_policy Address of monetary policy
     @param loan_discount Discount of the maximum loan size compare to get_x_down() value
@@ -124,13 +133,20 @@ def __init__(
         view_impl,
     )
 
+    # Borrow cap is zero by default in lend markets. The admin has to raise it
+    # after deployment to allow borrowing.
     core.borrow_cap = 0
+
+    # Pre-approve the vault to transfer borrowed tokens out of the controller
     tkn.max_approve(core.BORROWED_TOKEN, VAULT.address)
 
 
 @external
 @view
 def version() -> String[10]:
+    """
+    @notice Version of this controller
+    """
     return concat(core.version, "-lend")
 
 
@@ -138,24 +154,24 @@ def version() -> String[10]:
 @view
 def borrow_cap() -> uint256:
     """
-    @notice Current borrow cap
+    @notice Maximum amount of borrowed tokens that can be lent out at any time.
     """
     return core.borrow_cap
 
 
 @external
 @view
-def vault() -> IVault:
+def borrowed_balance() -> uint256:
     """
-    @notice Address of the vault
+    @notice Amount of borrowed token the controller currently holds.
+    @dev Used by the vault for its accounting logic.
     """
-    return VAULT
-
-
-@internal
-@view
-def _borrowed_balance() -> uint256:
-    # (VAULT.deposited() - VAULT.withdrawn()) - (self.lent - self.repaid) - self.collected
+    # TODO rename to `borrowed_token_balance` for clarity?
+    # Start from the vault’s net funding of borrowed tokens (deposited − withdrawn),
+    # subtract the portion we actually lent out that hasn’t been repaid yet (lent − repaid),
+    # and subtract what the admin already skimmed as fees; what’s left is the controller’s idle cash.
+    # (VAULT.deposited() - VAULT.withdrawn()) - (lent - repaid) - self.collected
+    # The terms are rearranged to avoid underflows in intermediate steps.
     return (
         staticcall VAULT.deposited()
         + core.repaid
@@ -163,12 +179,6 @@ def _borrowed_balance() -> uint256:
         - self.lent
         - self.collected
     )
-
-
-@external
-@view
-def borrowed_balance() -> uint256:
-    return self._borrowed_balance()
 
 
 @external
@@ -181,7 +191,7 @@ def create_loan(
     calldata: Bytes[10**4] = b"",
 ):
     """
-    @notice Create loan but pass borrowed to a callback first so that it can build leverage
+    @notice Create loan but pass borrowed tokens to a callback first so that it can build leverage
     @param collateral Amount of collateral to use
     @param debt Borrowed asset debt to take
     @param N Number of bands to deposit into (to do autoliquidation-deliquidation),
@@ -204,6 +214,14 @@ def borrow_more(
     callbacker: address = empty(address),
     calldata: Bytes[10**4] = b"",
 ):
+    """
+    @notice Borrow more borrowed tokens while adding more collateral using a callback (to leverage more)
+    @param collateral Amount of collateral to add
+    @param debt Amount of borrowed asset debt to take
+    @param _for Address to borrow for
+    @param callbacker Address of the callback contract
+    @param calldata Any data for callbacker
+    """
     _debt: uint256 = core._borrow_more(
         collateral,
         debt,
@@ -218,6 +236,9 @@ def borrow_more(
 @external
 @view
 def admin_fees() -> uint256:
+    """
+    @notice Return the amount of borrowed tokens that have been collected as fees.
+    """
     return core._admin_fees(self.admin_fee)
 
 
@@ -228,12 +249,6 @@ def collect_fees() -> uint256:
     return fees
 
 
-@internal
-def _set_borrow_cap(_borrow_cap: uint256):
-    core.borrow_cap = _borrow_cap
-    log ILlamalendController.SetBorrowCap(borrow_cap=_borrow_cap)
-
-
 @external
 def set_borrow_cap(_borrow_cap: uint256):
     """
@@ -242,7 +257,8 @@ def set_borrow_cap(_borrow_cap: uint256):
     @param _borrow_cap New borrow cap in units of borrowed_token
     """
     core._check_admin()
-    self._set_borrow_cap(_borrow_cap)
+    core.borrow_cap = _borrow_cap
+    log ILlamalendController.SetBorrowCap(borrow_cap=_borrow_cap)
 
 
 @external
@@ -253,3 +269,4 @@ def set_admin_fee(_admin_fee: uint256):
     core._check_admin()
     assert _admin_fee <= core.WAD # dev: admin fee higher than 100%
     self.admin_fee = _admin_fee
+    log ILlamalendController.SetAdminFee(admin_fee=_admin_fee)

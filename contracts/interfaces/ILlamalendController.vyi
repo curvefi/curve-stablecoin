@@ -73,6 +73,10 @@ event CollectFees:
     new_supply: uint256
 
 
+event SetAdminFee:
+    admin_fee: uint256
+
+
 # Functions
 
 @view
