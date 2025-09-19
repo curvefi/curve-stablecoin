@@ -2,10 +2,10 @@
 # pragma nonreentrancy on
 # pragma optimize codesize
 """
-@title crvUSD Controller
+@title Llamalend Mint Market Controller
 @author Curve.Fi
 @license Copyright (c) Curve.Fi, 2020-2025 - all rights reserved
-@notice Main contract to interact with a Llamalend mint market. Each
+@notice Main contract to interact with a Llamalend Mint Market. Each
     contract is specific to a single mint market.
 @custom:security security@curve.fi
 """
@@ -138,9 +138,11 @@ def __init__(
     _AMM: IAMM,
     view_impl: address,
 ):
+    # TODO add sanity check for zero addresses
 
     # In MintController the correct way to limit borrowing
-    # is through the debt ceiling.
+    # is through the debt ceiling. This is here to be used
+    # in LendController only.
     self.borrow_cap = max_value(uint256)
 
     FACTORY = IFactory(msg.sender)
