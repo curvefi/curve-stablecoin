@@ -244,6 +244,9 @@ def admin_fees() -> uint256:
 
 @external
 def collect_fees() -> uint256:
+    """
+    @notice Collect the fees charged as interest that belong to the admin.
+    """
     fees: uint256 = core._collect_fees(self.admin_fee)
     self.collected += fees
     return fees
