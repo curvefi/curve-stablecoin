@@ -25,3 +25,4 @@ prof
 .prof
 .pytest_cache
 AGENTS.md
+.ruff_cache
