@@ -1,5 +1,5 @@
 import boa
-from tests.utils.deployers import AMM_DEPLOYER, LL_CONTROLLER_DEPLOYER
+from tests.utils.deployers import AMM_DEPLOYER, LEND_CONTROLLER_DEPLOYER
 
 
 def test_stablecoin_admin(controller_factory, stablecoin, accounts):
@@ -48,7 +48,7 @@ def test_add_market(
                 == collateral_token.address.lower()
             )
 
-            controller = LL_CONTROLLER_DEPLOYER.at(
+            controller = LEND_CONTROLLER_DEPLOYER.at(
                 controller_factory.get_controller(collateral_token.address)
             )
             amm = AMM_DEPLOYER.at(controller_factory.get_amm(collateral_token.address))

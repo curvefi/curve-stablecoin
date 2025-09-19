@@ -100,7 +100,7 @@ def amm_impl(proto):
 
 @pytest.fixture(scope="module")
 def controller_impl(proto):
-    return proto.blueprints.ll_controller
+    return proto.blueprints.lend_controller
 
 
 @pytest.fixture(scope="module")

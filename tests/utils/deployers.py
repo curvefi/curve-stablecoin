@@ -62,11 +62,11 @@ STABLESWAP_DEPLOYER = boa.load_partial(
 VAULT_DEPLOYER = boa.load_partial(
     LENDING_CONTRACT_PATH + "Vault.vy", compiler_args=compiler_args_codesize
 )
-LL_CONTROLLER_DEPLOYER = boa.load_partial(
-    LENDING_CONTRACT_PATH + "LLController.vy", compiler_args=compiler_args_codesize
+LEND_CONTROLLER_DEPLOYER = boa.load_partial(
+    LENDING_CONTRACT_PATH + "LendController.vy", compiler_args=compiler_args_codesize
 )
-LL_CONTROLLER_VIEW_DEPLOYER = boa.load_partial(
-    LENDING_CONTRACT_PATH + "LLControllerView.vy", compiler_args=compiler_args_default
+LEND_CONTROLLER_VIEW_DEPLOYER = boa.load_partial(
+    LENDING_CONTRACT_PATH + "LendControllerView.vy", compiler_args=compiler_args_default
 )
 LENDING_FACTORY_DEPLOYER = boa.load_partial(
     LENDING_CONTRACT_PATH + "LendingFactory.vy", compiler_args=compiler_args_codesize
