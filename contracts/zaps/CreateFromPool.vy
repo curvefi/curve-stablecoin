@@ -18,8 +18,8 @@ POOL_PRICE_ORACLE_BLUEPRINT: public(immutable(address))
 
 
 @deploy
-def __init__(_factory: address, _pool_price_oracle_blueprint: address):
-    FACTORY = ILendingFactory(_factory)
+def __init__(_factory: ILendingFactory, _pool_price_oracle_blueprint: address):
+    FACTORY = _factory
     POOL_PRICE_ORACLE_BLUEPRINT = _pool_price_oracle_blueprint
 
 

@@ -35,6 +35,10 @@ jobs:
       fail-fast: false
       matrix:
         folder:
+          - "tests/unitary"
+          - "tests/e2e"
+          # - "tests/stateful" not ready yet
+          # Old tests to be migrated
           - "tests/flashloan"
           - "tests/lm_callback"
           - "tests/controller"

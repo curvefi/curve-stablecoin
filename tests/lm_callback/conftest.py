@@ -12,7 +12,7 @@ from tests.utils.deployers import (
     CONSTANT_MONETARY_POLICY_DEPLOYER,
     LM_CALLBACK_DEPLOYER,
     BLOCK_COUNTER_DEPLOYER,
-    LL_CONTROLLER_DEPLOYER,
+    LEND_CONTROLLER_DEPLOYER,
 )
 
 
@@ -159,7 +159,7 @@ def market_amm(market, collateral_token, stablecoin, accounts):
 def market_controller(
     market, stablecoin, collateral_token, controller_factory, accounts
 ):
-    return LL_CONTROLLER_DEPLOYER.at(market.get_controller(collateral_token.address))
+    return LEND_CONTROLLER_DEPLOYER.at(market.get_controller(collateral_token.address))
 
 
 @pytest.fixture(scope="module")

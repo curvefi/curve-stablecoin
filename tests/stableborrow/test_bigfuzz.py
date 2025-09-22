@@ -11,7 +11,7 @@ from hypothesis.stateful import (
     invariant,
 )
 
-from tests.utils.deployers import AMM_DEPLOYER, LL_CONTROLLER_DEPLOYER
+from tests.utils.deployers import AMM_DEPLOYER, LEND_CONTROLLER_DEPLOYER
 
 # Variables and methods to check
 # * A
@@ -537,7 +537,7 @@ def test_big_fuzz(
     collateral_token = ERC20_MOCK_DEPLOYER.deploy(collateral_digits)
     market = get_market(collateral_token)
     market_amm = AMM_DEPLOYER.at(market.get_amm(collateral_token.address))
-    market_controller = LL_CONTROLLER_DEPLOYER.at(
+    market_controller = LEND_CONTROLLER_DEPLOYER.at(
         market.get_controller(collateral_token.address)
     )
     fake_leverage = get_fake_leverage(collateral_token, market_controller)

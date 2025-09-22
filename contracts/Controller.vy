@@ -2,10 +2,10 @@
 # pragma nonreentrancy on
 # pragma optimize codesize
 """
-@title crvUSD Controller
+@title Llamalend Mint Market Controller
 @author Curve.Fi
 @license Copyright (c) Curve.Fi, 2020-2025 - all rights reserved
-@notice Main contract to interact with a Llamalend mint market. Each
+@notice Main contract to interact with a Llamalend Mint Market. Each
     contract is specific to a single mint market.
 @custom:security security@curve.fi
 """
@@ -138,9 +138,11 @@ def __init__(
     _AMM: IAMM,
     view_impl: address,
 ):
+    # TODO add sanity check for zero addresses
 
     # In MintController the correct way to limit borrowing
-    # is through the debt ceiling.
+    # is through the debt ceiling. This is here to be used
+    # in LendController only.
     self.borrow_cap = max_value(uint256)
 
     FACTORY = IFactory(msg.sender)
@@ -163,9 +165,7 @@ def __init__(
     BORROWED_PRECISION = pow_mod256(10, 18 - borrowed_decimals)
 
     # This is useless for lending markets, but leaving it doesn't create any harm
-    assert extcall BORROWED_TOKEN.approve(
-        FACTORY.address, max_value(uint256), default_return_value=True
-    )
+    tkn.max_approve(BORROWED_TOKEN, FACTORY.address)
 
     self._monetary_policy = monetary_policy
     self.liquidation_discount = liquidation_discount
@@ -907,7 +907,8 @@ def repay(
 ):
     """
     @notice Repay debt (partially or fully)
-    @param _d_debt The amount of debt to repay from user's wallet. If higher than the current debt - will do full repayment
+    @param _d_debt The amount of debt to repay from user's wallet.
+                   If it's max_value(uint256) or just higher than the current debt - will do full repayment.
     @param _for The user to repay the debt for
     @param max_active_band Don't allow active band to be higher than this (to prevent front-running the repay)
     @param callbacker Address of the callback contract
@@ -929,18 +930,16 @@ def repay(
             callbacker, CALLBACK_REPAY, _for, xy[0], xy[1], debt, calldata
         )
 
-    total_borrowed: uint256 = _d_debt + xy[0] + cb.borrowed
-    assert total_borrowed > 0  # dev: no coins to repay
-    d_debt: uint256 = 0
+    d_debt: uint256 = min(min(_d_debt, debt) + xy[0] + cb.borrowed, debt)
+    assert d_debt > 0  # dev: no coins to repay
 
     # If we have more borrowed tokens than the debt - full repayment and closing the position
-    if total_borrowed >= debt:
-        d_debt = debt
+    if d_debt >= debt:
         debt = 0
         if callbacker == empty(address):
             xy = extcall AMM.withdraw(_for, WAD)
 
-        total_borrowed = 0
+        total_borrowed: uint256 = 0
         if xy[0] > 0:
             # Only allow full repayment when underwater for the sender to do
             assert approval
@@ -983,7 +982,6 @@ def repay(
         active_band: int256 = staticcall AMM.active_band_with_skip()
         assert active_band <= max_active_band
 
-        d_debt = total_borrowed
         debt = unsafe_sub(debt, d_debt)
         ns: int256[2] = staticcall AMM.read_user_tick_numbers(_for)
         size: int256 = unsafe_sub(ns[1], ns[0])

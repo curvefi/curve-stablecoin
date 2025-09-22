@@ -91,7 +91,7 @@ def test_liquidate(accounts, admin, controller_for_liquidation, market_amm, stab
         controller.liquidate(user, int(x * 0.999999))
 
 
-@given(frac=st.integers(min_value=0, max_value=11 * 10**17))
+@given(frac=st.integers(min_value=0, max_value=10**18))
 @settings(max_examples=200)
 def test_liquidate_callback(
     accounts,

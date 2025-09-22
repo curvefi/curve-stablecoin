@@ -22,8 +22,8 @@ from tests.utils.deployers import (
     CONTROLLER_VIEW_DEPLOYER,
     # Lending contracts
     VAULT_DEPLOYER,
-    LL_CONTROLLER_DEPLOYER,
-    LL_CONTROLLER_VIEW_DEPLOYER,
+    LEND_CONTROLLER_DEPLOYER,
+    LEND_CONTROLLER_VIEW_DEPLOYER,
     LENDING_FACTORY_DEPLOYER,
     # Price oracles
     DUMMY_PRICE_ORACLE_DEPLOYER,
@@ -46,8 +46,8 @@ class Blueprints:
 
     amm: VyperBlueprint
     mint_controller: VyperBlueprint
-    ll_controller: VyperBlueprint
-    ll_controller_view: VyperBlueprint
+    lend_controller: VyperBlueprint
+    lend_controller_view: VyperBlueprint
     price_oracle: VyperBlueprint
     mpolicy: VyperBlueprint
     vault: VyperBlueprint
@@ -94,8 +94,8 @@ class Llamalend:
         self.blueprints = Blueprints(
             amm=AMM_DEPLOYER,
             mint_controller=self._mint_controller_deployer,
-            ll_controller=LL_CONTROLLER_DEPLOYER,
-            ll_controller_view=LL_CONTROLLER_VIEW_DEPLOYER,
+            lend_controller=LEND_CONTROLLER_DEPLOYER,
+            lend_controller_view=LEND_CONTROLLER_VIEW_DEPLOYER,
             price_oracle=CRYPTO_FROM_POOL_DEPLOYER,
             mpolicy=CONSTANT_MONETARY_POLICY_LENDING_DEPLOYER,
             vault=VAULT_DEPLOYER,
@@ -139,10 +139,10 @@ class Llamalend:
         # Deploy lending factory
         self.lending_factory = LENDING_FACTORY_DEPLOYER.deploy(
             self.blueprints.amm.address,
-            self.blueprints.ll_controller.address,
+            self.blueprints.lend_controller.address,
             self.blueprints.vault.address,
             self.blueprints.price_oracle.address,
-            self.blueprints.ll_controller_view.address,
+            self.blueprints.lend_controller_view.address,
             self.admin,
             self.fee_receiver,
         )
@@ -259,7 +259,7 @@ class Llamalend:
         )
 
         vault = VAULT_DEPLOYER.at(result[0])
-        controller = LL_CONTROLLER_DEPLOYER.at(result[1])
+        controller = LEND_CONTROLLER_DEPLOYER.at(result[1])
         amm = AMM_DEPLOYER.at(result[2])
 
         # Seed lending markets by depositing borrowed token into the vault

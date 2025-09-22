@@ -19,7 +19,7 @@ from tests.utils.deployers import (
     AGG_MONETARY_POLICY2_DEPLOYER,
     CHAINLINK_AGGREGATOR_MOCK_DEPLOYER,
     AMM_DEPLOYER,
-    LL_CONTROLLER_DEPLOYER,
+    LEND_CONTROLLER_DEPLOYER,
 )
 from tests.utils.constants import ZERO_ADDRESS
 
@@ -335,7 +335,7 @@ def market_controller_agg(
     controller_factory,
     accounts,
 ):
-    controller = LL_CONTROLLER_DEPLOYER.at(
+    controller = LEND_CONTROLLER_DEPLOYER.at(
         market_agg.get_controller(collateral_token.address)
     )
     for acc in accounts:

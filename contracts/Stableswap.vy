@@ -178,11 +178,11 @@ def initialize(
     self.symbol = concat(_symbol, "-f")
 
     self.DOMAIN_SEPARATOR = keccak256(
-        _abi_encode(EIP712_TYPEHASH, keccak256(name), keccak256(VERSION), chain.id, self)
+        abi_encode(EIP712_TYPEHASH, keccak256(name), keccak256(VERSION), chain.id, self)
     )
 
     # fire a transfer event so block explorers identify the contract as an ERC20
-    log Transfer(empty(address), self, 0)
+    log Transfer(sender=empty(address), receiver=self, value=0)
 
 
 ### ERC20 Functionality ###
@@ -205,7 +205,7 @@ def _transfer(_from: address, _to: address, _value: uint256):
     self.balanceOf[_from] -= _value
     self.balanceOf[_to] += _value
 
-    log Transfer(_from, _to, _value)
+    log Transfer(sender=_from, receiver=_to, value=_value)
 
 
 @external
@@ -250,7 +250,7 @@ def approve(_spender : address, _value : uint256) -> bool:
     """
     self.allowance[msg.sender][_spender] = _value
 
-    log Approval(msg.sender, _spender, _value)
+    log Approval(owner=msg.sender, spender=_spender, value=_value)
     return True
 
 
@@ -287,12 +287,12 @@ def permit(
         concat(
             b"\x19\x01",
             self.DOMAIN_SEPARATOR,
-            keccak256(_abi_encode(PERMIT_TYPEHASH, _owner, _spender, _value, nonce, _deadline))
+            keccak256(abi_encode(PERMIT_TYPEHASH, _owner, _spender, _value, nonce, _deadline))
         )
     )
 
     if _owner.is_contract:
-        sig: Bytes[65] = concat(_abi_encode(_r, _s), slice(convert(_v, bytes32), 31, 1))
+        sig: Bytes[65] = concat(abi_encode(_r, _s), slice(convert(_v, bytes32), 31, 1))
         # reentrancy not a concern since this is a staticcall
         assert staticcall ERC1271(_owner).isValidSignature(digest, sig) == ERC1271_MAGIC_VAL
     else:
@@ -301,7 +301,7 @@ def permit(
     self.allowance[_owner][_spender] = _value
     self.nonces[_owner] = nonce + 1
 
-    log Approval(_owner, _spender, _value)
+    log Approval(owner=_owner, spender=_spender, value=_value)
     return True
 
 
@@ -312,7 +312,7 @@ def permit(
 def pack_prices(p1: uint256, p2: uint256) -> uint256:
     assert p1 < 2**128
     assert p2 < 2**128
-    return p1 | shift(p2, 128)
+    return p1 | (p2 << 128)
 
 
 @view
@@ -324,7 +324,7 @@ def last_price() -> uint256:
 @view
 @external
 def ema_price() -> uint256:
-    return shift(self.last_prices_packed, -128)
+    return self.last_prices_packed >> 128
 
 
 @view
@@ -476,9 +476,14 @@ def exp(power: int256) -> uint256:
     q = unsafe_sub(unsafe_div(unsafe_mul(q, x), 2**96), 14423608567350463180887372962807573)
     q = unsafe_add(unsafe_div(unsafe_mul(q, x), 2**96), 26449188498355588339934803723976023)
 
-    return shift(
-        unsafe_mul(convert(unsafe_div(p, q), uint256), 3822833074963236453042738258902158003155416615667),
-        unsafe_sub(k, 195))
+    scaled: uint256 = unsafe_mul(
+        convert(unsafe_div(p, q), uint256), 3822833074963236453042738258902158003155416615667
+    )
+    shift_amount: int256 = unsafe_sub(k, 195)
+    if shift_amount >= 0:
+        return scaled << convert(shift_amount, uint256)
+    else:
+        return scaled >> convert(unsafe_sub(0, shift_amount), uint256)
 
 
 @internal
@@ -488,7 +493,7 @@ def _ma_price() -> uint256:
 
     pp: uint256 = self.last_prices_packed
     last_price: uint256 = min(pp & (2**128 - 1), 2 * 10**18)
-    last_ema_price: uint256 = shift(pp, -128)
+    last_ema_price: uint256 = pp >> 128
 
     if ma_last_time < block.timestamp:
         alpha: uint256 = self.exp(- convert((block.timestamp - ma_last_time) * 10**18 // self.ma_exp_time, int256))
@@ -665,9 +670,15 @@ def add_liquidity(
     total_supply += mint_amount
     self.balanceOf[_receiver] += mint_amount
     self.totalSupply = total_supply
-    log Transfer(empty(address), _receiver, mint_amount)
+    log Transfer(sender=empty(address), receiver=_receiver, value=mint_amount)
 
-    log AddLiquidity(msg.sender, _amounts, fees, D1, total_supply)
+    log AddLiquidity(
+        provider=msg.sender,
+        token_amounts=_amounts,
+        fees=fees,
+        invariant=D1,
+        token_supply=total_supply,
+    )
 
     return mint_amount
 
@@ -824,7 +835,13 @@ def exchange(
     assert extcall IERC20(self.coins[i]).transferFrom(msg.sender, self, _dx, default_return_value=True)  # dev: failed transfer
     assert extcall IERC20(self.coins[j]).transfer(_receiver, dy, default_return_value=True)  # dev: failed transfer
 
-    log TokenExchange(msg.sender, i, _dx, j, dy)
+    log TokenExchange(
+        buyer=msg.sender,
+        sold_id=i,
+        tokens_sold=_dx,
+        bought_id=j,
+        tokens_bought=dy,
+    )
 
     return dy
 
@@ -858,9 +875,14 @@ def remove_liquidity(
     total_supply -= _burn_amount
     self.balanceOf[msg.sender] -= _burn_amount
     self.totalSupply = total_supply
-    log Transfer(msg.sender, empty(address), _burn_amount)
+    log Transfer(sender=msg.sender, receiver=empty(address), value=_burn_amount)
 
-    log RemoveLiquidity(msg.sender, amounts, empty(uint256[N_COINS]), total_supply)
+    log RemoveLiquidity(
+        provider=msg.sender,
+        token_amounts=amounts,
+        fees=empty(uint256[N_COINS]),
+        token_supply=total_supply,
+    )
 
     return amounts
 
@@ -919,8 +941,14 @@ def remove_liquidity_imbalance(
     total_supply -= burn_amount
     self.totalSupply = total_supply
     self.balanceOf[msg.sender] -= burn_amount
-    log Transfer(msg.sender, empty(address), burn_amount)
-    log RemoveLiquidityImbalance(msg.sender, _amounts, fees, D1, total_supply)
+    log Transfer(sender=msg.sender, receiver=empty(address), value=burn_amount)
+    log RemoveLiquidityImbalance(
+        provider=msg.sender,
+        token_amounts=_amounts,
+        fees=fees,
+        invariant=D1,
+        token_supply=total_supply,
+    )
 
     return burn_amount
 
@@ -1047,10 +1075,15 @@ def remove_liquidity_one_coin(
     total_supply: uint256 = self.totalSupply - _burn_amount
     self.totalSupply = total_supply
     self.balanceOf[msg.sender] -= _burn_amount
-    log Transfer(msg.sender, empty(address), _burn_amount)
+    log Transfer(sender=msg.sender, receiver=empty(address), value=_burn_amount)
 
     assert extcall IERC20(self.coins[i]).transfer(_receiver, dy[0], default_return_value=True)  # dev: failed transfer
-    log RemoveLiquidityOne(msg.sender, _burn_amount, dy[0], total_supply)
+    log RemoveLiquidityOne(
+        provider=msg.sender,
+        token_amount=_burn_amount,
+        coin_amount=dy[0],
+        token_supply=total_supply,
+    )
 
     self.save_p_from_price(dy[2])
 
@@ -1077,7 +1110,12 @@ def ramp_A(_future_A: uint256, _future_time: uint256):
     self.initial_A_time = block.timestamp
     self.future_A_time = _future_time
 
-    log RampA(_initial_A, _future_A_p, block.timestamp, _future_time)
+    log RampA(
+        old_A=_initial_A,
+        new_A=_future_A_p,
+        initial_time=block.timestamp,
+        future_time=_future_time,
+    )
 
 
 @external
@@ -1091,7 +1129,7 @@ def stop_ramp_A():
     self.future_A_time = block.timestamp
     # now (block.timestamp < t1) is always False, so we return saved A
 
-    log StopRampA(current_A, block.timestamp)
+    log StopRampA(A=current_A, t=block.timestamp)
 
 
 @external
@@ -1116,7 +1154,7 @@ def commit_new_fee(_new_fee: uint256):
 
     self.future_fee = _new_fee
     self.admin_action_deadline = block.timestamp + ADMIN_ACTIONS_DEADLINE_DT
-    log CommitNewFee(_new_fee)
+    log CommitNewFee(new_fee=_new_fee)
 
 
 @external
@@ -1128,7 +1166,7 @@ def apply_new_fee():
     fee: uint256 = self.future_fee
     self.fee = fee
     self.admin_action_deadline = 0
-    log ApplyNewFee(fee)
+    log ApplyNewFee(fee=fee)
 
 
 @external

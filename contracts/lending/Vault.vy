@@ -1,6 +1,5 @@
 # pragma version 0.4.3
 # pragma optimize codesize
-# pragma evm-version shanghai
 """
 @title LlamaLend Vault
 @notice ERC4626+ Vault for lending using LLAMMA algorithm
@@ -9,8 +8,7 @@
 """
 
 from contracts.interfaces import IERC20
-from ethereum.ercs import IERC4626
-
+from contracts.interfaces import IERC4626
 from contracts.interfaces import IAMM
 from contracts.interfaces import ILlamalendController as IController
 from contracts.interfaces import IFactory
@@ -18,7 +16,7 @@ from contracts.interfaces import IFactory
 from contracts import constants as c
 
 implements: IERC20
-# implements: IERC4626 TODO fix this
+implements: IERC4626
 
 
 event SetMaxSupply:

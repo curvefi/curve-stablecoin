@@ -100,7 +100,7 @@ def amm_impl(proto):
 
 @pytest.fixture(scope="module")
 def controller_impl(proto):
-    return proto.blueprints.ll_controller
+    return proto.blueprints.lend_controller
 
 
 @pytest.fixture(scope="module")
@@ -181,7 +181,7 @@ def market(
             liquidation_discount=liquidation_discount,
             debt_ceiling=seed_liquidity,
         )
-    else:
+    elif market_type == "lending":
         return proto.create_lending_market(
             borrowed_token=borrowed_token,
             collateral_token=collateral_token,
@@ -196,6 +196,8 @@ def market(
             seed_amount=seed_liquidity,
             mpolicy_deployer=lending_monetary_policy,
         )
+    else:
+        raise ValueError("Incorrect market type fixture")
 
 
 @pytest.fixture(scope="module")
