@@ -79,7 +79,9 @@ def test_liquidate_partial_callback(
     boa.deal(borrowed_token, partial_repay_zap_tester, 10**21)
     with boa.env.prank(liquidator):
         borrowed_token.approve(partial_repay_zap_callback.address, 2**256 - 1)
-        partial_repay_zap_callback.liquidate_partial(controller.address, user, 0, partial_repay_zap_tester.address, calldata)
+        partial_repay_zap_callback.liquidate_partial(
+            controller.address, user, 0, partial_repay_zap_tester.address, calldata
+        )
 
     final_health = controller.health(user)
     assert final_health > initial_health
