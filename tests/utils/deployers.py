@@ -81,6 +81,9 @@ FLASH_LENDER_DEPLOYER = boa.load_partial(
 PARTIAL_REPAY_ZAP_DEPLOYER = boa.load_partial(
     ZAPS_CONTRACT_PATH + "PartialRepayZap.vy", compiler_args=compiler_args_default
 )
+PARTIAL_REPAY_ZAP_CALLBACK_DEPLOYER = boa.load_partial(
+    ZAPS_CONTRACT_PATH + "PartialRepayZapCallback.vy", compiler_args=compiler_args_default
+)
 
 # Monetary policies - all have no pragma
 CONSTANT_MONETARY_POLICY_DEPLOYER = boa.load_partial(
