@@ -3,8 +3,9 @@ from tests.utils.constants import MAX_UINT256
 
 
 @pytest.fixture(scope="module")
-def market(
+def fresh_market(
     proto,
+    borrowed_token,
     collateral_token,
     amm_A,
     amm_fee,
@@ -14,7 +15,7 @@ def market(
     min_borrow_rate,
     max_borrow_rate,
 ):
-    market = proto.create_lending_market(
+    return proto.create_lending_market(
         borrowed_token=proto.crvUSD,
         collateral_token=collateral_token,
         A=amm_A,
@@ -27,10 +28,9 @@ def market(
         max_borrow_rate=max_borrow_rate,
         seed_amount=0,
     )
-    return market["controller"]
 
 
-def test_default_behavior(fresh_market, proto):
+def test_default_behavior(fresh_market, borrowed_token, proto):
     """
     Checks that freshly deployed lending controllers have a borrow cap of zero,
     right vault address and infinite allowance to the vault.
@@ -40,5 +40,5 @@ def test_default_behavior(fresh_market, proto):
 
     assert controller.vault() == vault.address
     assert controller.borrow_cap() == 0
-    approved = proto.crvUSD.allowance(controller, vault)
+    approved = borrowed_token.allowance(controller, vault)
     assert approved == MAX_UINT256
