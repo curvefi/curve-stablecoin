@@ -3,6 +3,8 @@ import pytest
 
 from eth_utils import to_bytes
 
+from tests.utils.constants import MAX_UINT256
+
 
 @pytest.mark.parametrize("is_approved", [True, False])
 def test_users_to_liquidate_callback(
@@ -91,3 +93,29 @@ def test_liquidate_partial_callback(
 
     assert borrowed_token.balanceOf(partial_repay_zap_callback.address) == 0
     assert collateral_token.balanceOf(partial_repay_zap_callback.address) == 0
+
+
+def test_liquidate_partial_uses_exact_amount(
+    borrowed_token,
+    controller_for_liquidation,
+    partial_repay_zap_callback,
+):
+    controller = controller_for_liquidation(
+        sleep_time=int(30.7 * 86400), user=boa.env.eoa
+    )
+
+    controller.approve(partial_repay_zap_callback.address, True)
+
+    position = partial_repay_zap_callback.users_to_liquidate(controller.address)[0]
+    borrowed_from_sender = position.dy
+
+    # get money to liquidate: in real scenario this would be a separate address
+    boa.deal(borrowed_token, boa.env.eoa, 10**21)
+
+    borrowed_token.approve(partial_repay_zap_callback.address, MAX_UINT256)
+    pre_balance = borrowed_token.balanceOf(boa.env.eoa)
+    partial_repay_zap_callback.liquidate_partial(controller.address, user, 0)
+    post_balance = borrowed_token.balanceOf(boa.env.eoa)
+
+    spent = pre_balance - post_balance
+    assert spent == borrowed_from_sender  # TODO this actually pulls double the amount
