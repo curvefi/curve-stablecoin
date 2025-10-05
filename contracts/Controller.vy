@@ -904,6 +904,7 @@ def repay(
     max_active_band: int256 = max_value(int256),
     callbacker: address = empty(address),
     calldata: Bytes[CALLDATA_MAX_SIZE] = b"",
+    shrink: bool = False
 ):
     """
     @notice Repay debt (partially or fully)
@@ -913,6 +914,7 @@ def repay(
     @param max_active_band Don't allow active band to be higher than this (to prevent front-running the repay)
     @param callbacker Address of the callback contract
     @param calldata Any data for callbacker
+    @param shrink Whether shrink soft-liquidated part of the position or not
     """
     debt: uint256 = 0
     rate_mul: uint256 = 0
@@ -985,9 +987,12 @@ def repay(
         debt = unsafe_sub(debt, d_debt)
         ns: int256[2] = staticcall AMM.read_user_tick_numbers(_for)
         size: int256 = unsafe_sub(ns[1], ns[0])
+        if ns[0] <= active_band and shrink:
+            assert ns[1] > active_band + MIN_TICKS, "Can't shrink, too short collateral part"
+            size = unsafe_sub(ns[1], active_band + 1)
         liquidation_discount: uint256 = self.liquidation_discounts[_for]
 
-        if ns[0] > active_band:
+        if ns[0] > active_band or shrink:
             # Not in soft-liquidation - can use callback and move bands
             new_collateral: uint256 = cb.collateral
             if callbacker == empty(address):
