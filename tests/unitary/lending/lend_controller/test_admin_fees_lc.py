@@ -33,4 +33,6 @@ def test_default_behavior_with_interest(
             return controller.admin_fees()
 
     for pct in range(1, 101):
-        assert outstanding_for_pct(pct) == DEBT * TIME_DELTA * RATE // 10**18 * pct // 100
+        assert (
+            outstanding_for_pct(pct) == DEBT * TIME_DELTA * RATE // 10**18 * pct // 100
+        )

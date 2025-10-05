@@ -98,7 +98,9 @@ def test_increases_after_repay(controller, vault, collateral_token, borrowed_tok
 
     assert after["borrowed"] == before["borrowed"] + DEBT
     assert after["repaid"] == before["repaid"] + DEBT
-    expect_same(before, after, "lent", "collected", "deposited", "withdrawn", "processed")
+    expect_same(
+        before, after, "lent", "collected", "deposited", "withdrawn", "processed"
+    )
 
 
 def test_collect_fees_reduces_balance(
@@ -131,6 +133,4 @@ def test_collect_fees_reduces_balance(
     assert after["collected"] == before["collected"] + amount
     assert after["borrowed"] == before["borrowed"] - amount
     assert after["processed"] == after["repaid"] + controller.total_debt()
-    expect_same(
-        before, after, "lent", "repaid", "deposited", "withdrawn"
-    )
+    expect_same(before, after, "lent", "repaid", "deposited", "withdrawn")

@@ -41,7 +41,7 @@ def test_convert_to_shares_with_total_assets(vault, controller, borrowed_token):
     controller.eval(f"core._total_debt.initial_debt = {debt_value}")
 
     assets = 100 * 10**18
-    total_assets = 500 * 10**borrowed_token.decimals()
+    total_assets = 500 * 10 ** borrowed_token.decimals()
     total_supply = vault.totalSupply()
     precision = vault.eval("self.precision")
     dead_shares = vault.eval("DEAD_SHARES")
@@ -51,9 +51,13 @@ def test_convert_to_shares_with_total_assets(vault, controller, borrowed_token):
     denominator = total_assets * precision + 1
 
     expected_shares_floor = numerator // denominator
-    actual_shares_floor = vault.eval(f"self._convert_to_shares({assets}, True, {total_assets})")
+    actual_shares_floor = vault.eval(
+        f"self._convert_to_shares({assets}, True, {total_assets})"
+    )
     assert actual_shares_floor == expected_shares_floor
 
     expected_shares_ceil = (numerator + denominator - 1) // denominator
-    actual_shares_ceil = vault.eval(f"self._convert_to_shares({assets}, False, {total_assets})")
+    actual_shares_ceil = vault.eval(
+        f"self._convert_to_shares({assets}, False, {total_assets})"
+    )
     assert actual_shares_ceil == expected_shares_ceil

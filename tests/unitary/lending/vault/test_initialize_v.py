@@ -40,7 +40,7 @@ def test_default_behavior(fresh_market, collateral_token, borrowed_token, proto)
     assert vault.factory() == proto.lending_factory.address
     assert vault.amm() == amm.address
     assert vault.controller() == controller.address
-    assert vault.eval("self.precision") == 10**(18 - borrowed_token.decimals())
-    assert vault.name() == 'Curve Vault for ' + borrowed_token.symbol()
-    assert vault.symbol() == 'cv' + borrowed_token.symbol()
+    assert vault.eval("self.precision") == 10 ** (18 - borrowed_token.decimals())
+    assert vault.name() == "Curve Vault for " + borrowed_token.symbol()
+    assert vault.symbol() == "cv" + borrowed_token.symbol()
     assert vault.maxSupply() == MAX_UINT256
