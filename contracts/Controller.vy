@@ -943,7 +943,6 @@ def repay(
 
         total_borrowed: uint256 = 0
         if xy[0] > 0:
-            # Only allow full repayment when underwater for the sender to do
             assert approval
             tkn.transfer_from(BORROWED_TOKEN, AMM.address, self, xy[0])
             total_borrowed += xy[0]
@@ -1020,6 +1019,9 @@ def repay(
             # full = False to make this condition non-manipulatable (and also cheaper on gas)
             assert self._health(_for, debt, False, liquidation_discount) > 0
 
+        if xy[0] > 0 and shrink:
+            assert approval
+            tkn.transfer_from(BORROWED_TOKEN, AMM.address, self, xy[0])
         if cb.borrowed > 0:
             tkn.transfer_from(BORROWED_TOKEN, callbacker, self, cb.borrowed)
         if _d_debt > 0:
