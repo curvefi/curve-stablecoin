@@ -5,8 +5,11 @@ from tests.utils.deployers import (
     LENDING_FACTORY_DEPLOYER,
 )
 
-ZERO_ADDRESS = boa.eval("empty(address)")
-MAX_UINT256 = boa.eval("max_value(uint256)")
+from typing import Final
+
+ZERO_ADDRESS: Final[str] = boa.eval("empty(address)")
+MAX_UINT256: Final[int] = boa.eval("max_value(uint256)")
+MAX_INT256: Final[int] = boa.eval("max_value(int256)")
 
 # Constants from contracts/constants.vy
 WAD = CONSTANTS_DEPLOYER._constants.WAD
