@@ -3,7 +3,6 @@ def test_convert_to_shares(vault, controller, amm):
     # Set up some assets in the vault
     borrowed_balance = controller.borrowed_balance()
     debt_value = borrowed_balance // 2
-
     rate_mul = int(1.2 * 10**18)
     _total_debt_rate_mul = int(1.1 * 10**18)
     amm.eval(f"self.rate_mul = {rate_mul}")
@@ -35,11 +34,6 @@ def test_convert_to_shares(vault, controller, amm):
 
 def test_convert_to_shares_with_total_assets(vault, controller, borrowed_token):
     """Test _convert_to_shares with custom _total_assets parameter."""
-    # Set up some assets in the vault
-    borrowed_balance = controller.borrowed_balance()
-    debt_value = borrowed_balance // 2
-    controller.eval(f"core._total_debt.initial_debt = {debt_value}")
-
     assets = 100 * 10**18
     total_assets = 500 * 10 ** borrowed_token.decimals()
     total_supply = vault.totalSupply()
