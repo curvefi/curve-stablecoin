@@ -127,7 +127,7 @@ def test_deposit_need_more_assets_revert(vault, controller, amm, borrowed_token)
     assert vault.totalAssets() == 0
 
     # Small deposit that would make total assets < MIN_ASSETS
-    assets = 1000  # Very small amount
+    assets = vault.eval("MIN_ASSETS") - 1
     boa.deal(borrowed_token, boa.env.eoa, assets)
     borrowed_token.approve(vault, assets)
 
