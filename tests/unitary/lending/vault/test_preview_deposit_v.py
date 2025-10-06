@@ -1,4 +1,4 @@
-def test_preview_deposit(vault, controller, amm):
+def test_preview_deposit(vault, controller, amm, borrowed_token):
     """Test previewDeposit returns correct shares for given assets."""
     # Set up some assets in the vault
     borrowed_balance = controller.borrowed_balance()
@@ -9,5 +9,7 @@ def test_preview_deposit(vault, controller, amm):
     controller.eval(f"core._total_debt.initial_debt = {debt_value}")
     controller.eval(f"core._total_debt.rate_mul = {_total_debt_rate_mul}")
 
-    assets = 100 * 10**18
-    assert vault.previewDeposit(assets) == vault.eval(f"self._convert_to_shares({assets})")
+    assets = 100 * 10 ** borrowed_token.decimals()
+    assert vault.previewDeposit(assets) == vault.eval(
+        f"self._convert_to_shares({assets})"
+    )

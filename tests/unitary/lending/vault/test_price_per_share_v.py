@@ -35,7 +35,7 @@ def test_price_per_share_zero_supply(vault):
     """Test pricePerShare when totalSupply is zero."""
     # Ensure zero supply
     vault.eval("self.totalSupply = 0")
-    
+
     expected_pps = 10**18 // vault.eval("DEAD_SHARES")
     actual_pps = vault.pricePerShare()
     assert actual_pps == expected_pps

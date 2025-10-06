@@ -21,7 +21,7 @@ def test_deposit_basic(vault, controller, amm, monetary_policy, borrowed_token):
 
     assert amm.eval("self.rate_time") == 0
 
-    assets = 100 * 10 ** 18
+    assets = 100 * 10 ** borrowed_token.decimals()
 
     # Give user tokens and approve vault
     boa.deal(borrowed_token, boa.env.eoa, assets)
@@ -44,7 +44,10 @@ def test_deposit_basic(vault, controller, amm, monetary_policy, borrowed_token):
     assert vault.balanceOf(boa.env.eoa) == initial_sender_balance + shares
     assert vault.deposited() == initial_deposited + assets
     assert vault.totalSupply() == initial_total_supply + shares
-    assert borrowed_token.balanceOf(controller.address) == initial_controller_balance + assets
+    assert (
+        borrowed_token.balanceOf(controller.address)
+        == initial_controller_balance + assets
+    )
     assert borrowed_token.balanceOf(boa.env.eoa) == 0
 
     # Check rate was saved
@@ -73,7 +76,7 @@ def test_deposit_with_receiver(vault, controller, amm, monetary_policy, borrowed
 
     assert amm.eval("self.rate_time") == 0
 
-    assets = 100 * 10 ** 18
+    assets = 100 * 10 ** borrowed_token.decimals()
 
     # Give user tokens and approve vault
     boa.deal(borrowed_token, boa.env.eoa, assets)
@@ -93,11 +96,18 @@ def test_deposit_with_receiver(vault, controller, amm, monetary_policy, borrowed
     assert shares == expected_shares
 
     # Check balances - shares go to receiver, not sender
-    assert vault.balanceOf(boa.env.eoa) == initial_sender_balance  # Sender balance unchanged
-    assert vault.balanceOf(receiver) == initial_receiver_balance + shares  # Receiver gets shares
+    assert (
+        vault.balanceOf(boa.env.eoa) == initial_sender_balance
+    )  # Sender balance unchanged
+    assert (
+        vault.balanceOf(receiver) == initial_receiver_balance + shares
+    )  # Receiver gets shares
     assert vault.deposited() == initial_deposited + assets
     assert vault.totalSupply() == initial_total_supply + shares
-    assert borrowed_token.balanceOf(controller.address) == initial_controller_balance + assets
+    assert (
+        borrowed_token.balanceOf(controller.address)
+        == initial_controller_balance + assets
+    )
     assert borrowed_token.balanceOf(boa.env.eoa) == 0
 
     # Check rate was saved
@@ -131,7 +141,7 @@ def test_deposit_supply_limit_revert(vault, controller, amm, borrowed_token):
     assert vault.totalAssets() == 0
 
     # Set a low max supply
-    max_supply = 100 * 10**18  # Just above current assets
+    max_supply = 100 * 10 ** borrowed_token.decimals()  # Just above current assets
     vault.eval(f"self.maxSupply = {max_supply}")
 
     # Try to deposit more than allowed
