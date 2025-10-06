@@ -6,6 +6,7 @@ from hypothesis import settings, Phase
 from tests.utils.deployers import (
     ERC20_MOCK_DEPLOYER,
     CONSTANT_MONETARY_POLICY_LENDING_DEPLOYER,
+    FAKE_LEVERAGE_DEPLOYER,
 )
 from tests.utils.protocols import Llamalend
 
@@ -65,6 +66,18 @@ def borrowed_token(stablecoin):
     """
     # TODO should parametrize to use other tokens in lending
     return stablecoin
+
+
+@pytest.fixture(scope="module")
+def fake_leverage(controller, collateral_token, borrowed_token, price_oracle):
+    market_price = price_oracle.price()
+    leverage = FAKE_LEVERAGE_DEPLOYER.deploy(
+        borrowed_token.address,
+        collateral_token.address,
+        controller.address,
+        market_price,
+    )
+    return leverage
 
 
 @pytest.fixture(scope="module")
