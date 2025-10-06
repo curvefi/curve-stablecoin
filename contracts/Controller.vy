@@ -1045,7 +1045,7 @@ def repay(
 
     cb: IController.CallbackData = empty(IController.CallbackData)
     if callbacker != empty(address):
-        assert approval
+        assert approval # dev: need approval for callback
         xy = extcall AMM.withdraw(_for, WAD)
         tkn.transfer_from(COLLATERAL_TOKEN, AMM.address, callbacker, xy[1])
         cb = self.execute_callback(
