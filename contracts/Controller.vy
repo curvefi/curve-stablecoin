@@ -926,14 +926,14 @@ def _repay_full(
         user=_for, collateral=0, debt=0, n1=0, n2=0, liquidation_discount=0
     )
     log IController.Repay(
-        user=_for, collateral_decrease=_xy[1], loan_decrease=_d_debt
+        user=_for, collateral_decrease=_xy[1], loan_decrease=_debt
     )
 
 
 @internal
 def _repay_partial(
     _for: address,
-    _debt: uint256,
+    _new_debt: uint256,
     _d_debt: uint256,
     _wallet_d_debt: uint256,
     _approval: bool,
@@ -942,12 +942,11 @@ def _repay_partial(
     _callbacker: address,
     _max_active_band: int256,
     _shrink: bool,
-) -> uint256:
+):
     # slippage-like check to prevent dos on repay (grief attack)
     active_band: int256 = staticcall AMM.active_band_with_skip()
     assert active_band <= _max_active_band
 
-    new_debt: uint256 = unsafe_sub(_debt, _d_debt)
     ns: int256[2] = staticcall AMM.read_user_tick_numbers(_for)
     size: int256 = unsafe_sub(ns[1], ns[0])
     if ns[0] <= active_band and _shrink:
@@ -962,7 +961,7 @@ def _repay_partial(
             new_collateral = _xy[1]
         ns[0] = self._calculate_debt_n1(
             new_collateral,
-            new_debt,
+            _new_debt,
             convert(unsafe_add(size, 1), uint256),
             _for,
         )
@@ -980,7 +979,7 @@ def _repay_partial(
     else:
         # Doesn't allow non-sender to repay in a way which ends with unhealthy state
         # full = False to make this condition non-manipulatable (and also cheaper on gas)
-        assert self._health(_for, new_debt, False, liquidation_discount) > 0
+        assert self._health(_for, _new_debt, False, liquidation_discount) > 0
 
     if _shrink:
         assert _approval
@@ -991,7 +990,7 @@ def _repay_partial(
     log IController.UserState(
         user=_for,
         collateral=_xy[1],
-        debt=new_debt,
+        debt=_new_debt,
         n1=ns[0],
         n2=ns[1],
         liquidation_discount=liquidation_discount,
@@ -1000,12 +999,10 @@ def _repay_partial(
         user=_for, collateral_decrease=0, loan_decrease=_d_debt
     )
 
-    return new_debt
-
 
 @external
 def repay(
-    _d_debt: uint256,
+    _wallet_d_debt: uint256,
     _for: address = msg.sender,
     max_active_band: int256 = max_value(int256),
     callbacker: address = empty(address),
@@ -1014,7 +1011,7 @@ def repay(
 ):
     """
     @notice Repay debt (partially or fully)
-    @param _d_debt The amount of debt to repay from user's wallet.
+    @param _wallet_d_debt The amount of debt to repay from user's wallet.
                    If it's max_value(uint256) or just higher than the current debt - will do full repayment.
     @param _for The user to repay the debt for
     @param max_active_band Don't allow active band to be higher than this (to prevent front-running the repay)
@@ -1038,19 +1035,20 @@ def repay(
             callbacker, CALLBACK_REPAY, _for, xy[0], xy[1], debt, calldata
         )
 
-    d_debt: uint256 = min(min(_d_debt, debt) + xy[0] + cb.borrowed, debt)
+    d_debt: uint256 = min(min(_wallet_d_debt, debt) + xy[0] + cb.borrowed, debt)
     assert d_debt > 0  # dev: no coins to repay
 
     if d_debt >= debt:
         d_debt = debt
-        self._repay_full(_for, d_debt, approval, xy, cb, callbacker)
         debt = 0
+        self._repay_full(_for, d_debt, approval, xy, cb, callbacker)
     else:
-        debt = self._repay_partial(
+        debt = unsafe_sub(debt, d_debt)
+        self._repay_partial(
             _for,
             debt,
             d_debt,
-            _d_debt,
+            _wallet_d_debt,
             approval,
             xy,
             cb,
