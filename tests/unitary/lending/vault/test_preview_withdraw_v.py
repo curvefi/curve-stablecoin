@@ -20,7 +20,9 @@ def test_preview_withdraw(vault, controller, amm, borrowed_token, deposit_into_v
     )
 
 
-def test_preview_withdraw_assert_revert(vault, controller, amm, borrowed_token, deposit_into_vault):
+def test_preview_withdraw_assert_revert(
+    vault, controller, amm, borrowed_token, deposit_into_vault
+):
     """Test previewWithdraw reverts when assets > borrowed_balance."""
     # Create vault state by depositing
     deposit_into_vault()
