@@ -900,22 +900,21 @@ def _repay_full(
     _cb: IController.CallbackData,
     _callbacker: address,
 ):
-    xy: uint256[2] = _xy
     if _callbacker == empty(address):
-        xy = extcall AMM.withdraw(_for, WAD)
+        _xy = extcall AMM.withdraw(_for, WAD)
 
     # ================= Recover borrowed tokens (xy[0]) =================
     total_borrowed: uint256 = 0
-    if xy[0] > 0:  #  pull borrowed tokens in AMM (already soft liquidated)
+    if _xy[0] > 0:  #  pull borrowed tokens in AMM (already soft liquidated)
         assert _approval
-        tkn.transfer_from(BORROWED_TOKEN, AMM.address, self, xy[0])
-        total_borrowed += xy[0]
+        tkn.transfer_from(BORROWED_TOKEN, AMM.address, self, _xy[0])
+        total_borrowed += _xy[0]
     if _cb.borrowed > 0:  # pull borrowed tokens from callback
         tkn.transfer_from(BORROWED_TOKEN, _callbacker, self, _cb.borrowed)
         total_borrowed += _cb.borrowed
     if total_borrowed < _d_debt: # pull remaining borrowed tokens from user
         d_debt_effective: uint256 = unsafe_sub(
-            _d_debt, xy[0] + _cb.borrowed
+            _d_debt, _xy[0] + _cb.borrowed
         )
         tkn.transfer_from(BORROWED_TOKEN, msg.sender, self, d_debt_effective)
         total_borrowed += d_debt_effective
@@ -928,7 +927,7 @@ def _repay_full(
 
     # ================= Recover collateral tokens (xy[1]) =================
     if _callbacker == empty(address):
-        tkn.transfer_from(COLLATERAL_TOKEN, AMM.address, _for, xy[1])
+        tkn.transfer_from(COLLATERAL_TOKEN, AMM.address, _for, _xy[1])
     else:
         tkn.transfer_from(COLLATERAL_TOKEN, _callbacker, _for, _cb.collateral)
 
@@ -938,7 +937,7 @@ def _repay_full(
         user=_for, collateral=0, debt=0, n1=0, n2=0, liquidation_discount=0
     )
     log IController.Repay(
-        user=_for, collateral_decrease=xy[1], loan_decrease=_d_debt
+        user=_for, collateral_decrease=_xy[1], loan_decrease=_d_debt
     )
 
 
@@ -967,13 +966,11 @@ def _repay_partial(
         size = unsafe_sub(ns[1], active_band + 1)
     liquidation_discount: uint256 = self.liquidation_discounts[_for]
 
-    xy: uint256[2] = _xy
-    cb: IController.CallbackData = _cb
     if ns[0] > active_band or _shrink:
-        new_collateral: uint256 = cb.collateral
+        new_collateral: uint256 = _cb.collateral
         if _callbacker == empty(address):
-            xy = extcall AMM.withdraw(_for, WAD)
-            new_collateral = xy[1]
+            _xy = extcall AMM.withdraw(_for, WAD)
+            new_collateral = _xy[1]
         ns[0] = self._calculate_debt_n1(
             new_collateral,
             new_debt,
@@ -984,7 +981,7 @@ def _repay_partial(
         extcall AMM.deposit_range(_for, new_collateral, ns[0], ns[1])
     else:
         # Underwater - cannot use callback or move bands but can avoid a bad liquidation
-        xy = staticcall AMM.get_sum_xy(_for)
+        _xy = staticcall AMM.get_sum_xy(_for)
         assert _callbacker == empty(address)
 
     if _approval:
@@ -998,13 +995,13 @@ def _repay_partial(
 
     if _shrink:
         assert _approval
-        tkn.transfer_from(BORROWED_TOKEN, AMM.address, self, xy[0])
-    tkn.transfer_from(BORROWED_TOKEN, _callbacker, self, cb.borrowed)
+        tkn.transfer_from(BORROWED_TOKEN, AMM.address, self, _xy[0])
+    tkn.transfer_from(BORROWED_TOKEN, _callbacker, self, _cb.borrowed)
     tkn.transfer_from(BORROWED_TOKEN, msg.sender, self, _wallet_d_debt)
 
     log IController.UserState(
         user=_for,
-        collateral=xy[1],
+        collateral=_xy[1],
         debt=new_debt,
         n1=ns[0],
         n2=ns[1],
