@@ -5,6 +5,8 @@ STABLECOIN: immutable(IERC20)
 COLLATERAL: immutable(IERC20)
 
 price: public(uint256)
+callback_deposit_hits: public(uint256)
+callback_repay_hits: public(uint256)
 
 
 @deploy
@@ -29,6 +31,7 @@ def approve_all():
 
 @external
 def callback_deposit(user: address, stablecoins_no_use: uint256, collateral: uint256, debt: uint256, calldata: Bytes[10**4]) -> uint256[2]:
+    self.callback_deposit_hits += 1
     min_amount: uint256 = abi_decode(calldata, (uint256))
     assert staticcall STABLECOIN.balanceOf(self) >= debt
     amount_out: uint256 = debt * 10**18 // self.price
@@ -38,6 +41,7 @@ def callback_deposit(user: address, stablecoins_no_use: uint256, collateral: uin
 
 @external
 def callback_repay(user: address, stablecoins: uint256, collateral: uint256, debt: uint256, calldata: Bytes[10**4]) -> uint256[2]:
+    self.callback_repay_hits += 1
     frac: uint256 = abi_decode(calldata, (uint256))
     s_diff: uint256 = (debt - stablecoins) * frac // 10**18
     # Instead of returning collateral - what_was_spent we could unwrap and send

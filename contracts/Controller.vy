@@ -678,10 +678,7 @@ def _create_loan(
     )
 
     tkn.transfer_from(COLLATERAL_TOKEN, msg.sender, AMM.address, collateral)
-    if more_collateral > 0:
-        tkn.transfer_from(
-            COLLATERAL_TOKEN, callbacker, AMM.address, more_collateral
-        )
+    tkn.transfer_from(COLLATERAL_TOKEN, callbacker, AMM.address, more_collateral)
     if callbacker == empty(address):
         tkn.transfer(BORROWED_TOKEN, _for, debt)
 
@@ -869,10 +866,7 @@ def _borrow_more(
     )
 
     tkn.transfer_from(COLLATERAL_TOKEN, msg.sender, AMM.address, collateral)
-    if more_collateral > 0:
-        tkn.transfer_from(
-            COLLATERAL_TOKEN, callbacker, AMM.address, more_collateral
-        )
+    tkn.transfer_from(COLLATERAL_TOKEN, callbacker, AMM.address, more_collateral)
     if callbacker == empty(address):
         tkn.transfer(BORROWED_TOKEN, _for, debt)
 
@@ -934,12 +928,9 @@ def _repay_full(
 
     # ================= Recover collateral tokens (xy[1]) =================
     if _callbacker == empty(address):
-        # TODO can skip this check as tkn_transfer_from does it for us
-        if xy[1] > 0:
-            tkn.transfer_from(COLLATERAL_TOKEN, AMM.address, _for, xy[1])
+        tkn.transfer_from(COLLATERAL_TOKEN, AMM.address, _for, xy[1])
     else:
-        if _cb.collateral > 0:
-            tkn.transfer_from(COLLATERAL_TOKEN, _callbacker, _for, _cb.collateral)
+        tkn.transfer_from(COLLATERAL_TOKEN, _callbacker, _for, _cb.collateral)
 
     self._remove_from_list(_for)
 
@@ -1005,13 +996,11 @@ def _repay_partial(
         # full = False to make this condition non-manipulatable (and also cheaper on gas)
         assert self._health(_for, new_debt, False, liquidation_discount) > 0
 
-    if xy[0] > 0 and _shrink:
+    if _shrink:
         assert _approval
         tkn.transfer_from(BORROWED_TOKEN, AMM.address, self, xy[0])
-    if cb.borrowed > 0:
-        tkn.transfer_from(BORROWED_TOKEN, _callbacker, self, cb.borrowed)
-    if _wallet_d_debt > 0:
-        tkn.transfer_from(BORROWED_TOKEN, msg.sender, self, _wallet_d_debt)
+    tkn.transfer_from(BORROWED_TOKEN, _callbacker, self, cb.borrowed)
+    tkn.transfer_from(BORROWED_TOKEN, msg.sender, self, _wallet_d_debt)
 
     log IController.UserState(
         user=_for,
@@ -1056,7 +1045,7 @@ def repay(
 
     cb: IController.CallbackData = empty(IController.CallbackData)
     if callbacker != empty(address):
-        assert approval
+        assert approval # dev: need approval for callback
         xy = extcall AMM.withdraw(_for, WAD)
         tkn.transfer_from(COLLATERAL_TOKEN, AMM.address, callbacker, xy[1])
         cb = self.execute_callback(
