@@ -96,8 +96,12 @@ def test_mint_with_receiver(vault, controller, amm, monetary_policy, borrowed_to
     assert assets == expected_assets
 
     # Check balances - shares go to receiver, not sender
-    assert vault.balanceOf(boa.env.eoa) == initial_sender_balance  # Sender balance unchanged
-    assert vault.balanceOf(receiver) == initial_receiver_balance + shares  # Receiver gets shares
+    assert (
+        vault.balanceOf(boa.env.eoa) == initial_sender_balance
+    )  # Sender balance unchanged
+    assert (
+        vault.balanceOf(receiver) == initial_receiver_balance + shares
+    )  # Receiver gets shares
     assert vault.deposited() == initial_deposited + assets
     assert vault.totalSupply() == initial_total_supply + shares
     assert (
