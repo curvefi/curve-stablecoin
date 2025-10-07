@@ -894,7 +894,7 @@ def _remove_from_list(_for: address):
 @internal
 def _repay_full(
     _for: address,
-    _d_debt: uint256,
+    _debt: uint256,
     _approval: bool,
     _xy: uint256[2],
     _cb: IController.CallbackData,
@@ -904,25 +904,14 @@ def _repay_full(
         _xy = extcall AMM.withdraw(_for, WAD)
 
     # ================= Recover borrowed tokens (xy[0]) =================
-    total_borrowed: uint256 = 0
-    if _xy[0] > 0:  #  pull borrowed tokens in AMM (already soft liquidated)
+    _non_wallet_d_debt: uint256 = _xy[0] + _cb.borrowed
+    _wallet_d_debt: uint256 = unsafe_sub(max(_debt, _non_wallet_d_debt), _non_wallet_d_debt)
+    if _xy[0] > 0:  #  pull borrowed tokens from AMM (already soft liquidated)
         assert _approval
         tkn.transfer_from(BORROWED_TOKEN, AMM.address, self, _xy[0])
-        total_borrowed += _xy[0]
-    if _cb.borrowed > 0:  # pull borrowed tokens from callback
-        tkn.transfer_from(BORROWED_TOKEN, _callbacker, self, _cb.borrowed)
-        total_borrowed += _cb.borrowed
-    if total_borrowed < _d_debt: # pull remaining borrowed tokens from user
-        d_debt_effective: uint256 = unsafe_sub(
-            _d_debt, _xy[0] + _cb.borrowed
-        )
-        tkn.transfer_from(BORROWED_TOKEN, msg.sender, self, d_debt_effective)
-        total_borrowed += d_debt_effective
-    # TODO can this be else for better readability? (transfer skips amounts == 0)
-    if total_borrowed > _d_debt:  # if borrowed tokens from AMM+callback > debt
-        tkn.transfer(
-            BORROWED_TOKEN, _for, unsafe_sub(total_borrowed, _d_debt)
-        )
+    tkn.transfer_from(BORROWED_TOKEN, _callbacker, self, _cb.borrowed)
+    tkn.transfer_from(BORROWED_TOKEN, msg.sender, self, _wallet_d_debt)
+    tkn.transfer(BORROWED_TOKEN, _for, unsafe_sub(max(_non_wallet_d_debt, _debt), _debt))
 
 
     # ================= Recover collateral tokens (xy[1]) =================
@@ -1053,6 +1042,7 @@ def repay(
     assert d_debt > 0  # dev: no coins to repay
 
     if d_debt >= debt:
+        d_debt = debt
         self._repay_full(_for, d_debt, approval, xy, cb, callbacker)
         debt = 0
     else:
