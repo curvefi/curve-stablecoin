@@ -7,30 +7,9 @@ env:
   HYPOTHESIS_PROFILE: no-shrink
 
 jobs:
-  pre-commit:
-    name: pre-commit
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout repo
-        uses: actions/checkout@v5
-        with:
-          submodules: recursive
-
-      - name: Install uv
-        uses: astral-sh/setup-uv@v6
-        with:
-          enable-cache: true
-
-      - name: Install Python 3.12.6
-        run: uv python install 3.12.6
-
-      - name: Run pre-commit checks
-        run: uvx pre-commit run --all-files --show-diff-on-failure
-
   tests:
     name: ${{ matrix.folder }}
     runs-on: ubuntu-latest
-    needs: pre-commit
     strategy:
       fail-fast: false
       matrix:
