@@ -2,7 +2,9 @@ import boa
 from tests.utils import filter_logs
 
 
-def test_withdraw_basic(vault, controller, amm, monetary_policy, borrowed_token, deposit_into_vault):
+def test_withdraw_basic(
+    vault, controller, amm, monetary_policy, borrowed_token, deposit_into_vault
+):
     """Test basic withdraw functionality - balances, rate, event."""
     assets = 100 * 10 ** borrowed_token.decimals()
     deposit_into_vault(assets=assets)
@@ -36,8 +38,14 @@ def test_withdraw_basic(vault, controller, amm, monetary_policy, borrowed_token,
     assert vault.balanceOf(boa.env.eoa) == initial_sender_balance - shares
     assert vault.totalSupply() == initial_total_supply - shares
     assert vault.withdrawn() == initial_withdrawn + assets_to_withdraw
-    assert borrowed_token.balanceOf(controller) == initial_controller_balance - assets_to_withdraw
-    assert borrowed_token.balanceOf(boa.env.eoa) == initial_sender_token_balance + assets_to_withdraw
+    assert (
+        borrowed_token.balanceOf(controller)
+        == initial_controller_balance - assets_to_withdraw
+    )
+    assert (
+        borrowed_token.balanceOf(boa.env.eoa)
+        == initial_sender_token_balance + assets_to_withdraw
+    )
 
     # Check rate was saved
     assert amm.eval("self.rate_time") > initial_amm_rate_time
@@ -52,7 +60,9 @@ def test_withdraw_basic(vault, controller, amm, monetary_policy, borrowed_token,
     assert logs[0].shares == shares
 
 
-def test_withdraw_with_receiver(vault, controller, amm, monetary_policy, borrowed_token, deposit_into_vault):
+def test_withdraw_with_receiver(
+    vault, controller, amm, monetary_policy, borrowed_token, deposit_into_vault
+):
     """Test withdraw with receiver argument - assets go to receiver, not sender."""
     # Generate receiver wallet
     receiver = boa.env.generate_address()
@@ -88,13 +98,25 @@ def test_withdraw_with_receiver(vault, controller, amm, monetary_policy, borrowe
     assert shares == expected_shares
 
     # Check balances - assets go to receiver, not sender
-    assert vault.balanceOf(boa.env.eoa) == initial_sender_balance - shares  # Sender shares burned
-    assert vault.balanceOf(receiver) == initial_receiver_balance  # Receiver gets no shares
+    assert (
+        vault.balanceOf(boa.env.eoa) == initial_sender_balance - shares
+    )  # Sender shares burned
+    assert (
+        vault.balanceOf(receiver) == initial_receiver_balance
+    )  # Receiver gets no shares
     assert vault.totalSupply() == initial_total_supply - shares
     assert vault.withdrawn() == initial_withdrawn + assets_to_withdraw
-    assert borrowed_token.balanceOf(controller) == initial_controller_balance - assets_to_withdraw
-    assert borrowed_token.balanceOf(boa.env.eoa) == initial_sender_token_balance  # Sender gets no assets
-    assert borrowed_token.balanceOf(receiver) == initial_receiver_token_balance + assets_to_withdraw  # Receiver gets assets
+    assert (
+        borrowed_token.balanceOf(controller)
+        == initial_controller_balance - assets_to_withdraw
+    )
+    assert (
+        borrowed_token.balanceOf(boa.env.eoa) == initial_sender_token_balance
+    )  # Sender gets no assets
+    assert (
+        borrowed_token.balanceOf(receiver)
+        == initial_receiver_token_balance + assets_to_withdraw
+    )  # Receiver gets assets
 
     # Check rate was saved
     assert amm.eval("self.rate_time") > initial_amm_rate_time
@@ -109,7 +131,9 @@ def test_withdraw_with_receiver(vault, controller, amm, monetary_policy, borrowe
     assert logs[0].shares == shares
 
 
-def test_withdraw_with_owner(vault, controller, amm, monetary_policy, borrowed_token, deposit_into_vault):
+def test_withdraw_with_owner(
+    vault, controller, amm, monetary_policy, borrowed_token, deposit_into_vault
+):
     """Test withdraw with owner argument - owner's shares are burned."""
     # Generate owner and caller wallets
     owner = boa.env.generate_address()
@@ -150,12 +174,20 @@ def test_withdraw_with_owner(vault, controller, amm, monetary_policy, borrowed_t
     assert shares == expected_shares
 
     # Check balances - owner's shares burned, caller gets assets
-    assert vault.balanceOf(owner) == initial_owner_balance - shares  # Owner's shares burned
+    assert (
+        vault.balanceOf(owner) == initial_owner_balance - shares
+    )  # Owner's shares burned
     assert vault.balanceOf(caller) == initial_caller_balance  # Caller gets no shares
     assert vault.totalSupply() == initial_total_supply - shares
     assert vault.withdrawn() == initial_withdrawn + assets_to_withdraw
-    assert borrowed_token.balanceOf(controller) == initial_controller_balance - assets_to_withdraw
-    assert borrowed_token.balanceOf(caller) == initial_caller_token_balance + assets_to_withdraw  # Caller gets assets
+    assert (
+        borrowed_token.balanceOf(controller)
+        == initial_controller_balance - assets_to_withdraw
+    )
+    assert (
+        borrowed_token.balanceOf(caller)
+        == initial_caller_token_balance + assets_to_withdraw
+    )  # Caller gets assets
 
     # Check rate was saved
     assert amm.eval("self.rate_time") > initial_amm_rate_time
@@ -170,7 +202,9 @@ def test_withdraw_with_owner(vault, controller, amm, monetary_policy, borrowed_t
     assert logs[0].shares == shares
 
 
-def test_withdraw_with_owner_and_receiver(vault, controller, amm, monetary_policy, borrowed_token, deposit_into_vault):
+def test_withdraw_with_owner_and_receiver(
+    vault, controller, amm, monetary_policy, borrowed_token, deposit_into_vault
+):
     """Test withdraw with both owner and receiver - owner's shares burned, receiver gets assets."""
     # Generate owner, caller, and receiver wallets
     owner = boa.env.generate_address()
@@ -215,15 +249,29 @@ def test_withdraw_with_owner_and_receiver(vault, controller, amm, monetary_polic
     assert shares == expected_shares
 
     # Check balances - owner's shares burned, receiver gets assets
-    assert vault.balanceOf(owner) == initial_owner_balance - shares  # Owner's shares burned
+    assert (
+        vault.balanceOf(owner) == initial_owner_balance - shares
+    )  # Owner's shares burned
     assert vault.balanceOf(caller) == initial_caller_balance  # Caller gets no shares
-    assert vault.balanceOf(receiver) == initial_receiver_balance  # Receiver gets no shares
+    assert (
+        vault.balanceOf(receiver) == initial_receiver_balance
+    )  # Receiver gets no shares
     assert vault.totalSupply() == initial_total_supply - shares
     assert vault.withdrawn() == initial_withdrawn + assets_to_withdraw
-    assert borrowed_token.balanceOf(controller) == initial_controller_balance - assets_to_withdraw
-    assert borrowed_token.balanceOf(owner) == initial_owner_token_balance  # Owner gets no assets
-    assert borrowed_token.balanceOf(caller) == initial_caller_token_balance  # Caller gets no assets
-    assert borrowed_token.balanceOf(receiver) == initial_receiver_token_balance + assets_to_withdraw  # Receiver gets assets
+    assert (
+        borrowed_token.balanceOf(controller)
+        == initial_controller_balance - assets_to_withdraw
+    )
+    assert (
+        borrowed_token.balanceOf(owner) == initial_owner_token_balance
+    )  # Owner gets no assets
+    assert (
+        borrowed_token.balanceOf(caller) == initial_caller_token_balance
+    )  # Caller gets no assets
+    assert (
+        borrowed_token.balanceOf(receiver)
+        == initial_receiver_token_balance + assets_to_withdraw
+    )  # Receiver gets assets
 
     # Check rate was saved
     assert amm.eval("self.rate_time") > initial_amm_rate_time
@@ -238,21 +286,27 @@ def test_withdraw_with_owner_and_receiver(vault, controller, amm, monetary_polic
     assert logs[0].shares == shares
 
 
-def test_withdraw_need_more_assets_revert(vault, controller, amm, borrowed_token, deposit_into_vault):
+def test_withdraw_need_more_assets_revert(
+    vault, controller, amm, borrowed_token, deposit_into_vault
+):
     """Test withdraw reverts with 'Need more assets' when total assets too low."""
     assets = 100 * 10 ** borrowed_token.decimals()
     deposit_into_vault(assets=assets)
 
     # Try to withdraw more than available (would leave vault with < MIN_ASSETS)
     total_assets = vault.totalAssets()
-    withdraw_amount = total_assets - vault.eval("MIN_ASSETS") + 1  # Would leave < MIN_ASSETS
+    withdraw_amount = (
+        total_assets - vault.eval("MIN_ASSETS") + 1
+    )  # Would leave < MIN_ASSETS
 
     # Should revert with "Need more assets"
     with boa.reverts("Need more assets"):
         vault.withdraw(withdraw_amount)
 
 
-def test_withdraw_insufficient_allowance_revert(vault, controller, amm, monetary_policy, borrowed_token, deposit_into_vault):
+def test_withdraw_insufficient_allowance_revert(
+    vault, controller, amm, monetary_policy, borrowed_token, deposit_into_vault
+):
     """Test withdraw reverts when allowance < shares."""
     # Generate owner and caller wallets
     owner = boa.env.generate_address()
