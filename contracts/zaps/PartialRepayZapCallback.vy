@@ -122,8 +122,6 @@ def liquidate_partial(
     to_repay: uint256 = staticcall CONTROLLER.tokens_to_liquidate(_user, FRAC)
     borrowed_from_sender: uint256 = unsafe_div(unsafe_mul(to_repay, ratio), WAD)
 
-    tkn.transfer_from(BORROWED, msg.sender, self, borrowed_from_sender)
-
     if _callbacker != empty(address):
         liquidate_calldata: Bytes[CALLDATA_MAX_SIZE] = abi_encode(_controller.address, _user, borrowed_from_sender, _callbacker, _calldata)
         extcall CONTROLLER.liquidate(_user, _min_x, FRAC, self, liquidate_calldata)

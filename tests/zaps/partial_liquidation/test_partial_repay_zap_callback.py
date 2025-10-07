@@ -17,8 +17,7 @@ def test_users_to_liquidate_callback(
     controller = controller_for_liquidation(sleep_time=int(33 * 86400), user=user)
 
     if is_approved:
-        callbacker = str(partial_repay_zap_callback.address)
-        controller.approve(callbacker, True, sender=user)
+        controller.approve(partial_repay_zap_callback.address, True, sender=user)
 
     users_to_liquidate = partial_repay_zap_callback.users_to_liquidate(
         controller.address
@@ -69,14 +68,11 @@ def test_liquidate_partial_callback(
     user = accounts[1]
     liquidator = accounts[2]
     controller = controller_for_liquidation(sleep_time=int(30.7 * 86400), user=user)
-    callbacker = str(partial_repay_zap_callback.address)
-    controller.approve(callbacker, True, sender=user)
+    controller.approve(partial_repay_zap_callback.address, True, sender=user)
 
     initial_health = controller.health(user)
 
-    boa.deal(borrowed_token, liquidator, 10**21)
     initial_collateral = collateral_token.balanceOf(partial_repay_zap_tester.address)
-
     # Ensure partial_repay_zap_tester has stablecoin
     boa.deal(borrowed_token, partial_repay_zap_tester, 10**21)
     with boa.env.prank(liquidator):
@@ -95,27 +91,44 @@ def test_liquidate_partial_callback(
     assert collateral_token.balanceOf(partial_repay_zap_callback.address) == 0
 
 
+@pytest.mark.parametrize("use_callback", [True, False])
 def test_liquidate_partial_uses_exact_amount(
+    accounts,
     borrowed_token,
     controller_for_liquidation,
     partial_repay_zap_callback,
+    partial_repay_zap_tester,
+    use_callback,
 ):
-    controller = controller_for_liquidation(
-        sleep_time=int(30.7 * 86400), user=boa.env.eoa
-    )
-
-    controller.approve(partial_repay_zap_callback.address, True)
+    user = accounts[1]
+    liquidator = accounts[2]
+    controller = controller_for_liquidation(sleep_time=int(30.7 * 86400), user=user)
+    controller.approve(partial_repay_zap_callback.address, True, sender=user)
 
     position = partial_repay_zap_callback.users_to_liquidate(controller.address)[0]
     borrowed_from_sender = position.dy
 
-    # get money to liquidate: in real scenario this would be a separate address
-    boa.deal(borrowed_token, boa.env.eoa, 10**21)
+    if use_callback:
+        calldata = to_bytes(hexstr=borrowed_token.address)
+        boa.deal(borrowed_token, partial_repay_zap_tester, 10**21)
+        pre_balance = borrowed_token.balanceOf(partial_repay_zap_tester)
 
-    borrowed_token.approve(partial_repay_zap_callback.address, MAX_UINT256)
-    pre_balance = borrowed_token.balanceOf(boa.env.eoa)
-    partial_repay_zap_callback.liquidate_partial(controller.address, user, 0)
-    post_balance = borrowed_token.balanceOf(boa.env.eoa)
+        with boa.env.prank(liquidator):
+            borrowed_token.approve(partial_repay_zap_callback.address, 2**256 - 1)
+            partial_repay_zap_callback.liquidate_partial(
+                controller.address, user, 0, partial_repay_zap_tester.address, calldata
+            )
+
+        post_balance = borrowed_token.balanceOf(partial_repay_zap_tester)
+
+    else:
+        # get money to liquidate: in real scenario this would be a separate address
+        boa.deal(borrowed_token, liquidator, 10**21)
+        pre_balance = borrowed_token.balanceOf(liquidator)
+        with boa.env.prank(liquidator):
+            borrowed_token.approve(partial_repay_zap_callback.address, MAX_UINT256)
+            partial_repay_zap_callback.liquidate_partial(controller.address, user, 0)
+        post_balance = borrowed_token.balanceOf(liquidator)
 
     spent = pre_balance - post_balance
-    assert spent == borrowed_from_sender  # TODO this actually pulls double the amount
+    assert spent == borrowed_from_sender
