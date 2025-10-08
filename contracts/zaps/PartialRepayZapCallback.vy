@@ -148,7 +148,7 @@ def liquidate_partial(
 def execute_callback(
     callbacker: address,
     callback_sig: bytes4,
-    calldata: Bytes[CALLDATA_MAX_SIZE - 32 * 5 - 16],
+    calldata: Bytes[CALLDATA_MAX_SIZE - 32 * 6 - 16],
 ):
     response: Bytes[64] = raw_call(
         callbacker,
