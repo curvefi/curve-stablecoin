@@ -904,14 +904,14 @@ def _repay_full(
         _xy = extcall AMM.withdraw(_for, WAD)
 
     # ================= Recover borrowed tokens (xy[0]) =================
-    _non_wallet_d_debt: uint256 = _xy[0] + _cb.borrowed
-    _wallet_d_debt: uint256 = unsafe_sub(max(_debt, _non_wallet_d_debt), _non_wallet_d_debt)
+    non_wallet_d_debt: uint256 = _xy[0] + _cb.borrowed
+    wallet_d_debt: uint256 = unsafe_sub(max(_debt, non_wallet_d_debt), non_wallet_d_debt)
     if _xy[0] > 0:  #  pull borrowed tokens from AMM (already soft liquidated)
         assert _approval
         tkn.transfer_from(BORROWED_TOKEN, AMM.address, self, _xy[0])
     tkn.transfer_from(BORROWED_TOKEN, _callbacker, self, _cb.borrowed)
-    tkn.transfer_from(BORROWED_TOKEN, msg.sender, self, _wallet_d_debt)
-    tkn.transfer(BORROWED_TOKEN, _for, unsafe_sub(max(_non_wallet_d_debt, _debt), _debt))
+    tkn.transfer_from(BORROWED_TOKEN, msg.sender, self, wallet_d_debt)
+    tkn.transfer(BORROWED_TOKEN, _for, unsafe_sub(max(non_wallet_d_debt, _debt), _debt))
 
 
     # ================= Recover collateral tokens (xy[1]) =================
