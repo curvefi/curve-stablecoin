@@ -1064,6 +1064,32 @@ def repay(
     self._save_rate()
 
 
+@view
+@external
+def tokens_to_shrink(user: address) -> uint256:
+    """
+    @notice Calculate the amount of borrowed asset required to shrink the user's position
+    @param user Address of the user to shrink the position for
+    @return The amount of borrowed asset needed
+    """
+    active_band: int256 = staticcall AMM.active_band_with_skip()
+    ns: int256[2] = staticcall AMM.read_user_tick_numbers(user)
+
+    if ns[0] > active_band:
+        return 0
+
+    assert ns[1] > active_band + MIN_TICKS, "Can't shrink"
+    size: int256 = unsafe_sub(ns[1], active_band + 1)
+    xy: uint256[2] = staticcall AMM.get_sum_xy(user)
+    current_debt: uint256 = self._debt(user)[0]
+    new_debt: uint256 = unsafe_sub(max(current_debt, xy[0]), xy[0])
+    max_borrowable: uint256 = staticcall self._view.max_borrowable(
+        xy[1], convert(unsafe_add(size, 1), uint256), new_debt, user
+    )
+
+    return unsafe_sub(max(new_debt, max_borrowable), max_borrowable)
+
+
 @internal
 @view
 def _health(
