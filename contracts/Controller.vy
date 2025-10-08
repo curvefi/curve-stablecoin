@@ -971,7 +971,6 @@ def _repay_partial(
     else:
         # Underwater without shrink - cannot use callback or move bands.
         # But can avoid a bad liquidation just reducing debt amount.
-        _xy = staticcall AMM.get_sum_xy(_for)
         assert _callbacker == empty(address)
 
     if _approval:
@@ -1026,7 +1025,7 @@ def repay(
     debt, rate_mul = self._debt(_for)
     self._check_loan_exists(debt)
     approval: bool = self._check_approval(_for)
-    xy: uint256[2] = empty(uint256[2])
+    xy: uint256[2] = staticcall AMM.get_sum_xy(_for)
 
     cb: IController.CallbackData = empty(IController.CallbackData)
     if callbacker != empty(address):
