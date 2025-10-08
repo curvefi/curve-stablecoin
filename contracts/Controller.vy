@@ -894,7 +894,7 @@ def _remove_from_list(_for: address):
 @internal
 def _repay_full(
     _for: address,
-    _debt: uint256,
+    _debt: uint256,  # same as _d_debt in this case
     _approval: bool,
     _xy: uint256[2],
     _cb: IController.CallbackData,
@@ -955,6 +955,7 @@ def _repay_partial(
     liquidation_discount: uint256 = self.liquidation_discounts[_for]
 
     if ns[0] > active_band or _shrink:
+        # Not underwater or shrink mode - can move bands
         new_collateral: uint256 = _cb.collateral
         if _callbacker == empty(address):
             _xy = extcall AMM.withdraw(_for, WAD)
@@ -968,7 +969,8 @@ def _repay_partial(
         ns[1] = ns[0] + size
         extcall AMM.deposit_range(_for, new_collateral, ns[0], ns[1])
     else:
-        # Underwater - cannot use callback or move bands but can avoid a bad liquidation
+        # Underwater without shrink - cannot use callback or move bands.
+        # But can avoid a bad liquidation just reducing debt amount.
         _xy = staticcall AMM.get_sum_xy(_for)
         assert _callbacker == empty(address)
 
@@ -1037,13 +1039,11 @@ def repay(
 
     d_debt: uint256 = min(min(_wallet_d_debt, debt) + xy[0] + cb.borrowed, debt)
     assert d_debt > 0  # dev: no coins to repay
+    debt = unsafe_sub(debt, d_debt)
 
-    if d_debt >= debt:
-        d_debt = debt
-        debt = 0
+    if debt == 0:
         self._repay_full(_for, d_debt, approval, xy, cb, callbacker)
     else:
-        debt = unsafe_sub(debt, d_debt)
         self._repay_partial(
             _for,
             debt,
