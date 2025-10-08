@@ -2,7 +2,9 @@ import boa
 from tests.utils import filter_logs
 
 
-def test_redeem_basic(vault, controller, amm, monetary_policy, borrowed_token, deposit_into_vault):
+def test_redeem_basic(
+    vault, controller, amm, monetary_policy, borrowed_token, deposit_into_vault
+):
     """Test basic redeem functionality - balances, rate, event."""
     assets = 100 * 10 ** borrowed_token.decimals()
     deposit_into_vault(assets=assets)
@@ -36,8 +38,14 @@ def test_redeem_basic(vault, controller, amm, monetary_policy, borrowed_token, d
     assert vault.balanceOf(boa.env.eoa) == initial_sender_balance - shares_to_redeem
     assert vault.totalSupply() == initial_total_supply - shares_to_redeem
     assert vault.withdrawn() == initial_withdrawn + assets_redeemed
-    assert borrowed_token.balanceOf(controller) == initial_controller_balance - assets_redeemed
-    assert borrowed_token.balanceOf(boa.env.eoa) == initial_sender_token_balance + assets_redeemed
+    assert (
+        borrowed_token.balanceOf(controller)
+        == initial_controller_balance - assets_redeemed
+    )
+    assert (
+        borrowed_token.balanceOf(boa.env.eoa)
+        == initial_sender_token_balance + assets_redeemed
+    )
 
     # Check rate was saved
     assert amm.eval("self.rate_time") > initial_amm_rate_time
@@ -52,7 +60,9 @@ def test_redeem_basic(vault, controller, amm, monetary_policy, borrowed_token, d
     assert logs[0].shares == shares_to_redeem
 
 
-def test_redeem_with_receiver(vault, controller, amm, monetary_policy, borrowed_token, deposit_into_vault):
+def test_redeem_with_receiver(
+    vault, controller, amm, monetary_policy, borrowed_token, deposit_into_vault
+):
     """Test redeem with receiver argument - assets go to receiver, not sender."""
     # Generate receiver wallet
     receiver = boa.env.generate_address()
@@ -88,13 +98,25 @@ def test_redeem_with_receiver(vault, controller, amm, monetary_policy, borrowed_
     assert assets_redeemed == expected_assets
 
     # Check balances - assets go to receiver, not sender
-    assert vault.balanceOf(boa.env.eoa) == initial_sender_balance - shares_to_redeem  # Sender shares burned
-    assert vault.balanceOf(receiver) == initial_receiver_balance  # Receiver gets no shares
+    assert (
+        vault.balanceOf(boa.env.eoa) == initial_sender_balance - shares_to_redeem
+    )  # Sender shares burned
+    assert (
+        vault.balanceOf(receiver) == initial_receiver_balance
+    )  # Receiver gets no shares
     assert vault.totalSupply() == initial_total_supply - shares_to_redeem
     assert vault.withdrawn() == initial_withdrawn + assets_redeemed
-    assert borrowed_token.balanceOf(controller) == initial_controller_balance - assets_redeemed
-    assert borrowed_token.balanceOf(boa.env.eoa) == initial_sender_token_balance  # Sender gets no assets
-    assert borrowed_token.balanceOf(receiver) == initial_receiver_token_balance + assets_redeemed  # Receiver gets assets
+    assert (
+        borrowed_token.balanceOf(controller)
+        == initial_controller_balance - assets_redeemed
+    )
+    assert (
+        borrowed_token.balanceOf(boa.env.eoa) == initial_sender_token_balance
+    )  # Sender gets no assets
+    assert (
+        borrowed_token.balanceOf(receiver)
+        == initial_receiver_token_balance + assets_redeemed
+    )  # Receiver gets assets
 
     # Check rate was saved
     assert amm.eval("self.rate_time") > initial_amm_rate_time
@@ -109,7 +131,9 @@ def test_redeem_with_receiver(vault, controller, amm, monetary_policy, borrowed_
     assert logs[0].shares == shares_to_redeem
 
 
-def test_redeem_with_owner(vault, controller, amm, monetary_policy, borrowed_token, deposit_into_vault):
+def test_redeem_with_owner(
+    vault, controller, amm, monetary_policy, borrowed_token, deposit_into_vault
+):
     """Test redeem with owner argument - owner's shares are burned."""
     # Generate owner and caller wallets
     owner = boa.env.generate_address()
@@ -150,12 +174,20 @@ def test_redeem_with_owner(vault, controller, amm, monetary_policy, borrowed_tok
     assert assets_redeemed == expected_assets
 
     # Check balances - owner's shares burned, caller gets assets
-    assert vault.balanceOf(owner) == initial_owner_balance - shares_to_redeem  # Owner's shares burned
+    assert (
+        vault.balanceOf(owner) == initial_owner_balance - shares_to_redeem
+    )  # Owner's shares burned
     assert vault.balanceOf(caller) == initial_caller_balance  # Caller gets no shares
     assert vault.totalSupply() == initial_total_supply - shares_to_redeem
     assert vault.withdrawn() == initial_withdrawn + assets_redeemed
-    assert borrowed_token.balanceOf(controller) == initial_controller_balance - assets_redeemed
-    assert borrowed_token.balanceOf(caller) == initial_caller_token_balance + assets_redeemed  # Caller gets assets
+    assert (
+        borrowed_token.balanceOf(controller)
+        == initial_controller_balance - assets_redeemed
+    )
+    assert (
+        borrowed_token.balanceOf(caller)
+        == initial_caller_token_balance + assets_redeemed
+    )  # Caller gets assets
 
     # Check rate was saved
     assert amm.eval("self.rate_time") > initial_amm_rate_time
@@ -170,7 +202,9 @@ def test_redeem_with_owner(vault, controller, amm, monetary_policy, borrowed_tok
     assert logs[0].shares == shares_to_redeem
 
 
-def test_redeem_with_owner_and_receiver(vault, controller, amm, monetary_policy, borrowed_token, deposit_into_vault):
+def test_redeem_with_owner_and_receiver(
+    vault, controller, amm, monetary_policy, borrowed_token, deposit_into_vault
+):
     """Test redeem with both owner and receiver - owner's shares burned, receiver gets assets."""
     # Generate owner, caller, and receiver wallets
     owner = boa.env.generate_address()
@@ -214,14 +248,26 @@ def test_redeem_with_owner_and_receiver(vault, controller, amm, monetary_policy,
     assert assets_redeemed == expected_assets
 
     # Check balances - owner's shares burned, receiver gets assets
-    assert vault.balanceOf(owner) == initial_owner_balance - shares_to_redeem  # Owner's shares burned
+    assert (
+        vault.balanceOf(owner) == initial_owner_balance - shares_to_redeem
+    )  # Owner's shares burned
     assert vault.balanceOf(caller) == initial_caller_balance  # Caller gets no shares
-    assert vault.balanceOf(receiver) == initial_receiver_balance  # Receiver gets no shares
+    assert (
+        vault.balanceOf(receiver) == initial_receiver_balance
+    )  # Receiver gets no shares
     assert vault.totalSupply() == initial_total_supply - shares_to_redeem
     assert vault.withdrawn() == initial_withdrawn + assets_redeemed
-    assert borrowed_token.balanceOf(controller) == initial_controller_balance - assets_redeemed
-    assert borrowed_token.balanceOf(caller) == initial_caller_token_balance  # Caller gets no assets
-    assert borrowed_token.balanceOf(receiver) == initial_receiver_token_balance + assets_redeemed  # Receiver gets assets
+    assert (
+        borrowed_token.balanceOf(controller)
+        == initial_controller_balance - assets_redeemed
+    )
+    assert (
+        borrowed_token.balanceOf(caller) == initial_caller_token_balance
+    )  # Caller gets no assets
+    assert (
+        borrowed_token.balanceOf(receiver)
+        == initial_receiver_token_balance + assets_redeemed
+    )  # Receiver gets assets
 
     # Check rate was saved
     assert amm.eval("self.rate_time") > initial_amm_rate_time
@@ -236,21 +282,27 @@ def test_redeem_with_owner_and_receiver(vault, controller, amm, monetary_policy,
     assert logs[0].shares == shares_to_redeem
 
 
-def test_redeem_need_more_assets_revert(vault, controller, amm, borrowed_token, deposit_into_vault):
+def test_redeem_need_more_assets_revert(
+    vault, controller, amm, borrowed_token, deposit_into_vault
+):
     """Test redeem reverts with 'Need more assets' when total assets too low."""
     assets = 100 * 10 ** borrowed_token.decimals()
     deposit_into_vault(assets=assets)
 
     # Try to redeem more than available (would leave vault with < MIN_ASSETS)
     total_assets = vault.totalAssets()
-    shares_to_redeem = vault.convertToShares(total_assets - vault.eval("MIN_ASSETS") + 1)
+    shares_to_redeem = vault.convertToShares(
+        total_assets - vault.eval("MIN_ASSETS") + 1
+    )
 
     # Should revert with "Need more assets"
     with boa.reverts("Need more assets"):
         vault.redeem(shares_to_redeem)
 
 
-def test_redeem_insufficient_allowance_revert(vault, controller, amm, monetary_policy, borrowed_token, deposit_into_vault):
+def test_redeem_insufficient_allowance_revert(
+    vault, controller, amm, monetary_policy, borrowed_token, deposit_into_vault
+):
     """Test redeem reverts when allowance < shares."""
     # Generate owner and caller wallets
     owner = boa.env.generate_address()

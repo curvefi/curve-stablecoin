@@ -10,7 +10,9 @@ def seed_liquidity():
     return 0
 
 
-def test_max_redeem_user_balance_limited(vault, controller, amm, borrowed_token, deposit_into_vault):
+def test_max_redeem_user_balance_limited(
+    vault, controller, amm, borrowed_token, deposit_into_vault
+):
     """Test maxRedeem when user balance is the limiting factor."""
     deposit_into_vault()
 
@@ -21,7 +23,9 @@ def test_max_redeem_user_balance_limited(vault, controller, amm, borrowed_token,
     assert actual_max == expected_max
 
 
-def test_max_redeem_controller_limited(vault, controller, amm, borrowed_token, deposit_into_vault):
+def test_max_redeem_controller_limited(
+    vault, controller, amm, borrowed_token, deposit_into_vault
+):
     """Test maxRedeem when controller liquidity is the limiting factor."""
     deposit_into_vault()
 
@@ -37,7 +41,9 @@ def test_max_redeem_controller_limited(vault, controller, amm, borrowed_token, d
     assert actual_max == expected_max
 
 
-def test_max_redeem_zero_balance(vault, controller, amm, borrowed_token, deposit_into_vault):
+def test_max_redeem_zero_balance(
+    vault, controller, amm, borrowed_token, deposit_into_vault
+):
     """Test maxRedeem when user has no shares."""
     # Load borrowed tokens into vault
     deposit_into_vault(user=boa.env.generate_address())
@@ -51,7 +57,9 @@ def test_max_redeem_zero_balance(vault, controller, amm, borrowed_token, deposit
     assert actual_max == 0
 
 
-def test_max_redeem_zero_controller_balance(vault, controller, amm, borrowed_token, deposit_into_vault):
+def test_max_redeem_zero_controller_balance(
+    vault, controller, amm, borrowed_token, deposit_into_vault
+):
     """Test maxRedeem when controller has no liquidity."""
     deposit_into_vault()
 

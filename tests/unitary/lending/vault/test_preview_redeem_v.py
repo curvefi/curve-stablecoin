@@ -14,13 +14,17 @@ def test_preview_redeem(vault, controller, amm, borrowed_token, deposit_into_vau
     """Test previewRedeem returns correct assets for given shares."""
     assets = 100 * 10 ** borrowed_token.decimals()
     deposit_into_vault(assets=assets)
-    
+
     shares = vault.convertToShares(assets)
 
-    assert vault.previewRedeem(shares) == vault.eval(f"self._convert_to_assets({shares})")
+    assert vault.previewRedeem(shares) == vault.eval(
+        f"self._convert_to_assets({shares})"
+    )
 
 
-def test_preview_redeem_assert_revert(vault, controller, amm, borrowed_token, deposit_into_vault):
+def test_preview_redeem_assert_revert(
+    vault, controller, amm, borrowed_token, deposit_into_vault
+):
     """Test previewRedeem reverts when assets > borrowed_balance."""
     # Create vault state by depositing
     deposit_into_vault()
