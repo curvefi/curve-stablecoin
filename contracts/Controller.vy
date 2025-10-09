@@ -933,8 +933,7 @@ def _repay_full(
 @internal
 def _repay_partial(
     _for: address,
-    _new_debt: uint256,
-    _d_debt: uint256,
+    _debt: uint256,
     _wallet_d_debt: uint256,
     _approval: bool,
     _xy: uint256[2],
@@ -942,7 +941,7 @@ def _repay_partial(
     _callbacker: address,
     _max_active_band: int256,
     _shrink: bool,
-):
+) -> uint256:
     # slippage-like check to prevent dos on repay (grief attack)
     active_band: int256 = staticcall AMM.active_band_with_skip()
     assert active_band <= _max_active_band
@@ -953,6 +952,8 @@ def _repay_partial(
         assert ns[1] > active_band + MIN_TICKS, "Can't shrink"
         size = unsafe_sub(ns[1], active_band + 1)
     liquidation_discount: uint256 = self.liquidation_discounts[_for]
+    # _debt > _wallet_d_debt + cb.borrowed + xy[0] (check repay method)
+    new_debt: uint256 = unsafe_sub(_debt, unsafe_add(_cb.borrowed, _wallet_d_debt))
 
     if ns[0] > active_band or _shrink:
         # Not underwater or shrink mode - can move bands
@@ -960,9 +961,10 @@ def _repay_partial(
         if _callbacker == empty(address):
             _xy = extcall AMM.withdraw(_for, WAD)
             new_collateral = _xy[1]
+            new_debt -=_xy[0]
         ns[0] = self._calculate_debt_n1(
             new_collateral,
-            _new_debt,
+            new_debt,
             convert(unsafe_add(size, 1), uint256),
             _for,
         )
@@ -971,7 +973,6 @@ def _repay_partial(
     else:
         # Underwater without shrink - cannot use callback or move bands.
         # But can avoid a bad liquidation just reducing debt amount.
-        _xy = staticcall AMM.get_sum_xy(_for)
         assert _callbacker == empty(address)
 
     if _approval:
@@ -981,7 +982,7 @@ def _repay_partial(
     else:
         # Doesn't allow non-sender to repay in a way which ends with unhealthy state
         # full = False to make this condition non-manipulatable (and also cheaper on gas)
-        assert self._health(_for, _new_debt, False, liquidation_discount) > 0
+        assert self._health(_for, new_debt, False, liquidation_discount) > 0
 
     if _shrink:
         assert _approval
@@ -989,17 +990,21 @@ def _repay_partial(
     tkn.transfer_from(BORROWED_TOKEN, _callbacker, self, _cb.borrowed)
     tkn.transfer_from(BORROWED_TOKEN, msg.sender, self, _wallet_d_debt)
 
+    d_debt: uint256 = _debt - new_debt
+
     log IController.UserState(
         user=_for,
         collateral=_xy[1],
-        debt=_new_debt,
+        debt=new_debt,
         n1=ns[0],
         n2=ns[1],
         liquidation_discount=liquidation_discount,
     )
     log IController.Repay(
-        user=_for, collateral_decrease=0, loan_decrease=_d_debt
+        user=_for, collateral_decrease=0, loan_decrease=d_debt
     )
+
+    return d_debt
 
 
 @external
@@ -1026,7 +1031,7 @@ def repay(
     debt, rate_mul = self._debt(_for)
     self._check_loan_exists(debt)
     approval: bool = self._check_approval(_for)
-    xy: uint256[2] = empty(uint256[2])
+    xy: uint256[2] = staticcall AMM.get_sum_xy(_for)
 
     cb: IController.CallbackData = empty(IController.CallbackData)
     if callbacker != empty(address):
@@ -1039,15 +1044,13 @@ def repay(
 
     d_debt: uint256 = min(min(_wallet_d_debt, debt) + xy[0] + cb.borrowed, debt)
     assert d_debt > 0  # dev: no coins to repay
-    debt = unsafe_sub(debt, d_debt)
 
-    if debt == 0:
+    if d_debt == debt:
         self._repay_full(_for, d_debt, approval, xy, cb, callbacker)
     else:
-        self._repay_partial(
+        d_debt = self._repay_partial(
             _for,
             debt,
-            d_debt,
             _wallet_d_debt,
             approval,
             xy,
@@ -1056,6 +1059,7 @@ def repay(
             max_active_band,
             shrink,
         )
+    debt -= d_debt
 
     self.loan[_for] = IController.Loan(initial_debt=debt, rate_mul=rate_mul)
     self._update_total_debt(d_debt, rate_mul, False)
@@ -1115,9 +1119,7 @@ def _health(
     )
 
     if full:
-        ns0: int256 = (staticcall AMM.read_user_tick_numbers(user))[
-            0
-        ]  # ns[1] > ns[0]
+        ns0: int256 = (staticcall AMM.read_user_tick_numbers(user))[0]  # ns[1] > ns[0]
         if ns0 > staticcall AMM.active_band():  # We are not in liquidation mode
             p: uint256 = staticcall AMM.price_oracle()
             p_up: uint256 = staticcall AMM.p_oracle_up(ns0)
