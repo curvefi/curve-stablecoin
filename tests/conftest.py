@@ -138,7 +138,7 @@ def market_type(request):
 
 @pytest.fixture(scope="module")
 def amm_A():
-    return 1000
+    return 100
 
 
 @pytest.fixture(scope="module")
