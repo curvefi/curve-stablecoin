@@ -949,7 +949,7 @@ def _repay_partial(
     ns: int256[2] = staticcall AMM.read_user_tick_numbers(_for)
     size: int256 = unsafe_sub(ns[1], ns[0])
     if ns[0] <= active_band and _shrink:
-        assert ns[1] > active_band + MIN_TICKS, "Can't shrink"
+        assert ns[1] >= active_band + MIN_TICKS, "Can't shrink"
         size = unsafe_sub(ns[1], active_band + 1)
     liquidation_discount: uint256 = self.liquidation_discounts[_for]
     # _debt > _wallet_d_debt + cb.borrowed + xy[0] (check repay method)
@@ -1082,7 +1082,7 @@ def tokens_to_shrink(user: address) -> uint256:
     if ns[0] > active_band:
         return 0
 
-    assert ns[1] > active_band + MIN_TICKS, "Can't shrink"
+    assert ns[1] >= active_band + MIN_TICKS, "Can't shrink"
     size: int256 = unsafe_sub(ns[1], active_band + 1)
     xy: uint256[2] = staticcall AMM.get_sum_xy(user)
     current_debt: uint256 = self._debt(user)[0]
