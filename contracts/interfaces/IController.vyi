@@ -166,6 +166,12 @@ def repay(
     ...
 
 
+@view
+@external
+def tokens_to_shrink(user: address) -> uint256:
+    ...
+
+
 @external
 def approve(_spender: address, _allow: bool):
     ...

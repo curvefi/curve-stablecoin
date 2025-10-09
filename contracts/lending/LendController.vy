@@ -57,6 +57,7 @@ exports: (
     core.monetary_policy,
     core.n_loans,
     core.tokens_to_liquidate,
+    core.tokens_to_shrink,
     core.total_debt,
     core.factory,
     core.processed,
