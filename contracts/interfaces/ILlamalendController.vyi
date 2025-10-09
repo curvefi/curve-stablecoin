@@ -145,6 +145,7 @@ def repay(
     max_active_band: int256 = max_value(int256),
     callbacker: address = empty(address),
     calldata: Bytes[10000] = b"",
+    shrink: bool = False,
 ):
     ...
 

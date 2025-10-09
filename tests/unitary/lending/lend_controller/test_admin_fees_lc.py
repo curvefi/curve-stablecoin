@@ -7,7 +7,6 @@ COLLATERAL = 10**21
 DEBT = 10**18
 RATE = 10**11
 TIME_DELTA = 86400
-FEE_PCTS = [100, 75, 50, 25, 10]
 
 
 def test_default_behavior_no_fees(controller):
@@ -33,14 +32,7 @@ def test_default_behavior_with_interest(
 
             return controller.admin_fees()
 
-    base_amount = outstanding_for_pct(100)
-    assert base_amount > 0
-
-    results = {100: base_amount}
-    for pct in FEE_PCTS[1:]:
-        results[pct] = outstanding_for_pct(pct)
-        expected = base_amount * pct // 100
-        assert results[pct] == expected
-
-    for higher, lower in zip(FEE_PCTS, FEE_PCTS[1:]):
-        assert results[higher] > results[lower]
+    for pct in range(1, 101):
+        assert (
+            outstanding_for_pct(pct) == DEBT * TIME_DELTA * RATE // 10**18 * pct // 100
+        )
