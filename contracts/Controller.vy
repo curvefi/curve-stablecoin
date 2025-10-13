@@ -961,7 +961,8 @@ def _repay_partial(
         if _callbacker == empty(address):
             _xy = extcall AMM.withdraw(_for, WAD)
             new_collateral = _xy[1]
-            new_debt -=_xy[0]
+        new_debt -=_xy[0]
+
         ns[0] = self._calculate_debt_n1(
             new_collateral,
             new_debt,
