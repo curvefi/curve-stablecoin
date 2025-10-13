@@ -944,6 +944,8 @@ def _repay_partial(
 ) -> uint256:
     # slippage-like check to prevent dos on repay (grief attack)
     active_band: int256 = staticcall AMM.active_band_with_skip()
+    if _callbacker != empty(address):
+        active_band = _cb.active_band
     assert active_band <= _max_active_band
 
     ns: int256[2] = staticcall AMM.read_user_tick_numbers(_for)
