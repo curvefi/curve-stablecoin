@@ -984,11 +984,15 @@ def _repay_partial(
         # full = False to make this condition non-manipulatable (and also cheaper on gas)
         assert self._health(_for, new_debt, False, liquidation_discount) > 0
 
+    # ================= Recover borrowed tokens (xy[0]) =================
     if _shrink:
         assert _approval
         tkn.transfer_from(BORROWED_TOKEN, AMM.address, self, _xy[0])
     tkn.transfer_from(BORROWED_TOKEN, _callbacker, self, _cb.borrowed)
     tkn.transfer_from(BORROWED_TOKEN, msg.sender, self, _wallet_d_debt)
+
+    # ================= Recover collateral tokens (xy[1]) =================
+    tkn.transfer_from(COLLATERAL_TOKEN, _callbacker, self, _cb.collateral)
 
     d_debt: uint256 = _debt - new_debt
 
