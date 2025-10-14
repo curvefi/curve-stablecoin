@@ -944,8 +944,10 @@ def _repay_partial(
 ) -> uint256:
     # slippage-like check to prevent dos on repay (grief attack)
     active_band: int256 = staticcall AMM.active_band_with_skip()
+    new_collateral: uint256 = _xy[1]
     if _callbacker != empty(address):
         active_band = _cb.active_band
+        new_collateral = cb.collateral
     assert active_band <= _max_active_band
 
     ns: int256[2] = staticcall AMM.read_user_tick_numbers(_for)
@@ -1001,14 +1003,16 @@ def _repay_partial(
 
     log IController.UserState(
         user=_for,
-        collateral=_xy[1],
+        collateral=new_collateral,
         debt=new_debt,
         n1=ns[0],
         n2=ns[1],
         liquidation_discount=liquidation_discount,
     )
     log IController.Repay(
-        user=_for, collateral_decrease=0, loan_decrease=d_debt
+        user=_for,
+        collateral_decrease=unsafe_sub(max(_xy[1], new_collateral), new_collateral),
+        loan_decrease=d_debt,
     )
 
     return d_debt
