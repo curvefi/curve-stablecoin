@@ -1487,7 +1487,6 @@ def _collect_fees(admin_fee: uint256) -> uint256:
     # Borrowing-based fees
     rate_mul: uint256 = staticcall AMM.get_rate_mul()
     loan: IController.Loan = self._update_total_debt(0, rate_mul, False)
-    self._save_rate()
 
     # Cumulative amount which would have been repaid if all the debt was repaid now
     to_be_repaid: uint256 = loan.initial_debt + self.repaid
@@ -1499,9 +1498,11 @@ def _collect_fees(admin_fee: uint256) -> uint256:
         fees: uint256 = unsafe_sub(to_be_repaid, processed) * admin_fee // WAD
         tkn.transfer(BORROWED_TOKEN, _to, fees)
         log IController.CollectFees(amount=fees, new_supply=loan.initial_debt)
+        self._save_rate()
         return fees
     else:
         log IController.CollectFees(amount=0, new_supply=loan.initial_debt)
+        self._save_rate()
         return 0
 
 
