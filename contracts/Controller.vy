@@ -663,7 +663,6 @@ def _create_loan(
     extcall AMM.deposit_range(_for, total_collateral, n1, n2)
 
     self.processed += debt
-    self._save_rate()
 
     log IController.UserState(
         user=_for,
@@ -681,6 +680,8 @@ def _create_loan(
     tkn.transfer_from(COLLATERAL_TOKEN, callbacker, AMM.address, more_collateral)
     if callbacker == empty(address):
         tkn.transfer(BORROWED_TOKEN, _for, debt)
+
+    self._save_rate()
 
     return debt
 
