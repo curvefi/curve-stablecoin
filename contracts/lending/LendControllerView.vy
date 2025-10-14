@@ -96,7 +96,7 @@ def max_borrowable(
     # Cannot borrow beyond the amount of coins Controller has or beyond borrow_cap
     total_debt: uint256 = self._total_debt()
     cap: uint256 = unsafe_sub(max(self._borrow_cap(), total_debt), total_debt)
-    cap = min(self._borrowed_balance() + current_debt, cap)
+    cap = min(self._borrowed_balance(), cap) + current_debt
 
     return core._max_borrowable(
         collateral,
