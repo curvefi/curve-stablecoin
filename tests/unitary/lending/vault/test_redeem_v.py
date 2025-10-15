@@ -179,7 +179,7 @@ def test_redeem_with_owner(
     )  # Owner's shares burned
     assert vault.balanceOf(caller) == initial_caller_balance  # Caller gets no shares
     assert vault.totalSupply() == initial_total_supply - shares_to_redeem
-    assert vault.asset_balance() == initial_balance + assets_redeemed
+    assert vault.asset_balance() == initial_balance - assets_redeemed
     assert (
         borrowed_token.balanceOf(controller)
         == initial_controller_balance - assets_redeemed
