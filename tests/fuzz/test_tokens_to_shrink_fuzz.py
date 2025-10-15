@@ -5,6 +5,7 @@ from hypothesis import strategies as st
 from tests.utils.constants import MIN_TICKS, WAD, ZERO_ADDRESS
 
 
+# TODO no fixtures here
 @pytest.fixture(scope="module")
 def seed_liquidity():
     """Default liquidity amount used to seed markets at creation time.
