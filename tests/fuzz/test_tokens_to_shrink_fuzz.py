@@ -1,6 +1,6 @@
 import boa
 import pytest
-from hypothesis import given, settings, reproduce_failure
+from hypothesis import given, settings
 from hypothesis import strategies as st
 from tests.utils.constants import MIN_TICKS, WAD, ZERO_ADDRESS
 
@@ -74,12 +74,18 @@ def test_tokens_to_shrink(
         tokens_to_shrink = controller.tokens_to_shrink(boa.env.eoa)
 
         boa.deal(borrowed_token, boa.env.eoa, tokens_to_shrink)
-        controller.repay(tokens_to_shrink, boa.env.eoa, active_band, ZERO_ADDRESS, b'', True)
+        controller.repay(
+            tokens_to_shrink, boa.env.eoa, active_band, ZERO_ADDRESS, b"", True
+        )
 
         _n1, _n2 = amm.read_user_tick_numbers(boa.env.eoa)
 
         if tokens_to_shrink > 0:
-            assert max(active_band, oracle_price_band) + 1 <= _n1 <= max(active_band, oracle_price_band) + 2
+            assert (
+                max(active_band, oracle_price_band) + 1
+                <= _n1
+                <= max(active_band, oracle_price_band) + 2
+            )
         else:
             assert _n1 > active_band
         assert amm.active_band() == active_band
@@ -88,5 +94,7 @@ def test_tokens_to_shrink(
         _user_state = controller.user_state(boa.env.eoa)
         assert _user_state[0] == user_state[0]  # collateral unchanged
         assert _user_state[1] == 0  # borrowed == 0
-        assert _user_state[2] == user_state[2] - user_state[1] - tokens_to_shrink  # _debt == debt - xy[0] - tokens_to_shrink
+        assert (
+            _user_state[2] == user_state[2] - user_state[1] - tokens_to_shrink
+        )  # _debt == debt - xy[0] - tokens_to_shrink
         assert _user_state[3] == min(n2 - active_band, n2 - n1 + 1)
