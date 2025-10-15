@@ -168,15 +168,14 @@ def borrowed_balance() -> uint256:
     @dev Used by the vault for its accounting logic.
     """
     # TODO rename to `borrowed_token_balance` for clarity?
-    # Start from the vault’s net funding of borrowed tokens (deposited − withdrawn),
+    # Start from the vault’s erc20 balance (ignoring any tokens sent directly to the vault),
     # subtract the portion we actually lent out that hasn’t been repaid yet (lent − repaid),
     # and subtract what the admin already skimmed as fees; what’s left is the controller’s idle cash.
-    # (VAULT.deposited() - VAULT.withdrawn()) - (lent - repaid) - self.collected
+    # VAULT.asset_balance() - (lent - repaid) - self.collected
     # The terms are rearranged to avoid underflows in intermediate steps.
     return (
-        staticcall VAULT.deposited()
+        staticcall VAULT.asset_balance()
         + core.repaid
-        - staticcall VAULT.withdrawn()
         - self.lent
         - self.collected
     )

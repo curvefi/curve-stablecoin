@@ -11,11 +11,7 @@ def borrowed_token() -> IERC20:
     ...
 
 @view
-def deposited() -> uint256:
-    ...
-
-@view
-def withdrawn() -> uint256:
+def asset_balance() -> uint256:
     ...
 
 @view
