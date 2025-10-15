@@ -948,7 +948,7 @@ def _repay_partial(
     new_collateral: uint256 = _xy[1]
     if _callbacker != empty(address):
         active_band = _cb.active_band
-        new_collateral = cb.collateral
+        new_collateral = _cb.collateral
     assert active_band <= _max_active_band
 
     ns: int256[2] = staticcall AMM.read_user_tick_numbers(_for)
@@ -962,7 +962,6 @@ def _repay_partial(
 
     if ns[0] > active_band or _shrink:
         # Not underwater or shrink mode - can move bands
-        new_collateral: uint256 = _cb.collateral
         if _callbacker == empty(address):
             _xy = extcall AMM.withdraw(_for, WAD)
             new_collateral = _xy[1]
