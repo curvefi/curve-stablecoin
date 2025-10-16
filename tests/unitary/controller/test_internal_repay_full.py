@@ -68,38 +68,42 @@ def test_default_behavior_no_callback(
     borrowed_token_after = snapshot(borrowed_token, borrower)
     collateral_token_after = snapshot(collateral_token, borrower)
 
-    repaid_amount = (
+    borrowed_to_controller = (
         borrowed_token_after["controller"] - borrowed_token_before["controller"]
     )
-    borrower_decrease = (
+    borrowed_from_borrower = (
         borrowed_token_after["borrower"] - borrowed_token_before["borrower"]
     )
-    collateral_released = (
+    collateral_to_borrower = (
         collateral_token_after["borrower"] - collateral_token_before["borrower"]
     )
     collateral_from_amm = collateral_token_after["amm"] - collateral_token_before["amm"]
 
+    # Withdrawn from AMM
+    xy = amm.get_sum_xy(borrower)
+    assert amm.user_shares(borrower)[1][0] == 0
+    assert xy[0] == 0
+    assert xy[1] == 0
+
     assert len(state_logs) == 1
     assert state_logs[0].user == borrower
-    assert state_logs[0].debt == 0
     assert state_logs[0].collateral == 0
+    assert state_logs[0].debt == 0
+    assert state_logs[0].n1 == 0
+    assert state_logs[0].n2 == 0
+    assert state_logs[0].liquidation_discount == 0
 
     assert len(repay_logs) == 1
     assert repay_logs[0].user == borrower
-    assert repay_logs[0].loan_decrease == repaid_amount
-    assert repay_logs[0].collateral_decrease == collateral_released
+    assert repay_logs[0].loan_decrease == borrowed_to_controller
+    assert repay_logs[0].collateral_decrease == collateral_to_borrower
 
-    assert repaid_amount == debt
-    assert borrower_decrease == -debt
+    assert borrowed_to_controller == debt
+    assert borrowed_from_borrower == -debt
     assert borrowed_token_after["amm"] == borrowed_token_before["amm"]
     assert borrowed_token_after["callback"] == borrowed_token_before["callback"]
 
-    assert collateral_released == -collateral_from_amm
+    assert collateral_to_borrower == COLLATERAL
+    assert collateral_from_amm == -COLLATERAL
     assert collateral_token_after["callback"] == collateral_token_before["callback"]
     assert collateral_token_after["controller"] == collateral_token_before["controller"]
-
-    assert collateral_released == COLLATERAL
-    assert borrowed_token.balanceOf(controller) == borrowed_token_after["controller"]
-    assert (
-        collateral_token.balanceOf(controller) == collateral_token_after["controller"]
-    )
