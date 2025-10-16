@@ -1,9 +1,8 @@
 from decimal import Decimal
-from hypothesis import note, assume
+from hypothesis import event, note, assume
 from hypothesis.strategies import (
     composite,
     integers,
-    builds,
     decimals,
     SearchStrategy,
     data,
@@ -19,53 +18,12 @@ from hypothesis.stateful import (
 
 import boa
 
+from tests.fuzz.strategies import mint_markets, ticks
 from tests.utils.deployers import AMM_DEPLOYER, ERC20_MOCK_DEPLOYER, STABLECOIN_DEPLOYER
 from tests.utils.constants import (
-    MAX_TICKS,
     MAX_UINT256,
     WAD,
-    MIN_A,
-    MAX_A,
-    MIN_FEE,
-    MAX_FEE,
-    MAX_LOAN_DISCOUNT,
-    MIN_LIQUIDATION_DISCOUNT,
-    MIN_TICKS,
 )
-from tests.utils.protocols import Llamalend
-
-
-# Debt ceiling has no explicit on-chain limit; choose a realistic test bound
-DEBT_CEILING_MAX = 10**8 * 10**18
-
-# ---------------- simple parameter strategies ----------------
-As = integers(min_value=MIN_A, max_value=MAX_A)
-amm_fees = integers(min_value=MIN_FEE, max_value=MAX_FEE)
-# Debt ceiling is a uint256 on-chain; generate as an integer
-debt_ceilings = integers(min_value=0, max_value=DEBT_CEILING_MAX)
-token_decimals = integers(min_value=2, max_value=18)
-prices = integers(min_value=int(1e12), max_value=int(1e24))
-
-# A simple strategy to initialize Llamalend using Hypothesis builds
-protocols = builds(Llamalend, initial_price=prices)
-
-# A simple strategy to deploy a collateral token with fuzzed decimals
-collaterals = builds(ERC20_MOCK_DEPLOYER.deploy, token_decimals)
-
-
-@composite
-def discounts(draw):
-    """Draw (loan_discount, liquidation_discount) with loan > liquidation."""
-    liq = draw(
-        integers(min_value=MIN_LIQUIDATION_DISCOUNT, max_value=MAX_LOAN_DISCOUNT - 1)
-    )
-    loan = draw(
-        integers(
-            min_value=(max(liq, MIN_LIQUIDATION_DISCOUNT) + 1),
-            max_value=MAX_LOAN_DISCOUNT,
-        )
-    )
-    return loan, liq
 
 
 def token_amounts(
@@ -169,66 +127,14 @@ def loan_increments_for_borrow_more(
 
 
 # ---------------- mint market via Protocol ----------------
-@composite
-def mint_markets(
-    draw,
-    As=As,
-    amm_fees=amm_fees,
-    discounts=discounts(),
-    debt_ceilings=debt_ceilings,
-    initial_prices=prices,
-):
-    """Creates a Protocol and a mint market with fuzzed parameters.
-    Custom strategies can be passed to override defaults.
-    Returns a dict with proto, controller, amm, collateral_token, and params.
-    """
-    _A = draw(As)
-    _fee = draw(amm_fees)
-    _loan_discount, _liq_discount = draw(discounts)
-    _dc = draw(debt_ceilings)
-    _price = draw(initial_prices)
-
-    # Deploy protocol with initial oracle price
-    proto = Protocol(initial_price=_price)
-
-    # Fresh collateral token (via strategy built from decimals if not provided)
-    _collateral = draw(collaterals)
-    _dec = _collateral.decimals()
-
-    market = proto.create_mint_market(
-        collateral_token=_collateral,
-        price_oracle=proto.price_oracle,
-        monetary_policy=proto.mint_monetary_policy,
-        A=_A,
-        amm_fee=_fee,
-        loan_discount=_loan_discount,
-        liquidation_discount=_liq_discount,
-        debt_ceiling=MAX_UINT256,
-    )
-
-    note(
-        "deployed mint market with "
-        + f"A={_A}, fee={_fee}, loan_discount={_loan_discount}, liq_discount={_liq_discount}, debt_ceiling={_dc}"
-        + f"; decimals={_dec}, price={_price}"
-    )
-
-    return market
 
 
 # ------------ controller interaction params -------------
 
-# TODO eventually fix this in SC
-ticks = integers(min_value=MIN_TICKS + 1, max_value=MAX_TICKS)
-
-
-# =====================
-# Stateful skeleton (to be expanded)
-# =====================
-
 
 class ControllerStateful(RuleBasedStateMachine):
     @initialize(market=mint_markets())
-    def initialize_protocol(self, market):
+    def _initialize(self, market):
         # Unpack market artifacts
         self.controller = market["controller"]
         self.amm = market["amm"]
@@ -347,6 +253,10 @@ class ControllerStateful(RuleBasedStateMachine):
         min_coll = self.controller.min_collateral(debt, N, user)
         assert collateral >= min_coll
         removable = collateral - min_coll
+
+        if removable == 0:
+            event(f"user {user} has no removable collateral")
+            return
 
         # Draw a safe removal amount, avoid edge rounding by not always taking full
         min_remove = max(1, removable // 64)
