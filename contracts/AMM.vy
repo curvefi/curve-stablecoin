@@ -543,7 +543,7 @@ def _read_user_ticks(user: address, ns: int256[2]) -> DynArray[uint256, MAX_TICK
         ticks.append(tick & (2**128 - 1))
         if len(ticks) == size:
             break
-        ticks.append(shift(tick, -128))
+        ticks.append(tick >> 128)
     return ticks
 
 
@@ -610,7 +610,7 @@ def save_user_shares(user: address, user_shares: DynArray[uint256, MAX_TICKS_UIN
         tick: uint256 = user_shares[ptr]
         ptr = unsafe_add(ptr, 1)
         if len(user_shares) != ptr:
-            tick = tick | shift(user_shares[ptr], 128)
+            tick = tick | (user_shares[ptr] << 128)
         ptr = unsafe_add(ptr, 1)
         self.user_shares[user].ticks[j] = tick
 
