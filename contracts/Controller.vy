@@ -1500,10 +1500,9 @@ def _collect_fees(admin_fee: uint256) -> uint256:
         log IController.CollectFees(amount=fees, new_supply=loan.initial_debt)
         self._save_rate()
         return fees
-    else:
-        log IController.CollectFees(amount=0, new_supply=loan.initial_debt)
-        self._save_rate()
-        return 0
+    log IController.CollectFees(amount=0, new_supply=loan.initial_debt)
+    self._save_rate()
+    return 0
 
 
 @external
