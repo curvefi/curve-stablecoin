@@ -39,8 +39,9 @@ implements: IAMM
 
 from contracts.interfaces import IPriceOracle
 from contracts.interfaces import ILMGauge
-
 from contracts.interfaces import IERC20
+
+from snekmate.utils import math
 
 from contracts import constants as c
 
@@ -48,12 +49,13 @@ from contracts.lib import token_lib as tkn
 
 
 # TODO common constants
-MAX_TICKS: constant(int256) = 50
+# https://github.com/vyperlang/vyper/issues/4723
+WAD: constant(uint256) = c.WAD
+MAX_TICKS: constant(int256) = c.MAX_TICKS
 MAX_TICKS_UINT: constant(uint256) = c.MAX_TICKS_UINT
+DEAD_SHARES: constant(uint256) = c.DEAD_SHARES
 MAX_SKIP_TICKS: constant(int256) = 1024
 MAX_SKIP_TICKS_UINT: constant(uint256) = 1024
-# https://github.com/vyperlang/vyper/issues/4723
-DEAD_SHARES: constant(uint256) = c.DEAD_SHARES
 
 
 BORROWED_TOKEN: immutable(IERC20)    # x
@@ -351,38 +353,11 @@ def _p_oracle_up(n: int256) -> uint256:
     power: int256 = -n * LOG_A_RATIO
 
     # ((A - 1) / A) ** n = exp(-n * ln(A / (A - 1))) = exp(-n * LOG_A_RATIO)
-    ## Exp implementation based on solmate's
-    assert power > -41446531673892821376
-    assert power < 135305999368893231589
+    exp_result: uint256 = convert(math._wad_exp(power), uint256)
 
-    x: int256 = unsafe_div(unsafe_mul(power, 2**96), 10**18)
-
-    k: int256 = unsafe_div(
-        unsafe_add(
-            unsafe_div(unsafe_mul(x, 2**96), 54916777467707473351141471128),
-            2**95),
-        2**96)
-    x = unsafe_sub(x, unsafe_mul(k, 54916777467707473351141471128))
-
-    y: int256 = unsafe_add(x, 1346386616545796478920950773328)
-    y = unsafe_add(unsafe_div(unsafe_mul(y, x), 2**96), 57155421227552351082224309758442)
-    p: int256 = unsafe_sub(unsafe_add(y, x), 94201549194550492254356042504812)
-    p = unsafe_add(unsafe_div(unsafe_mul(p, y), 2**96), 28719021644029726153956944680412240)
-    p = unsafe_add(unsafe_mul(p, x), (4385272521454847904659076985693276 * 2**96))
-
-    q: int256 = x - 2855989394907223263936484059900
-    q = unsafe_add(unsafe_div(unsafe_mul(q, x), 2**96), 50020603652535783019961831881945)
-    q = unsafe_sub(unsafe_div(unsafe_mul(q, x), 2**96), 533845033583426703283633433725380)
-    q = unsafe_add(unsafe_div(unsafe_mul(q, x), 2**96), 3604857256930695427073651918091429)
-    q = unsafe_sub(unsafe_div(unsafe_mul(q, x), 2**96), 14423608567350463180887372962807573)
-    q = unsafe_add(unsafe_div(unsafe_mul(q, x), 2**96), 26449188498355588339934803723976023)
-
-    exp_result: uint256 = shift(
-        unsafe_mul(convert(unsafe_div(p, q), uint256), 3822833074963236453042738258902158003155416615667),
-        unsafe_sub(k, 195))
-    ## End exp
     assert exp_result > 1000  # dev: limit precision of the multiplier
-    return unsafe_div(self._base_price() * exp_result, 10**18)
+    # TODO use WAD constant here
+    return unsafe_div(self._base_price() * exp_result, WAD)
 
 
 @internal
