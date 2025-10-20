@@ -239,7 +239,7 @@ def admin_fees() -> uint256:
     """
     @notice Return the amount of borrowed tokens that have been collected as fees.
     """
-    return core._admin_fees(self.admin_fee)
+    return core._admin_fees(self.admin_fee)[0]
 
 
 @external

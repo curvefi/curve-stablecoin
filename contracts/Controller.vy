@@ -1452,7 +1452,7 @@ def admin_fees() -> uint256:
     """
     # In mint controller, 100% (WAD) fees are
     # collected as admin fees.
-    return self._admin_fees(WAD)
+    return self._admin_fees(WAD)[0]
 
 
 @external
@@ -1467,42 +1467,47 @@ def collect_fees() -> uint256:
 
 @internal
 @view
-def _admin_fees(admin_fee: uint256) -> uint256:
+def _admin_fees(admin_fee: uint256) -> (uint256, uint256):
     """
     @notice Calculate the amount of fees obtained from the interest
+    @return (admin_fees, unprocessed) respectively:
+    - amount of admin fees the admin can claim
+    - amount of unprocessed interest that will be marked as processed on claim
     """
     processed: uint256 = self.processed
-    return unsafe_sub(
-        max(self._get_total_debt() + self.repaid, processed), processed
-    ) * admin_fee // WAD
+
+    # Cumulative amount which would have been repaid if all the debt was repaid now
+    total_repaid_projection: uint256 = self.repaid + self._get_total_debt()
+
+    if total_repaid_projection <= processed:
+        return 0, 0
+
+    # (total_repaid - processed) is the total interest accrued that
+    # has not been processed yet (admin fees have not been taken from it)
+    unprocessed: uint256 = unsafe_sub(total_repaid_projection, processed)
+
+    return unprocessed * admin_fee // WAD, unprocessed
 
 
 @internal
-def _collect_fees(admin_fee: uint256) -> uint256:
-    if admin_fee == 0:
+def _collect_fees(_admin_fee_percentage: uint256) -> uint256:
+    if _admin_fee_percentage == 0:
         return 0
 
-    _to: address = staticcall FACTORY.fee_receiver()
-
-    # Borrowing-based fees
     rate_mul: uint256 = staticcall AMM.get_rate_mul()
     loan: IController.Loan = self._update_total_debt(0, rate_mul, False)
 
-    # Cumulative amount which would have been repaid if all the debt was repaid now
-    to_be_repaid: uint256 = loan.initial_debt + self.repaid
-    # Cumulative amount which was processed (admin fees have been taken from)
-    processed: uint256 = self.processed
-    # Difference between to_be_repaid and processed amount is exactly due to interest charged
-    if to_be_repaid > processed:
-        self.processed = to_be_repaid
-        fees: uint256 = unsafe_sub(to_be_repaid, processed) * admin_fee // WAD
-        tkn.transfer(BORROWED_TOKEN, _to, fees)
-        log IController.CollectFees(amount=fees, new_supply=loan.initial_debt)
-        self._save_rate()
-        return fees
-    log IController.CollectFees(amount=0, new_supply=loan.initial_debt)
+    fees: uint256 = 0
+    unprocessed: uint256 = 0
+    fees, unprocessed = self._admin_fees(_admin_fee_percentage)
+    self.processed += unprocessed
+
+    to: address = staticcall FACTORY.fee_receiver()
+    tkn.transfer(BORROWED_TOKEN, to, fees)
     self._save_rate()
-    return 0
+
+    log IController.CollectFees(amount=fees, new_supply=loan.initial_debt)
+    return fees
 
 
 @external
