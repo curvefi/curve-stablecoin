@@ -73,8 +73,6 @@ def initialize(
     @param borrowed_token Token which is being borrowed
     @param collateral_token Token which is being collateral
     """
-    assert self.borrowed_token.address == empty(address)
-
     self.borrowed_token = borrowed_token
     borrowed_precision: uint256 = 10**(18 - convert(staticcall borrowed_token.decimals(), uint256))
     self.collateral_token = collateral_token
