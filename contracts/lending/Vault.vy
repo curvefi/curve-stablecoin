@@ -14,11 +14,13 @@ from contracts.interfaces import ILlamalendController as IController
 from contracts.interfaces import IFactory
 
 from contracts import constants as c
+from contracts.lib import token_lib as tkn
 
 implements: IERC20
 implements: IERC4626
 
 
+# TODO move to own interface
 event SetMaxSupply:
     max_supply: uint256
 
@@ -29,6 +31,7 @@ event SetMaxSupply:
 DEAD_SHARES: constant(uint256) = c.DEAD_SHARES
 MIN_ASSETS: constant(uint256) = 10000
 
+# TODO turn into immutables
 borrowed_token: public(IERC20)
 collateral_token: public(IERC20)
 
@@ -263,7 +266,7 @@ def deposit(assets: uint256, receiver: address = msg.sender) -> uint256:
     assert total_assets + assets >= MIN_ASSETS, "Need more assets"
     assert total_assets + assets <= self.maxSupply, "Supply limit"
     to_mint: uint256 = self._convert_to_shares(assets, True, total_assets)
-    assert extcall self.borrowed_token.transferFrom(msg.sender, controller.address, assets, default_return_value=True)
+    tkn.transfer_from(self.borrowed_token, msg.sender, controller.address, assets)
     self.asset_balance += assets
     self._mint(receiver, to_mint)
     extcall controller.save_rate()
@@ -308,7 +311,7 @@ def mint(shares: uint256, receiver: address = msg.sender) -> uint256:
     assets: uint256 = self._convert_to_assets(shares, False, total_assets)
     assert total_assets + assets >= MIN_ASSETS, "Need more assets"
     assert total_assets + assets <= self.maxSupply, "Supply limit"
-    assert extcall self.borrowed_token.transferFrom(msg.sender, controller.address, assets, default_return_value=True)
+    tkn.transfer_from(self.borrowed_token, msg.sender, controller.address, assets)
     self.asset_balance += assets
     self._mint(receiver, shares)
     extcall controller.save_rate()
@@ -358,7 +361,7 @@ def withdraw(assets: uint256, receiver: address = msg.sender, owner: address = m
 
     controller: IController = self.controller
     self._burn(owner, shares)
-    assert extcall self.borrowed_token.transferFrom(controller.address, receiver, assets, default_return_value=True)
+    tkn.transfer_from(self.borrowed_token, controller.address, receiver, assets)
     self.asset_balance -= assets
     extcall controller.save_rate()
     log IERC4626.Withdraw(sender=msg.sender, receiver=receiver, owner=owner, assets=assets, shares=shares)
@@ -418,7 +421,7 @@ def redeem(shares: uint256, receiver: address = msg.sender, owner: address = msg
             raise "Need more assets"
     self._burn(owner, shares)
     controller: IController = self.controller
-    assert extcall self.borrowed_token.transferFrom(controller.address, receiver, assets_to_redeem, default_return_value=True)
+    tkn.transfer_from(self.borrowed_token, controller.address, receiver, assets_to_redeem)
     self.asset_balance -= assets_to_redeem
     extcall controller.save_rate()
     log IERC4626.Withdraw(sender=msg.sender, receiver=receiver, owner=owner, assets=assets_to_redeem, shares=shares)
