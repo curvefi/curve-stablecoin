@@ -24,6 +24,7 @@ implements: IController
 implements: IView
 
 from contracts.lib import token_lib as tkn
+from contracts.lib import math_lib as crv_math
 
 from snekmate.utils import math
 
@@ -119,13 +120,21 @@ loan_ix: public(HashMap[address, uint256])
 # Number of nonzero loans
 n_loans: public(uint256)
 
-# cumulative amount of assets ever repaid (including admin fees)
-repaid: public(uint256)
-# cumulative amount of assets admin fees have been taken from
-processed: public(uint256)
 
-# unused for mint controller as it overlaps with debt ceiling
-borrow_cap: uint256
+# cumulative amount of assets ever lent
+lent: uint256
+# cumulative amount of assets ever repaid (including admin fees)
+repaid: uint256
+
+# Admin fees yet to be collected. Goes to zero when collected.
+admin_fees: public(uint256)
+admin_percentage: public(uint256)
+
+# DANGER DO NOT RELY ON MSG.SENDER IN VIRTUAL METHODS
+interface VirtualMethods:
+    def _on_debt_increased(debt: uint256): nonpayable
+
+VIRTUAL: immutable(VirtualMethods)
 
 
 @deploy
@@ -138,12 +147,12 @@ def __init__(
     _AMM: IAMM,
     view_impl: address,
 ):
-    # TODO add sanity check for zero addresses
+    VIRTUAL = VirtualMethods(self)
 
+    # TODO add sanity check for zero addresses
     # In MintController the correct way to limit borrowing
     # is through the debt ceiling. This is here to be used
     # in LendController only.
-    self.borrow_cap = max_value(uint256)
 
     FACTORY = IFactory(msg.sender)
     AMM = _AMM
@@ -171,6 +180,7 @@ def __init__(
     self.liquidation_discount = liquidation_discount
     self.loan_discount = loan_discount
     self._total_debt.rate_mul = WAD
+    self.admin_percentage = WAD
     self._set_view(view_impl)
 
 
@@ -209,11 +219,12 @@ def _set_view(view_impl: address):
 
     log IController.SetView(view=view)
 
+# TODO add back minted and redeemed
 
 @view
 @external
 def minted() -> uint256:
-    return self.processed
+    return self.lent
 
 
 @view
@@ -251,12 +262,16 @@ def _update_total_debt(
     @notice Update total debt of this controller
     """
     loan: IController.Loan = self._total_debt
-    loan.initial_debt = loan.initial_debt * rate_mul // loan.rate_mul
+    loan_with_interest: uint256 = loan.initial_debt * rate_mul // loan.rate_mul
+    accrued_interest: uint256 = loan_with_interest - loan.initial_debt
+    accrued_admin_fees: uint256 = accrued_interest * self.admin_percentage // WAD
+    self.admin_fees += accrued_admin_fees
+    loan.initial_debt = loan_with_interest
     if is_increase:
         loan.initial_debt += d_debt
-        assert loan.initial_debt <= self.borrow_cap, "Borrow cap exceeded"
+        extcall VIRTUAL._on_debt_increased(loan.initial_debt)
     else:
-        loan.initial_debt = unsafe_sub(max(loan.initial_debt, d_debt), d_debt)
+        loan.initial_debt = crv_math.sub_or_zero(loan.initial_debt, d_debt)
     loan.rate_mul = rate_mul
     self._total_debt = loan
 
@@ -611,15 +626,26 @@ def execute_callback(
     return data
 
 
-@internal
-def _create_loan(
+# TODO use underscore for args everywhere
+@external
+def create_loan(
     collateral: uint256,
     debt: uint256,
     N: uint256,
-    _for: address,
+    _for: address = msg.sender,
     callbacker: address = empty(address),
     calldata: Bytes[CALLDATA_MAX_SIZE] = b"",
-) -> uint256:
+):
+    """
+    @notice Create loan but pass borrowed tokens to a callback first so that it can build leverage
+    @param collateral Amount of collateral to use
+    @param debt Borrowed asset debt to take
+    @param N Number of bands to deposit into (to do autoliquidation-deliquidation),
+           can be from MIN_TICKS to MAX_TICKS
+    @param _for Address to create the loan for
+    @param callbacker Address of the callback contract
+    @param calldata Any data for callbacker
+    """
     if _for != tx.origin:
         # We can create a loan for tx.origin (for example when wrapping ETH with EOA),
         # however need to approve in other cases
@@ -662,8 +688,6 @@ def _create_loan(
 
     extcall AMM.deposit_range(_for, total_collateral, n1, n2)
 
-    self.processed += debt
-
     log IController.UserState(
         user=_for,
         collateral=total_collateral,
@@ -683,29 +707,7 @@ def _create_loan(
 
     self._save_rate()
 
-    return debt
-
-
-@external
-def create_loan(
-    collateral: uint256,
-    debt: uint256,
-    N: uint256,
-    _for: address = msg.sender,
-    callbacker: address = empty(address),
-    calldata: Bytes[CALLDATA_MAX_SIZE] = b"",
-):
-    """
-    @notice Create loan but pass borrowed tokens to a callback first so that it can build leverage
-    @param collateral Amount of collateral to use
-    @param debt Borrowed asset debt to take
-    @param N Number of bands to deposit into (to do autoliquidation-deliquidation),
-           can be from MIN_TICKS to MAX_TICKS
-    @param _for Address to create the loan for
-    @param callbacker Address of the callback contract
-    @param calldata Any data for callbacker
-    """
-    self._create_loan(collateral, debt, N, _for, callbacker, calldata)
+    self.lent += debt
 
 
 @internal
@@ -827,25 +829,8 @@ def borrow_more(
     @param callbacker Address of the callback contract
     @param calldata Any data for callbacker
     """
-    _debt: uint256 = self._borrow_more(
-        collateral,
-        debt,
-        _for,
-        callbacker,
-        calldata,
-    )
-
-
-@internal
-def _borrow_more(
-    collateral: uint256,
-    debt: uint256,
-    _for: address = msg.sender,
-    callbacker: address = empty(address),
-    calldata: Bytes[CALLDATA_MAX_SIZE] = b"",
-) -> uint256:
     if debt == 0:
-        return 0
+        return
     assert self._check_approval(_for)
 
     more_collateral: uint256 = 0
@@ -871,10 +856,8 @@ def _borrow_more(
     if callbacker == empty(address):
         tkn.transfer(BORROWED_TOKEN, _for, debt)
 
-    self.processed += debt
+    self.lent += debt
     self._save_rate()
-
-    return debt
 
 
 @internal
@@ -1074,8 +1057,8 @@ def repay(
 
     self.loan[_for] = IController.Loan(initial_debt=debt, rate_mul=rate_mul)
     self._update_total_debt(d_debt, rate_mul, False)
-    self.repaid += d_debt
 
+    self.repaid += d_debt
     self._save_rate()
 
 
@@ -1303,6 +1286,7 @@ def liquidate(
 
     self._update_total_debt(debt, rate_mul, False)
 
+
     self.repaid += debt
     self._save_rate()
 
@@ -1445,69 +1429,36 @@ def set_callback(cb: ILMGauge):
 
 
 @external
-@view
-def admin_fees() -> uint256:
-    """
-    @notice Calculate the amount of fees obtained from the interest
-    """
-    # In mint controller, 100% (WAD) fees are
-    # collected as admin fees.
-    return self._admin_fees(WAD)[0]
-
-
-@external
 def collect_fees() -> uint256:
     """
     @notice Collect the fees charged as interest.
     """
-    # In mint controller, 100% (WAD) fees are
-    # collected as admin fees.
-    return self._collect_fees(WAD)
+    return self._collect_fees()
 
 
 @internal
-@view
-def _admin_fees(admin_fee: uint256) -> (uint256, uint256):
-    """
-    @notice Calculate the amount of fees obtained from the interest
-    @return (admin_fees, unprocessed) respectively:
-    - amount of admin fees the admin can claim
-    - amount of unprocessed interest that will be marked as processed on claim
-    """
-    processed: uint256 = self.processed
-
-    # Cumulative amount which would have been repaid if all the debt was repaid now
-    total_repaid_projection: uint256 = self.repaid + self._get_total_debt()
-
-    if total_repaid_projection <= processed:
-        return 0, 0
-
-    # (total_repaid - processed) is the total interest accrued that
-    # has not been processed yet (admin fees have not been taken from it)
-    unprocessed: uint256 = unsafe_sub(total_repaid_projection, processed)
-
-    return unprocessed * admin_fee // WAD, unprocessed
-
-
-@internal
-def _collect_fees(_admin_fee_percentage: uint256) -> uint256:
-    if _admin_fee_percentage == 0:
-        return 0
-
+def _collect_fees() -> uint256:
     rate_mul: uint256 = staticcall AMM.get_rate_mul()
     loan: IController.Loan = self._update_total_debt(0, rate_mul, False)
 
-    fees: uint256 = 0
-    unprocessed: uint256 = 0
-    fees, unprocessed = self._admin_fees(_admin_fee_percentage)
-    self.processed += unprocessed
+    pending_admin_fees: uint256 = self.admin_fees
 
+    # TODO figure out rev share (probably add a setter in factory)
     to: address = staticcall FACTORY.fee_receiver()
-    tkn.transfer(BORROWED_TOKEN, to, fees)
+    tkn.transfer(BORROWED_TOKEN, to, pending_admin_fees)
+
+    self.admin_fees = 0
+
     self._save_rate()
 
-    log IController.CollectFees(amount=fees, new_supply=loan.initial_debt)
-    return fees
+    log IController.CollectFees(amount=pending_admin_fees, new_supply=loan.initial_debt)
+    return pending_admin_fees
+
+
+@external
+@reentrant # TODO check if needed
+def _on_debt_increased(debt: uint256):
+    pass
 
 
 @external

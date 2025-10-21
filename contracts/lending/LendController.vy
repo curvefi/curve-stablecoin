@@ -27,9 +27,12 @@ from contracts import Controller as core
 initializes: core
 
 from contracts.lib import token_lib as tkn
+from contracts.lib import math_lib as crv_math
 
 exports: (
     # Loan management
+    core.create_loan,
+    core.borrow_more,
     core.add_collateral,
     core.approve,
     core.remove_collateral,
@@ -60,8 +63,8 @@ exports: (
     core.tokens_to_shrink,
     core.total_debt,
     core.factory,
-    core.processed,
-    core.repaid,
+    core.admin_fees,
+    core.admin_percentage,
     # Setters
     core.set_view,
     core.set_amm_fee,
@@ -92,15 +95,9 @@ def vault() -> IVault:
     return VAULT
 
 
-
-# cumulative amount of assets ever lent
-lent: public(uint256)
 # cumulative amount of assets collected by admin
 collected: public(uint256)
-
-# TODO Rename to admin percentage?
-admin_fee: public(uint256)
-
+borrow_cap: public(uint256)
 
 @deploy
 def __init__(
@@ -136,7 +133,7 @@ def __init__(
 
     # Borrow cap is zero by default in lend markets. The admin has to raise it
     # after deployment to allow borrowing.
-    core.borrow_cap = 0
+    core.admin_percentage = 0
 
     # Pre-approve the vault to transfer borrowed tokens out of the controller
     tkn.max_approve(core.BORROWED_TOKEN, VAULT.address)
@@ -153,15 +150,6 @@ def version() -> String[10]:
 
 @external
 @view
-def borrow_cap() -> uint256:
-    """
-    @notice Maximum amount of borrowed tokens that can be lent out at any time.
-    """
-    return core.borrow_cap
-
-
-@external
-@view
 def borrowed_balance() -> uint256:
     """
     @notice Amount of borrowed token the controller currently holds.
@@ -173,73 +161,13 @@ def borrowed_balance() -> uint256:
     # and subtract what the admin already skimmed as fees; what’s left is the controller’s idle cash.
     # VAULT.asset_balance() - (lent - repaid) - self.collected
     # The terms are rearranged to avoid underflows in intermediate steps.
-    return (
-        staticcall VAULT.asset_balance()
+    # TODO handle asset_balance() underflow
+    balance: uint256 = (staticcall VAULT.asset_balance()
         + core.repaid
-        - self.lent
+        - core.lent
         - self.collected
     )
-
-
-@external
-def create_loan(
-    collateral: uint256,
-    debt: uint256,
-    N: uint256,
-    _for: address = msg.sender,
-    callbacker: address = empty(address),
-    calldata: Bytes[10**4] = b"",
-):
-    """
-    @notice Create loan but pass borrowed tokens to a callback first so that it can build leverage
-    @param collateral Amount of collateral to use
-    @param debt Borrowed asset debt to take
-    @param N Number of bands to deposit into (to do autoliquidation-deliquidation),
-           can be from MIN_TICKS to MAX_TICKS
-    @param _for Address to create the loan for
-    @param callbacker Address of the callback contract
-    @param calldata Any data for callbacker
-    """
-    _debt: uint256 = core._create_loan(
-        collateral, debt, N, _for, callbacker, calldata
-    )
-    self.lent += _debt
-
-
-@external
-def borrow_more(
-    collateral: uint256,
-    debt: uint256,
-    _for: address = msg.sender,
-    callbacker: address = empty(address),
-    calldata: Bytes[10**4] = b"",
-):
-    """
-    @notice Borrow more borrowed tokens while adding more collateral using a callback (to leverage more)
-    @param collateral Amount of collateral to add
-    @param debt Amount of borrowed asset debt to take
-    @param _for Address to borrow for
-    @param callbacker Address of the callback contract
-    @param calldata Any data for callbacker
-    """
-    _debt: uint256 = core._borrow_more(
-        collateral,
-        debt,
-        _for,
-        callbacker,
-        calldata,
-    )
-
-    self.lent += _debt
-
-
-@external
-@view
-def admin_fees() -> uint256:
-    """
-    @notice Return the amount of borrowed tokens that have been collected as fees.
-    """
-    return core._admin_fees(self.admin_fee)[0]
+    return crv_math.sub_or_zero(balance, core.admin_fees)
 
 
 @external
@@ -247,7 +175,7 @@ def collect_fees() -> uint256:
     """
     @notice Collect the fees charged as interest that belong to the admin.
     """
-    fees: uint256 = core._collect_fees(self.admin_fee)
+    fees: uint256 = core._collect_fees()
     self.collected += fees
     return fees
 
@@ -260,16 +188,26 @@ def set_borrow_cap(_borrow_cap: uint256):
     @param _borrow_cap New borrow cap in units of borrowed_token
     """
     core._check_admin()
-    core.borrow_cap = _borrow_cap
+    self.borrow_cap = _borrow_cap
     log ILlamalendController.SetBorrowCap(borrow_cap=_borrow_cap)
 
 
 @external
-def set_admin_fee(_admin_fee: uint256):
+def set_admin_percentage(_admin_percentage: uint256):
     """
-    @param _admin_fee The percentage of interest that goes to the admin, scaled by 1e18
+    @param _admin_percentage The percentage of interest that goes to the admin, scaled by 1e18
     """
     core._check_admin()
-    assert _admin_fee <= core.WAD # dev: admin fee higher than 100%
-    self.admin_fee = _admin_fee
-    log ILlamalendController.SetAdminFee(admin_fee=_admin_fee)
+    assert _admin_percentage <= core.WAD # dev: admin percentage higher than 100%
+    core.admin_percentage = _admin_percentage
+    log ILlamalendController.SetAdminPercentage(admin_percentage=_admin_percentage)
+
+
+@external
+@reentrant
+def _on_debt_increased(debt: uint256):
+    """
+    @notice Hook called when debt is increased
+    """
+    assert msg.sender == self # dev: virtual method protection
+    assert debt <= self.borrow_cap, "Borrow cap exceeded"
