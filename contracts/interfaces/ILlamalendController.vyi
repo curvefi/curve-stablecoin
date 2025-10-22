@@ -73,8 +73,8 @@ event CollectFees:
     new_supply: uint256
 
 
-event SetAdminFee:
-    admin_fee: uint256
+event SetAdminPercentage:
+    admin_percentage: uint256
 
 
 # Functions
@@ -82,18 +82,6 @@ event SetAdminFee:
 @view
 @external
 def monetary_policy() -> IMonetaryPolicy:
-    ...
-
-
-@view
-@external
-def minted() -> uint256:
-    ...
-
-
-@view
-@external
-def redeemed() -> uint256:
     ...
 
 
@@ -329,20 +317,6 @@ def loan_ix(arg0: address) -> uint256:
 def n_loans() -> uint256:
     ...
 
-
-@view
-@external
-def repaid() -> uint256:
-    ...
-
-
-@view
-@external
-def processed() -> uint256:
-    ...
-
-
-
 # EXTRA THINGS FOR LLAMALEND CONTROLLER
 
 event SetBorrowCap:
@@ -361,13 +335,7 @@ def set_borrow_cap(_borrow_cap: uint256):
 
 
 @external
-def set_admin_fee(admin_fee: uint256):
-    ...
-
-
-@view
-@external
-def lent() -> uint256:
+def set_admin_percentage(admin_percentage: uint256):
     ...
 
 
@@ -379,7 +347,7 @@ def collected() -> uint256:
 
 @view
 @external
-def admin_fee() -> uint256:
+def admin_percentage() -> uint256:
     ...
 
 

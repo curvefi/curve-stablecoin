@@ -354,20 +354,15 @@ def n_loans() -> uint256:
 
 @view
 @external
-def repaid() -> uint256:
-    ...
-
-
-@view
-@external
-def processed() -> uint256:
-    ...
-
-@view
-@external
 def version() -> String[1]:
     ...
 
+
 @external
 def set_view(view_impl: address):
+    ...
+
+
+@external
+def _on_debt_increased(debt: uint256):
     ...
