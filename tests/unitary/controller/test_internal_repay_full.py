@@ -57,19 +57,29 @@ def test_repay_full_from_wallet(
     if different_payer:
         payer = boa.env.generate_address()
 
+    # ================= Create loan =================
+
     boa.deal(collateral_token, borrower, COLLATERAL)
     max_approve(collateral_token, controller)
     controller.create_loan(COLLATERAL, 10**18, N_BANDS)
+
+    # ================= Capture initial state =================
 
     debt = controller.debt(borrower)
     xy_before = amm.get_sum_xy(borrower)
     assert xy_before[0] == 0 and xy_before[1] > 0
 
+    # ================= Setup payer tokens =================
+
     if different_payer:
         boa.deal(borrowed_token, payer, debt)
 
+    # ================= Capture initial balances =================
+
     borrowed_token_before = snapshot(borrowed_token, borrower, payer)
     collateral_token_before = snapshot(collateral_token, borrower, payer)
+
+    # ================= Execute full repayment =================
 
     with boa.env.prank(payer):
         max_approve(borrowed_token, controller)
@@ -82,11 +92,17 @@ def test_repay_full_from_wallet(
             borrower, debt, True, xy_before, (0, 0, 0), ZERO_ADDRESS
         )
 
+    # ================= Capture logs =================
+
     repay_logs = filter_logs(controller, "Repay")
     state_logs = filter_logs(controller, "UserState")
 
+    # ================= Capture final balances =================
+
     borrowed_token_after = snapshot(borrowed_token, borrower, payer)
     collateral_token_after = snapshot(collateral_token, borrower, payer)
+
+    # ================= Calculate money flows =================
 
     borrowed_to_controller = (
         borrowed_token_after["controller"] - borrowed_token_before["controller"]
@@ -97,11 +113,15 @@ def test_repay_full_from_wallet(
     )
     collateral_from_amm = collateral_token_after["amm"] - collateral_token_before["amm"]
 
+    # ================= Verify position state =================
+
     # Withdrawn from AMM
     xy = amm.get_sum_xy(borrower)
     assert amm.user_shares(borrower)[1][0] == 0
     assert xy[0] == 0
     assert xy[1] == 0
+
+    # ================= Verify logs =================
 
     assert len(state_logs) == 1
     assert state_logs[0].user == borrower
@@ -115,6 +135,8 @@ def test_repay_full_from_wallet(
     assert repay_logs[0].user == borrower
     assert repay_logs[0].loan_decrease == borrowed_to_controller
     assert repay_logs[0].collateral_decrease == collateral_to_borrower
+
+    # ================= Verify money flows =================
 
     assert borrowed_to_controller == debt
     assert borrowed_from_payer == -debt
@@ -146,25 +168,34 @@ def test_repay_full_from_xy0(
     if different_payer:
         payer = boa.env.generate_address()
 
+    # ================= Create loan =================
+
     boa.deal(collateral_token, borrower, COLLATERAL)
     max_approve(collateral_token, controller)
     debt = controller.max_borrowable(COLLATERAL, N_BANDS)
     assert debt > 0
     controller.create_loan(COLLATERAL, debt, N_BANDS)
 
-    # Push the position to SL
+    # ================= Push position to soft-liquidation =================
+
     trader = boa.env.generate_address()
     boa.deal(borrowed_token, trader, debt * 10_001 // 10_000)
     with boa.env.prank(trader):
         max_approve(borrowed_token, amm)
         amm.exchange(0, 1, debt * 10_001 // 10_000, 0)
 
+    # ================= Capture initial state =================
+
     debt = controller.debt(borrower)
     xy_before = amm.get_sum_xy(borrower)
     assert xy_before[0] > debt and xy_before[1] > 0
 
+    # ================= Capture initial balances =================
+
     borrowed_token_before = snapshot(borrowed_token, borrower, payer)
     collateral_token_before = snapshot(collateral_token, borrower, payer)
+
+    # ================= Execute full repayment =================
 
     with boa.env.prank(payer):
         with boa.reverts():
@@ -175,11 +206,17 @@ def test_repay_full_from_xy0(
             borrower, debt, True, xy_before, (0, 0, 0), ZERO_ADDRESS
         )
 
+    # ================= Capture logs =================
+
     repay_logs = filter_logs(controller, "Repay")
     state_logs = filter_logs(controller, "UserState")
 
+    # ================= Capture final balances =================
+
     borrowed_token_after = snapshot(borrowed_token, borrower, payer)
     collateral_token_after = snapshot(collateral_token, borrower, payer)
+
+    # ================= Calculate money flows =================
 
     borrowed_to_controller = (
         borrowed_token_after["controller"] - borrowed_token_before["controller"]
@@ -193,11 +230,15 @@ def test_repay_full_from_xy0(
     )
     collateral_from_amm = collateral_token_after["amm"] - collateral_token_before["amm"]
 
+    # ================= Verify position state =================
+
     # Withdrawn from AMM
     xy_after = amm.get_sum_xy(borrower)
     assert amm.user_shares(borrower)[1][0] == 0
     assert xy_after[0] == 0
     assert xy_after[1] == 0
+
+    # ================= Verify logs =================
 
     assert len(state_logs) == 1
     assert state_logs[0].user == borrower
@@ -211,6 +252,8 @@ def test_repay_full_from_xy0(
     assert repay_logs[0].user == borrower
     assert repay_logs[0].loan_decrease == debt
     assert repay_logs[0].collateral_decrease == xy_before[1]
+
+    # ================= Verify money flows =================
 
     assert borrowed_to_controller == debt
     assert borrowed_from_amm == -xy_before[0]
@@ -241,28 +284,39 @@ def test_repay_full_from_xy0_and_wallet(
     if different_payer:
         payer = boa.env.generate_address()
 
+    # ================= Create loan =================
+
     boa.deal(collateral_token, borrower, COLLATERAL)
     max_approve(collateral_token, controller)
     debt = controller.max_borrowable(COLLATERAL, N_BANDS)
     assert debt > 0 and debt // 2 > 0
     controller.create_loan(COLLATERAL, debt, N_BANDS)
 
-    # Push the position to SL
+    # ================= Push position to soft-liquidation =================
+
     trader = boa.env.generate_address()
     boa.deal(borrowed_token, trader, debt // 2)
     with boa.env.prank(trader):
         max_approve(borrowed_token, amm)
         amm.exchange(0, 1, debt // 2, 0)
 
+    # ================= Capture initial state =================
+
     debt = controller.debt(borrower)
     xy_before = amm.get_sum_xy(borrower)
     assert 0 < xy_before[0] < debt and xy_before[1] > 0
 
+    # ================= Setup payer tokens =================
+
     if different_payer:
         boa.deal(borrowed_token, payer, debt)
 
+    # ================= Capture initial balances =================
+
     borrowed_token_before = snapshot(borrowed_token, borrower, payer)
     collateral_token_before = snapshot(collateral_token, borrower, payer)
+
+    # ================= Execute full repayment =================
 
     with boa.env.prank(payer):
         max_approve(borrowed_token, controller)
@@ -274,11 +328,17 @@ def test_repay_full_from_xy0_and_wallet(
             borrower, debt, True, xy_before, (0, 0, 0), ZERO_ADDRESS
         )
 
+    # ================= Capture logs =================
+
     repay_logs = filter_logs(controller, "Repay")
     state_logs = filter_logs(controller, "UserState")
 
+    # ================= Capture final balances =================
+
     borrowed_token_after = snapshot(borrowed_token, borrower, payer)
     collateral_token_after = snapshot(collateral_token, borrower, payer)
+
+    # ================= Calculate money flows =================
 
     borrowed_to_controller = (
         borrowed_token_after["controller"] - borrowed_token_before["controller"]
@@ -290,11 +350,15 @@ def test_repay_full_from_xy0_and_wallet(
     )
     collateral_from_amm = collateral_token_after["amm"] - collateral_token_before["amm"]
 
+    # ================= Verify position state =================
+
     # Withdrawn from AMM
     xy_after = amm.get_sum_xy(borrower)
     assert amm.user_shares(borrower)[1][0] == 0
     assert xy_after[0] == 0
     assert xy_after[1] == 0
+
+    # ================= Verify logs =================
 
     assert len(state_logs) == 1
     assert state_logs[0].user == borrower
@@ -308,6 +372,8 @@ def test_repay_full_from_xy0_and_wallet(
     assert repay_logs[0].user == borrower
     assert repay_logs[0].loan_decrease == debt
     assert repay_logs[0].collateral_decrease == xy_before[1]
+
+    # ================= Verify money flows =================
 
     assert borrowed_to_controller == debt
     assert borrowed_from_amm == -xy_before[0]
@@ -345,13 +411,19 @@ def test_repay_full_from_callback(
     if different_payer:
         payer = boa.env.generate_address()
 
+    # ================= Create loan =================
+
     boa.deal(collateral_token, borrower, COLLATERAL)
     max_approve(collateral_token, controller)
     controller.create_loan(COLLATERAL, 10**18, N_BANDS)
 
+    # ================= Capture initial state =================
+
     debt = controller.debt(borrower)
     xy_before = amm.get_sum_xy(borrower)
     assert xy_before[0] == 0 and xy_before[1] > 0
+
+    # ================= Setup callback tokens =================
 
     # Mock collateral withdraw from amm to callbacker and mint borrowed for callbacker
     amm.withdraw(borrower, 10**18, sender=controller.address)
@@ -359,8 +431,12 @@ def test_repay_full_from_callback(
     boa.deal(borrowed_token, fake_leverage, debt + 1)
     cb = (amm.active_band(), debt + 1, COLLATERAL // 2)
 
+    # ================= Capture initial balances =================
+
     borrowed_token_before = snapshot(borrowed_token, borrower, payer)
     collateral_token_before = snapshot(collateral_token, borrower, payer)
+
+    # ================= Execute full repayment =================
 
     with boa.env.prank(payer):
         # xy[0] == 0, works both with and without approval.
@@ -373,11 +449,17 @@ def test_repay_full_from_callback(
             borrower, debt, True, xy_before, cb, fake_leverage.address
         )
 
+    # ================= Capture logs =================
+
     repay_logs = filter_logs(controller, "Repay")
     state_logs = filter_logs(controller, "UserState")
 
+    # ================= Capture final balances =================
+
     borrowed_token_after = snapshot(borrowed_token, borrower, payer)
     collateral_token_after = snapshot(collateral_token, borrower, payer)
+
+    # ================= Calculate money flows =================
 
     borrowed_to_controller = (
         borrowed_token_after["controller"] - borrowed_token_before["controller"]
@@ -395,11 +477,15 @@ def test_repay_full_from_callback(
         collateral_token_after["callback"] - collateral_token_before["callback"]
     )
 
+    # ================= Verify position state =================
+
     # Withdrawn from AMM
     xy = amm.get_sum_xy(borrower)
     assert amm.user_shares(borrower)[1][0] == 0
     assert xy[0] == 0
     assert xy[1] == 0
+
+    # ================= Verify logs =================
 
     assert len(state_logs) == 1
     assert state_logs[0].user == borrower
@@ -413,6 +499,8 @@ def test_repay_full_from_callback(
     assert repay_logs[0].user == borrower
     assert repay_logs[0].loan_decrease == borrowed_to_controller
     assert repay_logs[0].collateral_decrease == COLLATERAL
+
+    # ================= Verify money flows =================
 
     assert borrowed_to_controller == debt
     assert borrowed_to_borrower == 1
@@ -449,16 +537,24 @@ def test_repay_full_from_wallet_and_callback(
     if different_payer:
         payer = boa.env.generate_address()
 
+    # ================= Create loan =================
+
     boa.deal(collateral_token, borrower, COLLATERAL)
     max_approve(collateral_token, controller)
     controller.create_loan(COLLATERAL, 10**18, N_BANDS)
+
+    # ================= Capture initial state =================
 
     debt = controller.debt(borrower)
     xy_before = amm.get_sum_xy(borrower)
     assert xy_before[0] == 0 and xy_before[1] > 0
 
+    # ================= Setup payer tokens =================
+
     if different_payer:
         boa.deal(borrowed_token, payer, 1)
+
+    # ================= Setup callback tokens =================
 
     # Mock collateral withdraw from amm to callbacker and mint borrowed for callbacker
     amm.withdraw(borrower, 10**18, sender=controller.address)
@@ -466,8 +562,12 @@ def test_repay_full_from_wallet_and_callback(
     boa.deal(borrowed_token, fake_leverage, debt - 1)
     cb = (amm.active_band(), debt - 1, COLLATERAL // 2)
 
+    # ================= Capture initial balances =================
+
     borrowed_token_before = snapshot(borrowed_token, borrower, payer)
     collateral_token_before = snapshot(collateral_token, borrower, payer)
+
+    # ================= Execute full repayment =================
 
     with boa.env.prank(payer):
         max_approve(borrowed_token, controller)
@@ -481,11 +581,17 @@ def test_repay_full_from_wallet_and_callback(
             borrower, debt, True, xy_before, cb, fake_leverage.address
         )
 
+    # ================= Capture logs =================
+
     repay_logs = filter_logs(controller, "Repay")
     state_logs = filter_logs(controller, "UserState")
 
+    # ================= Capture final balances =================
+
     borrowed_token_after = snapshot(borrowed_token, borrower, payer)
     collateral_token_after = snapshot(collateral_token, borrower, payer)
+
+    # ================= Calculate money flows =================
 
     borrowed_to_controller = (
         borrowed_token_after["controller"] - borrowed_token_before["controller"]
@@ -501,11 +607,15 @@ def test_repay_full_from_wallet_and_callback(
         collateral_token_after["callback"] - collateral_token_before["callback"]
     )
 
+    # ================= Verify position state =================
+
     # Withdrawn from AMM
     xy = amm.get_sum_xy(borrower)
     assert amm.user_shares(borrower)[1][0] == 0
     assert xy[0] == 0
     assert xy[1] == 0
+
+    # ================= Verify logs =================
 
     assert len(state_logs) == 1
     assert state_logs[0].user == borrower
@@ -519,6 +629,8 @@ def test_repay_full_from_wallet_and_callback(
     assert repay_logs[0].user == borrower
     assert repay_logs[0].loan_decrease == borrowed_to_controller
     assert repay_logs[0].collateral_decrease == COLLATERAL
+
+    # ================= Verify money flows =================
 
     assert borrowed_to_controller == debt
     assert borrowed_from_payer == -1
@@ -556,22 +668,29 @@ def test_repay_full_from_xy0_and_callback(
     if different_payer:
         payer = boa.env.generate_address()
 
+    # ================= Create loan =================
+
     boa.deal(collateral_token, borrower, COLLATERAL)
     max_approve(collateral_token, controller)
     debt = controller.max_borrowable(COLLATERAL, N_BANDS)
     assert debt > 0
     controller.create_loan(COLLATERAL, debt, N_BANDS)
 
-    # Push the position to SL
+    # ================= Push position to soft-liquidation =================
+
     trader = boa.env.generate_address()
     boa.deal(borrowed_token, trader, debt // 2)
     with boa.env.prank(trader):
         max_approve(borrowed_token, amm)
         amm.exchange(0, 1, debt // 2, 0)
 
+    # ================= Capture initial state =================
+
     debt = controller.debt(borrower)
     xy_before = amm.get_sum_xy(borrower)
     assert 1 < xy_before[0] < debt and xy_before[1] > 0
+
+    # ================= Setup callback tokens =================
 
     # Mock collateral withdraw from amm to callbacker and mint borrowed for callbacker
     amm.withdraw(borrower, 10**18, sender=controller.address)
@@ -579,12 +698,14 @@ def test_repay_full_from_xy0_and_callback(
     boa.deal(borrowed_token, fake_leverage, debt - 1)
     cb = (amm.active_band(), debt - 1, xy_before[1] // 2)
 
+    # ================= Capture initial balances =================
+
     borrowed_token_before = snapshot(borrowed_token, borrower, payer)
     collateral_token_before = snapshot(collateral_token, borrower, payer)
 
+    # ================= Execute full repayment =================
+
     with boa.env.prank(payer):
-        # xy[0] == 0, works both with and without approval.
-        # In practice, it can't be called without approval since repay with callback requires it.
         with boa.reverts():
             controller.inject.repay_full(
                 borrower, debt, False, xy_before, cb, fake_leverage.address
@@ -593,11 +714,17 @@ def test_repay_full_from_xy0_and_callback(
             borrower, debt, True, xy_before, cb, fake_leverage.address
         )
 
+    # ================= Capture logs =================
+
     repay_logs = filter_logs(controller, "Repay")
     state_logs = filter_logs(controller, "UserState")
 
+    # ================= Capture final balances =================
+
     borrowed_token_after = snapshot(borrowed_token, borrower, payer)
     collateral_token_after = snapshot(collateral_token, borrower, payer)
+
+    # ================= Calculate money flows =================
 
     borrowed_to_controller = (
         borrowed_token_after["controller"] - borrowed_token_before["controller"]
@@ -616,11 +743,15 @@ def test_repay_full_from_xy0_and_callback(
         collateral_token_after["callback"] - collateral_token_before["callback"]
     )
 
+    # ================= Verify position state =================
+
     # Withdrawn from AMM
     xy = amm.get_sum_xy(borrower)
     assert amm.user_shares(borrower)[1][0] == 0
     assert xy[0] == 0
     assert xy[1] == 0
+
+    # ================= Verify logs =================
 
     assert len(state_logs) == 1
     assert state_logs[0].user == borrower
@@ -634,6 +765,8 @@ def test_repay_full_from_xy0_and_callback(
     assert repay_logs[0].user == borrower
     assert repay_logs[0].loan_decrease == borrowed_to_controller
     assert repay_logs[0].collateral_decrease == xy_before[1]
+
+    # ================= Verify money flows =================
 
     assert borrowed_to_controller == debt
     assert borrowed_from_amm == -xy_before[0]
@@ -670,25 +803,34 @@ def test_repay_full_from_wallet_and_y0_and_callback(
     if different_payer:
         payer = boa.env.generate_address()
 
+    # ================= Create loan =================
+
     boa.deal(collateral_token, borrower, COLLATERAL)
     max_approve(collateral_token, controller)
     debt = controller.max_borrowable(COLLATERAL, N_BANDS)
     assert debt > 0
     controller.create_loan(COLLATERAL, debt, N_BANDS)
 
-    # Push the position to SL
+    # ================= Push position to soft-liquidation =================
+
     trader = boa.env.generate_address()
     boa.deal(borrowed_token, trader, debt // 2)
     with boa.env.prank(trader):
         max_approve(borrowed_token, amm)
         amm.exchange(0, 1, debt // 2, 0)
 
+    # ================= Capture initial state =================
+
     debt = controller.debt(borrower)
     xy_before = amm.get_sum_xy(borrower)
     assert 1 < xy_before[0] < debt and xy_before[1] > 0
 
+    # ================= Setup payer tokens =================
+
     if different_payer:
         boa.deal(borrowed_token, payer, 1)
+
+    # ================= Setup callback tokens =================
 
     # Mock collateral withdraw from amm to callbacker and mint borrowed for callbacker
     amm.withdraw(borrower, 10**18, sender=controller.address)
@@ -696,13 +838,15 @@ def test_repay_full_from_wallet_and_y0_and_callback(
     boa.deal(borrowed_token, fake_leverage, debt - xy_before[0] - 1)
     cb = (amm.active_band(), debt - xy_before[0] - 1, xy_before[1] // 2)
 
+    # ================= Capture initial balances =================
+
     borrowed_token_before = snapshot(borrowed_token, borrower, payer)
     collateral_token_before = snapshot(collateral_token, borrower, payer)
 
+    # ================= Execute full repayment =================
+
     with boa.env.prank(payer):
         max_approve(borrowed_token, controller)
-        # xy[0] == 0, works both with and without approval.
-        # In practice, it can't be called without approval since repay with callback requires it.
         with boa.reverts():
             controller.inject.repay_full(
                 borrower, debt, False, xy_before, cb, fake_leverage.address
@@ -711,11 +855,17 @@ def test_repay_full_from_wallet_and_y0_and_callback(
             borrower, debt, True, xy_before, cb, fake_leverage.address
         )
 
+    # ================= Capture logs =================
+
     repay_logs = filter_logs(controller, "Repay")
     state_logs = filter_logs(controller, "UserState")
 
+    # ================= Capture final balances =================
+
     borrowed_token_after = snapshot(borrowed_token, borrower, payer)
     collateral_token_after = snapshot(collateral_token, borrower, payer)
+
+    # ================= Calculate money flows =================
 
     borrowed_to_controller = (
         borrowed_token_after["controller"] - borrowed_token_before["controller"]
@@ -732,11 +882,15 @@ def test_repay_full_from_wallet_and_y0_and_callback(
         collateral_token_after["callback"] - collateral_token_before["callback"]
     )
 
+    # ================= Verify position state =================
+
     # Withdrawn from AMM
     xy = amm.get_sum_xy(borrower)
     assert amm.user_shares(borrower)[1][0] == 0
     assert xy[0] == 0
     assert xy[1] == 0
+
+    # ================= Verify logs =================
 
     assert len(state_logs) == 1
     assert state_logs[0].user == borrower
@@ -750,6 +904,8 @@ def test_repay_full_from_wallet_and_y0_and_callback(
     assert repay_logs[0].user == borrower
     assert repay_logs[0].loan_decrease == borrowed_to_controller
     assert repay_logs[0].collateral_decrease == xy_before[1]
+
+    # ================= Verify money flows =================
 
     assert borrowed_to_controller == debt
     assert borrowed_from_amm == -xy_before[0]
