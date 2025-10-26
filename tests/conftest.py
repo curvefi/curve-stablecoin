@@ -7,6 +7,7 @@ from tests.utils.deployers import (
     ERC20_MOCK_DEPLOYER,
     CONSTANT_MONETARY_POLICY_LENDING_DEPLOYER,
     FAKE_LEVERAGE_DEPLOYER,
+    DUMMY_CALLBACK_DEPLOYER,
 )
 from tests.utils.protocols import Llamalend
 
@@ -78,6 +79,11 @@ def fake_leverage(controller, collateral_token, borrowed_token, price_oracle):
         market_price,
     )
     return leverage
+
+
+@pytest.fixture(scope="module")
+def dummy_callback():
+    return DUMMY_CALLBACK_DEPLOYER.deploy()
 
 
 @pytest.fixture(scope="module")
