@@ -154,243 +154,6 @@ def test_repay_full_from_wallet(
 
 
 @pytest.mark.parametrize("different_payer", [True, False])
-def test_repay_full_from_xy0(
-    controller, borrowed_token, collateral_token, amm, snapshot, different_payer
-):
-    """
-    Test full repayment using only AMM soft-liquidation (xy[0] >= DEBT).
-
-    Money Flow: xy[0] (AMM) → Controller
-                xy[0] - DEBT (AMM) → Borrower (excess)
-                xy[1] (AMM) → Borrower
-    """
-    borrower = payer = boa.env.eoa
-    if different_payer:
-        payer = boa.env.generate_address()
-
-    # ================= Create loan =================
-
-    boa.deal(collateral_token, borrower, COLLATERAL)
-    max_approve(collateral_token, controller)
-    debt = controller.max_borrowable(COLLATERAL, N_BANDS)
-    assert debt > 0
-    controller.create_loan(COLLATERAL, debt, N_BANDS)
-
-    # ================= Push position to soft-liquidation =================
-
-    trader = boa.env.generate_address()
-    boa.deal(borrowed_token, trader, debt * 10_001 // 10_000)
-    with boa.env.prank(trader):
-        max_approve(borrowed_token, amm)
-        amm.exchange(0, 1, debt * 10_001 // 10_000, 0)
-
-    # ================= Capture initial state =================
-
-    debt = controller.debt(borrower)
-    xy_before = amm.get_sum_xy(borrower)
-    assert xy_before[0] > debt and xy_before[1] > 0
-
-    # ================= Capture initial balances =================
-
-    borrowed_token_before = snapshot(borrowed_token, borrower, payer)
-    collateral_token_before = snapshot(collateral_token, borrower, payer)
-
-    # ================= Execute full repayment =================
-
-    with boa.env.prank(payer):
-        with boa.reverts():
-            controller.inject.repay_full(
-                borrower, debt, False, xy_before, (0, 0, 0), ZERO_ADDRESS
-            )
-        controller.inject.repay_full(
-            borrower, debt, True, xy_before, (0, 0, 0), ZERO_ADDRESS
-        )
-
-    # ================= Capture logs =================
-
-    repay_logs = filter_logs(controller, "Repay")
-    state_logs = filter_logs(controller, "UserState")
-
-    # ================= Capture final balances =================
-
-    borrowed_token_after = snapshot(borrowed_token, borrower, payer)
-    collateral_token_after = snapshot(collateral_token, borrower, payer)
-
-    # ================= Calculate money flows =================
-
-    borrowed_to_controller = (
-        borrowed_token_after["controller"] - borrowed_token_before["controller"]
-    )
-    borrowed_to_borrower = (
-        borrowed_token_after["borrower"] - borrowed_token_before["borrower"]
-    )
-    borrowed_from_amm = borrowed_token_after["amm"] - borrowed_token_before["amm"]
-    collateral_to_borrower = (
-        collateral_token_after["borrower"] - collateral_token_before["borrower"]
-    )
-    collateral_from_amm = collateral_token_after["amm"] - collateral_token_before["amm"]
-
-    # ================= Verify position state =================
-
-    # Withdrawn from AMM
-    xy_after = amm.get_sum_xy(borrower)
-    assert amm.user_shares(borrower)[1][0] == 0
-    assert xy_after[0] == 0
-    assert xy_after[1] == 0
-
-    # ================= Verify logs =================
-
-    assert len(state_logs) == 1
-    assert state_logs[0].user == borrower
-    assert state_logs[0].collateral == 0
-    assert state_logs[0].debt == 0
-    assert state_logs[0].n1 == 0
-    assert state_logs[0].n2 == 0
-    assert state_logs[0].liquidation_discount == 0
-
-    assert len(repay_logs) == 1
-    assert repay_logs[0].user == borrower
-    assert repay_logs[0].loan_decrease == debt
-    assert repay_logs[0].collateral_decrease == xy_before[1]
-
-    # ================= Verify money flows =================
-
-    assert borrowed_to_controller == debt
-    assert borrowed_from_amm == -xy_before[0]
-    assert borrowed_to_borrower == xy_before[0] - debt
-    assert borrowed_token_after["callback"] == borrowed_token_before["callback"]
-
-    assert collateral_to_borrower == xy_before[1]
-    assert collateral_from_amm == -xy_before[1]
-    assert collateral_token_after["callback"] == collateral_token_before["callback"]
-    assert collateral_token_after["controller"] == collateral_token_before["controller"]
-
-    if different_payer:
-        assert borrowed_token_after["payer"] == borrowed_token_before["payer"]
-        assert collateral_token_after["payer"] == collateral_token_before["payer"]
-
-
-@pytest.mark.parametrize("different_payer", [True, False])
-def test_repay_full_from_xy0_and_wallet(
-    controller, borrowed_token, collateral_token, amm, snapshot, different_payer
-):
-    """
-    Test full repayment using both AMM soft-liquidation (xy[0]) and wallet tokens.
-
-    Money Flow: xy[0] (AMM) + (DEBT - xy[0]) (wallet) → Controller
-                xy[1] (AMM) → Borrower
-    """
-    borrower = payer = boa.env.eoa
-    if different_payer:
-        payer = boa.env.generate_address()
-
-    # ================= Create loan =================
-
-    boa.deal(collateral_token, borrower, COLLATERAL)
-    max_approve(collateral_token, controller)
-    debt = controller.max_borrowable(COLLATERAL, N_BANDS)
-    assert debt > 0 and debt // 2 > 0
-    controller.create_loan(COLLATERAL, debt, N_BANDS)
-
-    # ================= Push position to soft-liquidation =================
-
-    trader = boa.env.generate_address()
-    boa.deal(borrowed_token, trader, debt // 2)
-    with boa.env.prank(trader):
-        max_approve(borrowed_token, amm)
-        amm.exchange(0, 1, debt // 2, 0)
-
-    # ================= Capture initial state =================
-
-    debt = controller.debt(borrower)
-    xy_before = amm.get_sum_xy(borrower)
-    assert 0 < xy_before[0] < debt and xy_before[1] > 0
-
-    # ================= Setup payer tokens =================
-
-    if different_payer:
-        boa.deal(borrowed_token, payer, debt)
-
-    # ================= Capture initial balances =================
-
-    borrowed_token_before = snapshot(borrowed_token, borrower, payer)
-    collateral_token_before = snapshot(collateral_token, borrower, payer)
-
-    # ================= Execute full repayment =================
-
-    with boa.env.prank(payer):
-        max_approve(borrowed_token, controller)
-        with boa.reverts():
-            controller.inject.repay_full(
-                borrower, debt, False, xy_before, (0, 0, 0), ZERO_ADDRESS
-            )
-        controller.inject.repay_full(
-            borrower, debt, True, xy_before, (0, 0, 0), ZERO_ADDRESS
-        )
-
-    # ================= Capture logs =================
-
-    repay_logs = filter_logs(controller, "Repay")
-    state_logs = filter_logs(controller, "UserState")
-
-    # ================= Capture final balances =================
-
-    borrowed_token_after = snapshot(borrowed_token, borrower, payer)
-    collateral_token_after = snapshot(collateral_token, borrower, payer)
-
-    # ================= Calculate money flows =================
-
-    borrowed_to_controller = (
-        borrowed_token_after["controller"] - borrowed_token_before["controller"]
-    )
-    borrowed_from_payer = borrowed_token_after["payer"] - borrowed_token_before["payer"]
-    borrowed_from_amm = borrowed_token_after["amm"] - borrowed_token_before["amm"]
-    collateral_to_borrower = (
-        collateral_token_after["borrower"] - collateral_token_before["borrower"]
-    )
-    collateral_from_amm = collateral_token_after["amm"] - collateral_token_before["amm"]
-
-    # ================= Verify position state =================
-
-    # Withdrawn from AMM
-    xy_after = amm.get_sum_xy(borrower)
-    assert amm.user_shares(borrower)[1][0] == 0
-    assert xy_after[0] == 0
-    assert xy_after[1] == 0
-
-    # ================= Verify logs =================
-
-    assert len(state_logs) == 1
-    assert state_logs[0].user == borrower
-    assert state_logs[0].collateral == 0
-    assert state_logs[0].debt == 0
-    assert state_logs[0].n1 == 0
-    assert state_logs[0].n2 == 0
-    assert state_logs[0].liquidation_discount == 0
-
-    assert len(repay_logs) == 1
-    assert repay_logs[0].user == borrower
-    assert repay_logs[0].loan_decrease == debt
-    assert repay_logs[0].collateral_decrease == xy_before[1]
-
-    # ================= Verify money flows =================
-
-    assert borrowed_to_controller == debt
-    assert borrowed_from_amm == -xy_before[0]
-    assert borrowed_from_payer == -(debt - xy_before[0])
-    assert borrowed_token_after["callback"] == borrowed_token_before["callback"]
-
-    assert collateral_to_borrower == xy_before[1]
-    assert collateral_from_amm == -xy_before[1]
-    assert collateral_token_after["callback"] == collateral_token_before["callback"]
-    assert collateral_token_after["controller"] == collateral_token_before["controller"]
-
-    if different_payer:
-        assert borrowed_token_after["borrower"] == borrowed_token_before["borrower"]
-        assert collateral_token_after["payer"] == collateral_token_before["payer"]
-
-
-@pytest.mark.parametrize("different_payer", [True, False])
 def test_repay_full_from_callback(
     controller,
     borrowed_token,
@@ -510,6 +273,123 @@ def test_repay_full_from_callback(
     assert collateral_to_borrower == COLLATERAL // 2
     assert collateral_from_callbacker == -(COLLATERAL // 2)
     assert collateral_token_after["amm"] == collateral_token_before["amm"]
+    assert collateral_token_after["controller"] == collateral_token_before["controller"]
+
+    if different_payer:
+        assert borrowed_token_after["payer"] == borrowed_token_before["payer"]
+        assert collateral_token_after["payer"] == collateral_token_before["payer"]
+
+
+@pytest.mark.parametrize("different_payer", [True, False])
+def test_repay_full_from_xy0(
+    controller, borrowed_token, collateral_token, amm, snapshot, different_payer
+):
+    """
+    Test full repayment using only AMM soft-liquidation (xy[0] >= DEBT).
+
+    Money Flow: xy[0] (AMM) → Controller
+                xy[0] - DEBT (AMM) → Borrower (excess)
+                xy[1] (AMM) → Borrower
+    """
+    borrower = payer = boa.env.eoa
+    if different_payer:
+        payer = boa.env.generate_address()
+
+    # ================= Create loan =================
+
+    boa.deal(collateral_token, borrower, COLLATERAL)
+    max_approve(collateral_token, controller)
+    debt = controller.max_borrowable(COLLATERAL, N_BANDS)
+    assert debt > 0
+    controller.create_loan(COLLATERAL, debt, N_BANDS)
+
+    # ================= Push position to soft-liquidation =================
+
+    trader = boa.env.generate_address()
+    boa.deal(borrowed_token, trader, debt * 10_001 // 10_000)
+    with boa.env.prank(trader):
+        max_approve(borrowed_token, amm)
+        amm.exchange(0, 1, debt * 10_001 // 10_000, 0)
+
+    # ================= Capture initial state =================
+
+    debt = controller.debt(borrower)
+    xy_before = amm.get_sum_xy(borrower)
+    assert xy_before[0] > debt and xy_before[1] > 0
+
+    # ================= Capture initial balances =================
+
+    borrowed_token_before = snapshot(borrowed_token, borrower, payer)
+    collateral_token_before = snapshot(collateral_token, borrower, payer)
+
+    # ================= Execute full repayment =================
+
+    with boa.env.prank(payer):
+        with boa.reverts():
+            controller.inject.repay_full(
+                borrower, debt, False, xy_before, (0, 0, 0), ZERO_ADDRESS
+            )
+        controller.inject.repay_full(
+            borrower, debt, True, xy_before, (0, 0, 0), ZERO_ADDRESS
+        )
+
+    # ================= Capture logs =================
+
+    repay_logs = filter_logs(controller, "Repay")
+    state_logs = filter_logs(controller, "UserState")
+
+    # ================= Capture final balances =================
+
+    borrowed_token_after = snapshot(borrowed_token, borrower, payer)
+    collateral_token_after = snapshot(collateral_token, borrower, payer)
+
+    # ================= Calculate money flows =================
+
+    borrowed_to_controller = (
+        borrowed_token_after["controller"] - borrowed_token_before["controller"]
+    )
+    borrowed_to_borrower = (
+        borrowed_token_after["borrower"] - borrowed_token_before["borrower"]
+    )
+    borrowed_from_amm = borrowed_token_after["amm"] - borrowed_token_before["amm"]
+    collateral_to_borrower = (
+        collateral_token_after["borrower"] - collateral_token_before["borrower"]
+    )
+    collateral_from_amm = collateral_token_after["amm"] - collateral_token_before["amm"]
+
+    # ================= Verify position state =================
+
+    # Withdrawn from AMM
+    xy_after = amm.get_sum_xy(borrower)
+    assert amm.user_shares(borrower)[1][0] == 0
+    assert xy_after[0] == 0
+    assert xy_after[1] == 0
+
+    # ================= Verify logs =================
+
+    assert len(state_logs) == 1
+    assert state_logs[0].user == borrower
+    assert state_logs[0].collateral == 0
+    assert state_logs[0].debt == 0
+    assert state_logs[0].n1 == 0
+    assert state_logs[0].n2 == 0
+    assert state_logs[0].liquidation_discount == 0
+
+    assert len(repay_logs) == 1
+    assert repay_logs[0].user == borrower
+    assert repay_logs[0].loan_decrease == debt
+    assert repay_logs[0].collateral_decrease == xy_before[1]
+
+    # ================= Verify money flows =================
+
+    assert borrowed_to_controller == debt
+    assert borrowed_from_amm == -xy_before[0]
+    assert borrowed_to_borrower == xy_before[0] - debt
+    assert borrowed_token_after["callback"] == borrowed_token_before["callback"]
+
+    assert collateral_to_borrower == xy_before[1]
+    assert collateral_from_amm == -xy_before[1]
+    assert collateral_token_after["callback"] == collateral_token_before["callback"]
     assert collateral_token_after["controller"] == collateral_token_before["controller"]
 
     if different_payer:
@@ -640,6 +520,126 @@ def test_repay_full_from_wallet_and_callback(
     assert collateral_to_borrower == COLLATERAL // 2
     assert collateral_from_callbacker == -(COLLATERAL // 2)
     assert collateral_token_after["amm"] == collateral_token_before["amm"]
+    assert collateral_token_after["controller"] == collateral_token_before["controller"]
+
+    if different_payer:
+        assert borrowed_token_after["borrower"] == borrowed_token_before["borrower"]
+        assert collateral_token_after["payer"] == collateral_token_before["payer"]
+
+
+@pytest.mark.parametrize("different_payer", [True, False])
+def test_repay_full_from_xy0_and_wallet(
+    controller, borrowed_token, collateral_token, amm, snapshot, different_payer
+):
+    """
+    Test full repayment using both AMM soft-liquidation (xy[0]) and wallet tokens.
+
+    Money Flow: xy[0] (AMM) + (DEBT - xy[0]) (wallet) → Controller
+                xy[1] (AMM) → Borrower
+    """
+    borrower = payer = boa.env.eoa
+    if different_payer:
+        payer = boa.env.generate_address()
+
+    # ================= Create loan =================
+
+    boa.deal(collateral_token, borrower, COLLATERAL)
+    max_approve(collateral_token, controller)
+    debt = controller.max_borrowable(COLLATERAL, N_BANDS)
+    assert debt > 0 and debt // 2 > 0
+    controller.create_loan(COLLATERAL, debt, N_BANDS)
+
+    # ================= Push position to soft-liquidation =================
+
+    trader = boa.env.generate_address()
+    boa.deal(borrowed_token, trader, debt // 2)
+    with boa.env.prank(trader):
+        max_approve(borrowed_token, amm)
+        amm.exchange(0, 1, debt // 2, 0)
+
+    # ================= Capture initial state =================
+
+    debt = controller.debt(borrower)
+    xy_before = amm.get_sum_xy(borrower)
+    assert 0 < xy_before[0] < debt and xy_before[1] > 0
+
+    # ================= Setup payer tokens =================
+
+    if different_payer:
+        boa.deal(borrowed_token, payer, debt)
+
+    # ================= Capture initial balances =================
+
+    borrowed_token_before = snapshot(borrowed_token, borrower, payer)
+    collateral_token_before = snapshot(collateral_token, borrower, payer)
+
+    # ================= Execute full repayment =================
+
+    with boa.env.prank(payer):
+        max_approve(borrowed_token, controller)
+        with boa.reverts():
+            controller.inject.repay_full(
+                borrower, debt, False, xy_before, (0, 0, 0), ZERO_ADDRESS
+            )
+        controller.inject.repay_full(
+            borrower, debt, True, xy_before, (0, 0, 0), ZERO_ADDRESS
+        )
+
+    # ================= Capture logs =================
+
+    repay_logs = filter_logs(controller, "Repay")
+    state_logs = filter_logs(controller, "UserState")
+
+    # ================= Capture final balances =================
+
+    borrowed_token_after = snapshot(borrowed_token, borrower, payer)
+    collateral_token_after = snapshot(collateral_token, borrower, payer)
+
+    # ================= Calculate money flows =================
+
+    borrowed_to_controller = (
+        borrowed_token_after["controller"] - borrowed_token_before["controller"]
+    )
+    borrowed_from_payer = borrowed_token_after["payer"] - borrowed_token_before["payer"]
+    borrowed_from_amm = borrowed_token_after["amm"] - borrowed_token_before["amm"]
+    collateral_to_borrower = (
+        collateral_token_after["borrower"] - collateral_token_before["borrower"]
+    )
+    collateral_from_amm = collateral_token_after["amm"] - collateral_token_before["amm"]
+
+    # ================= Verify position state =================
+
+    # Withdrawn from AMM
+    xy_after = amm.get_sum_xy(borrower)
+    assert amm.user_shares(borrower)[1][0] == 0
+    assert xy_after[0] == 0
+    assert xy_after[1] == 0
+
+    # ================= Verify logs =================
+
+    assert len(state_logs) == 1
+    assert state_logs[0].user == borrower
+    assert state_logs[0].collateral == 0
+    assert state_logs[0].debt == 0
+    assert state_logs[0].n1 == 0
+    assert state_logs[0].n2 == 0
+    assert state_logs[0].liquidation_discount == 0
+
+    assert len(repay_logs) == 1
+    assert repay_logs[0].user == borrower
+    assert repay_logs[0].loan_decrease == debt
+    assert repay_logs[0].collateral_decrease == xy_before[1]
+
+    # ================= Verify money flows =================
+
+    assert borrowed_to_controller == debt
+    assert borrowed_from_amm == -xy_before[0]
+    assert borrowed_from_payer == -(debt - xy_before[0])
+    assert borrowed_token_after["callback"] == borrowed_token_before["callback"]
+
+    assert collateral_to_borrower == xy_before[1]
+    assert collateral_from_amm == -xy_before[1]
+    assert collateral_token_after["callback"] == collateral_token_before["callback"]
     assert collateral_token_after["controller"] == collateral_token_before["controller"]
 
     if different_payer:
@@ -784,7 +784,7 @@ def test_repay_full_from_xy0_and_callback(
 
 
 @pytest.mark.parametrize("different_payer", [True, False])
-def test_repay_full_from_wallet_and_y0_and_callback(
+def test_repay_full_from_wallet_and_xy0_and_callback(
     controller,
     borrowed_token,
     collateral_token,
