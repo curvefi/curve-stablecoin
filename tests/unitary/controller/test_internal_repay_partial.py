@@ -246,8 +246,8 @@ def test_repay_partial_from_callback(
     borrowed_from_callback = (
         borrowed_token_after["callback"] - borrowed_token_before["callback"]
     )
-    collateral_to_controller = (
-        collateral_token_after["controller"] - collateral_token_before["controller"]
+    collateral_to_amm = (
+        collateral_token_after["amm"] - collateral_token_before["amm"]
     )
     collateral_from_callback = (
         collateral_token_after["callback"] - collateral_token_before["callback"]
@@ -283,9 +283,9 @@ def test_repay_partial_from_callback(
     assert borrowed_token_after["payer"] == borrowed_token_before["payer"]
     assert borrowed_token_after["amm"] == borrowed_token_before["amm"]
 
-    assert collateral_to_controller == callback_collateral
+    assert collateral_to_amm == callback_collateral
     assert collateral_from_callback == -callback_collateral
-    assert collateral_token_after["amm"] == collateral_token_before["amm"]
+    assert collateral_token_after["controller"] == collateral_token_before["controller"]
     assert collateral_token_after["borrower"] == collateral_token_before["borrower"]
 
     if different_payer:
@@ -382,8 +382,8 @@ def test_repay_partial_from_wallet_and_callback(
     borrowed_from_callback = (
         borrowed_token_after["callback"] - borrowed_token_before["callback"]
     )
-    collateral_to_controller = (
-        collateral_token_after["controller"] - collateral_token_before["controller"]
+    collateral_to_amm = (
+        collateral_token_after["amm"] - collateral_token_before["amm"]
     )
     collateral_from_callback = (
         collateral_token_after["callback"] - collateral_token_before["callback"]
@@ -419,9 +419,9 @@ def test_repay_partial_from_wallet_and_callback(
     assert borrowed_from_callback == -callback_borrowed
     assert borrowed_token_after["amm"] == borrowed_token_before["amm"]
 
-    assert collateral_to_controller == callback_collateral
+    assert collateral_to_amm == callback_collateral
     assert collateral_from_callback == -callback_collateral
-    assert collateral_token_after["amm"] == collateral_token_before["amm"]
+    assert collateral_token_after["controller"] == collateral_token_before["controller"]
     assert collateral_token_after["borrower"] == collateral_token_before["borrower"]
 
     if different_payer:
@@ -934,8 +934,8 @@ def test_repay_partial_from_xy0_and_callback_underwater_shrink(
     borrowed_from_callback = (
         borrowed_token_after["callback"] - borrowed_token_before["callback"]
     )
-    collateral_to_controller = (
-        collateral_token_after["controller"] - collateral_token_before["controller"]
+    collateral_to_amm = (
+        collateral_token_after["amm"] - collateral_token_before["amm"]
     )
     collateral_from_callback = (
         collateral_token_after["callback"] - collateral_token_before["callback"]
@@ -973,9 +973,9 @@ def test_repay_partial_from_xy0_and_callback_underwater_shrink(
     assert borrowed_from_callback == -callback_borrowed
     assert borrowed_token_after["payer"] == borrowed_token_before["payer"]
 
-    assert collateral_to_controller == callback_collateral
+    assert collateral_to_amm == callback_collateral
     assert collateral_from_callback == -callback_collateral
-    assert collateral_token_after["amm"] == collateral_token_before["amm"]
+    assert collateral_token_after["controller"] == collateral_token_before["controller"]
     assert collateral_token_after["borrower"] == collateral_token_before["borrower"]
 
     if different_payer:
@@ -1091,8 +1091,8 @@ def test_repay_partial_from_xy0_and_wallet_and_callback_underwater_shrink(
     borrowed_from_callback = (
         borrowed_token_after["callback"] - borrowed_token_before["callback"]
     )
-    collateral_to_controller = (
-        collateral_token_after["controller"] - collateral_token_before["controller"]
+    collateral_to_amm = (
+        collateral_token_after["amm"] - collateral_token_before["amm"]
     )
     collateral_from_callback = (
         collateral_token_after["callback"] - collateral_token_before["callback"]
@@ -1130,9 +1130,9 @@ def test_repay_partial_from_xy0_and_wallet_and_callback_underwater_shrink(
     assert borrowed_from_amm == -xy_before[0]
     assert borrowed_from_callback == -callback_borrowed
 
-    assert collateral_to_controller == callback_collateral
+    assert collateral_to_amm == callback_collateral
     assert collateral_from_callback == -callback_collateral
-    assert collateral_token_after["amm"] == collateral_token_before["amm"]
+    assert collateral_token_after["controller"] == collateral_token_before["controller"]
     assert collateral_token_after["borrower"] == collateral_token_before["borrower"]
 
     if different_payer:
