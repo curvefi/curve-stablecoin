@@ -454,10 +454,10 @@ def test_repay_partial_from_wallet_underwater(
     # ================= Push position to underwater =================
 
     trader = boa.env.generate_address()
-    boa.deal(borrowed_token, trader, debt * 10_001 // 10_000)
+    boa.deal(borrowed_token, trader, debt // 2)
     with boa.env.prank(trader):
         max_approve(borrowed_token, amm)
-        amm.exchange(0, 1, debt * 10_001 // 10_000, 0)
+        amm.exchange(0, 1, debt // 2, 0)
 
     # ================= Set new liquidation discount =================
 
@@ -472,7 +472,7 @@ def test_repay_partial_from_wallet_underwater(
     debt = controller.debt(borrower)
     ticks_before = amm.read_user_tick_numbers(borrower)
     xy_before = amm.get_sum_xy(borrower)
-    assert xy_before[0] > 0 and xy_before[1] > 0  # Position is underwater
+    assert 0 < xy_before[0] < debt and xy_before[1] > 0  # Position is underwater
 
     # ================= Setup payer tokens =================
 
@@ -615,7 +615,7 @@ def test_repay_partial_from_xy0_underwater_shrink(
     assert active_band_before == ticks_before[0] + 1
     debt = controller.debt(borrower)
     xy_before = amm.get_sum_xy(borrower)
-    assert xy_before[0] > 0 and xy_before[1] > 0  # Position is underwater
+    assert 0 < xy_before[0] < debt and xy_before[1] > 0  # Position is underwater
 
     # ================= Capture initial balances =================
 
@@ -746,7 +746,7 @@ def test_repay_partial_from_xy0_and_wallet_underwater_shrink(
     assert active_band_before == ticks_before[0]
     debt = controller.debt(borrower)
     xy_before = amm.get_sum_xy(borrower)
-    assert xy_before[0] > 0 and xy_before[1] > 0  # Position is underwater
+    assert 0 < xy_before[0] < debt and xy_before[1] > 0  # Position is underwater
 
     # ================= Setup payer tokens =================
 
@@ -885,7 +885,7 @@ def test_repay_partial_from_xy0_and_callback_underwater_shrink(
     assert active_band_before == ticks_before[0]
     debt = controller.debt(borrower)
     xy_before = amm.get_sum_xy(borrower)
-    assert xy_before[0] > 0 and xy_before[1] > 0  # Position is underwater
+    assert 0 < xy_before[0] < debt and xy_before[1] > 0  # Position is underwater
 
     # ================= Setup callback tokens =================
 
@@ -1034,7 +1034,7 @@ def test_repay_partial_from_xy0_and_wallet_and_callback_underwater_shrink(
     assert active_band_before == ticks_before[0]
     debt = controller.debt(borrower)
     xy_before = amm.get_sum_xy(borrower)
-    assert xy_before[0] > 0 and xy_before[1] > 0  # Position is underwater
+    assert 0 < xy_before[0] < debt and xy_before[1] > 0  # Position is underwater
 
     # ================= Setup callback tokens =================
 
@@ -1175,21 +1175,20 @@ def test_repay_partial_cannot_shrink(
         max_approve(borrowed_token, amm)
         amm.exchange_dy(0, 1, amount_out, amount_in + 1)
 
-    with boa.reverts("Can't shrink"):
-        controller.tokens_to_shrink(borrower)
-
     # ================= Capture initial state =================
 
     active_band_before = amm.active_band()
     assert active_band_before == ticks_before[0] + 2
     debt = controller.debt(borrower)
     xy_before = amm.get_sum_xy(borrower)
-    assert xy_before[0] > 0 and xy_before[1] > 0  # Position is underwater
+    assert 0 < xy_before[0] < debt and xy_before[1] > 0  # Position is underwater
 
     # ================= Execute partial repayment =================
 
+    with boa.reverts("Can't shrink"):
+        controller.tokens_to_shrink(borrower)
+
     with boa.env.prank(payer):
-        # _shrink == True, reverts without approval
         with boa.reverts("Can't shrink"):
             controller.inject.repay_partial(
                 borrower, debt, 0, False, xy_before, (0, 0, 0), ZERO_ADDRESS, 2**255 - 1, True
