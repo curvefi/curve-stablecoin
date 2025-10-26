@@ -980,7 +980,7 @@ def _repay_partial(
     tkn.transfer_from(BORROWED_TOKEN, msg.sender, self, _wallet_d_debt)
 
     # ================= Recover collateral tokens (xy[1]) =================
-    tkn.transfer_from(COLLATERAL_TOKEN, _callbacker, self, _cb.collateral)
+    tkn.transfer_from(COLLATERAL_TOKEN, _callbacker, AMM.address, _cb.collateral)
 
     d_debt: uint256 = _debt - new_debt
 
