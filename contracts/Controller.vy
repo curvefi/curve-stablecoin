@@ -558,6 +558,13 @@ def max_borrowable(
 def min_collateral(
     debt: uint256, N: uint256, user: address = empty(address)
 ) -> uint256:
+    """
+    @notice Calculation of minimum collaterl amount required for given debt amount
+    @param debt The amount of debt for which calculation should be done
+    @param N number of bands to have the deposit into
+    @param user User to calculate the value for (only necessary for nonzero extra_health)
+    @return Minimum amount of collateral asset to provide
+    """
     return staticcall self._view.min_collateral(debt, N, user)
 
 
