@@ -288,7 +288,6 @@ def _max_borrowable(
     collateral: uint256,
     N: uint256,
     cap: uint256,
-    current_debt: uint256,
     user: address,
 ) -> uint256:
 
@@ -340,13 +339,7 @@ def max_borrowable(
         staticcall BORROWED_TOKEN.balanceOf(CONTROLLER.address) + current_debt
     )
 
-    return self._max_borrowable(
-        collateral,
-        N,
-        cap,
-        current_debt,
-        user,
-    )
+    return self._max_borrowable(collateral, N, cap, user)
 
 
 @external

@@ -86,22 +86,11 @@ def max_borrowable(
     user: address = empty(address),
 ) -> uint256:
     """
-    @notice Calculation of maximum which can be borrowed (details in comments)
-    @param collateral Collateral amount against which to borrow
-    @param N number of bands to have the deposit into
-    @param current_debt Current debt of the user (if any)
-    @param user User to calculate the value for (only necessary for nonzero extra_health)
-    @return Maximum amount of borrowed asset to borrow
+    @notice Natspec for this function is available in its controller contract
     """
     # Cannot borrow beyond the amount of coins Controller has or beyond borrow_cap
     total_debt: uint256 = self._total_debt()
     cap: uint256 = unsafe_sub(max(self._borrow_cap(), total_debt), total_debt)
     cap = min(self._borrowed_balance(), cap) + current_debt
 
-    return core._max_borrowable(
-        collateral,
-        N,
-        cap,
-        current_debt,
-        user,
-    )
+    return core._max_borrowable(collateral, N, cap, user)
