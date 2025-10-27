@@ -29,6 +29,7 @@ exports: (
     ownable.transfer_ownership,
 )
 
+
 struct Market:
     vault: IVault
     controller: IController
@@ -37,6 +38,7 @@ struct Market:
     borrowed_token: IERC20
     price_oracle: IPriceOracle
     monetary_policy: IMonetaryPolicy
+
 
 MIN_A: constant(uint256) = 2
 MAX_A: constant(uint256) = 10000
@@ -209,7 +211,7 @@ def markets(_n: uint256) -> Market:
         collateral_token=staticcall vault.collateral_token(),
         borrowed_token=staticcall vault.borrowed_token(),
         price_oracle=staticcall amm.price_oracle_contract(),
-        monetary_policy=staticcall controller.monetary_policy()
+        monetary_policy=staticcall controller.monetary_policy(),
     )
 
 
