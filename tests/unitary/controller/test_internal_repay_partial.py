@@ -98,11 +98,29 @@ def test_repay_partial_from_wallet(
         # _shrink == False, works both with and without approval
         with boa.env.anchor():
             controller.inject.repay_partial(
-                borrower, debt, wallet_borrowed, False, xy_before, (0, 0, 0), ZERO_ADDRESS, 2**255 - 1, False
+                borrower,
+                debt,
+                wallet_borrowed,
+                False,
+                xy_before,
+                (0, 0, 0),
+                ZERO_ADDRESS,
+                2**255 - 1,
+                False,
             )
-            assert controller.liquidation_discounts(borrower) == old_liquidation_discount
+            assert (
+                controller.liquidation_discounts(borrower) == old_liquidation_discount
+            )
         controller.inject.repay_partial(
-            borrower, debt, wallet_borrowed, True, xy_before, (0, 0, 0), ZERO_ADDRESS, 2**255 - 1, False
+            borrower,
+            debt,
+            wallet_borrowed,
+            True,
+            xy_before,
+            (0, 0, 0),
+            ZERO_ADDRESS,
+            2**255 - 1,
+            False,
         )
 
     # ================= Capture logs =================
@@ -128,7 +146,7 @@ def test_repay_partial_from_wallet(
 
     xy_after = amm.get_sum_xy(borrower)
     assert xy_after[0] == 0  # No borrowed tokens in AMM
-    assert xy_after[1] == xy_before[1]   # Collateral still in AMM
+    assert xy_after[1] == xy_before[1]  # Collateral still in AMM
 
     # Check that ticks moved up after partial repayment (position improved)
     ticks_after = amm.read_user_tick_numbers(borrower)
@@ -145,7 +163,9 @@ def test_repay_partial_from_wallet(
     assert len(repay_logs) == 1
     assert repay_logs[0].user == borrower
     assert repay_logs[0].loan_decrease == wallet_borrowed
-    assert repay_logs[0].collateral_decrease == 0  # No collateral decrease in partial repay
+    assert (
+        repay_logs[0].collateral_decrease == 0
+    )  # No collateral decrease in partial repay
 
     # ================= Verify money flows =================
 
@@ -166,7 +186,14 @@ def test_repay_partial_from_wallet(
 
 @pytest.mark.parametrize("different_payer", [True, False])
 def test_repay_partial_from_callback(
-    controller, borrowed_token, collateral_token, amm, snapshot, admin, fake_leverage, different_payer
+    controller,
+    borrowed_token,
+    collateral_token,
+    amm,
+    snapshot,
+    admin,
+    fake_leverage,
+    different_payer,
 ):
     """
     Test partial repayment using wallet + callback tokens (not underwater).
@@ -202,7 +229,7 @@ def test_repay_partial_from_callback(
 
     callback_borrowed = debt // 2  # Callback provides half of partial debt
     callback_collateral = COLLATERAL - 100  # Some collateral from callback
-    amm.withdraw(borrower, 10 ** 18, sender=controller.address)
+    amm.withdraw(borrower, 10**18, sender=controller.address)
     collateral_token.transfer(fake_leverage, COLLATERAL, sender=amm.address)
     boa.deal(borrowed_token, fake_leverage, debt - 1)
     cb = (amm.active_band(), callback_borrowed, callback_collateral)
@@ -219,11 +246,29 @@ def test_repay_partial_from_callback(
         # _shrink == False, works both with and without approval
         with boa.env.anchor():
             controller.inject.repay_partial(
-                borrower, debt, 0, False, xy_before, cb, fake_leverage.address, 2**255 - 1, False
+                borrower,
+                debt,
+                0,
+                False,
+                xy_before,
+                cb,
+                fake_leverage.address,
+                2**255 - 1,
+                False,
             )
-            assert controller.liquidation_discounts(borrower) == old_liquidation_discount
+            assert (
+                controller.liquidation_discounts(borrower) == old_liquidation_discount
+            )
         controller.inject.repay_partial(
-            borrower, debt, 0, True, xy_before, cb, fake_leverage.address, 2**255 - 1, False
+            borrower,
+            debt,
+            0,
+            True,
+            xy_before,
+            cb,
+            fake_leverage.address,
+            2**255 - 1,
+            False,
         )
 
     # ================= Capture logs =================
@@ -246,9 +291,7 @@ def test_repay_partial_from_callback(
     borrowed_from_callback = (
         borrowed_token_after["callback"] - borrowed_token_before["callback"]
     )
-    collateral_to_amm = (
-        collateral_token_after["amm"] - collateral_token_before["amm"]
-    )
+    collateral_to_amm = collateral_token_after["amm"] - collateral_token_before["amm"]
     collateral_from_callback = (
         collateral_token_after["callback"] - collateral_token_before["callback"]
     )
@@ -269,7 +312,9 @@ def test_repay_partial_from_callback(
     assert len(state_logs) == 1
     assert state_logs[0].user == borrower
     assert state_logs[0].debt == debt - callback_borrowed
-    assert state_logs[0].collateral == callback_collateral  # Position still has collateral
+    assert (
+        state_logs[0].collateral == callback_collateral
+    )  # Position still has collateral
 
     assert len(repay_logs) == 1
     assert repay_logs[0].user == borrower
@@ -295,7 +340,14 @@ def test_repay_partial_from_callback(
 
 @pytest.mark.parametrize("different_payer", [True, False])
 def test_repay_partial_from_wallet_and_callback(
-    controller, borrowed_token, collateral_token, amm, snapshot, admin, fake_leverage, different_payer
+    controller,
+    borrowed_token,
+    collateral_token,
+    amm,
+    snapshot,
+    admin,
+    fake_leverage,
+    different_payer,
 ):
     """
     Test partial repayment using wallet + callback tokens (not underwater).
@@ -337,7 +389,7 @@ def test_repay_partial_from_wallet_and_callback(
 
     callback_borrowed = wallet_borrowed // 2  # Callback provides half of partial debt
     callback_collateral = COLLATERAL - 100  # Some collateral from callback
-    amm.withdraw(borrower, 10 ** 18, sender=controller.address)
+    amm.withdraw(borrower, 10**18, sender=controller.address)
     collateral_token.transfer(fake_leverage, COLLATERAL, sender=amm.address)
     boa.deal(borrowed_token, fake_leverage, debt - 1)
     cb = (amm.active_band(), callback_borrowed, callback_collateral)
@@ -354,11 +406,29 @@ def test_repay_partial_from_wallet_and_callback(
         # _shrink == False, works both with and without approval
         with boa.env.anchor():
             controller.inject.repay_partial(
-                borrower, debt, wallet_borrowed, False, xy_before, cb, fake_leverage.address, 2**255 - 1, False
+                borrower,
+                debt,
+                wallet_borrowed,
+                False,
+                xy_before,
+                cb,
+                fake_leverage.address,
+                2**255 - 1,
+                False,
             )
-            assert controller.liquidation_discounts(borrower) == old_liquidation_discount
+            assert (
+                controller.liquidation_discounts(borrower) == old_liquidation_discount
+            )
         controller.inject.repay_partial(
-            borrower, debt, wallet_borrowed, True, xy_before, cb, fake_leverage.address, 2**255 - 1, False
+            borrower,
+            debt,
+            wallet_borrowed,
+            True,
+            xy_before,
+            cb,
+            fake_leverage.address,
+            2**255 - 1,
+            False,
         )
 
     # ================= Capture logs =================
@@ -382,9 +452,7 @@ def test_repay_partial_from_wallet_and_callback(
     borrowed_from_callback = (
         borrowed_token_after["callback"] - borrowed_token_before["callback"]
     )
-    collateral_to_amm = (
-        collateral_token_after["amm"] - collateral_token_before["amm"]
-    )
+    collateral_to_amm = collateral_token_after["amm"] - collateral_token_before["amm"]
     collateral_from_callback = (
         collateral_token_after["callback"] - collateral_token_before["callback"]
     )
@@ -405,7 +473,9 @@ def test_repay_partial_from_wallet_and_callback(
     assert len(state_logs) == 1
     assert state_logs[0].user == borrower
     assert state_logs[0].debt == debt - wallet_borrowed - callback_borrowed
-    assert state_logs[0].collateral == callback_collateral  # Position still has collateral
+    assert (
+        state_logs[0].collateral == callback_collateral
+    )  # Position still has collateral
 
     assert len(repay_logs) == 1
     assert repay_logs[0].user == borrower
@@ -431,7 +501,14 @@ def test_repay_partial_from_wallet_and_callback(
 
 @pytest.mark.parametrize("different_payer", [True, False])
 def test_repay_partial_from_wallet_underwater(
-    controller, borrowed_token, collateral_token, amm, snapshot, admin, fake_leverage, different_payer
+    controller,
+    borrowed_token,
+    collateral_token,
+    amm,
+    snapshot,
+    admin,
+    fake_leverage,
+    different_payer,
 ):
     """
     Test partial repayment from wallet when position is underwater (soft-liquidated).
@@ -492,16 +569,42 @@ def test_repay_partial_from_wallet_underwater(
         # Can't use callback underwater if _shrink == False
         with boa.reverts():
             controller.inject.repay_partial(
-                borrower, debt, wallet_borrowed, False, xy_before, (0, 0, 0), fake_leverage, 2 ** 255 - 1, False
+                borrower,
+                debt,
+                wallet_borrowed,
+                False,
+                xy_before,
+                (0, 0, 0),
+                fake_leverage,
+                2**255 - 1,
+                False,
             )
         # _shrink == False, works both with and without approval
         with boa.env.anchor():
             controller.inject.repay_partial(
-                borrower, debt, wallet_borrowed, False, xy_before, (0, 0, 0), ZERO_ADDRESS, 2**255 - 1, False
+                borrower,
+                debt,
+                wallet_borrowed,
+                False,
+                xy_before,
+                (0, 0, 0),
+                ZERO_ADDRESS,
+                2**255 - 1,
+                False,
             )
-            assert controller.liquidation_discounts(borrower) == old_liquidation_discount
+            assert (
+                controller.liquidation_discounts(borrower) == old_liquidation_discount
+            )
         controller.inject.repay_partial(
-            borrower, debt, wallet_borrowed, True, xy_before, (0, 0, 0), ZERO_ADDRESS, 2**255 - 1, False
+            borrower,
+            debt,
+            wallet_borrowed,
+            True,
+            xy_before,
+            (0, 0, 0),
+            ZERO_ADDRESS,
+            2**255 - 1,
+            False,
         )
 
     # ================= Capture logs =================
@@ -538,12 +641,16 @@ def test_repay_partial_from_wallet_underwater(
     assert len(state_logs) == 1
     assert state_logs[0].user == borrower
     assert state_logs[0].debt == debt - wallet_borrowed
-    assert state_logs[0].collateral == xy_before[1]  # Collateral amount after partial repay
+    assert (
+        state_logs[0].collateral == xy_before[1]
+    )  # Collateral amount after partial repay
 
     assert len(repay_logs) == 1
     assert repay_logs[0].user == borrower
     assert repay_logs[0].loan_decrease == wallet_borrowed
-    assert repay_logs[0].collateral_decrease == 0  # No collateral decrease in underwater partial repay
+    assert (
+        repay_logs[0].collateral_decrease == 0
+    )  # No collateral decrease in underwater partial repay
 
     # ================= Verify money flows =================
 
@@ -564,7 +671,14 @@ def test_repay_partial_from_wallet_underwater(
 
 @pytest.mark.parametrize("different_payer", [True, False])
 def test_repay_partial_from_xy0_underwater_shrink(
-    controller, borrowed_token, collateral_token, amm, snapshot, admin, fake_leverage, different_payer
+    controller,
+    borrowed_token,
+    collateral_token,
+    amm,
+    snapshot,
+    admin,
+    fake_leverage,
+    different_payer,
 ):
     """
     Test partial repayment from wallet when position is underwater (soft-liquidated).
@@ -593,7 +707,7 @@ def test_repay_partial_from_xy0_underwater_shrink(
     ticks_before = amm.read_user_tick_numbers(borrower)
     assert ticks_before[1] - ticks_before[0] == 5
     amount_out = amm.bands_y(ticks_before[0]) + amm.bands_y(ticks_before[0] + 1) // 2
-    amount_out = amount_out // 10**(18 - borrowed_token.decimals())
+    amount_out = amount_out // 10 ** (18 - borrowed_token.decimals())
     amount_in = amm.get_dx(0, 1, amount_out)
     boa.deal(borrowed_token, trader, amount_in)
     with boa.env.prank(trader):
@@ -628,11 +742,29 @@ def test_repay_partial_from_xy0_underwater_shrink(
         # _shrink == True, reverts without approval
         with boa.reverts():
             controller.inject.repay_partial(
-                borrower, debt, 0, False, xy_before, (0, 0, 0), ZERO_ADDRESS, 2**255 - 1, True
+                borrower,
+                debt,
+                0,
+                False,
+                xy_before,
+                (0, 0, 0),
+                ZERO_ADDRESS,
+                2**255 - 1,
+                True,
             )
-            assert controller.liquidation_discounts(borrower) == old_liquidation_discount
+            assert (
+                controller.liquidation_discounts(borrower) == old_liquidation_discount
+            )
         controller.inject.repay_partial(
-            borrower, debt, 0, True, xy_before, (0, 0, 0), ZERO_ADDRESS, 2**255 - 1, True
+            borrower,
+            debt,
+            0,
+            True,
+            xy_before,
+            (0, 0, 0),
+            ZERO_ADDRESS,
+            2**255 - 1,
+            True,
         )
 
     # ================= Capture logs =================
@@ -661,9 +793,15 @@ def test_repay_partial_from_xy0_underwater_shrink(
 
     # Check that user has exited form underwater
     ticks_after = amm.read_user_tick_numbers(borrower)
-    assert ticks_after[1] - ticks_after[0] + 1 == 4  # Size has been shrunk from 6 bands to 4 bands
-    assert ticks_after[0] > active_band_before  # Lower tick is higher than active_band before
-    assert ticks_after[1] >= ticks_before[1]  # Upper tick is higher or the same as before
+    assert (
+        ticks_after[1] - ticks_after[0] + 1 == 4
+    )  # Size has been shrunk from 6 bands to 4 bands
+    assert (
+        ticks_after[0] > active_band_before
+    )  # Lower tick is higher than active_band before
+    assert (
+        ticks_after[1] >= ticks_before[1]
+    )  # Upper tick is higher or the same as before
     assert amm.active_band() == active_band_before  # Active band unchanged
 
     # ================= Verify logs =================
@@ -671,12 +809,16 @@ def test_repay_partial_from_xy0_underwater_shrink(
     assert len(state_logs) == 1
     assert state_logs[0].user == borrower
     assert state_logs[0].debt == debt - xy_before[0]
-    assert state_logs[0].collateral == xy_before[1]  # Collateral amount after partial repay
+    assert (
+        state_logs[0].collateral == xy_before[1]
+    )  # Collateral amount after partial repay
 
     assert len(repay_logs) == 1
     assert repay_logs[0].user == borrower
     assert repay_logs[0].loan_decrease == xy_before[0]
-    assert repay_logs[0].collateral_decrease == 0  # No collateral decrease in underwater partial repay
+    assert (
+        repay_logs[0].collateral_decrease == 0
+    )  # No collateral decrease in underwater partial repay
 
     # ================= Verify money flows =================
 
@@ -697,7 +839,14 @@ def test_repay_partial_from_xy0_underwater_shrink(
 
 @pytest.mark.parametrize("different_payer", [True, False])
 def test_repay_partial_from_xy0_and_wallet_underwater_shrink(
-    controller, borrowed_token, collateral_token, amm, snapshot, admin, fake_leverage, different_payer
+    controller,
+    borrowed_token,
+    collateral_token,
+    amm,
+    snapshot,
+    admin,
+    fake_leverage,
+    different_payer,
 ):
     """
     Test partial repayment from wallet when position is underwater (soft-liquidated).
@@ -724,10 +873,10 @@ def test_repay_partial_from_xy0_and_wallet_underwater_shrink(
     trader = boa.env.generate_address()
     ticks_before = amm.read_user_tick_numbers(borrower)
     assert ticks_before[1] - ticks_before[0] == 5
-    boa.deal(borrowed_token, trader, 10**(borrowed_token.decimals() // 2))
+    boa.deal(borrowed_token, trader, 10 ** (borrowed_token.decimals() // 2))
     with boa.env.prank(trader):
         max_approve(borrowed_token, amm)
-        amm.exchange(0, 1, 10**(borrowed_token.decimals() // 2), 0)
+        amm.exchange(0, 1, 10 ** (borrowed_token.decimals() // 2), 0)
     assert controller.user_state(borrower)[1] > 0
     tokens_to_shrink = controller.tokens_to_shrink(borrower)
     assert tokens_to_shrink > 0
@@ -765,11 +914,29 @@ def test_repay_partial_from_xy0_and_wallet_underwater_shrink(
         # _shrink == True, reverts without approval
         with boa.reverts():
             controller.inject.repay_partial(
-                borrower, debt, tokens_to_shrink, False, xy_before, (0, 0, 0), ZERO_ADDRESS, 2**255 - 1, True
+                borrower,
+                debt,
+                tokens_to_shrink,
+                False,
+                xy_before,
+                (0, 0, 0),
+                ZERO_ADDRESS,
+                2**255 - 1,
+                True,
             )
-            assert controller.liquidation_discounts(borrower) == old_liquidation_discount
+            assert (
+                controller.liquidation_discounts(borrower) == old_liquidation_discount
+            )
         controller.inject.repay_partial(
-            borrower, debt, tokens_to_shrink, True, xy_before, (0, 0, 0), ZERO_ADDRESS, 2**255 - 1, True
+            borrower,
+            debt,
+            tokens_to_shrink,
+            True,
+            xy_before,
+            (0, 0, 0),
+            ZERO_ADDRESS,
+            2**255 - 1,
+            True,
         )
 
     # ================= Capture logs =================
@@ -797,12 +964,17 @@ def test_repay_partial_from_xy0_and_wallet_underwater_shrink(
     assert xy_after[0] == 0  # Spent all the tokens from AMM (not underwater now)
     assert xy_after[1] == xy_before[1]  # Still has collateral in AMM
 
-
     # Check that user has exited form underwater
     ticks_after = amm.read_user_tick_numbers(borrower)
-    assert ticks_after[1] - ticks_after[0] + 1 == 5  # Size has been shrunk from 6 bands to 5 bands
-    assert ticks_after[0] > active_band_before  # Lower tick is higher than active_band before
-    assert ticks_after[1] >= ticks_before[1]  # Upper tick is higher or the same as before
+    assert (
+        ticks_after[1] - ticks_after[0] + 1 == 5
+    )  # Size has been shrunk from 6 bands to 5 bands
+    assert (
+        ticks_after[0] > active_band_before
+    )  # Lower tick is higher than active_band before
+    assert (
+        ticks_after[1] >= ticks_before[1]
+    )  # Upper tick is higher or the same as before
     assert amm.active_band() == active_band_before  # Active band unchanged
 
     # ================= Verify logs =================
@@ -810,12 +982,16 @@ def test_repay_partial_from_xy0_and_wallet_underwater_shrink(
     assert len(state_logs) == 1
     assert state_logs[0].user == borrower
     assert state_logs[0].debt == debt - xy_before[0] - tokens_to_shrink
-    assert state_logs[0].collateral == xy_before[1]  # Collateral amount after partial repay
+    assert (
+        state_logs[0].collateral == xy_before[1]
+    )  # Collateral amount after partial repay
 
     assert len(repay_logs) == 1
     assert repay_logs[0].user == borrower
     assert repay_logs[0].loan_decrease == xy_before[0] + tokens_to_shrink
-    assert repay_logs[0].collateral_decrease == 0  # No collateral decrease in underwater partial repay
+    assert (
+        repay_logs[0].collateral_decrease == 0
+    )  # No collateral decrease in underwater partial repay
 
     # ================= Verify money flows =================
 
@@ -836,7 +1012,14 @@ def test_repay_partial_from_xy0_and_wallet_underwater_shrink(
 
 @pytest.mark.parametrize("different_payer", [True, False])
 def test_repay_partial_from_xy0_and_callback_underwater_shrink(
-    controller, borrowed_token, collateral_token, amm, snapshot, admin, fake_leverage, different_payer
+    controller,
+    borrowed_token,
+    collateral_token,
+    amm,
+    snapshot,
+    admin,
+    fake_leverage,
+    different_payer,
 ):
     """
     Test partial repayment from callback when position is underwater (soft-liquidated).
@@ -863,10 +1046,10 @@ def test_repay_partial_from_xy0_and_callback_underwater_shrink(
     trader = boa.env.generate_address()
     ticks_before = amm.read_user_tick_numbers(borrower)
     assert ticks_before[1] - ticks_before[0] == 5
-    boa.deal(borrowed_token, trader, 10**(borrowed_token.decimals() // 2))
+    boa.deal(borrowed_token, trader, 10 ** (borrowed_token.decimals() // 2))
     with boa.env.prank(trader):
         max_approve(borrowed_token, amm)
-        amm.exchange(0, 1, 10**(borrowed_token.decimals() // 2), 0)
+        amm.exchange(0, 1, 10 ** (borrowed_token.decimals() // 2), 0)
     assert controller.user_state(borrower)[1] > 0
     tokens_to_shrink = controller.tokens_to_shrink(borrower)
     assert tokens_to_shrink > 0
@@ -891,7 +1074,7 @@ def test_repay_partial_from_xy0_and_callback_underwater_shrink(
 
     callback_borrowed = tokens_to_shrink  # Callback provides tokens_to_shrink
     callback_collateral = xy_before[1] - 100  # Some collateral from callback
-    amm.withdraw(borrower, 10 ** 18, sender=controller.address)
+    amm.withdraw(borrower, 10**18, sender=controller.address)
     collateral_token.transfer(fake_leverage, xy_before[1], sender=amm.address)
     boa.deal(borrowed_token, fake_leverage, callback_borrowed)
     cb = (amm.active_band(), callback_borrowed, callback_collateral)
@@ -907,11 +1090,29 @@ def test_repay_partial_from_xy0_and_callback_underwater_shrink(
         # _shrink == True, reverts without approval
         with boa.reverts():
             controller.inject.repay_partial(
-                borrower, debt, 0, False, xy_before, cb, fake_leverage.address, 2**255 - 1, True
+                borrower,
+                debt,
+                0,
+                False,
+                xy_before,
+                cb,
+                fake_leverage.address,
+                2**255 - 1,
+                True,
             )
-            assert controller.liquidation_discounts(borrower) == old_liquidation_discount
+            assert (
+                controller.liquidation_discounts(borrower) == old_liquidation_discount
+            )
         controller.inject.repay_partial(
-            borrower, debt, 0, True, xy_before, cb, fake_leverage.address, 2**255 - 1, True
+            borrower,
+            debt,
+            0,
+            True,
+            xy_before,
+            cb,
+            fake_leverage.address,
+            2**255 - 1,
+            True,
         )
 
     # ================= Capture logs =================
@@ -934,9 +1135,7 @@ def test_repay_partial_from_xy0_and_callback_underwater_shrink(
     borrowed_from_callback = (
         borrowed_token_after["callback"] - borrowed_token_before["callback"]
     )
-    collateral_to_amm = (
-        collateral_token_after["amm"] - collateral_token_before["amm"]
-    )
+    collateral_to_amm = collateral_token_after["amm"] - collateral_token_before["amm"]
     collateral_from_callback = (
         collateral_token_after["callback"] - collateral_token_before["callback"]
     )
@@ -949,9 +1148,15 @@ def test_repay_partial_from_xy0_and_callback_underwater_shrink(
 
     # Check that user has exited form underwater
     ticks_after = amm.read_user_tick_numbers(borrower)
-    assert ticks_after[1] - ticks_after[0] + 1 == 5  # Size has been shrunk from 6 bands to 5 bands
-    assert ticks_after[0] > active_band_before  # Lower tick is higher than active_band before
-    assert ticks_after[1] >= ticks_before[1]  # Upper tick is higher or the same as before
+    assert (
+        ticks_after[1] - ticks_after[0] + 1 == 5
+    )  # Size has been shrunk from 6 bands to 5 bands
+    assert (
+        ticks_after[0] > active_band_before
+    )  # Lower tick is higher than active_band before
+    assert (
+        ticks_after[1] >= ticks_before[1]
+    )  # Upper tick is higher or the same as before
     assert amm.active_band() == active_band_before  # Active band unchanged
 
     # ================= Verify logs =================
@@ -959,7 +1164,9 @@ def test_repay_partial_from_xy0_and_callback_underwater_shrink(
     assert len(state_logs) == 1
     assert state_logs[0].user == borrower
     assert state_logs[0].debt == debt - xy_before[0] - callback_borrowed
-    assert state_logs[0].collateral == callback_collateral  # Collateral amount after partial repay
+    assert (
+        state_logs[0].collateral == callback_collateral
+    )  # Collateral amount after partial repay
 
     assert len(repay_logs) == 1
     assert repay_logs[0].user == borrower
@@ -985,7 +1192,14 @@ def test_repay_partial_from_xy0_and_callback_underwater_shrink(
 
 @pytest.mark.parametrize("different_payer", [True, False])
 def test_repay_partial_from_xy0_and_wallet_and_callback_underwater_shrink(
-    controller, borrowed_token, collateral_token, amm, snapshot, admin, fake_leverage, different_payer
+    controller,
+    borrowed_token,
+    collateral_token,
+    amm,
+    snapshot,
+    admin,
+    fake_leverage,
+    different_payer,
 ):
     """
     Test partial repayment from callback when position is underwater (soft-liquidated).
@@ -1012,10 +1226,10 @@ def test_repay_partial_from_xy0_and_wallet_and_callback_underwater_shrink(
     trader = boa.env.generate_address()
     ticks_before = amm.read_user_tick_numbers(borrower)
     assert ticks_before[1] - ticks_before[0] == 5
-    boa.deal(borrowed_token, trader, 10**(borrowed_token.decimals() // 2))
+    boa.deal(borrowed_token, trader, 10 ** (borrowed_token.decimals() // 2))
     with boa.env.prank(trader):
         max_approve(borrowed_token, amm)
-        amm.exchange(0, 1, 10**(borrowed_token.decimals() // 2), 0)
+        amm.exchange(0, 1, 10 ** (borrowed_token.decimals() // 2), 0)
     assert controller.user_state(borrower)[1] > 0
     tokens_to_shrink = controller.tokens_to_shrink(borrower)
     assert tokens_to_shrink > 0
@@ -1040,7 +1254,7 @@ def test_repay_partial_from_xy0_and_wallet_and_callback_underwater_shrink(
 
     callback_borrowed = tokens_to_shrink // 2  # Callback provides tokens_to_shrink
     callback_collateral = xy_before[1] - 100  # Some collateral from callback
-    amm.withdraw(borrower, 10 ** 18, sender=controller.address)
+    amm.withdraw(borrower, 10**18, sender=controller.address)
     collateral_token.transfer(fake_leverage, xy_before[1], sender=amm.address)
     boa.deal(borrowed_token, fake_leverage, callback_borrowed)
     cb = (amm.active_band(), callback_borrowed, callback_collateral)
@@ -1063,11 +1277,29 @@ def test_repay_partial_from_xy0_and_wallet_and_callback_underwater_shrink(
         # _shrink == True, reverts without approval
         with boa.reverts():
             controller.inject.repay_partial(
-                borrower, debt, wallet_borrowed, False, xy_before, cb, fake_leverage.address, 2**255 - 1, True
+                borrower,
+                debt,
+                wallet_borrowed,
+                False,
+                xy_before,
+                cb,
+                fake_leverage.address,
+                2**255 - 1,
+                True,
             )
-            assert controller.liquidation_discounts(borrower) == old_liquidation_discount
+            assert (
+                controller.liquidation_discounts(borrower) == old_liquidation_discount
+            )
         controller.inject.repay_partial(
-            borrower, debt, wallet_borrowed, True, xy_before, cb, fake_leverage.address, 2**255 - 1, True
+            borrower,
+            debt,
+            wallet_borrowed,
+            True,
+            xy_before,
+            cb,
+            fake_leverage.address,
+            2**255 - 1,
+            True,
         )
 
     # ================= Capture logs =================
@@ -1091,9 +1323,7 @@ def test_repay_partial_from_xy0_and_wallet_and_callback_underwater_shrink(
     borrowed_from_callback = (
         borrowed_token_after["callback"] - borrowed_token_before["callback"]
     )
-    collateral_to_amm = (
-        collateral_token_after["amm"] - collateral_token_before["amm"]
-    )
+    collateral_to_amm = collateral_token_after["amm"] - collateral_token_before["amm"]
     collateral_from_callback = (
         collateral_token_after["callback"] - collateral_token_before["callback"]
     )
@@ -1106,21 +1336,34 @@ def test_repay_partial_from_xy0_and_wallet_and_callback_underwater_shrink(
 
     # Check that user has exited form underwater
     ticks_after = amm.read_user_tick_numbers(borrower)
-    assert ticks_after[1] - ticks_after[0] + 1 == 5  # Size has been shrunk from 6 bands to 5 bands
-    assert ticks_after[0] > active_band_before  # Lower tick is higher than active_band before
-    assert ticks_after[1] >= ticks_before[1]  # Upper tick is higher or the same as before
+    assert (
+        ticks_after[1] - ticks_after[0] + 1 == 5
+    )  # Size has been shrunk from 6 bands to 5 bands
+    assert (
+        ticks_after[0] > active_band_before
+    )  # Lower tick is higher than active_band before
+    assert (
+        ticks_after[1] >= ticks_before[1]
+    )  # Upper tick is higher or the same as before
     assert amm.active_band() == active_band_before  # Active band unchanged
 
     # ================= Verify logs =================
 
     assert len(state_logs) == 1
     assert state_logs[0].user == borrower
-    assert state_logs[0].debt == debt - xy_before[0] - callback_borrowed - wallet_borrowed
-    assert state_logs[0].collateral == callback_collateral  # Collateral amount after partial repay
+    assert (
+        state_logs[0].debt == debt - xy_before[0] - callback_borrowed - wallet_borrowed
+    )
+    assert (
+        state_logs[0].collateral == callback_collateral
+    )  # Collateral amount after partial repay
 
     assert len(repay_logs) == 1
     assert repay_logs[0].user == borrower
-    assert repay_logs[0].loan_decrease == xy_before[0] + callback_borrowed + wallet_borrowed
+    assert (
+        repay_logs[0].loan_decrease
+        == xy_before[0] + callback_borrowed + wallet_borrowed
+    )
     assert repay_logs[0].collateral_decrease == xy_before[1] - callback_collateral
 
     # ================= Verify money flows =================
@@ -1142,7 +1385,14 @@ def test_repay_partial_from_xy0_and_wallet_and_callback_underwater_shrink(
 
 @pytest.mark.parametrize("different_payer", [True, False])
 def test_repay_partial_cannot_shrink(
-    controller, borrowed_token, collateral_token, amm, snapshot, admin, fake_leverage, different_payer
+    controller,
+    borrowed_token,
+    collateral_token,
+    amm,
+    snapshot,
+    admin,
+    fake_leverage,
+    different_payer,
 ):
     """
     Test that attempt to shrink the position to less than 4 bands reverts
@@ -1167,8 +1417,12 @@ def test_repay_partial_cannot_shrink(
     trader = boa.env.generate_address()
     ticks_before = amm.read_user_tick_numbers(borrower)
     assert ticks_before[1] - ticks_before[0] == 5
-    amount_out = amm.bands_y(ticks_before[0]) + amm.bands_y(ticks_before[0] + 1) + amm.bands_y(ticks_before[0] + 2) // 2
-    amount_out = amount_out // 10**(18 - borrowed_token.decimals())
+    amount_out = (
+        amm.bands_y(ticks_before[0])
+        + amm.bands_y(ticks_before[0] + 1)
+        + amm.bands_y(ticks_before[0] + 2) // 2
+    )
+    amount_out = amount_out // 10 ** (18 - borrowed_token.decimals())
     amount_in = amm.get_dx(0, 1, amount_out)
     boa.deal(borrowed_token, trader, amount_in)
     with boa.env.prank(trader):
@@ -1191,5 +1445,13 @@ def test_repay_partial_cannot_shrink(
     with boa.env.prank(payer):
         with boa.reverts("Can't shrink"):
             controller.inject.repay_partial(
-                borrower, debt, 0, False, xy_before, (0, 0, 0), ZERO_ADDRESS, 2**255 - 1, True
+                borrower,
+                debt,
+                0,
+                False,
+                xy_before,
+                (0, 0, 0),
+                ZERO_ADDRESS,
+                2**255 - 1,
+                True,
             )
