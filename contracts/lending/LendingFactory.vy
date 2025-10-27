@@ -29,6 +29,15 @@ exports: (
     ownable.transfer_ownership,
 )
 
+struct Market:
+    vault: IVault
+    controller: IController
+    amm: IAMM
+    collateral_token: IERC20
+    borrowed_token: IERC20
+    price_oracle: IPriceOracle
+    monetary_policy: IMonetaryPolicy
+
 MIN_A: constant(uint256) = 2
 MAX_A: constant(uint256) = 10000
 MIN_FEE: constant(uint256) = 10**6  # 1e-12, still needs to be above 0
@@ -188,43 +197,20 @@ def create(
 @external
 @view
 @reentrant
-def controllers(_n: uint256) -> IController:
-    return IController(staticcall self.vaults[_n].controller())
+def markets(_n: uint256) -> Market:
+    vault: IVault = self.vaults[_n]
+    controller: IController = staticcall vault.controller()
+    amm: IAMM = staticcall vault.amm()
 
-
-@external
-@view
-@reentrant
-def amms(_n: uint256) -> IAMM:
-    return staticcall self.vaults[_n].amm()
-
-
-@external
-@view
-@reentrant
-def borrowed_tokens(_n: uint256) -> IERC20:
-    return staticcall self.vaults[_n].borrowed_token()
-
-
-@external
-@view
-@reentrant
-def collateral_tokens(_n: uint256) -> IERC20:
-    return staticcall self.vaults[_n].collateral_token()
-
-
-@external
-@view
-@reentrant
-def price_oracles(_n: uint256) -> IPriceOracle:
-    return staticcall (staticcall self.vaults[_n].amm()).price_oracle_contract()
-
-
-@external
-@view
-@reentrant
-def monetary_policies(_n: uint256) -> IMonetaryPolicy:
-    return staticcall IController(staticcall self.vaults[_n].controller()).monetary_policy()
+    return Market(
+        vault=vault,
+        controller=controller,
+        amm=amm,
+        collateral_token=staticcall vault.collateral_token(),
+        borrowed_token=staticcall vault.borrowed_token(),
+        price_oracle=staticcall amm.price_oracle_contract(),
+        monetary_policy=staticcall controller.monetary_policy()
+    )
 
 
 @external

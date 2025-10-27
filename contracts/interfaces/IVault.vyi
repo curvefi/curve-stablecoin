@@ -1,6 +1,6 @@
 from contracts.interfaces import IERC20
 from contracts.interfaces import IAMM
-# from contracts.interfaces import ILlamalendController as IController
+from contracts.interfaces import ILlamalendController as IController
 
 @view
 def collateral_token() -> IERC20:
@@ -28,7 +28,7 @@ def initialize(amm: IAMM, controller: address, borrowed_token: IERC20, collatera
 
 @view
 @external
-def controller() -> address:
+def controller() -> IController:
     ...
 
 

@@ -1,4 +1,3 @@
-from contracts.interfaces import IVault
 from contracts.interfaces import IERC20
 from contracts.interfaces import ILMGauge
 from contracts.interfaces import IAMM
@@ -325,7 +324,7 @@ event SetBorrowCap:
 
 @view
 @external
-def vault() -> IVault:
+def vault() -> address:
     ...
 
 

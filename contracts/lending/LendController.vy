@@ -88,11 +88,11 @@ VAULT: immutable(IVault)
 # https://github.com/vyperlang/vyper/issues/4721
 @external
 @view
-def vault() -> IVault:
+def vault() -> address:
     """
     @notice Address of the vault
     """
-    return VAULT
+    return VAULT.address
 
 
 # cumulative amount of assets collected by admin
