@@ -10,7 +10,7 @@ TIME_DELTA = 86400
 
 
 def test_default_behavior_no_fees(controller):
-    assert controller.admin_fees() == 0
+    assert controller.admin_percentage() == 0
 
 
 def test_default_behavior_with_interest(
@@ -21,7 +21,7 @@ def test_default_behavior_with_interest(
 ):
     def outstanding_for_pct(pct: int) -> int:
         with boa.env.anchor():
-            controller.set_admin_fee(WAD * pct // 100, sender=admin)
+            controller.set_admin_percentage(WAD * pct // 100, sender=admin)
             boa.deal(collateral_token, boa.env.eoa, COLLATERAL)
             max_approve(collateral_token, controller)
             controller.create_loan(COLLATERAL, DEBT, MIN_TICKS)

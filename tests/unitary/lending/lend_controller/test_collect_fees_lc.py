@@ -25,7 +25,7 @@ def test_collect_fees_accrues_interest(
 ):
     def collect_for_pct(pct: int) -> int:
         with boa.env.anchor():
-            controller.set_admin_fee(WAD * pct // 100, sender=admin)
+            controller.set_admin_percentage(WAD * pct // 100, sender=admin)
             boa.deal(collateral_token, boa.env.eoa, COLLATERAL)
             max_approve(collateral_token, controller)
             controller.create_loan(COLLATERAL, DEBT, MIN_TICKS)
@@ -51,7 +51,7 @@ def test_collect_fees_reverts_if_not_enough_balance(
     collateral_token,
     borrowed_token,
 ):
-    controller.set_admin_fee(WAD, sender=admin)
+    controller.set_admin_percentage(WAD, sender=admin)
     debt = controller.borrowed_balance()
     collateral = 10 * debt * amm.price_oracle() // 10**18
     boa.deal(collateral_token, boa.env.eoa, collateral)
