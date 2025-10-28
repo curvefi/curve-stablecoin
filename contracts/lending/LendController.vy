@@ -167,9 +167,7 @@ def _available_balance() -> uint256:
 
     # Any amount sent directly to this controller contract is lost forever.
 
-    # The balance considers as available balance all tokens that
-    # have been deposited through the vault's deposit/mint methods
-    # and that have not yet been withdrawn through withdraw/redeem.
+    # TODO rewrite this comment
     available_balance: int256 = staticcall VAULT.net_deposits()
 
     # We compute the outstanding amount that has been lent out but not yet repaid
@@ -177,6 +175,9 @@ def _available_balance() -> uint256:
 
     # We deduce outstanding balance from the available balance
     available_balance -= outstanding
+
+    # TODO make sure this can NEVER happen through testing
+    assert available_balance >= 0 # dev: sanity check
 
     # We compute the total admin fees combining fees that have already been
     # collected and fees that still live in the controller's balance

@@ -129,7 +129,6 @@ repaid: uint256
 collected: uint256
 
 
-# TODO rename to pending_admin_fees
 # Admin fees yet to be collected. Goes to zero when collected.
 admin_fees: public(uint256)
 admin_percentage: public(uint256)
