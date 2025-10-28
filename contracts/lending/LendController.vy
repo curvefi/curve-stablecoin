@@ -156,13 +156,9 @@ def collected() -> uint256:
     return core.collected
 
 
-@external
+@internal
 @view
-def borrowed_balance() -> uint256:
-    """
-    @notice Amount of borrowed token the controller currently holds.
-    @dev Used by the vault for its accounting logic.
-    """
+def _borrowed_balance() -> uint256:
     # TODO rename to `borrowed_token_balance` for clarity?
     # Start from the vault’s erc20 balance (ignoring any tokens sent directly to the vault),
     # subtract the portion we actually lent out that hasn’t been repaid yet (lent − repaid),
@@ -175,7 +171,17 @@ def borrowed_balance() -> uint256:
         - core.lent
         - core.collected
     )
-    return crv_math.sub_or_zero(balance, core.admin_fees)
+    return crv_math.sub_or_zero(balance, core.admin_fees)\
+
+
+@external
+@view
+def borrowed_balance() -> uint256:
+    """
+    @notice Amount of borrowed token the controller currently holds.
+    @dev Used by the vault for its accounting logic.
+    """
+    return self._borrowed_balance()
 
 
 @external
@@ -209,3 +215,4 @@ def _on_debt_increased(debt: uint256):
     """
     assert msg.sender == self # dev: virtual method protection
     assert debt <= self.borrow_cap, "Borrow cap exceeded"
+    assert debt <= self._borrowed_balance(), "Borrowed balance exceeded"

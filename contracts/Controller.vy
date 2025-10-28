@@ -257,10 +257,11 @@ def _update_total_debt(
     d_debt: uint256, rate_mul: uint256, is_increase: bool
 ) -> IController.Loan:
     """
+    @notice Update total debt of this controller
+    @dev This method MUST be called strictly BEFORE lent, repaid or collected change
     @param d_debt Change in debt amount (unsigned)
     @param rate_mul New rate_mul
     @param is_increase Whether debt increases or decreases
-    @notice Update total debt of this controller
     """
     loan: IController.Loan = self._total_debt
     loan_with_interest: uint256 = loan.initial_debt * rate_mul // loan.rate_mul
@@ -692,9 +693,16 @@ def create_loan(
     self.loan_ix[_for] = n_loans
     self.n_loans = unsafe_add(n_loans, 1)
 
-    self._update_total_debt(debt, rate_mul, True)
-
     extcall AMM.deposit_range(_for, total_collateral, n1, n2)
+
+    tkn.transfer_from(COLLATERAL_TOKEN, msg.sender, AMM.address, collateral)
+    tkn.transfer_from(COLLATERAL_TOKEN, callbacker, AMM.address, more_collateral)
+    if callbacker == empty(address):
+        tkn.transfer(BORROWED_TOKEN, _for, debt)
+
+    self._update_total_debt(debt, rate_mul, True)
+    self.lent += debt
+    self._save_rate()
 
     log IController.UserState(
         user=_for,
@@ -707,15 +715,6 @@ def create_loan(
     log IController.Borrow(
         user=_for, collateral_increase=total_collateral, loan_increase=debt
     )
-
-    tkn.transfer_from(COLLATERAL_TOKEN, msg.sender, AMM.address, collateral)
-    tkn.transfer_from(COLLATERAL_TOKEN, callbacker, AMM.address, more_collateral)
-    if callbacker == empty(address):
-        tkn.transfer(BORROWED_TOKEN, _for, debt)
-
-    self._save_rate()
-
-    self.lent += debt
 
 
 @internal
@@ -1065,7 +1064,6 @@ def repay(
 
     self.loan[_for] = IController.Loan(initial_debt=debt, rate_mul=rate_mul)
     self._update_total_debt(d_debt, rate_mul, False)
-
     self.repaid += d_debt
     self._save_rate()
 
@@ -1273,9 +1271,12 @@ def liquidate(
                 msg.sender,
                 unsafe_sub(xy[0], debt),
             )
-    self.loan[user] = IController.Loan(
-        initial_debt=final_debt, rate_mul=rate_mul
-    )
+
+    self.loan[user] = IController.Loan(initial_debt=final_debt, rate_mul=rate_mul)
+    self._update_total_debt(debt, rate_mul, False)
+    self.repaid += debt
+    self._save_rate()
+
     log IController.Repay(
         user=user, collateral_decrease=xy[1], loan_decrease=debt
     )
@@ -1291,12 +1292,6 @@ def liquidate(
             user=user, collateral=0, debt=0, n1=0, n2=0, liquidation_discount=0
         )  # Not logging partial removeal b/c we have not enough info
         self._remove_from_list(user)
-
-    self._update_total_debt(debt, rate_mul, False)
-
-
-    self.repaid += debt
-    self._save_rate()
 
 
 @view
