@@ -1,7 +1,7 @@
 def test_lend_apr_calculation(vault, amm, controller):
     """Test that lend_apr correctly calculates lending APR."""
     rate = 10**9
-    borrowed_balance = controller.borrowed_balance()
+    borrowed_balance = controller.available_balance()
     assert borrowed_balance > 0
 
     debt = borrowed_balance // 2

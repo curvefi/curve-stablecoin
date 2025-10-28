@@ -14,7 +14,7 @@ def seed_liquidity():
 def test_deposit_basic(vault, controller, amm, monetary_policy, borrowed_token):
     """Test basic deposit functionality - balances, rate, event."""
     initial_sender_balance = vault.balanceOf(boa.env.eoa)
-    initial_balance = vault.asset_balance()
+    initial_balance = vault.net_deposits()
     initial_total_supply = vault.totalSupply()
     initial_controller_balance = borrowed_token.balanceOf(controller.address)
     initial_amm_rate = amm.rate()
@@ -42,7 +42,7 @@ def test_deposit_basic(vault, controller, amm, monetary_policy, borrowed_token):
 
     # Check balances
     assert vault.balanceOf(boa.env.eoa) == initial_sender_balance + shares
-    assert vault.asset_balance() == initial_balance + assets
+    assert vault.net_deposits() == initial_balance + assets
     assert vault.totalSupply() == initial_total_supply + shares
     assert (
         borrowed_token.balanceOf(controller.address)
@@ -69,7 +69,7 @@ def test_deposit_with_receiver(vault, controller, amm, monetary_policy, borrowed
 
     initial_sender_balance = vault.balanceOf(boa.env.eoa)
     initial_receiver_balance = vault.balanceOf(receiver)
-    initial_balance = vault.asset_balance()
+    initial_balance = vault.net_deposits()
     initial_total_supply = vault.totalSupply()
     initial_controller_balance = borrowed_token.balanceOf(controller.address)
     initial_amm_rate = amm.rate()
@@ -102,7 +102,7 @@ def test_deposit_with_receiver(vault, controller, amm, monetary_policy, borrowed
     assert (
         vault.balanceOf(receiver) == initial_receiver_balance + shares
     )  # Receiver gets shares
-    assert vault.asset_balance() == initial_balance + assets
+    assert vault.net_deposits() == initial_balance + assets
     assert vault.totalSupply() == initial_total_supply + shares
     assert (
         borrowed_token.balanceOf(controller.address)

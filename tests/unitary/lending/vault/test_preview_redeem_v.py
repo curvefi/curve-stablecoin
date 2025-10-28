@@ -30,7 +30,7 @@ def test_preview_redeem_assert_revert(
     deposit_into_vault()
 
     # Try to preview redeem more than available borrowed_balance
-    borrowed_balance = controller.borrowed_balance()
+    borrowed_balance = controller.available_balance()
     shares = vault.convertToShares(borrowed_balance + 1)  # More than available
 
     # Should revert due to assert in previewRedeem

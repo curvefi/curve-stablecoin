@@ -11,7 +11,7 @@ def test_withdraw_basic(
 
     initial_sender_balance = vault.balanceOf(boa.env.eoa)
     initial_total_supply = vault.totalSupply()
-    initial_balance = vault.asset_balance()
+    initial_balance = vault.net_deposits()
     initial_controller_balance = borrowed_token.balanceOf(controller.address)
     initial_sender_token_balance = borrowed_token.balanceOf(boa.env.eoa)
 
@@ -37,7 +37,7 @@ def test_withdraw_basic(
     # Check balances
     assert vault.balanceOf(boa.env.eoa) == initial_sender_balance - shares
     assert vault.totalSupply() == initial_total_supply - shares
-    assert vault.asset_balance() == initial_balance - assets_to_withdraw
+    assert vault.net_deposits() == initial_balance - assets_to_withdraw
     assert (
         borrowed_token.balanceOf(controller)
         == initial_controller_balance - assets_to_withdraw
@@ -73,7 +73,7 @@ def test_withdraw_with_receiver(
     initial_sender_balance = vault.balanceOf(boa.env.eoa)
     initial_receiver_balance = vault.balanceOf(receiver)
     initial_total_supply = vault.totalSupply()
-    initial_balance = vault.asset_balance()
+    initial_balance = vault.net_deposits()
     initial_controller_balance = borrowed_token.balanceOf(controller.address)
     initial_sender_token_balance = borrowed_token.balanceOf(boa.env.eoa)
     initial_receiver_token_balance = borrowed_token.balanceOf(receiver)
@@ -105,7 +105,7 @@ def test_withdraw_with_receiver(
         vault.balanceOf(receiver) == initial_receiver_balance
     )  # Receiver gets no shares
     assert vault.totalSupply() == initial_total_supply - shares
-    assert vault.asset_balance() == initial_balance - assets_to_withdraw
+    assert vault.net_deposits() == initial_balance - assets_to_withdraw
     assert (
         borrowed_token.balanceOf(controller)
         == initial_controller_balance - assets_to_withdraw
@@ -146,7 +146,7 @@ def test_withdraw_with_owner(
     initial_owner_balance = vault.balanceOf(owner)
     initial_caller_balance = vault.balanceOf(caller)
     initial_total_supply = vault.totalSupply()
-    initial_balance = vault.asset_balance()
+    initial_balance = vault.net_deposits()
     initial_controller_balance = borrowed_token.balanceOf(controller.address)
     initial_caller_token_balance = borrowed_token.balanceOf(caller)
 
@@ -179,7 +179,7 @@ def test_withdraw_with_owner(
     )  # Owner's shares burned
     assert vault.balanceOf(caller) == initial_caller_balance  # Caller gets no shares
     assert vault.totalSupply() == initial_total_supply - shares
-    assert vault.asset_balance() == initial_balance - assets_to_withdraw
+    assert vault.net_deposits() == initial_balance - assets_to_withdraw
     assert (
         borrowed_token.balanceOf(controller)
         == initial_controller_balance - assets_to_withdraw
@@ -219,7 +219,7 @@ def test_withdraw_with_owner_and_receiver(
     initial_caller_balance = vault.balanceOf(caller)
     initial_receiver_balance = vault.balanceOf(receiver)
     initial_total_supply = vault.totalSupply()
-    initial_balance = vault.asset_balance()
+    initial_balance = vault.net_deposits()
     initial_controller_balance = borrowed_token.balanceOf(controller.address)
     initial_owner_token_balance = borrowed_token.balanceOf(owner)
     initial_caller_token_balance = borrowed_token.balanceOf(caller)
@@ -257,7 +257,7 @@ def test_withdraw_with_owner_and_receiver(
         vault.balanceOf(receiver) == initial_receiver_balance
     )  # Receiver gets no shares
     assert vault.totalSupply() == initial_total_supply - shares
-    assert vault.asset_balance() == initial_balance - assets_to_withdraw
+    assert vault.net_deposits() == initial_balance - assets_to_withdraw
     assert (
         borrowed_token.balanceOf(controller)
         == initial_controller_balance - assets_to_withdraw

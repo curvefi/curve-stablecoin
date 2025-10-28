@@ -52,7 +52,7 @@ def test_collect_fees_reverts_if_not_enough_balance(
     borrowed_token,
 ):
     controller.set_admin_percentage(WAD, sender=admin)
-    debt = controller.borrowed_balance()
+    debt = controller.available_balance()
     collateral = 10 * debt * amm.price_oracle() // 10**18
     boa.deal(collateral_token, boa.env.eoa, collateral)
     max_approve(collateral_token, controller)

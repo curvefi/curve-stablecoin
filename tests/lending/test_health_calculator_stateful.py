@@ -32,7 +32,7 @@ class StatefulLendBorrow(RuleBasedStateMachine):
         super().__init__()
         self.controller = self.controller
         self.amm = self.amm
-        self.debt_ceiling = self.controller.borrowed_balance()
+        self.debt_ceiling = self.controller.available_balance()
         self.collateral_mul = 10 ** (18 - self.collateral_token.decimals())
         self.borrowed_mul = 10 ** (18 - self.borrowed_token.decimals())
         self.preexisting_supply = (

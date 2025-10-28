@@ -2,7 +2,7 @@ def test_total_assets_calculation(vault, controller, amm):
     """Test that _total_assets correctly calculates total assets."""
     # Set specific debt value
 
-    borrowed_balance = controller.borrowed_balance()
+    borrowed_balance = controller.available_balance()
     debt = borrowed_balance // 2
     rate_mul = int(1.2 * 10**18)
     _total_debt_rate_mul = int(1.1 * 10**18)

@@ -9,7 +9,7 @@ def market_type():
 
 @pytest.fixture(scope="module")
 def make_debt(vault, controller, amm, borrowed_token):
-    borrowed_balance = controller.borrowed_balance()
+    borrowed_balance = controller.available_balance()
     debt = borrowed_balance // 2
     assert debt > 0
     rate_mul = int(1.2 * 10**18)
@@ -24,10 +24,10 @@ def deposit_into_vault(vault, controller, amm, borrowed_token):
     def f(user=boa.env.eoa, assets=100 * 10 ** borrowed_token.decimals()):
         assert assets > 0
         boa.deal(borrowed_token, user, assets)
-        initial_balance = controller.borrowed_balance()
+        initial_balance = controller.available_balance()
         with boa.env.prank(user):
             borrowed_token.approve(vault, assets)
             vault.deposit(assets)
-        assert controller.borrowed_balance() == initial_balance + assets
+        assert controller.available_balance() == initial_balance + assets
 
     return f

@@ -30,7 +30,7 @@ def test_max_withdraw_controller_limited(
     deposit_into_vault()
 
     # Reduce controller balance to be less than user's position
-    controller_balance = controller.borrowed_balance()
+    controller_balance = controller.available_balance()
     # Increase lent to reduce borrowed_balance
     controller.eval(f"core.lent = {controller_balance // 2}")
     limited_balance = controller_balance // 2
@@ -63,7 +63,7 @@ def test_max_withdraw_zero_controller_balance(
     deposit_into_vault()
 
     # Set controller balance to 0 by setting lent = borrowed_balance
-    controller.eval(f"core.lent = {controller.borrowed_balance()}")
+    controller.eval(f"core.lent = {controller.available_balance()}")
 
     # maxWithdraw should return 0 (limited by controller balance)
     actual_max = vault.maxWithdraw(boa.env.eoa)

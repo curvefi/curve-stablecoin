@@ -10,12 +10,12 @@ DEBT = 10**18
 
 def snapshot(controller, vault):
     return {
-        "borrowed": controller.borrowed_balance(),
+        "borrowed": controller.available_balance(),
         "lent": controller.lent(),
         "repaid": controller.repaid(),
         "collected": controller.collected(),
         "processed": controller.processed(),
-        "asset_balance": vault.asset_balance(),
+        "asset_balance": vault.net_deposits(),
     }
 
 
