@@ -11,7 +11,8 @@ authors = [
 dependencies = [
     "vyper==0.4.3",
     "snekmate>=0.1.1",
-    "ownership-proxy"
+    "ownership-proxy",
+    "curve-std",
 ]
 
 [dependency-groups]
@@ -31,6 +32,8 @@ dev = [
 titanoboa = { git = "https://github.com/AlbertoCentonze/titanoboa", rev = "vvm-eval" }
 # TODO fix a version
 ownership-proxy = { git = "https://github.com/curvefi/ownership-proxy", rev = "main" }
+# TODO fix a version
+curve-std = { git = "https://github.com/curvefi/curve-std", rev = "main" }
 # TODO add stableswap here as a package instead of git submodule
 
 

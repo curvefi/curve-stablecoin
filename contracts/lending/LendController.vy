@@ -10,7 +10,7 @@
 @custom:security security@curve.fi
 """
 
-from contracts.interfaces import IERC20
+from curve_std.interfaces import IERC20
 from contracts.interfaces import IAMM
 from contracts.interfaces import IMonetaryPolicy
 from contracts.interfaces import IVault
@@ -28,8 +28,8 @@ implements: core.VirtualMethods
 
 initializes: core
 
-from contracts.lib import token_lib as tkn
-from contracts.lib import math_lib as crv_math
+from curve_std import token as tkn
+from curve_std import math as crv_math
 
 exports: (
     # Loan management

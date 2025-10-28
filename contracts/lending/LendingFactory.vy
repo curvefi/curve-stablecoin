@@ -8,7 +8,9 @@
 @custom:security security@curve.fi
 """
 
-from contracts.interfaces import IERC20
+from curve_std.interfaces import IERC20
+
+# TODO make module friendly
 from contracts.interfaces import IVault
 from contracts.interfaces import ILlamalendController as IController
 from contracts.interfaces import IAMM
@@ -30,6 +32,7 @@ exports: (
 )
 
 
+# TODO move elsewhere
 struct Market:
     vault: IVault
     controller: IController

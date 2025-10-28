@@ -461,6 +461,7 @@ name = "curve-stablecoin"
 version = "2.0.0"
 source = { virtual = "." }
 dependencies = [
+    { name = "curve-std" },
     { name = "ownership-proxy" },
     { name = "snekmate" },
     { name = "vyper" },
@@ -481,6 +482,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
+    { name = "curve-std", git = "https://github.com/curvefi/curve-std?rev=main" },
     { name = "ownership-proxy", git = "https://github.com/curvefi/ownership-proxy?rev=main" },
     { name = "snekmate", specifier = ">=0.1.1" },
     { name = "vyper", specifier = "==0.4.3" },
@@ -498,6 +500,11 @@ dev = [
     { name = "titanoboa", git = "https://github.com/AlbertoCentonze/titanoboa?rev=vvm-eval" },
     { name = "z3-solver", specifier = ">=4.12.0" },
 ]
+
+[[package]]
+name = "curve-std"
+version = "0.1.0"
+source = { git = "https://github.com/curvefi/curve-std?rev=main#cc27fda59d55e3ed77bf0b5676269ffcf445f9e9" }
 
 [[package]]
 name = "cytoolz"

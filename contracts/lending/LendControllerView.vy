@@ -8,7 +8,7 @@
     main controller contract forwards all relevant calls.
 """
 
-from contracts.interfaces import IERC20
+from curve_std.interfaces import IERC20
 from contracts.interfaces import IController
 from contracts.interfaces import ILlamalendController
 from contracts.interfaces import IAMM

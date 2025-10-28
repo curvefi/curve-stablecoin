@@ -39,13 +39,13 @@ implements: IAMM
 
 from contracts.interfaces import IPriceOracle
 from contracts.interfaces import ILMGauge
-from contracts.interfaces import IERC20
+from curve_std.interfaces import IERC20
 
 from snekmate.utils import math
 
 from contracts import constants as c
 
-from contracts.lib import token_lib as tkn
+from curve_std import token as tkn
 
 
 # TODO common constants

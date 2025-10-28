@@ -15,7 +15,7 @@ from contracts.interfaces import IMonetaryPolicy
 from contracts.interfaces import ILMGauge
 from contracts.interfaces import IFactory
 from contracts.interfaces import IPriceOracle
-from contracts.interfaces import IERC20
+from curve_std.interfaces import IERC20
 
 from contracts.interfaces import IController
 from contracts.interfaces import IControllerView as IView
@@ -23,8 +23,8 @@ from contracts.interfaces import IControllerView as IView
 implements: IController
 implements: IView
 
-from contracts.lib import token_lib as tkn
-from contracts.lib import math_lib as crv_math
+from curve_std import token as tkn
+from curve_std import math as crv_math
 
 from snekmate.utils import math
 
@@ -556,6 +556,7 @@ def max_borrowable(
         collateral, N, current_debt, user
     )
 
+# TODO use sub_or_zero everywhere
 
 @external
 @view

@@ -1,4 +1,4 @@
-from contracts.interfaces import IERC20
+from curve_std.interfaces import IERC20
 
 @view
 def stablecoin() -> IERC20:

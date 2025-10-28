@@ -7,14 +7,14 @@
 @license Copyright (c) Curve.Fi, 2020-2025 - all rights reserved
 """
 
-from contracts.interfaces import IERC20
-from contracts.interfaces import IERC4626
+from curve_std.interfaces import IERC20
+from curve_std.interfaces import IERC4626
 from contracts.interfaces import IAMM
 from contracts.interfaces import ILlamalendController as IController
 from contracts.interfaces import IFactory
 
 from contracts import constants as c
-from contracts.lib import token_lib as tkn
+from curve_std import token as tkn
 
 implements: IERC20
 implements: IERC4626
