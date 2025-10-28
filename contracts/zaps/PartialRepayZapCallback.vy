@@ -8,7 +8,7 @@
         using controller callback to forward assets directly to the caller.
 """
 
-from contracts.interfaces import IERC20
+from curve_std.interfaces import IERC20
 from contracts.interfaces import IAMM
 from contracts.interfaces import IController
 from contracts import Controller as ctrl

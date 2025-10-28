@@ -1,6 +1,6 @@
 # pragma version 0.4.3
 import contracts.lib.token_lib as tkn
-from contracts.interfaces import IERC20
+from curve_std.interfaces import IERC20
 from contracts import constants as c
 
 callback_deposit_hits: public(uint256)

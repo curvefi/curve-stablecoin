@@ -7,7 +7,7 @@
 @dev ERC20 support for return True/revert, return True/False, return None
 """
 
-from contracts.interfaces import IERC20
+from curve_std.interfaces import IERC20
 
 interface Factory:
     def get_fee_receiver(_pool: address) -> address: view

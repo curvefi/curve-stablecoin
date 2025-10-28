@@ -1,6 +1,6 @@
 # pragma version 0.4.3
 
-from contracts.interfaces import IERC20
+from curve_std.interfaces import IERC20
 
 interface ERC3156FlashLender:
     def flashFee(token: address, amount: uint256) -> uint256: view

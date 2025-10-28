@@ -8,7 +8,7 @@
 @license Copyright (c) Curve.Fi, 2020-2025 - all rights reserved
 @custom:security security@curve.fi
 """
-from contracts.interfaces import IERC20
+from curve_std.interfaces import IERC20
 from contracts.interfaces import ILendingFactory
 from contracts.interfaces import IMonetaryPolicy
 from contracts.interfaces import IPriceOracle

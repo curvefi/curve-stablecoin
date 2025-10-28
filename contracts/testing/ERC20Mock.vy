@@ -1,6 +1,6 @@
 # pragma version 0.4.3
 
-from contracts.interfaces import IERC20
+from curve_std.interfaces import IERC20
 implements: IERC20
 
 from snekmate.tokens import erc20
