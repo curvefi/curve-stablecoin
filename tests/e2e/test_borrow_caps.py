@@ -35,10 +35,11 @@ def test_borrow_cap(controller, admin, collateral_token, borrowed_token):
         controller.create_loan(COLLATERAL, 1, N_BANDS)
 
     # Raise the cap modestly and open a loan that consumes the allowance
-    max_debt = controller.max_borrowable(COLLATERAL, N_BANDS, 0, boa.env.eoa)
-    debt_cap = max(1, max_debt // 4)
+    debt_cap = 1
     controller.set_borrow_cap(debt_cap, sender=admin)
+    assert controller.available_balance() > 0
     controller.create_loan(COLLATERAL, debt_cap, N_BANDS)
+    assert controller.available_balance() > 0
     assert controller.total_debt() == debt_cap
 
     # Attempts to borrow beyond the cap should revert
@@ -52,9 +53,12 @@ def test_borrow_cap(controller, admin, collateral_token, borrowed_token):
     max_total = controller.max_borrowable(
         collateral_locked, bands, current_debt, boa.env.eoa
     )
-    extra_debt = max(1, max_total - current_debt)
+    extra_debt = max_total - current_debt
+    assert extra_debt > 0
     controller.set_borrow_cap(current_debt + extra_debt, sender=admin)
+    assert controller.available_balance() > 0
     controller.borrow_more(0, extra_debt)
+    assert controller.available_balance() > 0
     assert controller.total_debt() == current_debt + extra_debt
 
     # Cutting the cap back to zero blocks further borrowing but allows repayments
@@ -63,7 +67,9 @@ def test_borrow_cap(controller, admin, collateral_token, borrowed_token):
         controller.borrow_more(0, 1)
 
     # Repay the full position and exit cleanly
+    assert controller.available_balance() > 0
     controller.repay(MAX_UINT256)
+    assert controller.available_balance() > 0
     remaining_collateral, _, debt_after_repay, _ = controller.user_state(boa.env.eoa)
     assert debt_after_repay == 0
     if remaining_collateral > 0:
