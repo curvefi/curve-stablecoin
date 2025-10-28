@@ -103,18 +103,6 @@ def monetary_policy() -> IMonetaryPolicy:
 
 @view
 @external
-def minted() -> uint256:
-    ...
-
-
-@view
-@external
-def redeemed() -> uint256:
-    ...
-
-
-@view
-@external
 def max_borrowable(collateral: uint256, N: uint256, current_debt: uint256, user: address) -> uint256:
     ...
 
@@ -360,9 +348,4 @@ def version() -> String[1]:
 
 @external
 def set_view(view_impl: address):
-    ...
-
-
-@external
-def _on_debt_increased(debt: uint256):
     ...

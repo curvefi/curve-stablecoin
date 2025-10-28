@@ -70,11 +70,11 @@ def _borrow_cap() -> uint256:
 
 @internal
 @view
-def _borrowed_balance() -> uint256:
+def _available_balance() -> uint256:
     ll_core: ILlamalendController = ILlamalendController(
         core.CONTROLLER.address
     )
-    return staticcall ll_core.borrowed_balance()
+    return staticcall ll_core.available_balance()
 
 
 @external
@@ -91,6 +91,6 @@ def max_borrowable(
     # Cannot borrow beyond the amount of coins Controller has or beyond borrow_cap
     total_debt: uint256 = self._total_debt()
     cap: uint256 = unsafe_sub(max(self._borrow_cap(), total_debt), total_debt)
-    cap = min(self._borrowed_balance(), cap) + current_debt
+    cap = min(self._available_balance(), cap) + current_debt
 
     return core._max_borrowable(collateral, N, cap, user)

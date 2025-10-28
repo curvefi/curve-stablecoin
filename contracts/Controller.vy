@@ -136,7 +136,9 @@ admin_percentage: public(uint256)
 
 # DANGER DO NOT RELY ON MSG.SENDER IN VIRTUAL METHODS
 interface VirtualMethods:
-    def _on_debt_increased(debt: uint256): nonpayable
+    def _on_debt_increased(delta: uint256, total_debt: uint256): nonpayable
+
+implements: VirtualMethods
 
 VIRTUAL: immutable(VirtualMethods)
 
@@ -272,7 +274,7 @@ def _update_total_debt(
     loan.initial_debt = loan_with_interest
     if is_increase:
         loan.initial_debt += d_debt
-        extcall VIRTUAL._on_debt_increased(loan.initial_debt)
+        extcall VIRTUAL._on_debt_increased(d_debt, loan.initial_debt)
     else:
         loan.initial_debt = crv_math.sub_or_zero(loan.initial_debt, d_debt)
     loan.rate_mul = rate_mul
@@ -1458,7 +1460,7 @@ def _collect_fees() -> uint256:
 
 @external
 @reentrant # TODO check if needed
-def _on_debt_increased(debt: uint256):
+def _on_debt_increased(delta: uint256, total_debt: uint256):
     pass
 
 

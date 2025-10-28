@@ -15,9 +15,13 @@ def borrow_cap():
 
 
 def test_reverts_when_lent_exceeds_deposited_under_donation(
-    controller, vault, borrowed_token, collateral_token, admin
+    controller, vault, borrowed_token, collateral_token
 ):
-    initial_balance = vault.asset_balance()
+    """
+    Test that verifies that issue: CS-CRVUSD-094 is fixed
+    as the pool doesn't allow donated tokens to be lent out.
+    """
+    initial_balance = vault.net_deposits()
 
     COLLATERAL = 10**30
     N_BANDS = 5

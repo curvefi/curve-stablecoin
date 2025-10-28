@@ -31,7 +31,6 @@ event SetMaxSupply:
 DEAD_SHARES: constant(uint256) = c.DEAD_SHARES
 MIN_ASSETS: constant(uint256) = 10000
 
-# TODO turn into immutables
 borrowed_token: public(IERC20)
 collateral_token: public(IERC20)
 
@@ -41,7 +40,7 @@ factory: public(IFactory)
 
 maxSupply: public(uint256)
 
-asset_balance: public(uint256)
+net_deposits: public(int256)
 
 # ERC20 publics
 
@@ -143,7 +142,7 @@ def asset() -> IERC20:
 @view
 def _total_assets() -> uint256:
     # admin fee should be accounted for here when enabled
-    return staticcall self.controller.borrowed_balance() + staticcall self.controller.total_debt()
+    return staticcall self.controller.available_balance() + staticcall self.controller.total_debt()
 
 
 @external
@@ -269,7 +268,7 @@ def deposit(assets: uint256, receiver: address = msg.sender) -> uint256:
     assert total_assets + assets <= self.maxSupply, "Supply limit"
     to_mint: uint256 = self._convert_to_shares(assets, True, total_assets)
     tkn.transfer_from(self.borrowed_token, msg.sender, controller.address, assets)
-    self.asset_balance += assets
+    self.net_deposits += convert(assets, int256)
     self._mint(receiver, to_mint)
     extcall controller.save_rate()
     log IERC4626.Deposit(sender=msg.sender, owner=receiver, assets=assets, shares=to_mint)
@@ -314,7 +313,7 @@ def mint(shares: uint256, receiver: address = msg.sender) -> uint256:
     assert total_assets + assets >= MIN_ASSETS, "Need more assets"
     assert total_assets + assets <= self.maxSupply, "Supply limit"
     tkn.transfer_from(self.borrowed_token, msg.sender, controller.address, assets)
-    self.asset_balance += assets
+    self.net_deposits += convert(assets, int256)
     self._mint(receiver, shares)
     extcall controller.save_rate()
     log IERC4626.Deposit(sender=msg.sender, owner=receiver, assets=assets, shares=shares)
@@ -330,7 +329,7 @@ def maxWithdraw(owner: address) -> uint256:
     """
     return min(
         self._convert_to_assets(self.balanceOf[owner]),
-        staticcall self.controller.borrowed_balance())
+        staticcall self.controller.available_balance())
 
 
 @external
@@ -340,7 +339,7 @@ def previewWithdraw(assets: uint256) -> uint256:
     """
     @notice Calculate number of shares which gets burned when withdrawing given amount of asset
     """
-    assert assets <= staticcall self.controller.borrowed_balance()
+    assert assets <= staticcall self.controller.available_balance()
     return self._convert_to_shares(assets, False)
 
 
@@ -364,7 +363,7 @@ def withdraw(assets: uint256, receiver: address = msg.sender, owner: address = m
     controller: IController = self.controller
     self._burn(owner, shares)
     tkn.transfer_from(self.borrowed_token, controller.address, receiver, assets)
-    self.asset_balance -= assets
+    self.net_deposits -= convert(assets, int256)
     extcall controller.save_rate()
     log IERC4626.Withdraw(sender=msg.sender, receiver=receiver, owner=owner, assets=assets, shares=shares)
     return shares
@@ -378,7 +377,7 @@ def maxRedeem(owner: address) -> uint256:
     @notice Calculate maximum amount of shares which a given user can redeem
     """
     return min(
-        self._convert_to_shares(staticcall self.controller.borrowed_balance(), False),
+        self._convert_to_shares(staticcall self.controller.available_balance(), False),
         self.balanceOf[owner])
 
 
@@ -395,7 +394,8 @@ def previewRedeem(shares: uint256) -> uint256:
 
     else:
         assets_to_redeem: uint256 = self._convert_to_assets(shares)
-        assert assets_to_redeem <= staticcall self.controller.borrowed_balance()
+        # TODO can't revert here
+        assert assets_to_redeem <= staticcall self.controller.available_balance()
         return assets_to_redeem
 
 
@@ -424,7 +424,7 @@ def redeem(shares: uint256, receiver: address = msg.sender, owner: address = msg
     self._burn(owner, shares)
     controller: IController = self.controller
     tkn.transfer_from(self.borrowed_token, controller.address, receiver, assets_to_redeem)
-    self.asset_balance -= assets_to_redeem
+    self.net_deposits -= convert(assets_to_redeem, int256)
     extcall controller.save_rate()
     log IERC4626.Withdraw(sender=msg.sender, receiver=receiver, owner=owner, assets=assets_to_redeem, shares=shares)
     return assets_to_redeem

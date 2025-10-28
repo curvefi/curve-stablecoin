@@ -5,6 +5,7 @@ from contracts.interfaces import IMonetaryPolicy
 from contracts.interfaces import IFactory
 from contracts.interfaces import IController
 
+# TODO rename to ILendController
 # TODO only keep diff
 
 # Events
@@ -352,7 +353,7 @@ def admin_percentage() -> uint256:
 
 @view
 @external
-def borrowed_balance() -> uint256:
+def available_balance() -> uint256:
     ...
 
 

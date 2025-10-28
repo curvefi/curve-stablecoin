@@ -14,7 +14,6 @@ from tests.utils.protocols import Llamalend
 boa.env.enable_fast_mode()
 
 
-PRICE = 3000
 TESTING_DECIMALS = [2, 6, 8, 9, 18]
 
 

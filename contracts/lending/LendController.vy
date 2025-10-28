@@ -24,6 +24,8 @@ implements: ILlamalendController
 
 from contracts import Controller as core
 
+implements: core.VirtualMethods
+
 initializes: core
 
 from contracts.lib import token_lib as tkn
@@ -79,9 +81,6 @@ exports: (
     core.users_to_liquidate,
     core.min_collateral,
     core.max_borrowable,
-    # For compatibility with mint markets ABI
-    core.minted,
-    core.redeemed,
 )
 
 borrow_cap: public(uint256)
@@ -147,41 +146,47 @@ def version() -> String[10]:
     return concat(core.version, "-lend")
 
 
-@external
 @view
-def collected() -> uint256:
+@external
+def available_balance() -> uint256:
     """
-    @notice Cumulative amount of borrowed assets ever collected as admin fees
+    @notice Amount of borrowed token the vault can use for withdrawals or new loans
+    @dev Used by the vault for its accounting logic to ignore tokens sent directly to the controller.
     """
-    return core.collected
+    return self._available_balance()
 
 
 @internal
 @view
-def _borrowed_balance() -> uint256:
-    # TODO rename to `borrowed_token_balance` for clarity?
-    # Start from the vault’s erc20 balance (ignoring any tokens sent directly to the vault),
-    # subtract the portion we actually lent out that hasn’t been repaid yet (lent − repaid),
-    # and subtract what the admin already skimmed as fees; what’s left is the controller’s idle cash.
-    # VAULT.asset_balance() - (lent - repaid) - self.collected
-    # The terms are rearranged to avoid underflows in intermediate steps.
-    # TODO handle asset_balance() underflow
-    balance: uint256 = (staticcall VAULT.asset_balance()
-        + core.repaid
-        - core.lent
-        - core.collected
-    )
-    return crv_math.sub_or_zero(balance, core.admin_fees)\
+def _available_balance() -> uint256:
+    # This functions provides the balance of tokens in the controller
+    # that can be withdrawn or used for new loans at any time.
 
+    # This is required because a naive measure like balanceOf can easily
+    # be manipulated making it easy to inflate the vault balance.
 
-@external
-@view
-def borrowed_balance() -> uint256:
-    """
-    @notice Amount of borrowed token the controller currently holds.
-    @dev Used by the vault for its accounting logic.
-    """
-    return self._borrowed_balance()
+    # Any amount sent directly to this controller contract is lost forever.
+
+    # The balance considers as available balance all tokens that
+    # have been deposited through the vault's deposit/mint methods
+    # and that have not yet been withdrawn through withdraw/redeem.
+    available_balance: int256 = staticcall VAULT.net_deposits()
+
+    # We compute the outstanding amount that has been lent out but not yet repaid
+    outstanding: int256 = convert(core.lent, int256) - convert(core.repaid, int256)
+
+    # We deduce outstanding balance from the available balance
+    available_balance -= outstanding
+
+    # We compute the total admin fees combining fees that have already been
+    # collected and fees that still live in the controller's balance
+    total_admin_fees: uint256 = core.collected + core.admin_fees
+
+    available_balance -= convert(total_admin_fees, int256)
+
+    if available_balance < 0:
+        return 0
+    return convert(available_balance, uint256)
 
 
 @external
@@ -209,10 +214,40 @@ def set_admin_percentage(_admin_percentage: uint256):
 
 @external
 @reentrant
-def _on_debt_increased(debt: uint256):
+def _on_debt_increased(delta: uint256, total_debt: uint256):
     """
     @notice Hook called when debt is increased
     """
     assert msg.sender == self # dev: virtual method protection
-    assert debt <= self.borrow_cap, "Borrow cap exceeded"
-    assert debt <= self._borrowed_balance(), "Borrowed balance exceeded"
+    # TODO move to solidity style errors
+    assert total_debt <= self.borrow_cap, "Borrow cap exceeded"
+    assert delta <= self._available_balance(), "Available balance exceeded"
+
+
+@external
+@view
+def lent() -> uint256:
+    """
+    @notice Total amount of borrowed tokens lent out since creation
+    @return Total lent amount
+    """
+    return core.lent
+
+
+@external
+@view
+def repaid() -> uint256:
+    """
+    @notice Total amount of borrowed tokens repaid since creation
+    @return Total repaid amount
+    """
+    return core.repaid
+
+
+@external
+@view
+def collected() -> uint256:
+    """
+    @notice Cumulative amount of borrowed assets ever collected as admin fees
+    """
+    return core.collected
