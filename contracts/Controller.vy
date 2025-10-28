@@ -121,10 +121,13 @@ loan_ix: public(HashMap[address, uint256])
 n_loans: public(uint256)
 
 
-# cumulative amount of assets ever lent
+# cumulative amount of borrowed assets ever lent
 lent: uint256
-# cumulative amount of assets ever repaid (including admin fees)
+# cumulative amount of borrowed assets ever repaid
 repaid: uint256
+# cumulative amount of borrowed assets ever collected as admin fees
+collected: uint256
+
 
 # Admin fees yet to be collected. Goes to zero when collected.
 admin_fees: public(uint256)
@@ -219,18 +222,16 @@ def _set_view(view_impl: address):
 
     log IController.SetView(view=view)
 
-# TODO add back minted and redeemed
 
 @view
 @external
 def minted() -> uint256:
-    return self.lent
+    return self.lent + self.collected
 
 
 @view
 @external
 def redeemed() -> uint256:
-    # TODO add natspec
     return self.repaid
 
 
@@ -1449,16 +1450,13 @@ def _collect_fees() -> uint256:
     loan: IController.Loan = self._update_total_debt(0, rate_mul, False)
 
     pending_admin_fees: uint256 = self.admin_fees
-
-    # TODO figure out rev share (probably add a setter in factory)
-    to: address = staticcall FACTORY.fee_receiver()
-    tkn.transfer(BORROWED_TOKEN, to, pending_admin_fees)
-
+    self.collected += pending_admin_fees
     self.admin_fees = 0
+    tkn.transfer(BORROWED_TOKEN, staticcall FACTORY.fee_receiver(), pending_admin_fees)
 
     self._save_rate()
-
     log IController.CollectFees(amount=pending_admin_fees, new_supply=loan.initial_debt)
+
     return pending_admin_fees
 
 
