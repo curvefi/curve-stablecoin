@@ -1,6 +1,6 @@
 [project]
 name = "curve-stablecoin"
-version = "0.2.0"
+version = "2.0.0"
 description = "Curve Stablecoin contracts and tests"
 readme = "README.md"
 requires-python = ">=3.10,<4"
@@ -11,6 +11,7 @@ authors = [
 dependencies = [
     "vyper==0.4.3",
     "snekmate>=0.1.1",
+    "ownership-proxy"
 ]
 
 [dependency-groups]
@@ -28,9 +29,10 @@ dev = [
 
 [tool.uv.sources]
 titanoboa = { git = "https://github.com/AlbertoCentonze/titanoboa", rev = "vvm-eval" }
+# TODO fix a version
+ownership-proxy = { git = "https://github.com/curvefi/ownership-proxy", rev = "main" }
+# TODO add stableswap here as a package instead of git submodule
 
-[tool.uv]
-package = false  # This is not a Python package
 
 [tool.ruff.lint]
 ignore = [
