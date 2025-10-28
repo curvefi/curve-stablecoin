@@ -40,6 +40,7 @@ exports: (
     core.set_extra_health,
     core.liquidate,
     core.save_rate,
+    core.collect_fees,
     # Getters
     core.amm,
     core.amm_price,
@@ -83,7 +84,9 @@ exports: (
     core.redeemed,
 )
 
+borrow_cap: public(uint256)
 VAULT: immutable(IVault)
+
 
 # https://github.com/vyperlang/vyper/issues/4721
 @external
@@ -94,10 +97,6 @@ def vault() -> address:
     """
     return VAULT.address
 
-
-# cumulative amount of assets collected by admin
-collected: public(uint256)
-borrow_cap: public(uint256)
 
 @deploy
 def __init__(
@@ -150,11 +149,16 @@ def version() -> String[10]:
 
 @external
 @view
-def borrowed_balance() -> uint256:
+def collected() -> uint256:
     """
-    @notice Amount of borrowed token the controller currently holds.
-    @dev Used by the vault for its accounting logic.
+    @notice Cumulative amount of borrowed assets ever collected as admin fees
     """
+    return core.collected
+
+
+@internal
+@view
+def _borrowed_balance() -> uint256:
     # TODO rename to `borrowed_token_balance` for clarity?
     # Start from the vault’s erc20 balance (ignoring any tokens sent directly to the vault),
     # subtract the portion we actually lent out that hasn’t been repaid yet (lent − repaid),
@@ -165,19 +169,19 @@ def borrowed_balance() -> uint256:
     balance: uint256 = (staticcall VAULT.asset_balance()
         + core.repaid
         - core.lent
-        - self.collected
+        - core.collected
     )
-    return crv_math.sub_or_zero(balance, core.admin_fees)
+    return crv_math.sub_or_zero(balance, core.admin_fees)\
 
 
 @external
-def collect_fees() -> uint256:
+@view
+def borrowed_balance() -> uint256:
     """
-    @notice Collect the fees charged as interest that belong to the admin.
+    @notice Amount of borrowed token the controller currently holds.
+    @dev Used by the vault for its accounting logic.
     """
-    fees: uint256 = core._collect_fees()
-    self.collected += fees
-    return fees
+    return self._borrowed_balance()
 
 
 @external
@@ -211,3 +215,4 @@ def _on_debt_increased(debt: uint256):
     """
     assert msg.sender == self # dev: virtual method protection
     assert debt <= self.borrow_cap, "Borrow cap exceeded"
+    assert debt <= self._borrowed_balance(), "Borrowed balance exceeded"
