@@ -727,7 +727,7 @@ def _add_collateral_borrow(
     _for: address,
     remove_collateral: bool,
     check_rounding: bool,
-):
+) -> uint256:
     """
     @notice Internal method to borrow and add or remove collateral
     @param d_collateral Amount of collateral to add
@@ -772,9 +772,6 @@ def _add_collateral_borrow(
     else:
         liquidation_discount = self.liquidation_discounts[_for]
 
-    if d_debt != 0:
-        self._update_total_debt(d_debt, rate_mul, True)
-
     if remove_collateral:
         log IController.RemoveCollateral(
             user=_for, collateral_decrease=d_collateral
@@ -792,6 +789,8 @@ def _add_collateral_borrow(
         n2=n2,
         liquidation_discount=liquidation_discount,
     )
+
+    return rate_mul
 
 
 @external
@@ -857,7 +856,7 @@ def borrow_more(
             calldata,
         ).collateral
 
-    self._add_collateral_borrow(
+    rate_mul: uint256 = self._add_collateral_borrow(
         collateral + more_collateral, debt, _for, False, False
     )
 
@@ -866,6 +865,7 @@ def borrow_more(
     if callbacker == empty(address):
         tkn.transfer(BORROWED_TOKEN, _for, debt)
 
+    self._update_total_debt(debt, rate_mul, True)
     self.lent += debt
     self._save_rate()
 
