@@ -1,7 +1,7 @@
 # pragma version 0.4.3
 
 from curve_std.interfaces import IERC20
-import contracts.lib.token_lib as tkn
+import curve_std import token as tkn
 
 
 @external

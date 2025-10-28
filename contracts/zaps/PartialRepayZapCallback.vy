@@ -12,7 +12,7 @@ from curve_std.interfaces import IERC20
 from contracts.interfaces import IAMM
 from contracts.interfaces import IController
 from contracts import Controller as ctrl
-import contracts.lib.token_lib as tkn
+import curve_std import token as tkn
 from contracts.interfaces import IPartialRepayZapCallback as IZap
 import contracts.lib.liquidation_lib as liq
 
