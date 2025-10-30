@@ -1252,28 +1252,14 @@ def liquidate(
                 calldata,
             )
             assert cb.borrowed >= to_repay, "no enough proceeds"
-            if cb.borrowed > to_repay:
-                tkn.transfer_from(
-                    BORROWED_TOKEN,
-                    callbacker,
-                    msg.sender,
-                    unsafe_sub(cb.borrowed, to_repay),
-                )
             tkn.transfer_from(BORROWED_TOKEN, callbacker, self, to_repay)
-            tkn.transfer_from(
-                COLLATERAL_TOKEN, callbacker, msg.sender, cb.collateral
-            )
+            tkn.transfer_from(BORROWED_TOKEN, callbacker, msg.sender, crv_math.sub_or_zero(cb.borrowed, to_repay))
+            tkn.transfer_from(COLLATERAL_TOKEN, callbacker, msg.sender, cb.collateral)
     else:
         # Withdraw collateral
         tkn.transfer_from(COLLATERAL_TOKEN, AMM.address, msg.sender, xy[1])
-        # Return what's left to user
-        if xy[0] > debt:
-            tkn.transfer_from(
-                BORROWED_TOKEN,
-                AMM.address,
-                msg.sender,
-                unsafe_sub(xy[0], debt),
-            )
+        # xy[0] >= debt
+        tkn.transfer_from(BORROWED_TOKEN, AMM.address, msg.sender, unsafe_sub(xy[0], debt))
 
     self.loan[user] = IController.Loan(initial_debt=final_debt, rate_mul=rate_mul)
     self._update_total_debt(debt, rate_mul, False)
