@@ -710,6 +710,7 @@ def create_loan(
     log IController.UserState(
         user=_for,
         collateral=total_collateral,
+        borrowed=0,
         debt=debt,
         n1=n1,
         n2=n2,
@@ -784,6 +785,7 @@ def _add_collateral_borrow(
     log IController.UserState(
         user=_for,
         collateral=xy[1],
+        borrowed=0,
         debt=debt,
         n1=n1,
         n2=n2,
@@ -917,7 +919,7 @@ def _repay_full(
     self._remove_from_list(_for)
 
     log IController.UserState(
-        user=_for, collateral=0, debt=0, n1=0, n2=0, liquidation_discount=0
+        user=_for, collateral=0, borrowed=0, debt=0, n1=0, n2=0, liquidation_discount=0
     )
     log IController.Repay(
         user=_for, collateral_decrease=_xy[1], loan_decrease=_debt
@@ -952,13 +954,15 @@ def _repay_partial(
     liquidation_discount: uint256 = self.liquidation_discounts[_for]
     # _debt > _wallet_d_debt + cb.borrowed + xy[0] (check repay method)
     new_debt: uint256 = unsafe_sub(_debt, unsafe_add(_cb.borrowed, _wallet_d_debt))
+    new_borrowed: uint256 = _xy[0]
 
     if ns[0] > active_band or _shrink:
         # Not underwater or shrink mode - can move bands
         if _callbacker == empty(address):
             _xy = extcall AMM.withdraw(_for, WAD)
             new_collateral = _xy[1]
-        new_debt -=_xy[0]
+        new_debt -= _xy[0]
+        new_borrowed = 0
 
         ns[0] = self._calculate_debt_n1(
             new_collateral,
@@ -997,6 +1001,7 @@ def _repay_partial(
     log IController.UserState(
         user=_for,
         collateral=new_collateral,
+        borrowed=new_borrowed,
         debt=new_debt,
         n1=ns[0],
         n2=ns[1],
@@ -1278,7 +1283,7 @@ def liquidate(
     )
     if final_debt == 0:
         log IController.UserState(
-            user=user, collateral=0, debt=0, n1=0, n2=0, liquidation_discount=0
+            user=user, collateral=0, borrowed=0, debt=0, n1=0, n2=0, liquidation_discount=0
         )
         self._remove_from_list(user)
     else:
@@ -1287,6 +1292,7 @@ def liquidate(
         log IController.UserState(
             user=user,
             collateral=xy[1],
+            borrowed=xy[0],
             debt=final_debt,
             n1=ns[0],
             n2=ns[1],

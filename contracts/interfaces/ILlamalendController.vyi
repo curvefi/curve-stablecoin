@@ -27,6 +27,7 @@ event Liquidate:
 event UserState:
     user: address
     collateral: uint256
+    borrowed: uint256
     debt: uint256
     n1: int256
     n2: int256
