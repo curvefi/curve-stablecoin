@@ -49,17 +49,21 @@ FACTORY: immutable(IFactory)
 #                          CONSTANTS                           #
 ################################################################
 
-version: public(constant(String[5])) = c.__version__
-
 from contracts import constants as c
+
+version: public(constant(String[5])) = c.__version__
 
 # https://github.com/vyperlang/vyper/issues/4723
 WAD: constant(uint256) = c.WAD
 SWAD: constant(int256) = c.SWAD
 DEAD_SHARES: constant(uint256) = c.DEAD_SHARES
 MIN_TICKS_UINT: constant(uint256) = c.MIN_TICKS_UINT
+MAX_TICKS: constant(int256) = c.MAX_TICKS
+MAX_TICKS_UINT: constant(uint256) = c.MAX_TICKS_UINT
+MIN_TICKS: constant(int256) = c.MIN_TICKS
+MAX_SKIP_TICKS: constant(uint256) = c.MAX_SKIP_TICKS_UINT
+CALLDATA_MAX_SIZE: constant(uint256) = c.CALLDATA_MAX_SIZE
 
-MIN_AMM_FEE: constant(uint256) = 10**6  # 1e-12, still needs to be above 0
 
 CALLBACK_DEPOSIT: constant(bytes4) = method_id(
     "callback_deposit(address,uint256,uint256,uint256,bytes)",
@@ -72,16 +76,11 @@ CALLBACK_LIQUIDATE: constant(bytes4) = method_id(
     "callback_liquidate(address,uint256,uint256,uint256,bytes)",
     output_type=bytes4,
 )
-CALLDATA_MAX_SIZE: constant(uint256) = c.CALLDATA_MAX_SIZE
 
 MAX_LOAN_DISCOUNT: constant(uint256) = 5 * 10**17
 MIN_LIQUIDATION_DISCOUNT: constant(uint256) = 10**16
-MAX_TICKS: constant(int256) = 50
-MAX_TICKS_UINT: constant(uint256) = c.MAX_TICKS_UINT
-MIN_TICKS: constant(int256) = 4
-MAX_SKIP_TICKS: constant(uint256) = 1024
 MAX_P_BASE_BANDS: constant(int256) = 5
-
+MIN_AMM_FEE: constant(uint256) = 10**6  # 1e-12, still needs to be above 0
 MAX_RATE: constant(uint256) = 43959106799  # 300% APY
 MAX_ORACLE_PRICE_DEVIATION: constant(uint256) = WAD // 2  # 50% deviation
 

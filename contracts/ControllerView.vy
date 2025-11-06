@@ -26,7 +26,7 @@ DEAD_SHARES: constant(uint256) = c.DEAD_SHARES
 WAD: constant(uint256) = c.WAD
 SWAD: constant(int256) = c.SWAD
 MAX_P_BASE_BANDS: constant(int256) = 5
-MAX_SKIP_TICKS: constant(uint256) = 1024
+MAX_SKIP_TICKS: constant(uint256) = c.MAX_SKIP_TICKS_UINT
 
 SQRT_BAND_RATIO: immutable(uint256)
 LOGN_A_RATIO: immutable(int256)  # log(A / (A - 1))

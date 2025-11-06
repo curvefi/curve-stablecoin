@@ -48,15 +48,13 @@ from contracts import constants as c
 from curve_std import token as tkn
 
 
-# TODO common constants
 # https://github.com/vyperlang/vyper/issues/4723
 WAD: constant(uint256) = c.WAD
 MAX_TICKS: constant(int256) = c.MAX_TICKS
 MAX_TICKS_UINT: constant(uint256) = c.MAX_TICKS_UINT
 DEAD_SHARES: constant(uint256) = c.DEAD_SHARES
-MAX_SKIP_TICKS: constant(int256) = 1024
-MAX_SKIP_TICKS_UINT: constant(uint256) = 1024
-
+MAX_SKIP_TICKS: constant(int256) = c.MAX_SKIP_TICKS
+MAX_SKIP_TICKS_UINT: constant(uint256) = c.MAX_SKIP_TICKS_UINT
 
 BORROWED_TOKEN: immutable(IERC20)    # x
 BORROWED_PRECISION: immutable(uint256)
