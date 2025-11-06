@@ -356,7 +356,6 @@ def _p_oracle_up(n: int256) -> uint256:
     exp_result: uint256 = convert(math._wad_exp(power), uint256)
 
     assert exp_result > 1000  # dev: limit precision of the multiplier
-    # TODO use WAD constant here
     return unsafe_div(self._base_price() * exp_result, WAD)
 
 

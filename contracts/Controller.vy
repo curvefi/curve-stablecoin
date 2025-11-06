@@ -16,7 +16,6 @@ from contracts.interfaces import ILMGauge
 from contracts.interfaces import IFactory
 from contracts.interfaces import IPriceOracle
 from curve_std.interfaces import IERC20
-
 from contracts.interfaces import IController
 from contracts.interfaces import IControllerView as IView
 
@@ -25,6 +24,7 @@ implements: IView
 
 from curve_std import token as tkn
 from curve_std import math as crv_math
+
 
 from snekmate.utils import math
 
