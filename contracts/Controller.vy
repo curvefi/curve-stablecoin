@@ -1279,8 +1279,19 @@ def liquidate(
     if final_debt == 0:
         log IController.UserState(
             user=user, collateral=0, debt=0, n1=0, n2=0, liquidation_discount=0
-        )  # Not logging partial removeal b/c we have not enough info
+        )
         self._remove_from_list(user)
+    else:
+        xy = staticcall AMM.get_sum_xy(user)
+        ns: int256[2] = staticcall AMM.read_user_tick_numbers(user)  # ns[1] > ns[0]
+        log IController.UserState(
+            user=user,
+            collateral=xy[1],
+            debt=final_debt,
+            n1=ns[0],
+            n2=ns[1],
+            liquidation_discount=self.liquidation_discounts[user]
+        )
 
 
 @view
