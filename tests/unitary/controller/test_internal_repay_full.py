@@ -128,6 +128,7 @@ def test_repay_full_from_wallet(
     assert len(state_logs) == 1
     assert state_logs[0].user == borrower
     assert state_logs[0].collateral == 0
+    assert state_logs[0].borrowed == 0
     assert state_logs[0].debt == 0
     assert state_logs[0].n1 == 0
     assert state_logs[0].n2 == 0
@@ -257,6 +258,7 @@ def test_repay_full_from_callback(
     assert len(state_logs) == 1
     assert state_logs[0].user == borrower
     assert state_logs[0].collateral == 0
+    assert state_logs[0].borrowed == 0
     assert state_logs[0].debt == 0
     assert state_logs[0].n1 == 0
     assert state_logs[0].n2 == 0
@@ -376,6 +378,7 @@ def test_repay_full_from_xy0(
     assert len(state_logs) == 1
     assert state_logs[0].user == borrower
     assert state_logs[0].collateral == 0
+    assert state_logs[0].borrowed == 0
     assert state_logs[0].debt == 0
     assert state_logs[0].n1 == 0
     assert state_logs[0].n2 == 0
@@ -508,6 +511,7 @@ def test_repay_full_from_wallet_and_callback(
     assert len(state_logs) == 1
     assert state_logs[0].user == borrower
     assert state_logs[0].collateral == 0
+    assert state_logs[0].borrowed == 0
     assert state_logs[0].debt == 0
     assert state_logs[0].n1 == 0
     assert state_logs[0].n2 == 0
@@ -630,6 +634,7 @@ def test_repay_full_from_xy0_and_wallet(
     assert len(state_logs) == 1
     assert state_logs[0].user == borrower
     assert state_logs[0].collateral == 0
+    assert state_logs[0].borrowed == 0
     assert state_logs[0].debt == 0
     assert state_logs[0].n1 == 0
     assert state_logs[0].n2 == 0
@@ -768,6 +773,7 @@ def test_repay_full_from_xy0_and_callback(
     assert len(state_logs) == 1
     assert state_logs[0].user == borrower
     assert state_logs[0].collateral == 0
+    assert state_logs[0].borrowed == 0
     assert state_logs[0].debt == 0
     assert state_logs[0].n1 == 0
     assert state_logs[0].n2 == 0
@@ -909,6 +915,7 @@ def test_repay_full_from_wallet_and_xy0_and_callback(
     assert len(state_logs) == 1
     assert state_logs[0].user == borrower
     assert state_logs[0].collateral == 0
+    assert state_logs[0].borrowed == 0
     assert state_logs[0].debt == 0
     assert state_logs[0].n1 == 0
     assert state_logs[0].n2 == 0

@@ -175,6 +175,7 @@ def test_liquidate_full_from_wallet(
     assert len(state_logs) == 1
     assert state_logs[0].user == borrower
     assert state_logs[0].collateral == 0
+    assert state_logs[0].borrowed == 0
     assert state_logs[0].debt == 0
     assert state_logs[0].n1 == 0
     assert state_logs[0].n2 == 0
@@ -331,6 +332,7 @@ def test_liquidate_full_from_wallet_underwater(
     assert len(state_logs) == 1
     assert state_logs[0].user == borrower
     assert state_logs[0].collateral == 0
+    assert state_logs[0].borrowed == 0
     assert state_logs[0].debt == 0
     assert state_logs[0].n1 == 0
     assert state_logs[0].n2 == 0
@@ -500,6 +502,7 @@ def test_liquidate_full_from_callback(
     assert len(state_logs) == 1
     assert state_logs[0].user == borrower
     assert state_logs[0].collateral == 0
+    assert state_logs[0].borrowed == 0
     assert state_logs[0].debt == 0
     assert state_logs[0].n1 == 0
     assert state_logs[0].n2 == 0
@@ -685,6 +688,7 @@ def test_liquidate_full_from_callback_underwater(
     assert len(state_logs) == 1
     assert state_logs[0].user == borrower
     assert state_logs[0].collateral == 0
+    assert state_logs[0].borrowed == 0
     assert state_logs[0].debt == 0
     assert state_logs[0].n1 == 0
     assert state_logs[0].n2 == 0
@@ -838,6 +842,7 @@ def test_liquidate_full_from_xy0_underwater(
     assert len(state_logs) == 1
     assert state_logs[0].user == borrower
     assert state_logs[0].collateral == 0
+    assert state_logs[0].borrowed == 0
     assert state_logs[0].debt == 0
     assert state_logs[0].n1 == 0
     assert state_logs[0].n2 == 0
@@ -994,6 +999,7 @@ def test_liquidate_full_from_xy0_underwater_exact(
     assert len(state_logs) == 1
     assert state_logs[0].user == borrower
     assert state_logs[0].collateral == 0
+    assert state_logs[0].borrowed == 0
     assert state_logs[0].debt == 0
     assert state_logs[0].n1 == 0
     assert state_logs[0].n2 == 0
@@ -1171,9 +1177,10 @@ def test_liquidate_partial_from_wallet(
 
     assert len(state_logs) == 1
     assert state_logs[0].user == borrower
-    assert state_logs[0].collateral == pytest.approx(
-        user_state_before[0] - collateral_to_remove, abs=5
-    )
+    assert state_logs[0].collateral == user_state_after[0]
+    assert (
+        state_logs[0].borrowed == user_state_after[1]
+    )  # Remaining borrowed tokens in AMM
     assert state_logs[0].debt == debt - debt_to_repay
     assert state_logs[0].n1 == ns[0]
     assert state_logs[0].n2 == ns[1]
@@ -1355,9 +1362,10 @@ def test_liquidate_partial_from_wallet_underwater(
 
     assert len(state_logs) == 1
     assert state_logs[0].user == borrower
-    assert state_logs[0].collateral == pytest.approx(
-        user_state_before[0] - collateral_to_remove, abs=5
-    )
+    assert state_logs[0].collateral == user_state_after[0]
+    assert (
+        state_logs[0].borrowed == user_state_after[1]
+    )  # Remaining borrowed tokens in AMM
     assert state_logs[0].debt == debt - debt_to_repay
     assert state_logs[0].n1 == ns[0]
     assert state_logs[0].n2 == ns[1]
@@ -1535,9 +1543,10 @@ def test_liquidate_partial_from_callback(
 
     assert len(state_logs) == 1
     assert state_logs[0].user == borrower
-    assert state_logs[0].collateral == pytest.approx(
-        user_state_before[0] - collateral_to_remove, abs=5
-    )
+    assert state_logs[0].collateral == user_state_after[0]
+    assert (
+        state_logs[0].borrowed == user_state_after[1]
+    )  # Remaining borrowed tokens in AMM
     assert state_logs[0].debt == debt - debt_to_repay
     assert state_logs[0].n1 == ns[0]
     assert state_logs[0].n2 == ns[1]
@@ -1749,9 +1758,10 @@ def test_liquidate_partial_from_callback_underwater(
 
     assert len(state_logs) == 1
     assert state_logs[0].user == borrower
-    assert state_logs[0].collateral == pytest.approx(
-        user_state_before[0] - collateral_to_remove, abs=5
-    )
+    assert state_logs[0].collateral == user_state_after[0]
+    assert (
+        state_logs[0].borrowed == user_state_after[1]
+    )  # Remaining borrowed tokens in AMM
     assert state_logs[0].debt == debt - debt_to_repay
     assert state_logs[0].n1 == ns[0]
     assert state_logs[0].n2 == ns[1]
