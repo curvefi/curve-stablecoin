@@ -159,9 +159,14 @@ def test_repay_partial_from_wallet(
 
     assert len(state_logs) == 1
     assert state_logs[0].user == borrower
-    assert state_logs[0].debt == debt - wallet_borrowed
-    assert state_logs[0].borrowed == 0  # No borrowed tokens in AMM (healthy position)
     assert state_logs[0].collateral == xy_before[1]  # Position still has collateral
+    assert state_logs[0].borrowed == 0  # No borrowed tokens in AMM (healthy position)
+    assert state_logs[0].debt == debt - wallet_borrowed
+    assert state_logs[0].n1 == ticks_after[0]
+    assert state_logs[0].n2 == ticks_after[1]
+    assert state_logs[0].liquidation_discount == controller.liquidation_discounts(
+        borrower
+    )
 
     assert len(repay_logs) == 1
     assert repay_logs[0].user == borrower
@@ -316,11 +321,16 @@ def test_repay_partial_from_callback(
 
     assert len(state_logs) == 1
     assert state_logs[0].user == borrower
-    assert state_logs[0].debt == debt - callback_borrowed
-    assert state_logs[0].borrowed == 0  # No borrowed tokens in AMM (healthy position)
     assert (
         state_logs[0].collateral == callback_collateral
     )  # Position still has collateral
+    assert state_logs[0].borrowed == 0  # No borrowed tokens in AMM (healthy position)
+    assert state_logs[0].debt == debt - callback_borrowed
+    assert state_logs[0].n1 == ticks_after[0]
+    assert state_logs[0].n2 == ticks_after[1]
+    assert state_logs[0].liquidation_discount == controller.liquidation_discounts(
+        borrower
+    )
 
     assert len(repay_logs) == 1
     assert repay_logs[0].user == borrower
@@ -480,11 +490,16 @@ def test_repay_partial_from_wallet_and_callback(
 
     assert len(state_logs) == 1
     assert state_logs[0].user == borrower
-    assert state_logs[0].debt == debt - wallet_borrowed - callback_borrowed
-    assert state_logs[0].borrowed == 0  # No borrowed tokens in AMM (healthy position)
     assert (
         state_logs[0].collateral == callback_collateral
     )  # Position still has collateral
+    assert state_logs[0].borrowed == 0  # No borrowed tokens in AMM (healthy position)
+    assert state_logs[0].debt == debt - wallet_borrowed - callback_borrowed
+    assert state_logs[0].n1 == ticks_after[0]
+    assert state_logs[0].n2 == ticks_after[1]
+    assert state_logs[0].liquidation_discount == controller.liquidation_discounts(
+        borrower
+    )
 
     assert len(repay_logs) == 1
     assert repay_logs[0].user == borrower
@@ -651,13 +666,18 @@ def test_repay_partial_from_wallet_underwater(
 
     assert len(state_logs) == 1
     assert state_logs[0].user == borrower
-    assert state_logs[0].debt == debt - wallet_borrowed
-    assert (
-        state_logs[0].borrowed == xy_before[0]
-    )  # Still has borrowed tokens in AMM (underwater)
     assert (
         state_logs[0].collateral == xy_before[1]
     )  # Collateral amount after partial repay
+    assert (
+        state_logs[0].borrowed == xy_before[0]
+    )  # Still has borrowed tokens in AMM (underwater)
+    assert state_logs[0].debt == debt - wallet_borrowed
+    assert state_logs[0].n1 == ticks_after[0]
+    assert state_logs[0].n2 == ticks_after[1]
+    assert state_logs[0].liquidation_discount == controller.liquidation_discounts(
+        borrower
+    )
 
     assert len(repay_logs) == 1
     assert repay_logs[0].user == borrower
@@ -824,11 +844,16 @@ def test_repay_partial_from_xy0_underwater_shrink(
 
     assert len(state_logs) == 1
     assert state_logs[0].user == borrower
-    assert state_logs[0].debt == debt - xy_before[0]
-    assert state_logs[0].borrowed == 0  # No borrowed tokens in AMM (exited underwater)
     assert (
         state_logs[0].collateral == xy_before[1]
     )  # Collateral amount after partial repay
+    assert state_logs[0].borrowed == 0  # No borrowed tokens in AMM (exited underwater)
+    assert state_logs[0].debt == debt - xy_before[0]
+    assert state_logs[0].n1 == ticks_after[0]
+    assert state_logs[0].n2 == ticks_after[1]
+    assert state_logs[0].liquidation_discount == controller.liquidation_discounts(
+        borrower
+    )
 
     assert len(repay_logs) == 1
     assert repay_logs[0].user == borrower
@@ -1000,11 +1025,16 @@ def test_repay_partial_from_xy0_and_wallet_underwater_shrink(
 
     assert len(state_logs) == 1
     assert state_logs[0].user == borrower
-    assert state_logs[0].debt == debt - xy_before[0] - tokens_to_shrink
-    assert state_logs[0].borrowed == 0  # No borrowed tokens in AMM (exited underwater)
     assert (
         state_logs[0].collateral == xy_before[1]
     )  # Collateral amount after partial repay
+    assert state_logs[0].borrowed == 0  # No borrowed tokens in AMM (exited underwater)
+    assert state_logs[0].debt == debt - xy_before[0] - tokens_to_shrink
+    assert state_logs[0].n1 == ticks_after[0]
+    assert state_logs[0].n2 == ticks_after[1]
+    assert state_logs[0].liquidation_discount == controller.liquidation_discounts(
+        borrower
+    )
 
     assert len(repay_logs) == 1
     assert repay_logs[0].user == borrower
@@ -1185,11 +1215,16 @@ def test_repay_partial_from_xy0_and_callback_underwater_shrink(
 
     assert len(state_logs) == 1
     assert state_logs[0].user == borrower
-    assert state_logs[0].debt == debt - xy_before[0] - callback_borrowed
-    assert state_logs[0].borrowed == 0  # No borrowed tokens in AMM (exited underwater)
     assert (
         state_logs[0].collateral == callback_collateral
     )  # Collateral amount after partial repay
+    assert state_logs[0].borrowed == 0  # No borrowed tokens in AMM (exited underwater)
+    assert state_logs[0].debt == debt - xy_before[0] - callback_borrowed
+    assert state_logs[0].n1 == ticks_after[0]
+    assert state_logs[0].n2 == ticks_after[1]
+    assert state_logs[0].liquidation_discount == controller.liquidation_discounts(
+        borrower
+    )
 
     assert len(repay_logs) == 1
     assert repay_logs[0].user == borrower
@@ -1377,12 +1412,17 @@ def test_repay_partial_from_xy0_and_wallet_and_callback_underwater_shrink(
     assert len(state_logs) == 1
     assert state_logs[0].user == borrower
     assert (
-        state_logs[0].debt == debt - xy_before[0] - callback_borrowed - wallet_borrowed
-    )
-    assert state_logs[0].borrowed == 0  # No borrowed tokens in AMM (exited underwater)
-    assert (
         state_logs[0].collateral == callback_collateral
     )  # Collateral amount after partial repay
+    assert state_logs[0].borrowed == 0  # No borrowed tokens in AMM (exited underwater)
+    assert (
+        state_logs[0].debt == debt - xy_before[0] - callback_borrowed - wallet_borrowed
+    )
+    assert state_logs[0].n1 == ticks_after[0]
+    assert state_logs[0].n2 == ticks_after[1]
+    assert state_logs[0].liquidation_discount == controller.liquidation_discounts(
+        borrower
+    )
 
     assert len(repay_logs) == 1
     assert repay_logs[0].user == borrower
