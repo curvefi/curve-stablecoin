@@ -105,14 +105,13 @@ def test_collect_fees_reduces_balance(
     controller,
     amm,
     collateral_token,
-    borrowed_token,
     vault,
 ):
     ADMIN_FEE = WAD // 2
     RATE = 10**11
     TIME_DELTA = 86400
 
-    controller.set_admin_fee(ADMIN_FEE, sender=admin)
+    controller.set_admin_percentage(ADMIN_FEE, sender=admin)
 
     boa.deal(collateral_token, boa.env.eoa, COLLATERAL)
     max_approve(collateral_token, controller.address)
