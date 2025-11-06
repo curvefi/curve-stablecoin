@@ -145,21 +145,16 @@ VIRTUAL: immutable(VirtualMethods)
 def __init__(
     _collateral_token: IERC20,
     _borrowed_token: IERC20,
-    monetary_policy: IMonetaryPolicy,
-    loan_discount: uint256,
-    liquidation_discount: uint256,
-    _AMM: IAMM,
-    view_impl: address,
+    _monetary_policy: IMonetaryPolicy,
+    _loan_discount: uint256,
+    _liquidation_discount: uint256,
+    _amm: IAMM,
+    _view_impl: address,
 ):
     VIRTUAL = VirtualMethods(self)
 
-    # TODO add sanity check for zero addresses
-    # In MintController the correct way to limit borrowing
-    # is through the debt ceiling. This is here to be used
-    # in LendController only.
-
     FACTORY = IFactory(msg.sender)
-    AMM = _AMM
+    AMM = _amm
 
     A = staticcall AMM.A()
 
@@ -180,12 +175,12 @@ def __init__(
     # This is useless for lending markets, but leaving it doesn't create any harm
     tkn.max_approve(BORROWED_TOKEN, FACTORY.address)
 
-    self._monetary_policy = monetary_policy
-    self.liquidation_discount = liquidation_discount
-    self.loan_discount = loan_discount
+    self._monetary_policy = _monetary_policy
+    self.liquidation_discount = _liquidation_discount
+    self.loan_discount = _loan_discount
     self._total_debt.rate_mul = WAD
     self.admin_percentage = WAD
-    self._set_view(view_impl)
+    self._set_view(_view_impl)
 
 
 @external
