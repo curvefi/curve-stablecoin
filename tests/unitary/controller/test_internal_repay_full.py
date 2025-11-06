@@ -68,6 +68,7 @@ def test_repay_full_from_wallet(
     debt = controller.debt(borrower)
     xy_before = amm.get_sum_xy(borrower)
     assert xy_before[0] == 0 and xy_before[1] > 0
+    assert controller.n_loans() == 1
 
     # ================= Setup payer tokens =================
 
@@ -120,6 +121,7 @@ def test_repay_full_from_wallet(
     assert amm.user_shares(borrower)[1][0] == 0
     assert xy[0] == 0
     assert xy[1] == 0
+    assert controller.n_loans() == 0  # loan removed after full repayment
 
     # ================= Verify logs =================
 
@@ -185,6 +187,7 @@ def test_repay_full_from_callback(
     debt = controller.debt(borrower)
     xy_before = amm.get_sum_xy(borrower)
     assert xy_before[0] == 0 and xy_before[1] > 0
+    assert controller.n_loans() == 1
 
     # ================= Setup callback tokens =================
 
@@ -247,6 +250,7 @@ def test_repay_full_from_callback(
     assert amm.user_shares(borrower)[1][0] == 0
     assert xy[0] == 0
     assert xy[1] == 0
+    assert controller.n_loans() == 0  # loan removed after full repayment
 
     # ================= Verify logs =================
 
@@ -316,6 +320,7 @@ def test_repay_full_from_xy0(
     debt = controller.debt(borrower)
     xy_before = amm.get_sum_xy(borrower)
     assert xy_before[0] > debt and xy_before[1] > 0
+    assert controller.n_loans() == 1
 
     # ================= Capture initial balances =================
 
@@ -364,6 +369,7 @@ def test_repay_full_from_xy0(
     assert amm.user_shares(borrower)[1][0] == 0
     assert xy_after[0] == 0
     assert xy_after[1] == 0
+    assert controller.n_loans() == 0  # loan removed after full repayment
 
     # ================= Verify logs =================
 
@@ -428,6 +434,7 @@ def test_repay_full_from_wallet_and_callback(
     debt = controller.debt(borrower)
     xy_before = amm.get_sum_xy(borrower)
     assert xy_before[0] == 0 and xy_before[1] > 0
+    assert controller.n_loans() == 1
 
     # ================= Setup payer tokens =================
 
@@ -494,6 +501,7 @@ def test_repay_full_from_wallet_and_callback(
     assert amm.user_shares(borrower)[1][0] == 0
     assert xy[0] == 0
     assert xy[1] == 0
+    assert controller.n_loans() == 0  # loan removed after full repayment
 
     # ================= Verify logs =================
 
@@ -562,6 +570,7 @@ def test_repay_full_from_xy0_and_wallet(
     debt = controller.debt(borrower)
     xy_before = amm.get_sum_xy(borrower)
     assert 0 < xy_before[0] < debt and xy_before[1] > 0
+    assert controller.n_loans() == 1
 
     # ================= Setup payer tokens =================
 
@@ -614,6 +623,7 @@ def test_repay_full_from_xy0_and_wallet(
     assert amm.user_shares(borrower)[1][0] == 0
     assert xy_after[0] == 0
     assert xy_after[1] == 0
+    assert controller.n_loans() == 0  # loan removed after full repayment
 
     # ================= Verify logs =================
 
@@ -689,6 +699,7 @@ def test_repay_full_from_xy0_and_callback(
     debt = controller.debt(borrower)
     xy_before = amm.get_sum_xy(borrower)
     assert 1 < xy_before[0] < debt and xy_before[1] > 0
+    assert controller.n_loans() == 1
 
     # ================= Setup callback tokens =================
 
@@ -750,6 +761,7 @@ def test_repay_full_from_xy0_and_callback(
     assert amm.user_shares(borrower)[1][0] == 0
     assert xy[0] == 0
     assert xy[1] == 0
+    assert controller.n_loans() == 0  # loan removed after full repayment
 
     # ================= Verify logs =================
 
@@ -824,6 +836,7 @@ def test_repay_full_from_wallet_and_xy0_and_callback(
     debt = controller.debt(borrower)
     xy_before = amm.get_sum_xy(borrower)
     assert 1 < xy_before[0] < debt and xy_before[1] > 0
+    assert controller.n_loans() == 1
 
     # ================= Setup payer tokens =================
 
@@ -889,6 +902,7 @@ def test_repay_full_from_wallet_and_xy0_and_callback(
     assert amm.user_shares(borrower)[1][0] == 0
     assert xy[0] == 0
     assert xy[1] == 0
+    assert controller.n_loans() == 0  # loan removed after full repayment
 
     # ================= Verify logs =================
 

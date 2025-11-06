@@ -97,6 +97,7 @@ def test_liquidate_full_from_wallet(
     )  # Position is not underwater
     total_debt = controller.total_debt()
     repaid = controller.eval("core.repaid")
+    assert controller.n_loans() == 1
 
     # ================= Setup liquidator tokens =================
 
@@ -155,6 +156,7 @@ def test_liquidate_full_from_wallet(
     assert user_state_after[3] == user_state_before[3]  # N unchanged
     assert controller.total_debt() == total_debt - debt
     assert controller.eval("core.repaid") == repaid + debt
+    assert controller.n_loans() == 0  # loan removed after full liquidation
 
     # ================= Verify logs =================
 
@@ -249,6 +251,7 @@ def test_liquidate_full_from_wallet_underwater(
     )  # Position is underwater
     total_debt = controller.total_debt()
     repaid = controller.eval("core.repaid")
+    assert controller.n_loans() == 1
 
     # ================= Setup liquidator tokens =================
 
@@ -309,6 +312,7 @@ def test_liquidate_full_from_wallet_underwater(
     assert user_state_after[3] == user_state_before[3]  # N unchanged
     assert controller.total_debt() == total_debt - debt
     assert controller.eval("core.repaid") == repaid + debt
+    assert controller.n_loans() == 0  # loan removed after full liquidation
 
     # ================= Verify logs =================
 
@@ -391,6 +395,7 @@ def test_liquidate_full_from_callback(
     assert user_state_before[1] == 0 and user_state_before[0] > 0
     total_debt = controller.total_debt()
     repaid = controller.eval("core.repaid")
+    assert controller.n_loans() == 1
     liquidate_hits = dummy_callback.callback_liquidate_hits()
 
     # ================= Setup callback tokens =================
@@ -475,6 +480,7 @@ def test_liquidate_full_from_callback(
     assert user_state_after[3] == user_state_before[3]  # N unchanged
     assert controller.total_debt() == total_debt - debt
     assert controller.eval("core.repaid") == repaid + debt
+    assert controller.n_loans() == 0  # loan removed after full liquidation
     assert dummy_callback.callback_liquidate_hits() == liquidate_hits + 1
 
     # ================= Verify logs =================
@@ -573,6 +579,7 @@ def test_liquidate_full_from_callback_underwater(
     assert 0 < user_state_before[1] < debt and user_state_before[0] > 0
     total_debt = controller.total_debt()
     repaid = controller.eval("core.repaid")
+    assert controller.n_loans() == 1
     liquidate_hits = dummy_callback.callback_liquidate_hits()
 
     # ================= Setup callback tokens =================
@@ -658,6 +665,7 @@ def test_liquidate_full_from_callback_underwater(
     assert user_state_after[3] == user_state_before[3]  # N unchanged
     assert controller.total_debt() == total_debt - debt
     assert controller.eval("core.repaid") == repaid + debt
+    assert controller.n_loans() == 0  # loan removed after full liquidation
     assert dummy_callback.callback_liquidate_hits() == liquidate_hits + 1
 
     # ================= Verify logs =================
@@ -755,6 +763,7 @@ def test_liquidate_full_from_xy0_underwater(
     assert user_state_before[1] > debt > 0 and user_state_before[0] > 0
     total_debt = controller.total_debt()
     repaid = controller.eval("core.repaid")
+    assert controller.n_loans() == 1
 
     tokens_needed = controller.tokens_to_liquidate(borrower)
     assert tokens_needed == 0
@@ -810,6 +819,7 @@ def test_liquidate_full_from_xy0_underwater(
     assert user_state_after[3] == user_state_before[3]  # N unchanged
     assert controller.total_debt() == total_debt - debt
     assert controller.eval("core.repaid") == repaid + debt
+    assert controller.n_loans() == 0  # loan removed after full liquidation
 
     # ================= Verify logs =================
 
@@ -912,6 +922,7 @@ def test_liquidate_full_from_xy0_underwater_exact(
     assert 0 < user_state_before[1] == debt and user_state_before[0] > 0
     total_debt = controller.total_debt()
     repaid = controller.eval("core.repaid")
+    assert controller.n_loans() == 1
 
     tokens_needed = controller.tokens_to_liquidate(borrower)
     assert tokens_needed == 0
@@ -964,6 +975,7 @@ def test_liquidate_full_from_xy0_underwater_exact(
     assert user_state_after[3] == user_state_before[3]  # N unchanged
     assert controller.total_debt() == total_debt - debt
     assert controller.eval("core.repaid") == repaid + debt
+    assert controller.n_loans() == 0  # loan removed after full liquidation
 
     # ================= Verify logs =================
 
@@ -1066,6 +1078,7 @@ def test_liquidate_partial_from_wallet(
     assert user_state_before[1] == 0 and user_state_before[0] > 0
     total_debt = controller.total_debt()
     repaid = controller.eval("core.repaid")
+    assert controller.n_loans() == 1
     ns = amm.read_user_tick_numbers(borrower)
 
     # ================= Calc tokens to remove from AMM =================
@@ -1137,6 +1150,7 @@ def test_liquidate_partial_from_wallet(
     assert user_state_after[3] == user_state_before[3]  # N unchanged
     assert controller.total_debt() == total_debt - debt_to_repay
     assert controller.eval("core.repaid") == repaid + debt_to_repay
+    assert controller.n_loans() == 1  # loan remains after partial liquidation
 
     # ================= Verify logs =================
 
@@ -1243,6 +1257,7 @@ def test_liquidate_partial_from_wallet_underwater(
     )  # Position is underwater
     total_debt = controller.total_debt()
     repaid = controller.eval("core.repaid")
+    assert controller.n_loans() == 1
     ns = amm.read_user_tick_numbers(borrower)
 
     # ================= Calc tokens to remove from AMM =================
@@ -1319,6 +1334,7 @@ def test_liquidate_partial_from_wallet_underwater(
     assert user_state_after[3] == user_state_before[3]  # N unchanged
     assert controller.total_debt() == total_debt - debt_to_repay
     assert controller.eval("core.repaid") == repaid + debt_to_repay
+    assert controller.n_loans() == 1  # loan remains after partial liquidation
 
     # ================= Verify logs =================
 
@@ -1413,6 +1429,7 @@ def test_liquidate_partial_from_callback(
     assert user_state_before[1] == 0 and user_state_before[0] > 0
     total_debt = controller.total_debt()
     repaid = controller.eval("core.repaid")
+    assert controller.n_loans() == 1
     ns = amm.read_user_tick_numbers(borrower)
     liquidate_hits = dummy_callback.callback_liquidate_hits()
 
@@ -1496,6 +1513,7 @@ def test_liquidate_partial_from_callback(
     assert user_state_after[3] == user_state_before[3]  # N unchanged
     assert controller.total_debt() == total_debt - debt_to_repay
     assert controller.eval("core.repaid") == repaid + debt_to_repay
+    assert controller.n_loans() == 1  # loan remains after partial liquidation
     assert dummy_callback.callback_liquidate_hits() == liquidate_hits + 1
 
     # ================= Verify logs =================
@@ -1608,6 +1626,7 @@ def test_liquidate_partial_from_callback_underwater(
     assert 0 < user_state_before[1] < debt and user_state_before[0] > 0
     total_debt = controller.total_debt()
     repaid = controller.eval("core.repaid")
+    assert controller.n_loans() == 1
     ns = amm.read_user_tick_numbers(borrower)
     liquidate_hits = dummy_callback.callback_liquidate_hits()
 
@@ -1708,6 +1727,7 @@ def test_liquidate_partial_from_callback_underwater(
     assert user_state_after[3] == user_state_before[3]  # N unchanged
     assert controller.total_debt() == total_debt - debt_to_repay
     assert controller.eval("core.repaid") == repaid + debt_to_repay
+    assert controller.n_loans() == 1  # loan remains after partial liquidation
     assert dummy_callback.callback_liquidate_hits() == liquidate_hits + 1
 
     # ================= Verify logs =================

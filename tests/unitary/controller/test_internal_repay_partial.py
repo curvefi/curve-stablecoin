@@ -79,6 +79,7 @@ def test_repay_partial_from_wallet(
     ticks_before = amm.read_user_tick_numbers(borrower)
     xy_before = amm.get_sum_xy(borrower)
     assert xy_before[0] == 0 and xy_before[1] > 0
+    assert controller.n_loans() == 1
 
     # ================= Setup payer tokens =================
 
@@ -152,6 +153,7 @@ def test_repay_partial_from_wallet(
     ticks_after = amm.read_user_tick_numbers(borrower)
     assert ticks_after[0] > ticks_before[0]  # Lower tick moved up
     assert ticks_after[1] > ticks_before[1]  # Upper tick moved up
+    assert controller.n_loans() == 1  # loan remains after partial repayment
 
     # ================= Verify logs =================
 
@@ -224,6 +226,7 @@ def test_repay_partial_from_callback(
     ticks_before = amm.read_user_tick_numbers(borrower)
     xy_before = amm.get_sum_xy(borrower)
     assert xy_before[0] == 0 and xy_before[1] > 0  # Position is healthy
+    assert controller.n_loans() == 1
 
     # ================= Setup callback tokens =================
 
@@ -306,6 +309,7 @@ def test_repay_partial_from_callback(
     ticks_after = amm.read_user_tick_numbers(borrower)
     assert ticks_after[0] > ticks_before[0]  # Lower tick moved up
     assert ticks_after[1] > ticks_before[1]  # Upper tick moved up
+    assert controller.n_loans() == 1  # loan remains after partial repayment
 
     # ================= Verify logs =================
 
@@ -378,6 +382,7 @@ def test_repay_partial_from_wallet_and_callback(
     ticks_before = amm.read_user_tick_numbers(borrower)
     xy_before = amm.get_sum_xy(borrower)
     assert xy_before[0] == 0 and xy_before[1] > 0  # Position is healthy
+    assert controller.n_loans() == 1
 
     # ================= Setup payer tokens =================
 
@@ -467,6 +472,7 @@ def test_repay_partial_from_wallet_and_callback(
     ticks_after = amm.read_user_tick_numbers(borrower)
     assert ticks_after[0] > ticks_before[0]  # Lower tick moved up
     assert ticks_after[1] > ticks_before[1]  # Upper tick moved up
+    assert controller.n_loans() == 1  # loan remains after partial repayment
 
     # ================= Verify logs =================
 
@@ -550,6 +556,7 @@ def test_repay_partial_from_wallet_underwater(
     ticks_before = amm.read_user_tick_numbers(borrower)
     xy_before = amm.get_sum_xy(borrower)
     assert 0 < xy_before[0] < debt and xy_before[1] > 0  # Position is underwater
+    assert controller.n_loans() == 1
 
     # ================= Setup payer tokens =================
 
@@ -635,6 +642,7 @@ def test_repay_partial_from_wallet_underwater(
     ticks_after = amm.read_user_tick_numbers(borrower)
     assert ticks_after[0] == ticks_before[0]  # Lower tick unchanged
     assert ticks_after[1] == ticks_before[1]  # Upper tick unchanged
+    assert controller.n_loans() == 1  # loan remains after partial repayment
 
     # ================= Verify logs =================
 
@@ -730,6 +738,7 @@ def test_repay_partial_from_xy0_underwater_shrink(
     debt = controller.debt(borrower)
     xy_before = amm.get_sum_xy(borrower)
     assert 0 < xy_before[0] < debt and xy_before[1] > 0  # Position is underwater
+    assert controller.n_loans() == 1
 
     # ================= Capture initial balances =================
 
@@ -803,6 +812,7 @@ def test_repay_partial_from_xy0_underwater_shrink(
         ticks_after[1] >= ticks_before[1]
     )  # Upper tick is higher or the same as before
     assert amm.active_band() == active_band_before  # Active band unchanged
+    assert controller.n_loans() == 1  # loan remains after partial repayment
 
     # ================= Verify logs =================
 
@@ -896,6 +906,7 @@ def test_repay_partial_from_xy0_and_wallet_underwater_shrink(
     debt = controller.debt(borrower)
     xy_before = amm.get_sum_xy(borrower)
     assert 0 < xy_before[0] < debt and xy_before[1] > 0  # Position is underwater
+    assert controller.n_loans() == 1
 
     # ================= Setup payer tokens =================
 
@@ -976,6 +987,7 @@ def test_repay_partial_from_xy0_and_wallet_underwater_shrink(
         ticks_after[1] >= ticks_before[1]
     )  # Upper tick is higher or the same as before
     assert amm.active_band() == active_band_before  # Active band unchanged
+    assert controller.n_loans() == 1  # loan remains after partial repayment
 
     # ================= Verify logs =================
 
@@ -1069,6 +1081,7 @@ def test_repay_partial_from_xy0_and_callback_underwater_shrink(
     debt = controller.debt(borrower)
     xy_before = amm.get_sum_xy(borrower)
     assert 0 < xy_before[0] < debt and xy_before[1] > 0  # Position is underwater
+    assert controller.n_loans() == 1
 
     # ================= Setup callback tokens =================
 
@@ -1158,6 +1171,7 @@ def test_repay_partial_from_xy0_and_callback_underwater_shrink(
         ticks_after[1] >= ticks_before[1]
     )  # Upper tick is higher or the same as before
     assert amm.active_band() == active_band_before  # Active band unchanged
+    assert controller.n_loans() == 1  # loan remains after partial repayment
 
     # ================= Verify logs =================
 
@@ -1249,6 +1263,7 @@ def test_repay_partial_from_xy0_and_wallet_and_callback_underwater_shrink(
     debt = controller.debt(borrower)
     xy_before = amm.get_sum_xy(borrower)
     assert 0 < xy_before[0] < debt and xy_before[1] > 0  # Position is underwater
+    assert controller.n_loans() == 1
 
     # ================= Setup callback tokens =================
 
@@ -1346,6 +1361,7 @@ def test_repay_partial_from_xy0_and_wallet_and_callback_underwater_shrink(
         ticks_after[1] >= ticks_before[1]
     )  # Upper tick is higher or the same as before
     assert amm.active_band() == active_band_before  # Active band unchanged
+    assert controller.n_loans() == 1  # loan remains after partial repayment
 
     # ================= Verify logs =================
 
@@ -1436,6 +1452,7 @@ def test_repay_partial_cannot_shrink(
     debt = controller.debt(borrower)
     xy_before = amm.get_sum_xy(borrower)
     assert 0 < xy_before[0] < debt and xy_before[1] > 0  # Position is underwater
+    assert controller.n_loans() == 1
 
     # ================= Execute partial repayment =================
 
