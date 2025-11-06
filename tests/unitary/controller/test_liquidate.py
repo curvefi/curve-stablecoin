@@ -75,7 +75,7 @@ def test_liquidate_full_from_wallet(
     Test full liquidation using wallet tokens.
 
     Money Flow: debt (liquidator) → Controller
-                COLLATERAL (AMM) → Liquidator
+                collateral (AMM) → Liquidator
                 Position is fully liquidated
     """
     borrower = create_max_loan()
@@ -212,9 +212,9 @@ def test_liquidate_full_from_wallet_underwater(
     """
     Test full liquidation using wallet tokens.
 
-    Money Flow: debt (liquidator) → Controller
+    Money Flow: debt - borrowed (liquidator) → Controller
                 borrowed (AMM) → Controller
-                COLLATERAL (AMM) → Liquidator
+                collateral (AMM) → Liquidator
                 Position is fully liquidated
     """
     borrower = create_max_loan()
@@ -368,9 +368,10 @@ def test_liquidate_full_from_callback(
     """
     Test full liquidation using callback proceeds (no wallet tokens needed).
 
-    Money Flow: debt (callbacker) → Controller
-                COLLATERAL (callbacker, sourced from AMM) → Liquidator
-                Surplus borrowed (callbacker) → Liquidator
+    Money Flow: collateral (AMM) -> Callbacker
+                debt (callbacker) → Controller
+                surplus collateral (callbacker) → Liquidator
+                surplus borrowed (callbacker) → Liquidator
                 Position is fully liquidated
     """
     borrower = create_max_loan()
@@ -534,10 +535,11 @@ def test_liquidate_full_from_callback_underwater(
     """
     Healthy but underwater (due to AMM state) liquidated via callback.
 
-    Money Flow: debt (callbacker) → Controller
+    Money Flow: collateral (AMM) -> Callbacker
+                debt - borrowed (callbacker) → Controller
                 borrowed (AMM) → Controller
-                COLLATERAL (callbacker, sourced from AMM) → Liquidator
-                Surplus borrowed (callbacker) → Liquidator
+                surplus collateral (callbacker) → Liquidator
+                surplus borrowed (callbacker) → Liquidator
                 Position is fully liquidated
     """
     borrower = create_max_loan()
@@ -718,7 +720,7 @@ def test_liquidate_full_from_xy0_underwater(
 
     Money Flow: borrowed (AMM) → Controller (debt amount)
                 borrowed (AMM) → Liquidator (surplus)
-                COLLATERAL (AMM) → Liquidator
+                collateral (AMM) → Liquidator
                 Position is fully liquidated
     """
     borrower = create_max_loan()
@@ -868,7 +870,7 @@ def test_liquidate_full_from_xy0_underwater_exact(
     No wallet tokens needed (tokens_needed == 0).
 
     Money Flow: borrowed (AMM) → Controller (debt amount)
-                COLLATERAL (AMM) → Liquidator
+                collateral (AMM) → Liquidator
                 Position is fully liquidated
     """
     borrower = create_max_loan()
@@ -1044,7 +1046,7 @@ def test_liquidate_partial_from_wallet(
     Test partial liquidation using wallet tokens.
 
     Money Flow: partial_debt (liquidator) → Controller
-                partial_COLLATERAL (AMM) → Liquidator
+                partial_collateral (AMM) → Liquidator
                 Position is partially liquidated
     """
     borrower = create_max_loan()
@@ -1064,6 +1066,7 @@ def test_liquidate_partial_from_wallet(
     assert user_state_before[1] == 0 and user_state_before[0] > 0
     total_debt = controller.total_debt()
     repaid = controller.eval("core.repaid")
+    ns = amm.read_user_tick_numbers(borrower)
 
     # ================= Calc tokens to remove from AMM =================
 
@@ -1103,6 +1106,7 @@ def test_liquidate_partial_from_wallet(
 
     repay_logs = filter_logs(controller, "Repay")
     liquidate_logs = filter_logs(controller, "Liquidate")
+    state_logs = filter_logs(controller, "UserState")
 
     # ================= Capture final balances =================
 
@@ -1151,6 +1155,18 @@ def test_liquidate_partial_from_wallet(
     )  # No borrowed tokens in AMM for healthy positions
     assert liquidate_logs[0].debt == debt_to_repay
 
+    assert len(state_logs) == 1
+    assert state_logs[0].user == borrower
+    assert state_logs[0].collateral == pytest.approx(
+        user_state_before[0] - collateral_to_remove, abs=5
+    )
+    assert state_logs[0].debt == debt - debt_to_repay
+    assert state_logs[0].n1 == ns[0]
+    assert state_logs[0].n2 == ns[1]
+    assert state_logs[0].liquidation_discount == controller.liquidation_discounts(
+        borrower
+    )
+
     # ================= Verify money flows =================
 
     assert borrowed_to_controller == debt_to_repay
@@ -1190,9 +1206,9 @@ def test_liquidate_partial_from_wallet_underwater(
     """
     Test partial liquidation using wallet tokens.
 
-    Money Flow: partial_debt (liquidator) → Controller
+    Money Flow: partial_debt - partial_borrowed (liquidator) → Controller
                 partial_borrowed (AMM) → Controller
-                partial_COLLATERAL (AMM) → Liquidator
+                partial_collateral (AMM) → Liquidator
                 Position is partially liquidated
     """
     borrower = create_max_loan()
@@ -1227,6 +1243,7 @@ def test_liquidate_partial_from_wallet_underwater(
     )  # Position is underwater
     total_debt = controller.total_debt()
     repaid = controller.eval("core.repaid")
+    ns = amm.read_user_tick_numbers(borrower)
 
     # ================= Calc tokens to remove from AMM =================
 
@@ -1270,6 +1287,7 @@ def test_liquidate_partial_from_wallet_underwater(
 
     repay_logs = filter_logs(controller, "Repay")
     liquidate_logs = filter_logs(controller, "Liquidate")
+    state_logs = filter_logs(controller, "UserState")
 
     # ================= Capture final balances =================
 
@@ -1319,6 +1337,18 @@ def test_liquidate_partial_from_wallet_underwater(
     )  # Borrowed tokens withdrawn from AMM
     assert liquidate_logs[0].debt == debt_to_repay
 
+    assert len(state_logs) == 1
+    assert state_logs[0].user == borrower
+    assert state_logs[0].collateral == pytest.approx(
+        user_state_before[0] - collateral_to_remove, abs=5
+    )
+    assert state_logs[0].debt == debt - debt_to_repay
+    assert state_logs[0].n1 == ns[0]
+    assert state_logs[0].n2 == ns[1]
+    assert state_logs[0].liquidation_discount == controller.liquidation_discounts(
+        borrower
+    )
+
     # ================= Verify money flows =================
 
     assert borrowed_to_controller == debt_to_repay
@@ -1360,9 +1390,10 @@ def test_liquidate_partial_from_callback(
     """
     Test partial liquidation using callback proceeds (no wallet tokens needed).
 
-    Money Flow: partial_debt (callbacker) → Controller
-                partial_COLLATERAL (callbacker, sourced from AMM) → Liquidator
-                Surplus borrowed (callbacker) → Liquidator
+    Money Flow: partial_collateral (AMM) -> Callbacker
+                partial_debt (callbacker) → Controller
+                surplus collateral (callbacker) → Liquidator
+                surplus borrowed (callbacker) → Liquidator
                 Position is partially liquidated
     """
     borrower = create_max_loan()
@@ -1382,6 +1413,7 @@ def test_liquidate_partial_from_callback(
     assert user_state_before[1] == 0 and user_state_before[0] > 0
     total_debt = controller.total_debt()
     repaid = controller.eval("core.repaid")
+    ns = amm.read_user_tick_numbers(borrower)
     liquidate_hits = dummy_callback.callback_liquidate_hits()
 
     # ================= Calc tokens to remove from AMM =================
@@ -1427,6 +1459,7 @@ def test_liquidate_partial_from_callback(
 
     repay_logs = filter_logs(controller, "Repay")
     liquidate_logs = filter_logs(controller, "Liquidate")
+    state_logs = filter_logs(controller, "UserState")
 
     # ================= Capture final balances =================
 
@@ -1482,6 +1515,18 @@ def test_liquidate_partial_from_callback(
     )  # No borrowed tokens in AMM for healthy positions
     assert liquidate_logs[0].debt == debt_to_repay
 
+    assert len(state_logs) == 1
+    assert state_logs[0].user == borrower
+    assert state_logs[0].collateral == pytest.approx(
+        user_state_before[0] - collateral_to_remove, abs=5
+    )
+    assert state_logs[0].debt == debt - debt_to_repay
+    assert state_logs[0].n1 == ns[0]
+    assert state_logs[0].n2 == ns[1]
+    assert state_logs[0].liquidation_discount == controller.liquidation_discounts(
+        borrower
+    )
+
     # ================= Verify money flows =================
 
     assert borrowed_to_controller == debt_to_repay
@@ -1525,10 +1570,11 @@ def test_liquidate_partial_from_callback_underwater(
     """
     Healthy but underwater (due to AMM state) partially liquidated via callback.
 
-    Money Flow: partial_debt (callbacker) → Controller
+    Money Flow: partial_collateral (AMM) -> Callbacker
+                partial_debt - partial_borrowed (callbacker) → Controller
                 partial_borrowed (AMM) → Controller
-                partial_COLLATERAL (callbacker, sourced from AMM) → Liquidator
-                Surplus borrowed (callbacker) → Liquidator
+                surplus collateral (callbacker) → Liquidator
+                surplus borrowed (callbacker) → Liquidator
                 Position is partially liquidated
     """
     borrower = create_max_loan()
@@ -1562,6 +1608,7 @@ def test_liquidate_partial_from_callback_underwater(
     assert 0 < user_state_before[1] < debt and user_state_before[0] > 0
     total_debt = controller.total_debt()
     repaid = controller.eval("core.repaid")
+    ns = amm.read_user_tick_numbers(borrower)
     liquidate_hits = dummy_callback.callback_liquidate_hits()
 
     # ================= Calc tokens to removed from AMM =================
@@ -1623,6 +1670,7 @@ def test_liquidate_partial_from_callback_underwater(
 
     repay_logs = filter_logs(controller, "Repay")
     liquidate_logs = filter_logs(controller, "Liquidate")
+    state_logs = filter_logs(controller, "UserState")
 
     # ================= Capture final balances =================
 
@@ -1678,6 +1726,18 @@ def test_liquidate_partial_from_callback_underwater(
         liquidate_logs[0].borrowed_received == borrowed_to_remove
     )  # Borrowed tokens withdrawn from AMM
     assert liquidate_logs[0].debt == debt_to_repay
+
+    assert len(state_logs) == 1
+    assert state_logs[0].user == borrower
+    assert state_logs[0].collateral == pytest.approx(
+        user_state_before[0] - collateral_to_remove, abs=5
+    )
+    assert state_logs[0].debt == debt - debt_to_repay
+    assert state_logs[0].n1 == ns[0]
+    assert state_logs[0].n2 == ns[1]
+    assert state_logs[0].liquidation_discount == controller.liquidation_discounts(
+        borrower
+    )
 
     # ================= Verify money flows =================
 
