@@ -1162,6 +1162,9 @@ def test_liquidate_partial_from_wallet(
 
     assert len(repay_logs) == 1
     assert repay_logs[0].user == borrower
+    assert repay_logs[0].collateral_decrease == pytest.approx(
+        collateral_to_remove, abs=5
+    )
     assert repay_logs[0].loan_decrease == debt_to_repay
 
     assert len(liquidate_logs) == 1
@@ -1347,6 +1350,9 @@ def test_liquidate_partial_from_wallet_underwater(
 
     assert len(repay_logs) == 1
     assert repay_logs[0].user == borrower
+    assert repay_logs[0].collateral_decrease == pytest.approx(
+        collateral_to_remove, abs=3
+    )  # collateral tokens withdrawn from AMM
     assert repay_logs[0].loan_decrease == debt_to_repay
 
     assert len(liquidate_logs) == 1
@@ -1528,6 +1534,9 @@ def test_liquidate_partial_from_callback(
 
     assert len(repay_logs) == 1
     assert repay_logs[0].user == borrower
+    assert repay_logs[0].collateral_decrease == pytest.approx(
+        collateral_to_remove, abs=3
+    )
     assert repay_logs[0].loan_decrease == debt_to_repay
 
     assert len(liquidate_logs) == 1
@@ -1743,6 +1752,9 @@ def test_liquidate_partial_from_callback_underwater(
 
     assert len(repay_logs) == 1
     assert repay_logs[0].user == borrower
+    assert repay_logs[0].collateral_decrease == pytest.approx(
+        collateral_to_remove, abs=3
+    )
     assert repay_logs[0].loan_decrease == debt_to_repay
 
     assert len(liquidate_logs) == 1
