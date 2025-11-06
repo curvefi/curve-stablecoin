@@ -220,7 +220,6 @@ def _on_debt_increased(delta: uint256, total_debt: uint256):
     @notice Hook called when debt is increased
     """
     assert msg.sender == self # dev: virtual method protection
-    # TODO move to solidity style errors
     assert total_debt <= self.borrow_cap, "Borrow cap exceeded"
     assert delta <= self._available_balance(), "Available balance exceeded"
 
