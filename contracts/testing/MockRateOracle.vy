@@ -1,4 +1,4 @@
-#pragma version 0.3.10
+# pragma version 0.4.3
 """
 @title MockRateOracle
 @notice Mock to tweak rate
@@ -7,7 +7,7 @@
 rates: public(uint256[2])
 
 
-@external
+@deploy
 def __init__():
     self.rates = [10 ** 18, 10 ** 18]
 

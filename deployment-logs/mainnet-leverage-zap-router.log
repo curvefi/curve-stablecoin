@@ -1,5 +1,5 @@
 $ ape run scripts/ape-deploy-leverage-zaps.py deploy --network ethereum:mainnet:alchemy
-Enter passphrase to permanently unlock 'babe': 
+Enter passphrase to permanently unlock 'babe':
 WARNING: Danger! This account will now sign any transaction it's given.
 INFO: Compiling 'Controller.vy'.
 INFO: Compiling 'price_oracles/CryptoWithStablePriceTBTC.vy'.

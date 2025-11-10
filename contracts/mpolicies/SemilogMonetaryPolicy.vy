@@ -10,6 +10,7 @@
 @author Curve.fi
 @license Copyright (c) Curve.Fi, 2020-2024 - all rights reserved
 """
+# TODO bump to vyper 0.4.3
 from vyper.interfaces import ERC20
 
 
@@ -39,7 +40,12 @@ log_max_rate: public(int256)
 
 
 @external
-def __init__(borrowed_token: ERC20, min_rate: uint256, max_rate: uint256):
+def __init__(
+    borrowed_token: ERC20,
+    min_rate: uint256,
+    max_rate: uint256,
+    _factory: address
+):
     assert min_rate >= MIN_RATE and max_rate <= MAX_RATE and min_rate <= max_rate, "Wrong rates"
 
     BORROWED_TOKEN = borrowed_token
@@ -48,7 +54,7 @@ def __init__(borrowed_token: ERC20, min_rate: uint256, max_rate: uint256):
     self.log_min_rate = self.ln_int(min_rate)
     self.log_max_rate = self.ln_int(max_rate)
 
-    FACTORY = Factory(msg.sender)
+    FACTORY = Factory(_factory)
 
 
 ### MATH ###

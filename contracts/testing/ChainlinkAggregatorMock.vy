@@ -1,4 +1,4 @@
-# @version ^0.3.9
+# pragma version 0.4.3
 """
 @notice Chainlink Aggregator Mock for testing
 """
@@ -8,8 +8,7 @@ ADMIN: immutable(address)
 price: int256
 
 
-@payable
-@external
+@deploy
 def __init__(decimals: uint8, admin: address, price: int256):
     self.decimals = decimals
 

@@ -1,7 +1,7 @@
 import boa
 
+from tests.utils.constants import ZERO_ADDRESS
 
-ZERO_ADDRESS = "0x0000000000000000000000000000000000000000"
 ADMIN_ACTIONS_DEADLINE = 3 * 86400
 
 
@@ -17,10 +17,13 @@ def test_parameters(peg_keepers, swaps, stablecoin, admin, reg):
         assert peg_keeper.regulator() == reg.address
 
 
-def test_update_access(peg_keepers, peg_keeper_updater,
-                       add_initial_liquidity,
-                       provide_token_to_peg_keepers,
-                       imbalance_pools):
+def test_update_access(
+    peg_keepers,
+    peg_keeper_updater,
+    add_initial_liquidity,
+    provide_token_to_peg_keepers,
+    imbalance_pools,
+):
     imbalance_pools(1)
     with boa.env.prank(peg_keeper_updater):
         for pk in peg_keepers:
@@ -73,7 +76,7 @@ def test_new_admin(peg_keepers, admin, alice, bob):
 
         assert pk.admin() == admin
         assert pk.future_admin() == alice
-        assert boa.env.vm.patch.timestamp + ADMIN_ACTIONS_DEADLINE == pk.new_admin_deadline()
+        assert boa.env.timestamp + ADMIN_ACTIONS_DEADLINE == pk.new_admin_deadline()
 
         # apply_new_admin
         boa.env.time_travel(ADMIN_ACTIONS_DEADLINE - 60)

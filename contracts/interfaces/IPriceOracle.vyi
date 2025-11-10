@@ -1,0 +1,6 @@
+@view
+def price() -> uint256:
+    ...
+
+def price_w() -> uint256:
+    ...

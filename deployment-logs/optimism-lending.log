@@ -1,5 +1,5 @@
-$ python3 scripts/deploy-lending-optimism.py --markets       
-Password: 
+$ python3 scripts/deploy-lending-optimism.py --markets
+Password:
 tx broadcasted: 0x85e80b69609910d93e9017261eefbac6d4429fb80943d4528a8f9db9365a2378
 /usr/lib/pypy3.10/functools.py:993: UserWarning: debug_traceTransaction not available! titanoboa will try hard to interact with the network, but this means that titanoboa is not able to do certain safety checks at runtime. it is recommended to switch to a node or provider with debug_traceTransaction.
   val = self.func(instance)
@@ -69,4 +69,3 @@ tx broadcasted: 0xced63729517e29dbd8df27d49302f04ccf02a1d5e2483efe37b65fdde12272
 Deploying on Ethereum with salt: 0d529a8f69396bfd736d1e560e16cee4a2f41f757be01ef4e2feb4f49e8280ef
 tx broadcasted: 0xe97906d5af411202d7c6f297713fbd937a33420c35fcde6366a47519214cad26
 0xe97906d5af411202d7c6f297713fbd937a33420c35fcde6366a47519214cad26 mined in block 0x5297f360e632f40e3d2b66022c079f9e2590f15f3214cd40dfd40c53f3612c67!
-

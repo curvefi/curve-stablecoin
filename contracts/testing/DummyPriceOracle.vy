@@ -1,4 +1,4 @@
-# @version 0.3.10
+# pragma version 0.4.3
 
 """
 This contract is for testing only.
@@ -9,7 +9,7 @@ price: public(uint256)
 ADMIN: immutable(address)
 
 
-@external
+@deploy
 def __init__(admin: address, price: uint256):
     self.price = price
     ADMIN = admin

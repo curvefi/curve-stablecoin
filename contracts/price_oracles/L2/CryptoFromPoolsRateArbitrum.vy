@@ -64,6 +64,7 @@ def __init__(
 
         # Find N
         N: uint256 = 0
+        # TODO duplicate code to modularize
         for j in range(MAX_COINS + 1):
             success: bool = False
             res: Bytes[32] = empty(Bytes[32])

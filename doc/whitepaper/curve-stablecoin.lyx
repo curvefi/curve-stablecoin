@@ -220,7 +220,7 @@ name "fig:p_o"
 
 \end_inset
 
-Behavior of an 
+Behavior of an
 \begin_inset Quotes eld
 \end_inset
 
@@ -229,50 +229,50 @@ AMM with an external price source
 \end_inset
 
 .
- External price 
+ External price
 \begin_inset Formula $p_{center}$
 \end_inset
 
  determines a price around which liquidity is formed.
- AMM supports liquidity concentrated from prices 
+ AMM supports liquidity concentrated from prices
 \begin_inset Formula $p_{cd}$
 \end_inset
 
- to 
+ to
 \begin_inset Formula $p_{cu}$
 \end_inset
 
-, 
+,
 \begin_inset Formula $p_{cd}<p_{center}<p_{cu}$
 \end_inset
 
 .
- When current price 
+ When current price
 \begin_inset Formula $p$
 \end_inset
 
- is out of range between 
+ is out of range between
 \begin_inset Formula $p_{cd}$
 \end_inset
 
- and 
+ and
 \begin_inset Formula $p_{cu}$
 \end_inset
 
-, AMM is either fully in stablecoin (when at 
+, AMM is either fully in stablecoin (when at
 \begin_inset Formula $p_{cu}$
 \end_inset
 
-) or fully in collateral (when at 
+) or fully in collateral (when at
 \begin_inset Formula $p_{cd}$
 \end_inset
 
 ).
- When 
+ When
 \begin_inset Formula $p_{cd}\le p\le p_{cu}$
 \end_inset
 
-, AMM price is equal to the current price 
+, AMM price is equal to the current price
 \begin_inset Formula $p$
 \end_inset
 
@@ -317,19 +317,19 @@ name "fig:cubic"
 \end_inset
 
 AMM which we search for.
- We seek to construct an AMM where 
+ We seek to construct an AMM where
 \begin_inset Formula $p_{cd}$
 \end_inset
 
- and 
+ and
 \begin_inset Formula $p_{cu}$
 \end_inset
 
- are such functions of 
+ are such functions of
 \begin_inset Formula $p_{o}$
 \end_inset
 
- that when 
+ that when
 \begin_inset Formula $p_{o}$
 \end_inset
 
@@ -360,7 +360,7 @@ The below description doesn't serve as a fully self-consistent rigurous
 \begin_layout Standard
 This is only possible with an external price oracle.
  In a nutshell, if one makes a typical AMM (for example with a bonding curve
- being a piece of hyperbola) and ramps its 
+ being a piece of hyperbola) and ramps its
 \begin_inset Quotes eld
 \end_inset
 
@@ -371,7 +371,7 @@ center price
  from (for example) down to up, the tokens will adiabatically convert from
  (for example) USD to ETH while proving liquidity in both ways on the way
  (Fig.
- 
+
 \begin_inset CommandInset ref
 LatexCommand ref
 reference "fig:p_o"
@@ -385,42 +385,42 @@ noprefix "false"
  It is somewhat similar to avoided crossing (also called Landau-Zener transition
 ) in quantum physics (though only as an idea: mathematical description of
  the process could be very different).
- The range where the liquidity is concentrated is called 
+ The range where the liquidity is concentrated is called
 \shape italic
 band
 \shape default
- here, at the constant 
+ here, at the constant
 \begin_inset Formula $p_{o}$
 \end_inset
 
- band has liquidity from 
+ band has liquidity from
 \begin_inset Formula $p_{cd}$
 \end_inset
 
- to 
+ to
 \begin_inset Formula $p_{cu}$
 \end_inset
 
 .
- We seek for 
+ We seek for
 \begin_inset Formula $p_{cd}(p_{o})$
 \end_inset
 
- and 
+ and
 \begin_inset Formula $p_{cu}(p_{o})$
 \end_inset
 
- being functions of 
+ being functions of
 \begin_inset Formula $p_{o}$
 \end_inset
 
  only, functions being more steep than linear and, hence, growing faster
- than 
+ than
 \begin_inset Formula $p_{o}$
 \end_inset
 
 (Fig.
- 
+
 \begin_inset CommandInset ref
 LatexCommand ref
 reference "fig:cubic"
@@ -431,24 +431,24 @@ noprefix "false"
 \end_inset
 
 ).
- In addition, let's define prices 
+ In addition, let's define prices
 \begin_inset Formula $p_{\downarrow}$
 \end_inset
 
-and 
+and
 \begin_inset Formula $p_{\uparrow}$
 \end_inset
 
- being prices where 
+ being prices where
 \begin_inset Formula $p_{\downarrow}(p_{o})=p_{o}$
 \end_inset
 
-, and 
+, and
 \begin_inset Formula $p_{\uparrow}(p_{o})=p_{o}$
 \end_inset
 
 , definining ends of bands in adiabatic limit (e.g.
- 
+
 \begin_inset Formula $p=p_{o}$
 \end_inset
 
@@ -458,15 +458,15 @@ and
 \begin_layout Standard
 We start from a number of bands where, similarly to Uniswap3, hyperbolic
  shape of the bonding curve is preserved by adding virtual balances.
- Let say, the amount of USD is 
+ Let say, the amount of USD is
 \begin_inset Formula $x$
 \end_inset
 
-, and the amount of ETH is 
+, and the amount of ETH is
 \begin_inset Formula $y$
 \end_inset
 
-, therefore the 
+, therefore the
 \begin_inset Quotes eld
 \end_inset
 
@@ -478,22 +478,22 @@ amplified
 \end_layout
 
 \begin_layout Standard
-\begin_inset Formula 
+\begin_inset Formula
 \begin{equation}
 I=\left(x+f\right)\left(y+g\right).\label{eq:inv}
 \end{equation}
 
 \end_inset
 
-We also can denote 
+We also can denote
 \begin_inset Formula $x^{\prime}\equiv x+f$
 \end_inset
 
- and 
+ and
 \begin_inset Formula $y^{\prime}\equiv y+g$
 \end_inset
 
- so that the invariant can be written as a familiar 
+ so that the invariant can be written as a familiar
 \begin_inset Formula $I=x^{\prime}y^{\prime}$
 \end_inset
 
@@ -501,47 +501,47 @@ We also can denote
 \end_layout
 
 \begin_layout Standard
-However, 
+However,
 \begin_inset Formula $f$
 \end_inset
 
- and 
+ and
 \begin_inset Formula $g$
 \end_inset
 
  do not stay constant: they change with the external price oracle (and so
- does the invariant 
+ does the invariant
 \begin_inset Formula $I$
 \end_inset
 
-, so it is only the invariant while the oracle price 
+, so it is only the invariant while the oracle price
 \begin_inset Formula $p_{o}$
 \end_inset
 
  is unchanged).
- At a given 
+ At a given
 \begin_inset Formula $p_{o}$
 \end_inset
 
-, 
+,
 \begin_inset Formula $f$
 \end_inset
 
- and 
+ and
 \begin_inset Formula $g$
 \end_inset
 
  are constant across the band.
- As mentioned before, we denote 
+ As mentioned before, we denote
 \begin_inset Formula $p_{\uparrow}$
 \end_inset
 
- as the top price of the band and 
+ as the top price of the band and
 \begin_inset Formula $p_{\downarrow}$
 \end_inset
 
 as the bottom price of the band.
- We define 
+ We define
 \begin_inset Formula $A$
 \end_inset
 
@@ -549,7 +549,7 @@ as the bottom price of the band.
 \end_layout
 
 \begin_layout Standard
-\begin_inset Formula 
+\begin_inset Formula
 \begin{equation}
 \frac{p_{\downarrow}}{p_{\uparrow}}=\frac{A-1}{A}.
 \end{equation}
@@ -560,12 +560,12 @@ as the bottom price of the band.
 \end_layout
 
 \begin_layout Standard
-The property we are looking for is such that higher price 
+The property we are looking for is such that higher price
 \begin_inset Formula $p_{o}$
 \end_inset
 
  should lead to even higher price at the same balances, so that the current
- market price (which will, on average, follow 
+ market price (which will, on average, follow
 \begin_inset Formula $p_{o}$
 \end_inset
 
@@ -575,48 +575,48 @@ The property we are looking for is such that higher price
 \end_layout
 
 \begin_layout Standard
-\begin_inset Formula 
+\begin_inset Formula
 \begin{equation}
 f=\frac{p_{o}^{2}}{p_{\uparrow}}Ay_{0},\qquad g=\frac{p_{\uparrow}}{p_{o}}\left(A-1\right)y_{0},
 \end{equation}
 
 \end_inset
 
-where 
+where
 \begin_inset Formula $y_{0}$
 \end_inset
 
- is a 
+ is a
 \begin_inset Formula $p_{0}$
 \end_inset
 
 -dependent measure of deposits in the current band, denominated in ETH,
- defined in such a way that when current price 
+ defined in such a way that when current price
 \begin_inset Formula $p$
 \end_inset
 
-, 
+,
 \begin_inset Formula $p_{\uparrow}$
 \end_inset
 
- and 
+ and
 \begin_inset Formula $p_{o}$
 \end_inset
 
- are equal to each other, then 
+ are equal to each other, then
 \begin_inset Formula $y=y_{0}$
 \end_inset
 
- and 
+ and
 \begin_inset Formula $x=0$
 \end_inset
 
- (see the point at 
+ (see the point at
 \begin_inset Formula $p_{o}=p_{\uparrow}$
 \end_inset
 
  on Fig.
- 
+
 \begin_inset CommandInset ref
 LatexCommand ref
 reference "fig:cubic"
@@ -627,7 +627,7 @@ noprefix "false"
 \end_inset
 
 ).
- Then if we substitute 
+ Then if we substitute
 \begin_inset Formula $y$
 \end_inset
 
@@ -635,7 +635,7 @@ noprefix "false"
 \end_layout
 
 \begin_layout Standard
-\begin_inset Formula 
+\begin_inset Formula
 \begin{equation}
 I=p_{o}A^{2}y_{0}^{2}.
 \end{equation}
@@ -646,7 +646,7 @@ I=p_{o}A^{2}y_{0}^{2}.
 \end_layout
 
 \begin_layout Standard
-Price is equal to 
+Price is equal to
 \begin_inset Formula $dx^{\prime}/dy^{\prime}$
 \end_inset
 
@@ -654,26 +654,26 @@ Price is equal to
 \end_layout
 
 \begin_layout Standard
-\begin_inset Formula 
+\begin_inset Formula
 \begin{equation}
 p=\frac{dx^{\prime}}{dy^{\prime}}=\frac{x^{\prime}}{y^{\prime}}=\frac{f+x}{g+y}.\label{eq:price}
 \end{equation}
 
 \end_inset
 
-One can substitute situations where 
+One can substitute situations where
 \begin_inset Formula $p_{o}=p_{\uparrow}$
 \end_inset
 
- or 
+ or
 \begin_inset Formula $p_{o}=p_{\downarrow}$
 \end_inset
 
- with 
+ with
 \begin_inset Formula $x=0$
 \end_inset
 
- or 
+ or
 \begin_inset Formula $y=0$
 \end_inset
 
@@ -681,32 +681,32 @@ One can substitute situations where
 \end_layout
 
 \begin_layout Standard
-Typically for a band, we know 
+Typically for a band, we know
 \begin_inset Formula $p_{\uparrow}$
 \end_inset
 
- and, hence, 
+ and, hence,
 \begin_inset Formula $p_{\downarrow}$
 \end_inset
 
-, 
+,
 \begin_inset Formula $p_{o}$
 \end_inset
 
-, constant 
+, constant
 \begin_inset Formula $A$
 \end_inset
 
-, and also 
+, and also
 \begin_inset Formula $x$
 \end_inset
 
- and 
+ and
 \begin_inset Formula $y$
 \end_inset
 
  (current deposits in the band).
- To calculate everything, we need to find 
+ To calculate everything, we need to find
 \begin_inset Formula $y_{o}$
 \end_inset
 
@@ -715,14 +715,14 @@ Typically for a band, we know
 \end_layout
 
 \begin_layout Standard
-\begin_inset Formula 
+\begin_inset Formula
 \begin{equation}
 \left(\frac{p_{o}^{2}}{p_{\uparrow}}Ay_{0}+x\right)\left(\frac{p_{\uparrow}}{p_{o}}\left(A-1\right)y_{0}+y\right)=p_{o}A^{2}y_{0}^{2},
 \end{equation}
 
 \end_inset
 
-which turns into the quadratic equation against 
+which turns into the quadratic equation against
 \begin_inset Formula $y_{o}$
 \end_inset
 
@@ -730,14 +730,14 @@ which turns into the quadratic equation against
 \end_layout
 
 \begin_layout Standard
-\begin_inset Formula 
+\begin_inset Formula
 \begin{equation}
 p_{o}Ay_{0}^{2}-y_{0}\left(\frac{p_{\uparrow}}{p_{o}}\left(A-1\right)x+\frac{p_{o}^{2}}{p_{\uparrow}}Ay\right)-xy=0.\label{eq:quad}
 \end{equation}
 
 \end_inset
 
-In the smart contract, we solve this quadratic equation in 
+In the smart contract, we solve this quadratic equation in
 \series bold
 get_y0
 \series default
@@ -745,17 +745,17 @@ get_y0
 \end_layout
 
 \begin_layout Standard
-While oracle price 
+While oracle price
 \begin_inset Formula $p_{o}$
 \end_inset
 
  stays constant, the AMM works in a normal way, e.g.
  sells ETH when going up / buys ETH when going down.
- By simply substituting 
+ By simply substituting
 \begin_inset Formula $x=0$
 \end_inset
 
- for the 
+ for the
 \begin_inset Quotes eld
 \end_inset
 
@@ -763,15 +763,15 @@ current down
 \begin_inset Quotes erd
 \end_inset
 
- price 
+ price
 \begin_inset Formula $p_{cd}$
 \end_inset
 
-or 
+or
 \begin_inset Formula $y=0$
 \end_inset
 
- for the 
+ for the
 \begin_inset Quotes eld
 \end_inset
 
@@ -779,16 +779,16 @@ current up
 \begin_inset Quotes erd
 \end_inset
 
- price 
+ price
 \begin_inset Formula $p_{cu}$
 \end_inset
 
  values into the equation of the invariant respectively, it is possible
- to show that AMM prices at the current value of 
+ to show that AMM prices at the current value of
 \begin_inset Formula $p_{o}$
 \end_inset
 
- and the current value of 
+ and the current value of
 \begin_inset Formula $p_{\uparrow}$
 \end_inset
 
@@ -796,7 +796,7 @@ current up
 \end_layout
 
 \begin_layout Standard
-\begin_inset Formula 
+\begin_inset Formula
 \begin{equation}
 p_{cd}=\frac{p_{o}^{3}}{p_{\uparrow}^{2}},\qquad p_{cu}=\frac{p_{o}^{3}}{p_{\downarrow}^{2}}.\label{eq:current-price}
 \end{equation}
@@ -808,32 +808,32 @@ p_{cd}=\frac{p_{o}^{3}}{p_{\uparrow}^{2}},\qquad p_{cu}=\frac{p_{o}^{3}}{p_{\dow
 
 \begin_layout Standard
 Another practically important question is: if price changes up or down so
- slowly that the oracle price 
+ slowly that the oracle price
 \begin_inset Formula $p_{o}$
 \end_inset
 
- is fully capable to follow it 
+ is fully capable to follow it
 \shape italic
 adiabatically
 \shape default
-, what amount 
+, what amount
 \begin_inset Formula $y_{\uparrow}$
 \end_inset
 
- of ETH (if the price goes up) or 
+ of ETH (if the price goes up) or
 \begin_inset Formula $x_{\downarrow}$
 \end_inset
 
  of USD (if the price goes down) will the band end up with, given current
- values 
+ values
 \begin_inset Formula $x$
 \end_inset
 
- and 
+ and
 \begin_inset Formula $y$
 \end_inset
 
- and that we start also at 
+ and that we start also at
 \begin_inset Formula $p=p_{o}$
 \end_inset
 
@@ -843,7 +843,7 @@ adiabatically
 \end_layout
 
 \begin_layout Standard
-\begin_inset Formula 
+\begin_inset Formula
 \begin{equation}
 y_{\uparrow}=y+\frac{x}{\sqrt{p_{\uparrow}p}},
 \end{equation}
@@ -854,7 +854,7 @@ y_{\uparrow}=y+\frac{x}{\sqrt{p_{\uparrow}p}},
 \end_layout
 
 \begin_layout Standard
-\begin_inset Formula 
+\begin_inset Formula
 \begin{equation}
 x_{\downarrow}=x+y\sqrt{p_{\downarrow}p}.
 \end{equation}
@@ -868,19 +868,19 @@ We will use these results when evaluating safety of the loan as well as
 \begin_layout Standard
 Now we have a description of one band.
  We split all the price space into bands which touch each other with prices
- 
+
 \begin_inset Formula $p_{\downarrow}$
 \end_inset
 
- and 
+ and
 \begin_inset Formula $p_{\uparrow}$
 \end_inset
 
- so that if we set a base price 
+ so that if we set a base price
 \begin_inset Formula $p_{base}$
 \end_inset
 
- and have a band number 
+ and have a band number
 \begin_inset Formula $n$
 \end_inset
 
@@ -888,7 +888,7 @@ Now we have a description of one band.
 \end_layout
 
 \begin_layout Standard
-\begin_inset Formula 
+\begin_inset Formula
 \begin{equation}
 p_{\uparrow}\left(n\right)=\left(\frac{A-1}{A}\right)^{n}p_{base},\qquad p_{\downarrow}\left(n\right)=\left(\frac{A-1}{A}\right)^{n+1}p_{base}.
 \end{equation}
@@ -896,7 +896,7 @@ p_{\uparrow}\left(n\right)=\left(\frac{A-1}{A}\right)^{n}p_{base},\qquad p_{\dow
 \end_inset
 
 It is possible to prove that the solution of Eq.
- 
+
 \begin_inset CommandInset ref
 LatexCommand ref
 reference "eq:quad"
@@ -907,7 +907,7 @@ noprefix "false"
 \end_inset
 
  and Eq.
- 
+
 \begin_inset CommandInset ref
 LatexCommand ref
 reference "eq:price"
@@ -921,7 +921,7 @@ noprefix "false"
 \end_layout
 
 \begin_layout Standard
-\begin_inset Formula 
+\begin_inset Formula
 \begin{equation}
 p\left(x=0,y>0,n\right)=p_{cd}\left(n\right)=p_{cu}\left(n-1\right),
 \end{equation}
@@ -932,7 +932,7 @@ p\left(x=0,y>0,n\right)=p_{cd}\left(n\right)=p_{cu}\left(n-1\right),
 \end_layout
 
 \begin_layout Standard
-\begin_inset Formula 
+\begin_inset Formula
 \begin{equation}
 p\left(x>0,y=0,n\right)=p_{cu}\left(n\right)=p_{cd}\left(n+1\right),
 \end{equation}
@@ -944,7 +944,7 @@ which shows that there are no gaps between the bands.
 
 \begin_layout Standard
 Trades occur while preserving the invariant from Eq.
- 
+
 \begin_inset CommandInset ref
 LatexCommand ref
 reference "eq:inv"
@@ -954,16 +954,16 @@ noprefix "false"
 
 \end_inset
 
-, however the current price inside the AMM shifts when the price 
+, however the current price inside the AMM shifts when the price
 \begin_inset Formula $p_{o}$
 \end_inset
 
-: it goes up when 
+: it goes up when
 \begin_inset Formula $p_{o}$
 \end_inset
 
  goes down and vice versa cubically, as can be seen from Eq.
- 
+
 \begin_inset CommandInset ref
 LatexCommand ref
 reference "eq:current-price"
@@ -996,7 +996,7 @@ When a user deposits collateral and borrows a stablecoin, the LLAMMA smart
  contract calculates the bands where to locate the collateral.
  When the price of the collateral changes, it starts getting converted to
  the stablecoin.
- When the system is 
+ When the system is
 \begin_inset Quotes eld
 \end_inset
 
@@ -1004,13 +1004,13 @@ underwater
 \begin_inset Quotes erd
 \end_inset
 
-, user 
+, user
 \shape italic
 already
 \shape default
  has enough USD to cover the loan.
  The amount of stablecoins which can be obtained can be calculated using
- a public 
+ a public
 \series bold
 get_x_down
 \series default
@@ -1020,16 +1020,16 @@ get_x_down
  or even weeks after the collateral price went down and sideways, or even
  will not happen ever if collateral price never goes up or goes back up
  relatively quickly).
- A 
+ A
 \series bold
 health
 \series default
- method returns a ratio of 
+ method returns a ratio of
 \series bold
 get_x_down
 \series default
  to debt plus the value increase in collateral when the price is well above
- 
+
 \begin_inset Quotes eld
 \end_inset
 
@@ -1044,15 +1044,15 @@ liquidation
 When a stablecoin charges interest, this should be reflected in the AMM,
  too.
  This is done by adjusting all the grid of prices.
- So, when a stablecoin charges interest rate 
+ So, when a stablecoin charges interest rate
 \begin_inset Formula $r$
 \end_inset
 
-, all the grid of prices in the AMM shifts upwards with the same rate 
+, all the grid of prices in the AMM shifts upwards with the same rate
 \begin_inset Formula $r$
 \end_inset
 
- which is done via a 
+ which is done via a
 \series bold
 base_price
 \series default
@@ -1061,35 +1061,35 @@ base_price
 \end_layout
 
 \begin_layout Standard
-When we calculate 
+When we calculate
 \series bold
 get_x_down
 \series default
- or 
+ or
 \series bold
 get_y_up
 \series default
-, we are first looking for the amounts of stablecoin and collateral 
+, we are first looking for the amounts of stablecoin and collateral
 \begin_inset Formula $x_{*}$
 \end_inset
 
- and 
+ and
 \begin_inset Formula $y_{*}$
 \end_inset
 
- if current price moves to the current price 
+ if current price moves to the current price
 \begin_inset Formula $p_{o}$
 \end_inset
 
 .
- Then we look at how much stablecoin or collateral we get if 
+ Then we look at how much stablecoin or collateral we get if
 \begin_inset Formula $p_{o}$
 \end_inset
 
  adiabatically changes to either the lowest price of the lowest band, or
  the highest price of the highest band respectively.
  This way, we can get a measure of how much stablecoin we will which is
- not dependent on the current 
+ not dependent on the current
 \shape italic
 instantaneous
 \shape default
@@ -1097,7 +1097,7 @@ instantaneous
 \end_layout
 
 \begin_layout Standard
-It is important to point out that the LLAMMA uses 
+It is important to point out that the LLAMMA uses
 \begin_inset Formula $p_{o}$
 \end_inset
 
@@ -1111,11 +1111,11 @@ It is important to point out that the LLAMMA uses
 \end_inset
 
 ).
- If 
+ If
 \begin_inset Formula $p_{s}<1$
 \end_inset
 
-, then price in the LLAMMA is 
+, then price in the LLAMMA is
 \begin_inset Formula $p>p_{o}$
 \end_inset
 
@@ -1123,7 +1123,7 @@ It is important to point out that the LLAMMA uses
 \end_layout
 
 \begin_layout Standard
-In adiabatic approximation, 
+In adiabatic approximation,
 \begin_inset Formula $p=p_{o}/p_{s}$
 \end_inset
 
@@ -1132,7 +1132,7 @@ In adiabatic approximation,
 \end_layout
 
 \begin_layout Standard
-\begin_inset Formula 
+\begin_inset Formula
 \begin{equation}
 p_{o}^{\prime}=p_{o}\sqrt{\frac{p_{o}}{p}}=p_{o}\sqrt{p_{s}}.
 \end{equation}
@@ -1140,11 +1140,11 @@ p_{o}^{\prime}=p_{o}\sqrt{\frac{p_{o}}{p}}=p_{o}\sqrt{p_{s}}.
 \end_inset
 
 At this price, the amount of stablecoins obtained at conversion is higher
- by factor of 
+ by factor of
 \begin_inset Formula $1/p_{s}$
 \end_inset
 
- (if 
+ (if
 \begin_inset Formula $p_{s}<1$
 \end_inset
 
@@ -1152,7 +1152,7 @@ At this price, the amount of stablecoins obtained at conversion is higher
 \end_layout
 
 \begin_layout Standard
-It is less desirable to have 
+It is less desirable to have
 \begin_inset Formula $p_{s}>1$
 \end_inset
 
@@ -1164,25 +1164,25 @@ Automatic Stabilizer and Monetary Policy
 \end_layout
 
 \begin_layout Standard
-When 
+When
 \begin_inset Formula $p_{s}>1$
 \end_inset
 
  (for example, because of the increased demand for stablecoin), there is
  peg-keeping reserve formed by an asymmetric deposit into a stableswap Curve
  pool between the stablecoin and a redeemable reference coin or LP token.
- Once 
+ Once
 \begin_inset Formula $p_{s}>1$
 \end_inset
 
 , the PegKeeper contract is allowed to mint uncollateralized stablecoin
  and (only!) deposit it to the stableswap pool single-sided in such a way
- that the final price after this is still no less than 
+ that the final price after this is still no less than
 \begin_inset Formula $1$
 \end_inset
 
 .
- When 
+ When
 \begin_inset Formula $p_{s}<1$
 \end_inset
 
@@ -1190,15 +1190,15 @@ When
 \end_layout
 
 \begin_layout Standard
-These actions cause price 
+These actions cause price
 \begin_inset Formula $p_{s}$
 \end_inset
 
- to quickly depreciate when it's higher than 
+ to quickly depreciate when it's higher than
 \begin_inset Formula $1$
 \end_inset
 
- and appreciate if lower than 
+ and appreciate if lower than
 \begin_inset Formula $1$
 \end_inset
 
@@ -1211,21 +1211,21 @@ These actions cause price
 
 \begin_layout Standard
 Let's denote the amount of stablecoin minted to the stabilizer (debt) as
- 
+
 \begin_inset Formula $d_{st}$
 \end_inset
 
  and the function which calculates necessary amount of redeemable USD to
- buy the stablecoin in a stableswap AMM 
+ buy the stablecoin in a stableswap AMM
 \series bold
 get_dx
 \series default
- as 
+ as
 \begin_inset Formula $f_{dx}()$
 \end_inset
 
 .
- Then, in order to keep reserves not very large, we use the 
+ Then, in order to keep reserves not very large, we use the
 \begin_inset Quotes eld
 \end_inset
 
@@ -1233,7 +1233,7 @@ slow
 \begin_inset Quotes erd
 \end_inset
 
- mechanism of stabilization via varying the borrow 
+ mechanism of stabilization via varying the borrow
 \begin_inset Formula $r$
 \end_inset
 
@@ -1241,7 +1241,7 @@ slow
 \end_layout
 
 \begin_layout Standard
-\begin_inset Formula 
+\begin_inset Formula
 \begin{equation}
 p_{s}=\frac{f_{dx}(d_{st})}{d_{st}},
 \end{equation}
@@ -1252,70 +1252,70 @@ p_{s}=\frac{f_{dx}(d_{st})}{d_{st}},
 \end_layout
 
 \begin_layout Standard
-\begin_inset Formula 
+\begin_inset Formula
 \begin{equation}
 r=r_{0}\cdot2^{-\frac{p-1}{h}},
 \end{equation}
 
 \end_inset
 
-where 
+where
 \begin_inset Formula $h$
 \end_inset
 
- is the change in 
+ is the change in
 \begin_inset Formula $p_{s}$
 \end_inset
 
- at which the rate 
+ at which the rate
 \begin_inset Formula $r$
 \end_inset
 
- changes by factor of 2 (higher 
+ changes by factor of 2 (higher
 \begin_inset Formula $p_{s}$
 \end_inset
 
- leads to lower 
+ leads to lower
 \begin_inset Formula $r$
 \end_inset
 
 ).
- The amount of stabilizer debt 
+ The amount of stabilizer debt
 \begin_inset Formula $d_{st}$
 \end_inset
 
- will equilibrate at different value depending on the rate at 
+ will equilibrate at different value depending on the rate at
 \begin_inset Formula $p_{s}=1$
 \end_inset
 
- 
+
 \begin_inset Formula $r_{0}$
 \end_inset
 
 .
- Therefore, we can (instead of setting manually) be reducing 
+ Therefore, we can (instead of setting manually) be reducing
 \begin_inset Formula $r_{0}$
 \end_inset
 
- while 
+ while
 \begin_inset Formula $d_{st}/supply$
 \end_inset
 
- is larger than some target number (for example, 
+ is larger than some target number (for example,
 \begin_inset Formula $5\%$
 \end_inset
 
 ) (thereby incentivizing borrowers to borrow-and-dump the stablecoin, decreasing
- its price and forcing the system to burn the 
+ its price and forcing the system to burn the
 \begin_inset Formula $d_{st}$
 \end_inset
 
 ) or increasing if it's lower (thereby incentivizing borrowers to return
- loans and pushing 
+ loans and pushing
 \begin_inset Formula $p_{s}$
 \end_inset
 
- up, forcing the system to increase the debt 
+ up, forcing the system to increase the debt
 \begin_inset Formula $d_{st}$
 \end_inset
 

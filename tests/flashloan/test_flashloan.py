@@ -7,7 +7,7 @@ def test_params(stablecoin, collateral_token, flash_lender, admin, max_flash_loa
 
     assert flash_lender.fee() == 0
     assert flash_lender.flashFee(stablecoin, 10**18) == 0
-    with boa.reverts('FlashLender: Unsupported currency'):
+    with boa.reverts("FlashLender: Unsupported currency"):
         flash_lender.flashFee(collateral_token, 10**18)
 
     assert flash_lender.maxFlashLoan(stablecoin) == stablecoin.balanceOf(flash_lender)
@@ -16,7 +16,8 @@ def test_params(stablecoin, collateral_token, flash_lender, admin, max_flash_loa
     assert stablecoin.balanceOf(flash_lender) == max_flash_loan
 
 
-def test_flashloan(stablecoin, flash_lender, flash_borrower, user, max_flash_loan):
+def test_flashloan(stablecoin, flash_lender, flash_borrower, max_flash_loan):
+    user = boa.env.generate_address("user")
     for i in range(10):
         initial_count = flash_borrower.count()
         initial_total_amount = flash_borrower.total_amount()
@@ -35,16 +36,19 @@ def test_flashloan(stablecoin, flash_lender, flash_borrower, user, max_flash_loa
         assert stablecoin.balanceOf(flash_lender) == max_flash_loan
 
 
-def test_unsupported_currency(collateral_token, flash_borrower, user, max_flash_loan):
+def test_unsupported_currency(collateral_token, flash_borrower, max_flash_loan):
+    user = boa.env.generate_address("user")
     with boa.reverts("FlashLender: Unsupported currency"):
         flash_borrower.flashBorrow(collateral_token, max_flash_loan, sender=user)
 
 
-def test_too_much_to_lend(stablecoin, flash_borrower, user, max_flash_loan):
+def test_too_much_to_lend(stablecoin, flash_borrower, max_flash_loan):
+    user = boa.env.generate_address("user")
     with boa.reverts():
         flash_borrower.flashBorrow(stablecoin, max_flash_loan + 1, sender=user)
 
 
-def test_repay_failed(stablecoin, flash_borrower, user, max_flash_loan):
+def test_repay_failed(stablecoin, flash_borrower, max_flash_loan):
+    user = boa.env.generate_address("user")
     with boa.reverts("FlashLender: Repay failed"):
         flash_borrower.flashBorrow(stablecoin, max_flash_loan, False, sender=user)

@@ -1,9 +1,9 @@
-# @version 0.3.10
+# pragma version 0.4.3
 
 coins: public(address[3])
 price_oracle: public(uint256[3])
 
-@external
+@deploy
 def __init__(coins: address[3]):
     self.coins = coins
 

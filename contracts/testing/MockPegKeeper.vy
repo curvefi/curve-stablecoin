@@ -1,4 +1,4 @@
-# @version 0.3.10
+# pragma version 0.4.3
 
 """
 This contract is for testing only.
@@ -16,7 +16,7 @@ totalSupply: public(uint256)
 price: public(uint256)
 
 
-@external
+@deploy
 def __init__(price: uint256, stablecoin: address):
     pool = self
     self.IS_INVERSE = False

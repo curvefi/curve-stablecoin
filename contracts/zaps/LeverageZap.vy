@@ -268,24 +268,26 @@ def max_borrowable(controller: address, _user_collateral: uint256, _leverage_col
 
 @internal
 def _transferFrom(token: address, _from: address, _to: address, amount: uint256):
+    # TODO: use contracts.lib.token_lib.transferFrom
     if amount > 0:
         assert ERC20(token).transferFrom(_from, _to, amount, default_return_value=True)
 
 
 @internal
 def _approve(coin: address, spender: address):
+    # TODO: use contracts.lib.token_lib.max_approve
     if ERC20(coin).allowance(self, spender) == 0:
         assert ERC20(coin).approve(spender, max_value(uint256), default_return_value=True)
 
 
 @external
 @nonreentrant('lock')
-def callback_deposit(user: address, stablecoins: uint256, user_collateral: uint256, d_debt: uint256,
+def callback_deposit(user: address, borrowed: uint256, user_collateral: uint256, d_debt: uint256,
                      callback_args: DynArray[uint256, 10], callback_bytes: Bytes[10**4] = b"") -> uint256[2]:
     """
     @notice Callback method which should be called by controller to create leveraged position
     @param user Address of the user
-    @param stablecoins Always 0
+    @param borrowed Always 0
     @param user_collateral The amount of collateral token provided by user
     @param d_debt The amount to be borrowed (in addition to what has already been borrowed)
     @param callback_args [factory_id, controller_id, user_borrowed]
@@ -316,12 +318,12 @@ def callback_deposit(user: address, stablecoins: uint256, user_collateral: uint2
 
 @external
 @nonreentrant('lock')
-def callback_repay(user: address, stablecoins: uint256, collateral: uint256, debt: uint256,
+def callback_repay(user: address, borrowed: uint256, collateral: uint256, debt: uint256,
                    callback_args: DynArray[uint256,10], callback_bytes: Bytes[10 ** 4] = b"") -> uint256[2]:
     """
     @notice Callback method which should be called by controller to create leveraged position
     @param user Address of the user
-    @param stablecoins The value from user_state
+    @param borrowed The value from user_state
     @param collateral The value from user_state
     @param debt The value from user_state
     @param callback_args [factory_id, controller_id, user_collateral, user_borrowed]

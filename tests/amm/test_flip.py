@@ -1,5 +1,6 @@
 import boa
 from pytest import mark  # noqa
+from ..utils import mint_for_testing
 
 # 1. deposit below (N > 0 in 5 bands)
 # 2. change price_oracle in a cycle downwards (by 15% just in case?)
@@ -19,7 +20,7 @@ def test_flip(amm, price_oracle, collateral_token, borrowed_token, accounts, adm
         # We deposit to bands 1..5
         with boa.env.prank(admin):
             amm.deposit_range(depositor, AMOUNT_D, 1, 5)
-            collateral_token._mint_for_testing(amm.address, AMOUNT_D)
+            mint_for_testing(collateral_token, amm.address, AMOUNT_D)
         p = amm.price_oracle()
 
         initial_y = sum(amm.bands_y(n) for n in range(1, 6))
@@ -33,13 +34,15 @@ def test_flip(amm, price_oracle, collateral_token, borrowed_token, accounts, adm
             # which means that it becomes lower than p, and we need to buy until we have reached p
 
             # trade
-            dx = int(STEP * AMOUNT_D * p / 1e18 / 10**(18-6))
+            dx = int(STEP * AMOUNT_D * p / 1e18 / 10 ** (18 - 6))
             is_empty = False
             while amm.get_p() < p:
-                borrowed_token._mint_for_testing(trader, dx)
+                mint_for_testing(borrowed_token, trader, dx)
                 n1 = amm.active_band()
                 p1 = amm.get_p()
-                assert amm.get_y_up(depositor) * (1 + 1e-13) >= sum(amm.bands_y(n) for n in range(1, 6))
+                assert amm.get_y_up(depositor) * (1 + 1e-13) >= sum(
+                    amm.bands_y(n) for n in range(1, 6)
+                )
                 assert amm.get_x_down(depositor) * (1 + 1e-13) >= 5 * 0.95 * 3000 * 1e6
                 with boa.env.prank(trader):
                     amm.exchange(0, 1, dx, 0)
@@ -55,8 +58,8 @@ def test_flip(amm, price_oracle, collateral_token, borrowed_token, accounts, adm
             if is_empty:
                 break
 
-        converted_x = sum(amm.bands_x(n) for n in range(1, 6)) // 10**(18 - 6)
-        assert converted_x >= 5 * 0.95**0.5 * amm.p_oracle_down(1)/1e18 * 1e6
+        converted_x = sum(amm.bands_x(n) for n in range(1, 6)) // 10 ** (18 - 6)
+        assert converted_x >= 5 * 0.95**0.5 * amm.p_oracle_down(1) / 1e18 * 1e6
 
         # Sell until we have 0 coins left
         while True:
@@ -64,10 +67,12 @@ def test_flip(amm, price_oracle, collateral_token, borrowed_token, accounts, adm
             is_empty = False
             while amm.get_p() > p:
                 if collateral_token.balanceOf(trader) < dy:
-                    collateral_token._mint_for_testing(trader, dy)
+                    mint_for_testing(collateral_token, trader, dy)
                 n1 = amm.active_band()
                 p1 = amm.get_p()
-                assert amm.get_y_up(depositor) * (1 + 1e-13) >= sum(amm.bands_y(n) for n in range(1, 6))
+                assert amm.get_y_up(depositor) * (1 + 1e-13) >= sum(
+                    amm.bands_y(n) for n in range(1, 6)
+                )
                 assert amm.get_x_down(depositor) * (1 + 1e-13) >= 5 * 0.95 * 3000 * 1e6
                 with boa.env.prank(trader):
                     amm.exchange(1, 0, dy, 0)

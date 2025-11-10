@@ -1,0 +1,3 @@
+@view
+def lp_price() -> uint256:
+    ...

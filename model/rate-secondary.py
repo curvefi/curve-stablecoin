@@ -22,8 +22,8 @@ r *= r0
 
 pylab.plot(u, r)
 pylab.grid()
-pylab.xlabel('Utilization')
-pylab.ylabel('r (%)')
+pylab.xlabel("Utilization")
+pylab.ylabel("r (%)")
 pylab.xlim(-0.05, 1.05)
 pylab.ylim(-beta * r0 * 0.05, beta * r0 * 1.05)
 pylab.show()

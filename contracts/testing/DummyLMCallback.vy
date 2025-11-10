@@ -1,4 +1,4 @@
-# @version 0.3.10
+# pragma version 0.4.3
 
 MAX_TICKS_UINT: constant(uint256) = 50
 
@@ -8,7 +8,7 @@ _debug_user_shares: public(HashMap[address, HashMap[int256, uint256]])
 AMM: immutable(address)
 
 
-@external
+@deploy
 def __init__(amm: address):
     AMM = amm
 
@@ -17,7 +17,7 @@ def __init__(amm: address):
 def callback_collateral_shares(n: int256, collateral_per_share: DynArray[uint256, MAX_TICKS_UINT]):
     assert msg.sender == AMM
     i: int256 = n
-    for s in collateral_per_share:
+    for s: uint256 in collateral_per_share:
         self._debug_collateral_per_share[i] = s
         i += 1
 
@@ -26,6 +26,6 @@ def callback_collateral_shares(n: int256, collateral_per_share: DynArray[uint256
 def callback_user_shares(user: address, n: int256, user_shares: DynArray[uint256, MAX_TICKS_UINT]):
     assert msg.sender == AMM
     i: int256 = n
-    for s in user_shares:
+    for s: uint256 in user_shares:
         self._debug_user_shares[user][i] = s
         i += 1

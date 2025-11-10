@@ -1,0 +1,45 @@
+from curve_std.interfaces import IERC20
+from contracts.interfaces import IAMM
+from contracts.interfaces import ILlamalendController as IController
+
+@view
+def collateral_token() -> IERC20:
+    ...
+
+@view
+def borrowed_token() -> IERC20:
+    ...
+
+@view
+def net_deposits() -> int256:
+    ...
+
+@view
+def admin() -> address:
+    ...
+
+@view
+def fee_receiver() -> address:
+    ...
+
+@external
+def initialize(amm: IAMM, controller: address, borrowed_token: IERC20, collateral_token: IERC20):
+    ...
+
+@view
+@external
+def controller() -> IController:
+    ...
+
+
+@view
+@external
+def amm() -> IAMM:
+    ...
+
+
+@external
+def set_max_supply(max_supply: uint256):
+    ...
+
+# TODO populate + implement

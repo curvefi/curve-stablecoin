@@ -7,10 +7,7 @@ from hypothesis._settings import HealthCheck
 
 from . import base
 
-pytestmark = pytest.mark.usefixtures(
-    "add_initial_liquidity",
-    "mint_alice"
-)
+pytestmark = pytest.mark.usefixtures("add_initial_liquidity", "mint_alice")
 
 
 class StateMachine(base.StateMachine):
@@ -18,6 +15,7 @@ class StateMachine(base.StateMachine):
     Stateful test that performs a series of deposits, swaps and withdrawals
     and confirms that profit is calculated right.
     """
+
     @invariant()
     def invariant_expected_caller_profit(self):
         """
@@ -33,7 +31,7 @@ class StateMachine(base.StateMachine):
                 with boa.env.prank(self.alice):
                     caller_profit = peg_keeper.update()
             except BoaError as e:
-                if 'peg unprofitable' in str(e):
+                if "peg unprofitable" in str(e):
                     continue
 
             caller_balance = swap.balanceOf(self.alice)
@@ -62,7 +60,11 @@ def test_stable_peg(
         for swap in swaps:
             swap.eval(f"self.fee = {4 * 10**7}")
 
-    StateMachine.TestCase.settings = settings(max_examples=100, stateful_step_count=40, suppress_health_check=HealthCheck.all())
+    StateMachine.TestCase.settings = settings(
+        max_examples=100,
+        stateful_step_count=40,
+        suppress_health_check=HealthCheck.all(),
+    )
     for k, v in locals().items():
         setattr(StateMachine, k, v)
     run_state_machine_as_test(StateMachine)
@@ -86,10 +88,14 @@ def test_expected_profit_amount(
     state = StateMachine()
     state.advance_time()
     state.invariant_expected_caller_profit()
-    state.add_coins(amount_0=0.4586551720385922, amount_1=0.2753979563491829, pool_idx=1)
+    state.add_coins(
+        amount_0=0.4586551720385922, amount_1=0.2753979563491829, pool_idx=1
+    )
     state.advance_time()
     state.invariant_expected_caller_profit()
-    state.remove_imbalance(amount_0=0.2708333333333333, amount_1=6.103515625e-05, pool_idx=1)
+    state.remove_imbalance(
+        amount_0=0.2708333333333333, amount_1=6.103515625e-05, pool_idx=1
+    )
     state.advance_time()
     state.invariant_expected_caller_profit()
     state.remove_one_coin(idx=0, pct=0.5, pool_idx=1)
@@ -119,7 +125,7 @@ def test_expected_profit_amount_2(
 ):
     with boa.env.prank(admin):
         for swap in swaps:
-            swap.eval(f"self.fee = {4 * 10 ** 7}")
+            swap.eval(f"self.fee = {4 * 10**7}")
     for k, v in locals().items():
         setattr(StateMachine, k, v)
     state = StateMachine()
@@ -194,13 +200,15 @@ def test_calc_revert(
 ):
     with boa.env.prank(admin):
         for swap in swaps:
-            swap.eval(f"self.fee = {4 * 10 ** 7}")
+            swap.eval(f"self.fee = {4 * 10**7}")
     for k, v in locals().items():
         setattr(StateMachine, k, v)
     state = StateMachine()
     state.advance_time()
     state.invariant_expected_caller_profit()
-    state.remove_imbalance(amount_0=0.3333333333333333, amount_1=0.39515566169219923, pool_idx=1)
+    state.remove_imbalance(
+        amount_0=0.3333333333333333, amount_1=0.39515566169219923, pool_idx=1
+    )
     state.advance_time()
     state.invariant_expected_caller_profit()
     state.add_one_coin(idx=0, pct=1e-05, pool_idx=1)
@@ -218,7 +226,9 @@ def test_calc_revert(
     state.remove_imbalance(amount_0=1e-05, amount_1=0.3333333333333333, pool_idx=1)
     state.advance_time()
     state.invariant_expected_caller_profit()
-    state.remove_imbalance(amount_0=0.7435513040335519, amount_1=1.0537488943664356e-06, pool_idx=0)
+    state.remove_imbalance(
+        amount_0=0.7435513040335519, amount_1=1.0537488943664356e-06, pool_idx=0
+    )
     state.advance_time()
     state.invariant_expected_caller_profit()
     state.remove_imbalance(amount_0=1e-05, amount_1=1e-05, pool_idx=0)
@@ -245,11 +255,15 @@ def test_calc_revert(
     state.remove_imbalance(amount_0=1e-06, amount_1=6.103515625e-05, pool_idx=1)
     state.advance_time()
     state.invariant_expected_caller_profit()
-    state.remove_imbalance(amount_0=1.0000000000000002e-06, amount_1=0.3333333333333333, pool_idx=1)
+    state.remove_imbalance(
+        amount_0=1.0000000000000002e-06, amount_1=0.3333333333333333, pool_idx=1
+    )
     state.advance_time()
     state.invariant_expected_caller_profit()
     state.add_one_coin(idx=0, pct=8.107951174795291e-06, pool_idx=0)
     state.advance_time()
     state.invariant_expected_caller_profit()
-    state.remove_imbalance(amount_0=6.103515625e-05, amount_1=0.5373502140513607, pool_idx=1)
+    state.remove_imbalance(
+        amount_0=6.103515625e-05, amount_1=0.5373502140513607, pool_idx=1
+    )
     state.teardown()

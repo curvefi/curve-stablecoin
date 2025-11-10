@@ -29,34 +29,52 @@ HIGH_RATIO = int(3e18)
 # WBTC, WETH, TBTC, WSTETH (== WETH)
 NAMES = ["WBTC", "WETH", "TBTC", "WSTETH"]
 # CRVUSD AMMS, not LlamaLend!!
-AMMS = ["0xE0438Eb3703bF871E31Ce639bd351109c88666ea", "0x1681195C176239ac5E72d9aeBaCf5b2492E0C4ee",
-        "0xf9bD9da2427a50908C4c6D1599D8e62837C2BCB0", "0x1681195C176239ac5E72d9aeBaCf5b2492E0C4ee"]
+AMMS = [
+    "0xE0438Eb3703bF871E31Ce639bd351109c88666ea",
+    "0x1681195C176239ac5E72d9aeBaCf5b2492E0C4ee",
+    "0xf9bD9da2427a50908C4c6D1599D8e62837C2BCB0",
+    "0x1681195C176239ac5E72d9aeBaCf5b2492E0C4ee",
+]
 SHIFTS = [0, 0, 0, int(4e16 / 365 / 86400)]
 
 # LlamaLend controllers
-CONTROLLERS = ["0xcaD85b7fe52B1939DCEebEe9bCf0b2a5Aa0cE617", "0xaade9230AA9161880E13a38C83400d3D1995267b",
-               "0x413FD2511BAD510947a91f5c6c79EBD8138C29Fc", "0x1E0165DbD2019441aB7927C018701f3138114D71"]
+CONTROLLERS = [
+    "0xcaD85b7fe52B1939DCEebEe9bCf0b2a5Aa0cE617",
+    "0xaade9230AA9161880E13a38C83400d3D1995267b",
+    "0x413FD2511BAD510947a91f5c6c79EBD8138C29Fc",
+    "0x1E0165DbD2019441aB7927C018701f3138114D71",
+]
 
 
 def account_load(fname):
-    path = os.path.expanduser(os.path.join('~', '.brownie', 'accounts', fname + '.json'))
-    with open(path, 'r') as f:
+    path = os.path.expanduser(
+        os.path.join("~", ".brownie", "accounts", fname + ".json")
+    )
+    with open(path, "r") as f:
         pkey = account.decode_keyfile_json(json.load(f), getpass())
         return account.Account.from_key(pkey)
 
 
-if __name__ == '__main__':
-    if '--fork' in sys.argv[1:]:
+if __name__ == "__main__":
+    if "--fork" in sys.argv[1:]:
         boa.env.fork(NETWORK)
-        boa.env.eoa = '0xbabe61887f1de2713c6f97e567623453d3C79f67'
+        boa.env.eoa = "0xbabe61887f1de2713c6f97e567623453d3C79f67"
     else:
         boa.set_env(NetworkEnv(NETWORK))
-        boa.env.add_account(account_load('babe'))
+        boa.env.add_account(account_load("babe"))
         boa.env._fork_try_prefetch_state = False
 
     policies = [
-        boa.load('contracts/mpolicies/SecondaryMonetaryPolicy.vy',
-                 FACTORY, amm, BORROWED_TOKEN, U_0, LOW_RATIO, HIGH_RATIO, shift)
+        boa.load(
+            "contracts/mpolicies/SecondaryMonetaryPolicy.vy",
+            FACTORY,
+            amm,
+            BORROWED_TOKEN,
+            U_0,
+            LOW_RATIO,
+            HIGH_RATIO,
+            shift,
+        )
         for (amm, shift) in zip(AMMS, SHIFTS)
     ]
 

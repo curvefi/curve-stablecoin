@@ -41,30 +41,33 @@ max_rate = int(0.25e18 / (365 * 86400))
 
 
 def account_load(fname):
-    path = os.path.expanduser(os.path.join('~', '.brownie', 'accounts', fname + '.json'))
-    with open(path, 'r') as f:
+    path = os.path.expanduser(
+        os.path.join("~", ".brownie", "accounts", fname + ".json")
+    )
+    with open(path, "r") as f:
         pkey = account.decode_keyfile_json(json.load(f), getpass())
         return account.Account.from_key(pkey)
 
 
-if __name__ == '__main__':
-    if '--fork' in sys.argv[1:]:
+if __name__ == "__main__":
+    if "--fork" in sys.argv[1:]:
         boa.env.fork(NETWORK)
-        boa.env.eoa = '0xbabe61887f1de2713c6f97e567623453d3C79f67'
+        boa.env.eoa = "0xbabe61887f1de2713c6f97e567623453d3C79f67"
     else:
         boa.set_network_env(NETWORK)
-        boa.env.add_account(account_load('babe'))
+        boa.env.add_account(account_load("babe"))
         boa.env._fork_try_prefetch_state = False
 
-    factory = boa.load_partial('contracts/lending/OneWayLendingFactory.vy').at(FACTORY)
+    factory = boa.load_partial("contracts/lending/OneWayLendingFactory.vy").at(FACTORY)
     oracle = boa.load(
-        'contracts/price_oracles/CryptoFromPoolVaultWAgg.vy',
+        "contracts/price_oracles/CryptoFromPoolVaultWAgg.vy",
         FRAX_POOL,
         2,  # Number of coins
         1,  # Borrowed index
         0,  # Collateral index
         SFRAX,
-        AGG)
+        AGG,
+    )
     sleep(10)
     oracle.price_w()
     sleep(10)
@@ -75,18 +78,18 @@ if __name__ == '__main__':
         285,  # A
         int(0.002e18),  # fee
         int(0.013e18),  # loan_discount
-        int(0.010e18),   # liq_discount
+        int(0.010e18),  # liq_discount
         oracle.address,
-        'sfrax-long',
+        "sfrax-long",
         min_rate,
-        max_rate
+        max_rate,
     )
     sleep(10)
     gauge = factory.deploy_gauge(vault)
     sleep(10)
 
-    print(f'Vault: {vault}')
-    print(f'Gauge: {gauge}')
-    print(f'Oracle: {oracle.address}')
-    print(f'Oracle price: {oracle.price() / 1e18}')
+    print(f"Vault: {vault}")
+    print(f"Gauge: {gauge}")
+    print(f"Oracle: {oracle.address}")
+    print(f"Oracle price: {oracle.price() / 1e18}")
     print()

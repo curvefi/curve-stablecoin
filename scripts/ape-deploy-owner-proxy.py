@@ -3,11 +3,13 @@
 
 from ape import project, accounts, networks
 from ape.cli import NetworkBoundCommand, network_option
+
 # account_option could be used when in prod?
 import click
 
 from dotenv import load_dotenv
 from pathlib import Path
+
 BASE_DIR = Path(__file__).resolve().parent.parent
 load_dotenv(Path(BASE_DIR, ".env"))
 
@@ -31,16 +33,22 @@ def cli():
 )
 @network_option()
 def deploy(network):
-    account = accounts.load('babe')
+    account = accounts.load("babe")
     account.set_autosign(True)
 
     max_fee = networks.active_provider.base_fee * 2
     max_priority_fee = int(0.5e9)
-    kw = {'max_fee': max_fee, 'max_priority_fee': max_priority_fee}
+    kw = {"max_fee": max_fee, "max_priority_fee": max_priority_fee}
 
     with accounts.use_sender(account):
-        owner_proxy = account.deploy(project.OwnerProxy,
-                                     OWNERSHIP_ADMIN, PARAMETER_ADMIN, EMERGENCY_ADMIN,
-                                     SWAP_FACTORY, ZERO_ADDRESS, **kw)
+        owner_proxy = account.deploy(
+            project.OwnerProxy,
+            OWNERSHIP_ADMIN,
+            PARAMETER_ADMIN,
+            EMERGENCY_ADMIN,
+            SWAP_FACTORY,
+            ZERO_ADDRESS,
+            **kw,
+        )
 
-    print('OwnerProxy:', owner_proxy)
+    print("OwnerProxy:", owner_proxy)

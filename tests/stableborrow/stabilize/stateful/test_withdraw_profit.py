@@ -5,10 +5,7 @@ from boa import BoaError
 from hypothesis import settings
 from hypothesis.stateful import run_state_machine_as_test, rule, invariant
 
-pytestmark = pytest.mark.usefixtures(
-    "add_initial_liquidity",
-    "mint_alice"
-)
+pytestmark = pytest.mark.usefixtures("add_initial_liquidity", "mint_alice")
 
 
 class StateMachine(base.StateMachine):
@@ -45,7 +42,11 @@ class StateMachine(base.StateMachine):
                     peg_keeper.withdraw_profit()
 
                 debt = peg_keeper.debt()
-                amount = 5 * (debt + 1) + swap.balances(0) * 10**18 // dmul[0] - swap.balances(1)
+                amount = (
+                    5 * (debt + 1)
+                    + swap.balances(0) * 10**18 // dmul[0]
+                    - swap.balances(1)
+                )
                 if amount < 0:
                     return
                 StateMachine._mint(self.alice, [self.stablecoin], [amount])
@@ -64,8 +65,9 @@ class StateMachine(base.StateMachine):
                     continue
 
                 assert peg_keeper.debt() == 0
-                assert abs(swap.balances(0) * 10 ** 18 // dmul[0] - (swap.balances(1) - 4 * debt)) <= \
-                       debt * swap.fee() // (2 * 10 ** 10)
+                assert abs(
+                    swap.balances(0) * 10**18 // dmul[0] - (swap.balances(1) - 4 * debt)
+                ) <= debt * swap.fee() // (2 * 10**10)
 
 
 @pytest.mark.parametrize("always_withdraw", [False, True])
@@ -79,11 +81,11 @@ def test_withdraw_profit(
     receiver,
     admin,
     always_withdraw,
-    _mint
+    _mint,
 ):
     with boa.env.prank(admin):
         for swap in swaps:
-            swap.eval(f"self.fee = {4 * 10 ** 7}")
+            swap.eval(f"self.fee = {4 * 10**7}")
 
     StateMachine.TestCase.settings = settings(max_examples=20, stateful_step_count=40)
     for k, v in locals().items():
@@ -100,13 +102,13 @@ def test_withdraw_profit_example_1(
     alice,
     receiver,
     admin,
-    _mint
+    _mint,
 ):
     always_withdraw = False
 
     with boa.env.prank(admin):
         for swap in swaps:
-            swap.eval(f"self.fee = {4 * 10 ** 7}")
+            swap.eval(f"self.fee = {4 * 10**7}")
 
     StateMachine.TestCase.settings = settings(max_examples=20, stateful_step_count=40)
     for k, v in locals().items():
@@ -117,7 +119,9 @@ def test_withdraw_profit_example_1(
     state.add_one_coin(idx=0, pct=1e-06, pool_idx=0)
     state.advance_time()
     state.invariant_withdraw_profit()
-    state.add_coins(amount_0=0.4500005000000001, amount_1=0.3333333333333333, pool_idx=1)
+    state.add_coins(
+        amount_0=0.4500005000000001, amount_1=0.3333333333333333, pool_idx=1
+    )
     state.advance_time()
     state.invariant_withdraw_profit()
     state.add_coins(amount_0=0.03125, amount_1=1e-06, pool_idx=0)
@@ -150,13 +154,13 @@ def test_withdraw_profit_example_2(
     alice,
     receiver,
     admin,
-    _mint
+    _mint,
 ):
     always_withdraw = True
 
     with boa.env.prank(admin):
         for swap in swaps:
-            swap.eval(f"self.fee = {4 * 10 ** 7}")
+            swap.eval(f"self.fee = {4 * 10**7}")
 
     StateMachine.TestCase.settings = settings(max_examples=20, stateful_step_count=40)
     for k, v in locals().items():
@@ -170,10 +174,14 @@ def test_withdraw_profit_example_2(
     state.remove_imbalance(amount_0=0.5202005534658294, amount_1=1e-05, pool_idx=0)
     state.advance_time()
     state.invariant_withdraw_profit()
-    state.remove_imbalance(amount_0=1.0000000000000002e-06, amount_1=6.103515625e-05, pool_idx=1)
+    state.remove_imbalance(
+        amount_0=1.0000000000000002e-06, amount_1=6.103515625e-05, pool_idx=1
+    )
     state.advance_time()
     state.invariant_withdraw_profit()
-    state.remove_imbalance(amount_0=1.0000000000000002e-06, amount_1=0.4592796580617876, pool_idx=1)
+    state.remove_imbalance(
+        amount_0=1.0000000000000002e-06, amount_1=0.4592796580617876, pool_idx=1
+    )
     state.advance_time()
     state.invariant_withdraw_profit()
     state.exchange(idx=0, pct=1e-05, pool_idx=1)
@@ -185,10 +193,14 @@ def test_withdraw_profit_example_2(
     state.remove_imbalance(amount_0=0.5, amount_1=0.3333333333333333, pool_idx=0)
     state.advance_time()
     state.invariant_withdraw_profit()
-    state.remove_imbalance(amount_0=0.8999999999999999, amount_1=0.5662503294199993, pool_idx=1)
+    state.remove_imbalance(
+        amount_0=0.8999999999999999, amount_1=0.5662503294199993, pool_idx=1
+    )
     state.advance_time()
     state.invariant_withdraw_profit()
-    state.remove_imbalance(amount_0=0.19315130644085848, amount_1=0.3333333333333333, pool_idx=0)
+    state.remove_imbalance(
+        amount_0=0.19315130644085848, amount_1=0.3333333333333333, pool_idx=0
+    )
     state.advance_time()
     state.invariant_withdraw_profit()
     state.exchange(idx=0, pct=6.103515625e-05, pool_idx=1)
@@ -209,7 +221,9 @@ def test_withdraw_profit_example_2(
     state.remove_imbalance(amount_0=6.103515625e-05, amount_1=1e-06, pool_idx=0)
     state.advance_time()
     state.invariant_withdraw_profit()
-    state.remove_imbalance(amount_0=0.6802762567260562, amount_1=0.4585453088794063, pool_idx=0)
+    state.remove_imbalance(
+        amount_0=0.6802762567260562, amount_1=0.4585453088794063, pool_idx=0
+    )
     state.advance_time()
     state.invariant_withdraw_profit()
     state.exchange(idx=1, pct=0.5111175346916537, pool_idx=1)
