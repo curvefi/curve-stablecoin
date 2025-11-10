@@ -761,7 +761,8 @@ def _add_collateral_borrow(
     self.loan[_for] = IController.Loan(initial_debt=debt, rate_mul=rate_mul)
 
     liquidation_discount: uint256 = 0
-    if _for == msg.sender:
+    if self._check_approval(_for):
+        # Update liquidation discount only if it's the same or approved user. No rugs
         liquidation_discount = self.liquidation_discount
         self.liquidation_discounts[_for] = liquidation_discount
     else:
@@ -972,7 +973,7 @@ def _repay_partial(
         assert _callbacker == empty(address)
 
     if _approval:
-        # Update liquidation discount only if we are that same user. No rugs
+        # Update liquidation discount only if it's the same or approved user. No rugs
         liquidation_discount = self.liquidation_discount
         self.liquidation_discounts[_for] = liquidation_discount
     else:
@@ -1195,7 +1196,8 @@ def liquidate(
     @param calldata Any data for callbacker
     """
     health_limit: uint256 = 0
-    if not self._check_approval(user):
+    approval: bool = self._check_approval(_for)
+    if not approval:
         health_limit = self.liquidation_discounts[user]
     debt: uint256 = 0
     rate_mul: uint256 = 0
@@ -1281,6 +1283,11 @@ def liquidate(
         )
         self._remove_from_list(user)
     else:
+        if approval:
+            # Update liquidation discount only if it's the same or approved user. No rugs
+            liquidation_discount = self.liquidation_discount
+            self.liquidation_discounts[_for] = liquidation_discount
+
         xy = staticcall AMM.get_sum_xy(user)
         ns: int256[2] = staticcall AMM.read_user_tick_numbers(user)  # ns[1] > ns[0]
         log IController.UserState(
