@@ -7,28 +7,29 @@ from .utils import ROUTER_PARAMS, ROUTER_PARAMS_DELEVERAGE, COLLATERALS, CONTROL
 We use autouse=True to automatically deploy all during all tests
 """
 
-@pytest.fixture(scope="module", autouse=True)
+
+@pytest.fixture(scope="session", autouse=True)
 def boa_fork():
     assert WEB3_PROVIDER_URL is not None, "Provider url is not set, add WEB3_PROVIDER_URL param to env"
     boa.fork(WEB3_PROVIDER_URL)
 
 
-@pytest.fixture(scope="module", autouse=True)
+@pytest.fixture(scope="module")
 def admin():
     return boa.env.generate_address()
 
 
-@pytest.fixture(scope="module", autouse=True)
+@pytest.fixture(scope="module")
 def user():
     return boa.env.generate_address()
 
 
-@pytest.fixture(scope="module", autouse=True)
+@pytest.fixture(scope="module")
 def stablecoin_token():
     return boa.load_partial("contracts/Stablecoin.vy").at("0xf939e0a03fb07f59a73314e73794be0e57ac1b4e")
 
 
-@pytest.fixture(scope="module", autouse=True)
+@pytest.fixture(scope="module")
 def controllers():
     controller_contracts = {}
     for collateral in COLLATERALS.keys():
@@ -36,7 +37,7 @@ def controllers():
     return controller_contracts
 
 
-@pytest.fixture(scope="module", autouse=True)
+@pytest.fixture(scope="module")
 def llammas(stablecoin_token, admin):
     amm_contracts = {}
     for collateral in COLLATERALS.keys():
@@ -45,7 +46,7 @@ def llammas(stablecoin_token, admin):
     return amm_contracts
 
 
-@pytest.fixture(scope="module", autouse=True)
+@pytest.fixture(scope="module")
 def collaterals(user):
     collateral_contracts = {}
     for collateral in COLLATERALS.keys():
@@ -55,7 +56,7 @@ def collaterals(user):
     return collateral_contracts
 
 
-@pytest.fixture(scope="module", autouse=True)
+@pytest.fixture(scope="module")
 def leverage_zaps(admin):
     leverage_contracts = {}
     for collateral in COLLATERALS.keys():
@@ -74,7 +75,7 @@ def leverage_zaps(admin):
             interface = boa.load_partial("contracts/zaps/deprecated/LeverageZapSfrxETH.vy")
         if collateral == "wstETH":
             interface = boa.load_partial("contracts/zaps/deprecated/LeverageZapWstETH.vy")
-        if collateral in ["sfrxETH2", "tBTC"]:
+        if collateral in ["sfrxETH2", "WBTC", "tBTC"]:
             interface = boa.load_partial("contracts/zaps/deprecated/LeverageZapNewRouter.vy")
         leverage_contracts[collateral] = interface.deploy(
             CONTROLLERS[collateral],
@@ -89,7 +90,7 @@ def leverage_zaps(admin):
     return leverage_contracts
 
 
-@pytest.fixture(scope="module", autouse=True)
+@pytest.fixture(scope="module")
 def deleverage_zaps(admin):
     deleverage_contracts = {}
     for collateral in COLLATERALS.keys():
@@ -103,16 +104,16 @@ def deleverage_zaps(admin):
             route_pools.append(route["factory_swap_addresses"])
             route_names.append(route["name"])
 
-        with boa.env.prank(admin):
-            deleverage_contracts[collateral] = boa.load("contracts/zaps/deprecated/DeleverageZap.vy",
-                CONTROLLERS[collateral],
-                COLLATERALS[collateral],
-                ROUTERS_DELEVERAGE[collateral],
-                routes,
-                route_params,
-                route_pools,
-                route_names,
-            )
+        deleverage_contracts[collateral] = boa.load("contracts/zaps/deprecated/DeleverageZap.vy",
+            CONTROLLERS[collateral],
+            COLLATERALS[collateral],
+            ROUTERS_DELEVERAGE[collateral],
+            routes,
+            route_params,
+            route_pools,
+            route_names,
+            sender=admin,
+        )
     return deleverage_contracts
 
 
@@ -126,30 +127,30 @@ def mint_tokens_for_testing(user):
     """
 
     # WBTC
-    token_address = "0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599"
+    token = boa.load_partial("contracts/testing/ERC20Mock.vy").at("0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599")
     amount = 100 * 10**8
-    boa.deal(token_address, user, amount)
+    boa.deal(token, user, amount)
 
     # tBTC
-    token_address = "0x18084fbA666a33d37592fA2633fD49a74DD93a88"
+    token = boa.load_partial("contracts/testing/ERC20Mock.vy").at("0x18084fbA666a33d37592fA2633fD49a74DD93a88")
     amount = 100 * 10 ** 18
-    boa.deal(token_address, user, amount)
+    boa.deal(token, user, amount)
 
     # ETH
     # Set balance to twice amount + 1 - half will be wrapped + (potential) gas
     boa.env.set_balance(user, 1000 * 10**18)
 
     # sfrxETH
-    token_address = "0xac3e018457b222d93114458476f3e3416abbe38f"
+    token = boa.load_partial("contracts/testing/ERC20Mock.vy").at("0xac3e018457b222d93114458476f3e3416abbe38f")
     amount = 1000 * 10**18
-    boa.deal(token_address, user, amount)
+    boa.deal(token, user, amount)
 
     # wstETH
-    token_address = "0x7f39C581F595B53c5cb19bD0b3f8dA6c935E2Ca0"
+    token = boa.load_partial("contracts/testing/ERC20Mock.vy").at("0x7f39C581F595B53c5cb19bD0b3f8dA6c935E2Ca0")
     amount = 1000 * 10 ** 18
-    boa.deal(token_address, user, amount)
+    boa.deal(token, user, amount)
 
     # crvUSD
-    token_address = "0xf939e0a03fb07f59a73314e73794be0e57ac1b4e"
+    token = boa.load_partial("contracts/testing/ERC20Mock.vy").at("0xf939e0a03fb07f59a73314e73794be0e57ac1b4e")
     amount = 100_000_000 * 10 ** 18
-    boa.deal(token_address, user, amount)
+    boa.deal(token, user, amount)
