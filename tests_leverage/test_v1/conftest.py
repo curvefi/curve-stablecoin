@@ -1,14 +1,10 @@
 import boa
 import pytest
 from .settings import WEB3_PROVIDER_URL
-from .utils import ROUTER_PARAMS, ROUTER_PARAMS_DELEVERAGE, COLLATERALS, CONTROLLERS, LLAMMAS, ROUTERS, ROUTERS_DELEVERAGE
-
-"""
-We use autouse=True to automatically deploy all during all tests
-"""
+from .utils import ROUTER_PARAMS, ROUTER_PARAMS_DELEVERAGE, COLLATERALS, CONTROLLERS, LLAMMAS, ROUTERS, ROUTERS_DELEVERAGE, CRVUSD
 
 
-@pytest.fixture(scope="session", autouse=True)
+@pytest.fixture(scope="module", autouse=True)
 def boa_fork():
     assert WEB3_PROVIDER_URL is not None, "Provider url is not set, add WEB3_PROVIDER_URL param to env"
     boa.fork(WEB3_PROVIDER_URL)
@@ -26,7 +22,7 @@ def user():
 
 @pytest.fixture(scope="module")
 def stablecoin_token():
-    return boa.load_partial("contracts/Stablecoin.vy").at("0xf939e0a03fb07f59a73314e73794be0e57ac1b4e")
+    return boa.load_partial("contracts/Stablecoin.vy").at(CRVUSD)
 
 
 @pytest.fixture(scope="module")
@@ -56,8 +52,18 @@ def collaterals(user):
     return collateral_contracts
 
 
+@pytest.fixture(scope="module", autouse=True)
+def mint_tokens_for_testing(user, collaterals, stablecoin_token):
+    for k in collaterals.keys():
+        if k == "WETH":
+            continue
+        boa.deal(collaterals[k], user, 1000 * 10**collaterals[k].decimals())
+    boa.env.set_balance(user, 1000 * 10**18)
+    boa.deal(stablecoin_token, user, 100_000_000 * 10 ** 18)
+
+
 @pytest.fixture(scope="module")
-def leverage_zaps(admin):
+def leverage_zaps():
     leverage_contracts = {}
     for collateral in COLLATERALS.keys():
         routes = []
@@ -85,13 +91,13 @@ def leverage_zaps(admin):
             route_params,
             route_pools,
             route_names,
-            sender=admin,
         )
+
     return leverage_contracts
 
 
 @pytest.fixture(scope="module")
-def deleverage_zaps(admin):
+def deleverage_zaps():
     deleverage_contracts = {}
     for collateral in COLLATERALS.keys():
         routes = []
@@ -112,45 +118,6 @@ def deleverage_zaps(admin):
             route_params,
             route_pools,
             route_names,
-            sender=admin,
         )
+
     return deleverage_contracts
-
-
-@pytest.fixture(scope="module", autouse=True)
-def mint_tokens_for_testing(user):
-    """
-    Provides given account with 100 WBTC and 1000 ETH, sfrxETH, wstETH
-    Can be used only on local forked mainnet
-
-    :return: None
-    """
-
-    # WBTC
-    token = boa.load_partial("contracts/testing/ERC20Mock.vy").at("0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599")
-    amount = 100 * 10**8
-    boa.deal(token, user, amount)
-
-    # tBTC
-    token = boa.load_partial("contracts/testing/ERC20Mock.vy").at("0x18084fbA666a33d37592fA2633fD49a74DD93a88")
-    amount = 100 * 10 ** 18
-    boa.deal(token, user, amount)
-
-    # ETH
-    # Set balance to twice amount + 1 - half will be wrapped + (potential) gas
-    boa.env.set_balance(user, 1000 * 10**18)
-
-    # sfrxETH
-    token = boa.load_partial("contracts/testing/ERC20Mock.vy").at("0xac3e018457b222d93114458476f3e3416abbe38f")
-    amount = 1000 * 10**18
-    boa.deal(token, user, amount)
-
-    # wstETH
-    token = boa.load_partial("contracts/testing/ERC20Mock.vy").at("0x7f39C581F595B53c5cb19bD0b3f8dA6c935E2Ca0")
-    amount = 1000 * 10 ** 18
-    boa.deal(token, user, amount)
-
-    # crvUSD
-    token = boa.load_partial("contracts/testing/ERC20Mock.vy").at("0xf939e0a03fb07f59a73314e73794be0e57ac1b4e")
-    amount = 100_000_000 * 10 ** 18
-    boa.deal(token, user, amount)
