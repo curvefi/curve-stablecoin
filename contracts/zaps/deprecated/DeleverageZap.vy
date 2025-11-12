@@ -1,9 +1,10 @@
 # @version 0.3.10
 
 """
-@title crvUSD de-leverage zap
+@title crvUSD deleverage zap (old version)
 @author Curve.Fi
-@license Copyright (c) Curve.Fi, 2020-2023 - all rights reserved
+@license Copyright (c) Curve.Fi, 2020-2025 - all rights reserved
+@notice Does deleverage on crvUSD via CurveRouter. Does calculations for deleverage.
 """
 
 interface ERC20:
@@ -30,7 +31,7 @@ routes: public(HashMap[uint256, address[11]])
 route_params: public(HashMap[uint256, uint256[5][5]])
 route_pools: public(HashMap[uint256, address[5]])
 route_names: public(HashMap[uint256, String[100]])
-routes_count: public(constant(uint256)) = 5
+routes_count: public(uint256)
 
 
 @external
@@ -48,10 +49,13 @@ def __init__(
     ROUTER = _router
 
     for i in range(5):
+        if i >= len(_routes):
+            break
         self.routes[i] = _routes[i]
         self.route_params[i] = _route_params[i]
         self.route_pools[i] = _route_pools[i]
         self.route_names[i] = _route_names[i]
+    self.routes_count = len(_routes)
 
     ERC20(_collateral).approve(_router, max_value(uint256), default_return_value=True)
     ERC20(_collateral).approve(_controller, max_value(uint256), default_return_value=True)

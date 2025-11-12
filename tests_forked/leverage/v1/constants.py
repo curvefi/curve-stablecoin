@@ -1,69 +1,3 @@
-from ape import Contract, Project, accounts
-
-
-def mint_tokens_for_testing(project: Project, account):
-    """
-    Provides given account with 100 WBTC and 1000 ETH, sfrxETH, wstETH
-    Can be used only on local forked mainnet
-
-    :return: None
-    """
-
-    # WBTC
-    token_contract = Contract("0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599")
-    token_owner = "0x9ff58f4fFB29fA2266Ab25e75e2A8b3503311656"
-    project.provider.set_balance(token_owner, 10**20)
-    amount = 100 * 10**8
-    token_contract.transfer(account, amount, sender=accounts[token_owner])
-    assert token_contract.balanceOf(account.address) >= amount
-
-    # tBTC
-    token_contract = Contract("0x18084fbA666a33d37592fA2633fD49a74DD93a88")
-    token_owner = "0x3ee18B2214AFF97000D974cf647E7C347E8fa585"  # Wormhole: Portal Token Bridge
-    project.provider.set_balance(token_owner, 10**20)
-    amount = 100 * 10 ** 18
-    token_contract.transfer(account, amount, sender=accounts[token_owner])
-    assert token_contract.balanceOf(account.address) >= amount
-
-    # ETH
-    # Set balance to twice amount + 1 - half will be wrapped + (potential) gas
-    project.provider.set_balance(account.address, 1000 * 10**18)
-    assert account.balance >= 1000 * 10**18
-
-    # sfrxETH
-    token_contract = Contract("0xac3e018457b222d93114458476f3e3416abbe38f")
-    token_owner = "0xBA12222222228d8Ba445958a75a0704d566BF2C8"
-    project.provider.set_balance(token_owner, 10**20)
-    amount = 1000 * 10**18
-    token_contract.transfer(account, amount, sender=accounts[token_owner])
-    assert token_contract.balanceOf(account.address) >= amount
-
-    # wstETH
-    token_contract = Contract("0x7f39C581F595B53c5cb19bD0b3f8dA6c935E2Ca0")
-    token_owner = "0x0B925eD163218f6662a35e0f0371Ac234f9E9371"
-    project.provider.set_balance(token_owner, 10**20)
-    amount = 1000 * 10 ** 18
-    token_contract.transfer(account, amount, sender=accounts[token_owner])
-    assert token_contract.balanceOf(account.address) >= amount
-
-
-def mint_crvusd_tokens_for_testing(project: Project, account):
-    """
-    Provides given account with 100M crvUSD
-    Can be used only on local forked mainnet
-
-    :return: None
-    """
-
-    # crvUSD
-    token_contract = Contract("0xf939e0a03fb07f59a73314e73794be0e57ac1b4e")
-    token_owner = "0xA920De414eA4Ab66b97dA1bFE9e6EcA7d4219635"  # WETH controller
-    project.provider.set_balance(token_owner, 10**20)
-    amount = 100_000_000 * 10 ** 18
-    token_contract.transfer(account, amount, sender=accounts[token_owner])
-    assert token_contract.balanceOf(account.address) >= amount
-
-
 CRVUSD = "0xf939e0a03fb07f59a73314e73794be0e57ac1b4e"
 
 frxETH = "0x5E8422345238F34275888049021821E8E08CAa1f"
@@ -99,10 +33,19 @@ LLAMMAS = {
 ROUTERS = {
     "sfrxETH": "0x99a58482bd75cbab83b27ec03ca68ff489b5788f",
     "wstETH": "0x99a58482bd75cbab83b27ec03ca68ff489b5788f",
-    "WBTC": "0x99a58482bd75cbab83b27ec03ca68ff489b5788f",
+    "WBTC": "0x45312ea0eFf7E09C83CBE249fa1d7598c4C8cd4e",
     "WETH": "0x99a58482bd75cbab83b27ec03ca68ff489b5788f",
     "sfrxETH2": "0xF0d4c12A5768D806021F80a262B4d39d26C58b8D",
-    "tBTC": "0xF0d4c12A5768D806021F80a262B4d39d26C58b8D",
+    "tBTC": "0x45312ea0eFf7E09C83CBE249fa1d7598c4C8cd4e",
+}
+
+ROUTERS_DELEVERAGE = {
+    "sfrxETH": "0xF0d4c12A5768D806021F80a262B4d39d26C58b8D",
+    "wstETH": "0xF0d4c12A5768D806021F80a262B4d39d26C58b8D",
+    "WBTC": "0x45312ea0eFf7E09C83CBE249fa1d7598c4C8cd4e",
+    "WETH": "0xF0d4c12A5768D806021F80a262B4d39d26C58b8D",
+    "sfrxETH2": "0xF0d4c12A5768D806021F80a262B4d39d26C58b8D",
+    "tBTC": "0x45312ea0eFf7E09C83CBE249fa1d7598c4C8cd4e",
 }
 
 CRVUSD_POOLS = {
@@ -330,6 +273,54 @@ ROUTER_PARAMS = {
     },
     "WBTC": {
         "usdc": {
+            "name": "crvUSD/USDC -> factory-tricrypto-0 (TricryptoUSDC)",
+            "route": [
+                CRVUSD,
+                CRVUSD_POOLS["USDC"],
+                '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48',
+                '0x7f86bf177dd4f3494b841a37e810a34dd56c829b',
+                COLLATERALS["WBTC"],
+                '0x0000000000000000000000000000000000000000',
+                '0x0000000000000000000000000000000000000000',
+                '0x0000000000000000000000000000000000000000',
+                '0x0000000000000000000000000000000000000000',
+                '0x0000000000000000000000000000000000000000',
+                '0x0000000000000000000000000000000000000000',
+            ],
+            "swap_params": [[1, 0, 1, 1, 2], [0, 1, 1, 30, 3], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0]],
+            "factory_swap_addresses": [
+                CRVUSD_POOLS["USDC"],
+                '0x7f86bf177dd4f3494b841a37e810a34dd56c829b',
+                '0x0000000000000000000000000000000000000000',
+                '0x0000000000000000000000000000000000000000',
+                '0x0000000000000000000000000000000000000000',
+            ],
+        },
+        "usdt": {
+            "name": "crvUSD/USDT -> factory-tricrypto-1 (TricryptoUSDT)",
+            "route": [
+                CRVUSD,
+                CRVUSD_POOLS["USDT"],
+                '0xdac17f958d2ee523a2206206994597c13d831ec7',
+                '0xf5f5B97624542D72A9E06f04804Bf81baA15e2B4',
+                COLLATERALS["WBTC"],
+                '0x0000000000000000000000000000000000000000',
+                '0x0000000000000000000000000000000000000000',
+                '0x0000000000000000000000000000000000000000',
+                '0x0000000000000000000000000000000000000000',
+                '0x0000000000000000000000000000000000000000',
+                '0x0000000000000000000000000000000000000000',
+            ],
+            "swap_params": [[1, 0, 1, 1, 2], [0, 1, 1, 30, 3], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0]],
+            "factory_swap_addresses": [
+                CRVUSD_POOLS["USDT"],
+                '0xf5f5B97624542D72A9E06f04804Bf81baA15e2B4',
+                '0x0000000000000000000000000000000000000000',
+                '0x0000000000000000000000000000000000000000',
+                '0x0000000000000000000000000000000000000000',
+            ],
+        },
+        "usdc2": {
             "name": "crvUSD/USDC -> 3pool -> tricrypto2",
             "route": [
                 CRVUSD,
@@ -341,16 +332,19 @@ ROUTER_PARAMS = {
                 COLLATERALS["WBTC"],
                 '0x0000000000000000000000000000000000000000',
                 '0x0000000000000000000000000000000000000000',
+                '0x0000000000000000000000000000000000000000',
+                '0x0000000000000000000000000000000000000000',
             ],
-            "swap_params": [[1, 0, 1], [1, 2, 1], [0, 1, 3], [0, 0, 0]],
+            "swap_params": [[1, 0, 1, 1, 2], [1, 2, 1, 1, 3], [0, 1, 1, 3, 3], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0]],
             "factory_swap_addresses": [
-                '0x0000000000000000000000000000000000000000',
-                '0x0000000000000000000000000000000000000000',
+                CRVUSD_POOLS["USDC"],
+                '0xbebc44782c7db0a1a60cb6fe97d0b483032ff1c7',
+                '0xd51a44d3fae010294c616388b506acda1bfaae46',
                 '0x0000000000000000000000000000000000000000',
                 '0x0000000000000000000000000000000000000000',
             ],
         },
-        "usdt": {
+        "usdt2": {
             "name": "crvUSD/USDT -> tricrypto2",
             "route": [
                 CRVUSD,
@@ -362,72 +356,36 @@ ROUTER_PARAMS = {
                 '0x0000000000000000000000000000000000000000',
                 '0x0000000000000000000000000000000000000000',
                 '0x0000000000000000000000000000000000000000',
-            ],
-            "swap_params": [[1, 0, 1], [0, 1, 3], [0, 0, 0], [0, 0, 0]],
-            "factory_swap_addresses": [
                 '0x0000000000000000000000000000000000000000',
+                '0x0000000000000000000000000000000000000000',
+            ],
+            "swap_params": [[1, 0, 1, 1, 2], [0, 1, 1, 3, 3], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0]],
+            "factory_swap_addresses": [
+                CRVUSD_POOLS["USDT"],
+                '0xd51a44d3fae010294c616388b506acda1bfaae46',
                 '0x0000000000000000000000000000000000000000',
                 '0x0000000000000000000000000000000000000000',
                 '0x0000000000000000000000000000000000000000',
             ],
         },
-        "usdp": {
-            "name": "crvUSD/USDP -> factory-v2-59 (USDP) -> tricrypto2",
+        "yb": {
+            "name": "crvUSD/WBTC (YB)",
             "route": [
                 CRVUSD,
-                CRVUSD_POOLS["USDP"],
-                '0x8e870d67f660d95d5be530380d0ec0bd388289e1',
-                '0xc270b3b858c335b6ba5d5b10e2da8a09976005ad',
-                '0xdac17f958d2ee523a2206206994597c13d831ec7',
-                '0xd51a44d3fae010294c616388b506acda1bfaae46',
+                "0xD9FF8396554A0d18B2CFbeC53e1979b7ecCe8373",
                 COLLATERALS["WBTC"],
                 '0x0000000000000000000000000000000000000000',
                 '0x0000000000000000000000000000000000000000',
+                '0x0000000000000000000000000000000000000000',
+                '0x0000000000000000000000000000000000000000',
+                '0x0000000000000000000000000000000000000000',
+                '0x0000000000000000000000000000000000000000',
+                '0x0000000000000000000000000000000000000000',
+                '0x0000000000000000000000000000000000000000',
             ],
-            "swap_params": [[1, 0, 1], [0, 3, 2], [0, 1, 3], [0, 0, 0]],
+            "swap_params": [[0, 1, 1, 20, 2], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0]],
             "factory_swap_addresses": [
-                '0x0000000000000000000000000000000000000000',
-                '0x0000000000000000000000000000000000000000',
-                '0x0000000000000000000000000000000000000000',
-                '0x0000000000000000000000000000000000000000',
-            ],
-        },
-        "tusd": {
-            "name": "crvUSD/TUSD -> tusd -> tricrypto2",
-            "route": [
-                CRVUSD,
-                CRVUSD_POOLS["TUSD"],
-                '0x0000000000085d4780b73119b644ae5ecd22b376',
-                '0xecd5e75afb02efa118af914515d6521aabd189f1',
-                '0xdac17f958d2ee523a2206206994597c13d831ec7',
-                '0xd51a44d3fae010294c616388b506acda1bfaae46',
-                COLLATERALS["WBTC"],
-                '0x0000000000000000000000000000000000000000',
-                '0x0000000000000000000000000000000000000000',
-            ],
-            "swap_params": [[1, 0, 1], [0, 3, 2], [0, 1, 3], [0, 0, 0]],
-            "factory_swap_addresses": [
-                '0x0000000000000000000000000000000000000000',
-                '0x0000000000000000000000000000000000000000',
-                '0x0000000000000000000000000000000000000000',
-                '0x0000000000000000000000000000000000000000',
-            ],
-        },
-        "frax": {
-            "name": "crvUSD/FRAX -> frax -> tricrypto2",
-            "route": [
-                CRVUSD,
-                CRVUSD_POOLS["FRAX"],
-                '0x853d955acef822db058eb8505911ed77f175b99e',
-                '0xd632f22692fac7611d2aa1c0d552930d43caed3b',
-                '0xdac17f958d2ee523a2206206994597c13d831ec7',
-                '0xd51a44d3fae010294c616388b506acda1bfaae46',
-                COLLATERALS["WBTC"],
-                '0x0000000000000000000000000000000000000000',
-                '0x0000000000000000000000000000000000000000',
-            ],
-            "swap_params": [[1, 0, 1], [0, 3, 2], [0, 1, 3], [0, 0, 0]],
-            "factory_swap_addresses": [
+                '0xD9FF8396554A0d18B2CFbeC53e1979b7ecCe8373',
                 '0x0000000000000000000000000000000000000000',
                 '0x0000000000000000000000000000000000000000',
                 '0x0000000000000000000000000000000000000000',
@@ -665,7 +623,7 @@ ROUTER_PARAMS = {
         },
     },
     "tBTC": {
-        "tbtc": {
+        "crvusd": {
             "name": "factory-tricrypto-2 (TricryptoLLAMA)",
             "route": [
                 CRVUSD,
@@ -680,7 +638,7 @@ ROUTER_PARAMS = {
                 '0x0000000000000000000000000000000000000000',
                 '0x0000000000000000000000000000000000000000',
             ],
-            "swap_params": [[0, 1, 1, 3, 3], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0]],
+            "swap_params": [[0, 1, 1, 30, 3], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0]],
             "factory_swap_addresses": [
                 '0x2889302a794da87fbf1d6db415c1492194663d13',
                 '0x0000000000000000000000000000000000000000',
@@ -690,30 +648,54 @@ ROUTER_PARAMS = {
             ],
         },
         "usdc": {
-            "name": "crvUSD/USDC -> 3pool -> tricrypto2 -> factory-crvusd-16 (tBTC/WBTC)",
+            "name": "crvUSD/USDC -> factory-tricrypto-0 (TricryptoUSDC) -> factory-crvusd-16 (tBTC/WBTC)",
             "route": [
                 CRVUSD,
                 CRVUSD_POOLS["USDC"],
                 '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48',
-                '0xbebc44782c7db0a1a60cb6fe97d0b483032ff1c7',
-                '0xdac17f958d2ee523a2206206994597c13d831ec7',
-                '0xd51a44d3fae010294c616388b506acda1bfaae46',
+                '0x7f86bf177dd4f3494b841a37e810a34dd56c829b',
                 COLLATERALS["WBTC"],
                 '0xb7ecb2aa52aa64a717180e030241bc75cd946726',
                 COLLATERALS["tBTC"],
                 '0x0000000000000000000000000000000000000000',
                 '0x0000000000000000000000000000000000000000',
+                '0x0000000000000000000000000000000000000000',
+                '0x0000000000000000000000000000000000000000',
             ],
-            "swap_params": [[1, 0, 1, 1, 2], [1, 2, 1, 1, 3], [0, 1, 1, 3, 3], [0, 1, 1, 1, 2], [0, 0, 0, 0, 0]],
+            "swap_params": [[1, 0, 1, 1, 2], [0, 1, 1, 30, 3], [0, 1, 1, 1, 2], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0]],
             "factory_swap_addresses": [
                 CRVUSD_POOLS["USDC"],
-                '0xbebc44782c7db0a1a60cb6fe97d0b483032ff1c7',
-                '0xd51a44d3fae010294c616388b506acda1bfaae46',
+                '0x7f86bf177dd4f3494b841a37e810a34dd56c829b',
                 '0xb7ecb2aa52aa64a717180e030241bc75cd946726',
+                '0x0000000000000000000000000000000000000000',
                 '0x0000000000000000000000000000000000000000',
             ],
         },
         "usdt": {
+            "name": "crvUSD/USDT -> factory-tricrypto-1 (TricryptoUSDT) -> factory-crvusd-16 (tBTC/WBTC)",
+            "route": [
+                CRVUSD,
+                CRVUSD_POOLS["USDT"],
+                '0xdac17f958d2ee523a2206206994597c13d831ec7',
+                '0xf5f5B97624542D72A9E06f04804Bf81baA15e2B4',
+                COLLATERALS["WBTC"],
+                '0xb7ecb2aa52aa64a717180e030241bc75cd946726',
+                COLLATERALS["tBTC"],
+                '0x0000000000000000000000000000000000000000',
+                '0x0000000000000000000000000000000000000000',
+                '0x0000000000000000000000000000000000000000',
+                '0x0000000000000000000000000000000000000000',
+            ],
+            "swap_params": [[1, 0, 1, 1, 2], [0, 1, 1, 30, 3], [0, 1, 1, 1, 2], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0]],
+            "factory_swap_addresses": [
+                CRVUSD_POOLS["USDT"],
+                '0xf5f5B97624542D72A9E06f04804Bf81baA15e2B4',
+                '0xb7ecb2aa52aa64a717180e030241bc75cd946726',
+                '0x0000000000000000000000000000000000000000',
+                '0x0000000000000000000000000000000000000000',
+            ],
+        },
+        "usdt2": {
             "name": "crvUSD/USDT -> tricrypto2 -> factory-crvusd-16 (tBTC/WBTC)",
             "route": [
                 CRVUSD,
@@ -737,51 +719,27 @@ ROUTER_PARAMS = {
                 '0x0000000000000000000000000000000000000000',
             ],
         },
-        "tusd": {
-            "name": "crvUSD/TUSD -> tusd -> tricrypto2 -> factory-crvusd-16 (tBTC/WBTC)",
+        "yb": {
+            "name": "crvUSD/tBTC (YB)",
             "route": [
                 CRVUSD,
-                CRVUSD_POOLS["TUSD"],
-                '0x0000000000085d4780b73119b644ae5ecd22b376',
-                '0xecd5e75afb02efa118af914515d6521aabd189f1',
-                '0xdac17f958d2ee523a2206206994597c13d831ec7',
-                '0xd51a44d3fae010294c616388b506acda1bfaae46',
-                COLLATERALS["WBTC"],
-                '0xb7ecb2aa52aa64a717180e030241bc75cd946726',
+                "0xf1F435B05D255a5dBdE37333C0f61DA6F69c6127",
                 COLLATERALS["tBTC"],
                 '0x0000000000000000000000000000000000000000',
                 '0x0000000000000000000000000000000000000000',
+                '0x0000000000000000000000000000000000000000',
+                '0x0000000000000000000000000000000000000000',
+                '0x0000000000000000000000000000000000000000',
+                '0x0000000000000000000000000000000000000000',
+                '0x0000000000000000000000000000000000000000',
+                '0x0000000000000000000000000000000000000000',
             ],
-            "swap_params": [[1, 0, 1, 1, 2], [0, 3, 2, 1, 4], [0, 1, 1, 3, 3], [0, 1, 1, 1, 2], [0, 0, 0, 0, 0]],
+            "swap_params": [[0, 1, 1, 20, 2], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0]],
             "factory_swap_addresses": [
-                CRVUSD_POOLS["TUSD"],
-                '0xecd5e75afb02efa118af914515d6521aabd189f1',
-                '0xd51a44d3fae010294c616388b506acda1bfaae46',
-                '0xb7ecb2aa52aa64a717180e030241bc75cd946726',
-                '0x0000000000000000000000000000000000000000',
-            ],
-        },
-        "frax": {
-            "name": "crvUSD/FRAX -> frax -> tricrypto2 -> factory-crvusd-16 (tBTC/WBTC)",
-            "route": [
-                CRVUSD,
-                CRVUSD_POOLS["FRAX"],
-                '0x853d955acef822db058eb8505911ed77f175b99e',
-                '0xd632f22692fac7611d2aa1c0d552930d43caed3b',
-                '0xdac17f958d2ee523a2206206994597c13d831ec7',
-                '0xd51a44d3fae010294c616388b506acda1bfaae46',
-                COLLATERALS["WBTC"],
-                '0xb7ecb2aa52aa64a717180e030241bc75cd946726',
-                COLLATERALS["tBTC"],
+                '0xf1F435B05D255a5dBdE37333C0f61DA6F69c6127',
                 '0x0000000000000000000000000000000000000000',
                 '0x0000000000000000000000000000000000000000',
-            ],
-            "swap_params": [[1, 0, 1, 1, 2], [0, 3, 2, 1, 4], [0, 1, 1, 3, 3], [0, 1, 1, 1, 2], [0, 0, 0, 0, 0]],
-            "factory_swap_addresses": [
-                CRVUSD_POOLS["FRAX"],
-                '0xd632f22692fac7611d2aa1c0d552930d43caed3b',
-                '0xd51a44d3fae010294c616388b506acda1bfaae46',
-                '0xb7ecb2aa52aa64a717180e030241bc75cd946726',
+                '0x0000000000000000000000000000000000000000',
                 '0x0000000000000000000000000000000000000000',
             ],
         },
@@ -1049,7 +1007,7 @@ ROUTER_PARAMS_DELEVERAGE = {
                 '0x0000000000000000000000000000000000000000',
                 '0x0000000000000000000000000000000000000000',
             ],
-            "swap_params": [[1, 0, 1, 3, 3], [0, 1, 1, 1, 2], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0]],
+            "swap_params": [[1, 0, 1, 30, 3], [0, 1, 1, 1, 2], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0]],
             "factory_swap_addresses": [
                 '0x7f86bf177dd4f3494b841a37e810a34dd56c829b',
                 CRVUSD_POOLS["USDC"],
@@ -1059,6 +1017,54 @@ ROUTER_PARAMS_DELEVERAGE = {
             ],
         },
         "usdt": {
+            "name": "factory-tricrypto-1 (TricryptoUSDT) -> crvUSD/USDT",
+            "route": [
+                COLLATERALS["WBTC"],
+                '0xf5f5B97624542D72A9E06f04804Bf81baA15e2B4',
+                '0xdac17f958d2ee523a2206206994597c13d831ec7',
+                CRVUSD_POOLS["USDT"],
+                CRVUSD,
+                '0x0000000000000000000000000000000000000000',
+                '0x0000000000000000000000000000000000000000',
+                '0x0000000000000000000000000000000000000000',
+                '0x0000000000000000000000000000000000000000',
+                '0x0000000000000000000000000000000000000000',
+                '0x0000000000000000000000000000000000000000',
+            ],
+            "swap_params": [[1, 0, 1, 30, 3], [0, 1, 1, 1, 2], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0]],
+            "factory_swap_addresses": [
+                '0xf5f5B97624542D72A9E06f04804Bf81baA15e2B4',
+                CRVUSD_POOLS["USDT"],
+                '0x0000000000000000000000000000000000000000',
+                '0x0000000000000000000000000000000000000000',
+                '0x0000000000000000000000000000000000000000',
+            ],
+        },
+        "usdc2": {
+            "name": "tricrypto2 -> 3pool -> crvUSD/USDC",
+            "route": [
+                COLLATERALS["WBTC"],
+                '0xd51a44d3fae010294c616388b506acda1bfaae46',
+                '0xdac17f958d2ee523a2206206994597c13d831ec7',
+                '0xbebc44782c7db0a1a60cb6fe97d0b483032ff1c7',
+                '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48',
+                CRVUSD_POOLS["USDC"],
+                CRVUSD,
+                '0x0000000000000000000000000000000000000000',
+                '0x0000000000000000000000000000000000000000',
+                '0x0000000000000000000000000000000000000000',
+                '0x0000000000000000000000000000000000000000',
+            ],
+            "swap_params": [[1, 0, 1, 3, 3], [2, 1, 1, 1, 3], [0, 1, 1, 1, 2], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0]],
+            "factory_swap_addresses": [
+                '0xd51a44d3fae010294c616388b506acda1bfaae46',
+                '0xbebc44782c7db0a1a60cb6fe97d0b483032ff1c7',
+                CRVUSD_POOLS["USDC"],
+                '0x0000000000000000000000000000000000000000',
+                '0x0000000000000000000000000000000000000000',
+            ],
+        },
+        "usdt2": {
             "name": "tricrypto2 -> crvUSD/USDT",
             "route": [
                 COLLATERALS["WBTC"],
@@ -1082,74 +1088,26 @@ ROUTER_PARAMS_DELEVERAGE = {
                 '0x0000000000000000000000000000000000000000',
             ],
         },
-        "tusd": {
-            "name": "tricrypto2 -> tusd -> crvUSD/TUSD",
+        "yb": {
+            "name": "crvUSD/WBTC (YB)",
             "route": [
                 COLLATERALS["WBTC"],
-                '0xd51a44d3fae010294c616388b506acda1bfaae46',
-                '0xdac17f958d2ee523a2206206994597c13d831ec7',
-                '0xecd5e75afb02efa118af914515d6521aabd189f1',
-                '0x0000000000085d4780b73119b644ae5ecd22b376',
-                CRVUSD_POOLS["TUSD"],
+                "0xD9FF8396554A0d18B2CFbeC53e1979b7ecCe8373",
                 CRVUSD,
                 '0x0000000000000000000000000000000000000000',
                 '0x0000000000000000000000000000000000000000',
                 '0x0000000000000000000000000000000000000000',
                 '0x0000000000000000000000000000000000000000',
+                '0x0000000000000000000000000000000000000000',
+                '0x0000000000000000000000000000000000000000',
+                '0x0000000000000000000000000000000000000000',
+                '0x0000000000000000000000000000000000000000',
             ],
-            "swap_params": [[1, 0, 1, 3, 3], [3, 0, 2, 1, 4], [0, 1, 1, 1, 2], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0]],
+            "swap_params": [[1, 0, 1, 20, 2], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0]],
             "factory_swap_addresses": [
-                '0xd51a44d3fae010294c616388b506acda1bfaae46',
-                '0xecd5e75afb02efa118af914515d6521aabd189f1',
-                CRVUSD_POOLS["TUSD"],
+                '0xD9FF8396554A0d18B2CFbeC53e1979b7ecCe8373',
                 '0x0000000000000000000000000000000000000000',
                 '0x0000000000000000000000000000000000000000',
-            ],
-        },
-        "usdp": {
-            "name": "tricrypto2 -> factory-v2-59 (USDP) -> crvUSD/USDP",
-            "route": [
-                COLLATERALS["WBTC"],
-                '0xd51a44d3fae010294c616388b506acda1bfaae46',
-                '0xdac17f958d2ee523a2206206994597c13d831ec7',
-                '0xc270b3b858c335b6ba5d5b10e2da8a09976005ad',
-                '0x8e870d67f660d95d5be530380d0ec0bd388289e1',
-                CRVUSD_POOLS["USDP"],
-                CRVUSD,
-                '0x0000000000000000000000000000000000000000',
-                '0x0000000000000000000000000000000000000000',
-                '0x0000000000000000000000000000000000000000',
-                '0x0000000000000000000000000000000000000000',
-            ],
-            "swap_params": [[1, 0, 1, 3, 3], [3, 0, 2, 1, 4], [0, 1, 1, 1, 2], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0]],
-            "factory_swap_addresses": [
-                '0xd51a44d3fae010294c616388b506acda1bfaae46',
-                '0xc270b3b858c335b6ba5d5b10e2da8a09976005ad',
-                CRVUSD_POOLS["USDP"],
-                '0x0000000000000000000000000000000000000000',
-                '0x0000000000000000000000000000000000000000',
-            ],
-        },
-        "frax": {
-            "name": "tricrypto2 -> frax -> crvUSD/FRAX",
-            "route": [
-                COLLATERALS["WBTC"],
-                '0xd51a44d3fae010294c616388b506acda1bfaae46',
-                '0xdac17f958d2ee523a2206206994597c13d831ec7',
-                '0xd632f22692fac7611d2aa1c0d552930d43caed3b',
-                '0x853d955acef822db058eb8505911ed77f175b99e',
-                CRVUSD_POOLS["FRAX"],
-                CRVUSD,
-                '0x0000000000000000000000000000000000000000',
-                '0x0000000000000000000000000000000000000000',
-                '0x0000000000000000000000000000000000000000',
-                '0x0000000000000000000000000000000000000000',
-            ],
-            "swap_params": [[1, 0, 1, 3, 3], [3, 0, 2, 1, 4], [0, 1, 1, 1, 2], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0]],
-            "factory_swap_addresses": [
-                '0xd51a44d3fae010294c616388b506acda1bfaae46',
-                '0xd632f22692fac7611d2aa1c0d552930d43caed3b',
-                CRVUSD_POOLS["FRAX"],
                 '0x0000000000000000000000000000000000000000',
                 '0x0000000000000000000000000000000000000000',
             ],
@@ -1400,7 +1358,7 @@ ROUTER_PARAMS_DELEVERAGE = {
         },
     },
     "tBTC": {
-        "tbtc": {
+        "crvusd": {
             "name": "factory-tricrypto-2 (TricryptoLLAMA)",
             "route": [
                 COLLATERALS["tBTC"],
@@ -1415,7 +1373,7 @@ ROUTER_PARAMS_DELEVERAGE = {
                 '0x0000000000000000000000000000000000000000',
                 '0x0000000000000000000000000000000000000000',
             ],
-            "swap_params": [[1, 0, 1, 3, 3], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0]],
+            "swap_params": [[1, 0, 1, 30, 3], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0]],
             "factory_swap_addresses": [
                 '0x2889302a794da87fbf1d6db415c1492194663d13',
                 '0x0000000000000000000000000000000000000000',
@@ -1439,7 +1397,7 @@ ROUTER_PARAMS_DELEVERAGE = {
                 '0x0000000000000000000000000000000000000000',
                 '0x0000000000000000000000000000000000000000',
             ],
-            "swap_params": [[1, 0, 1, 1, 2], [1, 0, 1, 3, 3], [0, 1, 1, 1, 2], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0]],
+            "swap_params": [[1, 0, 1, 1, 2], [1, 0, 1, 30, 3], [0, 1, 1, 1, 2], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0]],
             "factory_swap_addresses": [
                 '0xb7ecb2aa52aa64a717180e030241bc75cd946726',
                 '0x7f86bf177dd4f3494b841a37e810a34dd56c829b',
@@ -1449,6 +1407,30 @@ ROUTER_PARAMS_DELEVERAGE = {
             ],
         },
         "usdt": {
+            "name": "factory-crvusd-16 (tBTC/WBTC) -> factory-tricrypto-1 (TricryptoUSDT) -> crvUSD/USDT",
+            "route": [
+                COLLATERALS["tBTC"],
+                '0xb7ecb2aa52aa64a717180e030241bc75cd946726',
+                '0x2260fac5e5542a773aa44fbcfedf7c193bc2c599',
+                '0xf5f5B97624542D72A9E06f04804Bf81baA15e2B4',
+                '0xdac17f958d2ee523a2206206994597c13d831ec7',
+                CRVUSD_POOLS["USDT"],
+                CRVUSD,
+                '0x0000000000000000000000000000000000000000',
+                '0x0000000000000000000000000000000000000000',
+                '0x0000000000000000000000000000000000000000',
+                '0x0000000000000000000000000000000000000000',
+            ],
+            "swap_params": [[1, 0, 1, 1, 2], [1, 0, 1, 30, 3], [0, 1, 1, 1, 2], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0]],
+            "factory_swap_addresses": [
+                '0xb7ecb2aa52aa64a717180e030241bc75cd946726',
+                '0xf5f5B97624542D72A9E06f04804Bf81baA15e2B4',
+                CRVUSD_POOLS["USDT"],
+                '0x0000000000000000000000000000000000000000',
+                '0x0000000000000000000000000000000000000000',
+            ],
+        },
+        "usdt2": {
             "name": "factory-crvusd-16 (tBTC/WBTC) -> tricrypto2 -> crvUSD/USDT",
             "route": [
                 COLLATERALS["tBTC"],
@@ -1472,51 +1454,27 @@ ROUTER_PARAMS_DELEVERAGE = {
                 '0x0000000000000000000000000000000000000000',
             ],
         },
-        "tusd": {
-            "name": "factory-crvusd-16 (tBTC/WBTC) -> tricrypto2 -> tusd -> crvUSD/TUSD",
+        "yb": {
+            "name": "crvUSD/tBTC (YB)",
             "route": [
                 COLLATERALS["tBTC"],
-                '0xb7ecb2aa52aa64a717180e030241bc75cd946726',
-                '0x2260fac5e5542a773aa44fbcfedf7c193bc2c599',
-                '0xd51a44d3fae010294c616388b506acda1bfaae46',
-                '0xdac17f958d2ee523a2206206994597c13d831ec7',
-                '0xecd5e75afb02efa118af914515d6521aabd189f1',
-                '0x0000000000085d4780b73119b644ae5ecd22b376',
-                CRVUSD_POOLS["TUSD"],
+                "0xf1F435B05D255a5dBdE37333C0f61DA6F69c6127",
                 CRVUSD,
                 '0x0000000000000000000000000000000000000000',
                 '0x0000000000000000000000000000000000000000',
+                '0x0000000000000000000000000000000000000000',
+                '0x0000000000000000000000000000000000000000',
+                '0x0000000000000000000000000000000000000000',
+                '0x0000000000000000000000000000000000000000',
+                '0x0000000000000000000000000000000000000000',
+                '0x0000000000000000000000000000000000000000',
             ],
-            "swap_params": [[1, 0, 1, 1, 2], [1, 0, 1, 3, 3], [3, 0, 2, 1, 4], [0, 1, 1, 1, 2], [0, 0, 0, 0, 0]],
+            "swap_params": [[1, 0, 1, 20, 2], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0]],
             "factory_swap_addresses": [
-                '0xb7ecb2aa52aa64a717180e030241bc75cd946726',
-                '0xd51a44d3fae010294c616388b506acda1bfaae46',
-                '0xecd5e75afb02efa118af914515d6521aabd189f1',
-                CRVUSD_POOLS["TUSD"],
-                '0x0000000000000000000000000000000000000000',
-            ],
-        },
-        "frax": {
-            "name": "factory-crvusd-16 (tBTC/WBTC) -> tricrypto2 -> frax -> crvUSD/FRAX",
-            "route": [
-                COLLATERALS["tBTC"],
-                '0xb7ecb2aa52aa64a717180e030241bc75cd946726',
-                '0x2260fac5e5542a773aa44fbcfedf7c193bc2c599',
-                '0xd51a44d3fae010294c616388b506acda1bfaae46',
-                '0xdac17f958d2ee523a2206206994597c13d831ec7',
-                '0xd632f22692fac7611d2aa1c0d552930d43caed3b',
-                '0x853d955acef822db058eb8505911ed77f175b99e',
-                CRVUSD_POOLS["FRAX"],
-                CRVUSD,
+                '0xf1F435B05D255a5dBdE37333C0f61DA6F69c6127',
                 '0x0000000000000000000000000000000000000000',
                 '0x0000000000000000000000000000000000000000',
-            ],
-            "swap_params": [[1, 0, 1, 1, 2], [1, 0, 1, 3, 3], [3, 0, 2, 1, 4], [0, 1, 1, 1, 2], [0, 0, 0, 0, 0]],
-            "factory_swap_addresses": [
-                '0xb7ecb2aa52aa64a717180e030241bc75cd946726',
-                '0xd51a44d3fae010294c616388b506acda1bfaae46',
-                '0xd632f22692fac7611d2aa1c0d552930d43caed3b',
-                CRVUSD_POOLS["FRAX"],
+                '0x0000000000000000000000000000000000000000',
                 '0x0000000000000000000000000000000000000000',
             ],
         },

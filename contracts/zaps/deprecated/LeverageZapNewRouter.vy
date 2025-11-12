@@ -1,9 +1,9 @@
 # @version 0.3.10
 
 """
-@title <collateral> crvUSD leverage zap
+@title crvUSD leverage zap (old version)
 @author Curve.Fi
-@license Copyright (c) Curve.Fi, 2020-2023 - all rights reserved
+@license Copyright (c) Curve.Fi, 2020-2025 - all rights reserved
 @notice Creates leverage on crvUSD via CurveRouter. Does calculations for leverage.
 """
 
@@ -51,7 +51,7 @@ routes: public(HashMap[uint256, address[11]])
 route_params: public(HashMap[uint256, uint256[5][5]])
 route_pools: public(HashMap[uint256, address[5]])
 route_names: public(HashMap[uint256, String[100]])
-routes_count: public(constant(uint256)) = 5
+routes_count: public(uint256)
 
 
 @external
@@ -83,6 +83,7 @@ def __init__(
         self.route_params[i] = _route_params[i]
         self.route_pools[i] = _route_pools[i]
         self.route_names[i] = _route_names[i]
+    self.routes_count = len(_routes)
 
     ERC20(CRVUSD).approve(_router, max_value(uint256), default_return_value=True)
     ERC20(_collateral).approve(_controller, max_value(uint256), default_return_value=True)
