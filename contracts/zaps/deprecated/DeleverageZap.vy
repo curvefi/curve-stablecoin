@@ -1,7 +1,7 @@
 # @version 0.3.10
 
 """
-@title <collateral> crvUSD deleverage zap
+@title crvUSD deleverage zap (old version)
 @author Curve.Fi
 @license Copyright (c) Curve.Fi, 2020-2025 - all rights reserved
 @notice Does deleverage on crvUSD via CurveRouter. Does calculations for deleverage.

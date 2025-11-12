@@ -1,7 +1,7 @@
 # @version 0.3.10
 
 """
-@title <collateral> crvUSD leverage zap
+@title crvUSD leverage zap (old version)
 @author Curve.Fi
 @license Copyright (c) Curve.Fi, 2020-2025 - all rights reserved
 @notice Creates leverage on crvUSD via CurveRouter. Does calculations for leverage.
