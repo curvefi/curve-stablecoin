@@ -16,7 +16,6 @@ def test_deleverage(
         leverage_zaps,
         deleverage_zaps,
         user,
-        admin,
         stablecoin_token,
         collateral_token,
         collateral_amt,
@@ -92,7 +91,7 @@ def test_deleverage_underwater(
         leverage_zaps,
         deleverage_zaps,
         user,
-        admin,
+        trader,
         stablecoin_token,
         collateral_token,
         collateral_amt,
@@ -133,7 +132,7 @@ def test_deleverage_underwater(
             total_collateral_to_trade += llammas[collateral_token].bands_y(i)
     total_collateral_to_trade = total_collateral_to_trade * 10**decimals // 10**18
 
-    llammas[collateral_token].exchange_dy(0, 1, total_collateral_to_trade, 10**26, sender=admin)
+    llammas[collateral_token].exchange_dy(0, 1, total_collateral_to_trade, 10**26, sender=trader)
 
     active_band = llammas[collateral_token].active_band()
     collateral_before, stablecoin_before, debt_before, _N = controllers[collateral_token].user_state(user)

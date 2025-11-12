@@ -1,17 +1,18 @@
+import os
 import boa
 import pytest
-from .settings import WEB3_PROVIDER_URL
 from .utils import ROUTER_PARAMS, ROUTER_PARAMS_DELEVERAGE, COLLATERALS, CONTROLLERS, LLAMMAS, ROUTERS, ROUTERS_DELEVERAGE, CRVUSD
 
 
 @pytest.fixture(scope="module", autouse=True)
 def boa_fork():
+    WEB3_PROVIDER_URL = os.getenv("WEB3_PROVIDER_URL")
     assert WEB3_PROVIDER_URL is not None, "Provider url is not set, add WEB3_PROVIDER_URL param to env"
     boa.fork(WEB3_PROVIDER_URL)
 
 
 @pytest.fixture(scope="module")
-def admin():
+def trader():
     return boa.env.generate_address()
 
 
@@ -34,11 +35,11 @@ def controllers():
 
 
 @pytest.fixture(scope="module")
-def llammas(stablecoin_token, admin):
+def llammas(stablecoin_token, trader):
     amm_contracts = {}
     for collateral in COLLATERALS.keys():
         amm_contracts[collateral] = boa.load_partial("contracts/AMM.vy").at(LLAMMAS[collateral])
-        stablecoin_token.approve(amm_contracts[collateral], 2**256 - 1, sender=admin)
+        stablecoin_token.approve(amm_contracts[collateral], 2**256 - 1, sender=trader)
     return amm_contracts
 
 
@@ -53,13 +54,16 @@ def collaterals(user):
 
 
 @pytest.fixture(scope="module", autouse=True)
-def mint_tokens_for_testing(user, collaterals, stablecoin_token):
+def mint_tokens_for_testing(user, trader, collaterals, stablecoin_token):
+    # User
     for k in collaterals.keys():
         if k == "WETH":
             continue
         boa.deal(collaterals[k], user, 1000 * 10**collaterals[k].decimals())
     boa.env.set_balance(user, 1000 * 10**18)
-    boa.deal(stablecoin_token, user, 100_000_000 * 10 ** 18)
+
+    # Trader
+    boa.deal(stablecoin_token, trader, 100_000_000 * 10 ** 18)
 
 
 @pytest.fixture(scope="module")

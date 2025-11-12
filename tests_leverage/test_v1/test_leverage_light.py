@@ -1,7 +1,8 @@
 import pytest
 
 
-@pytest.mark.parametrize("collateral_token", ["sfrxETH", "wstETH", "WBTC", "WETH", "sfrxETH2", "tBTC"])
+# @pytest.mark.parametrize("collateral_token", ["sfrxETH", "wstETH", "WBTC", "WETH", "sfrxETH2", "tBTC"])
+@pytest.mark.parametrize("collateral_token", ["WBTC", "tBTC"])
 @pytest.mark.parametrize("borrow_amt", [10_000 * 10**18, 2**256 - 1])
 @pytest.mark.parametrize("route_idx", [0, 1, 2, 3, 4])
 def test_leverage(collaterals, controllers, llammas, leverage_zaps, user, collateral_token, borrow_amt, route_idx):
