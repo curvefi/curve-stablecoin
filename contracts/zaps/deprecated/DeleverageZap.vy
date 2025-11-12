@@ -48,6 +48,8 @@ def __init__(
     ROUTER = _router
 
     for i in range(5):
+        if i >= len(_routes):
+            break
         self.routes[i] = _routes[i]
         self.route_params[i] = _route_params[i]
         self.route_pools[i] = _route_pools[i]
