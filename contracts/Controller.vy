@@ -896,13 +896,13 @@ def _repay_full(
 
     # ================= Recover borrowed tokens (xy[0]) =================
     non_wallet_d_debt: uint256 = _xy[0] + _cb.borrowed
-    wallet_d_debt: uint256 = unsafe_sub(max(_debt, non_wallet_d_debt), non_wallet_d_debt)
+    wallet_d_debt: uint256 = crv_math.sub_or_zero(_debt, non_wallet_d_debt)
     if _xy[0] > 0:  #  pull borrowed tokens from AMM (already soft liquidated)
         assert _approval
         tkn.transfer_from(BORROWED_TOKEN, AMM.address, self, _xy[0])
     tkn.transfer_from(BORROWED_TOKEN, _callbacker, self, _cb.borrowed)
     tkn.transfer_from(BORROWED_TOKEN, msg.sender, self, wallet_d_debt)
-    tkn.transfer(BORROWED_TOKEN, _for, unsafe_sub(max(non_wallet_d_debt, _debt), _debt))
+    tkn.transfer(BORROWED_TOKEN, _for, crv_math.sub_or_zero(non_wallet_d_debt, _debt))
 
 
     # ================= Recover collateral tokens (xy[1]) =================
@@ -1004,7 +1004,7 @@ def _repay_partial(
     )
     log IController.Repay(
         user=_for,
-        collateral_decrease=unsafe_sub(max(_xy[1], new_collateral), new_collateral),
+        collateral_decrease=crv_math.sub_or_zero(_xy[1], new_collateral),
         loan_decrease=d_debt,
     )
 
@@ -1089,12 +1089,12 @@ def tokens_to_shrink(user: address) -> uint256:
     size: int256 = unsafe_sub(ns[1], active_band + 1)
     xy: uint256[2] = staticcall AMM.get_sum_xy(user)
     current_debt: uint256 = self._debt(user)[0]
-    new_debt: uint256 = unsafe_sub(max(current_debt, xy[0]), xy[0])
+    new_debt: uint256 = crv_math.sub_or_zero(current_debt, xy[0])
     max_borrowable: uint256 = staticcall self._view.max_borrowable(
         xy[1], convert(unsafe_add(size, 1), uint256), new_debt, user
     )
 
-    return unsafe_sub(max(new_debt, max_borrowable), max_borrowable)
+    return crv_math.sub_or_zero(new_debt, max_borrowable)
 
 
 @internal
@@ -1320,7 +1320,7 @@ def tokens_to_liquidate(user: address, frac: uint256 = WAD) -> uint256:
     )
     debt: uint256 = unsafe_div(self._debt(user)[0] * frac, WAD)
 
-    return unsafe_sub(max(debt, borrowed), borrowed)
+    return crv_math.sub_or_zero(debt, borrowed)
 
 
 @view
