@@ -714,6 +714,23 @@ def create_loan(
         user=_for, collateral_increase=total_collateral, loan_increase=debt
     )
 
+@internal
+def _update_user_liquidation_discount(_for: address, _approval: bool, _new_debt: uint256) -> uint256:
+    # Update liquidation discount only if it's the same or approved user. No rugs
+    liquidation_discount: uint256 = 0
+    if _approval:
+        liquidation_discount = self.liquidation_discount
+        self.liquidation_discounts[_for] = liquidation_discount
+    else:
+        liquidation_discount = self.liquidation_discounts[_for]
+
+    # Doesn't allow to end with unhealthy state, except unhealthy user liquidation case (new_debt == 0)
+    # full = False to make this condition non-manipulatable (and also cheaper on gas)
+    if _new_debt > 0:
+        assert self._health(_for, _new_debt, False, liquidation_discount) > 0, "The action ends with unhealthy state"
+
+    return liquidation_discount
+
 
 @internal
 def _add_collateral_borrow(
@@ -760,13 +777,7 @@ def _add_collateral_borrow(
     extcall AMM.deposit_range(_for, xy[1], n1, n2)
     self.loan[_for] = IController.Loan(initial_debt=debt, rate_mul=rate_mul)
 
-    liquidation_discount: uint256 = 0
-    if self._check_approval(_for):
-        # Update liquidation discount only if it's the same or approved user. No rugs
-        liquidation_discount = self.liquidation_discount
-        self.liquidation_discounts[_for] = liquidation_discount
-    else:
-        liquidation_discount = self.liquidation_discounts[_for]
+    liquidation_discount: uint256 = self._update_user_liquidation_discount(_for, self._check_approval(_for), debt)
 
     if remove_collateral:
         log IController.RemoveCollateral(
@@ -946,7 +957,6 @@ def _repay_partial(
     if ns[0] <= active_band and _shrink:
         assert ns[1] >= active_band + MIN_TICKS, "Can't shrink"
         size = unsafe_sub(ns[1], active_band + 1)
-    liquidation_discount: uint256 = self.liquidation_discounts[_for]
     # _debt > _wallet_d_debt + cb.borrowed + xy[0] (check repay method)
     new_debt: uint256 = unsafe_sub(_debt, unsafe_add(_cb.borrowed, _wallet_d_debt))
     new_borrowed: uint256 = _xy[0]
@@ -972,14 +982,7 @@ def _repay_partial(
         # But can avoid a bad liquidation just reducing debt amount.
         assert _callbacker == empty(address)
 
-    if _approval:
-        # Update liquidation discount only if it's the same or approved user. No rugs
-        liquidation_discount = self.liquidation_discount
-        self.liquidation_discounts[_for] = liquidation_discount
-    else:
-        # Doesn't allow non-sender to repay in a way which ends with unhealthy state
-        # full = False to make this condition non-manipulatable (and also cheaper on gas)
-        assert self._health(_for, new_debt, False, liquidation_discount) > 0
+    liquidation_discount: uint256 = self._update_user_liquidation_discount(_for, _approval, new_debt)
 
     # ================= Recover borrowed tokens (xy[0]) =================
     if _shrink:
@@ -1196,17 +1199,16 @@ def liquidate(
     @param calldata Any data for callbacker
     """
     health_limit: uint256 = 0
-    approval: bool = self._check_approval(_for)
+    approval: bool = self._check_approval(user)
     if not approval:
         health_limit = self.liquidation_discounts[user]
     debt: uint256 = 0
     rate_mul: uint256 = 0
     debt, rate_mul = self._debt(user)
 
+    health_before: int256 = self._health(user, debt, True, health_limit)
     if health_limit != 0:
-        assert (
-            self._health(user, debt, True, health_limit) < 0
-        ), "Not enough rekt"
+        assert health_before < 0, "Not enough rekt"
 
     final_debt: uint256 = debt
     assert _frac <= WAD, "frac>100%"
@@ -1283,10 +1285,12 @@ def liquidate(
         )
         self._remove_from_list(user)
     else:
-        if approval:
-            # Update liquidation discount only if it's the same or approved user. No rugs
-            liquidation_discount = self.liquidation_discount
-            self.liquidation_discounts[_for] = liquidation_discount
+        liquidation_discount: uint256 = 0
+        if health_before > 0:
+            liquidation_discount = self._update_user_liquidation_discount(user, approval, final_debt)
+        else:
+            # Passing new_debt == 0 means the action can end with unhealthy state
+            liquidation_discount = self._update_user_liquidation_discount(user, approval, 0)
 
         xy = staticcall AMM.get_sum_xy(user)
         ns: int256[2] = staticcall AMM.read_user_tick_numbers(user)  # ns[1] > ns[0]
@@ -1297,7 +1301,7 @@ def liquidate(
             debt=final_debt,
             n1=ns[0],
             n2=ns[1],
-            liquidation_discount=self.liquidation_discounts[user]
+            liquidation_discount=liquidation_discount
         )
 
 
