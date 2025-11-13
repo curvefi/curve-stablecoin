@@ -41,6 +41,8 @@ from contracts.interfaces import IPriceOracle
 from contracts.interfaces import ILMGauge
 from curve_std.interfaces import IERC20
 
+from curve_std import math as crv_math
+
 from snekmate.utils import math
 
 from contracts import constants as c
@@ -1412,7 +1414,7 @@ def get_xy_up(user: address, use_y: bool) -> uint256:
 
         if p_o > p_o_up:  # p_o < p_current_down, all to y
             # x_o = 0
-            y_o = unsafe_sub(max(Inv // f, g), g)
+            y_o = crv_math.sub_or_zero(Inv // f, g)
             if use_y:
                 XY += unsafe_div(y_o * user_share, total_share)
             else:
@@ -1420,7 +1422,7 @@ def get_xy_up(user: address, use_y: bool) -> uint256:
 
         elif p_o < p_o_down:  # p_o > p_current_up, all to x
             # y_o = 0
-            x_o = unsafe_sub(max(Inv // g, f), f)
+            x_o = crv_math.sub_or_zero(Inv // g, f)
             if use_y:
                 XY += unsafe_div(unsafe_div(x_o * SQRT_BAND_RATIO, p_o_up) * user_share, total_share)
             else:
@@ -1431,8 +1433,8 @@ def get_xy_up(user: address, use_y: bool) -> uint256:
             y_o = unsafe_div(A * y0 * unsafe_sub(p_o, p_o_down), p_o)
             # x_o = unsafe_div(A * y0 * p_o, p_o_up) * unsafe_sub(p_o_up, p_o)
             # Old math
-            # y_o = unsafe_sub(max(self.sqrt_int(unsafe_div(Inv * 10**18, p_o)), g), g)
-            x_o = unsafe_sub(max(Inv // (g + y_o), f), f)
+            # y_o = crv_math.sub_or_zero(self.sqrt_int(unsafe_div(Inv * 10**18, p_o)), g)
+            x_o = crv_math.sub_or_zero(Inv // (g + y_o), f)
 
             # Now adiabatic conversion from definitely in-band
             if use_y:
@@ -1584,12 +1586,12 @@ def get_amount_for_price(p: uint256) -> (uint256, bool):
         if p <= p_up:
             if p >= p_down:
                 if not_empty:
-                    ynew: uint256 = unsafe_sub(max(self.sqrt_int(Inv * 10**18 // p), g), g)
-                    xnew: uint256 = unsafe_sub(max(Inv // (g + ynew), f), f)
+                    ynew: uint256 = crv_math.sub_or_zero(self.sqrt_int(Inv * 10**18 // p), g)
+                    xnew: uint256 = crv_math.sub_or_zero(Inv // (g + ynew), f)
                     if pump:
-                        amount += unsafe_div(unsafe_sub(max(xnew, x), x) * antifee, 10**18)
+                        amount += unsafe_div(crv_math.sub_or_zero(xnew, x) * antifee, 10**18)
                     else:
-                        amount += unsafe_div(unsafe_sub(max(ynew, y), y) * antifee, 10**18)
+                        amount += unsafe_div(crv_math.sub_or_zero(ynew, y) * antifee, 10**18)
                 break
 
         # Need this to break if price is too far

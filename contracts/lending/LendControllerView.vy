@@ -13,6 +13,7 @@ from contracts.interfaces import IController
 from contracts.interfaces import ILlamalendController
 from contracts.interfaces import IAMM
 from contracts.interfaces import IControllerView
+from curve_std import math as crv_math
 
 implements: IControllerView
 
@@ -90,7 +91,7 @@ def max_borrowable(
     """
     # Cannot borrow beyond the amount of coins Controller has or beyond borrow_cap
     total_debt: uint256 = self._total_debt()
-    cap: uint256 = unsafe_sub(max(self._borrow_cap(), total_debt), total_debt)
+    cap: uint256 = crv_math.sub_or_zero(self._borrow_cap(), total_debt)
     cap = min(self._available_balance(), cap) + current_debt
 
     return core._max_borrowable(collateral, N, cap, user)

@@ -550,7 +550,6 @@ def max_borrowable(
         collateral, N, current_debt, user
     )
 
-# TODO use sub_or_zero everywhere
 
 @external
 @view
