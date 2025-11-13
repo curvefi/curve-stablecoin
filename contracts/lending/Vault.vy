@@ -12,17 +12,15 @@ from curve_std.interfaces import IERC4626
 from contracts.interfaces import IAMM
 from contracts.interfaces import ILlamalendController as IController
 from contracts.interfaces import IFactory
+from contracts.interfaces import IVault
 
 from contracts import constants as c
 from curve_std import token as tkn
 
 implements: IERC20
 implements: IERC4626
+implements: IVault
 
-
-# TODO move to own interface
-event SetMaxSupply:
-    max_supply: uint256
 
 # These are virtual shares from method proposed by OpenZeppelin
 # see: https://blog.openzeppelin.com/a-novel-defense-against-erc4626-inflation-attacks
@@ -32,12 +30,41 @@ event SetMaxSupply:
 DEAD_SHARES: constant(uint256) = c.DEAD_SHARES
 MIN_ASSETS: constant(uint256) = 10000
 
-borrowed_token: public(IERC20)
-collateral_token: public(IERC20)
+_borrowed_token: IERC20
+# https://github.com/vyperlang/vyper/issues/4721
+@external
+@view
+def borrowed_token() -> IERC20:
+    return self._borrowed_token
 
-amm: public(IAMM)
-controller: public(IController)
-factory: public(IFactory)
+_collateral_token: IERC20
+# https://github.com/vyperlang/vyper/issues/4721
+@external
+@view
+def collateral_token() -> IERC20:
+    return self._collateral_token
+
+_amm: IAMM
+# https://github.com/vyperlang/vyper/issues/4721
+@external
+@view
+def amm() -> IAMM:
+    return self._amm
+
+_controller: IController
+# https://github.com/vyperlang/vyper/issues/4721
+@external
+@view
+def controller() -> IController:
+    return self._controller
+
+_factory: IFactory
+# https://github.com/vyperlang/vyper/issues/4721
+@external
+@view
+def factory() -> IFactory:
+    return self._factory
+
 
 maxSupply: public(uint256)
 
@@ -76,15 +103,15 @@ def initialize(
     @param _borrowed_token Token which is being borrowed
     @param _collateral_token Token which is being collateral
     """
-    assert self.borrowed_token.address == empty(address)
+    assert self._borrowed_token.address == empty(address)
 
-    self.borrowed_token = _borrowed_token
+    self._borrowed_token = _borrowed_token
     borrowed_precision: uint256 = 10**(18 - convert(staticcall _borrowed_token.decimals(), uint256))
-    self.collateral_token = _collateral_token
+    self._collateral_token = _collateral_token
 
-    self.factory = IFactory(msg.sender)
-    self.amm = _amm
-    self.controller = _controller
+    self._factory = IFactory(msg.sender)
+    self._amm = _amm
+    self._controller = _controller
 
     # ERC20 set up
     self.precision = borrowed_precision
@@ -102,9 +129,9 @@ def set_max_supply(_max_supply: uint256):
     """
     @notice Set maximum depositable supply
     """
-    assert msg.sender == staticcall self.factory.admin() or msg.sender == self.factory.address
+    assert msg.sender == staticcall self._factory.admin() or msg.sender == self._factory.address
     self.maxSupply = _max_supply
-    log SetMaxSupply(max_supply=_max_supply)
+    log IVault.SetMaxSupply(max_supply=_max_supply)
 
 
 @external
@@ -114,7 +141,7 @@ def borrow_apr() -> uint256:
     """
     @notice Borrow APR (annualized and 1e18-based)
     """
-    return staticcall self.amm.rate() * (365 * 86400)
+    return staticcall self._amm.rate() * (365 * 86400)
 
 
 @external
@@ -124,10 +151,10 @@ def lend_apr() -> uint256:
     """
     @notice Lending APR (annualized and 1e18-based)
     """
-    debt: uint256 = staticcall self.controller.total_debt()
+    debt: uint256 = staticcall self._controller.total_debt()
     if debt == 0:
         return 0
-    return staticcall self.amm.rate() * (365 * 86400) * debt // self._total_assets()
+    return staticcall self._amm.rate() * (365 * 86400) * debt // self._total_assets()
 
 
 @external
@@ -136,14 +163,14 @@ def asset() -> IERC20:
     """
     @notice Asset which is the same as borrowed_token
     """
-    return self.borrowed_token
+    return self._borrowed_token
 
 
 @internal
 @view
 def _total_assets() -> uint256:
     # admin fee should be accounted for here when enabled
-    return staticcall self.controller.available_balance() + staticcall self.controller.total_debt()
+    return staticcall self._controller.available_balance() + staticcall self._controller.total_debt()
 
 
 @external
@@ -264,12 +291,12 @@ def deposit(_assets: uint256, _receiver: address = msg.sender) -> uint256:
     @param _assets Amount of assets to deposit
     @param _receiver Receiver of the shares who is optional. If not specified - receiver is the sender
     """
-    controller: IController = self.controller
+    controller: IController = self._controller
     total_assets: uint256 = self._total_assets()
     assert total_assets + _assets >= MIN_ASSETS, "Need more assets"
     assert total_assets + _assets <= self.maxSupply, "Supply limit"
     to_mint: uint256 = self._convert_to_shares(_assets, True, total_assets)
-    tkn.transfer_from(self.borrowed_token, msg.sender, controller.address, _assets)
+    tkn.transfer_from(self._borrowed_token, msg.sender, controller.address, _assets)
     self.net_deposits += convert(_assets, int256)
     self._mint(_receiver, to_mint)
     extcall controller.save_rate()
@@ -309,12 +336,12 @@ def mint(_shares: uint256, _receiver: address = msg.sender) -> uint256:
     @param _shares Number of sharess to mint
     @param _receiver Optional receiver for the shares. If not specified - it's the sender
     """
-    controller: IController = self.controller
+    controller: IController = self._controller
     total_assets: uint256 = self._total_assets()
     assets: uint256 = self._convert_to_assets(_shares, False, total_assets)
     assert total_assets + assets >= MIN_ASSETS, "Need more assets"
     assert total_assets + assets <= self.maxSupply, "Supply limit"
-    tkn.transfer_from(self.borrowed_token, msg.sender, controller.address, assets)
+    tkn.transfer_from(self._borrowed_token, msg.sender, controller.address, assets)
     self.net_deposits += convert(assets, int256)
     self._mint(_receiver, _shares)
     extcall controller.save_rate()
@@ -331,7 +358,7 @@ def maxWithdraw(_owner: address) -> uint256:
     """
     return min(
         self._convert_to_assets(self.balanceOf[_owner]),
-        staticcall self.controller.available_balance())
+        staticcall self._controller.available_balance())
 
 # TODO remove reverts that give resupply problems
 @external
@@ -341,7 +368,7 @@ def previewWithdraw(_assets: uint256) -> uint256:
     """
     @notice Calculate number of shares which gets burned when withdrawing given amount of asset
     """
-    assert _assets <= staticcall self.controller.available_balance()
+    assert _assets <= staticcall self._controller.available_balance()
     return self._convert_to_shares(_assets, False)
 
 
@@ -362,9 +389,9 @@ def withdraw(_assets: uint256, _receiver: address = msg.sender, _owner: address 
         if allowance != max_value(uint256):
             self._approve(_owner, msg.sender, allowance - shares)
 
-    controller: IController = self.controller
+    controller: IController = self._controller
     self._burn(_owner, shares)
-    tkn.transfer_from(self.borrowed_token, controller.address, _receiver, _assets)
+    tkn.transfer_from(self._borrowed_token, controller.address, _receiver, _assets)
     self.net_deposits -= convert(_assets, int256)
     extcall controller.save_rate()
     log IERC4626.Withdraw(sender=msg.sender, receiver=_receiver, owner=_owner, assets=_assets, shares=shares)
@@ -379,7 +406,7 @@ def maxRedeem(_owner: address) -> uint256:
     @notice Calculate maximum amount of shares which a given user can redeem
     """
     return min(
-        self._convert_to_shares(staticcall self.controller.available_balance(), False),
+        self._convert_to_shares(staticcall self._controller.available_balance(), False),
         self.balanceOf[_owner])
 
 
@@ -397,7 +424,7 @@ def previewRedeem(_shares: uint256) -> uint256:
     else:
         assets_to_redeem: uint256 = self._convert_to_assets(_shares)
         # TODO can't revert here
-        assert assets_to_redeem <= staticcall self.controller.available_balance()
+        assert assets_to_redeem <= staticcall self._controller.available_balance()
         return assets_to_redeem
 
 
@@ -424,8 +451,8 @@ def redeem(_shares: uint256, _receiver: address = msg.sender, _owner: address = 
         else:
             raise "Need more assets"
     self._burn(_owner, _shares)
-    controller: IController = self.controller
-    tkn.transfer_from(self.borrowed_token, controller.address, _receiver, assets_to_redeem)
+    controller: IController = self._controller
+    tkn.transfer_from(self._borrowed_token, controller.address, _receiver, assets_to_redeem)
     self.net_deposits -= convert(assets_to_redeem, int256)
     extcall controller.save_rate()
     log IERC4626.Withdraw(sender=msg.sender, receiver=_receiver, owner=_owner, assets=assets_to_redeem, shares=_shares)
@@ -559,4 +586,4 @@ def decreaseAllowance(_spender: address, _sub_value: uint256) -> bool:
 @external
 @view
 def admin() -> address:
-    return staticcall self.factory.admin()
+    return staticcall self._factory.admin()

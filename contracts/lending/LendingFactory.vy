@@ -170,7 +170,7 @@ def create(
     )
     extcall amm.set_admin(controller.address)
 
-    extcall vault.initialize(amm, controller.address, _borrowed_token, _collateral_token)
+    extcall vault.initialize(amm, controller, _borrowed_token, _collateral_token)
 
     # Validate monetary policy using controller context
     extcall _monetary_policy.rate_write(controller.address)
