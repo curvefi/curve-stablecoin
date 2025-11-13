@@ -11,5 +11,3 @@ def admin() -> address:
 @view
 def fee_receiver() -> address:
     ...
-
-# TODO double check view decorators on non generated interfaces

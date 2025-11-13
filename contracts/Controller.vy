@@ -1464,7 +1464,7 @@ def _collect_fees() -> uint256:
 
 
 @external
-@reentrant # TODO check if needed
+@reentrant
 def _on_debt_increased(_delta: uint256, _total_debt: uint256):
     pass
 
