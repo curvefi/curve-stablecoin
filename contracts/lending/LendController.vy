@@ -99,14 +99,14 @@ def vault() -> address:
 
 @deploy
 def __init__(
-    vault: IVault,
-    amm: IAMM,
-    borrowed_token: IERC20,
-    collateral_token: IERC20,
-    monetary_policy: IMonetaryPolicy,
-    loan_discount: uint256,
-    liquidation_discount: uint256,
-    view_impl: address,
+    _vault: IVault,
+    _amm: IAMM,
+    _borrowed_token: IERC20,
+    _collateral_token: IERC20,
+    _monetary_policy: IMonetaryPolicy,
+    _loan_discount: uint256,
+    _liquidation_discount: uint256,
+    _view_impl: address,
 ):
     """
     @notice Lend Controller constructor
@@ -117,16 +117,16 @@ def __init__(
            get_x_down() for "bad liquidation" purposes
     @param amm AMM address (Already deployed from blueprint)
     """
-    VAULT = vault
+    VAULT = _vault
 
     core.__init__(
-        collateral_token,
-        borrowed_token,
-        monetary_policy,
-        loan_discount,
-        liquidation_discount,
-        amm,
-        view_impl,
+        _collateral_token,
+        _borrowed_token,
+        _monetary_policy,
+        _loan_discount,
+        _liquidation_discount,
+        _amm,
+        _view_impl,
     )
 
     # Borrow cap is zero by default in lend markets. The admin has to raise it
@@ -146,8 +146,8 @@ def version() -> String[10]:
     return concat(core.version, "-lend")
 
 
-@view
 @external
+@view
 def available_balance() -> uint256:
     """
     @notice Amount of borrowed token the vault can use for withdrawals or new loans
@@ -215,13 +215,13 @@ def set_admin_percentage(_admin_percentage: uint256):
 
 @external
 @reentrant
-def _on_debt_increased(delta: uint256, total_debt: uint256):
+def _on_debt_increased(_delta: uint256, _total_debt: uint256):
     """
     @notice Hook called when debt is increased
     """
     assert msg.sender == self # dev: virtual method protection
-    assert total_debt <= self.borrow_cap, "Borrow cap exceeded"
-    assert delta <= self._available_balance(), "Available balance exceeded"
+    assert _total_debt <= self.borrow_cap, "Borrow cap exceeded"
+    assert _delta <= self._available_balance(), "Available balance exceeded"
 
 
 @external

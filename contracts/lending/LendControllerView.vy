@@ -81,10 +81,10 @@ def _available_balance() -> uint256:
 @external
 @view
 def max_borrowable(
-    collateral: uint256,
-    N: uint256,
-    current_debt: uint256 = 0,
-    user: address = empty(address),
+    _collateral: uint256,
+    _N: uint256,
+    _current_debt: uint256 = 0,
+    _user: address = empty(address),
 ) -> uint256:
     """
     @notice Natspec for this function is available in its controller contract
@@ -92,6 +92,6 @@ def max_borrowable(
     # Cannot borrow beyond the amount of coins Controller has or beyond borrow_cap
     total_debt: uint256 = self._total_debt()
     cap: uint256 = crv_math.sub_or_zero(self._borrow_cap(), total_debt)
-    cap = min(self._available_balance(), cap) + current_debt
+    cap = min(self._available_balance(), cap) + _current_debt
 
-    return core._max_borrowable(collateral, N, cap, user)
+    return core._max_borrowable(_collateral, _N, cap, _user)

@@ -62,61 +62,61 @@ def __init__(
     BORROWED_PRECISION = _borrowed_precision
 
 
-@view
 @internal
+@view
 def _debt(_for: address) -> uint256:
     return staticcall CONTROLLER.debt(_for)
 
 
-@view
 @internal
+@view
 def _liquidation_discount() -> uint256:
     return staticcall CONTROLLER.liquidation_discount()
 
 
-@view
 @internal
+@view
 def _liquidation_discounts(_for: address) -> uint256:
     return staticcall CONTROLLER.liquidation_discounts(_for)
 
 
-@view
 @internal
+@view
 def _loan_discount() -> uint256:
     return staticcall CONTROLLER.loan_discount()
 
 
-@view
 @internal
+@view
 def _calculate_debt_n1(
-    collateral: uint256,
-    debt: uint256,
-    N: uint256,
-    user: address = empty(address),
+    _collateral: uint256,
+    _debt: uint256,
+    _N: uint256,
+    _user: address = empty(address),
 ) -> int256:
-    return staticcall CONTROLLER.calculate_debt_n1(collateral, debt, N, user)
+    return staticcall CONTROLLER.calculate_debt_n1(_collateral, _debt, _N, _user)
 
 
-@view
 @internal
+@view
 def _n_loans() -> uint256:
     return staticcall CONTROLLER.n_loans()
 
 
-@view
 @internal
+@view
 def _loans(_for: uint256) -> address:
     return staticcall CONTROLLER.loans(_for)
 
 
-@view
 @internal
-def _health(_for: address, full: bool = False) -> int256:
-    return staticcall CONTROLLER.health(_for, full)
+@view
+def _health(_for: address, _full: bool = False) -> int256:
+    return staticcall CONTROLLER.health(_for, _full)
 
 
-@view
 @internal
+@view
 def _extra_health(_for: address) -> uint256:
     return staticcall CONTROLLER.extra_health(_for)
 
@@ -124,29 +124,29 @@ def _extra_health(_for: address) -> uint256:
 @internal
 @view
 def _get_y_effective(
-    collateral: uint256, N: uint256, discount: uint256
+    _collateral: uint256, _N: uint256, _discount: uint256
 ) -> uint256:
-    return core._get_y_effective(collateral, N, discount, SQRT_BAND_RATIO, A)
+    return core._get_y_effective(_collateral, _N, _discount, SQRT_BAND_RATIO, A)
 
 
 @external
 @view
 def health_calculator(
-    user: address,
-    d_collateral: int256,
-    d_debt: int256,
-    full: bool,
-    N: uint256 = 0,
+    _user: address,
+    _d_collateral: int256,
+    _d_debt: int256,
+    _full: bool,
+    _N: uint256 = 0,
 ) -> int256:
     """
     @notice Natspec for this function is available in its controller contract
     """
-    ns: int256[2] = staticcall AMM.read_user_tick_numbers(user)
-    debt: int256 = convert(self._debt(user), int256)
-    n: uint256 = N
+    ns: int256[2] = staticcall AMM.read_user_tick_numbers(_user)
+    debt: int256 = convert(self._debt(_user), int256)
+    n: uint256 = _N
     ld: int256 = 0
     if debt != 0:
-        ld = convert(self._liquidation_discounts(user), int256)
+        ld = convert(self._liquidation_discounts(_user), int256)
         n = convert(unsafe_add(unsafe_sub(ns[1], ns[0]), 1), uint256)
     else:
         ld = convert(self._liquidation_discount(), int256)
@@ -155,17 +155,17 @@ def health_calculator(
     n1: int256 = 0
     collateral: int256 = 0
     x_eff: int256 = 0
-    debt += d_debt
+    debt += _d_debt
     assert debt > 0, "debt<0"
 
     active_band: int256 = staticcall AMM.active_band_with_skip()
 
     if ns[0] > active_band:  # re-deposit
         collateral = (
-            convert((staticcall AMM.get_sum_xy(user))[1], int256) + d_collateral
+            convert((staticcall AMM.get_sum_xy(_user))[1], int256) + _d_collateral
         )
         n1 = self._calculate_debt_n1(
-            convert(collateral, uint256), convert(debt, uint256), n, user
+            convert(collateral, uint256), convert(debt, uint256), n, _user
         )
         collateral *= convert(
             COLLATERAL_PRECISION, int256
@@ -173,7 +173,7 @@ def health_calculator(
     else:
         n1 = ns[0]
         x_eff = convert(
-            staticcall AMM.get_x_down(user)
+            staticcall AMM.get_x_down(_user)
             * unsafe_mul(WAD, BORROWED_PRECISION),
             int256,
         )
@@ -193,7 +193,7 @@ def health_calculator(
     health: int256 = unsafe_div(x_eff, debt)
     health = health - unsafe_div(health * ld, SWAD) - SWAD
 
-    if full:
+    if _full:
         if n1 > active_band:  # We are not in liquidation mode
             p_diff: int256 = (
                 max(p0, convert(staticcall AMM.price_oracle(), int256)) - p0
@@ -203,8 +203,8 @@ def health_calculator(
     return health
 
 
-@view
 @external
+@view
 def users_to_liquidate(
     _from: uint256 = 0, _limit: uint256 = 0
 ) -> DynArray[IController.Position, 1000]:
@@ -222,31 +222,31 @@ def users_to_liquidate(
     )
 
 
-@view
 @external
-def user_prices(user: address) -> uint256[2]:  # Upper, lower
+@view
+def user_prices(_user: address) -> uint256[2]:  # Upper, lower
     """
     @notice Natspec for this function is available in its controller contract
     """
-    assert staticcall AMM.has_liquidity(user)
-    ns: int256[2] = staticcall AMM.read_user_tick_numbers(user)  # ns[1] > ns[0]
+    assert staticcall AMM.has_liquidity(_user)
+    ns: int256[2] = staticcall AMM.read_user_tick_numbers(_user)  # ns[1] > ns[0]
     return [
         staticcall AMM.p_oracle_up(ns[0]), staticcall AMM.p_oracle_down(ns[1])
     ]
 
 
-@view
 @external
-def user_state(user: address) -> uint256[4]:
+@view
+def user_state(_user: address) -> uint256[4]:
     """
     @notice Natspec for this function is available in its controller contract
     """
-    xy: uint256[2] = staticcall AMM.get_sum_xy(user)
-    ns: int256[2] = staticcall AMM.read_user_tick_numbers(user)  # ns[1] > ns[0]
+    xy: uint256[2] = staticcall AMM.get_sum_xy(_user)
+    ns: int256[2] = staticcall AMM.read_user_tick_numbers(_user)  # ns[1] > ns[0]
     return [
         xy[1],
         xy[0],
-        self._debt(user),
+        self._debt(_user),
         convert(unsafe_add(unsafe_sub(ns[1], ns[0]), 1), uint256),
     ]
 
@@ -271,7 +271,7 @@ def _max_p_base() -> uint256:
     n1 = max(n1, n_min + 1)
     p_base: uint256 = staticcall AMM.p_oracle_up(n1)
 
-    for i: uint256 in range(MAX_SKIP_TICKS + 1):
+    for _: uint256 in range(MAX_SKIP_TICKS + 1):
         n1 -= 1
         if n1 <= n_min:
             break
@@ -285,10 +285,10 @@ def _max_p_base() -> uint256:
 @internal
 @view
 def _max_borrowable(
-    collateral: uint256,
-    N: uint256,
-    cap: uint256,
-    user: address,
+    _collateral: uint256,
+    _N: uint256,
+    _cap: uint256,
+    _user: address,
 ) -> uint256:
 
     # Calculation of maximum which can be borrowed.
@@ -305,12 +305,12 @@ def _max_borrowable(
     # When n1 -= 1:
     # p_oracle_up *= A / (A - 1)
     # if N < MIN_TICKS or N > MAX_TICKS:
-    assert N >= MIN_TICKS_UINT and N <= MAX_TICKS_UINT
+    assert _N >= MIN_TICKS_UINT and _N <= MAX_TICKS_UINT
 
     y_effective: uint256 = self._get_y_effective(
-        collateral * COLLATERAL_PRECISION,
-        N,
-        self._loan_discount() + self._extra_health(user),
+        _collateral * COLLATERAL_PRECISION,
+        _N,
+        self._loan_discount() + self._extra_health(_user),
     )
 
     x: uint256 = unsafe_sub(
@@ -320,47 +320,47 @@ def _max_borrowable(
         x * (WAD - 10**14), unsafe_mul(WAD, BORROWED_PRECISION)
     )  # Make it a bit smaller
 
-    return min(x, cap)
+    return min(x, _cap)
 
 
 @external
 @view
 def max_borrowable(
-    collateral: uint256,
-    N: uint256,
-    current_debt: uint256 = 0,
-    user: address = empty(address),
+    _collateral: uint256,
+    _N: uint256,
+    _current_debt: uint256 = 0,
+    _user: address = empty(address),
 ) -> uint256:
     """
     @notice Natspec for this function is available in its controller contract
     """
     # Cannot borrow beyond the amount of coins Controller has
     cap: uint256 = (
-        staticcall BORROWED_TOKEN.balanceOf(CONTROLLER.address) + current_debt
+        staticcall BORROWED_TOKEN.balanceOf(CONTROLLER.address) + _current_debt
     )
 
-    return self._max_borrowable(collateral, N, cap, user)
+    return self._max_borrowable(_collateral, _N, cap, _user)
 
 
 @external
 @view
 def min_collateral(
-    debt: uint256, N: uint256, user: address = empty(address)
+    _debt: uint256, _N: uint256, _user: address = empty(address)
 ) -> uint256:
     """
     @notice Natspec for this function is available in its controller contract
     """
     # Add N**2 to account for precision loss in multiple bands, e.g. N / (y/N) = N**2 / y
-    assert N <= MAX_TICKS_UINT and N >= MIN_TICKS_UINT
+    assert _N <= MAX_TICKS_UINT and _N >= MIN_TICKS_UINT
     return unsafe_div(
         unsafe_div(
-            debt
+            _debt
             * unsafe_mul(WAD, BORROWED_PRECISION) // self._max_p_base()
             * WAD // self._get_y_effective(
-                WAD, N, self._loan_discount() + self._extra_health(user)
+                WAD, _N, self._loan_discount() + self._extra_health(_user)
             )
             + unsafe_add(
-                unsafe_mul(N, unsafe_add(N, 2 * DEAD_SHARES)),
+                unsafe_mul(_N, unsafe_add(_N, 2 * DEAD_SHARES)),
                 unsafe_sub(COLLATERAL_PRECISION, 1),
             ),
             COLLATERAL_PRECISION,

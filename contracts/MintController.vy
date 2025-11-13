@@ -23,18 +23,20 @@ exports: core.__interface__
 
 @deploy
 def __init__(
-    collateral_token: core.IERC20,
-    monetary_policy: core.IMonetaryPolicy,
-    loan_discount: uint256,
-    liquidation_discount: uint256,
-    amm: core.IAMM,
+    _collateral_token: core.IERC20,
+    _monetary_policy: core.IMonetaryPolicy,
+    _loan_discount: uint256,
+    _liquidation_discount: uint256,
+    _amm: core.IAMM,
 ):
     core.__init__(
-        collateral_token,
+        _collateral_token,
         staticcall core.IFactory(msg.sender).stablecoin(),
-        monetary_policy,
-        loan_discount,
-        liquidation_discount,
-        amm,
+        _monetary_policy,
+        _loan_discount,
+        _liquidation_discount,
+        _amm,
         empty(address),  # to replace at deployment with view blueprint
     )
+
+    # TODO add assertion that prevents deployment if view isn't there
