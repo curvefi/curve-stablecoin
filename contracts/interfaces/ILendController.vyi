@@ -5,7 +5,6 @@ from contracts.interfaces import IMonetaryPolicy
 from contracts.interfaces import IFactory
 from contracts.interfaces import IController
 
-# TODO rename to ILendController
 # TODO only keep diff
 
 # Events

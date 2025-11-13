@@ -12,7 +12,7 @@ from curve_std.interfaces import IERC20
 
 # TODO make module friendly
 from contracts.interfaces import IVault
-from contracts.interfaces import ILlamalendController as IController
+from contracts.interfaces import ILendController as IController
 from contracts.interfaces import IAMM
 from contracts.interfaces import IPriceOracle
 from contracts.interfaces import ILendFactory

@@ -10,7 +10,7 @@
 from curve_std.interfaces import IERC20
 from curve_std.interfaces import IERC4626
 from contracts.interfaces import IAMM
-from contracts.interfaces import ILlamalendController as IController
+from contracts.interfaces import ILendController as IController
 from contracts.interfaces import IFactory
 from contracts.interfaces import IVault
 

@@ -10,7 +10,7 @@
 
 from curve_std.interfaces import IERC20
 from contracts.interfaces import IController
-from contracts.interfaces import ILlamalendController
+from contracts.interfaces import ILendController
 from contracts.interfaces import IAMM
 from contracts.interfaces import IControllerView
 from curve_std import math as crv_math
@@ -63,7 +63,7 @@ def _total_debt() -> uint256:
 @internal
 @view
 def _borrow_cap() -> uint256:
-    ll_core: ILlamalendController = ILlamalendController(
+    ll_core: ILendController = ILendController(
         core.CONTROLLER.address
     )
     return staticcall ll_core.borrow_cap()
@@ -72,7 +72,7 @@ def _borrow_cap() -> uint256:
 @internal
 @view
 def _available_balance() -> uint256:
-    ll_core: ILlamalendController = ILlamalendController(
+    ll_core: ILendController = ILendController(
         core.CONTROLLER.address
     )
     return staticcall ll_core.available_balance()
