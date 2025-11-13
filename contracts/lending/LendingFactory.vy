@@ -73,7 +73,6 @@ def __init__(
     _amm_blueprint: address,
     _controller_blueprint: address,
     _vault_blueprint: address,
-    _pool_price_oracle_blueprint: address,
     _controller_view_blueprint: address,
     _admin: address,
     _fee_receiver: address,

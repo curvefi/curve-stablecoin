@@ -21,11 +21,11 @@ repos:
         args: [--fix]
       - id: ruff-format
 
-  # - repo: https://github.com/AlbertoCentonze/natrix
-  #   rev: v0.1.9  # Use the latest version
-  #   hooks:
-  #     - id: natrix
-  #       args: [lint, contracts/lending/LendingFactory.vy] # TODO slowly increase natrix coverage
+  - repo: https://github.com/AlbertoCentonze/natrix
+    rev: v0.1.9
+    hooks:
+      - id: natrix
+        args: [lint, contracts/lending/LendingFactory.vy, -d, NTX1]
 
   - repo: https://github.com/benber86/mamushi
     rev: main
