@@ -15,10 +15,10 @@ from contracts.interfaces import IVault
 from contracts.interfaces import ILlamalendController as IController
 from contracts.interfaces import IAMM
 from contracts.interfaces import IPriceOracle
-from contracts.interfaces import ILendingFactory
+from contracts.interfaces import ILendFactory
 from contracts.interfaces import IMonetaryPolicy
 
-implements: ILendingFactory
+implements: ILendFactory
 
 from snekmate.utils import math
 from snekmate.auth import ownable
@@ -176,7 +176,7 @@ def create(
     extcall _monetary_policy.rate_write(controller.address)
 
     market_count: uint256 = self.market_count
-    log ILendingFactory.NewVault(
+    log ILendFactory.NewVault(
         id=market_count,
         collateral_token=_collateral_token,
         borrowed_token=_borrowed_token,
@@ -250,7 +250,7 @@ def set_implementations(
     if _controller_view_blueprint != empty(address):
         self.controller_view_blueprint = _controller_view_blueprint
 
-    log ILendingFactory.SetBlueprints(
+    log ILendFactory.SetBlueprints(
         amm=_amm_blueprint,
         controller=_controller_blueprint,
         vault=_vault_blueprint,
@@ -277,7 +277,7 @@ def set_fee_receiver(_fee_receiver: address):
     ownable._check_owner()
     assert _fee_receiver != empty(address)
     self.fee_receiver = _fee_receiver
-    log ILendingFactory.SetFeeReceiver(fee_receiver=_fee_receiver)
+    log ILendFactory.SetFeeReceiver(fee_receiver=_fee_receiver)
 
 
 @external
