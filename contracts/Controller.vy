@@ -1197,17 +1197,17 @@ def liquidate(
     @param callbacker Address of the callback contract
     @param calldata Any data for callbacker
     """
-    health_limit: uint256 = 0
     approval: bool = self._check_approval(user)
-    if not approval:
-        health_limit = self.liquidation_discounts[user]
+    liquidation_discount: uint256 = self.liquidation_discounts[user]
     debt: uint256 = 0
     rate_mul: uint256 = 0
     debt, rate_mul = self._debt(user)
 
-    health_before: int256 = self._health(user, debt, True, health_limit)
-    if health_limit != 0:
+    health_before: int256 = self._health(user, debt, True, liquidation_discount)
+    health_limit: uint256 = 0
+    if not approval:
         assert health_before < 0, "Not enough rekt"
+        health_limit = liquidation_discount
 
     final_debt: uint256 = debt
     assert _frac <= WAD, "frac>100%"
@@ -1284,7 +1284,6 @@ def liquidate(
         )
         self._remove_from_list(user)
     else:
-        liquidation_discount: uint256 = 0
         if health_before > 0:
             liquidation_discount = self._update_user_liquidation_discount(user, approval, final_debt)
         else:
