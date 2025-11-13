@@ -25,7 +25,7 @@ repos:
     rev: v0.1.9
     hooks:
       - id: natrix
-        args: [lint, contracts/lending/LendingFactory.vy, -d, NTX1]
+        args: [lint, contracts/lending/, contracts/Controller.vy, contracts/constants.vy, contracts/ControllerView.vy, contracts/MintController.vy, -d, NTX1, NTX4, NTX5, NTX2, NTX9, NTX10]
 
   - repo: https://github.com/benber86/mamushi
     rev: main
