@@ -236,7 +236,37 @@ def user_state(user: address) -> uint256[4]:
 
 @view
 @external
-def health_calculator(user: address, d_collateral: int256, d_debt: int256, full: bool, N: uint256) -> int256:
+def create_loan_health_preview(collateral: uint256, debt: uint256, N: uint256, full: bool) -> int256:
+    ...
+
+
+@view
+@external
+def add_collateral_health_preview(collateral: uint256, _for: address, _caller: address, full: bool) -> int256:
+    ...
+
+
+@view
+@external
+def remove_collateral_health_preview(collateral: uint256, _for: address, full: bool) -> int256:
+    ...
+
+
+@view
+@external
+def borrow_more_health_preview(collateral: uint256, debt: uint256, _for: address, full: bool) -> int256:
+    ...
+
+
+@view
+@external
+def repay_health_preview(d_collateral: uint256, d_debt: uint256, _for: address, _caller: address, shrink: bool, full: bool) -> int256:
+    ...
+
+
+@view
+@external
+def liquidate_health_preview(user: address, _caller: address, _frac: uint256, full: bool) -> int256:
     ...
 
 

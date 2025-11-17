@@ -11,17 +11,19 @@
 
 from contracts.interfaces import IAMM
 from contracts.interfaces import IController
-
 from curve_std.interfaces import IERC20
 
 from contracts import Controller as core
 import contracts.lib.liquidation_lib as liq
 from contracts import constants as c
 from snekmate.utils import math
+from curve_std import math as crv_math
+
 
 # https://github.com/vyperlang/vyper/issues/4723
 MIN_TICKS_UINT: constant(uint256) = c.MIN_TICKS_UINT
 MAX_TICKS_UINT: constant(uint256) = c.MAX_TICKS_UINT
+MIN_TICKS: constant(int256) = c.MIN_TICKS
 DEAD_SHARES: constant(uint256) = c.DEAD_SHARES
 WAD: constant(uint256) = c.WAD
 SWAD: constant(int256) = c.SWAD
@@ -129,78 +131,232 @@ def _get_y_effective(
     return core._get_y_effective(_collateral, _N, _discount, SQRT_BAND_RATIO, A)
 
 
+@internal
+@view
+def _check_approval(_for: address, _caller: address) -> bool:
+    return _for == _caller or staticcall CONTROLLER.approval(_for, msg.sender)
+
+
+@internal
+@view
+def _calc_health(_x_eff: uint256, _debt: uint256, _ld: uint256) -> int256:
+    health: int256 = convert(unsafe_div(_x_eff, _debt), int256)
+    health = health - unsafe_div(health * convert(_ld, int256), SWAD) - SWAD
+
+    return health
+
+
+@internal
+@view
+def _calc_full_health(_collateral: uint256, _debt: uint256, _N: uint256, _n1: int256, _ld: uint256, _full: bool) -> int256:
+    p0: uint256 = staticcall AMM.p_oracle_up(_n1)
+    x_eff: uint256 = self._get_y_effective(_collateral, _N, 0) * p0
+
+    health: int256 = self._calc_health(x_eff, _debt, _ld)
+
+    if _full:
+        p_diff: uint256 = crv_math.sub_or_zero(staticcall AMM.price_oracle(), p0)
+        if p_diff > 0:
+            health += unsafe_div(convert(p_diff, int256) * convert(_collateral, int256), convert(_debt, int256))
+
+    return health
+
+
 @external
 @view
-def health_calculator(
-    _user: address,
-    _d_collateral: int256,
-    _d_debt: int256,
+def create_loan_health_preview(
+    _collateral: uint256,
+    _debt: uint256,
+    _N: uint256,
     _full: bool,
-    _N: uint256 = 0,
 ) -> int256:
     """
     @notice Natspec for this function is available in its controller contract
     """
-    ns: int256[2] = staticcall AMM.read_user_tick_numbers(_user)
-    debt: int256 = convert(self._debt(_user), int256)
-    n: uint256 = _N
-    ld: int256 = 0
-    if debt != 0:
-        ld = convert(self._liquidation_discounts(_user), int256)
-        n = convert(unsafe_add(unsafe_sub(ns[1], ns[0]), 1), uint256)
+    assert _debt > 0, "debt<0"
+    n1: int256 = self._calculate_debt_n1(_collateral, _debt, _N)
+    ld: uint256 = self._liquidation_discount()
+    collateral: uint256 = _collateral * COLLATERAL_PRECISION  # now has 18 decimals
+    debt: uint256 = _debt * BORROWED_PRECISION  # now has 18 decimals
+
+    return self._calc_full_health(collateral, debt, _N, n1, ld, _full)
+
+
+@internal
+@view
+def _add_collateral_borrow_health_preview(
+        _collateral: uint256,
+        _debt: uint256,
+        _for: address,
+        _full: bool,
+        _update_ld: bool,
+        _remove: bool,
+) -> int256:
+    """
+    @notice Natspec for this function is available in its controller contract
+    """
+    debt: uint256 = self._debt(_for)
+    ns: int256[2] = staticcall AMM.read_user_tick_numbers(_for)
+    N: uint256 = convert(unsafe_add(unsafe_sub(ns[1], ns[0]), 1), uint256)
+    xy: uint256[2] = staticcall AMM.get_sum_xy(_for)
+
+    assert debt > 0, "debt < 0"
+    assert xy[0] == 0, "Underwater"
+
+    collateral: uint256 = xy[1]
+    if _remove:
+        assert collateral > _collateral, "Can't remove more collateral than user has"
+        collateral -= _collateral
     else:
-        ld = convert(self._liquidation_discount(), int256)
-        ns[0] = max_value(int256)  # This will trigger a "re-deposit"
+        collateral += _collateral
+    debt += _debt
 
-    n1: int256 = 0
-    collateral: int256 = 0
-    x_eff: int256 = 0
-    debt += _d_debt
-    assert debt > 0, "debt<0"
+    n1: int256 = self._calculate_debt_n1(collateral, debt, N, _for)
+    collateral *= COLLATERAL_PRECISION  # now has 18 decimals
+    debt *= BORROWED_PRECISION  # now has 18 decimals
 
+    ld: uint256 = 0
+    if _update_ld:
+        ld = self._liquidation_discount()
+    else:
+        ld = self._liquidation_discounts(_for)
+
+    return self._calc_full_health(collateral, debt, N, n1, ld, _full)
+
+
+@external
+@view
+def add_collateral_health_preview(
+    _collateral: uint256,
+    _for: address,
+    _caller: address,
+    _full: bool,
+) -> int256:
+    """
+    @notice Natspec for this function is available in its controller contract
+    """
+    return self._add_collateral_borrow_health_preview(
+        _collateral, 0, _for, _full, self._check_approval(_for, _caller), False
+    )
+
+
+@external
+@view
+def remove_collateral_health_preview(
+    _collateral: uint256,
+    _for: address,
+    _full: bool,
+) -> int256:
+    """
+    @notice Natspec for this function is available in its controller contract
+    """
+    return self._add_collateral_borrow_health_preview(
+        _collateral, 0, _for, _full, True, True
+    )
+
+
+@external
+@view
+def borrow_more_health_preview(
+    _collateral: uint256,
+    _debt: uint256,
+    _for: address,
+    _full: bool,
+) -> int256:
+    """
+    @notice Natspec for this function is available in its controller contract
+    """
+    return self._add_collateral_borrow_health_preview(
+        _collateral, _debt, _for, _full, True, False
+    )
+
+
+@external
+@view
+def repay_health_preview(
+    _d_collateral: uint256,
+    _d_debt: uint256,
+    _for: address,
+    _caller: address,
+    _shrink: bool,
+    _full: bool,
+) -> int256:
+    """
+    @notice Natspec for this function is available in its controller contract
+    """
+    ns: int256[2] = staticcall AMM.read_user_tick_numbers(_for)
+    debt: uint256 = self._debt(_for)
     active_band: int256 = staticcall AMM.active_band_with_skip()
 
-    if ns[0] > active_band:  # re-deposit
-        collateral = (
-            convert((staticcall AMM.get_sum_xy(_user))[1], int256) + _d_collateral
-        )
-        n1 = self._calculate_debt_n1(
-            convert(collateral, uint256), convert(debt, uint256), n, _user
-        )
-        collateral *= convert(
-            COLLATERAL_PRECISION, int256
-        )  # now has 18 decimals
+    assert debt > 0, "debt < 0"
+    assert debt > _d_debt, "Can't repay more debt than user has"
+    debt -= _d_debt
+
+    ld: uint256 = 0
+    if self._check_approval(_for, _caller):
+        ld = self._liquidation_discount()
     else:
-        n1 = ns[0]
-        x_eff = convert(
-            staticcall AMM.get_x_down(_user)
-            * unsafe_mul(WAD, BORROWED_PRECISION),
-            int256,
-        )
+        ld = self._liquidation_discounts(_for)
 
-    debt *= convert(BORROWED_PRECISION, int256)
+    if ns[0] > active_band or _shrink:  # re-deposit
+        xy: uint256[2] = staticcall AMM.get_sum_xy(_for)
 
-    p0: int256 = convert(staticcall AMM.p_oracle_up(n1), int256)
+        assert debt > xy[0], "Can't repay more debt than user has"
+        debt -= xy[0]
+
+        collateral: uint256 = xy[1]
+        assert _d_collateral < collateral, "Can't remove more collateral than user has"
+        collateral -= _d_collateral
+
+        assert ns[1] >= active_band + MIN_TICKS, "Can't shrink"
+        N: uint256 = convert(unsafe_add(unsafe_sub(ns[1], max(ns[0], active_band + 1)), 1), uint256)
+        n1: int256 = self._calculate_debt_n1(collateral, debt, N)
+
+        return self._calc_full_health(collateral, debt, N, n1, ld, _full)
+    else:
+        x_eff: uint256 = staticcall AMM.get_x_down(_for) * unsafe_mul(WAD, BORROWED_PRECISION)
+
+        return self._calc_health(x_eff, debt, ld)
+
+
+@external
+@view
+def liquidate_health_preview(
+    _user: address,
+    _caller: address,
+    _frac: uint256,
+    _full: bool,
+) -> int256:
+    """
+    @notice Natspec for this function is available in its controller contract
+    """
+    assert _frac < WAD, "frac >= 100%"
+    debt: uint256 = self._debt(_user)
+    ns: int256[2] = staticcall AMM.read_user_tick_numbers(_user)
+    N: uint256 = convert(unsafe_add(unsafe_sub(ns[1], ns[0]), 1), uint256)
+    xy: uint256[2] = staticcall AMM.get_sum_xy(_user)
+    active_band: int256 = staticcall AMM.active_band_with_skip()
+
+    approval: bool = self._check_approval(_user, _caller)
+    health_limit: uint256 = 0
+    ld: uint256 = 0
+    if approval:
+        ld = self._liquidation_discount()
+    else:
+        ld = self._liquidation_discounts(_user)
+        health_limit = ld
+    f_remove: uint256 = core._get_f_remove(_frac, health_limit)
+
     if ns[0] > active_band:
-        x_eff = (
-            convert(
-                self._get_y_effective(convert(collateral, uint256), n, 0),
-                int256,
-            )
-            * p0
-        )
+        collateral: uint256 = xy[1] * (WAD - f_remove) // WAD
+        debt = debt * (WAD - _frac) // WAD
 
-    health: int256 = unsafe_div(x_eff, debt)
-    health = health - unsafe_div(health * ld, SWAD) - SWAD
+        return self._calc_full_health(collateral, debt, N, ns[0], ld, _full)
+    else:
+        x_eff: uint256 = staticcall AMM.get_x_down(_user) * unsafe_mul(WAD, BORROWED_PRECISION) * (WAD - f_remove) // WAD
+        debt = debt * (WAD - _frac) // WAD
 
-    if _full:
-        if n1 > active_band:  # We are not in liquidation mode
-            p_diff: int256 = (
-                max(p0, convert(staticcall AMM.price_oracle(), int256)) - p0
-            )
-            if p_diff > 0:
-                health += unsafe_div(p_diff * collateral, debt)
-    return health
+        return self._calc_health(x_eff, debt, ld)
 
 
 @external

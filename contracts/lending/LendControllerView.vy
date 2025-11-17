@@ -25,7 +25,12 @@ exports: (
     core.user_state,
     core.user_prices,
     core.users_to_liquidate,
-    core.health_calculator,
+    core.create_loan_health_preview,
+    core.add_collateral_health_preview,
+    core.remove_collateral_health_preview,
+    core.borrow_more_health_preview,
+    core.repay_health_preview,
+    core.liquidate_health_preview,
 )
 
 

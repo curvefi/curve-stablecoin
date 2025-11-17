@@ -434,9 +434,9 @@ def _get_y_effective(
     @notice Intermediary method which calculates y_effective defined as x_effective / p_base,
             however discounted by loan_discount.
             x_effective is an amount which can be obtained from collateral when liquidating
-    @param collateral Amount of collateral to get the value for
-    @param N Number of bands the deposit is made into
-    @param discount Loan discount at 1e18 base (e.g. 1e18 == 100%)
+    @param _collateral Amount of collateral with 18 decimals to get the value for
+    @param _N Number of bands the deposit is made into
+    @param _discount Loan discount at 1e18 base (e.g. 1e18 == 100%)
     @return y_effective
     """
     # x_effective = sum_{i=0..N-1}(y / N * p(n_{n1+i})) =
@@ -632,6 +632,29 @@ def execute_callback(
 
 
 @external
+@view
+def create_loan_health_preview(
+    _collateral: uint256,
+    _debt: uint256,
+    _N: uint256,
+    _full: bool,
+) -> int256:
+    """
+    @notice Calculates health after calling create_loan with the same params
+    @param _collateral Amount of collateral to use (from wallet + callback).
+           Note: the collateral amount coming from the callback should be included.
+    @param _debt Borrowed asset debt to take
+    @param _N Number of bands to deposit into (to do autoliquidation-deliquidation),
+           can be from MIN_TICKS to MAX_TICKS
+    @param _full Whether it's a 'full' health or not
+    @return Signed health value
+    """
+    return staticcall self._view.create_loan_health_preview(
+        _collateral, _debt, _N, _full
+    )
+
+
+@external
 def create_loan(
     _collateral: uint256,
     _debt: uint256,
@@ -800,6 +823,28 @@ def _add_collateral_borrow(
 
 
 @external
+@view
+def add_collateral_health_preview(
+    _collateral: uint256,
+    _for: address,
+    _caller: address,
+    _full: bool,
+) -> int256:
+    """
+    @notice Calculates health after calling add_collateral with the same args
+    @param _collateral Amount of collateral to add
+    @param _for Address to add collateral for
+    @param _caller Address from which add_collateral tx is going to be sent.
+           Depending on this address liquidation_discount will be changed or not.
+    @param _full Whether it's a 'full' health or not
+    @return Signed health value
+    """
+    return staticcall self._view.add_collateral_health_preview(
+        _collateral, _for, _caller, _full
+    )
+
+
+@external
 def add_collateral(_collateral: uint256, _for: address = msg.sender):
     """
     @notice Add extra collateral to avoid bad liqidations
@@ -811,6 +856,25 @@ def add_collateral(_collateral: uint256, _for: address = msg.sender):
     self._add_collateral_borrow(_collateral, 0, _for, False, _for != msg.sender)
     tkn.transfer_from(COLLATERAL_TOKEN, msg.sender, AMM.address, _collateral)
     self._save_rate()
+
+
+@external
+@view
+def remove_collateral_health_preview(
+    _collateral: uint256,
+    _for: address,
+    _full: bool,
+) -> int256:
+    """
+    @notice Calculates health after calling remove_collateral with the same args
+    @param _collateral Amount of collateral to remove
+    @param _for Address to remove collateral from
+    @param _full Whether it's a 'full' health or not
+    @return Signed health value
+    """
+    return staticcall self._view.remove_collateral_health_preview(
+        _collateral, _for, _full
+    )
 
 
 @external
@@ -826,6 +890,28 @@ def remove_collateral(_collateral: uint256, _for: address = msg.sender):
     self._add_collateral_borrow(_collateral, 0, _for, True, False)
     tkn.transfer_from(COLLATERAL_TOKEN, AMM.address, _for, _collateral)
     self._save_rate()
+
+
+@external
+@view
+def borrow_more_health_preview(
+    _collateral: uint256,
+    _debt: uint256,
+    _for: address,
+    _full: bool,
+) -> int256:
+    """
+    @notice Calculates health after calling borrow_more with the same params
+    @param _collateral Amount of collateral to add (from wallet + callback).
+           Note: the collateral amount coming from the callback should be included.
+    @param _debt Amount of borrowed asset debt to take
+    @param _for Address to borrow for
+    @param _full Whether it's a 'full' health or not
+    @return Signed health value
+    """
+    return staticcall self._view.borrow_more_health_preview(
+        _collateral, _debt, _for, _full
+    )
 
 
 @external
@@ -1013,6 +1099,34 @@ def _repay_partial(
 
 
 @external
+@view
+def repay_health_preview(
+    _d_collateral: uint256,
+    _d_debt: uint256,
+    _for: address,
+    _caller: address,
+    _shrink: bool,
+    _full: bool,
+) -> int256:
+    """
+    @notice Calculates health after calling repay with the same params
+    @dev Works only for partial repay, reverts for full repay
+    @param _d_collateral Amount of collateral to remove (goes to callback)
+    @param _d_debt The amount of debt to repay (from wallet + callback).
+           Note: the borrowed amount coming from the callback should be included.
+    @param _for Address to borrow for
+    @param _caller Address from which repay tx is going to be sent.
+           Depending on this address liquidation_discount will be changed or not.
+    @param _shrink Whether shrink soft-liquidated part of the position or not
+    @param _full Whether it's a 'full' health or not
+    @return Signed health value
+    """
+    return staticcall self._view.repay_health_preview(
+        _d_collateral, _d_debt, _for, _caller, _shrink, _full
+    )
+
+
+@external
 def repay(
     _wallet_d_debt: uint256,
     _for: address = msg.sender,
@@ -1140,29 +1254,6 @@ def _health(
     return health
 
 
-@external
-@view
-def health_calculator(
-    _user: address,
-    _d_collateral: int256,
-    _d_debt: int256,
-    _full: bool,
-    _N: uint256 = 0,
-) -> int256:
-    """
-    @notice Health predictor in case user changes the debt or collateral
-    @param _user Address of the user
-    @param _d_collateral Change in collateral amount (signed)
-    @param _d_debt Change in debt amount (signed)
-    @param _full Whether it's a 'full' health or not
-    @param _N Number of bands in case loan doesn't yet exist
-    @return Signed health value
-    """
-    return staticcall self._view.health_calculator(
-        _user, _d_collateral, _d_debt, _full, _N
-    )
-
-
 @internal
 @pure
 def _get_f_remove(_frac: uint256, _health_limit: uint256) -> uint256:
@@ -1179,6 +1270,28 @@ def _get_f_remove(_frac: uint256, _health_limit: uint256) -> uint256:
         f_remove = unsafe_div(unsafe_mul(unsafe_add(f_remove, _frac), _frac), WAD)
 
     return f_remove
+
+
+@external
+@view
+def liquidate_health_preview(
+    _user: address,
+    _caller: address,
+    _frac: uint256,
+    _full: bool,
+) -> int256:
+    """
+    @notice Calculates health after calling liquidate with the same args
+    @param _user User to liquidate
+    @param _caller Address from which liquidate tx is going to be sent.
+           Depending on this address liquidation_discount will be changed or not.
+    @param _frac Fraction to liquidate; 100% = 10**18
+    @param _full Whether it's a 'full' health or not
+    @return Signed health value
+    """
+    return staticcall self._view.liquidate_health_preview(
+        _user, _caller, _frac, _full
+    )
 
 
 @external
