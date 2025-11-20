@@ -107,3 +107,11 @@ def max_borrowable(
     """
     return core._max_borrowable(_collateral, _N, self._get_cap() + _current_debt , _user)
 
+
+@external
+@view
+def tokens_to_shrink(_user: address) -> uint256:
+    """
+    @notice Natspec for this function is available in its controller contract
+    """
+    return core._tokens_to_shrink(_user, self._get_cap())

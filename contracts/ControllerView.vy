@@ -528,3 +528,35 @@ def min_collateral(
         * WAD,
         WAD - 10**14,
     )
+
+
+@internal
+@view
+def _tokens_to_shrink(_user: address, _cap: uint256) -> uint256:
+    active_band: int256 = staticcall AMM.active_band_with_skip()
+    ns: int256[2] = staticcall AMM.read_user_tick_numbers(_user)
+
+    if ns[0] > active_band:
+        return 0
+
+    assert ns[1] >= active_band + MIN_TICKS, "Can't shrink"
+    size: uint256 = convert(unsafe_add(unsafe_sub(ns[1], active_band + 1), 1), uint256)
+    xy: uint256[2] = staticcall AMM.get_sum_xy(_user)
+    current_debt: uint256 = self._debt(_user)
+    new_debt: uint256 = crv_math.sub_or_zero(current_debt, xy[0])
+
+    # Cannot borrow beyond the amount of coins Controller has
+    _cap += new_debt
+
+    max_borrowable: uint256 = self._max_borrowable(xy[1], size, _cap, _user)
+
+    return crv_math.sub_or_zero(new_debt, max_borrowable)
+
+
+@external
+@view
+def tokens_to_shrink(_user: address) -> uint256:
+    """
+    @notice Natspec for this function is available in its controller contract
+    """
+    return self._tokens_to_shrink(_user, staticcall BORROWED_TOKEN.balanceOf(CONTROLLER.address))
