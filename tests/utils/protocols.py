@@ -141,7 +141,6 @@ class Llamalend:
             self.blueprints.amm.address,
             self.blueprints.lend_controller.address,
             self.blueprints.vault.address,
-            self.blueprints.price_oracle.address,
             self.blueprints.lend_controller_view.address,
             self.admin,
             self.fee_receiver,
