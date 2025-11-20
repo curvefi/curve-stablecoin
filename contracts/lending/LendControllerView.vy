@@ -83,6 +83,17 @@ def _available_balance() -> uint256:
     return staticcall ll_core.available_balance()
 
 
+@internal
+@view
+def _get_cap() -> uint256:
+    """
+    @notice Cannot borrow beyond the amount of coins Controller has or beyond borrow_cap
+    """
+    total_debt: uint256 = self._total_debt()
+    cap: uint256 = crv_math.sub_or_zero(self._borrow_cap(), total_debt)
+    return min(self._available_balance(), cap)
+
+
 @external
 @view
 def max_borrowable(
@@ -94,9 +105,5 @@ def max_borrowable(
     """
     @notice Natspec for this function is available in its controller contract
     """
-    # Cannot borrow beyond the amount of coins Controller has or beyond borrow_cap
-    total_debt: uint256 = self._total_debt()
-    cap: uint256 = crv_math.sub_or_zero(self._borrow_cap(), total_debt)
-    cap = min(self._available_balance(), cap) + _current_debt
+    return core._max_borrowable(_collateral, _N, self._get_cap() + _current_debt , _user)
 
-    return core._max_borrowable(_collateral, _N, cap, _user)

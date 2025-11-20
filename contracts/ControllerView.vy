@@ -479,6 +479,15 @@ def _max_borrowable(
     return min(x, _cap)
 
 
+@internal
+@view
+def _get_cap() -> uint256:
+    """
+    @notice Cannot borrow beyond the amount of coins Controller has
+    """
+    return staticcall BORROWED_TOKEN.balanceOf(CONTROLLER.address)
+
+
 @external
 @view
 def max_borrowable(
@@ -490,12 +499,7 @@ def max_borrowable(
     """
     @notice Natspec for this function is available in its controller contract
     """
-    # Cannot borrow beyond the amount of coins Controller has
-    cap: uint256 = (
-        staticcall BORROWED_TOKEN.balanceOf(CONTROLLER.address) + _current_debt
-    )
-
-    return self._max_borrowable(_collateral, _N, cap, _user)
+    return self._max_borrowable(_collateral, _N, self._get_cap() + _current_debt, _user)
 
 
 @external
