@@ -69,7 +69,7 @@ LEND_CONTROLLER_VIEW_DEPLOYER = boa.load_partial(
     LENDING_CONTRACT_PATH + "LendControllerView.vy", compiler_args=compiler_args_default
 )
 LENDING_FACTORY_DEPLOYER = boa.load_partial(
-    LENDING_CONTRACT_PATH + "LendingFactory.vy", compiler_args=compiler_args_codesize
+    LENDING_CONTRACT_PATH + "LendFactory.vy", compiler_args=compiler_args_codesize
 )
 
 # Flashloan contracts
