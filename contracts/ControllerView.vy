@@ -347,16 +347,15 @@ def liquidate_health_preview(
         health_limit = ld
     f_remove: uint256 = core._get_f_remove(_frac, health_limit)
 
-    if ns[0] > active_band:
+    x_eff: uint256 = staticcall AMM.get_x_down(_user) * unsafe_mul(WAD, BORROWED_PRECISION) * (WAD - f_remove) // WAD
+    debt = debt * (WAD - _frac) // WAD
+    health: int256 = self._calc_health(x_eff, debt, ld)
+
+    if health > 0 and ns[0] > active_band:
         collateral: uint256 = xy[1] * (WAD - f_remove) // WAD
-        debt = debt * (WAD - _frac) // WAD
+        health = self._calc_full_health(collateral, debt, N, ns[0], ld, _full)
 
-        return self._calc_full_health(collateral, debt, N, ns[0], ld, _full)
-    else:
-        x_eff: uint256 = staticcall AMM.get_x_down(_user) * unsafe_mul(WAD, BORROWED_PRECISION) * (WAD - f_remove) // WAD
-        debt = debt * (WAD - _frac) // WAD
-
-        return self._calc_health(x_eff, debt, ld)
+    return health
 
 
 @external
