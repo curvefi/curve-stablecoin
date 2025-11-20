@@ -83,7 +83,10 @@ def test_liquidate_full_from_wallet(
     if different_liquidator:
         liquidator = boa.env.generate_address()
 
-    if not is_healthy:
+    if is_healthy:
+        price_oracle.set_price(price_oracle.price() * 2, sender=admin)
+        assert controller.health(borrower) > 0
+    else:
         # Lower oracle price to make position unhealthy
         price_oracle.set_price(price_oracle.price() // 2, sender=admin)
         assert controller.health(borrower) < 0
@@ -385,7 +388,10 @@ def test_liquidate_full_from_callback(
     if different_liquidator:
         liquidator = boa.env.generate_address()
 
-    if not is_healthy:
+    if is_healthy:
+        price_oracle.set_price(price_oracle.price() * 2, sender=admin)
+        assert controller.health(borrower) > 0
+    else:
         # Lower oracle price to make position unhealthy
         price_oracle.set_price(price_oracle.price() // 2, sender=admin)
         assert controller.health(borrower) < 0
@@ -556,7 +562,10 @@ def test_liquidate_full_from_callback_underwater(
     if different_liquidator:
         liquidator = boa.env.generate_address()
 
-    if not is_healthy:
+    if is_healthy:
+        price_oracle.set_price(price_oracle.price() * 2, sender=admin)
+        assert controller.health(borrower) > 0
+    else:
         # Lower oracle price to make position unhealthy
         price_oracle.set_price(price_oracle.price() // 2, sender=admin)
         assert controller.health(borrower) < 0
@@ -740,7 +749,10 @@ def test_liquidate_full_from_xy0_underwater(
     if different_liquidator:
         liquidator = boa.env.generate_address()
 
-    if not is_healthy:
+    if is_healthy:
+        price_oracle.set_price(price_oracle.price() * 2, sender=admin)
+        assert controller.health(borrower) > 0
+    else:
         # Lower oracle price to make position unhealthy
         price_oracle.set_price(price_oracle.price() // 2, sender=admin)
         assert controller.health(borrower) < 0
@@ -893,7 +905,10 @@ def test_liquidate_full_from_xy0_underwater_exact(
     if different_liquidator:
         liquidator = boa.env.generate_address()
 
-    if not is_healthy:
+    if is_healthy:
+        price_oracle.set_price(price_oracle.price() * 2, sender=admin)
+        assert controller.health(borrower) > 0
+    else:
         # Lower oracle price to make position unhealthy
         price_oracle.set_price(price_oracle.price() // 2, sender=admin)
         assert controller.health(borrower) < 0
@@ -1072,7 +1087,10 @@ def test_liquidate_partial_from_wallet(
     if different_liquidator:
         liquidator = boa.env.generate_address()
 
-    if not is_healthy:
+    if is_healthy:
+        price_oracle.set_price(price_oracle.price() * 2, sender=admin)
+        assert controller.health(borrower) > 0
+    else:
         # Lower oracle price to make position unhealthy
         price_oracle.set_price(price_oracle.price() // 2, sender=admin)
         assert controller.health(borrower) < 0
@@ -1103,6 +1121,16 @@ def test_liquidate_partial_from_wallet(
     if different_liquidator:
         boa.deal(borrowed_token, liquidator, tokens_needed)
         max_approve(borrowed_token, controller, sender=liquidator)
+
+    # ================= Calculate future health =================
+
+    caller = liquidator
+    if is_healthy:
+        # Approval is required to liquidate healthy users,
+        # so we do calculation assuming that approval is going to be given.
+        caller = borrower
+    preview_health = controller.liquidate_health_preview(borrower, caller, frac, False)
+    preview_health_full = controller.liquidate_health_preview(borrower, caller, frac, True)
 
     # ================= Capture initial balances =================
 
@@ -1157,6 +1185,8 @@ def test_liquidate_partial_from_wallet(
     assert controller.total_debt() == total_debt - debt_to_repay
     assert controller.eval("core.repaid") == repaid + debt_to_repay
     assert controller.n_loans() == 1  # loan remains after partial liquidation
+    assert controller.health(borrower) == pytest.approx(preview_health, rel=1e-10)
+    assert controller.health(borrower, True) == pytest.approx(preview_health_full, rel=1e-10)
 
     # ================= Verify logs =================
 
@@ -1240,7 +1270,10 @@ def test_liquidate_partial_from_wallet_underwater(
     if different_liquidator:
         liquidator = boa.env.generate_address()
 
-    if not is_healthy:
+    if is_healthy:
+        price_oracle.set_price(price_oracle.price() * 2, sender=admin)
+        assert controller.health(borrower) > 0
+    else:
         # Lower oracle price to make position unhealthy
         price_oracle.set_price(price_oracle.price() // 2, sender=admin)
         assert controller.health(borrower) < 0
@@ -1290,6 +1323,16 @@ def test_liquidate_partial_from_wallet_underwater(
     if different_liquidator:
         boa.deal(borrowed_token, liquidator, tokens_needed)
         max_approve(borrowed_token, controller, sender=liquidator)
+
+    # ================= Calculate future health =================
+
+    caller = liquidator
+    if is_healthy:
+        # Approval is required to liquidate healthy users,
+        # so we do calculation assuming that approval is going to be given.
+        caller = borrower
+    preview_health = controller.liquidate_health_preview(borrower, caller, frac, False)
+    preview_health_full = controller.liquidate_health_preview(borrower, caller, frac, True)
 
     # ================= Capture initial balances =================
 
@@ -1345,6 +1388,8 @@ def test_liquidate_partial_from_wallet_underwater(
     assert controller.total_debt() == total_debt - debt_to_repay
     assert controller.eval("core.repaid") == repaid + debt_to_repay
     assert controller.n_loans() == 1  # loan remains after partial liquidation
+    assert controller.health(borrower) == pytest.approx(preview_health, rel=1e-15)
+    assert controller.health(borrower, True) == pytest.approx(preview_health_full, rel=1e-15)
 
     # ================= Verify logs =================
 
@@ -1431,7 +1476,10 @@ def test_liquidate_partial_from_callback(
     if different_liquidator:
         liquidator = boa.env.generate_address()
 
-    if not is_healthy:
+    if is_healthy:
+        price_oracle.set_price(price_oracle.price() * 2, sender=admin)
+        assert controller.health(borrower) > 0
+    else:
         # Lower oracle price to make position unhealthy
         price_oracle.set_price(price_oracle.price() // 2, sender=admin)
         assert controller.health(borrower) < 0
@@ -1464,6 +1512,16 @@ def test_liquidate_partial_from_callback(
     callback_collateral = collateral_to_remove // 3
     calldata = get_calldata(callback_borrowed, callback_collateral)
     boa.deal(borrowed_token, dummy_callback, callback_borrowed)
+
+    # ================= Calculate future health =================
+
+    caller = liquidator
+    if is_healthy:
+        # Approval is required to liquidate healthy users,
+        # so we do calculation assuming that approval is going to be given.
+        caller = borrower
+    preview_health = controller.liquidate_health_preview(borrower, caller, frac, False)
+    preview_health_full = controller.liquidate_health_preview(borrower, caller, frac, True)
 
     # ================= Capture initial balances =================
 
@@ -1529,6 +1587,8 @@ def test_liquidate_partial_from_callback(
     assert controller.eval("core.repaid") == repaid + debt_to_repay
     assert controller.n_loans() == 1  # loan remains after partial liquidation
     assert dummy_callback.callback_liquidate_hits() == liquidate_hits + 1
+    assert controller.health(borrower) == pytest.approx(preview_health, rel=1e-15)
+    assert controller.health(borrower, True) == pytest.approx(preview_health_full, rel=1e-15)
 
     # ================= Verify logs =================
 
@@ -1618,7 +1678,10 @@ def test_liquidate_partial_from_callback_underwater(
     if different_liquidator:
         liquidator = boa.env.generate_address()
 
-    if not is_healthy:
+    if is_healthy:
+        price_oracle.set_price(price_oracle.price() * 2, sender=admin)
+        assert controller.health(borrower) > 0
+    else:
         # Lower oracle price to make position unhealthy
         price_oracle.set_price(price_oracle.price() // 2, sender=admin)
         assert controller.health(borrower) < 0
@@ -1669,6 +1732,16 @@ def test_liquidate_partial_from_callback_underwater(
     callback_borrowed = tokens_needed + profit
     calldata = get_calldata(callback_borrowed, callback_collateral)
     boa.deal(borrowed_token, dummy_callback, callback_borrowed)
+
+    # ================= Calculate future health =================
+
+    caller = liquidator
+    if is_healthy:
+        # Approval is required to liquidate healthy users,
+        # so we do calculation assuming that approval is going to be given.
+        caller = borrower
+    preview_health = controller.liquidate_health_preview(borrower, caller, frac, False)
+    preview_health_full = controller.liquidate_health_preview(borrower, caller, frac, True)
 
     # ================= Capture initial balances =================
 
@@ -1747,6 +1820,8 @@ def test_liquidate_partial_from_callback_underwater(
     assert controller.eval("core.repaid") == repaid + debt_to_repay
     assert controller.n_loans() == 1  # loan remains after partial liquidation
     assert dummy_callback.callback_liquidate_hits() == liquidate_hits + 1
+    assert controller.health(borrower) == pytest.approx(preview_health, rel=1e-15)
+    assert controller.health(borrower, True) == pytest.approx(preview_health_full, rel=1e-15)
 
     # ================= Verify logs =================
 
