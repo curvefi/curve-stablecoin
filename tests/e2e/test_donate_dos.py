@@ -33,7 +33,7 @@ def test_reverts_when_lent_exceeds_deposited_under_donation(
     boa.deal(borrowed_token, boa.env.eoa, DONATION)
     borrowed_token.transfer(controller, DONATION)
 
-    with boa.reverts("Borrowed balance exceeded"):
+    with boa.reverts("Available balance exceeded"):
         controller.create_loan(COLLATERAL, initial_balance + DONATION, N_BANDS)
 
     vault.totalAssets()
