@@ -1130,7 +1130,9 @@ def test_liquidate_partial_from_wallet(
         # so we do calculation assuming that approval is going to be given.
         caller = borrower
     preview_health = controller.liquidate_health_preview(borrower, caller, frac, False)
-    preview_health_full = controller.liquidate_health_preview(borrower, caller, frac, True)
+    preview_health_full = controller.liquidate_health_preview(
+        borrower, caller, frac, True
+    )
 
     # ================= Capture initial balances =================
 
@@ -1186,7 +1188,9 @@ def test_liquidate_partial_from_wallet(
     assert controller.eval("core.repaid") == repaid + debt_to_repay
     assert controller.n_loans() == 1  # loan remains after partial liquidation
     assert controller.health(borrower) == pytest.approx(preview_health, rel=1e-10)
-    assert controller.health(borrower, True) == pytest.approx(preview_health_full, rel=1e-10)
+    assert controller.health(borrower, True) == pytest.approx(
+        preview_health_full, rel=1e-10
+    )
 
     # ================= Verify logs =================
 
@@ -1332,7 +1336,9 @@ def test_liquidate_partial_from_wallet_underwater(
         # so we do calculation assuming that approval is going to be given.
         caller = borrower
     preview_health = controller.liquidate_health_preview(borrower, caller, frac, False)
-    preview_health_full = controller.liquidate_health_preview(borrower, caller, frac, True)
+    preview_health_full = controller.liquidate_health_preview(
+        borrower, caller, frac, True
+    )
 
     # ================= Capture initial balances =================
 
@@ -1389,7 +1395,9 @@ def test_liquidate_partial_from_wallet_underwater(
     assert controller.eval("core.repaid") == repaid + debt_to_repay
     assert controller.n_loans() == 1  # loan remains after partial liquidation
     assert controller.health(borrower) == pytest.approx(preview_health, rel=1e-15)
-    assert controller.health(borrower, True) == pytest.approx(preview_health_full, rel=1e-15)
+    assert controller.health(borrower, True) == pytest.approx(
+        preview_health_full, rel=1e-15
+    )
 
     # ================= Verify logs =================
 
@@ -1521,7 +1529,9 @@ def test_liquidate_partial_from_callback(
         # so we do calculation assuming that approval is going to be given.
         caller = borrower
     preview_health = controller.liquidate_health_preview(borrower, caller, frac, False)
-    preview_health_full = controller.liquidate_health_preview(borrower, caller, frac, True)
+    preview_health_full = controller.liquidate_health_preview(
+        borrower, caller, frac, True
+    )
 
     # ================= Capture initial balances =================
 
@@ -1588,7 +1598,9 @@ def test_liquidate_partial_from_callback(
     assert controller.n_loans() == 1  # loan remains after partial liquidation
     assert dummy_callback.callback_liquidate_hits() == liquidate_hits + 1
     assert controller.health(borrower) == pytest.approx(preview_health, rel=1e-15)
-    assert controller.health(borrower, True) == pytest.approx(preview_health_full, rel=1e-15)
+    assert controller.health(borrower, True) == pytest.approx(
+        preview_health_full, rel=1e-15
+    )
 
     # ================= Verify logs =================
 
@@ -1741,7 +1753,9 @@ def test_liquidate_partial_from_callback_underwater(
         # so we do calculation assuming that approval is going to be given.
         caller = borrower
     preview_health = controller.liquidate_health_preview(borrower, caller, frac, False)
-    preview_health_full = controller.liquidate_health_preview(borrower, caller, frac, True)
+    preview_health_full = controller.liquidate_health_preview(
+        borrower, caller, frac, True
+    )
 
     # ================= Capture initial balances =================
 
@@ -1821,7 +1835,9 @@ def test_liquidate_partial_from_callback_underwater(
     assert controller.n_loans() == 1  # loan remains after partial liquidation
     assert dummy_callback.callback_liquidate_hits() == liquidate_hits + 1
     assert controller.health(borrower) == pytest.approx(preview_health, rel=1e-15)
-    assert controller.health(borrower, True) == pytest.approx(preview_health_full, rel=1e-15)
+    assert controller.health(borrower, True) == pytest.approx(
+        preview_health_full, rel=1e-15
+    )
 
     # ================= Verify logs =================
 
