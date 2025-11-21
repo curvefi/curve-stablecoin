@@ -288,7 +288,7 @@ def repay_health_preview(
     debt: uint256 = self._debt(_for)
     active_band: int256 = staticcall AMM.active_band_with_skip()
 
-    assert debt > 0, "debt < 0"
+    assert debt > 0, "debt == 0"
     assert debt > _d_debt, "Can't repay more debt than user has"
     debt -= _d_debt
 
