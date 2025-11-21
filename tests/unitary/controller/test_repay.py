@@ -859,6 +859,17 @@ def test_partial_repay_from_wallet(
         boa.deal(borrowed_token, payer, wallet_borrowed)
         max_approve(borrowed_token, controller, sender=payer)
 
+    # ================= Calculate future health =================
+
+    d_collateral = 0
+    d_debt = wallet_borrowed
+    preview_health = controller.repay_health_preview(
+        d_collateral, d_debt, borrower, payer, False, False
+    )
+    preview_health_full = controller.repay_health_preview(
+        d_collateral, d_debt, borrower, payer, False, True
+    )
+
     # ================= Capture initial balances =================
 
     borrowed_token_before = snapshot(borrowed_token, borrower, payer)
@@ -889,6 +900,10 @@ def test_partial_repay_from_wallet(
     assert user_state_after[3] == user_state_before[3]  # N
     assert controller.total_debt() == total_debt - wallet_borrowed
     assert controller.eval("core.repaid") == repaid + wallet_borrowed
+    assert controller.health(borrower) == pytest.approx(preview_health, rel=1e-10)
+    assert controller.health(borrower, True) == pytest.approx(
+        preview_health_full, rel=1e-10
+    )
 
     # ================= Verify money flows =================
 
@@ -947,6 +962,19 @@ def test_partial_repay_from_callback(
     boa.deal(borrowed_token, dummy_callback, callback_borrowed)
     repay_hits = dummy_callback.callback_repay_hits()
 
+    # ================= Calculate future health =================
+
+    d_collateral = COLLATERAL - callback_collateral
+    d_debt = callback_borrowed
+    # Approval is required to use callback,
+    # so we do calculation assuming that approval is going to be given.
+    preview_health = controller.repay_health_preview(
+        d_collateral, d_debt, borrower, borrower, False, False
+    )
+    preview_health_full = controller.repay_health_preview(
+        d_collateral, d_debt, borrower, borrower, False, True
+    )
+
     # ================= Capture initial balances =================
 
     borrowed_token_before = snapshot(borrowed_token, borrower, payer)
@@ -993,6 +1021,10 @@ def test_partial_repay_from_callback(
     assert controller.total_debt() == total_debt - callback_borrowed
     assert controller.eval("core.repaid") == repaid + callback_borrowed
     assert dummy_callback.callback_repay_hits() == repay_hits + 1
+    assert controller.health(borrower) == pytest.approx(preview_health, rel=1e-10)
+    assert controller.health(borrower, True) == pytest.approx(
+        preview_health_full, rel=1e-10
+    )
 
     # ================= Verify money flows =================
 
@@ -1058,6 +1090,19 @@ def test_partial_repay_from_wallet_and_callback(
     boa.deal(borrowed_token, dummy_callback, callback_borrowed)
     repay_hits = dummy_callback.callback_repay_hits()
 
+    # ================= Calculate future health =================
+
+    d_collateral = user_state_before[0] - callback_collateral
+    d_debt = wallet_borrowed + callback_borrowed
+    # Approval is required to use callback,
+    # so we do calculation assuming that approval is going to be given.
+    preview_health = controller.repay_health_preview(
+        d_collateral, d_debt, borrower, borrower, False, False
+    )
+    preview_health_full = controller.repay_health_preview(
+        d_collateral, d_debt, borrower, borrower, False, True
+    )
+
     # ================= Capture initial balances =================
 
     borrowed_token_before = snapshot(borrowed_token, borrower, payer)
@@ -1077,6 +1122,7 @@ def test_partial_repay_from_wallet_and_callback(
                 sender=payer,
             )
         controller.approve(payer, True, sender=borrower)
+
     controller.repay(
         wallet_borrowed,
         borrower,
@@ -1117,6 +1163,10 @@ def test_partial_repay_from_wallet_and_callback(
         controller.eval("core.repaid") == repaid + wallet_borrowed + callback_borrowed
     )
     assert dummy_callback.callback_repay_hits() == repay_hits + 1
+    assert controller.health(borrower) == pytest.approx(preview_health, rel=1e-10)
+    assert controller.health(borrower, True) == pytest.approx(
+        preview_health_full, rel=1e-10
+    )
 
     # ================= Verify money flows =================
 
@@ -1183,6 +1233,17 @@ def test_partial_repay_from_wallet_underwater(
         boa.deal(borrowed_token, payer, wallet_borrowed)
         max_approve(borrowed_token, controller, sender=payer)
 
+    # ================= Calculate future health =================
+
+    d_collateral = 0
+    d_debt = wallet_borrowed
+    preview_health = controller.repay_health_preview(
+        d_collateral, d_debt, borrower, payer, False, False
+    )
+    preview_health_full = controller.repay_health_preview(
+        d_collateral, d_debt, borrower, payer, False, True
+    )
+
     # ================= Capture initial balances =================
 
     borrowed_token_before = snapshot(borrowed_token, borrower, payer)
@@ -1213,6 +1274,10 @@ def test_partial_repay_from_wallet_underwater(
     assert user_state_after[3] == user_state_before[3]  # N unchanged
     assert controller.total_debt() == total_debt - wallet_borrowed
     assert controller.eval("core.repaid") == repaid + wallet_borrowed
+    assert controller.health(borrower) == pytest.approx(preview_health, rel=1e-10)
+    assert controller.health(borrower, True) == pytest.approx(
+        preview_health_full, rel=1e-10
+    )
 
     # ================= Verify money flows =================
 
@@ -1278,6 +1343,19 @@ def test_partial_repay_from_xy0_underwater_shrink(
     total_debt = controller.total_debt()
     repaid = controller.eval("core.repaid")
 
+    # ================= Calculate future health =================
+
+    d_collateral = 0
+    d_debt = 0
+    # Approval is required to shrink,
+    # so we do calculation assuming that approval is going to be given.
+    preview_health = controller.repay_health_preview(
+        d_collateral, d_debt, borrower, borrower, True, False
+    )
+    preview_health_full = controller.repay_health_preview(
+        d_collateral, d_debt, borrower, borrower, True, True
+    )
+
     # ================= Capture initial balances =================
 
     borrowed_token_before = snapshot(borrowed_token, borrower, payer)
@@ -1292,6 +1370,7 @@ def test_partial_repay_from_xy0_underwater_shrink(
                 0, borrower, amm.active_band(), ZERO_ADDRESS, b"", True, sender=payer
             )
         controller.approve(payer, True, sender=borrower)
+
     controller.repay(
         0, borrower, amm.active_band(), ZERO_ADDRESS, b"", True, sender=payer
     )
@@ -1317,6 +1396,10 @@ def test_partial_repay_from_xy0_underwater_shrink(
     assert user_state_after[3] == user_state_before[3] - 2  # N shrunk by 2
     assert controller.total_debt() == total_debt - user_state_before[1]
     assert controller.eval("core.repaid") == repaid + user_state_before[1]
+    assert controller.health(borrower) == pytest.approx(preview_health, rel=1e-10)
+    assert controller.health(borrower, True) == pytest.approx(
+        preview_health_full, rel=1e-10
+    )
 
     # ================= Verify money flows =================
 
@@ -1387,6 +1470,19 @@ def test_partial_repay_from_xy0_and_wallet_underwater_shrink(
         boa.deal(borrowed_token, payer, wallet_borrowed)
         max_approve(borrowed_token, controller, sender=payer)
 
+    # ================= Calculate future health =================
+
+    d_collateral = 0
+    d_debt = user_state_before[1] + wallet_borrowed
+    # Approval is required to shrink,
+    # so we do calculation assuming that approval is going to be given.
+    preview_health = controller.repay_health_preview(
+        d_collateral, d_debt, borrower, borrower, True, False
+    )
+    preview_health_full = controller.repay_health_preview(
+        d_collateral, d_debt, borrower, borrower, True, True
+    )
+
     # ================= Capture initial balances =================
 
     borrowed_token_before = snapshot(borrowed_token, borrower, payer)
@@ -1445,6 +1541,10 @@ def test_partial_repay_from_xy0_and_wallet_underwater_shrink(
     assert (
         controller.eval("core.repaid")
         == repaid + user_state_before[1] + wallet_borrowed
+    )
+    assert controller.health(borrower) == pytest.approx(preview_health, rel=1e-9)
+    assert controller.health(borrower, True) == pytest.approx(
+        preview_health_full, rel=1e-9
     )
 
     # ================= Verify money flows =================
@@ -1520,6 +1620,19 @@ def test_partial_repay_from_xy0_and_callback_underwater_shrink(
     boa.deal(borrowed_token, dummy_callback, callback_borrowed)
     repay_hits = dummy_callback.callback_repay_hits()
 
+    # ================= Calculate future health =================
+
+    d_collateral = user_state_before[0] - callback_collateral
+    d_debt = user_state_before[1] + callback_borrowed
+    # Approval is required to use callback and shrink,
+    # so we do calculation assuming that approval is going to be given.
+    preview_health = controller.repay_health_preview(
+        d_collateral, d_debt, borrower, borrower, True, False
+    )
+    preview_health_full = controller.repay_health_preview(
+        d_collateral, d_debt, borrower, borrower, True, True
+    )
+
     # ================= Capture initial balances =================
 
     borrowed_token_before = snapshot(borrowed_token, borrower, payer)
@@ -1540,6 +1653,7 @@ def test_partial_repay_from_xy0_and_callback_underwater_shrink(
                 sender=payer,
             )
         controller.approve(payer, True, sender=borrower)
+
     controller.repay(
         0, borrower, amm.active_band(), dummy_callback, calldata, True, sender=payer
     )
@@ -1580,6 +1694,10 @@ def test_partial_repay_from_xy0_and_callback_underwater_shrink(
         == repaid + user_state_before[1] + callback_borrowed
     )
     assert dummy_callback.callback_repay_hits() == repay_hits + 1
+    assert controller.health(borrower) == pytest.approx(preview_health, rel=1e-9)
+    assert controller.health(borrower, True) == pytest.approx(
+        preview_health_full, rel=1e-9
+    )
 
     # ================= Verify money flows =================
 
@@ -1663,6 +1781,18 @@ def test_partial_repay_from_xy0_and_wallet_and_callback_underwater_shrink(
     boa.deal(borrowed_token, dummy_callback, callback_borrowed)
     repay_hits = dummy_callback.callback_repay_hits()
 
+    # ================= Calculate future health =================
+
+    d_collateral = user_state_before[0] - callback_collateral
+    d_debt = user_state_before[1] + wallet_borrowed + callback_borrowed
+    # Approval is required to use callback and shrink,
+    # so we do calculation assuming that approval is going to be given.
+    preview_health = controller.repay_health_preview(
+        d_collateral, d_debt, borrower, borrower, True, False
+    )
+    preview_health_full = controller.repay_health_preview(
+        d_collateral, d_debt, borrower, borrower, True, True
+    )
     # ================= Capture initial balances =================
 
     borrowed_token_before = snapshot(borrowed_token, borrower, payer)
@@ -1683,6 +1813,7 @@ def test_partial_repay_from_xy0_and_wallet_and_callback_underwater_shrink(
                 sender=payer,
             )
         controller.approve(payer, True, sender=borrower)
+
     controller.repay(
         wallet_borrowed,
         borrower,
@@ -1732,6 +1863,10 @@ def test_partial_repay_from_xy0_and_wallet_and_callback_underwater_shrink(
         == repaid + user_state_before[1] + wallet_borrowed + callback_borrowed
     )
     assert dummy_callback.callback_repay_hits() == repay_hits + 1
+    assert controller.health(borrower) == pytest.approx(preview_health, rel=1e-9)
+    assert controller.health(borrower, True) == pytest.approx(
+        preview_health_full, rel=1e-9
+    )
 
     # ================= Verify money flows =================
 
@@ -1806,6 +1941,16 @@ def test_partial_repay_cannot_shrink(
 
     with boa.reverts("Can't shrink"):
         controller.tokens_to_shrink(borrower)
+
+    with boa.reverts("Can't shrink"):
+        controller.repay_health_preview(
+            0, user_state_before[1], borrower, borrower, True, False
+        )
+
+    with boa.reverts("Can't shrink"):
+        controller.repay_health_preview(
+            0, user_state_before[1], borrower, borrower, True, True
+        )
 
     with boa.reverts("Can't shrink"):
         controller.repay(
