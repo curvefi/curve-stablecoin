@@ -289,6 +289,7 @@ def callback_deposit(user: address, stablecoins: uint256, user_collateral: uint2
     @param callback_args [factory_id, controller_id, user_borrowed]
                          0-1. factory_id, controller_id are needed to check that msg.sender is the one of our controllers
                          2. user_borrowed - the amount of borrowed token provided by user (needs to be exchanged for collateral)
+                         3. min_recv - the minimum amount to receive from exchange of (user_borrowed + d_debt) for collateral tokens
     return [0, user_collateral_from_borrowed + leverage_collateral]
     """
     controller: address = Factory(self.FACTORIES[callback_args[0]]).controllers(callback_args[1])
@@ -309,8 +310,9 @@ def callback_deposit(user: address, stablecoins: uint256, user_collateral: uint2
 
     user_borrowed: uint256 = callback_args[2]
     self._transferFrom(borrowed_token, user, self, user_borrowed)
-    raw_call(router_address, exchange_calldata)  # buys leverage_collateral for user_borrowed + dDebt
+    raw_call(router_address, exchange_calldata)  # buys leverage_collateral for user_borrowed + d_debt
     additional_collateral: uint256 = ERC20(collateral_token).balanceOf(self)
+    assert additional_collateral >= callback_args[3], "Slippage"
     leverage_collateral: uint256 = d_debt * 10**18 / (d_debt + user_borrowed) * additional_collateral / 10**18
     user_collateral_from_borrowed: uint256 = additional_collateral - leverage_collateral
 
@@ -333,6 +335,7 @@ def callback_repay(user: address, stablecoins: uint256, collateral: uint256, deb
                          0-1. factory_id, controller_id are needed to check that msg.sender is the one of our controllers
                          2. user_collateral - the amount of collateral token provided by user (needs to be exchanged for borrowed)
                          3. user_borrowed - the amount of borrowed token to repay from user's wallet
+                         4. min_recv - the minimum amount to receive from exchange of (user_collateral + state_collateral) for borrowed tokens
     return [user_borrowed + borrowed_from_collateral, remaining_collateral]
     """
     controller: address = Factory(self.FACTORIES[callback_args[0]]).controllers(callback_args[1])
@@ -367,6 +370,7 @@ def callback_repay(user: address, stablecoins: uint256, collateral: uint256, deb
     borrowed_from_state_collateral: uint256 = 0
     user_collateral_used: uint256 = user_collateral
     borrowed_from_user_collateral: uint256 = ERC20(borrowed_token).balanceOf(self)  # here it's total borrowed_from_collateral
+    assert borrowed_from_user_collateral >= callback_args[4], "Slippage"
     if remaining_collateral < initial_collateral:
         state_collateral_used = initial_collateral - remaining_collateral
         borrowed_from_state_collateral = state_collateral_used * 10**18 / (state_collateral_used + user_collateral_used) * borrowed_from_user_collateral / 10**18
