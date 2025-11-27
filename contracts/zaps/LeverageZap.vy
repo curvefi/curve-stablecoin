@@ -341,21 +341,22 @@ def callback_repay(user: address, stablecoins: uint256, collateral: uint256, deb
     borrowed_token: address = amm.coins(0)
     collateral_token: address = amm.coins(1)
 
-    router_address: address = empty(address)
-    # address x1: 32 bytes x1
-    # offset: 32 bytes, length: 32 bytes
-    # TOTAL: 96 bytes
-    exchange_calldata: Bytes[10 ** 4 - 96 - 16] = empty(Bytes[10 ** 4 - 96 - 16])
-    router_address, exchange_calldata = _abi_decode(callback_bytes, (address, Bytes[10 ** 4 - 96 - 16]))
-
-    self._approve(collateral_token, router_address)
     self._approve(borrowed_token, controller)
     self._approve(collateral_token, controller)
 
     initial_collateral: uint256 = ERC20(collateral_token).balanceOf(self)
     user_collateral: uint256 = callback_args[2]
     if callback_bytes != b"":
+        router_address: address = empty(address)
+        # address x1: 32 bytes x1
+        # offset: 32 bytes, length: 32 bytes
+        # TOTAL: 96 bytes
+        exchange_calldata: Bytes[10 ** 4 - 96 - 16] = empty(Bytes[10 ** 4 - 96 - 16])
+        router_address, exchange_calldata = _abi_decode(callback_bytes, (address, Bytes[10 ** 4 - 96 - 16]))
+
         self._transferFrom(collateral_token, user, self, user_collateral)
+        self._approve(collateral_token, router_address)
+
         # Buys borrowed token for collateral from user's position + from user's wallet.
         # The amount to be spent is specified inside callback_bytes.
         raw_call(router_address, exchange_calldata)
