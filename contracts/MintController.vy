@@ -38,5 +38,3 @@ def __init__(
         _amm,
         empty(address),  # to replace at deployment with view blueprint
     )
-
-    # TODO add assertion that prevents deployment if view isn't there
