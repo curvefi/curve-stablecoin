@@ -34,11 +34,11 @@
 # (f + x) * (g + y) = Inv = p_oracle * A**2 * y0**2
 # =======================
 
-from contracts.interfaces import IAMM
+from curve_stablecoin.interfaces import IAMM
 implements: IAMM
 
-from contracts.interfaces import IPriceOracle
-from contracts.interfaces import ILMGauge
+from curve_stablecoin.interfaces import IPriceOracle
+from curve_stablecoin.interfaces import ILMGauge
 from curve_std.interfaces import IERC20
 
 from curve_std import math as crv_math

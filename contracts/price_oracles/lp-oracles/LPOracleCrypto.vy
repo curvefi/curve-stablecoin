@@ -6,8 +6,8 @@
 @notice Price oracle for Curve Crypto Pool LPs. First, the oracle gets LP token price in terms of the first coin (coin0) of the pool.
         Then it chains with another oracle (target_coin/coin0) to get the final price.
 """
-from contracts.interfaces import IPriceOracle
-from contracts.interfaces import ICryptoPool
+from curve_stablecoin.interfaces import IPriceOracle
+from curve_stablecoin.interfaces import ICryptoPool
 from contracts import constants as c
 
 

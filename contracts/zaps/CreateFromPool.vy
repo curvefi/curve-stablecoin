@@ -9,9 +9,9 @@
 @custom:security security@curve.fi
 """
 from curve_std.interfaces import IERC20
-from contracts.interfaces import ILendingFactory
-from contracts.interfaces import IMonetaryPolicy
-from contracts.interfaces import IPriceOracle
+from curve_stablecoin.interfaces import ILendingFactory
+from curve_stablecoin.interfaces import IMonetaryPolicy
+from curve_stablecoin.interfaces import IPriceOracle
 
 FACTORY: immutable(ILendingFactory)
 POOL_PRICE_ORACLE_BLUEPRINT: public(immutable(address))

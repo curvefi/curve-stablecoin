@@ -11,14 +11,14 @@
 """
 
 from curve_std.interfaces import IERC20
-from contracts.interfaces import IAMM
-from contracts.interfaces import IMonetaryPolicy
-from contracts.interfaces import IVault
-from contracts.interfaces import IController
+from curve_stablecoin.interfaces import IAMM
+from curve_stablecoin.interfaces import IMonetaryPolicy
+from curve_stablecoin.interfaces import IVault
+from curve_stablecoin.interfaces import IController
 
 implements: IController
 
-from contracts.interfaces import ILendController
+from curve_stablecoin.interfaces import ILendController
 
 implements: ILendController
 
@@ -172,7 +172,7 @@ def _available_balance() -> uint256:
 
     # Any amount sent directly to this controller contract is lost forever.
 
-    # TODO rewrite this comment
+    # We start from the total net deposits in the vault
     available_balance: int256 = staticcall VAULT.net_deposits()
 
     # We compute the outstanding amount that has been lent out but not yet repaid

@@ -10,14 +10,14 @@
 @custom:security security@curve.fi
 """
 
-from contracts.interfaces import IAMM
-from contracts.interfaces import IMonetaryPolicy
-from contracts.interfaces import ILMGauge
-from contracts.interfaces import IFactory
-from contracts.interfaces import IPriceOracle
+from curve_stablecoin.interfaces import IAMM
+from curve_stablecoin.interfaces import IMonetaryPolicy
+from curve_stablecoin.interfaces import ILMGauge
+from curve_stablecoin.interfaces import IFactory
+from curve_stablecoin.interfaces import IPriceOracle
+from curve_stablecoin.interfaces import IController
+from curve_stablecoin.interfaces import IControllerView as IView
 from curve_std.interfaces import IERC20
-from contracts.interfaces import IController
-from contracts.interfaces import IControllerView as IView
 
 implements: IController
 implements: IView

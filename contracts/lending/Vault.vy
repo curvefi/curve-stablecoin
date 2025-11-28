@@ -9,10 +9,10 @@
 
 from curve_std.interfaces import IERC20
 from curve_std.interfaces import IERC4626
-from contracts.interfaces import IAMM
-from contracts.interfaces import ILendController as IController
-from contracts.interfaces import IFactory
-from contracts.interfaces import IVault
+from curve_stablecoin.interfaces import IAMM
+from curve_stablecoin.interfaces import ILendController as IController
+from curve_stablecoin.interfaces import IFactory
+from curve_stablecoin.interfaces import IVault
 
 from contracts import constants as c
 from curve_std import token as tkn

@@ -10,13 +10,12 @@
 
 from curve_std.interfaces import IERC20
 
-# TODO make module friendly
-from contracts.interfaces import IVault
-from contracts.interfaces import ILendController as IController
-from contracts.interfaces import IAMM
-from contracts.interfaces import IPriceOracle
-from contracts.interfaces import ILendFactory
-from contracts.interfaces import IMonetaryPolicy
+from curve_stablecoin.interfaces import IVault
+from curve_stablecoin.interfaces import ILendController as IController
+from curve_stablecoin.interfaces import IAMM
+from curve_stablecoin.interfaces import IPriceOracle
+from curve_stablecoin.interfaces import ILendFactory
+from curve_stablecoin.interfaces import IMonetaryPolicy
 
 implements: ILendFactory
 

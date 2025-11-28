@@ -1,5 +1,5 @@
-from contracts.interfaces import ILMGauge
-from contracts.interfaces import IPriceOracle
+from curve_stablecoin.interfaces import ILMGauge
+from curve_stablecoin.interfaces import IPriceOracle
 # Structs
 
 struct UserTicks:

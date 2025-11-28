@@ -1,5 +1,5 @@
-from contracts.interfaces import IController
-from contracts.interfaces import IAMM
+from curve_stablecoin.interfaces import IController
+from curve_stablecoin.interfaces import IAMM
 
 
 @internal

@@ -9,8 +9,8 @@
 @custom:security security@curve.fi
 """
 
-from contracts.interfaces import IAMM
-from contracts.interfaces import IController
+from curve_stablecoin.interfaces import IAMM
+from curve_stablecoin.interfaces import IController
 from curve_std.interfaces import IERC20
 
 from contracts import Controller as core

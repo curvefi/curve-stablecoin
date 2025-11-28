@@ -1,5 +1,5 @@
 # pragma version 0.4.3
-from contracts.interfaces import IPriceOracle
+from curve_stablecoin.interfaces import IPriceOracle
 from contracts import constants as c
 
 

@@ -10,11 +10,11 @@
 """
 
 from curve_std.interfaces import IERC20
-from contracts.interfaces import IAMM
-from contracts.interfaces import IController
+from curve_stablecoin.interfaces import IAMM
+from curve_stablecoin.interfaces import IController
 from contracts import Controller as ctrl
 from curve_std import token as tkn
-from contracts.interfaces import IPartialRepayZap as IZap
+from curve_stablecoin.interfaces import IPartialRepayZap as IZap
 import contracts.lib.liquidation_lib as liq
 
 from contracts import constants as c

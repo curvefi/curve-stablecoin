@@ -1,4 +1,4 @@
-from contracts.interfaces import IController
+from curve_stablecoin.interfaces import IController
 
 
 event PartialRepay:

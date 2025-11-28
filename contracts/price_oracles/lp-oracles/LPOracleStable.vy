@@ -7,8 +7,8 @@
         Then it chains with another oracle (target_coin/coin0) to get the final price.
 """
 
-from contracts.interfaces import IPriceOracle
-from contracts.interfaces import IStablePool
+from curve_stablecoin.interfaces import IPriceOracle
+from curve_stablecoin.interfaces import IStablePool
 from contracts import constants as c
 
 

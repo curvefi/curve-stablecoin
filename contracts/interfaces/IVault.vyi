@@ -1,7 +1,7 @@
 from curve_std.interfaces import IERC20
-from contracts.interfaces import IAMM
-from contracts.interfaces import ILendController as IController
-from contracts.interfaces import IFactory
+from curve_stablecoin.interfaces import IAMM
+from curve_stablecoin.interfaces import ILendController as IController
+from curve_stablecoin.interfaces import IFactory
 
 
 event SetMaxSupply:
