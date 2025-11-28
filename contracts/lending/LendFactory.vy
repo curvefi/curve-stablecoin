@@ -25,21 +25,10 @@ from snekmate.auth import ownable
 initializes: ownable
 
 exports: (
-    # owner is not exported as we refer to it as `admin` for backwards compatibility
-    ownable.renounce_ownership,
+    # `owner` is not exported as we refer to it as `admin` for backwards compatibility
+    # `renounce_ownership` is intentionally not exported
     ownable.transfer_ownership,
 )
-
-
-# TODO move elsewhere
-struct Market:
-    vault: IVault
-    controller: IController
-    amm: IAMM
-    collateral_token: IERC20
-    borrowed_token: IERC20
-    price_oracle: IPriceOracle
-    monetary_policy: IMonetaryPolicy
 
 
 MIN_A: constant(uint256) = 2
@@ -60,7 +49,17 @@ controller_view_blueprint: public(address)
 fee_receiver: public(address)
 
 # Vaults can only be created but not removed
-vaults: public(IVault[10**18])
+_vaults: IVault[10**18]
+# https://github.com/vyperlang/vyper/issues/4721
+@external
+@view
+def vaults(_index: uint256) -> IVault:
+    """
+    @notice Address of the vault by its index
+    """
+    return self._vaults[_index]
+
+
 _vaults_index: HashMap[IVault, uint256]
 market_count: public(uint256)
 
@@ -185,7 +184,7 @@ def create(
         price_oracle=_price_oracle,
         monetary_policy=_monetary_policy,
     )
-    self.vaults[market_count] = vault
+    self._vaults[market_count] = vault
     # Store index with 2**128 offset so missing vault lookups revert (e.g. nonexistent vault would otherwise read index 0)
     self._vaults_index[vault] = market_count + 2**128
     self.names[market_count] = _name
@@ -200,12 +199,12 @@ def create(
 @external
 @view
 @reentrant
-def markets(_n: uint256) -> Market:
-    vault: IVault = self.vaults[_n]
+def markets(_n: uint256) -> ILendFactory.Market:
+    vault: IVault = self._vaults[_n]
     controller: IController = staticcall vault.controller()
     amm: IAMM = staticcall vault.amm()
 
-    return Market(
+    return ILendFactory.Market(
         vault=vault,
         controller=controller,
         amm=amm,
@@ -283,5 +282,5 @@ def set_fee_receiver(_fee_receiver: address):
 @view
 @reentrant
 def coins(_vault_id: uint256) -> IERC20[2]:
-    vault: IVault = self.vaults[_vault_id]
+    vault: IVault = self._vaults[_vault_id]
     return [staticcall vault.borrowed_token(), staticcall vault.collateral_token()]

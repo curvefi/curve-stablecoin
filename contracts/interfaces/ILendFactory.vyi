@@ -6,6 +6,11 @@ from curve_stablecoin.interfaces import IPriceOracle
 from curve_stablecoin.interfaces import IMonetaryPolicy
 
 
+event OwnershipTransferred:
+    previous_owner: address
+    new_owner: address
+
+
 event SetBlueprints:
     amm: address
     controller: address
@@ -28,6 +33,22 @@ event NewVault:
     monetary_policy: IMonetaryPolicy
 
 
+struct Market:
+    vault: IVault
+    controller: IController
+    amm: IAMM
+    collateral_token: IERC20
+    borrowed_token: IERC20
+    price_oracle: IPriceOracle
+    monetary_policy: IMonetaryPolicy
+
+
+@external
+def transfer_ownership(new_owner: address):
+    ...
+
+
+@external
 def create(
     _borrowed_token: IERC20,
     _collateral_token: IERC20,
@@ -41,4 +62,90 @@ def create(
     _supply_limit: uint256,
 ) -> address[3]:
     ...
-# TODO populate this
+
+
+@view
+@external
+def markets(_n: uint256) -> Market:
+    ...
+
+
+@view
+@external
+def vaults_index(_vault: IVault) -> uint256:
+    ...
+
+
+@external
+def set_implementations(
+    _controller_blueprint: address,
+    _amm_blueprint: address,
+    _vault_blueprint: address,
+    _controller_view_blueprint: address,
+):
+    ...
+
+
+@view
+@external
+def admin() -> address:
+    ...
+
+
+@external
+def set_fee_receiver(_fee_receiver: address):
+    ...
+
+
+@view
+@external
+def coins(_vault_id: uint256) -> IERC20[2]:
+    ...
+
+
+@view
+@external
+def amm_blueprint() -> address:
+    ...
+
+
+@view
+@external
+def controller_blueprint() -> address:
+    ...
+
+
+@view
+@external
+def vault_blueprint() -> address:
+    ...
+
+
+@view
+@external
+def controller_view_blueprint() -> address:
+    ...
+
+
+@view
+@external
+def fee_receiver() -> address:
+    ...
+
+
+@view
+@external
+def vaults(_index: uint256) -> IVault:
+    ...
+
+
+@view
+@external
+def market_count() -> uint256:
+    ...
+
+
+@view
+@external
+def names(_index: uint256) -> String[64]:
+    ...
