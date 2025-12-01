@@ -11,8 +11,7 @@ from tests.utils.constants import (
     MAX_A,
     MIN_FEE,
     MAX_FEE,
-    MAX_LOAN_DISCOUNT,
-    MIN_LIQUIDATION_DISCOUNT,
+    WAD,
     MIN_TICKS,
     MAX_TICKS,
 )
@@ -39,13 +38,11 @@ collaterals = builds(ERC20_MOCK_DEPLOYER.deploy, token_decimals)
 @composite
 def discounts(draw):
     """Draw (loan_discount, liquidation_discount) with loan > liquidation."""
-    liq = draw(
-        integers(min_value=MIN_LIQUIDATION_DISCOUNT, max_value=MAX_LOAN_DISCOUNT - 1)
-    )
+    liq = draw(integers(min_value=1, max_value=WAD - 2))
     loan = draw(
         integers(
-            min_value=(max(liq, MIN_LIQUIDATION_DISCOUNT) + 1),
-            max_value=MAX_LOAN_DISCOUNT,
+            min_value=(liq + 1),
+            max_value=WAD - 1,
         )
     )
     return loan, liq
