@@ -9,7 +9,7 @@
 
 from curve_stablecoin.interfaces import IPriceOracle
 from curve_stablecoin.interfaces import IStablePool
-from contracts import constants as c
+from curve_stablecoin import constants as c
 
 
 import lp_oracle_lib

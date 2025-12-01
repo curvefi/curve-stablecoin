@@ -21,7 +21,7 @@ implements: ILendFactory
 
 from snekmate.utils import math
 from snekmate.auth import ownable
-from contracts import constants as c
+from curve_stablecoin import constants as c
 
 initializes: ownable
 

@@ -22,7 +22,7 @@ from curve_stablecoin.interfaces import ILendController
 
 implements: ILendController
 
-from contracts import Controller as core
+from curve_stablecoin import Controller as core
 
 implements: core.VirtualMethods
 

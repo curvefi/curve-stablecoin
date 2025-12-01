@@ -45,7 +45,7 @@ from curve_std import math as crv_math
 
 from snekmate.utils import math
 
-from contracts import constants as c
+from curve_stablecoin import constants as c
 
 from curve_std import token as tkn
 

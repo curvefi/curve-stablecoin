@@ -12,7 +12,7 @@ ZERO_ADDRESS: Final[str] = boa.eval("empty(address)")
 MAX_UINT256: Final[int] = boa.eval("max_value(uint256)")
 MAX_INT256: Final[int] = boa.eval("max_value(int256)")
 
-# Constants from contracts/constants.vy
+# Constants from curve_stablecoin/constants.vy
 WAD = CONSTANTS_DEPLOYER._constants.WAD
 SWAD = CONSTANTS_DEPLOYER._constants.SWAD
 DEAD_SHARES = CONSTANTS_DEPLOYER._constants.DEAD_SHARES

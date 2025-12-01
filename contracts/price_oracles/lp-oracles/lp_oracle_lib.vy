@@ -1,6 +1,6 @@
 # pragma version 0.4.3
 from curve_stablecoin.interfaces import IPriceOracle
-from contracts import constants as c
+from curve_stablecoin import constants as c
 
 
 COIN0_ORACLE: public(immutable(IPriceOracle))

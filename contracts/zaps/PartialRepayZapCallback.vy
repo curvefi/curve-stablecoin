@@ -11,12 +11,12 @@
 from curve_std.interfaces import IERC20
 from curve_stablecoin.interfaces import IAMM
 from curve_stablecoin.interfaces import IController
-from contracts import Controller as ctrl
+from curve_stablecoin import Controller as ctrl
 from curve_std import token as tkn
 from curve_stablecoin.interfaces import IPartialRepayZapCallback as IZap
 import contracts.lib.liquidation_lib as liq
 
-from contracts import constants as c
+from curve_stablecoin import constants as c
 
 implements: IZap
 
