@@ -26,7 +26,7 @@ WAD: constant(uint256) = c.WAD
 FRAC: public(immutable(uint256))                         # fraction of position to repay (1e18 = 100%)
 HEALTH_THRESHOLD: public(immutable(int256))              # trigger threshold on controller.health(user, false)
 
-CALLDATA_MAX_SIZE: constant(uint256) = 10**4
+CALLDATA_MAX_SIZE: constant(uint256) = c.CALLDATA_MAX_SIZE
 CALLBACK_SIGNATURE: constant(bytes4) = method_id("callback_liquidate_partial(bytes)",output_type=bytes4,)
 
 
@@ -90,7 +90,7 @@ def liquidate_partial(
     _user: address,
     _min_x: uint256,
     _callbacker: address = empty(address),
-    _calldata: Bytes[CALLDATA_MAX_SIZE - 32 * 6 - 16] = b"",
+    _calldata: Bytes[CALLDATA_MAX_SIZE - 32 * 6] = b"",
 ):
     """
     @notice Trigger partial self-liquidation of `user` using FRAC.
@@ -148,7 +148,7 @@ def liquidate_partial(
 def execute_callback(
     callbacker: address,
     callback_sig: bytes4,
-    calldata: Bytes[CALLDATA_MAX_SIZE - 32 * 6 - 16],
+    calldata: Bytes[CALLDATA_MAX_SIZE - 32 * 6],
 ):
     response: Bytes[64] = raw_call(
         callbacker,
@@ -177,9 +177,9 @@ def callback_liquidate(
     user: address = empty(address)
     borrowed_from_sender: uint256 = 0
     callbacker: address = empty(address)
-    callbacker_calldata: Bytes[CALLDATA_MAX_SIZE - 32 * 6 - 16] = empty(Bytes[CALLDATA_MAX_SIZE - 32 * 6 - 16])
+    callbacker_calldata: Bytes[CALLDATA_MAX_SIZE - 32 * 6] = empty(Bytes[CALLDATA_MAX_SIZE - 32 * 6])
 
-    controller, user, borrowed_from_sender, callbacker, callbacker_calldata = abi_decode(_calldata, (address, address, uint256, address, Bytes[CALLDATA_MAX_SIZE - 32 * 6 - 16]))
+    controller, user, borrowed_from_sender, callbacker, callbacker_calldata = abi_decode(_calldata, (address, address, uint256, address, Bytes[CALLDATA_MAX_SIZE - 32 * 6]))
     assert msg.sender == controller, "wrong sender"
 
     # Cached only for readability purposes

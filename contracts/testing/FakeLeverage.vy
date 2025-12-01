@@ -1,5 +1,6 @@
 # pragma version 0.4.3
 from curve_std.interfaces import IERC20
+from contracts import constants as c
 
 STABLECOIN: immutable(IERC20)
 COLLATERAL: immutable(IERC20)
@@ -7,6 +8,7 @@ COLLATERAL: immutable(IERC20)
 price: public(uint256)
 callback_deposit_hits: public(uint256)
 callback_repay_hits: public(uint256)
+CALLDATA_MAX_SIZE: constant(uint256) = c.CALLDATA_MAX_SIZE
 
 
 @deploy
@@ -30,7 +32,7 @@ def approve_all():
 
 
 @external
-def callback_deposit(user: address, stablecoins_no_use: uint256, collateral: uint256, debt: uint256, calldata: Bytes[10**4]) -> uint256[2]:
+def callback_deposit(user: address, stablecoins_no_use: uint256, collateral: uint256, debt: uint256, calldata: Bytes[CALLDATA_MAX_SIZE]) -> uint256[2]:
     self.callback_deposit_hits += 1
     min_amount: uint256 = abi_decode(calldata, (uint256))
     assert staticcall STABLECOIN.balanceOf(self) >= debt
@@ -40,7 +42,7 @@ def callback_deposit(user: address, stablecoins_no_use: uint256, collateral: uin
 
 
 @external
-def callback_repay(user: address, stablecoins: uint256, collateral: uint256, debt: uint256, calldata: Bytes[10**4]) -> uint256[2]:
+def callback_repay(user: address, stablecoins: uint256, collateral: uint256, debt: uint256, calldata: Bytes[CALLDATA_MAX_SIZE]) -> uint256[2]:
     self.callback_repay_hits += 1
     frac: uint256 = abi_decode(calldata, (uint256))
     s_diff: uint256 = (debt - stablecoins) * frac // 10**18
@@ -50,5 +52,5 @@ def callback_repay(user: address, stablecoins: uint256, collateral: uint256, deb
 
 
 @external
-def callback_liquidate(sender: address, stablecoins: uint256, collateral: uint256, debt: uint256, calldata: Bytes[10**4]) -> uint256[2]:
+def callback_liquidate(sender: address, stablecoins: uint256, collateral: uint256, debt: uint256, calldata: Bytes[CALLDATA_MAX_SIZE]) -> uint256[2]:
     return [staticcall STABLECOIN.balanceOf(self), collateral]

@@ -10,4 +10,4 @@ DEAD_SHARES: constant(uint256) = 1000
 WAD: constant(uint256) = 10**18
 SWAD: constant(int256) = 10**18
 
-CALLDATA_MAX_SIZE: constant(uint256) = 10**4
+CALLDATA_MAX_SIZE: constant(uint256) = 32_000

@@ -1285,7 +1285,7 @@ def liquidate(
     _min_x: uint256,
     _frac: uint256 = 10**18,
     _callbacker: address = empty(address),
-    _calldata: Bytes[10**4] = b"",
+    _calldata: Bytes[CALLDATA_MAX_SIZE] = b"",
 ):
     """
     @notice Perform a bad liquidation (or self-liquidation) of user if health is not good
