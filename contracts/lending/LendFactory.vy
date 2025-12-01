@@ -21,6 +21,7 @@ implements: ILendFactory
 
 from snekmate.utils import math
 from snekmate.auth import ownable
+from contracts import constants as c
 
 initializes: ownable
 
@@ -35,8 +36,7 @@ MIN_A: constant(uint256) = 2
 MAX_A: constant(uint256) = 10000
 MIN_FEE: constant(uint256) = 10**6  # 1e-12, still needs to be above 0
 MAX_FEE: constant(uint256) = 10**17  # 10%
-MAX_LOAN_DISCOUNT: constant(uint256) = 5 * 10**17
-MIN_LIQUIDATION_DISCOUNT: constant(uint256) = 10**16
+WAD: constant(uint256) = c.WAD
 
 # Implementations which can be changed by governance
 amm_blueprint: public(address)
@@ -126,9 +126,9 @@ def create(
     assert _A >= MIN_A and _A <= MAX_A, "Wrong A"
     assert _fee <= MAX_FEE, "Fee too high"
     assert _fee >= MIN_FEE, "Fee too low"
-    assert (_liquidation_discount >= MIN_LIQUIDATION_DISCOUNT), "Liquidation discount too low"
-    assert _loan_discount <= MAX_LOAN_DISCOUNT, "Loan discount too high"
-    assert (_loan_discount > _liquidation_discount), "need loan_discount>liquidation_discount"
+    assert _liquidation_discount > 0, "Liquidation discount too low"
+    assert _loan_discount < WAD, "Loan discount too high"
+    assert _loan_discount > _liquidation_discount, "need loan_discount>liquidation_discount"
 
     A_ratio: uint256 = 10**18 * _A // (_A - 1)
 

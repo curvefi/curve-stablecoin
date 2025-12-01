@@ -77,8 +77,6 @@ CALLBACK_LIQUIDATE: constant(bytes4) = method_id(
     output_type=bytes4,
 )
 
-MAX_LOAN_DISCOUNT: constant(uint256) = 5 * 10**17
-MIN_LIQUIDATION_DISCOUNT: constant(uint256) = 10**16
 MAX_P_BASE_BANDS: constant(int256) = 5
 MIN_AMM_FEE: constant(uint256) = 10**6  # 1e-12, still needs to be above 0
 MAX_RATE: constant(uint256) = 43959106799  # 300% APY
@@ -1517,9 +1515,9 @@ def set_borrowing_discounts(
     @param _liquidation_discount Discount where bad liquidation starts
     """
     self._check_admin()
+    assert _liquidation_discount > 0
+    assert _loan_discount < WAD
     assert _loan_discount > _liquidation_discount
-    assert _liquidation_discount >= MIN_LIQUIDATION_DISCOUNT
-    assert _loan_discount <= MAX_LOAN_DISCOUNT
     self.liquidation_discount = _liquidation_discount
     self.loan_discount = _loan_discount
     log IController.SetBorrowingDiscounts(
