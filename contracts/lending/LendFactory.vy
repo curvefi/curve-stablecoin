@@ -63,6 +63,9 @@ def vaults(_index: uint256) -> IVault:
 _vaults_index: HashMap[IVault, uint256]
 market_count: public(uint256)
 
+# Checks if a contract (vault, controller or amm) has been deployed by this factory
+check_contract: public(HashMap[address, bool])
+
 names: public(HashMap[uint256, String[64]])
 
 
@@ -166,6 +169,10 @@ def create(
             code_offset=3,
         )
     )
+    self.check_contract[vault.address] = True
+    self.check_contract[amm.address] = True
+    self.check_contract[controller.address] = True
+
     extcall amm.set_admin(controller.address)
 
     extcall vault.initialize(amm, controller, _borrowed_token, _collateral_token)
