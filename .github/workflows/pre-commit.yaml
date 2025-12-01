@@ -25,4 +25,4 @@ jobs:
         run: uv sync
 
       - name: Run pre-commit checks
-        run: uvx pre-commit run --all-files --show-diff-on-failure
+        run: uv run pre-commit run --all-files --show-diff-on-failure
