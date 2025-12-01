@@ -21,5 +21,8 @@ jobs:
       - name: Install Python 3.12.6
         run: uv python install 3.12.6
 
+      - name: Install Requirements
+        run: uv sync
+
       - name: Run pre-commit checks
         run: uvx pre-commit run --all-files --show-diff-on-failure
