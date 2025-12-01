@@ -27,7 +27,7 @@ def liquidate_partial(
     _controller: IController,
     _user: address, _min_x: uint256,
     _callbacker: address = empty(address),
-    _calldata: Bytes[10 ** 4 - 32 * 6 - 16] = b"",
+    _calldata: Bytes[32 * 300 - 32 * 6] = b"",
 ):
     ...
 
