@@ -149,3 +149,9 @@ def market_count() -> uint256:
 @external
 def names(_index: uint256) -> String[64]:
     ...
+
+
+@view
+@external
+def check_contract(_contract: address) -> bool:
+    ...
