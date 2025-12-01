@@ -10,12 +10,12 @@ repos:
       - id: detect-private-key
 
   - repo: https://github.com/kynan/nbstripout
-    rev: 0.8.1
+    rev: 0.8.2
     hooks:
       - id: nbstripout
 
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.13.0
+    rev: v0.14.7
     hooks:
       - id: ruff-check
         args: [--fix]
@@ -28,7 +28,7 @@ repos:
         args: [lint, curve_stablecoin/lending/, curve_stablecoin/Controller.vy, curve_stablecoin/constants.vy, curve_stablecoin/ControllerView.vy, curve_stablecoin/MintController.vy, -d, NTX1, NTX4, NTX5, NTX2, NTX9, NTX10]
 
   - repo: https://github.com/benber86/mamushi
-    rev: main
+    rev: v0.0.8
     hooks:
       - id: mamushi
         args: [--line-length=100]
