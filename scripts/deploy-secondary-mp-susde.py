@@ -43,7 +43,7 @@ if __name__ == "__main__":
         boa.env._fork_try_prefetch_state = False
 
     policy = boa.load(
-        "contracts/mpolicies/SusdeMonetaryPolicy.vy",
+        "curve_stablecoin/mpolicies/SusdeMonetaryPolicy.vy",
         FACTORY,
         SUSDE,
         BORROWED_TOKEN,

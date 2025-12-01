@@ -22,7 +22,7 @@ def partial_repay_zap_callback(admin):
 @pytest.fixture(scope="module")
 def partial_repay_zap_tester(admin):
     with boa.env.prank(admin):
-        return boa.load("contracts/testing/zaps/PartialRepayZapTester.vy")
+        return boa.load("curve_stablecoin/testing/zaps/PartialRepayZapTester.vy")
 
 
 @pytest.fixture(scope="module")

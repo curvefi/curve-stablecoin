@@ -36,7 +36,7 @@ _contracts = {}
 
 def _pool(idx):
     if POOLS[idx] not in _contracts:
-        # _contracts[POOLS[idx]] = boa.load_partial("contracts/StableSwap.vy").at(POOLS[idx])
+        # _contracts[POOLS[idx]] = boa.load_partial("curve_stablecoin/StableSwap.vy").at(POOLS[idx])
         _contracts[POOLS[idx]] = boa.from_etherscan(
             POOLS[idx], name="StableSwap", api_key=ETHERSCAN_API
         )
@@ -45,7 +45,7 @@ def _pool(idx):
 
 def _peg_keeper(idx):
     if PEG_KEEPERS[idx] not in _contracts:
-        # _contracts[PEG_KEEPERS[idx]] = boa.load_partial("contracts/stabilizer/PegKeeper.vy").at(PEG_KEEPERS[idx])
+        # _contracts[PEG_KEEPERS[idx]] = boa.load_partial("curve_stablecoin/stabilizer/PegKeeper.vy").at(PEG_KEEPERS[idx])
         _contracts[PEG_KEEPERS[idx]] = boa.from_etherscan(
             PEG_KEEPERS[idx], name="PegKeeper", api_key=ETHERSCAN_API
         )
@@ -64,7 +64,7 @@ def _coins(pool):
 
 
 def deploy():
-    salvation = boa.load_partial("contracts/stabilizer/Salvation.vy")
+    salvation = boa.load_partial("curve_stablecoin/stabilizer/Salvation.vy")
     if SALVATION != ZERO_ADDRESS:
         return salvation.at(SALVATION)
     return salvation.deploy()

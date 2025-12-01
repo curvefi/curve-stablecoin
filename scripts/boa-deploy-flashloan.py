@@ -24,6 +24,6 @@ if __name__ == "__main__":
     boa.env.add_account(account_load("babe"))
     boa.env._fork_try_prefetch_state = False
 
-    contract = boa.load("contracts/flashloan/FlashLender.vy", CRVUSD_FACTORY)
+    contract = boa.load("curve_stablecoin/flashloan/FlashLender.vy", CRVUSD_FACTORY)
 
     print("Deployed at:", contract.address)

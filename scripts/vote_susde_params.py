@@ -31,7 +31,9 @@ if __name__ == "__main__":
         boa.env.add_account(babe)
         boa.env._fork_try_prefetch_state = False
 
-    mpolicy = boa.load_partial("contracts/mpolicies/SusdeMonetaryPolicy.vy").at(MPOLICY)
+    mpolicy = boa.load_partial("curve_stablecoin/mpolicies/SusdeMonetaryPolicy.vy").at(
+        MPOLICY
+    )
 
     target_util = int(0.8e18)
     low_ratio = int(0.35e18)

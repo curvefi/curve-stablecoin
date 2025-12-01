@@ -30,8 +30,10 @@ if __name__ == "__main__":
         boa.env.add_account(account_load("babe"))
         boa.env._fork_try_prefetch_state = False
 
-    amm_impl = boa.load_partial("contracts/AMM.vy").deploy_as_blueprint()
-    controller_impl = boa.load_partial("contracts/Controller.vy").deploy_as_blueprint()
+    amm_impl = boa.load_partial("curve_stablecoin/AMM.vy").deploy_as_blueprint()
+    controller_impl = boa.load_partial(
+        "curve_stablecoin/Controller.vy"
+    ).deploy_as_blueprint()
 
     print("Deployed contracts:")
     print("==========================")

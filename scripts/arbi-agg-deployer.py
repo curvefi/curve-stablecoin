@@ -43,7 +43,9 @@ if __name__ == "__main__":
         boa.env.add_account(account_load("babe"))
         boa.env._fork_try_prefetch_state = False
 
-    agg_factory = boa.load_partial("contracts/price_oracles/AggregateStablePrice3.vy")
+    agg_factory = boa.load_partial(
+        "curve_stablecoin/price_oracles/AggregateStablePrice3.vy"
+    )
     agg = agg_factory.deploy(crvusd, sigma, boa.env.eoa)
 
     for pool in pools:

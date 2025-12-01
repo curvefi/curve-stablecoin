@@ -61,7 +61,7 @@ if __name__ == "__main__":
     boa.env._fork_try_prefetch_state = False
 
     contract = boa.load(
-        "contracts/zaps/LeverageZap.vy",
+        "curve_stablecoin/zaps/LeverageZap.vy",
         CONSTANTS[network]["router_odos"],
         CONSTANTS[network]["factories"],
     )

@@ -79,7 +79,7 @@ if __name__ == "__main__":
     )
 
     factory = boa.load_partial(
-        "contracts/lending/deprecated/OneWayLendingFactoryL2.vy"
+        "curve_stablecoin/lending/deprecated/OneWayLendingFactoryL2.vy"
     ).at(FACTORY)
 
     # Deploy FXN long market

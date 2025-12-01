@@ -25,7 +25,7 @@ implements: IVault
 # These are virtual shares from method proposed by OpenZeppelin
 # see: https://blog.openzeppelin.com/a-novel-defense-against-erc4626-inflation-attacks
 # and
-# https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/token/ERC20/extensions/ERC4626.sol
+# https://github.com/OpenZeppelin/openzeppelin-curve_stablecoin/blob/master/curve_stablecoin/token/ERC20/extensions/ERC4626.sol
 # redeclaration here is because: https://github.com/vyperlang/vyper/issues/4723
 DEAD_SHARES: constant(uint256) = c.DEAD_SHARES
 MIN_ASSETS: constant(uint256) = 10000

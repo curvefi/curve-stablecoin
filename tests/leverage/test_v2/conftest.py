@@ -50,12 +50,12 @@ def alice(collateral_info):
 
 @pytest.fixture(scope="session")
 def controller_interface():
-    return boa.load_partial("contracts/Controller.vy")
+    return boa.load_partial("curve_stablecoin/Controller.vy")
 
 
 @pytest.fixture()
 def stablecoin():
-    return boa.load_partial("contracts/Stablecoin.vy").at(CRVUSD)
+    return boa.load_partial("curve_stablecoin/Stablecoin.vy").at(CRVUSD)
 
 
 @pytest.fixture()
@@ -70,7 +70,7 @@ def controller(collateral_info, controller_interface):
 
 @pytest.fixture()
 def leverage_zap_1inch():
-    return boa.load("contracts/zaps/LeverageZap1inch.vy", ROUTER, FACTORIES)
+    return boa.load("curve_stablecoin/zaps/LeverageZap1inch.vy", ROUTER, FACTORIES)
 
 
 @pytest.fixture(scope="session")

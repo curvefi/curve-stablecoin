@@ -20,15 +20,15 @@ compiler_args_codesize = {
 compiler_args_gas = {**compiler_args_default, "optimize": OptimizationLevel.GAS}
 
 # Contract paths
-BASE_CONTRACT_PATH = "contracts/"
-TESTING_CONTRACT_PATH = "contracts/testing/"
-LENDING_CONTRACT_PATH = "contracts/lending/"
-MPOLICIES_CONTRACT_PATH = "contracts/mpolicies/"
-PRICE_ORACLES_CONTRACT_PATH = "contracts/price_oracles/"
-STABILIZER_CONTRACT_PATH = "contracts/stabilizer/"
-FLASHLOAN_CONTRACT_PATH = "contracts/flashloan/"
-STABLESWAP_NG_PATH = "contracts/testing/stableswap-ng/contracts/main/"
-ZAPS_CONTRACT_PATH = "contracts/zaps/"
+BASE_CONTRACT_PATH = "curve_stablecoin/"
+TESTING_CONTRACT_PATH = "curve_stablecoin/testing/"
+LENDING_CONTRACT_PATH = "curve_stablecoin/lending/"
+MPOLICIES_CONTRACT_PATH = "curve_stablecoin/mpolicies/"
+PRICE_ORACLES_CONTRACT_PATH = "curve_stablecoin/price_oracles/"
+STABILIZER_CONTRACT_PATH = "curve_stablecoin/stabilizer/"
+FLASHLOAN_CONTRACT_PATH = "curve_stablecoin/flashloan/"
+STABLESWAP_NG_PATH = "curve_stablecoin/testing/stableswap-ng/curve_stablecoin/main/"
+ZAPS_CONTRACT_PATH = "curve_stablecoin/zaps/"
 
 # Constants contract (for accessing constants)
 CONSTANTS_DEPLOYER = boa.load_partial(

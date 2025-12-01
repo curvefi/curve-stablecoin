@@ -533,7 +533,7 @@ def test_position(position, frac):
         f"stablecoin: {user_state[1] / 1e18}, debt: {user_state[2] / 1e18}, ratio: {ratio}"
     )
 
-    stablecoin = boa.load_partial("contracts/Stablecoin.vy").at(
+    stablecoin = boa.load_partial("curve_stablecoin/Stablecoin.vy").at(
         "0xf939E0A03FB07F59A73314E73794Be0E57ac1b4E"
     )
     assert stablecoin.balanceOf(controller_address) > user_state[2]

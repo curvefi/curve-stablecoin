@@ -130,21 +130,23 @@ if __name__ == "__main__":
         boa.env.add_account(babe)
         boa.env._fork_try_prefetch_state = False
 
-    amm_impl = boa.load_partial("contracts/AMM.vy").deploy_as_blueprint()
-    controller_impl = boa.load_partial("contracts/Controller.vy").deploy_as_blueprint()
-    vault_impl = boa.load("contracts/lending/Vault.vy")
+    amm_impl = boa.load_partial("curve_stablecoin/AMM.vy").deploy_as_blueprint()
+    controller_impl = boa.load_partial(
+        "curve_stablecoin/Controller.vy"
+    ).deploy_as_blueprint()
+    vault_impl = boa.load("curve_stablecoin/lending/Vault.vy")
     price_oracle_impl = boa.load_partial(
-        "contracts/price_oracles/CryptoFromPool.vy"
+        "curve_stablecoin/price_oracles/CryptoFromPool.vy"
     ).deploy_as_blueprint()
     mpolicy_impl = boa.load_partial(
-        "contracts/mpolicies/SemilogMonetaryPolicy.vy"
+        "curve_stablecoin/mpolicies/SemilogMonetaryPolicy.vy"
     ).deploy_as_blueprint()
     gauge_factory = ABIContractFactory.from_abi_dict(GAUGE_FACTORY_ABI).at(
         GAUGE_FACTORY
     )
 
     factory = boa.load(
-        "contracts/lending/deprecated/OneWayLendingFactoryL2.vy",
+        "curve_stablecoin/lending/deprecated/OneWayLendingFactoryL2.vy",
         CRVUSD,
         amm_impl,
         controller_impl,

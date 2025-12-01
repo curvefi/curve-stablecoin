@@ -37,7 +37,7 @@ if __name__ == "__main__":
         boa.env._fork_try_prefetch_state = False
 
     contract = boa.load(
-        "contracts/price_oracles/CryptoFromPoolVault_noncurve.vy",
+        "curve_stablecoin/price_oracles/CryptoFromPoolVault_noncurve.vy",
         POOL,
         2,
         BORROWED_IX,

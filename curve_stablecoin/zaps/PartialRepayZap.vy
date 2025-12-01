@@ -1,11 +1,12 @@
 # pragma version 0.4.3
+# pragma nonreentrancy on
 
 """
-@title LlamaLendPartialRepayZapCallback
+@title LlamaLendPartialRepayZap
 @author Curve.Fi
 @license Copyright (c) Curve.Fi, 2020-2025 - all rights reserved
-@notice Partially repays a position (self-liquidation) when health is low,
-        using controller callback to forward assets directly to the caller.
+@notice Partially repays a position (self-liquidation) when health is low.
+        Liquidator provides borrowed tokens, receives withdrawn collateral.
 """
 
 from curve_std.interfaces import IERC20
@@ -13,8 +14,8 @@ from curve_stablecoin.interfaces import IAMM
 from curve_stablecoin.interfaces import IController
 from curve_stablecoin import Controller as ctrl
 from curve_std import token as tkn
-from curve_stablecoin.interfaces import IPartialRepayZapCallback as IZap
-import contracts.lib.liquidation_lib as liq
+from curve_stablecoin.interfaces import IPartialRepayZap as IZap
+import curve_stablecoin.lib.liquidation_lib as liq
 
 from curve_stablecoin import constants as c
 
@@ -25,9 +26,6 @@ WAD: constant(uint256) = c.WAD
 
 FRAC: public(immutable(uint256))                         # fraction of position to repay (1e18 = 100%)
 HEALTH_THRESHOLD: public(immutable(int256))              # trigger threshold on controller.health(user, false)
-
-CALLDATA_MAX_SIZE: constant(uint256) = c.CALLDATA_MAX_SIZE
-CALLBACK_SIGNATURE: constant(bytes4) = method_id("callback_liquidate_partial(bytes)",output_type=bytes4,)
 
 
 @deploy
@@ -85,21 +83,13 @@ def users_to_liquidate(_controller: IController, _from: uint256 = 0, _limit: uin
 
 
 @external
-def liquidate_partial(
-    _controller: IController,
-    _user: address,
-    _min_x: uint256,
-    _callbacker: address = empty(address),
-    _calldata: Bytes[CALLDATA_MAX_SIZE - 32 * 6] = b"",
-):
+def liquidate_partial(_controller: IController, _user: address, _min_x: uint256):
     """
     @notice Trigger partial self-liquidation of `user` using FRAC.
             Caller supplies borrowed tokens; receives withdrawn collateral.
     @param _controller Address of the controller
     @param _user Address of the position owner (must have approved this zap in controller)
     @param _min_x Minimal x withdrawn from AMM to guard against MEV
-    @param _callbacker Address of the callback contract
-    @param _calldata Any data for callbacker (address x 3 (64) + uint256 (32) + 2 * offset (32) + must be divided by 32 - slots (16))
     """
     # Cached only for readability purposes
     CONTROLLER: IController = _controller
@@ -122,16 +112,11 @@ def liquidate_partial(
     to_repay: uint256 = staticcall CONTROLLER.tokens_to_liquidate(_user, FRAC)
     borrowed_from_sender: uint256 = unsafe_div(unsafe_mul(to_repay, ratio), WAD)
 
-    if _callbacker != empty(address):
-        liquidate_calldata: Bytes[CALLDATA_MAX_SIZE] = abi_encode(_controller.address, _user, borrowed_from_sender, _callbacker, _calldata)
-        extcall CONTROLLER.liquidate(_user, _min_x, FRAC, self, liquidate_calldata)
+    tkn.transfer_from(BORROWED, msg.sender, self, borrowed_from_sender)
 
-    else:
-        tkn.transfer_from(BORROWED, msg.sender, self, borrowed_from_sender)
-
-        extcall CONTROLLER.liquidate(_user, _min_x, FRAC)
-        collateral_received: uint256 = staticcall COLLATERAL.balanceOf(self)
-        tkn.transfer(COLLATERAL, msg.sender, collateral_received)
+    extcall CONTROLLER.liquidate(_user, _min_x, FRAC)
+    collateral_received: uint256 = staticcall COLLATERAL.balanceOf(self)
+    tkn.transfer(COLLATERAL, msg.sender, collateral_received)
 
     # surplus amount goes into position repay
     borrowed_amount: uint256 = staticcall BORROWED.balanceOf(self)
@@ -140,62 +125,7 @@ def liquidate_partial(
     log IZap.PartialRepay(
         controller=_controller,
         user=_user,
+        collateral_decrease=collateral_received,
+        borrowed_from_sender=borrowed_from_sender,
         surplus_repaid=borrowed_amount,
     )
-
-
-@internal
-def execute_callback(
-    callbacker: address,
-    callback_sig: bytes4,
-    calldata: Bytes[CALLDATA_MAX_SIZE - 32 * 6],
-):
-    response: Bytes[64] = raw_call(
-        callbacker,
-        concat(
-            callback_sig,
-            abi_encode(calldata),
-        ),
-        max_outsize=64,
-    )
-
-
-@external
-def callback_liquidate(
-    _user: address,
-    _borrowed: uint256,
-    _collateral: uint256,
-    _debt: uint256,
-    _calldata: Bytes[CALLDATA_MAX_SIZE],
-) -> uint256[2]:
-    """
-    @notice Controller callback invoked during liquidate.
-    @dev Provides borrowed tokens back to controller to cover shortfall and
-         forwards collateral to the liquidator via controller.transferFrom.
-    """
-    controller: address = empty(address)
-    user: address = empty(address)
-    borrowed_from_sender: uint256 = 0
-    callbacker: address = empty(address)
-    callbacker_calldata: Bytes[CALLDATA_MAX_SIZE - 32 * 6] = empty(Bytes[CALLDATA_MAX_SIZE - 32 * 6])
-
-    controller, user, borrowed_from_sender, callbacker, callbacker_calldata = abi_decode(_calldata, (address, address, uint256, address, Bytes[CALLDATA_MAX_SIZE - 32 * 6]))
-    assert msg.sender == controller, "wrong sender"
-
-    # Cached only for readability purposes
-    CONTROLLER: IController = IController(controller)
-    BORROWED: IERC20 = staticcall CONTROLLER.borrowed_token()
-    COLLATERAL: IERC20 = staticcall CONTROLLER.collateral_token()
-
-    collateral_received: uint256 = staticcall COLLATERAL.balanceOf(self)
-    tkn.transfer(COLLATERAL, callbacker, collateral_received)
-
-    self.execute_callback(
-        callbacker,
-        CALLBACK_SIGNATURE,
-        callbacker_calldata
-    )
-
-    tkn.transfer_from(BORROWED, callbacker, self, borrowed_from_sender)
-
-    return [borrowed_from_sender, 0]

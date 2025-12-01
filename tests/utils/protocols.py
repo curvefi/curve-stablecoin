@@ -72,7 +72,7 @@ class Llamalend:
 
         controller_view_blueprint = CONTROLLER_VIEW_DEPLOYER.deploy_as_blueprint()
 
-        with open("contracts/MintController.vy", "r") as f:
+        with open("curve_stablecoin/MintController.vy", "r") as f:
             mint_controller_code = f.read()
         mint_controller_code = mint_controller_code.replace(
             "empty(address),  # to replace at deployment with view blueprint",

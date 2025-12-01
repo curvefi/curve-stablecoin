@@ -48,5 +48,4 @@ requires = ["hatchling>=1.25"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
-packages = []
-force-include = {"contracts" = "curve_stablecoin"}
+packages = ["curve_stablecoin"]

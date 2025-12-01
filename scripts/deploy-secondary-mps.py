@@ -66,7 +66,7 @@ if __name__ == "__main__":
 
     policies = [
         boa.load(
-            "contracts/mpolicies/SecondaryMonetaryPolicy.vy",
+            "curve_stablecoin/mpolicies/SecondaryMonetaryPolicy.vy",
             FACTORY,
             amm,
             BORROWED_TOKEN,

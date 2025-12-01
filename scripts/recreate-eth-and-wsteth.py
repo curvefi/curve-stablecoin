@@ -65,8 +65,12 @@ if __name__ == "__main__":
         boa.env.add_account(account_load("babe"))
         boa.env._fork_try_prefetch_state = False
 
-    factory = boa.load_partial("contracts/lending/OneWayLendingFactory.vy").at(FACTORY)
-    policy_deployer = boa.load_partial("contracts/mpolicies/SecondaryMonetaryPolicy.vy")
+    factory = boa.load_partial("curve_stablecoin/lending/OneWayLendingFactory.vy").at(
+        FACTORY
+    )
+    policy_deployer = boa.load_partial(
+        "curve_stablecoin/mpolicies/SecondaryMonetaryPolicy.vy"
+    )
 
     # for ix in [WETH_INDEX, WSTETH_INDEX]:
     for ix in [WSTETH_INDEX]:

@@ -18,7 +18,7 @@ if __name__ == "__main__":
         boa.set_network_env(networks.NETWORK)
         babe = boa.env.add_accounts_from_rpc("http://localhost:1248")
 
-    controller_impl = boa.load_partial("contracts/Controller.vy")
+    controller_impl = boa.load_partial("curve_stablecoin/Controller.vy")
 
     actions = [(controller_impl.at(CONTROLLER), "set_monetary_policy", MPOLICY)]
     vote_id = curve_dao.create_vote(

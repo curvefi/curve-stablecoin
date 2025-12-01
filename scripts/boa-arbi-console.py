@@ -31,13 +31,13 @@ if __name__ == "__main__":
         boa.env._fork_try_prefetch_state = False
 
     oracle_code = boa.load_partial(
-        "contracts/price_oracles/L2/CryptoFromPoolArbitrum.vy"
+        "curve_stablecoin/price_oracles/L2/CryptoFromPoolArbitrum.vy"
     )
     agg_oracle_code = boa.load_partial(
-        "contracts/price_oracles/L2/CryptoFromPoolsRateArbitrumWAgg.vy"
+        "curve_stablecoin/price_oracles/L2/CryptoFromPoolsRateArbitrumWAgg.vy"
     )
     factory = boa.load_partial(
-        "contracts/lending/deprecated/OneWayLendingFactoryL2.vy"
+        "curve_stablecoin/lending/deprecated/OneWayLendingFactoryL2.vy"
     ).at(FACTORY)
 
     import IPython

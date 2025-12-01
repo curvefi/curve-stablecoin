@@ -28,21 +28,23 @@ if __name__ == "__main__":
     boa.env.fork(NETWORK)
     boa.env.eoa = "0xbabe61887f1de2713c6f97e567623453d3C79f67"
 
-    amm_impl = boa.load_partial("contracts/AMM.vy").deploy_as_blueprint()
-    controller_impl = boa.load_partial("contracts/Controller.vy").deploy_as_blueprint()
-    vault_impl = boa.load("contracts/lending/Vault.vy")
+    amm_impl = boa.load_partial("curve_stablecoin/AMM.vy").deploy_as_blueprint()
+    controller_impl = boa.load_partial(
+        "curve_stablecoin/Controller.vy"
+    ).deploy_as_blueprint()
+    vault_impl = boa.load("curve_stablecoin/lending/Vault.vy")
     price_oracle_impl = boa.load_partial(
-        "contracts/price_oracles/CryptoFromPool.vy"
+        "curve_stablecoin/price_oracles/CryptoFromPool.vy"
     ).deploy_as_blueprint()
     mpolicy_impl = boa.load_partial(
-        "contracts/mpolicies/SemilogMonetaryPolicy.vy"
+        "curve_stablecoin/mpolicies/SemilogMonetaryPolicy.vy"
     ).deploy_as_blueprint()
     gauge_impl = boa.load_partial(
-        "contracts/lending/LiquidityGauge.vy"
+        "curve_stablecoin/lending/LiquidityGauge.vy"
     ).deploy_as_blueprint()
 
     factory = boa.load(
-        "contracts/lending/OneWayLendingFactory.vy",
+        "curve_stablecoin/lending/OneWayLendingFactory.vy",
         CRVUSD,
         amm_impl,
         controller_impl,
@@ -59,13 +61,13 @@ if __name__ == "__main__":
     factory.create_from_pool(
         CRVUSD, CRV, 100, int(0.006 * 1e18), 9 * 10**16, 6 * 10**16, TRICRV_POOL
     )
-    vault_compiled = boa.load_partial("contracts/lending/Vault.vy")
+    vault_compiled = boa.load_partial("curve_stablecoin/lending/Vault.vy")
     vault = vault_compiled.at(factory.vaults(0))
     amm_address = vault.amm()
     controller_address = vault.controller()
     price_oracle_address = vault.price_oracle()
 
-    erc20_compiled = boa.load_partial("contracts/testing/ERC20Mock.vy")
+    erc20_compiled = boa.load_partial("curve_stablecoin/testing/ERC20Mock.vy")
     crv = erc20_compiled.at(CRV)
     crv.transfer(
         "0x1e59ce931B4CFea3fe4B875411e280e173cB7A9C",

@@ -50,7 +50,7 @@ if __name__ == "__main__":
         boa.env._fork_try_prefetch_state = False
 
     factory = boa.load_partial(
-        "contracts/lending/deprecated/OneWayLendingFactoryL2.vy"
+        "curve_stablecoin/lending/deprecated/OneWayLendingFactoryL2.vy"
     ).at(FACTORY)
     gauge_factory = boa.from_etherscan(
         factory.gauge_factory(),

@@ -20,13 +20,13 @@ def test_tricrypto_usdc(lp_oracle_factory, stablecoin_aggregator, admin, trader)
     )
 
     usdc_crvusd_oracle = boa.load(
-        "contracts/price_oracles/CryptoFromPoolsRate.vy",
+        "curve_stablecoin/price_oracles/CryptoFromPoolsRate.vy",
         [crvusd_usdc_pool_address],
         [1],
         [0],
     )  # crvUSD/USDC
     usdc_usd_oracle = boa.load(
-        "contracts/price_oracles/CryptoFromPoolsRateWAgg.vy",
+        "curve_stablecoin/price_oracles/CryptoFromPoolsRateWAgg.vy",
         [crvusd_usdc_pool_address],
         [1],
         [0],
@@ -34,14 +34,14 @@ def test_tricrypto_usdc(lp_oracle_factory, stablecoin_aggregator, admin, trader)
     )  # USD/USDC
     with boa.env.prank(admin):
         tricrypto_usdc_crvusd_lp_oracle = boa.load_partial(
-            "contracts/price_oracles/proxy/ProxyOracle.vy"
+            "curve_stablecoin/price_oracles/proxy/ProxyOracle.vy"
         ).at(
             lp_oracle_factory.deploy_oracle(
                 tricrypto_usdc_pool_address, usdc_crvusd_oracle.address
             )[1]
         )  # USDC/LP * crvUSD/USDC
         tricrypto_usdc_usd_lp_oracle = boa.load_partial(
-            "contracts/price_oracles/proxy/ProxyOracle.vy"
+            "curve_stablecoin/price_oracles/proxy/ProxyOracle.vy"
         ).at(
             lp_oracle_factory.deploy_oracle(
                 tricrypto_usdc_pool_address, usdc_usd_oracle.address
@@ -50,7 +50,7 @@ def test_tricrypto_usdc(lp_oracle_factory, stablecoin_aggregator, admin, trader)
 
     # --- Compare oracle and spot prices ---
 
-    erc_mock = boa.load_partial("contracts/testing/ERC20Mock.vy")
+    erc_mock = boa.load_partial("curve_stablecoin/testing/ERC20Mock.vy")
     usdc = erc_mock.at(tricrypto_usdc_pool.coins(0))
     wbtc = erc_mock.at(tricrypto_usdc_pool.coins(1))
     boa.deal(usdc, trader, usdc.balanceOf(tricrypto_usdc_pool) * 10)
@@ -152,13 +152,13 @@ def test_tricrypto_usdt(lp_oracle_factory, stablecoin_aggregator, admin, trader)
     )
 
     usdt_crvusd_oracle = boa.load(
-        "contracts/price_oracles/CryptoFromPoolsRate.vy",
+        "curve_stablecoin/price_oracles/CryptoFromPoolsRate.vy",
         [crvusd_usdt_pool_address],
         [1],
         [0],
     )  # crvUSD/USDT
     usdt_usd_oracle = boa.load(
-        "contracts/price_oracles/CryptoFromPoolsRateWAgg.vy",
+        "curve_stablecoin/price_oracles/CryptoFromPoolsRateWAgg.vy",
         [crvusd_usdt_pool_address],
         [1],
         [0],
@@ -166,14 +166,14 @@ def test_tricrypto_usdt(lp_oracle_factory, stablecoin_aggregator, admin, trader)
     )  # USD/USDT
     with boa.env.prank(admin):
         tricrypto_usdt_crvusd_lp_oracle = boa.load_partial(
-            "contracts/price_oracles/proxy/ProxyOracle.vy"
+            "curve_stablecoin/price_oracles/proxy/ProxyOracle.vy"
         ).at(
             lp_oracle_factory.deploy_oracle(
                 tricrypto_usdt_pool_address, usdt_crvusd_oracle.address
             )[1]
         )  # USDT/LP * crvUSD/USDT
         tricrypto_usdt_usd_lp_oracle = boa.load_partial(
-            "contracts/price_oracles/proxy/ProxyOracle.vy"
+            "curve_stablecoin/price_oracles/proxy/ProxyOracle.vy"
         ).at(
             lp_oracle_factory.deploy_oracle(
                 tricrypto_usdt_pool_address, usdt_usd_oracle.address
@@ -186,7 +186,7 @@ def test_tricrypto_usdt(lp_oracle_factory, stablecoin_aggregator, admin, trader)
     usdt = boa.from_etherscan(
         tricrypto_usdt_pool.coins(0), "USDT", uri=EXPLORER_URL, api_key=EXPLORER_TOKEN
     )
-    wbtc = boa.load_partial("contracts/testing/ERC20Mock.vy").at(
+    wbtc = boa.load_partial("curve_stablecoin/testing/ERC20Mock.vy").at(
         tricrypto_usdt_pool.coins(1)
     )
     boa.deal(usdt, trader, usdt.balanceOf(tricrypto_usdt_pool) * 10)
@@ -278,14 +278,14 @@ def test_tricrv(lp_oracle_factory, stablecoin_aggregator, admin, trader):
     )
     with boa.env.prank(admin):
         tricrv_crvusd_lp_oracle = boa.load_partial(
-            "contracts/price_oracles/proxy/ProxyOracle.vy"
+            "curve_stablecoin/price_oracles/proxy/ProxyOracle.vy"
         ).at(
             lp_oracle_factory.deploy_oracle(
                 tricrv_pool_address, "0x0000000000000000000000000000000000000000"
             )[1]
         )  # USDT/LP * crvUSD/USDT
         tricrv_usd_lp_oracle = boa.load_partial(
-            "contracts/price_oracles/proxy/ProxyOracle.vy"
+            "curve_stablecoin/price_oracles/proxy/ProxyOracle.vy"
         ).at(
             lp_oracle_factory.deploy_oracle(
                 tricrv_pool_address, stablecoin_aggregator.address
@@ -294,8 +294,10 @@ def test_tricrv(lp_oracle_factory, stablecoin_aggregator, admin, trader):
 
     # --- Compare oracle and spot prices ---
 
-    crvusd = boa.load_partial("contracts/testing/ERC20Mock.vy").at(tricrv_pool.coins(0))
-    weth = boa.load_partial("contracts/testing/WETH.vy").at(tricrv_pool.coins(1))
+    crvusd = boa.load_partial("curve_stablecoin/testing/ERC20Mock.vy").at(
+        tricrv_pool.coins(0)
+    )
+    weth = boa.load_partial("curve_stablecoin/testing/WETH.vy").at(tricrv_pool.coins(1))
     boa.deal(crvusd, trader, crvusd.balanceOf(tricrv_pool) * 10)
     boa.env.set_balance(trader, boa.env.get_balance(tricrv_pool.address) * 10)
     weth.deposit(sender=trader, value=boa.env.get_balance(tricrv_pool.address) * 10)
@@ -393,13 +395,13 @@ def test_strategic_reserve(lp_oracle_factory, stablecoin_aggregator, admin, trad
     )
 
     usdc_crvusd_oracle = boa.load(
-        "contracts/price_oracles/CryptoFromPoolsRate.vy",
+        "curve_stablecoin/price_oracles/CryptoFromPoolsRate.vy",
         [crvusd_usdc_pool_address],
         [1],
         [0],
     )  # crvUSD/USDC
     usdc_usd_oracle = boa.load(
-        "contracts/price_oracles/CryptoFromPoolsRateWAgg.vy",
+        "curve_stablecoin/price_oracles/CryptoFromPoolsRateWAgg.vy",
         [crvusd_usdc_pool_address],
         [1],
         [0],
@@ -407,14 +409,14 @@ def test_strategic_reserve(lp_oracle_factory, stablecoin_aggregator, admin, trad
     )  # USD/USDC
     with boa.env.prank(admin):
         strategic_reserve_crvusd_lp_oracle = boa.load_partial(
-            "contracts/price_oracles/proxy/ProxyOracle.vy"
+            "curve_stablecoin/price_oracles/proxy/ProxyOracle.vy"
         ).at(
             lp_oracle_factory.deploy_oracle(
                 strategic_reserve_pool_address, usdc_crvusd_oracle.address
             )[1]
         )  # USDC/LP * crvUSD/USDC
         strategic_reserve_usd_lp_oracle = boa.load_partial(
-            "contracts/price_oracles/proxy/ProxyOracle.vy"
+            "curve_stablecoin/price_oracles/proxy/ProxyOracle.vy"
         ).at(
             lp_oracle_factory.deploy_oracle(
                 strategic_reserve_pool_address, usdc_usd_oracle.address
@@ -423,7 +425,7 @@ def test_strategic_reserve(lp_oracle_factory, stablecoin_aggregator, admin, trad
 
     # --- Compare oracle and spot prices ---
 
-    erc_mock = boa.load_partial("contracts/testing/ERC20Mock.vy")
+    erc_mock = boa.load_partial("curve_stablecoin/testing/ERC20Mock.vy")
     usdc = erc_mock.at(strategic_reserve_pool.coins(0))
     # USDT interface is different (does not return bool from 'approve' method, for example)
     usdt = boa.from_etherscan(
@@ -533,13 +535,13 @@ def test_weeth_weth(lp_oracle_factory, stablecoin_aggregator, admin, trader):
     )
 
     usdt_crvusd_oracle = boa.load(
-        "contracts/price_oracles/CryptoFromPoolsRate.vy",
+        "curve_stablecoin/price_oracles/CryptoFromPoolsRate.vy",
         [tricrypto_usdt_pool_address, crvusd_usdt_pool_address],
         [0, 1],
         [2, 0],
     )  # crvUSD/ETH
     usdt_usd_oracle = boa.load(
-        "contracts/price_oracles/CryptoFromPoolsRateWAgg.vy",
+        "curve_stablecoin/price_oracles/CryptoFromPoolsRateWAgg.vy",
         [tricrypto_usdt_pool_address, crvusd_usdt_pool_address],
         [0, 1],
         [2, 0],
@@ -547,14 +549,14 @@ def test_weeth_weth(lp_oracle_factory, stablecoin_aggregator, admin, trader):
     )  # USD/ETH
     with boa.env.prank(admin):
         weeth_ng_pool_crvusd_lp_oracle = boa.load_partial(
-            "contracts/price_oracles/proxy/ProxyOracle.vy"
+            "curve_stablecoin/price_oracles/proxy/ProxyOracle.vy"
         ).at(
             lp_oracle_factory.deploy_oracle(
                 weeth_ng_pool_address, usdt_crvusd_oracle.address
             )[1]
         )  # ETH/LP * crvUSD/ETH
         weeth_ng_pool_usd_lp_oracle = boa.load_partial(
-            "contracts/price_oracles/proxy/ProxyOracle.vy"
+            "curve_stablecoin/price_oracles/proxy/ProxyOracle.vy"
         ).at(
             lp_oracle_factory.deploy_oracle(
                 weeth_ng_pool_address, usdt_usd_oracle.address
@@ -563,8 +565,10 @@ def test_weeth_weth(lp_oracle_factory, stablecoin_aggregator, admin, trader):
 
     # --- Compare oracle and spot prices ---
 
-    weth = boa.load_partial("contracts/testing/WETH.vy").at(weeth_ng_pool.coins(0))
-    weeth = boa.load_partial("contracts/testing/ERC20Mock.vy").at(
+    weth = boa.load_partial("curve_stablecoin/testing/WETH.vy").at(
+        weeth_ng_pool.coins(0)
+    )
+    weeth = boa.load_partial("curve_stablecoin/testing/ERC20Mock.vy").at(
         weeth_ng_pool.coins(1)
     )
     boa.env.set_balance(trader, weth.balanceOf(weeth_ng_pool) * 10)
@@ -665,13 +669,13 @@ def test_cvxcrv(lp_oracle_factory, stablecoin_aggregator, admin, trader):
     )
 
     crv_crvusd_oracle = boa.load(
-        "contracts/price_oracles/CryptoFromPoolsRate.vy",
+        "curve_stablecoin/price_oracles/CryptoFromPoolsRate.vy",
         [tricrv_pool_address],
         [0],
         [2],
     )  # crvUSD/CRV
     crv_usd_oracle = boa.load(
-        "contracts/price_oracles/CryptoFromPoolsRateWAgg.vy",
+        "curve_stablecoin/price_oracles/CryptoFromPoolsRateWAgg.vy",
         [tricrv_pool_address],
         [0],
         [2],
@@ -679,19 +683,19 @@ def test_cvxcrv(lp_oracle_factory, stablecoin_aggregator, admin, trader):
     )  # USD/CRV
     with boa.env.prank(admin):
         cvxcrv_pool_crvusd_lp_oracle = boa.load_partial(
-            "contracts/price_oracles/proxy/ProxyOracle.vy"
+            "curve_stablecoin/price_oracles/proxy/ProxyOracle.vy"
         ).at(
             lp_oracle_factory.deploy_oracle(cvxcrv_pool_address, crv_crvusd_oracle)[1]
         )  # CRV/LP * crvUSD/CRV
         cvxcrv_pool_usd_lp_oracle = boa.load_partial(
-            "contracts/price_oracles/proxy/ProxyOracle.vy"
+            "curve_stablecoin/price_oracles/proxy/ProxyOracle.vy"
         ).at(
             lp_oracle_factory.deploy_oracle(cvxcrv_pool_address, crv_usd_oracle)[1]
         )  # CRV/LP * crvUSD/CRV * USD/crvUSD
 
     # --- Compare oracle and spot prices ---
 
-    erc_mock = boa.load_partial("contracts/testing/ERC20Mock.vy")
+    erc_mock = boa.load_partial("curve_stablecoin/testing/ERC20Mock.vy")
     crv = erc_mock.at(cvxcrv_pool.coins(0))
     cvxcrv = erc_mock.at(cvxcrv_pool.coins(1))
     boa.deal(crv, trader, crv.balanceOf(cvxcrv_pool) * 20)

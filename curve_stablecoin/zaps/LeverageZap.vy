@@ -74,7 +74,7 @@ def _log_2(x: uint256) -> uint256:
          of `x`, following the selected rounding direction.
     @notice Note that it returns 0 if given 0. The implementation is
             inspired by OpenZeppelin's implementation here:
-            https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/utils/math/Math.sol.
+            https://github.com/OpenZeppelin/openzeppelin-curve_stablecoin/blob/master/curve_stablecoin/utils/math/Math.sol.
             This code is taken from snekmate.
     @param x The 32-byte variable.
     @return uint256 The 32-byte calculation result.

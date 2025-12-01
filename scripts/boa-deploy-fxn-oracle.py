@@ -39,7 +39,7 @@ if __name__ == "__main__":
         boa.env._fork_try_prefetch_state = False
 
     contract = boa.load(
-        "contracts/price_oracles/L2/CryptoFromPoolsRateArbitrum.vy",
+        "curve_stablecoin/price_oracles/L2/CryptoFromPoolsRateArbitrum.vy",
         POOLS,
         BORROWED_IXS,
         COLLATERAL_IXS,

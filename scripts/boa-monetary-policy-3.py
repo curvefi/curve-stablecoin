@@ -41,10 +41,10 @@ if __name__ == "__main__":
         boa.env.add_account(account_load("babe"))
         boa.env._fork_try_prefetch_state = False
 
-    factory = boa.load_partial("contracts/ControllerFactory.vy").at(FACTORY)
+    factory = boa.load_partial("curve_stablecoin/ControllerFactory.vy").at(FACTORY)
 
     contract = boa.load(
-        "contracts/mpolicies/AggMonetaryPolicy3.vy",
+        "curve_stablecoin/mpolicies/AggMonetaryPolicy3.vy",
         ADMIN,
         STABLE_ORACLE,
         FACTORY,

@@ -33,8 +33,12 @@ if __name__ == "__main__":
         boa.env.add_account(account_load("babe"))
         boa.env._fork_try_prefetch_state = False
 
-    oracle_factory = boa.load_partial("contracts/price_oracles/CryptoFromPoolsRate.vy")
-    factory_agg = boa.load_partial("contracts/price_oracles/CryptoFromPoolsRateWAgg.vy")
+    oracle_factory = boa.load_partial(
+        "curve_stablecoin/price_oracles/CryptoFromPoolsRate.vy"
+    )
+    factory_agg = boa.load_partial(
+        "curve_stablecoin/price_oracles/CryptoFromPoolsRateWAgg.vy"
+    )
 
     print(
         "================================================================================================================"

@@ -42,7 +42,9 @@ if __name__ == "__main__":
         boa.env.add_account(account_load("babe"))
         boa.env._fork_try_prefetch_state = False
 
-    factory = boa.load_partial("contracts/lending/OneWayLendingFactory.vy").at(FACTORY)
+    factory = boa.load_partial("curve_stablecoin/lending/OneWayLendingFactory.vy").at(
+        FACTORY
+    )
 
     import IPython
 
