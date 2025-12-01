@@ -24,6 +24,10 @@ implements: ILendController
 
 from curve_stablecoin import Controller as core
 
+from curve_stablecoin.interfaces import IControllerView as IView
+
+implements: IView
+
 implements: core.VirtualMethods
 
 initializes: core

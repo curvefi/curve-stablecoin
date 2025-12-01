@@ -10,7 +10,8 @@
 from curve_std.interfaces import IERC20
 from curve_std.interfaces import IERC4626
 from curve_stablecoin.interfaces import IAMM
-from curve_stablecoin.interfaces import ILendController as IController
+from curve_stablecoin.interfaces import IController
+from curve_stablecoin.interfaces import ILendController
 from curve_stablecoin.interfaces import IFactory
 from curve_stablecoin.interfaces import IVault
 
@@ -171,7 +172,7 @@ def asset() -> IERC20:
 @view
 def _total_assets() -> uint256:
     # admin fee should be accounted for here when enabled
-    return staticcall self._controller.available_balance() + staticcall self._controller.total_debt()
+    return staticcall ILendController(self._controller.address).available_balance() + staticcall self._controller.total_debt()
 
 
 @external
@@ -358,7 +359,7 @@ def maxWithdraw(_owner: address) -> uint256:
     """
     return min(
         self._convert_to_assets(self.balanceOf[_owner]),
-        staticcall self._controller.available_balance())
+        staticcall ILendController(self._controller.address).available_balance())
 
 # TODO remove reverts that give resupply problems
 @external
@@ -368,7 +369,7 @@ def previewWithdraw(_assets: uint256) -> uint256:
     """
     @notice Calculate number of shares which gets burned when withdrawing given amount of asset
     """
-    assert _assets <= staticcall self._controller.available_balance()
+    assert _assets <= staticcall ILendController(self._controller.address).available_balance()
     return self._convert_to_shares(_assets, False)
 
 
@@ -406,7 +407,7 @@ def maxRedeem(_owner: address) -> uint256:
     @notice Calculate maximum amount of shares which a given user can redeem
     """
     return min(
-        self._convert_to_shares(staticcall self._controller.available_balance(), False),
+        self._convert_to_shares(staticcall ILendController(self._controller.address).available_balance(), False),
         self.balanceOf[_owner])
 
 
@@ -424,7 +425,7 @@ def previewRedeem(_shares: uint256) -> uint256:
     else:
         assets_to_redeem: uint256 = self._convert_to_assets(_shares)
         # TODO can't revert here
-        assert assets_to_redeem <= staticcall self._controller.available_balance()
+        assert assets_to_redeem <= staticcall ILendController(self._controller.address).available_balance()
         return assets_to_redeem
 
 
