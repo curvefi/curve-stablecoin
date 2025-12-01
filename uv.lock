@@ -513,8 +513,8 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "curve-std", git = "https://github.com/curvefi/curve-std?rev=main" },
-    { name = "ownership-proxy", git = "https://github.com/curvefi/ownership-proxy?rev=main" },
+    { name = "curve-std", git = "https://github.com/curvefi/curve-std?rev=6db238291a62eee43446a0f86323f071e5a001eb" },
+    { name = "ownership-proxy", git = "https://github.com/curvefi/ownership-proxy?rev=19a63d09ba8d72ec8c2d96328caea2edf43c02f5" },
     { name = "snekmate", specifier = ">=0.1.1" },
     { name = "vyper", specifier = "==0.4.3" },
 ]
@@ -535,7 +535,7 @@ dev = [
 [[package]]
 name = "curve-std"
 version = "0.1.0"
-source = { git = "https://github.com/curvefi/curve-std?rev=main#cc27fda59d55e3ed77bf0b5676269ffcf445f9e9" }
+source = { git = "https://github.com/curvefi/curve-std?rev=6db238291a62eee43446a0f86323f071e5a001eb#6db238291a62eee43446a0f86323f071e5a001eb" }
 
 [[package]]
 name = "cytoolz"
@@ -1271,8 +1271,9 @@ wheels = [
 [[package]]
 name = "ownership-proxy"
 version = "0.1.0"
-source = { git = "https://github.com/curvefi/ownership-proxy?rev=main#c9ca2d228920e31e675b058c20a983c896a26831" }
+source = { git = "https://github.com/curvefi/ownership-proxy?rev=19a63d09ba8d72ec8c2d96328caea2edf43c02f5#19a63d09ba8d72ec8c2d96328caea2edf43c02f5" }
 dependencies = [
+    { name = "curve-std" },
     { name = "snekmate" },
     { name = "vyper" },
 ]

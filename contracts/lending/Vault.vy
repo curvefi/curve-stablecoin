@@ -14,7 +14,7 @@ from curve_stablecoin.interfaces import ILendController as IController
 from curve_stablecoin.interfaces import IFactory
 from curve_stablecoin.interfaces import IVault
 
-from contracts import constants as c
+from curve_stablecoin import constants as c
 from curve_std import token as tkn
 
 implements: IERC20

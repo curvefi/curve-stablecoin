@@ -10,7 +10,7 @@
 @custom:security security@curve.fi
 """
 
-from contracts import Controller as core
+from curve_stablecoin import Controller as core
 
 initializes: core
 

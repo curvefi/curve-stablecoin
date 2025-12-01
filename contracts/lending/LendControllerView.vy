@@ -17,7 +17,7 @@ from curve_std import math as crv_math
 
 implements: IControllerView
 
-from contracts import ControllerView as core
+from curve_stablecoin import ControllerView as core
 
 initializes: core
 exports: (

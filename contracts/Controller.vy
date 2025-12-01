@@ -49,7 +49,7 @@ FACTORY: immutable(IFactory)
 #                          CONSTANTS                           #
 ################################################################
 
-from contracts import constants as c
+from curve_stablecoin import constants as c
 
 version: public(constant(String[5])) = c.__version__
 

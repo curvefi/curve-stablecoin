@@ -1,6 +1,6 @@
 # pragma version 0.4.3
 from curve_std.interfaces import IERC20
-from contracts import constants as c
+from curve_stablecoin import constants as c
 
 STABLECOIN: immutable(IERC20)
 COLLATERAL: immutable(IERC20)

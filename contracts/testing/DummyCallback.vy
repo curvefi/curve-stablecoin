@@ -1,7 +1,7 @@
 # pragma version 0.4.3
 from curve_std import token as tkn
 from curve_std.interfaces import IERC20
-from contracts import constants as c
+from curve_stablecoin import constants as c
 
 callback_deposit_hits: public(uint256)
 callback_repay_hits: public(uint256)

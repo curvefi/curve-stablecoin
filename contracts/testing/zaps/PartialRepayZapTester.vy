@@ -2,7 +2,7 @@
 
 from curve_std.interfaces import IERC20
 from curve_std import token as tkn
-from contracts import constants as c
+from curve_stablecoin import constants as c
 
 
 CALLDATA_MAX_SIZE: constant(uint256) = c.CALLDATA_MAX_SIZE
