@@ -16,6 +16,7 @@ from curve_stablecoin.interfaces import IVault
 
 from curve_stablecoin import constants as c
 from curve_std import token as tkn
+from curve_std import math as crv_math
 
 implements: IERC20
 implements: IERC4626
@@ -193,11 +194,10 @@ def _convert_to_shares(_assets: uint256, _is_floor: bool = True,
     precision: uint256 = self.precision
     numerator: uint256 = (self.totalSupply + DEAD_SHARES) * _assets * precision
     denominator: uint256 = (total_assets * precision + 1)
-    # TODO make round down/up helper
     if _is_floor:
         return numerator // denominator
     else:
-        return (numerator + denominator - 1) // denominator
+        return crv_math.div_up(numerator, denominator)
 
 
 @internal
@@ -213,7 +213,7 @@ def _convert_to_assets(_shares: uint256, _is_floor: bool = True,
     if _is_floor:
         return numerator // denominator
     else:
-        return (numerator + denominator - 1) // denominator
+        return crv_math.div_up(numerator, denominator)
 
 
 @external
@@ -234,7 +234,7 @@ def pricePerShare(_is_floor: bool = True) -> uint256:
         if _is_floor:
             pps = numerator // denominator
         else:
-            pps = (numerator + denominator - 1) // denominator
+            pps = crv_math.div_up(numerator, denominator)
         assert pps > 0
         return pps
 
