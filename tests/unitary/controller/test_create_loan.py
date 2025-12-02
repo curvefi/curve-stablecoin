@@ -85,7 +85,9 @@ def test_create_loan(
 
     # ================= Calculate future health =================
 
-    preview_health = controller.create_loan_health_preview(COLLATERAL, DEBT, N_BANDS, False)
+    preview_health = controller.create_loan_health_preview(
+        COLLATERAL, DEBT, N_BANDS, False
+    )
     preview_health_full = controller.create_loan_health_preview(
         COLLATERAL, DEBT, N_BANDS, True
     )
@@ -160,7 +162,9 @@ def test_create_loan(
     assert state_logs[0].borrowed == 0
     assert state_logs[0].debt == DEBT
     assert state_logs[0].n2 - state_logs[0].n1 + 1 == N_BANDS
-    assert state_logs[0].liquidation_discount == controller.liquidation_discounts(borrower)
+    assert state_logs[0].liquidation_discount == controller.liquidation_discounts(
+        borrower
+    )
 
     # ================= Verify money flows =================
 
@@ -265,7 +269,13 @@ def test_create_loan_with_callback(
         controller.approve(creator, True, sender=borrower)
 
     controller.create_loan(
-        wallet_collateral, DEBT, N_BANDS, borrower, dummy_callback, calldata, sender=creator
+        wallet_collateral,
+        DEBT,
+        N_BANDS,
+        borrower,
+        dummy_callback,
+        calldata,
+        sender=creator,
     )
 
     # ================= Capture logs =================
@@ -297,7 +307,9 @@ def test_create_loan_with_callback(
     # ================= Verify position state =================
 
     user_state_after = controller.user_state(borrower)
-    assert user_state_after[0] == total_collateral  # collateral in AMM (wallet + callback)
+    assert (
+        user_state_after[0] == total_collateral
+    )  # collateral in AMM (wallet + callback)
     assert user_state_after[1] == 0  # no borrowed tokens in AMM initially
     assert user_state_after[2] == DEBT  # debt created
     assert user_state_after[3] == N_BANDS  # N bands
@@ -327,7 +339,9 @@ def test_create_loan_with_callback(
     assert state_logs[0].borrowed == 0
     assert state_logs[0].debt == DEBT
     assert state_logs[0].n2 - state_logs[0].n1 + 1 == N_BANDS
-    assert state_logs[0].liquidation_discount == controller.liquidation_discounts(borrower)
+    assert state_logs[0].liquidation_discount == controller.liquidation_discounts(
+        borrower
+    )
 
     # ================= Verify money flows =================
 
@@ -402,7 +416,9 @@ def test_create_loan_debt_too_high(
     max_approve(collateral_token, controller, sender=borrower)
 
     with boa.reverts("Debt too high"):
-        controller.create_loan(COLLATERAL, max_debt * 1001 // 1000, N_BANDS, sender=borrower)
+        controller.create_loan(
+            COLLATERAL, max_debt * 1001 // 1000, N_BANDS, sender=borrower
+        )
 
     # Works with max_debt
     controller.create_loan(COLLATERAL, max_debt, N_BANDS, sender=borrower)

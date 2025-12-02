@@ -124,7 +124,9 @@ def test_add_collateral(
     # ================= Verify position state =================
 
     user_state_after = controller.user_state(borrower)
-    assert user_state_after[0] == initial_collateral + ADDITIONAL_COLLATERAL  # collateral increased
+    assert (
+        user_state_after[0] == initial_collateral + ADDITIONAL_COLLATERAL
+    )  # collateral increased
     assert user_state_after[1] == 0  # no borrowed tokens in AMM
     assert user_state_after[2] == initial_debt  # debt unchanged
     assert user_state_after[3] == N_BANDS  # N bands unchanged
@@ -152,7 +154,9 @@ def test_add_collateral(
     assert state_logs[0].borrowed == 0
     assert state_logs[0].debt == initial_debt
     assert state_logs[0].n2 - state_logs[0].n1 + 1 == N_BANDS
-    assert state_logs[0].liquidation_discount == controller.liquidation_discounts(borrower)
+    assert state_logs[0].liquidation_discount == controller.liquidation_discounts(
+        borrower
+    )
 
     # ================= Verify money flows =================
 
