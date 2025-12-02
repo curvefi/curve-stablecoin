@@ -733,6 +733,7 @@ def create_loan(
         user=_for, collateral_increase=total_collateral, loan_increase=_debt
     )
 
+
 @internal
 def _update_user_liquidation_discount(_for: address, _approval: bool, _new_debt: uint256) -> uint256:
     # Update liquidation discount only if it's the same or approved user. No rugs
