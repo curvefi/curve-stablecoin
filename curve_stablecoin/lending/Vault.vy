@@ -284,6 +284,7 @@ def previewDeposit(_assets: uint256) -> uint256:
     return self._convert_to_shares(_assets)
 
 
+# TODO Statemind AI INFORMATIONAL-02
 @external
 @nonreentrant
 def deposit(_assets: uint256, _receiver: address = msg.sender) -> uint256:
@@ -329,6 +330,7 @@ def previewMint(_shares: uint256) -> uint256:
     return self._convert_to_assets(_shares, False)
 
 
+# TODO Statemind AI INFORMATIONAL-02
 @external
 @nonreentrant
 def mint(_shares: uint256, _receiver: address = msg.sender) -> uint256:
