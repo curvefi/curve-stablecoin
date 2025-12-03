@@ -210,3 +210,43 @@ def test_add_collateral_zero_amount(
     # State should be unchanged
     user_state_after = controller.user_state(borrower)
     assert user_state_after[0] == initial_collateral
+
+
+def test_add_collateral_underwater(
+    controller,
+    amm,
+    borrowed_token,
+    collateral_token,
+):
+    """
+    Test that adding collateral when position is underwater reverts.
+    """
+
+    # ================= Create loan with max debt =================
+
+    borrower = boa.env.eoa
+    max_debt = controller.max_borrowable(COLLATERAL, N_BANDS)
+    boa.deal(collateral_token, borrower, COLLATERAL)
+    max_approve(collateral_token, controller, sender=borrower)
+
+    controller.create_loan(COLLATERAL, max_debt, N_BANDS, sender=borrower)
+
+    # ================= Push position to underwater =================
+
+    trader = boa.env.generate_address()
+    debt = controller.debt(borrower)
+    assert debt > 0
+    boa.deal(borrowed_token, trader, debt // 2)
+    with boa.env.prank(trader):
+        max_approve(borrowed_token, amm)
+        amm.exchange(0, 1, debt // 2, 0)
+
+    # Verify position is underwater (xy[0] > 0)
+    user_state = controller.user_state(borrower)
+    assert user_state[1] > 0  # borrowed tokens in AMM > 0
+
+    # ================= Execute add_collateral =================
+
+    # Try to add collateral when underwater - should revert
+    with boa.reverts("Underwater"):
+        controller.add_collateral(ADDITIONAL_COLLATERAL, sender=borrower)
