@@ -127,7 +127,9 @@ def test_borrow_more_from_wallet(
             )
         controller.approve(caller, True, sender=borrower)
 
-    controller.borrow_more(ADDITIONAL_COLLATERAL, ADDITIONAL_DEBT, borrower, sender=caller)
+    controller.borrow_more(
+        ADDITIONAL_COLLATERAL, ADDITIONAL_DEBT, borrower, sender=caller
+    )
 
     # ================= Capture logs =================
 
@@ -629,4 +631,3 @@ def test_borrow_more_underwater(
     # Try to borrow more when underwater - should revert
     with boa.reverts("Underwater"):
         controller.borrow_more(ADDITIONAL_COLLATERAL, ADDITIONAL_DEBT, sender=borrower)
-

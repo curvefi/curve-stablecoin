@@ -3,6 +3,9 @@ from curve_stablecoin.interfaces import ILMGauge
 from curve_stablecoin.interfaces import IAMM
 from curve_stablecoin.interfaces import IMonetaryPolicy
 from curve_stablecoin.interfaces import IFactory
+from curve_stablecoin import constants as c
+
+CALLDATA_MAX_SIZE: constant(uint256) = c.CALLDATA_MAX_SIZE
 
 # Events
 
@@ -109,12 +112,12 @@ def max_borrowable(collateral: uint256, N: uint256, current_debt: uint256, user:
 
 
 @external
-def liquidate(user: address, min_x: uint256, _frac: uint256, callbacker: address = empty(address), calldata: Bytes[32 * 300] = b''):
+def liquidate(user: address, min_x: uint256, _frac: uint256, callbacker: address = empty(address), calldata: Bytes[CALLDATA_MAX_SIZE] = b''):
     ...
 
 
 @external
-def borrow_more(collateral: uint256, debt: uint256, _for: address, callbacker: address, calldata: Bytes[32 * 300]):
+def borrow_more(collateral: uint256, debt: uint256, _for: address, callbacker: address, calldata: Bytes[CALLDATA_MAX_SIZE]):
     ...
 
 
@@ -134,7 +137,7 @@ def set_monetary_policy(monetary_policy: IMonetaryPolicy):
 
 
 @external
-def create_loan(collateral: uint256, debt: uint256, N: uint256, _for: address, callbacker: address, calldata: Bytes[32 * 300]):
+def create_loan(collateral: uint256, debt: uint256, N: uint256, _for: address, callbacker: address, calldata: Bytes[CALLDATA_MAX_SIZE]):
     ...
 
 
@@ -149,7 +152,7 @@ def repay(
     _for: address = msg.sender,
     max_active_band: int256 = max_value(int256),
     callbacker: address = empty(address),
-    calldata: Bytes[32 * 300] = b"",
+    calldata: Bytes[CALLDATA_MAX_SIZE] = b"",
     shrink: bool = False,
 ):
     ...
