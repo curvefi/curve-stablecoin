@@ -173,9 +173,9 @@ def __init__(
     # This is useless for lending markets, but leaving it doesn't create any harm
     tkn.max_approve(BORROWED_TOKEN, FACTORY.address)
 
+
+    self._set_borrowing_discounts(_loan_discount, _liquidation_discount)
     self._monetary_policy = _monetary_policy
-    self.liquidation_discount = _liquidation_discount
-    self.loan_discount = _loan_discount
     self._total_debt.rate_mul = WAD
     self.admin_percentage = WAD
     self._set_view(_view_impl)
@@ -1506,6 +1506,17 @@ def set_monetary_policy(_monetary_policy: IMonetaryPolicy):
     log IController.SetMonetaryPolicy(monetary_policy=_monetary_policy)
 
 
+@internal
+def _set_borrowing_discounts(
+        _loan_discount: uint256, _liquidation_discount: uint256
+):
+    assert _liquidation_discount > 0
+    assert _loan_discount < WAD
+    assert _loan_discount > _liquidation_discount
+    self.liquidation_discount = _liquidation_discount
+    self.loan_discount = _loan_discount
+
+
 @external
 def set_borrowing_discounts(
     _loan_discount: uint256, _liquidation_discount: uint256
@@ -1516,11 +1527,7 @@ def set_borrowing_discounts(
     @param _liquidation_discount Discount where bad liquidation starts
     """
     self._check_admin()
-    assert _liquidation_discount > 0
-    assert _loan_discount < WAD
-    assert _loan_discount > _liquidation_discount
-    self.liquidation_discount = _liquidation_discount
-    self.loan_discount = _loan_discount
+    self._set_borrowing_discounts(_loan_discount, _liquidation_discount)
     log IController.SetBorrowingDiscounts(
         loan_discount=_loan_discount, liquidation_discount=_liquidation_discount
     )
