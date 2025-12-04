@@ -363,7 +363,7 @@ def maxWithdraw(_owner: address) -> uint256:
         self._convert_to_assets(self.balanceOf[_owner]),
         staticcall ILendController(self._controller.address).available_balance())
 
-# TODO remove reverts that give resupply problems
+
 @external
 @view
 @nonreentrant
@@ -371,7 +371,6 @@ def previewWithdraw(_assets: uint256) -> uint256:
     """
     @notice Calculate number of shares which gets burned when withdrawing given amount of asset
     """
-    assert _assets <= staticcall ILendController(self._controller.address).available_balance()
     return self._convert_to_shares(_assets, False)
 
 
@@ -420,15 +419,7 @@ def previewRedeem(_shares: uint256) -> uint256:
     """
     @notice Calculate the amount of assets which can be obtained by redeeming the given amount of shares
     """
-    if self.totalSupply == 0:
-        assert _shares == 0
-        return 0
-
-    else:
-        assets_to_redeem: uint256 = self._convert_to_assets(_shares)
-        # TODO can't revert here
-        assert assets_to_redeem <= staticcall ILendController(self._controller.address).available_balance()
-        return assets_to_redeem
+    return self._convert_to_assets(_shares)
 
 
 @external
