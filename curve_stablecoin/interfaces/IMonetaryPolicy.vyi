@@ -1,0 +1,6 @@
+def rate_write(_for: address = msg.sender) -> uint256:
+    ...
+
+@view
+def rate(_for: address = msg.sender) -> uint256:
+    ...

@@ -1,0 +1,157 @@
+from curve_std.interfaces import IERC20
+from curve_stablecoin.interfaces import IAMM
+from curve_stablecoin.interfaces import IController
+from curve_stablecoin.interfaces import IVault
+from curve_stablecoin.interfaces import IPriceOracle
+from curve_stablecoin.interfaces import IMonetaryPolicy
+
+
+event OwnershipTransferred:
+    previous_owner: address
+    new_owner: address
+
+
+event SetBlueprints:
+    amm: address
+    controller: address
+    vault: address
+    controller_view: address
+
+
+event SetFeeReceiver:
+    fee_receiver: address
+
+
+event NewVault:
+    id: indexed(uint256)
+    collateral_token: indexed(IERC20)
+    borrowed_token: indexed(IERC20)
+    vault: IVault
+    controller: IController
+    amm: IAMM
+    price_oracle: IPriceOracle
+    monetary_policy: IMonetaryPolicy
+
+
+struct Market:
+    vault: IVault
+    controller: IController
+    amm: IAMM
+    collateral_token: IERC20
+    borrowed_token: IERC20
+    price_oracle: IPriceOracle
+    monetary_policy: IMonetaryPolicy
+
+
+@external
+def transfer_ownership(new_owner: address):
+    ...
+
+
+@external
+def create(
+    _borrowed_token: IERC20,
+    _collateral_token: IERC20,
+    _A: uint256,
+    _fee: uint256,
+    _loan_discount: uint256,
+    _liquidation_discount: uint256,
+    _price_oracle: IPriceOracle,
+    _monetary_policy: IMonetaryPolicy,
+    _name: String[64],
+    _supply_limit: uint256,
+) -> address[3]:
+    ...
+
+
+@view
+@external
+def markets(_n: uint256) -> Market:
+    ...
+
+
+@view
+@external
+def vaults_index(_vault: IVault) -> uint256:
+    ...
+
+
+@external
+def set_implementations(
+    _controller_blueprint: address,
+    _amm_blueprint: address,
+    _vault_blueprint: address,
+    _controller_view_blueprint: address,
+):
+    ...
+
+
+@view
+@external
+def admin() -> address:
+    ...
+
+
+@external
+def set_fee_receiver(_fee_receiver: address):
+    ...
+
+
+@view
+@external
+def coins(_vault_id: uint256) -> IERC20[2]:
+    ...
+
+
+@view
+@external
+def amm_blueprint() -> address:
+    ...
+
+
+@view
+@external
+def controller_blueprint() -> address:
+    ...
+
+
+@view
+@external
+def vault_blueprint() -> address:
+    ...
+
+
+@view
+@external
+def controller_view_blueprint() -> address:
+    ...
+
+
+@view
+@external
+def fee_receiver() -> address:
+    ...
+
+
+@view
+@external
+def vaults(_index: uint256) -> IVault:
+    ...
+
+
+@view
+@external
+def market_count() -> uint256:
+    ...
+
+
+@view
+@external
+def names(_index: uint256) -> String[64]:
+    ...
+
+
+@view
+@external
+def check_contract(_contract: address) -> bool:
+    ...

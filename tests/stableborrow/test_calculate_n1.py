@@ -12,19 +12,21 @@ def test_n1(market_amm, market_controller, collateral, debt, n):
     n0 = market_amm.active_band()
     A = market_amm.A()
     p0 = market_amm.p_oracle_down(n0) / 1e18
-    discounted_collateral = collateral * (10**18 - market_controller.loan_discount()) // 10**18
+    discounted_collateral = (
+        collateral * (10**18 - market_controller.loan_discount()) // 10**18
+    )
 
     too_high = False
     too_deep = False
     try:
         n1 = market_controller.calculate_debt_n1(collateral, debt, n)
     except Exception as e:
-        too_high = 'Debt too high' in str(e)
-        too_deep = 'Too deep' in str(e)
+        too_high = "Debt too high" in str(e)
+        too_deep = "Too deep" in str(e)
         if not too_high and not too_deep:
             raise
     if too_high:
-        assert discounted_collateral * p0 * ((A - 1) / A)**n <= debt
+        assert discounted_collateral * p0 * ((A - 1) / A) ** n <= debt
         return
     if too_deep:
         assert abs(log2(debt / discounted_collateral * p0)) > log2(500)

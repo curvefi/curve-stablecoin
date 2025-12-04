@@ -1,0 +1,54 @@
+name: tests-boa
+
+on: [push]
+
+env:
+  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  HYPOTHESIS_PROFILE: no-shrink
+
+jobs:
+  tests:
+    name: ${{ matrix.folder }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        folder:
+          - "tests/unitary"
+          - "tests/e2e"
+          # - "tests/stateful" not ready yet
+          # Old tests to be migrated
+          - "tests/flashloan"
+          - "tests/lm_callback"
+          - "tests/controller"
+          - "tests/price_oracles"
+          - "tests/zaps"
+          - "tests/amm"
+          - "tests/lending"
+          - "tests/stableborrow --ignore=tests/stableborrow/stabilize"
+          - "tests/stableborrow/stabilize"
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v5
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6.7
+        with:
+          enable-cache: true  # Enables built-in caching for uv
+
+      - name: Cache Compiler Installations
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.vvm
+          key: compiler-cache-${{ hashFiles('**/uv.lock') }}
+
+      - name: Set up Python 3.12.6
+        run: uv python install 3.12.6
+
+      - name: Install Requirements
+        run: uv sync
+
+      - name: Run tests
+        run: |
+          uv run pytest ${{ matrix.folder }} -n auto

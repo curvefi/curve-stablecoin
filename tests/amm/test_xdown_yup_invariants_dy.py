@@ -2,17 +2,13 @@ from hypothesis import given, settings
 from hypothesis import strategies as st
 import boa
 import pytest
-from ..conftest import approx
+from ..utils import mint_for_testing
+
 """
 Test that get_x_down and get_y_up don't change:
 * if we do trades at constant p_o (immediate trades)
 * or if we do adiabatic trade keeping p = p_o (adiabatic_trades)
 """
-
-
-@pytest.fixture(scope="module")
-def borrowed_token(get_borrowed_token):
-    return get_borrowed_token(18)
 
 
 @pytest.fixture(scope="module")
@@ -27,10 +23,23 @@ def amm(get_amm, borrowed_token, collateral_token):
     deposit_amount=st.floats(min_value=1e-9, max_value=1e7),
     f_pump=st.floats(min_value=0, max_value=10),
     f_trade=st.floats(min_value=0, max_value=10),
-    is_pump=st.booleans()
+    is_pump=st.booleans(),
 )
-def test_immediate(amm, price_oracle, collateral_token, borrowed_token, accounts, admin,
-                   p_o, n1, dn, deposit_amount, f_pump, f_trade, is_pump):
+def test_immediate(
+    amm,
+    price_oracle,
+    collateral_token,
+    borrowed_token,
+    accounts,
+    admin,
+    p_o,
+    n1,
+    dn,
+    deposit_amount,
+    f_pump,
+    f_trade,
+    is_pump,
+):
     collateral_decimals = collateral_token.decimals()
     borrowed_decimals = borrowed_token.decimals()
     deposit_amount = int(deposit_amount * 10**collateral_decimals)
@@ -40,8 +49,8 @@ def test_immediate(amm, price_oracle, collateral_token, borrowed_token, accounts
     with boa.env.prank(admin):
         price_oracle.set_price(p_o)
         amm.set_fee(0)
-        amm.deposit_range(user, deposit_amount, n1, n1+dn)
-        collateral_token._mint_for_testing(amm.address, deposit_amount)
+        amm.deposit_range(user, deposit_amount, n1, n1 + dn)
+        mint_for_testing(collateral_token, amm.address, deposit_amount)
         while True:
             p_internal = amm.price_oracle()
             boa.env.time_travel(600)  # To reset the prev p_o counter
@@ -53,7 +62,7 @@ def test_immediate(amm, price_oracle, collateral_token, borrowed_token, accounts
     pump_recv_amount = int(deposit_amount * f_pump)
     pump_recv_amount, pump_amount = amm.get_dydx(0, 1, pump_recv_amount)
     with boa.env.prank(user):
-        borrowed_token._mint_for_testing(user, pump_amount)
+        mint_for_testing(borrowed_token, user, pump_amount)
         amm.exchange_dy(0, 1, pump_recv_amount, pump_amount)
 
     prices.append(amm.get_p())
@@ -63,14 +72,20 @@ def test_immediate(amm, price_oracle, collateral_token, borrowed_token, accounts
         trade_recv_amount = int(deposit_amount * f_trade)
         trade_recv_amount, trade_amount = amm.get_dydx(0, 1, trade_recv_amount)
         with boa.env.prank(user):
-            borrowed_token._mint_for_testing(user, trade_amount)
+            mint_for_testing(borrowed_token, user, trade_amount)
         i = 0
         j = 1
     else:
-        trade_recv_amount = int(p_o * deposit_amount / 10**collateral_decimals * f_trade / 10**(collateral_decimals - borrowed_decimals))
+        trade_recv_amount = int(
+            p_o
+            * deposit_amount
+            / 10**collateral_decimals
+            * f_trade
+            / 10 ** (collateral_decimals - borrowed_decimals)
+        )
         trade_recv_amount, trade_amount = amm.get_dydx(1, 0, trade_recv_amount)
         with boa.env.prank(user):
-            collateral_token._mint_for_testing(user, trade_amount)
+            mint_for_testing(collateral_token, user, trade_amount)
         i = 1
         j = 0
 
@@ -86,8 +101,8 @@ def test_immediate(amm, price_oracle, collateral_token, borrowed_token, accounts
 
     fee = max(abs(max(prices) - p_o), abs(p_o - min(prices))) / (4 * min(p_o, *prices))
 
-    assert approx(x0, x1, fee, 100)
-    assert approx(y0, y1, fee, 100)
+    assert x0 == pytest.approx(x1, rel=fee, abs=100)
+    assert y0 == pytest.approx(y1, rel=fee, abs=100)
 
 
 @given(
@@ -98,17 +113,28 @@ def test_immediate(amm, price_oracle, collateral_token, borrowed_token, accounts
     deposit_amount=st.floats(min_value=1, max_value=1e7),
 )
 @settings(max_examples=100)
-def test_adiabatic(amm, price_oracle, collateral_token, borrowed_token, accounts, admin,
-                   p_o_1, p_o_2, n1, dn, deposit_amount):
+def test_adiabatic(
+    amm,
+    price_oracle,
+    collateral_token,
+    borrowed_token,
+    accounts,
+    admin,
+    p_o_1,
+    p_o_2,
+    n1,
+    dn,
+    deposit_amount,
+):
     collateral_decimals = collateral_token.decimals()
-    deposit_amount = int(deposit_amount * 10 ** collateral_decimals)
+    deposit_amount = int(deposit_amount * 10**collateral_decimals)
     N_STEPS = 101
     user = accounts[0]
 
     with boa.env.prank(admin):
         amm.set_fee(0)
-        amm.deposit_range(user, deposit_amount, dn, n1+dn)
-        collateral_token._mint_for_testing(amm.address, deposit_amount)
+        amm.deposit_range(user, deposit_amount, dn, n1 + dn)
+        mint_for_testing(collateral_token, amm.address, deposit_amount)
         for i in range(2):
             boa.env.time_travel(600)
             price_oracle.set_price(p_o_1)
@@ -116,9 +142,17 @@ def test_adiabatic(amm, price_oracle, collateral_token, borrowed_token, accounts
 
     p_o = p_o_1
     p_o_mul = (p_o_2 / p_o_1) ** (1 / (N_STEPS - 1))
-    precision = max(1.5 * abs(p_o_mul - 1) * (dn + 1) * (max(p_o_2, p_o_1) / min(p_o_2, p_o_1)), 1e-6)  # Emprical formula
-    precision += 1 - min(p_o_mul, 1 / p_o_mul)**3  # Dynamic fee component
-    fee_component = 2 * (max(p_o_1, p_o_2, 3000 * 10**18) - min(p_o_1, p_o_2, 3000 * 10**18)) / min(p_o_1, p_o_2, 3000 * 10**18) / N_STEPS
+    precision = max(
+        1.5 * abs(p_o_mul - 1) * (dn + 1) * (max(p_o_2, p_o_1) / min(p_o_2, p_o_1)),
+        1e-6,
+    )  # Emprical formula
+    precision += 1 - min(p_o_mul, 1 / p_o_mul) ** 3  # Dynamic fee component
+    fee_component = (
+        2
+        * (max(p_o_1, p_o_2, 3000 * 10**18) - min(p_o_1, p_o_2, 3000 * 10**18))
+        / min(p_o_1, p_o_2, 3000 * 10**18)
+        / N_STEPS
+    )
 
     x0 = 0
     y0 = 0
@@ -136,13 +170,13 @@ def test_adiabatic(amm, price_oracle, collateral_token, borrowed_token, accounts
             j = 1
             recv_amount = amm.get_dy(i, j, amount)
             _amount = amm.get_dx(i, j, recv_amount)
-            borrowed_token._mint_for_testing(user, _amount)
+            mint_for_testing(borrowed_token, user, _amount)
         else:
             i = 1
             j = 0
             recv_amount = amm.get_dy(i, j, amount)
             _amount = amm.get_dx(i, j, recv_amount)
-            collateral_token._mint_for_testing(user, _amount)
+            mint_for_testing(collateral_token, user, _amount)
 
         with boa.env.prank(user):
             amm.exchange_dy(i, j, recv_amount, _amount)
@@ -157,8 +191,8 @@ def test_adiabatic(amm, price_oracle, collateral_token, borrowed_token, accounts
         assert x >= x0 * (1 - precision)
         assert y >= y0 * (1 - precision)
 
-        assert approx(x, x0, precision + fee_component * (k + 1))
-        assert approx(y, y0, precision + fee_component * (k + 1))
+        assert x == pytest.approx(x0, rel=precision + fee_component * (k + 1))
+        assert y == pytest.approx(y0, rel=precision + fee_component * (k + 1))
 
         if k != N_STEPS - 1:
             p_o = int(p_o * p_o_mul)

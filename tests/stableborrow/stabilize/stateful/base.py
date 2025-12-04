@@ -18,14 +18,17 @@ class StateMachine(RuleBasedStateMachine):
         super().__init__()
         self.profit = [pk.calc_profit() for pk in self.peg_keepers]
         stablecoin_decimals = self.stablecoin.decimals()
-        self.dmul = [[10 ** r.decimals(), 10 ** stablecoin_decimals] for r in self.redeemable_tokens]
+        self.dmul = [
+            [10 ** r.decimals(), 10**stablecoin_decimals]
+            for r in self.redeemable_tokens
+        ]
 
     def _disable_fees(self):
         self.fees = []
         with boa.env.prank(self.admin):
             for swap in self.swaps:
                 self.fees.append(swap.fee())
-                swap.eval(f"self.fee = 0")
+                swap.eval("self.fee = 0")
 
     def _enable_fees(self):
         with boa.env.prank(self.admin):
@@ -92,8 +95,7 @@ class StateMachine(RuleBasedStateMachine):
         if token_amount > self.swaps[pool_idx].balanceOf(self.alice):
             return
         with boa.env.prank(self.alice):
-            self.swaps[pool_idx].remove_liquidity_imbalance(
-                amounts, 2**256 - 1)
+            self.swaps[pool_idx].remove_liquidity_imbalance(amounts, 2**256 - 1)
 
     @rule(pct=st_pct, pool_idx=st_pool)
     def remove(self, pct, pool_idx):

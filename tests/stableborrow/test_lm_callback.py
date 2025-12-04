@@ -1,19 +1,21 @@
 import boa
 import pytest
 from collections import defaultdict
-from ..conftest import approx
+from tests.utils.deployers import DUMMY_LM_CALLBACK_DEPLOYER
 
 
 @pytest.fixture(scope="module")
 def lm_callback(market_amm, market_controller, admin):
     with boa.env.prank(admin):
-        cb = boa.load('contracts/testing/DummyLMCallback.vy', market_amm.address)
+        cb = DUMMY_LM_CALLBACK_DEPLOYER.deploy(market_amm.address)
         market_controller.set_callback(cb.address)
         return cb
 
 
-@pytest.mark.skip('Need to update the mock')
-def test_lm_callback(collateral_token, lm_callback, market_amm, market_controller, accounts):
+@pytest.mark.skip("Need to update the mock")
+def test_lm_callback(
+    collateral_token, lm_callback, market_amm, market_controller, accounts
+):
     """
     This unitary test doesn't do trades etc - that has to be done in a full stateful test
     """
@@ -21,7 +23,7 @@ def test_lm_callback(collateral_token, lm_callback, market_amm, market_controlle
     debt = 5 * 10**18 * 3000
     for i, acc in enumerate(accounts[:10]):
         with boa.env.prank(acc):
-            collateral_token._mint_for_testing(acc, amount)
+            boa.deal(collateral_token, acc, amount)
             market_controller.create_loan(amount, debt, 5 + i)
 
     user_amounts = defaultdict(int)
@@ -32,4 +34,6 @@ def test_lm_callback(collateral_token, lm_callback, market_amm, market_controlle
             user_amounts[acc] += cps * us // 10**18
 
     for acc in accounts[:10]:
-        assert approx(user_amounts[acc], market_amm.get_sum_xy(acc)[1], 1e-5)
+        assert user_amounts[acc] == pytest.approx(
+            market_amm.get_sum_xy(acc)[1], rel=1e-5
+        )

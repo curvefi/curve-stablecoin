@@ -1,3 +1,0 @@
-[submodule "contracts/testing/stableswap-ng"]
-	path = contracts/testing/stableswap-ng
-	url = https://github.com/curvefi/stableswap-ng.git
