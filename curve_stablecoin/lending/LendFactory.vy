@@ -17,6 +17,8 @@ from curve_stablecoin.interfaces import IPriceOracle
 from curve_stablecoin.interfaces import ILendFactory
 from curve_stablecoin.interfaces import IMonetaryPolicy
 
+from ownership_proxy.interfaces import IProxy
+
 implements: ILendFactory
 
 from snekmate.utils import math
@@ -44,9 +46,10 @@ controller_blueprint: public(address)
 # convert to blueprint
 vault_blueprint: public(address)
 controller_view_blueprint: public(address)
+ownership_proxy_blueprint: public(address)
 
-# Admin is supposed to be the DAO
 fee_receiver: public(address)
+emergency: public(address)
 
 # Vaults can only be created but not removed
 _vaults: IVault[10**18]
@@ -75,7 +78,9 @@ def __init__(
     _controller_blueprint: address,
     _vault_blueprint: address,
     _controller_view_blueprint: address,
+    _ownership_proxy_blueprint: address,
     _admin: address,
+    _emergency: address,
     _fee_receiver: address,
 ):
     """
@@ -90,11 +95,13 @@ def __init__(
     self.controller_blueprint = _controller_blueprint
     self.vault_blueprint = _vault_blueprint
     self.controller_view_blueprint = _controller_view_blueprint
+    self.ownership_proxy_blueprint = _ownership_proxy_blueprint
 
     ownable.__init__()
     ownable._transfer_ownership(_admin)
 
     self.fee_receiver = _fee_receiver
+    self.emergency = _emergency
 
 
 @external
@@ -109,7 +116,7 @@ def create(
     _monetary_policy: IMonetaryPolicy,
     _name: String[64],
     _supply_limit: uint256,
-) -> address[3]:
+) -> address[4]:
     """
     @notice Creation of the vault using user-supplied price oracle contract
     @param _borrowed_token Token which is being borrowed
@@ -197,7 +204,14 @@ def create(
     if _supply_limit < max_value(uint256):
         extcall vault.set_max_supply(_supply_limit)
 
-    return [vault.address, controller.address, amm.address]
+    ownership_proxy: address = create_from_blueprint(
+        self.ownership_proxy_blueprint,
+        controller.address,
+        ownable.owner,
+        self.emergency
+    )
+
+    return [vault.address, controller.address, amm.address, ownership_proxy]
 
 
 @external
@@ -232,6 +246,7 @@ def set_implementations(
     _amm_blueprint: address,
     _vault_blueprint: address,
     _controller_view_blueprint: address,
+    _ownership_proxy_blueprint: address,
 ):
     """
     @notice Set new implementations (blueprints) for controller, amm, vault, pool price oracle and monetary policy.
@@ -240,6 +255,7 @@ def set_implementations(
     @param _amm_blueprint Address of the AMM blueprint
     @param _vault_blueprint Address of the Vault blueprint
     @param _controller_view_blueprint Address of the view contract blueprint
+    @param _ownership_proxy_blueprint Address of the ownership proxy blueprint
     """
     ownable._check_owner()
 
@@ -251,12 +267,15 @@ def set_implementations(
         self.vault_blueprint = _vault_blueprint
     if _controller_view_blueprint != empty(address):
         self.controller_view_blueprint = _controller_view_blueprint
+    if _ownership_proxy_blueprint != empty(address):
+        self.ownership_proxy_blueprint = _ownership_proxy_blueprint
 
     log ILendFactory.SetBlueprints(
         amm=_amm_blueprint,
         controller=_controller_blueprint,
         vault=_vault_blueprint,
         controller_view=_controller_view_blueprint,
+        ownership_proxy=_ownership_proxy_blueprint,
     )
 
 
