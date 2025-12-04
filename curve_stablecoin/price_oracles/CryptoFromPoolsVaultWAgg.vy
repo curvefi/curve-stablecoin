@@ -62,7 +62,7 @@ def __init__(
             if not success:
                 assert j != 0, "No coins(0)"
                 N = j
-                break    
+                break
 
         assert borrowed_ixs[i] != collateral_ixs[i]
         assert borrowed_ixs[i] < N
