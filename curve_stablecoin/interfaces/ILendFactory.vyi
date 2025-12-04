@@ -62,6 +62,10 @@ def create(
     _name: String[64],
     _supply_limit: uint256,
 ) -> address[4]:
+    """
+    @notice Creates a new lending market with all required contracts and ownership proxy
+    @return [0] vault address, [1] controller address, [2] amm address, [3] ownership_proxy address
+    """
     ...
 
 
@@ -131,7 +135,19 @@ def controller_view_blueprint() -> address:
 
 @view
 @external
+def ownership_proxy_blueprint() -> address:
+    ...
+
+
+@view
+@external
 def fee_receiver() -> address:
+    ...
+
+
+@view
+@external
+def emergency() -> address:
     ...
 
 

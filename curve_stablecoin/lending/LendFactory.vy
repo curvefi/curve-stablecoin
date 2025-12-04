@@ -47,9 +47,15 @@ controller_blueprint: public(address)
 vault_blueprint: public(address)
 controller_view_blueprint: public(address)
 ownership_proxy_blueprint: public(address)
+    # @notice Blueprint for deploying ownership proxies that enable delegated governance
+    # @dev Ownership proxies are created for each market to allow delegation of risk parameters
+    # and critical admin functions to trusted entities (see https://github.com/curvefi/ownership-proxy)
 
 fee_receiver: public(address)
 emergency: public(address)
+    # @notice Emergency admin address with fast-track capabilities for critical actions
+    # @dev Used to quickly pause pools or modify critical parameters during protocol emergencies
+    # without waiting for full DAO governance. Passed to each ownership proxy on creation.
 
 # Vaults can only be created but not removed
 _vaults: IVault[10**18]
@@ -85,11 +91,15 @@ def __init__(
 ):
     """
     @notice Factory which creates one-way lending vaults (e.g. collateral is non-borrowable)
-    @param amm Address of AMM implementation
-    @param controller Address of Controller implementation
-    @param pool_price_oracle Address of implementation for price oracle factory (prices from pools)
-    @param admin Admin address (DAO)
-    @param fee_receiver Receiver of interest and admin fees
+    @dev Automatically deploys ownership proxies alongside markets to enable delegated governance
+    @param _amm_blueprint Address of AMM implementation blueprint
+    @param _controller_blueprint Address of Controller implementation blueprint
+    @param _vault_blueprint Address of Vault implementation blueprint
+    @param _controller_view_blueprint Address of ControllerView implementation blueprint
+    @param _ownership_proxy_blueprint Address of OwnershipProxy implementation blueprint
+    @param _admin Admin address (DAO) with full governance rights
+    @param _emergency Emergency admin address with fast-track permissions for critical actions
+    @param _fee_receiver Receiver of interest and admin fees
     """
     self.amm_blueprint = _amm_blueprint
     self.controller_blueprint = _controller_blueprint
@@ -119,6 +129,7 @@ def create(
 ) -> address[4]:
     """
     @notice Creation of the vault using user-supplied price oracle contract
+    @dev Automatically creates and deploys vault, AMM, controller, and ownership proxy for risk delegation
     @param _borrowed_token Token which is being borrowed
     @param _collateral_token Token used for collateral
     @param _A Amplification coefficient: band size is ~1//A
@@ -126,8 +137,13 @@ def create(
     @param _loan_discount Maximum discount. LTV = sqrt(((A - 1) // A) ** 4) - loan_discount
     @param _liquidation_discount Liquidation discount. LT = sqrt(((A - 1) // A) ** 4) - liquidation_discount
     @param _price_oracle Custom price oracle contract
+    @param _monetary_policy Monetary policy governing borrow rates
     @param _name Human-readable market name
-    @param _supply_limit Supply cap
+    @param _supply_limit Supply cap for the borrowed token
+    @return [0] vault: The lending vault contract
+    @return [1] controller: The lending controller managing the market
+    @return [2] amm: The AMM contract for swaps and liquidations
+    @return [3] ownership_proxy: The ownership proxy enabling delegated governance of risk parameters
     """
     assert _borrowed_token != _collateral_token, "Same token"
     assert _A >= MIN_A and _A <= MAX_A, "Wrong A"
@@ -204,6 +220,11 @@ def create(
     if _supply_limit < max_value(uint256):
         extcall vault.set_max_supply(_supply_limit)
 
+    # Deploy ownership proxy to enable delegated risk parameter governance
+    # The proxy receives:
+    # - controller.address: ownership admin with full governance rights
+    # - ownable.owner: parameter admin with parameter-tuning authority
+    # - self.emergency: emergency admin for fast-track critical actions (pause pools, stop A ramps, etc.)
     ownership_proxy: address = create_from_blueprint(
         self.ownership_proxy_blueprint,
         controller.address,
@@ -249,13 +270,14 @@ def set_implementations(
     _ownership_proxy_blueprint: address,
 ):
     """
-    @notice Set new implementations (blueprints) for controller, amm, vault, pool price oracle and monetary policy.
-            Doesn't change existing ones
-    @param _controller_blueprint Address of the controller blueprint
-    @param _amm_blueprint Address of the AMM blueprint
-    @param _vault_blueprint Address of the Vault blueprint
-    @param _controller_view_blueprint Address of the view contract blueprint
-    @param _ownership_proxy_blueprint Address of the ownership proxy blueprint
+    @notice Set new implementations (blueprints) for core contracts and ownership proxy
+    @dev Only callable by factory admin (DAO). Doesn't change existing markets, only affects new ones.
+         Governance can upgrade implementations without affecting deployed instances.
+    @param _controller_blueprint Address of the updated controller blueprint
+    @param _amm_blueprint Address of the updated AMM blueprint
+    @param _vault_blueprint Address of the updated Vault blueprint
+    @param _controller_view_blueprint Address of the updated ControllerView blueprint
+    @param _ownership_proxy_blueprint Address of the updated OwnershipProxy blueprint
     """
     ownable._check_owner()
 
