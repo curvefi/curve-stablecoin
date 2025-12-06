@@ -7,6 +7,7 @@
 @notice This contract never requires any direct interaction as the
     main controller contract forwards all relevant calls.
 @custom:security security@curve.fi
+@custom:kill Stateless contract doesn't need to be killed.
 """
 
 from curve_stablecoin.interfaces import IAMM

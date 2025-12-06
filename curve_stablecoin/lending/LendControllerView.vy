@@ -6,6 +6,8 @@
 @license Copyright (c) Curve.Fi, 2020-2025 - all rights reserved
 @notice This contract never requires any direct interaction as the
     main controller contract forwards all relevant calls.
+@custom:security security@curve.fi
+@custom:kill Stateless contract doesn't need to be killed.
 """
 
 from curve_std.interfaces import IERC20
