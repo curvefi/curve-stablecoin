@@ -33,3 +33,13 @@ repos:
       - id: mamushi
         args: [--line-length=100]
         files: ^(curve_stablecoin/lending/LendingFactory\.vy|curve_stablecoin/zaps/CreateFromPool\.vy)$ # TODO slowly increase natrix coverage
+
+  - repo: local
+    hooks:
+      - id: check-kill-docs
+        name: Check @custom:kill in Vyper devdoc
+        entry: python scripts/check_kill_docs.py
+        language: system
+        files: \.vy$
+        exclude: ^curve_stablecoin/(testing|price_oracles|zaps)/|^curve_stablecoin/Stableswap\.vy$
+        require_serial: true
