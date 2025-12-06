@@ -6,6 +6,7 @@
 @author Curve.fi
 @license Copyright (c) Curve.Fi, 2020-2025 - all rights reserved
 @custom:security security@curve.fi
+@custom:kill Set blueprints implementations to zero to halt deployments.
 """
 
 from curve_std.interfaces import IERC20

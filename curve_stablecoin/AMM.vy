@@ -3,6 +3,8 @@
 @title LLAMMA - crvUSD AMM
 @author Curve.Fi
 @license Copyright (c) Curve.Fi, 2020-2024 - all rights reserved
+@custom:security security@curve.fi
+@custom:kill AMM is controlled by its Controller. Kill the Controller to halt new loans and liquidations.
 """
 
 # Glossary of variables and terms
