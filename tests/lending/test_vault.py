@@ -48,12 +48,14 @@ def test_vault_creation(
     n = factory.market_count()
     assert n > 0
     assert factory.vaults(n - 1) == vault.address
-    assert factory.amms(n - 1) == amm.address
-    assert factory.controllers(n - 1) == controller.address
-    assert factory.borrowed_tokens(n - 1) == borrowed_token.address
-    assert factory.collateral_tokens(n - 1) == collateral_token.address
-    assert factory.price_oracles(n - 1) == price_oracle.address
-    assert factory.monetary_policies(n - 1) == monetary_policy.address
+
+    market = factory.markets(n - 1)
+    assert market.amm == amm.address
+    assert market.controller == controller.address
+    assert market.borrowed_token == borrowed_token.address
+    assert market.collateral_token == collateral_token.address
+    assert market.price_oracle == price_oracle.address
+    assert market.monetary_policy == monetary_policy.address
 
     assert factory.vaults(factory.vaults_index(vault.address)) == vault.address
 

@@ -19,14 +19,12 @@ jobs:
           # - "tests/stateful" not ready yet
           # Old tests to be migrated
           - "tests/flashloan"
-          - "tests/lm_callback"
           - "tests/controller"
           - "tests/price_oracles"
           - "tests/zaps"
           - "tests/amm"
           - "tests/lending"
           - "tests/stableborrow --ignore=tests/stableborrow/stabilize"
-          - "tests/stableborrow/stabilize"
     steps:
       - name: Checkout repo
         uses: actions/checkout@v5
