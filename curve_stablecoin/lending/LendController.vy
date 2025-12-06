@@ -23,7 +23,7 @@ from curve_stablecoin.interfaces import ILendController
 
 implements: ILendController
 
-from curve_stablecoin import Controller as core
+from curve_stablecoin import controller as core
 
 from curve_stablecoin.interfaces import IControllerView as IView
 

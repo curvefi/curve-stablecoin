@@ -25,7 +25,7 @@ repos:
     rev: v0.1.9
     hooks:
       - id: natrix
-        args: [lint, curve_stablecoin/lending/, curve_stablecoin/Controller.vy, curve_stablecoin/constants.vy, curve_stablecoin/ControllerView.vy, curve_stablecoin/MintController.vy, -d, NTX1, NTX4, NTX5, NTX2, NTX9, NTX10]
+        args: [lint, curve_stablecoin/lending/, curve_stablecoin/controller.vy, curve_stablecoin/constants.vy, curve_stablecoin/ControllerView.vy, curve_stablecoin/MintController.vy, -d, NTX1, NTX4, NTX5, NTX2, NTX9, NTX10]
 
   - repo: https://github.com/benber86/mamushi
     rev: v0.0.8

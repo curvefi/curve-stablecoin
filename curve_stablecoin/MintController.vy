@@ -13,7 +13,7 @@
 @custom:kill Set debt_ceiling to 0 via ControllerFactory to prevent new loans. Existing loans can still be repaid/liquidated.
 """
 
-from curve_stablecoin import Controller as core
+from curve_stablecoin import controller as core
 
 initializes: core
 

@@ -14,7 +14,7 @@ from curve_stablecoin.interfaces import IAMM
 from curve_stablecoin.interfaces import IController
 from curve_std.interfaces import IERC20
 
-from curve_stablecoin import Controller as core
+from curve_stablecoin import controller as core
 import curve_stablecoin.lib.liquidation_lib as liq
 from curve_stablecoin import constants as c
 from snekmate.utils import math
