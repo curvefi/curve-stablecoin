@@ -76,16 +76,6 @@ def vaults_index(_vault: IVault) -> uint256:
     ...
 
 
-@external
-def set_implementations(
-    _controller_blueprint: address,
-    _amm_blueprint: address,
-    _vault_blueprint: address,
-    _controller_view_blueprint: address,
-):
-    ...
-
-
 @view
 @external
 def admin() -> address:
@@ -100,30 +90,6 @@ def set_fee_receiver(_fee_receiver: address):
 @view
 @external
 def coins(_vault_id: uint256) -> IERC20[2]:
-    ...
-
-
-@view
-@external
-def amm_blueprint() -> address:
-    ...
-
-
-@view
-@external
-def controller_blueprint() -> address:
-    ...
-
-
-@view
-@external
-def vault_blueprint() -> address:
-    ...
-
-
-@view
-@external
-def controller_view_blueprint() -> address:
     ...
 
 
@@ -155,3 +121,5 @@ def names(_index: uint256) -> String[64]:
 @external
 def check_contract(_contract: address) -> bool:
     ...
+
+# TODO add new functions from recent edits
