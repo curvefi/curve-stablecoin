@@ -266,7 +266,7 @@ def _read_user_shares(user_shares_packed: UserTicks) -> DynArray[uint256, MAX_TI
         user_shares.append(tick & (2**128 - 1))
         if len(user_shares) == size:
             break
-        user_shares.append(shift(tick, -128))
+        user_shares.append(tick >> 128)
 
     return user_shares
 
