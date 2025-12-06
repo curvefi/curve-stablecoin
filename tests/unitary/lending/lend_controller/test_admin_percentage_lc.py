@@ -30,7 +30,8 @@ def test_default_behavior_with_interest(
             amm.eval("self.rate_time = block.timestamp")
             boa.env.time_travel(TIME_DELTA)
 
-            return controller.admin_fees()
+            # collect_fees triggers _update_total_debt which accrues admin fees
+            return controller.collect_fees()
 
     for pct in range(1, 101):
         assert (
