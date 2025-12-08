@@ -26,6 +26,9 @@ interface Controller:
     def total_debt() -> uint256: view
 
 
+from snekmate.utils import math
+
+
 struct TotalDebts:
     total_debt: uint256
     controller_debt: uint256
@@ -169,41 +172,6 @@ def remove_peg_keeper(pk: PegKeeper):
             break
 
 
-@internal
-@pure
-def exp(power: int256) -> uint256:
-    if power <= -41446531673892821376:
-        return 0
-
-    if power >= 135305999368893231589:
-        # Return MAX_EXP when we are in overflow mode
-        return MAX_EXP
-
-    x: int256 = unsafe_div(unsafe_mul(power, 2**96), 10**18)
-
-    k: int256 = unsafe_div(
-        unsafe_add(
-            unsafe_div(unsafe_mul(x, 2**96), 54916777467707473351141471128),
-            2**95),
-        2**96)
-    x = unsafe_sub(x, unsafe_mul(k, 54916777467707473351141471128))
-
-    y: int256 = unsafe_add(x, 1346386616545796478920950773328)
-    y = unsafe_add(unsafe_div(unsafe_mul(y, x), 2**96), 57155421227552351082224309758442)
-    p: int256 = unsafe_sub(unsafe_add(y, x), 94201549194550492254356042504812)
-    p = unsafe_add(unsafe_div(unsafe_mul(p, y), 2**96), 28719021644029726153956944680412240)
-    p = unsafe_add(unsafe_mul(p, x), (4385272521454847904659076985693276 * 2**96))
-
-    q: int256 = x - 2855989394907223263936484059900
-    q = unsafe_add(unsafe_div(unsafe_mul(q, x), 2**96), 50020603652535783019961831881945)
-    q = unsafe_sub(unsafe_div(unsafe_mul(q, x), 2**96), 533845033583426703283633433725380)
-    q = unsafe_add(unsafe_div(unsafe_mul(q, x), 2**96), 3604857256930695427073651918091429)
-    q = unsafe_sub(unsafe_div(unsafe_mul(q, x), 2**96), 14423608567350463180887372962807573)
-    q = unsafe_add(unsafe_div(unsafe_mul(q, x), 2**96), 26449188498355588339934803723976023)
-
-    return shift(
-        unsafe_mul(convert(unsafe_div(p, q), uint256), 3822833074963236453042738258902158003155416615667),
-        unsafe_sub(k, 195))
 
 
 @internal
@@ -314,7 +282,7 @@ def calculate_ema_debt_ratio(total_debt: uint256) -> uint256:
     mul: uint256 = 10**18
     dt: uint256 = block.timestamp - self.prev_ema_debt_ratio_timestamp
     if dt > 0:
-        mul = self.exp(-convert(dt * 10**18 // self.debt_ratio_ema_time, int256))
+        mul = convert(math._wad_exp(-convert(dt * 10**18 // self.debt_ratio_ema_time, int256)), uint256)
 
     return (self.prev_ema_debt_ratio * mul + ratio * (10**18 - mul)) // 10**18
     
@@ -337,7 +305,7 @@ def calculate_rate(_for: address, _price: uint256, ro: bool) -> (uint256, uint25
     power -= convert(ema_debt_ratio * 10**18 // target_debt_fraction, int256)
 
     # Rate accounting for crvUSD price and PegKeeper debt
-    rate: uint256 = self.rate0 * min(self.exp(power), MAX_EXP) // 10**18 + self.extra_const
+    rate: uint256 = self.rate0 * min(convert(math._wad_exp(power), uint256), MAX_EXP) // 10**18 + self.extra_const
 
     # Account for individual debt ceiling to dynamically tune rate depending on filling the market
     ceiling: uint256 = staticcall CONTROLLER_FACTORY.debt_ceiling(_for)
