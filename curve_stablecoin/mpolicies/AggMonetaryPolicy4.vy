@@ -1,4 +1,5 @@
 # @version 0.4.3
+
 """
 @title AggMonetaryPolicy - monetary policy based on aggregated prices for crvUSD
 @author Curve.Fi
@@ -18,10 +19,7 @@ from snekmate.auth import ownable
 implements: IAggMonetaryPolicy4
 initializes: ownable
 
-exports: (
-    ownable.transfer_ownership,
-)
-
+exports: ownable.transfer_ownership
 
 rate0: public(uint256)
 sigma: public(int256)  # 2 * 10**16 for example
@@ -38,6 +36,7 @@ def peg_keepers(i: uint256) -> IPegKeeper:
     """
     return self._peg_keepers[i]
 
+
 PRICE_ORACLE: public(immutable(IPriceOracle))
 CONTROLLER_FACTORY: public(immutable(IControllerFactory))
 
@@ -45,7 +44,6 @@ CONTROLLER_FACTORY: public(immutable(IControllerFactory))
 MAX_CONTROLLERS: constant(uint256) = 50000
 n_controllers: public(uint256)
 controllers: public(address[MAX_CONTROLLERS])
-
 
 DEBT_CANDLE_TIME: constant(uint256) = 86400 // 2
 min_debt_candles: public(HashMap[address, IAggMonetaryPolicy4.DebtCandle])
@@ -62,7 +60,6 @@ MAX_RATE: constant(uint256) = 43959106799  # 300% APY
 TARGET_REMAINDER: constant(uint256) = 10**17  # rate is x1.9 when 10% left before ceiling
 MAX_EXTRA_CONST: constant(uint256) = MAX_RATE
 
-
 debt_ratio_ema_time: public(uint256)
 
 prev_ema_debt_ratio_timestamp: public(uint256)
@@ -70,15 +67,17 @@ prev_ema_debt_ratio: public(uint256)
 
 
 @deploy
-def __init__(admin: address,
-             price_oracle: IPriceOracle,
-             controller_factory: IControllerFactory,
-             peg_keepers: IPegKeeper[5],
-             rate: uint256,
-             sigma: int256,
-             target_debt_fraction: uint256,
-             extra_const: uint256,
-             debt_ratio_ema_time: uint256):
+def __init__(
+    admin: address,
+    price_oracle: IPriceOracle,
+    controller_factory: IControllerFactory,
+    peg_keepers: IPegKeeper[5],
+    rate: uint256,
+    sigma: int256,
+    target_debt_fraction: uint256,
+    extra_const: uint256,
+    debt_ratio_ema_time: uint256,
+):
     ownable.__init__()
     ownable._transfer_ownership(admin)
     PRICE_ORACLE = price_oracle
@@ -134,8 +133,6 @@ def remove_peg_keeper(pk: IPegKeeper):
             break
 
 
-
-
 @internal
 @view
 def get_total_debt(_for: address) -> (uint256, uint256):
@@ -152,12 +149,17 @@ def get_total_debt(_for: address) -> (uint256, uint256):
 
         success: bool = False
         res: Bytes[32] = empty(Bytes[32])
-        success, res = raw_call(controller, method_id("total_debt()"), max_outsize=32, is_static_call=True, revert_on_failure=False)
+        success, res = raw_call(
+            controller,
+            method_id("total_debt()"),
+            max_outsize=32,
+            is_static_call=True,
+            revert_on_failure=False,
+        )
         debt: uint256 = convert(res, uint256)
         total_debt += debt
         if controller == _for:
             debt_for = debt
-
     return total_debt, debt_for
 
 
@@ -172,7 +174,10 @@ def read_candle(_for: address) -> uint256:
             out = min(candle.candle0, candle.candle1)
         else:
             out = candle.candle1
-    elif block.timestamp < candle.timestamp // DEBT_CANDLE_TIME * DEBT_CANDLE_TIME + DEBT_CANDLE_TIME * 2:
+    elif (
+        block.timestamp
+        < candle.timestamp // DEBT_CANDLE_TIME * DEBT_CANDLE_TIME + DEBT_CANDLE_TIME * 2
+    ):
         out = candle.candle1
 
     return out
@@ -186,8 +191,14 @@ def save_candle(_for: address, _value: uint256):
         # This record did not exist before, and value is zero -> not recording anything
         return
 
-    if block.timestamp >= candle.timestamp // DEBT_CANDLE_TIME * DEBT_CANDLE_TIME + DEBT_CANDLE_TIME:
-        if block.timestamp < candle.timestamp // DEBT_CANDLE_TIME * DEBT_CANDLE_TIME + DEBT_CANDLE_TIME * 2:
+    if (
+        block.timestamp
+        >= candle.timestamp // DEBT_CANDLE_TIME * DEBT_CANDLE_TIME + DEBT_CANDLE_TIME
+    ):
+        if (
+            block.timestamp
+            < candle.timestamp // DEBT_CANDLE_TIME * DEBT_CANDLE_TIME + DEBT_CANDLE_TIME * 2
+        ):
             candle.candle0 = candle.candle1
             candle.candle1 = _value
         else:
@@ -218,7 +229,6 @@ def read_debt(_for: address, ro: bool) -> (uint256, uint256):
             debt_for = min(debt_for, fresh_for)
         else:
             debt_for = fresh_for
-
     else:
         if debt_total == 0 or debt_for == 0:
             fresh_total, fresh_for = self.get_total_debt(_for)
@@ -226,7 +236,6 @@ def read_debt(_for: address, ro: bool) -> (uint256, uint256):
                 debt_total = fresh_total
             if debt_for == 0:
                 debt_for = fresh_for
-
     return debt_total, debt_for
 
 
@@ -246,10 +255,11 @@ def calculate_ema_debt_ratio(total_debt: uint256) -> uint256:
     mul: uint256 = WAD
     dt: uint256 = block.timestamp - self.prev_ema_debt_ratio_timestamp
     if dt > 0:
-        mul = convert(math._wad_exp(-convert(dt * WAD // self.debt_ratio_ema_time, int256)), uint256)
+        mul = convert(
+            math._wad_exp(-convert(dt * WAD // self.debt_ratio_ema_time, int256)), uint256
+        )
 
     return (self.prev_ema_debt_ratio * mul + ratio * (WAD - mul)) // WAD
-    
 
 
 @internal
@@ -269,13 +279,18 @@ def calculate_rate(_for: address, _price: uint256, ro: bool) -> (uint256, uint25
     power -= convert(ema_debt_ratio * WAD // target_debt_fraction, int256)
 
     # Rate accounting for crvUSD price and PegKeeper debt
-    rate: uint256 = self.rate0 * min(convert(math._wad_exp(power), uint256), MAX_EXP) // WAD + self.extra_const
+    rate: uint256 = (
+        self.rate0 * min(convert(math._wad_exp(power), uint256), MAX_EXP) // WAD + self.extra_const
+    )
 
     # Account for individual debt ceiling to dynamically tune rate depending on filling the market
     ceiling: uint256 = staticcall CONTROLLER_FACTORY.debt_ceiling(_for)
     if ceiling > 0:
         f: uint256 = min(debt_for * WAD // ceiling, WAD - TARGET_REMAINDER // 1000)
-        rate = min(rate * ((WAD - TARGET_REMAINDER) + TARGET_REMAINDER * WAD // (WAD - f)) // WAD, MAX_RATE)
+        rate = min(
+            rate * ((WAD - TARGET_REMAINDER) + TARGET_REMAINDER * WAD // (WAD - f)) // WAD, MAX_RATE
+        )
+
 
     # Rate multiplication at different ceilings (target = 0.1):
     # debt = 0:
@@ -288,6 +303,7 @@ def calculate_rate(_for: address, _price: uint256, ro: bool) -> (uint256, uint25
     # debt = 0.9 * ceiling, target = 0.1
     #   f = 0.9
     #   new_rate = rate * ((1.0 - 0.1) + 0.1 / (1.0 - 0.9)) = rate * (1.0 + 1.0 - 0.1) = 1.9 * rate
+
 
     return rate, ema_debt_ratio
 
@@ -306,12 +322,14 @@ def rate_write(_for: address = msg.sender) -> uint256:
     if n_factory_controllers > n_controllers:
         self.n_controllers = n_factory_controllers
         for i: uint256 in range(MAX_CONTROLLERS):
-            self.controllers[n_controllers] = staticcall CONTROLLER_FACTORY.controllers(n_controllers)
+            self.controllers[n_controllers] = staticcall CONTROLLER_FACTORY.controllers(
+                n_controllers
+            )
             n_controllers += 1
             if n_controllers >= n_factory_controllers:
                 break
 
-    # Update candles
+        # Update candles
     total_debt: uint256 = 0
     debt_for: uint256 = 0
     total_debt, debt_for = self.get_total_debt(_for)
@@ -392,4 +410,3 @@ def _set_debt_ratio_ema_time_internal(ema_time: uint256):
 def set_debt_ratio_ema_time(ema_time: uint256):
     ownable._check_owner()
     self._set_debt_ratio_ema_time_internal(ema_time)
-

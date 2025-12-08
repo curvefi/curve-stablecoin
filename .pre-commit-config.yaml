@@ -32,4 +32,4 @@ repos:
     hooks:
       - id: mamushi
         args: [--line-length=100]
-        files: ^(curve_stablecoin/lending/LendingFactory\.vy|curve_stablecoin/zaps/CreateFromPool\.vy)$ # TODO slowly increase natrix coverage
+        files: ^(curve_stablecoin/lending/LendingFactory\.vy|curve_stablecoin/zaps/CreateFromPool\.vy|curve_stablecoin/mpolicies/AggMonetaryPolicy4\.vy)$ # TODO slowly increase natrix coverage
