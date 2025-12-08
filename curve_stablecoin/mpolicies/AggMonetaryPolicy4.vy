@@ -53,12 +53,16 @@ event SetDebtRatioEmaTime:
 event SetTargetDebtFraction:
     target_debt_fraction: uint256
 
+event SetExtraConst:
+    extra_const: uint256
+
 
 admin: public(address)
 
 rate0: public(uint256)
 sigma: public(int256)  # 2 * 10**16 for example
 target_debt_fraction: public(uint256)
+extra_const: public(uint256)
 
 peg_keepers: public(PegKeeper[1001])
 PRICE_ORACLE: public(immutable(PriceOracle))
@@ -85,8 +89,11 @@ MIN_SIGMA: constant(int256) = 10**14
 MAX_EXP: constant(uint256) = 1000 * 10**18
 MAX_RATE: constant(uint256) = 43959106799  # 300% APY
 TARGET_REMAINDER: constant(uint256) = 10**17  # rate is x1.9 when 10% left before ceiling
+MAX_EXTRA_CONST: constant(uint256) = MAX_RATE
+
 
 debt_ratio_ema_time: public(uint256)
+
 prev_ema_debt_ratio_timestamp: public(uint256)
 prev_ema_debt_ratio: public(uint256)
 
@@ -99,6 +106,7 @@ def __init__(admin: address,
              rate: uint256,
              sigma: int256,
              target_debt_fraction: uint256,
+             extra_const: uint256,
              debt_ratio_ema_time: uint256):
     self.admin = admin
     PRICE_ORACLE = price_oracle
@@ -113,13 +121,15 @@ def __init__(admin: address,
     assert target_debt_fraction > 0
     assert target_debt_fraction <= MAX_TARGET_DEBT_FRACTION
     assert rate <= MAX_RATE
+    assert extra_const <= MAX_EXTRA_CONST
+    assert debt_ratio_ema_time > 0
     self.rate0 = rate
     self.sigma = sigma
     self.target_debt_fraction = target_debt_fraction
+    self.extra_const = extra_const
     self.prev_ema_debt_ratio_timestamp = block.timestamp
     self.prev_ema_debt_ratio = target_debt_fraction
     self.debt_ratio_ema_time = debt_ratio_ema_time
-    assert debt_ratio_ema_time > 0
 
 
 @external
@@ -327,7 +337,7 @@ def calculate_rate(_for: address, _price: uint256, ro: bool) -> (uint256, uint25
     power -= convert(ema_debt_ratio * 10**18 // target_debt_fraction, int256)
 
     # Rate accounting for crvUSD price and PegKeeper debt
-    rate: uint256 = self.rate0 * min(self.exp(power), MAX_EXP) // 10**18
+    rate: uint256 = self.rate0 * min(self.exp(power), MAX_EXP) // 10**18 + self.extra_const
 
     # Account for individual debt ceiling to dynamically tune rate depending on filling the market
     ceiling: uint256 = staticcall CONTROLLER_FACTORY.debt_ceiling(_for)
@@ -411,6 +421,15 @@ def set_target_debt_fraction(target_debt_fraction: uint256):
 
     self.target_debt_fraction = target_debt_fraction
     log SetTargetDebtFraction(target_debt_fraction=target_debt_fraction)
+
+
+@external
+def set_extra_const(extra_const: uint256):
+    assert msg.sender == self.admin
+    assert extra_const <= MAX_EXTRA_CONST
+
+    self.extra_const = extra_const
+    log SetExtraConst(extra_const=extra_const)
 
 
 @external
