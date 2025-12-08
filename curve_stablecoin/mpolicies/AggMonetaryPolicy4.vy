@@ -266,6 +266,12 @@ def calculate_ema_debt_ratio(_total_debt: uint256) -> uint256:
 @internal
 @view
 def calculate_rate(_for: address, _price: uint256, _ro: bool) -> (uint256, uint256):
+    """
+    Ceiling tuning examples (target = 0.1):
+      debt = 0: new_rate = rate * ((1.0 - target) + target)
+      debt = ceiling: f = 0.9999 cap; new_rate = min(rate * ((1.0 - target) + target / (1.0 - 0.9999)), max_rate)
+      debt = 0.9 * ceiling: f = 0.9; new_rate = rate * ((1.0 - 0.1) + 0.1 / (1.0 - 0.9)) = 1.9 * rate
+    """
     sigma: int256 = self.sigma
     target_debt_fraction: uint256 = self.target_debt_fraction
 
@@ -291,20 +297,6 @@ def calculate_rate(_for: address, _price: uint256, _ro: bool) -> (uint256, uint2
         rate = min(
             rate * ((WAD - TARGET_REMAINDER) + TARGET_REMAINDER * WAD // (WAD - f)) // WAD, MAX_RATE
         )
-
-
-    # Rate multiplication at different ceilings (target = 0.1):
-    # debt = 0:
-    #   new_rate = rate * ((1.0 - target) + target) = rate
-    #
-    # debt = ceiling:
-    #   f = 1.0 - 0.1 / 1000 = 0.9999  # instead of infinity to avoid /0
-    #   new_rate = min(rate * ((1.0 - target) + target / (1.0 - 0.9999)), max_rate) = max_rate
-    #
-    # debt = 0.9 * ceiling, target = 0.1
-    #   f = 0.9
-    #   new_rate = rate * ((1.0 - 0.1) + 0.1 / (1.0 - 0.9)) = rate * (1.0 + 1.0 - 0.1) = 1.9 * rate
-
 
     return rate, ema_debt_ratio
 
