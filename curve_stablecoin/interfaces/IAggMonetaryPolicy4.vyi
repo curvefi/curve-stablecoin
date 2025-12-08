@@ -1,0 +1,123 @@
+from curve_stablecoin.interfaces import IPegKeeper
+
+struct TotalDebts:
+    total_debt: uint256
+    controller_debt: uint256
+    ceiling: uint256
+
+struct DebtCandle:
+    candle0: uint256
+    candle1: uint256
+    timestamp: uint256
+
+# Events
+
+event AddPegKeeper:
+    peg_keeper: indexed(address)
+
+
+event RemovePegKeeper:
+    peg_keeper: indexed(address)
+
+
+event SetRate:
+    rate: uint256
+
+
+event SetSigma:
+    sigma: int256
+
+
+event SetDebtRatioEmaTime:
+    ema_time: uint256
+
+
+event SetTargetDebtFraction:
+    target_debt_fraction: uint256
+
+
+event SetExtraConst:
+    extra_const: uint256
+
+
+# Views
+
+@external
+@view
+def admin() -> address:
+    ...
+
+@external
+@view
+def rate(_for: address = msg.sender) -> uint256:
+    ...
+
+@external
+@view
+def rate0() -> uint256:
+    ...
+
+@external
+@view
+def sigma() -> int256:
+    ...
+
+@external
+@view
+def target_debt_fraction() -> uint256:
+    ...
+
+@external
+@view
+def extra_const() -> uint256:
+    ...
+
+@external
+@view
+def peg_keepers(arg0: uint256) -> IPegKeeper:
+    ...
+
+@external
+@view
+def n_controllers() -> uint256:
+    ...
+
+@external
+@view
+def controllers(arg0: uint256) -> address:
+    ...
+
+
+# Mutators
+
+@external
+def rate_write(_for: address = msg.sender) -> uint256:
+    ...
+
+@external
+def add_peg_keeper(pk: IPegKeeper):
+    ...
+
+@external
+def remove_peg_keeper(pk: IPegKeeper):
+    ...
+
+@external
+def set_rate(rate: uint256):
+    ...
+
+@external
+def set_sigma(sigma: int256):
+    ...
+
+@external
+def set_target_debt_fraction(target_debt_fraction: uint256):
+    ...
+
+@external
+def set_extra_const(extra_const: uint256):
+    ...
+
+@external
+def set_debt_ratio_ema_time(ema_time: uint256):
+    ...

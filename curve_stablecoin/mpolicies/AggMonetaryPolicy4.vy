@@ -4,17 +4,17 @@
 @author Curve.Fi
 @license Copyright (c) Curve.Fi, 2020-2025 - all rights reserved
 """
-
-# This version uses min(last day) debt when calculating per-market rates
-# Should be used for Controllers which update borrow rate too early (not at the end of every call)
+# TODO comment on suboptimal rate
 
 
 from curve_stablecoin.interfaces import IPriceOracle
 from curve_stablecoin.interfaces import IControllerFactory
 from curve_stablecoin.interfaces import IPegKeeper
+from curve_stablecoin.interfaces import IAggMonetaryPolicy4
 from snekmate.utils import math
 from snekmate.auth import ownable
 
+implements: IAggMonetaryPolicy4
 initializes: ownable
 
 exports: (
@@ -22,40 +22,21 @@ exports: (
 )
 
 
-struct TotalDebts:
-    total_debt: uint256
-    controller_debt: uint256
-    ceiling: uint256
-
-
-event AddPegKeeper:
-    peg_keeper: indexed(address)
-
-event RemovePegKeeper:
-    peg_keeper: indexed(address)
-
-event SetRate:
-    rate: uint256
-
-event SetSigma:
-    sigma: int256
-
-event SetDebtRatioEmaTime:
-    ema_time: uint256
-
-event SetTargetDebtFraction:
-    target_debt_fraction: uint256
-
-event SetExtraConst:
-    extra_const: uint256
-
-
 rate0: public(uint256)
 sigma: public(int256)  # 2 * 10**16 for example
 target_debt_fraction: public(uint256)
 extra_const: public(uint256)
 
-peg_keepers: public(IPegKeeper[1001])
+_peg_keepers: IPegKeeper[1001]
+# https://github.com/vyperlang/vyper/issues/4721
+@external
+@view
+def peg_keepers(i: uint256) -> IPegKeeper:
+    """
+    @notice Get peg keeper at index
+    """
+    return self._peg_keepers[i]
+
 PRICE_ORACLE: public(immutable(IPriceOracle))
 CONTROLLER_FACTORY: public(immutable(IControllerFactory))
 
@@ -65,13 +46,8 @@ n_controllers: public(uint256)
 controllers: public(address[MAX_CONTROLLERS])
 
 
-struct DebtCandle:
-    candle0: uint256  # earlier 1/2 day candle
-    candle1: uint256   # later 1/2 day candle
-    timestamp: uint256
-
 DEBT_CANDLE_TIME: constant(uint256) = 86400 // 2
-min_debt_candles: public(HashMap[address, DebtCandle])
+min_debt_candles: public(HashMap[address, IAggMonetaryPolicy4.DebtCandle])
 
 
 MAX_TARGET_DEBT_FRACTION: constant(uint256) = 10**18
@@ -106,7 +82,7 @@ def __init__(admin: address,
     for i: uint256 in range(5):
         if peg_keepers[i].address == empty(address):
             break
-        self.peg_keepers[i] = peg_keepers[i]
+        self._peg_keepers[i] = peg_keepers[i]
 
     assert sigma >= MIN_SIGMA
     assert sigma <= MAX_SIGMA
@@ -122,6 +98,11 @@ def __init__(admin: address,
     self.prev_ema_debt_ratio_timestamp = block.timestamp
     self.prev_ema_debt_ratio = target_debt_fraction
     self.debt_ratio_ema_time = debt_ratio_ema_time
+    log IAggMonetaryPolicy4.SetRate(rate=rate)
+    log IAggMonetaryPolicy4.SetSigma(sigma=sigma)
+    log IAggMonetaryPolicy4.SetTargetDebtFraction(target_debt_fraction=target_debt_fraction)
+    log IAggMonetaryPolicy4.SetExtraConst(extra_const=extra_const)
+    log IAggMonetaryPolicy4.SetDebtRatioEmaTime(ema_time=debt_ratio_ema_time)
 
 
 @external
@@ -135,11 +116,11 @@ def add_peg_keeper(pk: IPegKeeper):
     ownable._check_owner()
     assert pk.address != empty(address)
     for i: uint256 in range(1000):
-        _pk: IPegKeeper = self.peg_keepers[i]
+        _pk: IPegKeeper = self._peg_keepers[i]
         assert _pk != pk, "Already added"
         if _pk.address == empty(address):
-            self.peg_keepers[i] = pk
-            log AddPegKeeper(peg_keeper=pk.address)
+            self._peg_keepers[i] = pk
+            log IAggMonetaryPolicy4.AddPegKeeper(peg_keeper=pk.address)
             break
 
 
@@ -148,15 +129,15 @@ def remove_peg_keeper(pk: IPegKeeper):
     ownable._check_owner()
     replaced_peg_keeper: uint256 = 10000
     for i: uint256 in range(1001):  # 1001th element is always 0x0
-        _pk: IPegKeeper = self.peg_keepers[i]
+        _pk: IPegKeeper = self._peg_keepers[i]
         if _pk == pk:
             replaced_peg_keeper = i
-            log RemovePegKeeper(peg_keeper=pk.address)
+            log IAggMonetaryPolicy4.RemovePegKeeper(peg_keeper=pk.address)
         if _pk.address == empty(address):
             if replaced_peg_keeper < i:
                 if replaced_peg_keeper < i - 1:
-                    self.peg_keepers[replaced_peg_keeper] = self.peg_keepers[i - 1]
-                self.peg_keepers[i - 1] = IPegKeeper(empty(address))
+                    self._peg_keepers[replaced_peg_keeper] = self._peg_keepers[i - 1]
+                self._peg_keepers[i - 1] = IPegKeeper(empty(address))
             break
 
 
@@ -191,7 +172,7 @@ def get_total_debt(_for: address) -> (uint256, uint256):
 @view
 def read_candle(_for: address) -> uint256:
     out: uint256 = 0
-    candle: DebtCandle = self.min_debt_candles[_for]
+    candle: IAggMonetaryPolicy4.DebtCandle = self.min_debt_candles[_for]
 
     if block.timestamp < candle.timestamp // DEBT_CANDLE_TIME * DEBT_CANDLE_TIME + DEBT_CANDLE_TIME:
         if candle.candle0 > 0:
@@ -206,7 +187,7 @@ def read_candle(_for: address) -> uint256:
 
 @internal
 def save_candle(_for: address, _value: uint256):
-    candle: DebtCandle = self.min_debt_candles[_for]
+    candle: IAggMonetaryPolicy4.DebtCandle = self.min_debt_candles[_for]
 
     if candle.timestamp == 0 and _value == 0:
         # This record did not exist before, and value is zero -> not recording anything
@@ -260,7 +241,7 @@ def read_debt(_for: address, ro: bool) -> (uint256, uint256):
 @view
 def calculate_ema_debt_ratio(total_debt: uint256) -> uint256:
     pk_debt: uint256 = 0
-    for pk: IPegKeeper in self.peg_keepers:
+    for pk: IPegKeeper in self._peg_keepers:
         if pk.address == empty(address):
             break
         pk_debt += staticcall pk.debt()
@@ -358,7 +339,7 @@ def set_rate(rate: uint256):
     ownable._check_owner()
     assert rate <= MAX_RATE
     self.rate0 = rate
-    log SetRate(rate=rate)
+    log IAggMonetaryPolicy4.SetRate(rate=rate)
 
 
 @external
@@ -368,7 +349,7 @@ def set_sigma(sigma: int256):
     assert sigma <= MAX_SIGMA
 
     self.sigma = sigma
-    log SetSigma(sigma=sigma)
+    log IAggMonetaryPolicy4.SetSigma(sigma=sigma)
 
 
 @external
@@ -378,7 +359,7 @@ def set_target_debt_fraction(target_debt_fraction: uint256):
     assert target_debt_fraction > 0
 
     self.target_debt_fraction = target_debt_fraction
-    log SetTargetDebtFraction(target_debt_fraction=target_debt_fraction)
+    log IAggMonetaryPolicy4.SetTargetDebtFraction(target_debt_fraction=target_debt_fraction)
 
 
 @external
@@ -387,7 +368,7 @@ def set_extra_const(extra_const: uint256):
     assert extra_const <= MAX_EXTRA_CONST
 
     self.extra_const = extra_const
-    log SetExtraConst(extra_const=extra_const)
+    log IAggMonetaryPolicy4.SetExtraConst(extra_const=extra_const)
 
 
 @external
@@ -395,4 +376,4 @@ def set_debt_ratio_ema_time(ema_time: uint256):
     ownable._check_owner()
     assert ema_time > 0
     self.debt_ratio_ema_time = ema_time
-    log SetDebtRatioEmaTime(ema_time=ema_time)
+    log IAggMonetaryPolicy4.SetDebtRatioEmaTime(ema_time=ema_time)
