@@ -7,7 +7,7 @@
 """
 # TODO comment on suboptimal rate
 # TODO add natspec
-# TODO improve folder structure
+# TODO explain decision to stick to candles
 
 
 from curve_stablecoin.interfaces import IPriceOracle
