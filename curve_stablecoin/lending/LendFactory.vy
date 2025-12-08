@@ -21,9 +21,15 @@ implements: ILendFactory
 
 from snekmate.utils import math
 from snekmate.auth import ownable
-from curve_stablecoin import constants as c
 
 initializes: ownable
+
+from curve_stablecoin.lib import blueprint_registry
+
+initializes: blueprint_registry
+
+from curve_stablecoin import constants as c
+
 
 exports: (
     # `owner` is not exported as we refer to it as `admin` for backwards compatibility
@@ -37,13 +43,6 @@ MAX_A: constant(uint256) = 10000
 MIN_FEE: constant(uint256) = 10**6  # 1e-12, still needs to be above 0
 MAX_FEE: constant(uint256) = 10**17  # 10%
 WAD: constant(uint256) = c.WAD
-
-# Implementations which can be changed by governance
-amm_blueprint: public(address)
-controller_blueprint: public(address)
-# convert to blueprint
-vault_blueprint: public(address)
-controller_view_blueprint: public(address)
 
 # Admin is supposed to be the DAO
 fee_receiver: public(address)
@@ -86,10 +85,16 @@ def __init__(
     @param admin Admin address (DAO)
     @param fee_receiver Receiver of interest and admin fees
     """
-    self.amm_blueprint = _amm_blueprint
-    self.controller_blueprint = _controller_blueprint
-    self.vault_blueprint = _vault_blueprint
-    self.controller_view_blueprint = _controller_view_blueprint
+    blueprint_registry.__init__([
+        "AMM",  # AMM Blueprint
+        "CTR",  # Controller Blueprint
+        "VLT",  # Vault Blueprint
+        "CTRV", # Controller View Blueprint
+    ])
+    blueprint_registry.set("AMM", _amm_blueprint)
+    blueprint_registry.set("CTR", _controller_blueprint)
+    blueprint_registry.set("VLT", _vault_blueprint)
+    blueprint_registry.set("CTRV", _controller_view_blueprint)
 
     ownable.__init__()
     ownable._transfer_ownership(_admin)
@@ -134,10 +139,10 @@ def create(
     assert p > 0
     assert extcall _price_oracle.price_w() == p
 
-    vault: IVault = IVault(create_from_blueprint(self.vault_blueprint))
+    vault: IVault = IVault(create_from_blueprint(blueprint_registry.get("VLT")))
     amm: IAMM = IAMM(
         create_from_blueprint(
-            self.amm_blueprint,
+            blueprint_registry.get("AMM"),
             _borrowed_token,
             10**convert(18 - staticcall _borrowed_token.decimals(), uint256),
             _collateral_token,
@@ -154,7 +159,7 @@ def create(
     )
     controller: IController = IController(
         create_from_blueprint(
-            self.controller_blueprint,
+            blueprint_registry.get("CTR"),
             vault,
             amm,
             _borrowed_token,
@@ -162,8 +167,8 @@ def create(
             _monetary_policy,
             _loan_discount,
             _liquidation_discount,
-            self.controller_view_blueprint,
-            code_offset=3,
+            blueprint_registry.get("CTRV"),
+            code_offset=3, # TODO remove code offsets
         )
     )
     self.check_contract[vault.address] = True
@@ -227,37 +232,15 @@ def vaults_index(_vault: IVault) -> uint256:
 
 
 @external
-def set_implementations(
-    _controller_blueprint: address,
-    _amm_blueprint: address,
-    _vault_blueprint: address,
-    _controller_view_blueprint: address,
-):
+@reentrant
+def set_blueprint(_id: String[4], _address: address):
     """
-    @notice Set new implementations (blueprints) for controller, amm, vault, pool price oracle and monetary policy.
-            Doesn't change existing ones
-    @param _controller_blueprint Address of the controller blueprint
-    @param _amm_blueprint Address of the AMM blueprint
-    @param _vault_blueprint Address of the Vault blueprint
-    @param _controller_view_blueprint Address of the view contract blueprint
+    @notice Set blueprint address
+    @param _id Blueprint ID
+    @param _address Address of the blueprint
     """
     ownable._check_owner()
-
-    if _controller_blueprint != empty(address):
-        self.controller_blueprint = _controller_blueprint
-    if _amm_blueprint != empty(address):
-        self.amm_blueprint = _amm_blueprint
-    if _vault_blueprint != empty(address):
-        self.vault_blueprint = _vault_blueprint
-    if _controller_view_blueprint != empty(address):
-        self.controller_view_blueprint = _controller_view_blueprint
-
-    log ILendFactory.SetBlueprints(
-        amm=_amm_blueprint,
-        controller=_controller_blueprint,
-        vault=_vault_blueprint,
-        controller_view=_controller_view_blueprint,
-    )
+    blueprint_registry.set(_id, _address)
 
 
 @external
