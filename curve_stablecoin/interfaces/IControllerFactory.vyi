@@ -1,0 +1,15 @@
+@view
+def total_debt() -> uint256:
+    ...
+
+@view
+def debt_ceiling(_for: address) -> uint256:
+    ...
+
+@view
+def n_collaterals() -> uint256:
+    ...
+
+@view
+def controllers(i: uint256) -> address:
+    ...

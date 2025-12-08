@@ -9,23 +9,9 @@
 # Should be used for Controllers which update borrow rate too early (not at the end of every call)
 
 
-interface PegKeeper:
-    def debt() -> uint256: view
-
-interface PriceOracle:
-    def price() -> uint256: view
-    def price_w() -> uint256: nonpayable
-
-interface ControllerFactory:
-    def total_debt() -> uint256: view
-    def debt_ceiling(_for: address) -> uint256: view
-    def n_collaterals() -> uint256: view
-    def controllers(i: uint256) -> address: view
-
-interface Controller:
-    def total_debt() -> uint256: view
-
-
+from curve_stablecoin.interfaces import IPriceOracle
+from curve_stablecoin.interfaces import IControllerFactory
+from curve_stablecoin.interfaces import IPegKeeper
 from snekmate.utils import math
 
 
@@ -67,9 +53,9 @@ sigma: public(int256)  # 2 * 10**16 for example
 target_debt_fraction: public(uint256)
 extra_const: public(uint256)
 
-peg_keepers: public(PegKeeper[1001])
-PRICE_ORACLE: public(immutable(PriceOracle))
-CONTROLLER_FACTORY: public(immutable(ControllerFactory))
+peg_keepers: public(IPegKeeper[1001])
+PRICE_ORACLE: public(immutable(IPriceOracle))
+CONTROLLER_FACTORY: public(immutable(IControllerFactory))
 
 # Cache for controllers
 MAX_CONTROLLERS: constant(uint256) = 50000
@@ -103,9 +89,9 @@ prev_ema_debt_ratio: public(uint256)
 
 @deploy
 def __init__(admin: address,
-             price_oracle: PriceOracle,
-             controller_factory: ControllerFactory,
-             peg_keepers: PegKeeper[5],
+             price_oracle: IPriceOracle,
+             controller_factory: IControllerFactory,
+             peg_keepers: IPegKeeper[5],
              rate: uint256,
              sigma: int256,
              target_debt_fraction: uint256,
@@ -143,11 +129,11 @@ def set_admin(admin: address):
 
 
 @external
-def add_peg_keeper(pk: PegKeeper):
+def add_peg_keeper(pk: IPegKeeper):
     assert msg.sender == self.admin
     assert pk.address != empty(address)
     for i: uint256 in range(1000):
-        _pk: PegKeeper = self.peg_keepers[i]
+        _pk: IPegKeeper = self.peg_keepers[i]
         assert _pk != pk, "Already added"
         if _pk.address == empty(address):
             self.peg_keepers[i] = pk
@@ -156,11 +142,11 @@ def add_peg_keeper(pk: PegKeeper):
 
 
 @external
-def remove_peg_keeper(pk: PegKeeper):
+def remove_peg_keeper(pk: IPegKeeper):
     assert msg.sender == self.admin
     replaced_peg_keeper: uint256 = 10000
     for i: uint256 in range(1001):  # 1001th element is always 0x0
-        _pk: PegKeeper = self.peg_keepers[i]
+        _pk: IPegKeeper = self.peg_keepers[i]
         if _pk == pk:
             replaced_peg_keeper = i
             log RemovePegKeeper(peg_keeper=pk.address)
@@ -168,7 +154,7 @@ def remove_peg_keeper(pk: PegKeeper):
             if replaced_peg_keeper < i:
                 if replaced_peg_keeper < i - 1:
                     self.peg_keepers[replaced_peg_keeper] = self.peg_keepers[i - 1]
-                self.peg_keepers[i - 1] = PegKeeper(empty(address))
+                self.peg_keepers[i - 1] = IPegKeeper(empty(address))
             break
 
 
@@ -185,6 +171,8 @@ def get_total_debt(_for: address) -> (uint256, uint256):
         if i >= n_controllers:
             break
         controller: address = self.controllers[i]
+        if controller == empty(address):
+            continue
 
         success: bool = False
         res: Bytes[32] = empty(Bytes[32])
@@ -270,7 +258,7 @@ def read_debt(_for: address, ro: bool) -> (uint256, uint256):
 @view
 def calculate_ema_debt_ratio(total_debt: uint256) -> uint256:
     pk_debt: uint256 = 0
-    for pk: PegKeeper in self.peg_keepers:
+    for pk: IPegKeeper in self.peg_keepers:
         if pk.address == empty(address):
             break
         pk_debt += staticcall pk.debt()
