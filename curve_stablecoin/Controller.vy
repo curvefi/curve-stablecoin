@@ -1515,6 +1515,9 @@ def _set_borrowing_discounts(
     assert _loan_discount > _liquidation_discount
     self.liquidation_discount = _liquidation_discount
     self.loan_discount = _loan_discount
+    log IController.SetBorrowingDiscounts(
+        loan_discount=_loan_discount, liquidation_discount=_liquidation_discount
+    )
 
 
 @external
@@ -1528,9 +1531,6 @@ def set_borrowing_discounts(
     """
     self._check_admin()
     self._set_borrowing_discounts(_loan_discount, _liquidation_discount)
-    log IController.SetBorrowingDiscounts(
-        loan_discount=_loan_discount, liquidation_discount=_liquidation_discount
-    )
 
 
 @external
