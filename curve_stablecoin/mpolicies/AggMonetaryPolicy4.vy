@@ -11,6 +11,7 @@ from curve_stablecoin.interfaces import IPriceOracle
 from curve_stablecoin.interfaces import IControllerFactory
 from curve_stablecoin.interfaces import IPegKeeper
 from curve_stablecoin.interfaces import IAggMonetaryPolicy4
+from curve_stablecoin import constants as c
 from snekmate.utils import math
 from snekmate.auth import ownable
 
@@ -50,6 +51,9 @@ DEBT_CANDLE_TIME: constant(uint256) = 86400 // 2
 min_debt_candles: public(HashMap[address, IAggMonetaryPolicy4.DebtCandle])
 
 
+# https://github.com/vyperlang/vyper/issues/4723
+WAD: constant(uint256) = c.WAD
+SWAD: constant(int256) = c.SWAD
 MAX_TARGET_DEBT_FRACTION: constant(uint256) = 10**18
 MAX_SIGMA: constant(int256) = 10**18
 MIN_SIGMA: constant(int256) = 10**14
@@ -238,13 +242,13 @@ def calculate_ema_debt_ratio(total_debt: uint256) -> uint256:
     if total_debt == 0:
         return self.target_debt_fraction
 
-    ratio: uint256 = 10**18 * pk_debt // total_debt
-    mul: uint256 = 10**18
+    ratio: uint256 = WAD * pk_debt // total_debt
+    mul: uint256 = WAD
     dt: uint256 = block.timestamp - self.prev_ema_debt_ratio_timestamp
     if dt > 0:
-        mul = convert(math._wad_exp(-convert(dt * 10**18 // self.debt_ratio_ema_time, int256)), uint256)
+        mul = convert(math._wad_exp(-convert(dt * WAD // self.debt_ratio_ema_time, int256)), uint256)
 
-    return (self.prev_ema_debt_ratio * mul + ratio * (10**18 - mul)) // 10**18
+    return (self.prev_ema_debt_ratio * mul + ratio * (WAD - mul)) // WAD
     
 
 
@@ -261,17 +265,17 @@ def calculate_rate(_for: address, _price: uint256, ro: bool) -> (uint256, uint25
     total_debt, debt_for = self.read_debt(_for, ro)
     ema_debt_ratio: uint256 = self.calculate_ema_debt_ratio(total_debt)
 
-    power: int256 = (10**18 - p) * 10**18 // sigma  # high price -> negative pow -> low rate
-    power -= convert(ema_debt_ratio * 10**18 // target_debt_fraction, int256)
+    power: int256 = (SWAD - p) * SWAD // sigma  # high price -> negative pow -> low rate
+    power -= convert(ema_debt_ratio * WAD // target_debt_fraction, int256)
 
     # Rate accounting for crvUSD price and PegKeeper debt
-    rate: uint256 = self.rate0 * min(convert(math._wad_exp(power), uint256), MAX_EXP) // 10**18 + self.extra_const
+    rate: uint256 = self.rate0 * min(convert(math._wad_exp(power), uint256), MAX_EXP) // WAD + self.extra_const
 
     # Account for individual debt ceiling to dynamically tune rate depending on filling the market
     ceiling: uint256 = staticcall CONTROLLER_FACTORY.debt_ceiling(_for)
     if ceiling > 0:
-        f: uint256 = min(debt_for * 10**18 // ceiling, 10**18 - TARGET_REMAINDER // 1000)
-        rate = min(rate * ((10**18 - TARGET_REMAINDER) + TARGET_REMAINDER * 10**18 // (10**18 - f)) // 10**18, MAX_RATE)
+        f: uint256 = min(debt_for * WAD // ceiling, WAD - TARGET_REMAINDER // 1000)
+        rate = min(rate * ((WAD - TARGET_REMAINDER) + TARGET_REMAINDER * WAD // (WAD - f)) // WAD, MAX_RATE)
 
     # Rate multiplication at different ceilings (target = 0.1):
     # debt = 0:
