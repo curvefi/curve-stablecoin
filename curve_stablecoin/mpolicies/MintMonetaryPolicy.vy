@@ -1,12 +1,13 @@
 # @version 0.4.3
 
 """
-@title AggMonetaryPolicy - monetary policy based on aggregated prices for crvUSD
+@title MintMonetaryPolicy - monetary policy based on aggregated prices for crvUSD
 @author Curve.Fi
 @license Copyright (c) Curve.Fi, 2020-2025 - all rights reserved
 """
 # TODO comment on suboptimal rate
 # TODO add natspec
+# TODO improve folder structure
 
 
 from curve_stablecoin.interfaces import IPriceOracle

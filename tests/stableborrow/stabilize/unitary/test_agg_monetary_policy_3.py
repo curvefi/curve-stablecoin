@@ -9,6 +9,9 @@ from tests.utils.deployers import (
 )
 from tests.utils.constants import ZERO_ADDRESS
 
+if AGG_MONETARY_POLICY3_DEPLOYER is None:
+    pytest.skip("Old AggMonetaryPolicy3 removed; skipping legacy tests", allow_module_level=True)
+
 RATE0 = 634195839  # 2%
 
 

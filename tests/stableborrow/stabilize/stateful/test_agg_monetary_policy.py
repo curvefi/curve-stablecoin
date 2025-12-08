@@ -9,6 +9,7 @@ from hypothesis.stateful import (
 )
 from boa.interpret import VyperContract
 import boa
+import pytest
 from tests.utils.deployers import (
     AGG_MONETARY_POLICY2_DEPLOYER,
     ERC20_MOCK_DEPLOYER,
@@ -17,6 +18,9 @@ from tests.utils.deployers import (
     PEG_KEEPER_REGULATOR_DEPLOYER,
 )
 from tests.utils.constants import ZERO_ADDRESS
+
+if AGG_MONETARY_POLICY2_DEPLOYER is None:
+    pytest.skip("Old AggMonetaryPolicy2 removed; skipping legacy tests", allow_module_level=True)
 
 RATE0 = 634195839  # 2%
 
