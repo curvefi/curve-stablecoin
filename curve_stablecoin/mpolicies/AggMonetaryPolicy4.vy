@@ -87,11 +87,11 @@ def __init__(
             break
         self._peg_keepers[i] = peg_keepers[i]
 
-    self._set_sigma_internal(sigma)
-    self._set_target_debt_fraction_internal(target_debt_fraction)
-    self._set_rate_internal(rate)
-    self._set_extra_const_internal(extra_const)
-    self._set_debt_ratio_ema_time_internal(debt_ratio_ema_time)
+    self._set_sigma(sigma)
+    self._set_target_debt_fraction(target_debt_fraction)
+    self._set_rate(rate)
+    self._set_extra_const(extra_const)
+    self._set_debt_ratio_ema_time(debt_ratio_ema_time)
 
     self.prev_ema_debt_ratio_timestamp = block.timestamp
     self.prev_ema_debt_ratio = target_debt_fraction
@@ -346,7 +346,7 @@ def rate_write(_for: address = msg.sender) -> uint256:
 
 
 @internal
-def _set_rate_internal(rate: uint256):
+def _set_rate(rate: uint256):
     assert rate <= MAX_RATE
     self.rate0 = rate
     log IAggMonetaryPolicy4.SetRate(rate=rate)
@@ -355,11 +355,11 @@ def _set_rate_internal(rate: uint256):
 @external
 def set_rate(rate: uint256):
     ownable._check_owner()
-    self._set_rate_internal(rate)
+    self._set_rate(rate)
 
 
 @internal
-def _set_sigma_internal(sigma: int256):
+def _set_sigma(sigma: int256):
     assert sigma >= MIN_SIGMA
     assert sigma <= MAX_SIGMA
     self.sigma = sigma
@@ -369,11 +369,11 @@ def _set_sigma_internal(sigma: int256):
 @external
 def set_sigma(sigma: int256):
     ownable._check_owner()
-    self._set_sigma_internal(sigma)
+    self._set_sigma(sigma)
 
 
 @internal
-def _set_target_debt_fraction_internal(target_debt_fraction: uint256):
+def _set_target_debt_fraction(target_debt_fraction: uint256):
     assert target_debt_fraction > 0
     assert target_debt_fraction <= MAX_TARGET_DEBT_FRACTION
     self.target_debt_fraction = target_debt_fraction
@@ -383,11 +383,11 @@ def _set_target_debt_fraction_internal(target_debt_fraction: uint256):
 @external
 def set_target_debt_fraction(target_debt_fraction: uint256):
     ownable._check_owner()
-    self._set_target_debt_fraction_internal(target_debt_fraction)
+    self._set_target_debt_fraction(target_debt_fraction)
 
 
 @internal
-def _set_extra_const_internal(extra_const: uint256):
+def _set_extra_const(extra_const: uint256):
     assert extra_const <= MAX_EXTRA_CONST
     self.extra_const = extra_const
     log IAggMonetaryPolicy4.SetExtraConst(extra_const=extra_const)
@@ -396,11 +396,11 @@ def _set_extra_const_internal(extra_const: uint256):
 @external
 def set_extra_const(extra_const: uint256):
     ownable._check_owner()
-    self._set_extra_const_internal(extra_const)
+    self._set_extra_const(extra_const)
 
 
 @internal
-def _set_debt_ratio_ema_time_internal(ema_time: uint256):
+def _set_debt_ratio_ema_time(ema_time: uint256):
     assert ema_time > 0
     self.debt_ratio_ema_time = ema_time
     log IAggMonetaryPolicy4.SetDebtRatioEmaTime(ema_time=ema_time)
@@ -409,4 +409,4 @@ def _set_debt_ratio_ema_time_internal(ema_time: uint256):
 @external
 def set_debt_ratio_ema_time(ema_time: uint256):
     ownable._check_owner()
-    self._set_debt_ratio_ema_time_internal(ema_time)
+    self._set_debt_ratio_ema_time(ema_time)
