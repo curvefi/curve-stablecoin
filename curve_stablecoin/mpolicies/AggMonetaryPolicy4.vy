@@ -6,6 +6,7 @@
 @license Copyright (c) Curve.Fi, 2020-2025 - all rights reserved
 """
 # TODO comment on suboptimal rate
+# TODO add natspec
 
 
 from curve_stablecoin.interfaces import IPriceOracle
@@ -30,11 +31,11 @@ _peg_keepers: IPegKeeper[1001]
 # https://github.com/vyperlang/vyper/issues/4721
 @external
 @view
-def peg_keepers(i: uint256) -> IPegKeeper:
+def peg_keepers(_i: uint256) -> IPegKeeper:
     """
     @notice Get peg keeper at index
     """
-    return self._peg_keepers[i]
+    return self._peg_keepers[_i]
 
 
 PRICE_ORACLE: public(immutable(IPriceOracle))
@@ -68,33 +69,33 @@ prev_ema_debt_ratio: public(uint256)
 
 @deploy
 def __init__(
-    admin: address,
-    price_oracle: IPriceOracle,
-    controller_factory: IControllerFactory,
-    peg_keepers: IPegKeeper[5],
-    rate: uint256,
-    sigma: int256,
-    target_debt_fraction: uint256,
-    extra_const: uint256,
-    debt_ratio_ema_time: uint256,
+    _admin: address,
+    _price_oracle: IPriceOracle,
+    _controller_factory: IControllerFactory,
+    _peg_keepers: IPegKeeper[5],
+    _rate: uint256,
+    _sigma: int256,
+    _target_debt_fraction: uint256,
+    _extra_const: uint256,
+    _debt_ratio_ema_time: uint256,
 ):
     ownable.__init__()
-    ownable._transfer_ownership(admin)
-    PRICE_ORACLE = price_oracle
-    CONTROLLER_FACTORY = controller_factory
+    ownable._transfer_ownership(_admin)
+    PRICE_ORACLE = _price_oracle
+    CONTROLLER_FACTORY = _controller_factory
     for i: uint256 in range(5):
-        if peg_keepers[i].address == empty(address):
+        if _peg_keepers[i].address == empty(address):
             break
-        self._peg_keepers[i] = peg_keepers[i]
+        self._peg_keepers[i] = _peg_keepers[i]
 
-    self._set_sigma(sigma)
-    self._set_target_debt_fraction(target_debt_fraction)
-    self._set_rate(rate)
-    self._set_extra_const(extra_const)
-    self._set_debt_ratio_ema_time(debt_ratio_ema_time)
+    self._set_sigma(_sigma)
+    self._set_target_debt_fraction(_target_debt_fraction)
+    self._set_rate(_rate)
+    self._set_extra_const(_extra_const)
+    self._set_debt_ratio_ema_time(_debt_ratio_ema_time)
 
     self.prev_ema_debt_ratio_timestamp = block.timestamp
-    self.prev_ema_debt_ratio = target_debt_fraction
+    self.prev_ema_debt_ratio = _target_debt_fraction
 
 
 @external
@@ -104,28 +105,28 @@ def admin() -> address:
 
 
 @external
-def add_peg_keeper(pk: IPegKeeper):
+def add_peg_keeper(_pk: IPegKeeper):
     ownable._check_owner()
-    assert pk.address != empty(address)
+    assert _pk.address != empty(address)
     for i: uint256 in range(1000):
-        _pk: IPegKeeper = self._peg_keepers[i]
-        assert _pk != pk, "Already added"
-        if _pk.address == empty(address):
-            self._peg_keepers[i] = pk
-            log IAggMonetaryPolicy4.AddPegKeeper(peg_keeper=pk.address)
+        pk: IPegKeeper = self._peg_keepers[i]
+        assert pk != _pk, "Already added"
+        if pk.address == empty(address):
+            self._peg_keepers[i] = _pk
+            log IAggMonetaryPolicy4.AddPegKeeper(peg_keeper=_pk.address)
             break
 
 
 @external
-def remove_peg_keeper(pk: IPegKeeper):
+def remove_peg_keeper(_pk: IPegKeeper):
     ownable._check_owner()
     replaced_peg_keeper: uint256 = 10000
     for i: uint256 in range(1001):  # 1001th element is always 0x0
-        _pk: IPegKeeper = self._peg_keepers[i]
-        if _pk == pk:
+        pk: IPegKeeper = self._peg_keepers[i]
+        if pk == _pk:
             replaced_peg_keeper = i
-            log IAggMonetaryPolicy4.RemovePegKeeper(peg_keeper=pk.address)
-        if _pk.address == empty(address):
+            log IAggMonetaryPolicy4.RemovePegKeeper(peg_keeper=_pk.address)
+        if pk.address == empty(address):
             if replaced_peg_keeper < i:
                 if replaced_peg_keeper < i - 1:
                     self._peg_keepers[replaced_peg_keeper] = self._peg_keepers[i - 1]
@@ -213,13 +214,13 @@ def save_candle(_for: address, _value: uint256):
 
 @internal
 @view
-def read_debt(_for: address, ro: bool) -> (uint256, uint256):
+def read_debt(_for: address, _ro: bool) -> (uint256, uint256):
     debt_total: uint256 = self.read_candle(empty(address))
     debt_for: uint256 = self.read_candle(_for)
     fresh_total: uint256 = 0
     fresh_for: uint256 = 0
 
-    if ro:
+    if _ro:
         fresh_total, fresh_for = self.get_total_debt(_for)
         if debt_total > 0:
             debt_total = min(debt_total, fresh_total)
@@ -241,17 +242,17 @@ def read_debt(_for: address, ro: bool) -> (uint256, uint256):
 
 @internal
 @view
-def calculate_ema_debt_ratio(total_debt: uint256) -> uint256:
+def calculate_ema_debt_ratio(_total_debt: uint256) -> uint256:
     pk_debt: uint256 = 0
     for pk: IPegKeeper in self._peg_keepers:
         if pk.address == empty(address):
             break
         pk_debt += staticcall pk.debt()
 
-    if total_debt == 0:
+    if _total_debt == 0:
         return self.target_debt_fraction
 
-    ratio: uint256 = WAD * pk_debt // total_debt
+    ratio: uint256 = WAD * pk_debt // _total_debt
     mul: uint256 = WAD
     dt: uint256 = block.timestamp - self.prev_ema_debt_ratio_timestamp
     if dt > 0:
@@ -264,7 +265,7 @@ def calculate_ema_debt_ratio(total_debt: uint256) -> uint256:
 
 @internal
 @view
-def calculate_rate(_for: address, _price: uint256, ro: bool) -> (uint256, uint256):
+def calculate_rate(_for: address, _price: uint256, _ro: bool) -> (uint256, uint256):
     sigma: int256 = self.sigma
     target_debt_fraction: uint256 = self.target_debt_fraction
 
@@ -272,7 +273,7 @@ def calculate_rate(_for: address, _price: uint256, ro: bool) -> (uint256, uint25
 
     total_debt: uint256 = 0
     debt_for: uint256 = 0
-    total_debt, debt_for = self.read_debt(_for, ro)
+    total_debt, debt_for = self.read_debt(_for, _ro)
     ema_debt_ratio: uint256 = self.calculate_ema_debt_ratio(total_debt)
 
     power: int256 = (SWAD - p) * SWAD // sigma  # high price -> negative pow -> low rate
@@ -308,8 +309,8 @@ def calculate_rate(_for: address, _price: uint256, ro: bool) -> (uint256, uint25
     return rate, ema_debt_ratio
 
 
-@view
 @external
+@view
 def rate(_for: address = msg.sender) -> uint256:
     return self.calculate_rate(_for, staticcall PRICE_ORACLE.price(), True)[0]
 
@@ -321,7 +322,7 @@ def rate_write(_for: address = msg.sender) -> uint256:
     n_factory_controllers: uint256 = staticcall CONTROLLER_FACTORY.n_collaterals()
     if n_factory_controllers > n_controllers:
         self.n_controllers = n_factory_controllers
-        for i: uint256 in range(MAX_CONTROLLERS):
+        for _: uint256 in range(MAX_CONTROLLERS):
             self.controllers[n_controllers] = staticcall CONTROLLER_FACTORY.controllers(
                 n_controllers
             )
@@ -330,6 +331,8 @@ def rate_write(_for: address = msg.sender) -> uint256:
                 break
 
         # Update candles
+
+
     total_debt: uint256 = 0
     debt_for: uint256 = 0
     total_debt, debt_for = self.get_total_debt(_for)
@@ -346,67 +349,67 @@ def rate_write(_for: address = msg.sender) -> uint256:
 
 
 @internal
-def _set_rate(rate: uint256):
-    assert rate <= MAX_RATE
-    self.rate0 = rate
-    log IAggMonetaryPolicy4.SetRate(rate=rate)
+def _set_rate(_rate: uint256):
+    assert _rate <= MAX_RATE
+    self.rate0 = _rate
+    log IAggMonetaryPolicy4.SetRate(rate=_rate)
 
 
 @external
-def set_rate(rate: uint256):
+def set_rate(_rate: uint256):
     ownable._check_owner()
-    self._set_rate(rate)
+    self._set_rate(_rate)
 
 
 @internal
-def _set_sigma(sigma: int256):
-    assert sigma >= MIN_SIGMA
-    assert sigma <= MAX_SIGMA
-    self.sigma = sigma
-    log IAggMonetaryPolicy4.SetSigma(sigma=sigma)
+def _set_sigma(_sigma: int256):
+    assert _sigma >= MIN_SIGMA
+    assert _sigma <= MAX_SIGMA
+    self.sigma = _sigma
+    log IAggMonetaryPolicy4.SetSigma(sigma=_sigma)
 
 
 @external
-def set_sigma(sigma: int256):
+def set_sigma(_sigma: int256):
     ownable._check_owner()
-    self._set_sigma(sigma)
+    self._set_sigma(_sigma)
 
 
 @internal
-def _set_target_debt_fraction(target_debt_fraction: uint256):
-    assert target_debt_fraction > 0
-    assert target_debt_fraction <= MAX_TARGET_DEBT_FRACTION
-    self.target_debt_fraction = target_debt_fraction
-    log IAggMonetaryPolicy4.SetTargetDebtFraction(target_debt_fraction=target_debt_fraction)
+def _set_target_debt_fraction(_target_debt_fraction: uint256):
+    assert _target_debt_fraction > 0
+    assert _target_debt_fraction <= MAX_TARGET_DEBT_FRACTION
+    self.target_debt_fraction = _target_debt_fraction
+    log IAggMonetaryPolicy4.SetTargetDebtFraction(target_debt_fraction=_target_debt_fraction)
 
 
 @external
-def set_target_debt_fraction(target_debt_fraction: uint256):
+def set_target_debt_fraction(_target_debt_fraction: uint256):
     ownable._check_owner()
-    self._set_target_debt_fraction(target_debt_fraction)
+    self._set_target_debt_fraction(_target_debt_fraction)
 
 
 @internal
-def _set_extra_const(extra_const: uint256):
-    assert extra_const <= MAX_EXTRA_CONST
-    self.extra_const = extra_const
-    log IAggMonetaryPolicy4.SetExtraConst(extra_const=extra_const)
+def _set_extra_const(_extra_const: uint256):
+    assert _extra_const <= MAX_EXTRA_CONST
+    self.extra_const = _extra_const
+    log IAggMonetaryPolicy4.SetExtraConst(extra_const=_extra_const)
 
 
 @external
-def set_extra_const(extra_const: uint256):
+def set_extra_const(_extra_const: uint256):
     ownable._check_owner()
-    self._set_extra_const(extra_const)
+    self._set_extra_const(_extra_const)
 
 
 @internal
-def _set_debt_ratio_ema_time(ema_time: uint256):
-    assert ema_time > 0
-    self.debt_ratio_ema_time = ema_time
-    log IAggMonetaryPolicy4.SetDebtRatioEmaTime(ema_time=ema_time)
+def _set_debt_ratio_ema_time(_ema_time: uint256):
+    assert _ema_time > 0
+    self.debt_ratio_ema_time = _ema_time
+    log IAggMonetaryPolicy4.SetDebtRatioEmaTime(ema_time=_ema_time)
 
 
 @external
-def set_debt_ratio_ema_time(ema_time: uint256):
+def set_debt_ratio_ema_time(_ema_time: uint256):
     ownable._check_owner()
-    self._set_debt_ratio_ema_time(ema_time)
+    self._set_debt_ratio_ema_time(_ema_time)
