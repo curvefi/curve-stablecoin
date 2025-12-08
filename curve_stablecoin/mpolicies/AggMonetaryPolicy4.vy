@@ -13,6 +13,13 @@ from curve_stablecoin.interfaces import IPriceOracle
 from curve_stablecoin.interfaces import IControllerFactory
 from curve_stablecoin.interfaces import IPegKeeper
 from snekmate.utils import math
+from snekmate.auth import ownable
+
+initializes: ownable
+
+exports: (
+    ownable.transfer_ownership,
+)
 
 
 struct TotalDebts:
@@ -20,9 +27,6 @@ struct TotalDebts:
     controller_debt: uint256
     ceiling: uint256
 
-
-event SetAdmin:
-    admin: address
 
 event AddPegKeeper:
     peg_keeper: indexed(address)
@@ -45,8 +49,6 @@ event SetTargetDebtFraction:
 event SetExtraConst:
     extra_const: uint256
 
-
-admin: public(address)
 
 rate0: public(uint256)
 sigma: public(int256)  # 2 * 10**16 for example
@@ -97,7 +99,8 @@ def __init__(admin: address,
              target_debt_fraction: uint256,
              extra_const: uint256,
              debt_ratio_ema_time: uint256):
-    self.admin = admin
+    ownable.__init__()
+    ownable._transfer_ownership(admin)
     PRICE_ORACLE = price_oracle
     CONTROLLER_FACTORY = controller_factory
     for i: uint256 in range(5):
@@ -122,15 +125,14 @@ def __init__(admin: address,
 
 
 @external
-def set_admin(admin: address):
-    assert msg.sender == self.admin
-    self.admin = admin
-    log SetAdmin(admin=admin)
+@view
+def admin() -> address:
+    return ownable.owner
 
 
 @external
 def add_peg_keeper(pk: IPegKeeper):
-    assert msg.sender == self.admin
+    ownable._check_owner()
     assert pk.address != empty(address)
     for i: uint256 in range(1000):
         _pk: IPegKeeper = self.peg_keepers[i]
@@ -143,7 +145,7 @@ def add_peg_keeper(pk: IPegKeeper):
 
 @external
 def remove_peg_keeper(pk: IPegKeeper):
-    assert msg.sender == self.admin
+    ownable._check_owner()
     replaced_peg_keeper: uint256 = 10000
     for i: uint256 in range(1001):  # 1001th element is always 0x0
         _pk: IPegKeeper = self.peg_keepers[i]
@@ -353,7 +355,7 @@ def rate_write(_for: address = msg.sender) -> uint256:
 
 @external
 def set_rate(rate: uint256):
-    assert msg.sender == self.admin
+    ownable._check_owner()
     assert rate <= MAX_RATE
     self.rate0 = rate
     log SetRate(rate=rate)
@@ -361,7 +363,7 @@ def set_rate(rate: uint256):
 
 @external
 def set_sigma(sigma: int256):
-    assert msg.sender == self.admin
+    ownable._check_owner()
     assert sigma >= MIN_SIGMA
     assert sigma <= MAX_SIGMA
 
@@ -371,7 +373,7 @@ def set_sigma(sigma: int256):
 
 @external
 def set_target_debt_fraction(target_debt_fraction: uint256):
-    assert msg.sender == self.admin
+    ownable._check_owner()
     assert target_debt_fraction <= MAX_TARGET_DEBT_FRACTION
     assert target_debt_fraction > 0
 
@@ -381,7 +383,7 @@ def set_target_debt_fraction(target_debt_fraction: uint256):
 
 @external
 def set_extra_const(extra_const: uint256):
-    assert msg.sender == self.admin
+    ownable._check_owner()
     assert extra_const <= MAX_EXTRA_CONST
 
     self.extra_const = extra_const
@@ -390,7 +392,7 @@ def set_extra_const(extra_const: uint256):
 
 @external
 def set_debt_ratio_ema_time(ema_time: uint256):
-    assert msg.sender == self.admin
+    ownable._check_owner()
     assert ema_time > 0
     self.debt_ratio_ema_time = ema_time
     log SetDebtRatioEmaTime(ema_time=ema_time)
