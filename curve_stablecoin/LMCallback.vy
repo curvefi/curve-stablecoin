@@ -4,6 +4,8 @@
 @author Curve.Fi
 @license Copyright (c) Curve.Fi, 2020-2023 - all rights reserved
 @notice LM callback works like a gauge for collateral in LlamaLend/crvUSD AMMs
+@custom:security security@curve.fi
+@custom:kill Call set_killed(true) via factory admin to stop CRV emissions
 """
 
 from curve_std.interfaces import IERC20

@@ -50,7 +50,7 @@ def alice(collateral_info):
 
 @pytest.fixture(scope="session")
 def controller_interface():
-    return boa.load_partial("curve_stablecoin/Controller.vy")
+    return boa.load_partial("curve_stablecoin/controller.vy")
 
 
 @pytest.fixture()
