@@ -2,6 +2,10 @@ name: tests-boa
 
 on: [push]
 
+concurrency:
+  group: ${{ github.workflow }}-pr-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
 env:
   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
   HYPOTHESIS_PROFILE: no-shrink
