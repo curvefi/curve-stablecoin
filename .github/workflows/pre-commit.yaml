@@ -8,7 +8,7 @@ env:
 jobs:
   pre-commit:
     name: pre-commit
-    runs-on: ubuntu-latest
+    runs-on: blacksmith-2vcpu-ubuntu-2404
     steps:
       - name: Checkout repo
         uses: actions/checkout@v5
