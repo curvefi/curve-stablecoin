@@ -91,6 +91,7 @@ def __init__(
         "VLT",  # Vault Blueprint
         "CTRV", # Controller View Blueprint
     ])
+    # This is the only place where we set these blueprints
     blueprint_registry.set("AMM", _amm_blueprint)
     blueprint_registry.set("CTR", _controller_blueprint)
     blueprint_registry.set("VLT", _vault_blueprint)
@@ -229,18 +230,6 @@ def markets(_n: uint256) -> ILendFactory.Market:
 @reentrant
 def vaults_index(_vault: IVault) -> uint256:
     return self._vaults_index[_vault] - 2**128
-
-
-@external
-@reentrant
-def set_blueprint(_id: String[4], _address: address):
-    """
-    @notice Set blueprint address
-    @param _id Blueprint ID
-    @param _address Address of the blueprint
-    """
-    ownable._check_owner()
-    blueprint_registry.set(_id, _address)
 
 
 @external
