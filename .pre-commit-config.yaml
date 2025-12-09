@@ -33,3 +33,12 @@ repos:
       - id: mamushi
         args: [--line-length=100]
         files: ^(curve_stablecoin/lending/LendingFactory\.vy|curve_stablecoin/zaps/CreateFromPool\.vy)$ # TODO slowly increase natrix coverage
+
+  - repo: local
+    hooks:
+      - id: vyper-method-checker
+        name: Check Vyper test coverage
+        entry: python scripts/vyper_method_checker.py check
+        language: system
+        pass_filenames: false
+        files: ^curve_stablecoin/.*\.vy$
