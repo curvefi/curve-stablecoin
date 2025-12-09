@@ -1562,6 +1562,7 @@ def _collect_fees() -> uint256:
     tkn.transfer(BORROWED_TOKEN, staticcall FACTORY.fee_receiver(), pending_admin_fees)
 
     self._save_rate()
+    # TODO rename new supply with new debt
     log IController.CollectFees(amount=pending_admin_fees, new_supply=loan.initial_debt)
 
     return pending_admin_fees
