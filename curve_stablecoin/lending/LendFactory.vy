@@ -9,6 +9,8 @@
 @custom:kill Pause factory to halt deployments.
 """
 
+# TODO increase test coverage
+
 from curve_std.interfaces import IERC20
 
 from curve_stablecoin.interfaces import IVault
