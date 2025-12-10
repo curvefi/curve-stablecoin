@@ -41,26 +41,26 @@ jobs:
       matrix:
         include:
           - folder: "tests/unitary"
-            runs-on: "blacksmith-32vcpu-ubuntu-2204"
+            runs-on: "ubuntu-latest"
           - folder: "tests/e2e"
-            runs-on: "blacksmith-32vcpu-ubuntu-2204"
+            runs-on: "ubuntu-latest"
           # - folder: "tests/stateful" not ready yet
           #   runs-on: "blacksmith-32vcpu-ubuntu-2204"
           # Old tests to be migrated
           - folder: "tests/flashloan"
-            runs-on: "blacksmith-32vcpu-ubuntu-2204"
+            runs-on: "ubuntu-latest"
           - folder: "tests/controller"
-            runs-on: "blacksmith-32vcpu-ubuntu-2204"
+            runs-on: "ubuntu-latest"
           - folder: "tests/price_oracles"
-            runs-on: "blacksmith-32vcpu-ubuntu-2204"
+            runs-on: "ubuntu-latest"
           - folder: "tests/zaps"
-            runs-on: "blacksmith-32vcpu-ubuntu-2204"
+            runs-on: "ubuntu-latest"
           - folder: "tests/amm"
-            runs-on: "blacksmith-32vcpu-ubuntu-2204"
+            runs-on: "ubuntu-latest"
           - folder: "tests/lending"
-            runs-on: "blacksmith-32vcpu-ubuntu-2204"
+            runs-on: "ubuntu-latest"
           - folder: "tests/stableborrow --ignore=tests/stableborrow/stabilize"
-            runs-on: "blacksmith-32vcpu-ubuntu-2204"
+            runs-on: "ubuntu-latest"
     steps:
       - name: Checkout repo
         uses: actions/checkout@v5
