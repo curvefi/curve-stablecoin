@@ -33,6 +33,7 @@ def get_all_ids() -> DynArray[String[4], 10]:
     return blueprint_registry.BLUEPRINT_REGISTRY_IDS
 """)
 
+
 @pytest.fixture()
 def blueprint_registry(blueprint_registry_deployer):
     return blueprint_registry_deployer(["AMM", "CTR", "VLT", "CTRV"])
