@@ -7,6 +7,7 @@ event BlueprintSet:
 _blueprints: HashMap[String[4], address]
 
 BLUEPRINT_REGISTRY_IDS: public(immutable(DynArray[String[4], 10]))
+# TODO add to linting coverage
 
 
 @deploy
@@ -14,6 +15,7 @@ def __init__(_allowed_ids: DynArray[String[4], 10]):
     BLUEPRINT_REGISTRY_IDS = _allowed_ids
 
 @internal
+@view
 def in_array(_value: String[4], _array: DynArray[String[4], 10]) -> bool:
     # The compiler does not have 'in' operator for DynArray.
     for item: String[4] in _array:
