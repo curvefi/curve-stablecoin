@@ -35,7 +35,7 @@ def test_default_behavior(controller):
     assert len(logs) == 1
     assert logs[0].loan_discount == LOAN_DISCOUNT
     assert logs[0].liquidation_discount == LIQUIDATION_DISCOUNT
-    
+
     assert controller.loan_discount() == LOAN_DISCOUNT
     assert controller.liquidation_discount() == LIQUIDATION_DISCOUNT
 
