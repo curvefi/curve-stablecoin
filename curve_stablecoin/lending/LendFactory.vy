@@ -239,6 +239,43 @@ def vaults_index(_vault: IVault) -> uint256:
     return self._vaults_index[_vault] - 2**128
 
 
+@view
+@external
+def amm_blueprint() -> address:
+    """
+    @notice Get the address of the AMM blueprint
+    """
+    return blueprint_registry.get("AMM")
+
+
+@view
+@external
+def controller_blueprint() -> address:
+    """
+    @notice Get the address of the controller blueprint
+    """
+    return blueprint_registry.get("CTR")
+
+
+@view
+@external
+def vault_blueprint() -> address:
+    """
+    @notice Get the address of the vault blueprint
+    """
+    return blueprint_registry.get("VLT")
+
+
+@view
+@external
+def controller_view_blueprint() -> address:
+    """
+    @notice Get the address of the controller view blueprint
+    """
+    return blueprint_registry.get("CTRV")
+
+
+
 @external
 @view
 @reentrant

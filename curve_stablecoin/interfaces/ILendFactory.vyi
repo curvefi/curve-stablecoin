@@ -95,6 +95,30 @@ def coins(_vault_id: uint256) -> IERC20[2]:
 
 @view
 @external
+def amm_blueprint() -> address:
+    ...
+
+
+@view
+@external
+def controller_blueprint() -> address:
+    ...
+
+
+@view
+@external
+def vault_blueprint() -> address:
+    ...
+
+
+@view
+@external
+def controller_view_blueprint() -> address:
+    ...
+
+
+@view
+@external
 def fee_receiver() -> address:
     ...
 
