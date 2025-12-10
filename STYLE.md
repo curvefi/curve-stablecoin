@@ -5,6 +5,7 @@
 ### Vyper Files
 
 - **CamelCase** (e.g., `LendFactory.vy`, `Controller.vy`): Deployable contracts
+- **ICamelCase** (e.g., `IMintMonetaryPolicy.vyi`, `IController.vyi`): Interfaces
 - **snake_case** (e.g., `blueprint_registry.vy`, `constants.vy`): Libraries and modules
 
 This naming convention determines whether a file is treated as a compilation target:
@@ -12,6 +13,7 @@ This naming convention determines whether a file is treated as a compilation tar
 | Naming | Type | Example | Requires `@custom:kill` |
 |--------|------|---------|------------------------|
 | CamelCase | Contract | `LendFactory.vy` | Yes |
+| ICamelCase | Interface | `IController.vyi` | No |
 | snake_case | Library | `blueprint_registry.vy` | No |
 
 ### Python Files

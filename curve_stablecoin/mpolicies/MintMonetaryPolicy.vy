@@ -14,12 +14,12 @@
 from curve_stablecoin.interfaces import IPriceOracle
 from curve_stablecoin.interfaces import IControllerFactory
 from curve_stablecoin.interfaces import IPegKeeper
-from curve_stablecoin.interfaces import IAggMonetaryPolicy4
+from curve_stablecoin.interfaces import IMintMonetaryPolicy
 from curve_stablecoin import constants as c
 from snekmate.utils import math
 from snekmate.auth import ownable
 
-implements: IAggMonetaryPolicy4
+implements: IMintMonetaryPolicy
 initializes: ownable
 
 exports: ownable.transfer_ownership
@@ -49,7 +49,7 @@ n_controllers: public(uint256)
 controllers: public(address[MAX_CONTROLLERS])
 
 DEBT_CANDLE_TIME: constant(uint256) = 86400 // 2
-min_debt_candles: public(HashMap[address, IAggMonetaryPolicy4.DebtCandle])
+min_debt_candles: public(HashMap[address, IMintMonetaryPolicy.DebtCandle])
 
 
 # https://github.com/vyperlang/vyper/issues/4723
@@ -115,7 +115,7 @@ def add_peg_keeper(_pk: IPegKeeper):
         assert pk != _pk, "Already added"
         if pk.address == empty(address):
             self._peg_keepers[i] = _pk
-            log IAggMonetaryPolicy4.AddPegKeeper(peg_keeper=_pk.address)
+            log IMintMonetaryPolicy.AddPegKeeper(peg_keeper=_pk.address)
             break
 
 
@@ -127,7 +127,7 @@ def remove_peg_keeper(_pk: IPegKeeper):
         pk: IPegKeeper = self._peg_keepers[i]
         if pk == _pk:
             replaced_peg_keeper = i
-            log IAggMonetaryPolicy4.RemovePegKeeper(peg_keeper=_pk.address)
+            log IMintMonetaryPolicy.RemovePegKeeper(peg_keeper=_pk.address)
         if pk.address == empty(address):
             if replaced_peg_keeper < i:
                 if replaced_peg_keeper < i - 1:
@@ -170,7 +170,7 @@ def get_total_debt(_for: address) -> (uint256, uint256):
 @view
 def read_candle(_for: address) -> uint256:
     out: uint256 = 0
-    candle: IAggMonetaryPolicy4.DebtCandle = self.min_debt_candles[_for]
+    candle: IMintMonetaryPolicy.DebtCandle = self.min_debt_candles[_for]
 
     if block.timestamp < candle.timestamp // DEBT_CANDLE_TIME * DEBT_CANDLE_TIME + DEBT_CANDLE_TIME:
         if candle.candle0 > 0:
@@ -188,7 +188,7 @@ def read_candle(_for: address) -> uint256:
 
 @internal
 def save_candle(_for: address, _value: uint256):
-    candle: IAggMonetaryPolicy4.DebtCandle = self.min_debt_candles[_for]
+    candle: IMintMonetaryPolicy.DebtCandle = self.min_debt_candles[_for]
 
     if candle.timestamp == 0 and _value == 0:
         # This record did not exist before, and value is zero -> not recording anything
@@ -346,7 +346,7 @@ def rate_write(_for: address = msg.sender) -> uint256:
 def _set_rate(_rate: uint256):
     assert _rate <= MAX_RATE
     self.rate0 = _rate
-    log IAggMonetaryPolicy4.SetRate(rate=_rate)
+    log IMintMonetaryPolicy.SetRate(rate=_rate)
 
 
 @external
@@ -360,7 +360,7 @@ def _set_sigma(_sigma: int256):
     assert _sigma >= MIN_SIGMA
     assert _sigma <= MAX_SIGMA
     self.sigma = _sigma
-    log IAggMonetaryPolicy4.SetSigma(sigma=_sigma)
+    log IMintMonetaryPolicy.SetSigma(sigma=_sigma)
 
 
 @external
@@ -374,7 +374,7 @@ def _set_target_debt_fraction(_target_debt_fraction: uint256):
     assert _target_debt_fraction > 0
     assert _target_debt_fraction <= MAX_TARGET_DEBT_FRACTION
     self.target_debt_fraction = _target_debt_fraction
-    log IAggMonetaryPolicy4.SetTargetDebtFraction(target_debt_fraction=_target_debt_fraction)
+    log IMintMonetaryPolicy.SetTargetDebtFraction(target_debt_fraction=_target_debt_fraction)
 
 
 @external
@@ -387,7 +387,7 @@ def set_target_debt_fraction(_target_debt_fraction: uint256):
 def _set_extra_const(_extra_const: uint256):
     assert _extra_const <= MAX_EXTRA_CONST
     self.extra_const = _extra_const
-    log IAggMonetaryPolicy4.SetExtraConst(extra_const=_extra_const)
+    log IMintMonetaryPolicy.SetExtraConst(extra_const=_extra_const)
 
 
 @external
@@ -400,7 +400,7 @@ def set_extra_const(_extra_const: uint256):
 def _set_debt_ratio_ema_time(_ema_time: uint256):
     assert _ema_time > 0
     self.debt_ratio_ema_time = _ema_time
-    log IAggMonetaryPolicy4.SetDebtRatioEmaTime(ema_time=_ema_time)
+    log IMintMonetaryPolicy.SetDebtRatioEmaTime(ema_time=_ema_time)
 
 
 @external
