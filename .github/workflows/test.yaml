@@ -11,6 +11,27 @@ env:
   HYPOTHESIS_PROFILE: no-shrink
 
 jobs:
+  pre-commit:
+    name: pre-commit
+    runs-on: blacksmith-2vcpu-ubuntu-2404
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v5
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+
+      - name: Install Python 3.12.6
+        run: uv python install 3.12.6
+
+      - name: Install Requirements
+        run: uv sync
+
+      - name: Run pre-commit checks
+        run: uv run pre-commit run --all-files --show-diff-on-failure
+
   tests:
     needs: pre-commit
     name: ${{ matrix.folder }}
