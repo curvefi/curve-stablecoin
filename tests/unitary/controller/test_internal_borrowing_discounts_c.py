@@ -4,6 +4,7 @@ import pytest
 
 from tests.utils import filter_logs
 
+
 @pytest.fixture(scope="module", autouse=True)
 def expose_internal(controller):
     controller.inject_function(
@@ -22,8 +23,10 @@ def expose_internal(controller):
         )
     )
 
+
 LIQUIDATION_DISCOUNT = 2 * 10**17
 LOAN_DISCOUNT = 5 * 10**17
+
 
 def test_default_behavior(controller):
     controller.inject.set_borrowing_discounts(LOAN_DISCOUNT, LIQUIDATION_DISCOUNT)
