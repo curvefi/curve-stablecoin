@@ -40,7 +40,7 @@ AMM_DEPLOYER = boa.load_partial(
     BASE_CONTRACT_PATH + "AMM.vy", compiler_args=compiler_args_default
 )
 CONTROLLER_DEPLOYER = boa.load_partial(
-    BASE_CONTRACT_PATH + "Controller.vy", compiler_args=compiler_args_codesize
+    BASE_CONTRACT_PATH + "controller.vy", compiler_args=compiler_args_codesize
 )
 CONTROLLER_VIEW_DEPLOYER = boa.load_partial(
     BASE_CONTRACT_PATH + "ControllerView.vy", compiler_args=compiler_args_codesize
@@ -54,9 +54,9 @@ CONTROLLER_FACTORY_DEPLOYER = boa.load_partial(
 STABLECOIN_DEPLOYER = boa.load_partial(
     BASE_CONTRACT_PATH + "Stablecoin.vy", compiler_args=compiler_args_default
 )
-STABLESWAP_DEPLOYER = boa.load_partial(
-    BASE_CONTRACT_PATH + "Stableswap.vy", compiler_args=compiler_args_default
-)
+# STABLESWAP_DEPLOYER = boa.load_partial(
+#     BASE_CONTRACT_PATH + "Stableswap.vy", compiler_args=compiler_args_default
+# )
 
 # Lending contracts - all have #pragma optimize codesize
 VAULT_DEPLOYER = boa.load_partial(

@@ -1,14 +1,6 @@
 # pragma version 0.4.3
 # pragma nonreentrancy on
 # pragma optimize codesize
-"""
-@title Llamalend Mint Market Controller
-@author Curve.Fi
-@license Copyright (c) Curve.Fi, 2020-2025 - all rights reserved
-@notice Main contract to interact with a Llamalend Mint Market. Each
-    contract is specific to a single mint market.
-@custom:security security@curve.fi
-"""
 
 from curve_stablecoin.interfaces import IAMM
 from curve_stablecoin.interfaces import IMonetaryPolicy
@@ -1562,6 +1554,7 @@ def _collect_fees() -> uint256:
     tkn.transfer(BORROWED_TOKEN, staticcall FACTORY.fee_receiver(), pending_admin_fees)
 
     self._save_rate()
+    # TODO rename new supply with new debt
     log IController.CollectFees(amount=pending_admin_fees, new_supply=loan.initial_debt)
 
     return pending_admin_fees
