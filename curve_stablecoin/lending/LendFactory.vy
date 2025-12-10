@@ -53,6 +53,7 @@ WAD: constant(uint256) = c.WAD
 # Admin is supposed to be the DAO
 fee_receiver: public(address)
 
+# TODO getter here is useless
 # Vaults can only be created but not removed
 _vaults: IVault[10**18]
 # https://github.com/vyperlang/vyper/issues/4721
@@ -68,6 +69,7 @@ def vaults(_index: uint256) -> IVault:
 _vaults_index: HashMap[IVault, uint256]
 market_count: public(uint256)
 
+# TODO extend this to simplify reverse search
 # Checks if a contract (vault, controller or amm) has been deployed by this factory
 check_contract: public(HashMap[address, bool])
 
