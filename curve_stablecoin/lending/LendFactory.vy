@@ -105,6 +105,12 @@ def __init__(
 
 
 @external
+@view
+def version() -> String[5]:
+    return c.__version__
+
+
+@external
 def create(
     _borrowed_token: IERC20,
     _collateral_token: IERC20,

@@ -105,6 +105,12 @@ def vaults(_index: uint256) -> IVault:
     ...
 
 
+@external
+@view
+def version() -> String[5]:
+    ...
+
+
 @view
 @external
 def market_count() -> uint256:
