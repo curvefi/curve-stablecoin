@@ -30,6 +30,7 @@ def set(_id: String[4], _address: address):
 
 
 @internal
+@view
 def get(_id: String[4]) -> address:
     blueprint: address = self._blueprints[_id]
     assert blueprint != empty(address) # dev: blueprint not found
