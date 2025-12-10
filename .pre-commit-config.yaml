@@ -15,7 +15,7 @@ repos:
       - id: nbstripout
 
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.14.7
+    rev: v0.14.8
     hooks:
       - id: ruff-check
         args: [--fix]
@@ -28,7 +28,7 @@ repos:
         args: [lint, curve_stablecoin/lending/, curve_stablecoin/controller.vy, curve_stablecoin/constants.vy, curve_stablecoin/ControllerView.vy, curve_stablecoin/MintController.vy, curve_stablecoin/mpolicies/MintMonetaryPolicy.vy, -d, NTX1, NTX4, NTX5, NTX2, NTX9, NTX10]
 
   - repo: https://github.com/benber86/mamushi
-    rev: v0.0.9
+    rev: 293ab56478f085cd738f68781c5546ae368efbc6
     hooks:
       - id: mamushi
         args: [--line-length=100]
