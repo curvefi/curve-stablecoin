@@ -4,6 +4,7 @@
 @title MintMonetaryPolicy - monetary policy based on aggregated prices for crvUSD
 @author Curve.Fi
 @license Copyright (c) Curve.Fi, 2020-2025 - all rights reserved
+@custom:kill To kill this contract just kill the controller it is attached to.
 """
 # TODO comment on suboptimal rate
 # TODO add natspec
