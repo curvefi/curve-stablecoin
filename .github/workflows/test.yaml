@@ -2,6 +2,10 @@ name: tests-boa
 
 on: [push]
 
+concurrency:
+  group: ${{ github.workflow }}-pr-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
 env:
   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
   HYPOTHESIS_PROFILE: no-shrink
@@ -9,7 +13,7 @@ env:
 jobs:
   tests:
     name: ${{ matrix.folder }}
-    runs-on: ubuntu-latest
+    runs-on: blacksmith-32vcpu-ubuntu-2204
     strategy:
       fail-fast: false
       matrix:
