@@ -1502,9 +1502,9 @@ def set_monetary_policy(_monetary_policy: IMonetaryPolicy):
 def _set_borrowing_discounts(
         _loan_discount: uint256, _liquidation_discount: uint256
 ):
-    assert _liquidation_discount > 0
-    assert _loan_discount < WAD
-    assert _loan_discount > _liquidation_discount
+    assert _liquidation_discount > 0 # dev: liquidation discount = 0
+    assert _loan_discount < WAD # dev: loan discount >= 100%
+    assert _loan_discount > _liquidation_discount # dev: loan discount <= liquidation discount
     self.liquidation_discount = _liquidation_discount
     self.loan_discount = _loan_discount
     log IController.SetBorrowingDiscounts(
