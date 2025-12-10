@@ -4,7 +4,7 @@ event BlueprintSet:
     blueprint_id: indexed(String[4])
     blueprint_address: address
 
-_blueprints: public(HashMap[String[4], address])
+_blueprints: HashMap[String[4], address]
 
 BLUEPRINT_REGISTRY_IDS: public(immutable(DynArray[String[4], 10]))
 
