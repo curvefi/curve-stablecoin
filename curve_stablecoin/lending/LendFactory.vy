@@ -6,7 +6,7 @@
 @author Curve.fi
 @license Copyright (c) Curve.Fi, 2020-2025 - all rights reserved
 @custom:security security@curve.fi
-@custom:kill Set blueprints implementations to zero to halt deployments.
+@custom:kill Pause factory to halt deployments.
 """
 
 from curve_std.interfaces import IERC20
@@ -21,9 +21,11 @@ from curve_stablecoin.interfaces import IMonetaryPolicy
 implements: ILendFactory
 
 from snekmate.utils import math
+from snekmate.utils import pausable
 from snekmate.auth import ownable
 
 initializes: ownable
+initializes: pausable
 
 from curve_stablecoin.lib import blueprint_registry
 
@@ -36,6 +38,7 @@ exports: (
     # `owner` is not exported as we refer to it as `admin` for backwards compatibility
     # `renounce_ownership` is intentionally not exported
     ownable.transfer_ownership,
+    pausable.paused,
 )
 
 
@@ -99,6 +102,7 @@ def __init__(
     blueprint_registry.set("CTRV", _controller_view_blueprint)
 
     ownable.__init__()
+    pausable.__init__()
     ownable._transfer_ownership(_admin)
 
     self.fee_receiver = _fee_receiver
@@ -135,6 +139,7 @@ def create(
     @param _name Human-readable market name
     @param _supply_limit Supply cap
     """
+    pausable._require_not_paused()
     assert _borrowed_token != _collateral_token, "Same token"
     assert _A >= MIN_A and _A <= MAX_A, "Wrong A"
     assert _fee <= MAX_FEE, "Fee too high"
@@ -284,6 +289,24 @@ def admin() -> address:
     @notice Get the admin of the factory
     """
     return ownable.owner
+
+
+@external
+def pause():
+    """
+    @notice Pause new market creation
+    """
+    ownable._check_owner()
+    pausable._pause()
+
+
+@external
+def unpause():
+    """
+    @notice Unpause the factory to allow new market creation
+    """
+    ownable._check_owner()
+    pausable._unpause()
 
 
 @external
