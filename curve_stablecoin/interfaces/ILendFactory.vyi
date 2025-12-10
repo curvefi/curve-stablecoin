@@ -19,6 +19,7 @@ event SetBlueprints:
 
 
 event SetFeeReceiver:
+    controller: indexed(address)
     fee_receiver: address
 
 
@@ -93,7 +94,12 @@ def admin() -> address:
 
 
 @external
-def set_fee_receiver(_fee_receiver: address):
+def set_default_fee_receiver(_fee_receiver: address):
+    ...
+
+
+@external
+def set_custom_fee_receiver(_controller: address, _fee_receiver: address):
     ...
 
 
@@ -129,7 +135,7 @@ def controller_view_blueprint() -> address:
 
 @view
 @external
-def fee_receiver() -> address:
+def fee_receiver(_controller: address = msg.sender) -> address:
     ...
 
 

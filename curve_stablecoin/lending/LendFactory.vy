@@ -46,8 +46,8 @@ controller_blueprint: public(address)
 vault_blueprint: public(address)
 controller_view_blueprint: public(address)
 
-# Admin is supposed to be the DAO
-fee_receiver: public(address)
+default_fee_receiver: public(address)
+fee_receivers: public(HashMap[address, address])
 
 # Vaults can only be created but not removed
 _vaults: IVault[10**18]
@@ -95,7 +95,7 @@ def __init__(
     ownable.__init__()
     ownable._transfer_ownership(_admin)
 
-    self.fee_receiver = _fee_receiver
+    self.default_fee_receiver = _fee_receiver
 
 
 @external
@@ -272,15 +272,46 @@ def admin() -> address:
 
 
 @external
-def set_fee_receiver(_fee_receiver: address):
+@view
+def fee_receiver(_controller: address = msg.sender) -> address:
     """
-    @notice Set fee receiver who earns interest (DAO)
+    @notice Get fee receiver who earns interest from admin fees
+    @dev This function is called by controllers without specifying the
+    first argument to get their fee receiver.
+    @param _controller Address of the controller
+    """
+    custom_fee_receiver: address = self.fee_receivers[_controller]
+    return custom_fee_receiver if custom_fee_receiver != empty(address) else self.default_fee_receiver
+
+
+@external
+@reentrant
+def set_custom_fee_receiver(_controller: address, _fee_receiver: address):
+    """
+    @notice Set fee receiver who earns admin fees for a specific controller
+    @dev Setting to zero address resets to default fee receiver
+    @param _controller Address of the controller
     @param _fee_receiver Address of the receiver
     """
     ownable._check_owner()
-    assert _fee_receiver != empty(address)
-    self.fee_receiver = _fee_receiver
-    log ILendFactory.SetFeeReceiver(fee_receiver=_fee_receiver)
+    # TODO checks controller belongs to factory
+    # TODO check _fee_receiver isn't default
+    self.default_fee_receiver = _fee_receiver
+    log ILendFactory.SetFeeReceiver(controller=_controller, fee_receiver=_fee_receiver)
+
+
+@external
+@reentrant
+def set_default_fee_receiver(_fee_receiver: address):
+    """
+    @notice Set default fee receiver who earns admin fees on
+    all controllers without a custom fee receiver
+    @param _fee_receiver Address of the receiver
+    """
+    ownable._check_owner()
+    assert _fee_receiver != empty(address), "invalid receiver"
+    self.default_fee_receiver = _fee_receiver
+    log ILendFactory.SetFeeReceiver(controller=empty(address), fee_receiver=_fee_receiver)
 
 
 @external
