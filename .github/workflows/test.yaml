@@ -7,24 +7,56 @@ env:
   HYPOTHESIS_PROFILE: no-shrink
 
 jobs:
+  pre-commit:
+    name: pre-commit
+    runs-on: blacksmith-2vcpu-ubuntu-2404
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v5
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+
+      - name: Install Python 3.12.6
+        run: uv python install 3.12.6
+
+      - name: Install Requirements
+        run: uv sync
+
+      - name: Run pre-commit checks
+        run: uv run pre-commit run --all-files --show-diff-on-failure
+
   tests:
+    needs: pre-commit
     name: ${{ matrix.folder }}
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.runs-on }}
     strategy:
       fail-fast: false
       matrix:
-        folder:
-          - "tests/unitary"
-          - "tests/e2e"
-          # - "tests/stateful" not ready yet
+        include:
+          - folder: "tests/unitary"
+            runs-on: "ubuntu-latest"
+          - folder: "tests/e2e"
+            runs-on: "ubuntu-latest"
+          # - folder: "tests/stateful" not ready yet
+          #   runs-on: "blacksmith-32vcpu-ubuntu-2204"
           # Old tests to be migrated
-          - "tests/flashloan"
-          - "tests/controller"
-          - "tests/price_oracles"
-          - "tests/zaps"
-          - "tests/amm"
-          - "tests/lending"
-          - "tests/stableborrow --ignore=tests/stableborrow/stabilize"
+          - folder: "tests/flashloan"
+            runs-on: "ubuntu-latest"
+          - folder: "tests/controller"
+            runs-on: "ubuntu-latest"
+          - folder: "tests/price_oracles"
+            runs-on: "ubuntu-latest"
+          - folder: "tests/zaps"
+            runs-on: "ubuntu-latest"
+          - folder: "tests/amm"
+            runs-on: "ubuntu-latest"
+          - folder: "tests/lending"
+            runs-on: "ubuntu-latest"
+          - folder: "tests/stableborrow --ignore=tests/stableborrow/stabilize"
+            runs-on: "ubuntu-latest"
     steps:
       - name: Checkout repo
         uses: actions/checkout@v5
