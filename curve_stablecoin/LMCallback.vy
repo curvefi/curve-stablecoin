@@ -4,6 +4,8 @@
 @author Curve.Fi
 @license Copyright (c) Curve.Fi, 2020-2023 - all rights reserved
 @notice LM callback works like a gauge for collateral in LlamaLend/crvUSD AMMs
+@custom:security security@curve.fi
+@custom:kill Call set_killed(true) via factory admin to stop CRV emissions
 """
 
 from curve_std.interfaces import IERC20
@@ -266,7 +268,7 @@ def _read_user_shares(user_shares_packed: UserTicks) -> DynArray[uint256, MAX_TI
         user_shares.append(tick & (2**128 - 1))
         if len(user_shares) == size:
             break
-        user_shares.append(shift(tick, -128))
+        user_shares.append(tick >> 128)
 
     return user_shares
 

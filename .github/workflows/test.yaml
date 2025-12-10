@@ -2,29 +2,44 @@ name: tests-boa
 
 on: [push]
 
+concurrency:
+  group: ${{ github.workflow }}-pr-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
 env:
   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
   HYPOTHESIS_PROFILE: no-shrink
 
 jobs:
   tests:
+    needs: pre-commit
     name: ${{ matrix.folder }}
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.runs-on }}
     strategy:
       fail-fast: false
       matrix:
-        folder:
-          - "tests/unitary"
-          - "tests/e2e"
-          # - "tests/stateful" not ready yet
+        include:
+          - folder: "tests/unitary"
+            runs-on: "blacksmith-32vcpu-ubuntu-2204"
+          - folder: "tests/e2e"
+            runs-on: "blacksmith-32vcpu-ubuntu-2204"
+          # - folder: "tests/stateful" not ready yet
+          #   runs-on: "blacksmith-32vcpu-ubuntu-2204"
           # Old tests to be migrated
-          - "tests/flashloan"
-          - "tests/controller"
-          - "tests/price_oracles"
-          - "tests/zaps"
-          - "tests/amm"
-          - "tests/lending"
-          - "tests/stableborrow --ignore=tests/stableborrow/stabilize"
+          - folder: "tests/flashloan"
+            runs-on: "blacksmith-32vcpu-ubuntu-2204"
+          - folder: "tests/controller"
+            runs-on: "blacksmith-32vcpu-ubuntu-2204"
+          - folder: "tests/price_oracles"
+            runs-on: "blacksmith-32vcpu-ubuntu-2204"
+          - folder: "tests/zaps"
+            runs-on: "blacksmith-32vcpu-ubuntu-2204"
+          - folder: "tests/amm"
+            runs-on: "blacksmith-32vcpu-ubuntu-2204"
+          - folder: "tests/lending"
+            runs-on: "blacksmith-32vcpu-ubuntu-2204"
+          - folder: "tests/stableborrow --ignore=tests/stableborrow/stabilize"
+            runs-on: "blacksmith-32vcpu-ubuntu-2204"
     steps:
       - name: Checkout repo
         uses: actions/checkout@v5

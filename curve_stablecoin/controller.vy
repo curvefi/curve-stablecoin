@@ -1,14 +1,6 @@
 # pragma version 0.4.3
 # pragma nonreentrancy on
 # pragma optimize codesize
-"""
-@title Llamalend Mint Market Controller
-@author Curve.Fi
-@license Copyright (c) Curve.Fi, 2020-2025 - all rights reserved
-@notice Main contract to interact with a Llamalend Mint Market. Each
-    contract is specific to a single mint market.
-@custom:security security@curve.fi
-"""
 
 from curve_stablecoin.interfaces import IAMM
 from curve_stablecoin.interfaces import IMonetaryPolicy
