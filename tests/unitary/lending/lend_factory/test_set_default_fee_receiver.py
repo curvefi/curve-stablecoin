@@ -1,0 +1,26 @@
+import boa
+from tests.utils import filter_logs
+from tests.utils.constants import ZERO_ADDRESS
+
+
+def test_default_behavior(factory, admin, alice):
+    new_fee_receiver = alice
+    assert factory.default_fee_receiver() != new_fee_receiver
+
+    with boa.env.prank(admin):
+        factory.set_default_fee_receiver(new_fee_receiver)
+
+    logs = filter_logs(factory, "SetFeeReceiver")
+
+    assert factory.default_fee_receiver() == new_fee_receiver
+
+    assert len(logs) == 1
+    assert logs[0].controller == ZERO_ADDRESS
+    assert logs[0].fee_receiver == new_fee_receiver
+
+
+def test_unauthorized(factory, alice):
+    new_fee_receiver = alice
+    with boa.reverts("ownable: caller is not the owner"):
+        with boa.env.prank(alice):
+            factory.set_default_fee_receiver(new_fee_receiver)
