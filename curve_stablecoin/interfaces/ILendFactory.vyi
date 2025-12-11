@@ -99,6 +99,12 @@ def paused() -> bool:
     ...
 
 
+@view
+@external
+def default_fee_receiver() -> address:
+    ...
+
+
 @external
 def set_default_fee_receiver(_fee_receiver: address):
     ...
