@@ -56,3 +56,6 @@ def test_revert_loan_discount_greater_or_equal_to_one(controller):
 def test_revert_loan_discount_less_or_equal_to_liquidation_discount(controller):
     with boa.reverts(dev="loan discount <= liquidation discount"):
         controller.inject.set_borrowing_discounts(LIQUIDATION_DISCOUNT, LOAN_DISCOUNT)
+
+    with boa.reverts(dev="loan discount <= liquidation discount"):
+        controller.inject.set_borrowing_discounts(LIQUIDATION_DISCOUNT, LIQUIDATION_DISCOUNT)
