@@ -111,26 +111,6 @@ def price_oracle(proto):
     return proto.price_oracle
 
 
-@pytest.fixture(scope="module")
-def amm_impl(proto):
-    return proto.blueprints.amm
-
-
-@pytest.fixture(scope="module")
-def controller_impl(proto):
-    return proto.blueprints.lend_controller
-
-
-@pytest.fixture(scope="module")
-def price_oracle_impl(proto):
-    return proto.blueprints.price_oracle
-
-
-@pytest.fixture(scope="module")
-def mpolicy_impl(proto):
-    return proto.blueprints.mpolicy
-
-
 @pytest.fixture(scope="module", params=["mint", "lending"])
 def market_type(request):
     return request.param
@@ -265,19 +245,9 @@ def accounts():
     return [boa.env.generate_address() for _ in range(10)]
 
 
-@pytest.fixture(scope="module")
-def alice():
-    return boa.env.generate_address("alice")
-
-
 # ============== Token Fixtures ==============
 
 
 @pytest.fixture(scope="module", params=TESTING_DECIMALS)
 def decimals(request):
     return request.param
-
-
-@pytest.fixture(scope="session")
-def token_mock():
-    return ERC20_MOCK_DEPLOYER

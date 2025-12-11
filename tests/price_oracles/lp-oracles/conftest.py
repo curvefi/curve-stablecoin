@@ -15,11 +15,6 @@ from tests.utils.deployers import (
 )
 
 
-@pytest.fixture(scope="session")
-def user(accounts):
-    return accounts[0]
-
-
 @pytest.fixture(scope="module")
 def broken_contract(admin):
     with boa.env.prank(admin):

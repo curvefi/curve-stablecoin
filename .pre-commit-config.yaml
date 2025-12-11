@@ -43,3 +43,9 @@ repos:
         files: \.vy$
         exclude: ^curve_stablecoin/(testing|price_oracles|zaps)/|^curve_stablecoin/Stableswap\.vy$
         require_serial: true
+
+      - id: pytest-deadfixtures
+        name: pytest-deadfixtures
+        entry: uv run pytest --dead-fixtures
+        language: system
+        pass_filenames: false
