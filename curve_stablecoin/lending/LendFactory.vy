@@ -51,7 +51,7 @@ MAX_FEE: constant(uint256) = 10**17  # 10%
 WAD: constant(uint256) = c.WAD
 
 default_fee_receiver: public(address)
-fee_receivers: public(HashMap[address, address])
+fee_receivers: HashMap[address, address]
 
 # TODO getter here is useless
 # Vaults can only be created but not removed
