@@ -2,14 +2,12 @@ import boa
 from tests.utils.deployers import LENDING_FACTORY_DEPLOYER
 
 
-def test_ctor(
-    admin, amm_impl, controller_impl, proto
-):
+def test_ctor(admin, amm_impl, controller_impl, proto):
     amm_blueprint = amm_impl
     controller_blueprint = controller_impl
     vault_blueprint = proto.blueprints.vault
     controller_view_blueprint = proto.blueprints.lend_controller_view
-    
+
     fee_receiver = boa.env.generate_address("fee_receiver")
 
     factory = LENDING_FACTORY_DEPLOYER.deploy(
