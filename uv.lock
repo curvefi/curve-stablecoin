@@ -508,6 +508,7 @@ dev = [
     { name = "pre-commit" },
     { name = "pytest" },
     { name = "pytest-cov" },
+    { name = "pytest-deadfixtures" },
     { name = "pytest-forked" },
     { name = "pytest-profiling" },
     { name = "pytest-xdist" },
@@ -529,6 +530,7 @@ dev = [
     { name = "pre-commit", specifier = "==4.3.0" },
     { name = "pytest", specifier = ">=8.0.0" },
     { name = "pytest-cov", specifier = ">=4.0.0" },
+    { name = "pytest-deadfixtures", specifier = ">=3.0.0" },
     { name = "pytest-forked", specifier = ">=1.6.0" },
     { name = "pytest-profiling", specifier = ">=1.8.1" },
     { name = "pytest-xdist", specifier = ">=3.5" },
@@ -1657,6 +1659,18 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/5e/f7/c933acc76f5208b3b00089573cf6a2bc26dc80a8aece8f52bb7d6b1855ca/pytest_cov-7.0.0.tar.gz", hash = "sha256:33c97eda2e049a0c5298e91f519302a1334c26ac65c1a483d6206fd458361af1", size = 54328, upload-time = "2025-09-09T10:57:02.113Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/ee/49/1377b49de7d0c1ce41292161ea0f721913fa8722c19fb9c1e3aa0367eecb/pytest_cov-7.0.0-py3-none-any.whl", hash = "sha256:3b8e9558b16cc1479da72058bdecf8073661c7f57f7d3c5f22a1c23507f2d861", size = 22424, upload-time = "2025-09-09T10:57:00.695Z" },
+]
+
+[[package]]
+name = "pytest-deadfixtures"
+version = "3.0.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "pytest" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/ad/20/3ee37e176c6f5c7ec3b9f63ac51898480ce2cb734fbfe5f5b833aab4ebb8/pytest_deadfixtures-3.0.0.tar.gz", hash = "sha256:08704a1301ee4c631d33f70af4c48ac5904ee4d48656161fa66e6eca07491492", size = 8683, upload-time = "2025-11-08T14:21:42.411Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/bb/0e/e919fae3cb5530d2331391443f4f20342ef79e9e5b71fc4be563c6573ffd/pytest_deadfixtures-3.0.0-py2.py3-none-any.whl", hash = "sha256:f4b1484faec373b1f3b2be698d99a7c85be55f6473edcb6a110ff5217cf8753c", size = 6578, upload-time = "2025-11-08T14:21:41.003Z" },
 ]
 
 [[package]]

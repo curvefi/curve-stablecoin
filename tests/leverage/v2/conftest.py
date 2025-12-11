@@ -1,7 +1,7 @@
 import boa
 import pytest
 
-from .constants import COLLATERALS, CONTROLLERS, CRVUSD, FACTORIES, ROUTER
+from .constants import COLLATERALS, CONTROLLERS, FACTORIES, ROUTER
 from .constants import frxETH as frxETH_address
 from .settings import WEB3_PROVIDER_URL
 from .utils import Router1inch, get_contract_from_explorer
@@ -51,11 +51,6 @@ def alice(collateral_info):
 @pytest.fixture(scope="session")
 def controller_interface():
     return boa.load_partial("curve_stablecoin/controller.vy")
-
-
-@pytest.fixture()
-def stablecoin():
-    return boa.load_partial("curve_stablecoin/Stablecoin.vy").at(CRVUSD)
 
 
 @pytest.fixture()
