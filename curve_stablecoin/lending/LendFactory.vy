@@ -73,6 +73,7 @@ market_count: public(uint256)
 # Checks if a contract (vault, controller or amm) has been deployed by this factory
 check_contract: public(HashMap[address, bool])
 
+# TODO remove
 names: public(HashMap[uint256, String[64]])
 
 
