@@ -76,19 +76,25 @@ def vaults_index(_vault: IVault) -> uint256:
     ...
 
 
+@view
 @external
-def set_implementations(
-    _controller_blueprint: address,
-    _amm_blueprint: address,
-    _vault_blueprint: address,
-    _controller_view_blueprint: address,
-):
+def admin() -> address:
+    ...
+
+
+@external
+def pause():
+    ...
+
+
+@external
+def unpause():
     ...
 
 
 @view
 @external
-def admin() -> address:
+def paused() -> bool:
     ...
 
 
@@ -139,6 +145,12 @@ def vaults(_index: uint256) -> IVault:
     ...
 
 
+@external
+@view
+def version() -> String[5]:
+    ...
+
+
 @view
 @external
 def market_count() -> uint256:
@@ -155,3 +167,5 @@ def names(_index: uint256) -> String[64]:
 @external
 def check_contract(_contract: address) -> bool:
     ...
+
+# TODO add new functions from recent edits

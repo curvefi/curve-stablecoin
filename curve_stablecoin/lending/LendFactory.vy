@@ -6,8 +6,10 @@
 @author Curve.fi
 @license Copyright (c) Curve.Fi, 2020-2025 - all rights reserved
 @custom:security security@curve.fi
-@custom:kill Set blueprints implementations to zero to halt deployments.
+@custom:kill Pause factory to halt deployments.
 """
+
+# TODO increase test coverage
 
 from curve_std.interfaces import IERC20
 
@@ -21,15 +23,24 @@ from curve_stablecoin.interfaces import IMonetaryPolicy
 implements: ILendFactory
 
 from snekmate.utils import math
+from snekmate.utils import pausable
 from snekmate.auth import ownable
-from curve_stablecoin import constants as c
 
 initializes: ownable
+initializes: pausable
+
+from curve_stablecoin.lib import blueprint_registry
+
+initializes: blueprint_registry
+
+from curve_stablecoin import constants as c
+
 
 exports: (
     # `owner` is not exported as we refer to it as `admin` for backwards compatibility
     # `renounce_ownership` is intentionally not exported
     ownable.transfer_ownership,
+    pausable.paused,
 )
 
 
@@ -39,16 +50,10 @@ MIN_FEE: constant(uint256) = 10**6  # 1e-12, still needs to be above 0
 MAX_FEE: constant(uint256) = 10**17  # 10%
 WAD: constant(uint256) = c.WAD
 
-# Implementations which can be changed by governance
-amm_blueprint: public(address)
-controller_blueprint: public(address)
-# convert to blueprint
-vault_blueprint: public(address)
-controller_view_blueprint: public(address)
-
 # Admin is supposed to be the DAO
 fee_receiver: public(address)
 
+# TODO getter here is useless
 # Vaults can only be created but not removed
 _vaults: IVault[10**18]
 # https://github.com/vyperlang/vyper/issues/4721
@@ -64,6 +69,7 @@ def vaults(_index: uint256) -> IVault:
 _vaults_index: HashMap[IVault, uint256]
 market_count: public(uint256)
 
+# TODO extend this to simplify reverse search
 # Checks if a contract (vault, controller or amm) has been deployed by this factory
 check_contract: public(HashMap[address, bool])
 
@@ -87,15 +93,29 @@ def __init__(
     @param admin Admin address (DAO)
     @param fee_receiver Receiver of interest and admin fees
     """
-    self.amm_blueprint = _amm_blueprint
-    self.controller_blueprint = _controller_blueprint
-    self.vault_blueprint = _vault_blueprint
-    self.controller_view_blueprint = _controller_view_blueprint
+    blueprint_registry.__init__([
+        "AMM",  # AMM Blueprint
+        "CTR",  # Controller Blueprint
+        "VLT",  # Vault Blueprint
+        "CTRV", # Controller View Blueprint
+    ])
+    # This is the only place where we set these blueprints
+    blueprint_registry.set("AMM", _amm_blueprint)
+    blueprint_registry.set("CTR", _controller_blueprint)
+    blueprint_registry.set("VLT", _vault_blueprint)
+    blueprint_registry.set("CTRV", _controller_view_blueprint)
 
     ownable.__init__()
+    pausable.__init__()
     ownable._transfer_ownership(_admin)
 
     self.fee_receiver = _fee_receiver
+
+
+@external
+@view
+def version() -> String[5]:
+    return c.__version__
 
 
 @external
@@ -123,6 +143,7 @@ def create(
     @param _name Human-readable market name
     @param _supply_limit Supply cap
     """
+    pausable._require_not_paused()
     assert _borrowed_token != _collateral_token, "Same token"
     assert _A >= MIN_A and _A <= MAX_A, "Wrong A"
     assert _fee <= MAX_FEE, "Fee too high"
@@ -135,10 +156,10 @@ def create(
     assert p > 0
     assert extcall _price_oracle.price_w() == p
 
-    vault: IVault = IVault(create_from_blueprint(self.vault_blueprint))
+    vault: IVault = IVault(create_from_blueprint(blueprint_registry.get("VLT")))
     amm: IAMM = IAMM(
         create_from_blueprint(
-            self.amm_blueprint,
+            blueprint_registry.get("AMM"),
             _borrowed_token,
             10**convert(18 - staticcall _borrowed_token.decimals(), uint256),
             _collateral_token,
@@ -155,7 +176,7 @@ def create(
     )
     controller: IController = IController(
         create_from_blueprint(
-            self.controller_blueprint,
+            blueprint_registry.get("CTR"),
             vault,
             amm,
             _borrowed_token,
@@ -163,8 +184,8 @@ def create(
             _monetary_policy,
             _loan_discount,
             _liquidation_discount,
-            self.controller_view_blueprint,
-            code_offset=3,
+            blueprint_registry.get("CTRV"),
+            code_offset=3, # TODO remove code offsets
         )
     )
     self.check_contract[vault.address] = True
@@ -228,37 +249,40 @@ def vaults_index(_vault: IVault) -> uint256:
 
 
 @external
-def set_implementations(
-    _controller_blueprint: address,
-    _amm_blueprint: address,
-    _vault_blueprint: address,
-    _controller_view_blueprint: address,
-):
+@view
+def amm_blueprint() -> address:
     """
-    @notice Set new implementations (blueprints) for controller, amm, vault, pool price oracle and monetary policy.
-            Doesn't change existing ones
-    @param _controller_blueprint Address of the controller blueprint
-    @param _amm_blueprint Address of the AMM blueprint
-    @param _vault_blueprint Address of the Vault blueprint
-    @param _controller_view_blueprint Address of the view contract blueprint
+    @notice Get the address of the AMM blueprint
     """
-    ownable._check_owner()
+    return blueprint_registry.get("AMM")
 
-    if _controller_blueprint != empty(address):
-        self.controller_blueprint = _controller_blueprint
-    if _amm_blueprint != empty(address):
-        self.amm_blueprint = _amm_blueprint
-    if _vault_blueprint != empty(address):
-        self.vault_blueprint = _vault_blueprint
-    if _controller_view_blueprint != empty(address):
-        self.controller_view_blueprint = _controller_view_blueprint
 
-    log ILendFactory.SetBlueprints(
-        amm=_amm_blueprint,
-        controller=_controller_blueprint,
-        vault=_vault_blueprint,
-        controller_view=_controller_view_blueprint,
-    )
+@external
+@view
+def controller_blueprint() -> address:
+    """
+    @notice Get the address of the controller blueprint
+    """
+    return blueprint_registry.get("CTR")
+
+
+@external
+@view
+def vault_blueprint() -> address:
+    """
+    @notice Get the address of the vault blueprint
+    """
+    return blueprint_registry.get("VLT")
+
+
+@external
+@view
+def controller_view_blueprint() -> address:
+    """
+    @notice Get the address of the controller view blueprint
+    """
+    return blueprint_registry.get("CTRV")
+
 
 
 @external
@@ -269,6 +293,24 @@ def admin() -> address:
     @notice Get the admin of the factory
     """
     return ownable.owner
+
+
+@external
+def pause():
+    """
+    @notice Pause new market creation
+    """
+    ownable._check_owner()
+    pausable._pause()
+
+
+@external
+def unpause():
+    """
+    @notice Unpause the factory to allow new market creation
+    """
+    ownable._check_owner()
+    pausable._unpause()
 
 
 @external
