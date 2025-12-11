@@ -50,7 +50,6 @@ MIN_FEE: constant(uint256) = 10**6  # 1e-12, still needs to be above 0
 MAX_FEE: constant(uint256) = 10**17  # 10%
 WAD: constant(uint256) = c.WAD
 
-# Admin is supposed to be the DAO
 default_fee_receiver: public(address)
 fee_receivers: public(HashMap[address, address])
 
@@ -292,6 +291,7 @@ def controller_view_blueprint() -> address:
 def admin() -> address:
     """
     @notice Get the admin of the factory
+    @dev Called `admin` for backwards compatibility
     """
     return ownable.owner
 
