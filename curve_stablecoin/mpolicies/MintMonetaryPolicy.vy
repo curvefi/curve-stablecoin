@@ -216,13 +216,13 @@ def save_candle(_for: address, _value: uint256):
 
 @internal
 @view
-def read_debt(_for: address, _ro: bool) -> (uint256, uint256):
+def read_debt(_for: address, _read_only: bool) -> (uint256, uint256):
     debt_total: uint256 = self.read_candle(empty(address))
     debt_for: uint256 = self.read_candle(_for)
     fresh_total: uint256 = 0
     fresh_for: uint256 = 0
 
-    if _ro:
+    if _read_only:
         fresh_total, fresh_for = self.get_total_debt(_for)
         if debt_total > 0:
             debt_total = min(debt_total, fresh_total)
@@ -267,7 +267,7 @@ def calculate_ema_debt_ratio(_total_debt: uint256) -> uint256:
 
 @internal
 @view
-def calculate_rate(_for: address, _price: uint256, _ro: bool) -> (uint256, uint256):
+def calculate_rate(_for: address, _price: uint256, _read_only: bool) -> (uint256, uint256):
     """
     Ceiling tuning examples (target = 0.1):
       debt = 0: new_rate = rate * ((1.0 - target) + target)
@@ -281,7 +281,7 @@ def calculate_rate(_for: address, _price: uint256, _ro: bool) -> (uint256, uint2
 
     total_debt: uint256 = 0
     debt_for: uint256 = 0
-    total_debt, debt_for = self.read_debt(_for, _ro)
+    total_debt, debt_for = self.read_debt(_for, _read_only)
     ema_debt_ratio: uint256 = self.calculate_ema_debt_ratio(total_debt)
 
     power: int256 = (SWAD - p) * SWAD // sigma  # high price -> negative pow -> low rate
