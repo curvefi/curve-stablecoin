@@ -16,11 +16,13 @@ from curve_stablecoin.interfaces import IControllerFactory
 from curve_stablecoin.interfaces import IPegKeeper
 from curve_stablecoin.interfaces import IMintMonetaryPolicy
 from curve_stablecoin import constants as c
+from curve_stablecoin.mpolicies import candles
 from snekmate.utils import math
 from snekmate.auth import ownable
 
 implements: IMintMonetaryPolicy
 initializes: ownable
+initializes: candles
 
 exports: ownable.transfer_ownership
 
@@ -48,8 +50,7 @@ MAX_CONTROLLERS: constant(uint256) = 50000
 n_controllers: public(uint256)
 controllers: public(address[MAX_CONTROLLERS])
 
-DEBT_CANDLE_TIME: constant(uint256) = 86400 // 2
-min_debt_candles: public(HashMap[address, IMintMonetaryPolicy.DebtCandle])
+TOTAL_DEBT_CANDLE_ADDRESS: constant(address) = empty(address)  # sentinel key for aggregate debt
 
 
 # https://github.com/vyperlang/vyper/issues/4723
@@ -94,7 +95,9 @@ def __init__(
     self._set_target_debt_fraction(_target_debt_fraction)
     self._set_rate(_rate)
     self._set_extra_const(_extra_const)
-    self._set_debt_ratio_ema_time(_debt_ratio_ema_time)
+    assert _debt_ratio_ema_time > 0
+    self.debt_ratio_ema_time = _debt_ratio_ema_time
+    log IMintMonetaryPolicy.SetDebtRatioEmaTime(ema_time=_debt_ratio_ema_time)
 
     self.prev_ema_debt_ratio_timestamp = block.timestamp
     self.prev_ema_debt_ratio = _target_debt_fraction
@@ -168,57 +171,9 @@ def get_total_debt(_for: address) -> (uint256, uint256):
 
 @internal
 @view
-def read_candle(_for: address) -> uint256:
-    out: uint256 = 0
-    candle: IMintMonetaryPolicy.DebtCandle = self.min_debt_candles[_for]
-
-    if block.timestamp < candle.timestamp // DEBT_CANDLE_TIME * DEBT_CANDLE_TIME + DEBT_CANDLE_TIME:
-        if candle.candle0 > 0:
-            out = min(candle.candle0, candle.candle1)
-        else:
-            out = candle.candle1
-    elif (
-        block.timestamp
-        < candle.timestamp // DEBT_CANDLE_TIME * DEBT_CANDLE_TIME + DEBT_CANDLE_TIME * 2
-    ):
-        out = candle.candle1
-
-    return out
-
-
-@internal
-def save_candle(_for: address, _value: uint256):
-    candle: IMintMonetaryPolicy.DebtCandle = self.min_debt_candles[_for]
-
-    if candle.timestamp == 0 and _value == 0:
-        # This record did not exist before, and value is zero -> not recording anything
-        return
-
-    if (
-        block.timestamp
-        >= candle.timestamp // DEBT_CANDLE_TIME * DEBT_CANDLE_TIME + DEBT_CANDLE_TIME
-    ):
-        if (
-            block.timestamp
-            < candle.timestamp // DEBT_CANDLE_TIME * DEBT_CANDLE_TIME + DEBT_CANDLE_TIME * 2
-        ):
-            candle.candle0 = candle.candle1
-            candle.candle1 = _value
-        else:
-            candle.candle0 = _value
-            candle.candle1 = _value
-    else:
-        candle.candle1 = min(candle.candle1, _value)
-
-    candle.timestamp = block.timestamp
-    self.min_debt_candles[_for] = candle
-
-
-@internal
-@view
 def read_debt(_for: address, _read_only: bool) -> (uint256, uint256):
-    debt_total: uint256 = self.read_candle(empty(address))
-    debt_for: uint256 = self.read_candle(_for)
+    debt_total: uint256 = candles.read(TOTAL_DEBT_CANDLE_ADDRESS)
+    debt_for: uint256 = candles.read(_for)
     fresh_total: uint256 = 0
     fresh_for: uint256 = 0
 
@@ -330,8 +285,8 @@ def rate_write(_for: address = msg.sender) -> uint256:
     total_debt: uint256 = 0
     debt_for: uint256 = 0
     total_debt, debt_for = self.get_total_debt(_for)
-    self.save_candle(empty(address), total_debt)
-    self.save_candle(_for, debt_for)
+    candles.write(TOTAL_DEBT_CANDLE_ADDRESS, total_debt)
+    candles.write(_for, debt_for)
 
     rate: uint256 = 0
     ema_debt_ratio: uint256 = 0
