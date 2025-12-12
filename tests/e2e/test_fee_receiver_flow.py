@@ -1,6 +1,6 @@
 import boa
 import pytest
-from tests.utils.constants import ZERO_ADDRESS
+from tests.utils.constants import ZERO_ADDRESS, WAD
 
 
 @pytest.fixture(scope="module")
@@ -26,6 +26,10 @@ def test_fee_receiver_flow(
     - Factory now responds to the fee_receiver getter conditionally depending on the msg.sender
       (since controllers don't specify the first argument, they get the one corresponding to their mapping).
     """
+    admin_fee = WAD // 10
+    with boa.env.prank(admin):
+        controller.set_admin_percentage(admin_fee)
+
     # Setup
     collateral_amount = 10**18
     debt_amount = 10**18
@@ -42,15 +46,13 @@ def test_fee_receiver_flow(
     # Time travel to accrue interest
     boa.env.time_travel(seconds=365 * 86400)
 
-    # Trigger debt update to ensure fees are pending (if admin_percentage > 0)
-    controller.add_collateral(0, boa.env.eoa)
-
     # 1. Check default fee receiver
     default_receiver = factory.default_fee_receiver()
     initial_balance = borrowed_token.balanceOf(default_receiver)
 
     # Collect fees
     collected = controller.collect_fees()
+    assert collected > 0
 
     assert borrowed_token.balanceOf(default_receiver) == initial_balance + collected
 
@@ -63,13 +65,13 @@ def test_fee_receiver_flow(
 
     # 3. Generate more fees
     boa.env.time_travel(seconds=365 * 86400)
-    controller.add_collateral(0, boa.env.eoa)
 
     initial_balance_custom = borrowed_token.balanceOf(custom_receiver)
     initial_balance_default = borrowed_token.balanceOf(default_receiver)
 
     # Collect fees
     collected_2 = controller.collect_fees()
+    assert collected_2 > 0
 
     # Verify fees went to custom receiver
     assert (
@@ -86,13 +88,13 @@ def test_fee_receiver_flow(
 
     # 5. Generate more fees
     boa.env.time_travel(seconds=365 * 86400)
-    controller.add_collateral(0, boa.env.eoa)
 
     initial_balance_custom = borrowed_token.balanceOf(custom_receiver)
     initial_balance_default = borrowed_token.balanceOf(default_receiver)
 
     # Collect fees
     collected_3 = controller.collect_fees()
+    assert collected_3 > 0
 
     # Verify fees went to default receiver
     assert (

@@ -1,9 +1,10 @@
 import boa
+from tests.utils.constants import ZERO_ADDRESS
 
 
 def test_default_behavior_default_receiver(factory, controller):
     default_receiver = factory.default_fee_receiver()
-    assert default_receiver != boa.env.generate_address("non_existent")
+    assert default_receiver != ZERO_ADDRESS
 
     # Check via explicit argument
     assert factory.fee_receiver(controller.address) == default_receiver
