@@ -29,7 +29,7 @@ from snekmate.auth import ownable
 initializes: ownable
 initializes: pausable
 
-from curve_stablecoin.lib import blueprint_registry
+from curve_stablecoin.lending import blueprint_registry
 
 initializes: blueprint_registry
 
