@@ -1,0 +1,74 @@
+from curve_stablecoin.interfaces import IController
+
+# Functions
+
+@view
+@external
+def create_loan_health_preview(_collateral: uint256, _debt: uint256, _N: uint256, _full: bool) -> int256:
+    ...
+
+
+@view
+@external
+def add_collateral_health_preview(_collateral: uint256, _for: address, _caller: address, _full: bool) -> int256:
+    ...
+
+
+@view
+@external
+def remove_collateral_health_preview(_collateral: uint256, _for: address, _full: bool) -> int256:
+    ...
+
+
+@view
+@external
+def borrow_more_health_preview(_collateral: uint256, _debt: uint256, _for: address, _full: bool) -> int256:
+    ...
+
+
+@view
+@external
+def repay_health_preview(_d_collateral: uint256, _d_debt: uint256, _for: address, _caller: address, _shrink: bool, _full: bool) -> int256:
+    ...
+
+
+@view
+@external
+def tokens_to_shrink(user: address) -> uint256:
+    ...
+
+
+@view
+@external
+def liquidate_health_preview(_user: address, _caller: address, _frac: uint256, _full: bool) -> int256:
+    ...
+
+
+@view
+@external
+def users_to_liquidate(_from: uint256, _limit: uint256) -> DynArray[IController.Position, 1000]:
+    ...
+
+
+@view
+@external
+def user_prices(user: address) -> uint256[2]:
+    ...
+
+
+@view
+@external
+def user_state(user: address) -> uint256[4]:
+    ...
+
+
+@view
+@external
+def max_borrowable(collateral: uint256, N: uint256, current_debt: uint256, user: address) -> uint256:
+    ...
+
+
+@view
+@external
+def min_collateral(debt: uint256, N: uint256, user: address) -> uint256:
+    ...

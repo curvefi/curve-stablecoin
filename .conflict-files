@@ -1,0 +1,3 @@
+ancestorEntries = ["tests/conftest.py"]
+ourEntries = ["tests/conftest.py"]
+theirEntries = ["tests/conftest.py"]

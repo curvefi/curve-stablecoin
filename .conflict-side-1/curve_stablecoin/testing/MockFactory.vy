@@ -1,0 +1,41 @@
+# pragma version 0.4.3
+
+
+interface Controller:
+    def total_debt() -> uint256: view
+    def set_debt(debt: uint256): nonpayable
+
+
+n_collaterals: public(uint256)
+controllers: public(HashMap[uint256, address])
+debt_ceiling: public(HashMap[address, uint256])
+
+
+@external
+def add_market(controller: address, ceiling: uint256):
+    n: uint256 = self.n_collaterals
+    self.n_collaterals = n + 1
+    self.controllers[n] = controller
+    self.debt_ceiling[controller] = ceiling
+
+
+@external
+def set_debt(controller: address, debt: uint256):
+    extcall Controller(controller).set_debt(debt)
+
+
+@external
+@view
+def total_debt() -> uint256:
+    total: uint256 = 0
+    for i: uint256 in range(10000):
+        if i == self.n_collaterals:
+            break
+        total += staticcall Controller(self.controllers[i]).total_debt()
+    return total
+
+
+@external
+@view
+def admin() -> address:
+    return tx.origin  # Never, never to it at home

@@ -1,0 +1,51 @@
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-toml
+      - id: check-yaml
+      - id: check-ast
+      - id: detect-private-key
+
+  - repo: https://github.com/kynan/nbstripout
+    rev: 0.8.2
+    hooks:
+      - id: nbstripout
+
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.14.7
+    hooks:
+      - id: ruff-check
+        args: [--fix]
+      - id: ruff-format
+
+  - repo: https://github.com/AlbertoCentonze/natrix
+    rev: v0.1.9
+    hooks:
+      - id: natrix
+        args: [lint, curve_stablecoin/lending/, curve_stablecoin/controller.vy, curve_stablecoin/constants.vy, curve_stablecoin/ControllerView.vy, curve_stablecoin/MintController.vy, -d, NTX1, NTX4, NTX5, NTX2, NTX9, NTX10]
+
+  - repo: https://github.com/benber86/mamushi
+    rev: v0.0.9
+    hooks:
+      - id: mamushi
+        args: [--line-length=100]
+        files: ^(curve_stablecoin/lending/LendingFactory\.vy|curve_stablecoin/zaps/CreateFromPool\.vy)$ # TODO slowly increase natrix coverage
+
+  - repo: local
+    hooks:
+      - id: check-kill-docs
+        name: Check @custom:kill in Vyper devdoc
+        entry: python scripts/check_kill_docs.py
+        language: system
+        files: \.vy$
+        exclude: ^curve_stablecoin/(testing|price_oracles|zaps)/|^curve_stablecoin/Stableswap\.vy$
+        require_serial: true
+
+      - id: pytest-deadfixtures
+        name: pytest-deadfixtures
+        entry: uv run pytest --dead-fixtures
+        language: system
+        pass_filenames: false

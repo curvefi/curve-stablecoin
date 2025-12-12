@@ -1,0 +1,237 @@
+from curve_std.interfaces import IERC20
+from curve_stablecoin.interfaces import IAMM
+from curve_stablecoin.interfaces import IController
+from curve_stablecoin.interfaces import IFactory
+
+
+event SetMaxSupply:
+    max_supply: uint256
+
+
+@external
+def initialize(
+    _amm: IAMM,
+    _controller: IController,
+    _borrowed_token: IERC20,
+    _collateral_token: IERC20,
+):
+    ...
+
+
+@external
+def set_max_supply(_max_supply: uint256):
+    ...
+
+
+@view
+def borrowed_token() -> IERC20:
+    ...
+
+
+@view
+def collateral_token() -> IERC20:
+    ...
+
+
+@view
+def amm() -> IAMM:
+    ...
+
+
+@view
+def controller() -> IController:
+    ...
+
+
+@view
+def factory() -> IFactory:
+    ...
+
+
+@view
+@external
+def admin() -> address:
+    ...
+
+
+@view
+def maxSupply() -> uint256:
+    ...
+
+
+@view
+def net_deposits() -> int256:
+    ...
+
+
+@view
+@external
+def asset() -> IERC20:
+    ...
+
+
+@view
+@external
+def borrow_apr() -> uint256:
+    ...
+
+
+@view
+@external
+def lend_apr() -> uint256:
+    ...
+
+
+@view
+@external
+def totalAssets() -> uint256:
+    ...
+
+
+@view
+@external
+def pricePerShare(_is_floor: bool = True) -> uint256:
+    ...
+
+
+@view
+@external
+def convertToShares(_assets: uint256) -> uint256:
+    ...
+
+
+@view
+@external
+def convertToAssets(_shares: uint256) -> uint256:
+    ...
+
+
+@view
+@external
+def maxDeposit(_receiver: address) -> uint256:
+    ...
+
+
+@view
+@external
+def previewDeposit(_assets: uint256) -> uint256:
+    ...
+
+
+@external
+def deposit(_assets: uint256, _receiver: address = msg.sender) -> uint256:
+    ...
+
+
+@view
+@external
+def maxMint(_receiver: address) -> uint256:
+    ...
+
+
+@view
+@external
+def previewMint(_shares: uint256) -> uint256:
+    ...
+
+
+@external
+def mint(_shares: uint256, _receiver: address = msg.sender) -> uint256:
+    ...
+
+
+@view
+@external
+def maxWithdraw(_owner: address) -> uint256:
+    ...
+
+
+@view
+@external
+def previewWithdraw(_assets: uint256) -> uint256:
+    ...
+
+
+@external
+def withdraw(
+    _assets: uint256,
+    _receiver: address = msg.sender,
+    _owner: address = msg.sender,
+) -> uint256:
+    ...
+
+
+@view
+@external
+def maxRedeem(_owner: address) -> uint256:
+    ...
+
+
+@view
+@external
+def previewRedeem(_shares: uint256) -> uint256:
+    ...
+
+
+@external
+def redeem(
+    _shares: uint256,
+    _receiver: address = msg.sender,
+    _owner: address = msg.sender,
+) -> uint256:
+    ...
+
+
+@view
+def decimals() -> uint8:
+    ...
+
+
+@view
+def name() -> String[64]:
+    ...
+
+
+@view
+def symbol() -> String[34]:
+    ...
+
+
+@view
+def allowance(_owner: address, _spender: address) -> uint256:
+    ...
+
+
+@view
+def balanceOf(_owner: address) -> uint256:
+    ...
+
+
+@view
+def totalSupply() -> uint256:
+    ...
+
+
+@external
+def transferFrom(_from: address, _to: address, _value: uint256) -> bool:
+    ...
+
+
+@external
+def transfer(_to: address, _value: uint256) -> bool:
+    ...
+
+
+@external
+def approve(_spender: address, _value: uint256) -> bool:
+    ...
+
+
+@external
+def increaseAllowance(_spender: address, _add_value: uint256) -> bool:
+    ...
+
+
+@external
+def decreaseAllowance(_spender: address, _sub_value: uint256) -> bool:
+    ...

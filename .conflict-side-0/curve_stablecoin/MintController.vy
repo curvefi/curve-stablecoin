@@ -1,0 +1,43 @@
+# pragma version 0.4.3
+# pragma nonreentrancy on
+# pragma optimize codesize
+"""
+@title Llamalend Mint Market Controller
+@author Curve.Fi
+@license Copyright (c) Curve.Fi, 2020-2025 - all rights reserved
+@notice Main contract to interact with a Llamalend Mint Market. Each
+    contract is specific to a single mint market.
+@dev This is just a simple adapter not to have to deploy a new
+    factory for mint markets.
+@custom:security security@curve.fi
+@custom:kill Set debt_ceiling to 0 via ControllerFactory to prevent new loans. Existing loans can still be repaid/liquidated.
+"""
+
+from curve_stablecoin import controller as core
+
+initializes: core
+
+# Usually a bad practice to expose through
+# `__interface__` but this contract is just
+# an adapter to make the construct of Controller
+# compatible with the old mint factory.
+exports: core.__interface__
+
+
+@deploy
+def __init__(
+    _collateral_token: core.IERC20,
+    _monetary_policy: core.IMonetaryPolicy,
+    _loan_discount: uint256,
+    _liquidation_discount: uint256,
+    _amm: core.IAMM,
+):
+    core.__init__(
+        _collateral_token,
+        staticcall core.IFactory(msg.sender).stablecoin(),
+        _monetary_policy,
+        _loan_discount,
+        _liquidation_discount,
+        _amm,
+        empty(address),  # to replace at deployment with view blueprint
+    )

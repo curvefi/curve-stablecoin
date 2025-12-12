@@ -1,0 +1,13 @@
+from curve_std.interfaces import IERC20
+
+@view
+def stablecoin() -> IERC20:
+    ...
+
+@view
+def admin() -> address:
+    ...
+
+@view
+def fee_receiver() -> address:
+    ...

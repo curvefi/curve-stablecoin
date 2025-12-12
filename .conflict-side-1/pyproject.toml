@@ -1,0 +1,52 @@
+[project]
+name = "curve-stablecoin"
+version = "2.0.0"
+description = "Curve Stablecoin contracts and tests"
+readme = "README.md"
+requires-python = ">=3.10,<4"
+authors = [
+    { name = "Michael Egorov", email = "michael@curve.fi" }
+]
+
+dependencies = [
+    "vyper==0.4.3",
+    "snekmate>=0.1.1",
+    "ownership-proxy",
+    "curve-std",
+]
+
+[dependency-groups]
+dev = [
+    "titanoboa",
+    "hypothesis>=6.99.0",
+    "pytest>=8.0.0",
+    "pytest-xdist>=3.5",
+    "pytest-forked>=1.6.0",
+    "pytest-cov>=4.0.0",
+    "pytest-profiling>=1.8.1",
+    "pre-commit==4.3.0",
+    "z3-solver>=4.12.0",
+    "pytest-deadfixtures>=3.0.0",
+]
+
+[tool.uv.sources]
+titanoboa = { git = "https://github.com/AlbertoCentonze/titanoboa", rev = "vvm-eval" }
+ownership-proxy = { git = "https://github.com/curvefi/ownership-proxy", rev = "19a63d09ba8d72ec8c2d96328caea2edf43c02f5" }
+curve-std = { git = "https://github.com/curvefi/curve-std", rev = "6db238291a62eee43446a0f86323f071e5a001eb" }
+# TODO add stableswap here as a package instead of git submodule
+
+
+[tool.ruff.lint]
+ignore = [
+    # Should be eventually fixed
+    "E722" ,
+    "F821"
+]
+
+
+[build-system]
+requires = ["hatchling>=1.25"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["curve_stablecoin"]

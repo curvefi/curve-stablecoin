@@ -1,0 +1,9 @@
+@view
+@external
+def price_oracle(i: uint256=0) -> uint256:
+    ...
+
+@view
+@external
+def coins(i: uint256) -> address:
+    ...
