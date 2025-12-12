@@ -22,6 +22,11 @@ event SetFeeReceiver:
     fee_receiver: address
 
 
+event CustomSetFeeReceiver:
+    controller: indexed(address)
+    fee_receiver: address
+
+
 event NewVault:
     id: indexed(uint256)
     collateral_token: indexed(IERC20)
@@ -98,8 +103,19 @@ def paused() -> bool:
     ...
 
 
+@view
 @external
-def set_fee_receiver(_fee_receiver: address):
+def default_fee_receiver() -> address:
+    ...
+
+
+@external
+def set_default_fee_receiver(_fee_receiver: address):
+    ...
+
+
+@external
+def set_custom_fee_receiver(_controller: address, _fee_receiver: address):
     ...
 
 
@@ -135,7 +151,7 @@ def controller_view_blueprint() -> address:
 
 @view
 @external
-def fee_receiver() -> address:
+def fee_receiver(_controller: address = msg.sender) -> address:
     ...
 
 

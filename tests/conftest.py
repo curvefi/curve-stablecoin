@@ -122,11 +122,6 @@ def controller_impl(proto):
 
 
 @pytest.fixture(scope="module")
-def vault_impl(proto):
-    return proto.vault_impl
-
-
-@pytest.fixture(scope="module")
 def price_oracle_impl(proto):
     return proto.blueprints.price_oracle
 
