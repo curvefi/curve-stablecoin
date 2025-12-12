@@ -19,7 +19,6 @@ event SetBlueprints:
 
 
 event SetFeeReceiver:
-    controller: indexed(address)
     fee_receiver: address
 
 

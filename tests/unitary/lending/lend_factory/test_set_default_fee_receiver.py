@@ -1,6 +1,5 @@
 import boa
 from tests.utils import filter_logs
-from tests.utils.constants import ZERO_ADDRESS
 
 
 def test_default_behavior(factory, admin, alice):
@@ -15,7 +14,6 @@ def test_default_behavior(factory, admin, alice):
     assert factory.default_fee_receiver() == new_fee_receiver
 
     assert len(logs) == 1
-    assert logs[0].controller == ZERO_ADDRESS
     assert logs[0].fee_receiver == new_fee_receiver
 
 

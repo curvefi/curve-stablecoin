@@ -354,7 +354,7 @@ def set_default_fee_receiver(_fee_receiver: address):
     ownable._check_owner()
     assert _fee_receiver != empty(address), "invalid receiver"
     self.default_fee_receiver = _fee_receiver
-    log ILendFactory.SetFeeReceiver(controller=empty(address), fee_receiver=_fee_receiver)
+    log ILendFactory.SetFeeReceiver(fee_receiver=_fee_receiver)
 
 
 @external
