@@ -23,6 +23,11 @@ event SetFeeReceiver:
     fee_receiver: address
 
 
+event CustomSetFeeReceiver:
+    controller: indexed(address)
+    fee_receiver: address
+
+
 event NewVault:
     id: indexed(uint256)
     collateral_token: indexed(IERC20)

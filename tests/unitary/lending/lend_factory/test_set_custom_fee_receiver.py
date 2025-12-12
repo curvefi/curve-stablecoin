@@ -9,7 +9,7 @@ def test_default_behavior(factory, admin, controller, alice):
     with boa.env.prank(admin):
         factory.set_custom_fee_receiver(controller.address, new_fee_receiver)
 
-    logs = filter_logs(factory, "SetFeeReceiver")
+    logs = filter_logs(factory, "CustomSetFeeReceiver")
 
     assert factory.fee_receiver(controller.address) == new_fee_receiver
 

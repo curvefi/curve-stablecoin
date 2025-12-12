@@ -340,7 +340,7 @@ def set_custom_fee_receiver(_controller: address, _fee_receiver: address):
     ownable._check_owner()
     # TODO checks controller belongs to factory
     self.fee_receivers[_controller] = _fee_receiver
-    log ILendFactory.SetFeeReceiver(controller=_controller, fee_receiver=_fee_receiver)
+    log ILendFactory.CustomSetFeeReceiver(controller=_controller, fee_receiver=_fee_receiver)
 
 
 @external
