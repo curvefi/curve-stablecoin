@@ -13,9 +13,9 @@ from curve_std.interfaces import IERC20
 from curve_stablecoin.interfaces import IAMM
 from curve_stablecoin.interfaces import IController
 from curve_stablecoin import controller as ctrl
+from curve_stablecoin import ControllerView as view
 from curve_std import token as tkn
 from curve_stablecoin.interfaces import IPartialRepayZap as IZap
-import curve_stablecoin.lib.liquidation_lib as liq
 
 from curve_stablecoin import constants as c
 
@@ -58,7 +58,7 @@ def users_to_liquidate(_controller: IController, _from: uint256 = 0, _limit: uin
     # Cached only for readability purposes
     CONTROLLER: IController = _controller
 
-    base_positions: DynArray[IController.Position, 1000] = liq.users_with_health(
+    base_positions: DynArray[IController.Position, 1000] = view.users_with_health(
         CONTROLLER, _from, _limit, HEALTH_THRESHOLD, True, self, False
     )
     out: DynArray[IZap.Position, 1000] = []
