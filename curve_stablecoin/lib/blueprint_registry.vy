@@ -5,7 +5,7 @@ event BlueprintSet:
     blueprint_address: address
 
 MAX_LENGTH: constant(uint8) = 10
-BLUEPRINT_REGISTRY_IDS: public(immutable(DynArray[String[4], MAX_LENGTH]))
+BLUEPRINT_REGISTRY_IDS: immutable(DynArray[String[4], MAX_LENGTH])
 _blueprints: HashMap[String[4], address]
 # TODO add to linting coverage
 

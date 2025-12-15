@@ -18,8 +18,8 @@ def get_allowed_ids():
         ids = []
         for i in range(blueprint_registry.eval("MAX_LENGTH")):
             try:
-                ids.append(blueprint_registry.BLUEPRINT_REGISTRY_IDS(i))
-            except:
+                ids.append(blueprint_registry.eval(f"BLUEPRINT_REGISTRY_IDS[{i}]"))
+            except Exception as e:
                 break
 
         return ids
