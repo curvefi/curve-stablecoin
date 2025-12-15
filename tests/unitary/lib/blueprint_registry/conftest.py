@@ -16,7 +16,7 @@ def blueprint_registry(blueprint_registry_deployer):
 def get_allowed_ids():
     def f(blueprint_registry):
         ids = []
-        for i in range(blueprint_registry.eval("MAX_LENGTH")):
+        for i in range(blueprint_registry._constants.MAX_LENGTH):
             try:
                 ids.append(blueprint_registry.eval(f"BLUEPRINT_REGISTRY_IDS[{i}]"))
             except Exception:
