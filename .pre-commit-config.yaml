@@ -36,10 +36,16 @@ repos:
 
   - repo: local
     hooks:
+      - id: vyper-method-checker
+        name: Check Vyper test coverage
+        entry: python scripts/vyper_method_checker.py check
+        language: system
+        pass_filenames: false
+        files: ^curve_stablecoin/.*\.vy$
       - id: check-kill-docs
         name: Check @custom:kill in Vyper devdoc
         entry: python scripts/check_kill_docs.py
         language: system
         files: \.vy$
-        exclude: ^curve_stablecoin/(testing|price_oracles|zaps)/|^curve_stablecoin/Stableswap\.vy$
+        exclude: ^curve_stablecoin/(testing|price_oracles|zaps)/
         require_serial: true
