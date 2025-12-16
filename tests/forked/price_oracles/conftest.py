@@ -1,6 +1,6 @@
 import boa
 import pytest
-from .settings import WEB3_PROVIDER_URL, EXPLORER_URL, EXPLORER_TOKEN
+from ..settings import WEB3_PROVIDER_URL, EXPLORER_URL, EXPLORER_TOKEN
 
 
 @pytest.fixture(scope="module", autouse=True)
@@ -8,7 +8,7 @@ def boa_fork():
     assert WEB3_PROVIDER_URL is not None, (
         "Provider url is not set, add WEB3_PROVIDER_URL param to env"
     )
-    boa.fork(WEB3_PROVIDER_URL)
+    boa.fork(WEB3_PROVIDER_URL, allow_dirty=True)
 
 
 @pytest.fixture(scope="module")
