@@ -24,6 +24,7 @@ BASE_CONTRACT_PATH = "curve_stablecoin/"
 TESTING_CONTRACT_PATH = "curve_stablecoin/testing/"
 LENDING_CONTRACT_PATH = "curve_stablecoin/lending/"
 MPOLICIES_CONTRACT_PATH = "curve_stablecoin/mpolicies/"
+MPOLICIES_LEND_PATH = "curve_stablecoin/mpolicies/lend/"
 PRICE_ORACLES_CONTRACT_PATH = "curve_stablecoin/price_oracles/"
 STABILIZER_CONTRACT_PATH = "curve_stablecoin/stabilizer/"
 FLASHLOAN_CONTRACT_PATH = "curve_stablecoin/flashloan/"
@@ -95,20 +96,30 @@ CONSTANT_MONETARY_POLICY_LENDING_DEPLOYER = boa.load_partial(
     TESTING_CONTRACT_PATH + "ConstantMonetaryPolicyLending.vy",
     compiler_args=compiler_args_default,
 )
+
+
+def _load_optional(path: str):
+    try:
+        return boa.load_partial(path, compiler_args=compiler_args_default)
+    except FileNotFoundError:
+        return None
+
+
 SEMILOG_MONETARY_POLICY_DEPLOYER = boa.load_partial(
-    MPOLICIES_CONTRACT_PATH + "SemilogMonetaryPolicy.vy",
+    MPOLICIES_LEND_PATH + "SemilogMonetaryPolicy.vy",
     compiler_args=compiler_args_default,
 )
-SECONDARY_MONETARY_POLICY_DEPLOYER = boa.load_partial(
-    MPOLICIES_CONTRACT_PATH + "SecondaryMonetaryPolicy.vy",
-    compiler_args=compiler_args_default,
+SECONDARY_MONETARY_POLICY_DEPLOYER = _load_optional(
+    MPOLICIES_LEND_PATH + "SecondaryMonetaryPolicy.vy"
 )
-AGG_MONETARY_POLICY2_DEPLOYER = boa.load_partial(
-    MPOLICIES_CONTRACT_PATH + "AggMonetaryPolicy2.vy",
-    compiler_args=compiler_args_default,
+AGG_MONETARY_POLICY2_DEPLOYER = _load_optional(
+    MPOLICIES_CONTRACT_PATH + "AggMonetaryPolicy2.vy"
 )
-AGG_MONETARY_POLICY3_DEPLOYER = boa.load_partial(
-    MPOLICIES_CONTRACT_PATH + "AggMonetaryPolicy3.vy",
+AGG_MONETARY_POLICY3_DEPLOYER = _load_optional(
+    MPOLICIES_CONTRACT_PATH + "AggMonetaryPolicy3.vy"
+)
+MINT_MONETARY_POLICY_DEPLOYER = boa.load_partial(
+    MPOLICIES_CONTRACT_PATH + "MintMonetaryPolicy.vy",
     compiler_args=compiler_args_default,
 )
 
