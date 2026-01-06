@@ -135,7 +135,7 @@ def _get_y_effective(
 @internal
 @view
 def _check_approval(_for: address, _caller: address) -> bool:
-    return _for == _caller or staticcall CONTROLLER.approval(_for, msg.sender)
+    return _for == _caller or staticcall CONTROLLER.approval(_for, _caller)
 
 
 @internal
