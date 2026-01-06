@@ -39,6 +39,7 @@ def borrower_with_existing_loan(controller, collateral_token):
 
 
 @pytest.mark.parametrize("different_caller", [True, False])
+@pytest.mark.parametrize("approval", [True, False])
 def test_add_collateral(
     controller,
     amm,
@@ -46,9 +47,10 @@ def test_add_collateral(
     collateral_token,
     snapshot,
     borrower_with_existing_loan,
-    different_caller,
     monetary_policy,
     admin,
+    different_caller,
+    approval,
 ):
     """
     Test adding collateral to an existing loan.
@@ -69,6 +71,14 @@ def test_add_collateral(
     boa.env.time_travel(1)
     monetary_policy.set_rate(initial_amm_rate + 1, sender=admin)
 
+    # ================= Set new liquidation discount =================
+
+    old_liquidation_discount = controller.liquidation_discount()
+    new_liquidation_discount = old_liquidation_discount // 2
+    controller.set_borrowing_discounts(
+        controller.loan_discount(), new_liquidation_discount, sender=admin
+    )
+
     # ================= Capture initial state =================
 
     assert controller.loan_exists(borrower)
@@ -85,6 +95,10 @@ def test_add_collateral(
     max_approve(collateral_token, controller, sender=caller)
 
     # ================= Calculate future health =================
+
+    # Approved caller triggers borrower's liquidation discount update which affects health
+    if different_caller and approval:
+        controller.approve(caller, True, sender=borrower)
 
     preview_health = controller.add_collateral_health_preview(
         ADDITIONAL_COLLATERAL, borrower, caller, False
