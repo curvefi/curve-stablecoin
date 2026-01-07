@@ -984,7 +984,7 @@ def _repay_full(
     non_wallet_d_debt: uint256 = _xy[0] + _cb.borrowed
     wallet_d_debt: uint256 = crv_math.sub_or_zero(_debt, non_wallet_d_debt)
     if _xy[0] > 0:  #  pull borrowed tokens from AMM (already soft liquidated)
-        assert _approval
+        assert _approval  # dev: need approval to spend borrower's xy[0]
         tkn.transfer_from(BORROWED_TOKEN, AMM.address, self, _xy[0])
     tkn.transfer_from(BORROWED_TOKEN, _callbacker, self, _cb.borrowed)
     tkn.transfer_from(BORROWED_TOKEN, msg.sender, self, wallet_d_debt)
@@ -1061,7 +1061,7 @@ def _repay_partial(
 
     # ================= Recover borrowed tokens (xy[0]) =================
     if _shrink:
-        assert _approval
+        assert _approval  # dev: need approval to shrink
         tkn.transfer_from(BORROWED_TOKEN, AMM.address, self, _xy[0])
     tkn.transfer_from(BORROWED_TOKEN, _callbacker, self, _cb.borrowed)
     tkn.transfer_from(BORROWED_TOKEN, msg.sender, self, _wallet_d_debt)
