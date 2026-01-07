@@ -5,7 +5,7 @@ import pytest
 @pytest.fixture()
 def blueprint_registry_deployer():
     return boa.loads_partial("""
-from curve_stablecoin.lib import blueprint_registry
+from curve_stablecoin.lending import blueprint_registry
 
 initializes: blueprint_registry
 
