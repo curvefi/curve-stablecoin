@@ -39,7 +39,7 @@ MAX_UTIL: constant(uint256) = 99 * 10**16
 MIN_LOW_RATIO: constant(uint256) = 10**16
 MAX_HIGH_RATIO: constant(uint256) = 100 * 10**18
 MAX_RATE_SHIFT: constant(uint256) = 100 * 10**18
-MIN_EMA_RATE: constant(uint256) = 317097920 # 1% APR    
+MIN_EMA_RATE: constant(uint256) = 317097920 # 1% APR
 
 TEXP: public(constant(uint256)) = 40000
 
@@ -286,9 +286,9 @@ def rate_write(_for: address = msg.sender) -> uint256:
 
 @external
 def set_parameters(
-    target_utilization: uint256, 
-    low_ratio: uint256, 
-    high_ratio: uint256, 
+    target_utilization: uint256,
+    low_ratio: uint256,
+    high_ratio: uint256,
     rate_shift: uint256
 ):
     """
