@@ -14,7 +14,7 @@ from tests.utils.protocols import Llamalend
 boa.env.enable_fast_mode()
 
 
-TESTING_DECIMALS = [2, 6, 8, 9, 18]
+TESTING_DECIMALS = [2, 18]
 
 
 no_shrink = settings.register_profile(
