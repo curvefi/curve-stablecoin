@@ -38,31 +38,26 @@ def borrower_with_existing_loan(controller, collateral_token):
     return borrower
 
 
-@pytest.mark.parametrize("different_caller", [True, False])
-@pytest.mark.parametrize("approval", [True, False])
-def test_add_collateral(
+def _test_add_collateral_default_behavior(
     controller,
     amm,
     borrowed_token,
     collateral_token,
     snapshot,
-    borrower_with_existing_loan,
+    borrower,
+    caller,
     monetary_policy,
     admin,
-    different_caller,
-    approval,
 ):
     """
-    Test adding collateral to an existing loan.
+    Helper for testing add_collateral default behavior.
 
     Money Flow: collateral (caller) → AMM
                 Position collateral increases
                 Debt remains unchanged
+
+    Returns before/after snapshots for additional assertions.
     """
-    borrower = borrower_with_existing_loan
-    caller = borrower
-    if different_caller:
-        caller = boa.env.generate_address()
 
     # ================= Change rate =================
 
@@ -95,10 +90,6 @@ def test_add_collateral(
     max_approve(collateral_token, controller, sender=caller)
 
     # ================= Calculate future health =================
-
-    # Approved caller triggers borrower's liquidation discount update which affects health
-    if different_caller and approval:
-        controller.approve(caller, True, sender=borrower)
 
     preview_health = controller.add_collateral_health_preview(
         ADDITIONAL_COLLATERAL, borrower, caller, False
@@ -182,9 +173,147 @@ def test_add_collateral(
     assert borrowed_token_after["amm"] == borrowed_token_before["amm"]
     assert borrowed_token_after["controller"] == borrowed_token_before["controller"]
 
-    if different_caller:
-        assert borrowed_token_after["caller"] == borrowed_token_before["caller"]
-        assert collateral_token_after["borrower"] == collateral_token_before["borrower"]
+    return (
+        borrowed_token_before,
+        borrowed_token_after,
+        collateral_token_before,
+        collateral_token_after,
+        old_liquidation_discount,
+        new_liquidation_discount,
+    )
+
+
+def test_default_behavior_self_caller(
+    controller,
+    amm,
+    borrowed_token,
+    collateral_token,
+    snapshot,
+    borrower_with_existing_loan,
+    monetary_policy,
+    admin,
+):
+    """Test adding collateral to an existing loan by the borrower themselves."""
+    # --- VARIES: caller is the borrower (self-call) ---
+    (
+        _,
+        _,
+        _,
+        _,
+        old_liquidation_discount,
+        new_liquidation_discount,
+    ) = _test_add_collateral_default_behavior(
+        controller,
+        amm,
+        borrowed_token,
+        collateral_token,
+        snapshot,
+        borrower_with_existing_loan,
+        borrower_with_existing_loan,  # caller == borrower
+        monetary_policy,
+        admin,
+    )
+
+    # --- VARIES: self-call updates liquidation discount ---
+    assert (
+        controller.liquidation_discounts(borrower_with_existing_loan)
+        == new_liquidation_discount
+    )
+    assert (
+        controller.liquidation_discounts(borrower_with_existing_loan)
+        != old_liquidation_discount
+    )
+
+
+def test_default_behavior_different_caller(
+    controller,
+    amm,
+    borrowed_token,
+    collateral_token,
+    snapshot,
+    borrower_with_existing_loan,
+    monetary_policy,
+    admin,
+):
+    """Test adding collateral to an existing loan by a different (unapproved) caller."""
+    # --- VARIES: caller is a different address, not approved ---
+    (
+        borrowed_token_before,
+        borrowed_token_after,
+        collateral_token_before,
+        collateral_token_after,
+        old_liquidation_discount,
+        _,
+    ) = _test_add_collateral_default_behavior(
+        controller,
+        amm,
+        borrowed_token,
+        collateral_token,
+        snapshot,
+        borrower_with_existing_loan,
+        boa.env.generate_address(),  # caller != borrower, unapproved
+        monetary_policy,
+        admin,
+    )
+
+    # --- VARIES: different caller, borrower's balances unchanged ---
+    assert borrowed_token_after["caller"] == borrowed_token_before["caller"]
+    assert collateral_token_after["borrower"] == collateral_token_before["borrower"]
+
+    # --- VARIES: unapproved caller does NOT update liquidation discount ---
+    assert (
+        controller.liquidation_discounts(borrower_with_existing_loan)
+        == old_liquidation_discount
+    )
+
+
+def test_default_behavior_approved_caller(
+    controller,
+    amm,
+    borrowed_token,
+    collateral_token,
+    snapshot,
+    borrower_with_existing_loan,
+    monetary_policy,
+    admin,
+):
+    """Test adding collateral to an existing loan by an approved caller."""
+    # --- VARIES: caller is a different address, but approved ---
+    caller = boa.env.generate_address()
+    controller.approve(caller, True, sender=borrower_with_existing_loan)
+
+    (
+        borrowed_token_before,
+        borrowed_token_after,
+        collateral_token_before,
+        collateral_token_after,
+        old_liquidation_discount,
+        new_liquidation_discount,
+    ) = _test_add_collateral_default_behavior(
+        controller,
+        amm,
+        borrowed_token,
+        collateral_token,
+        snapshot,
+        borrower_with_existing_loan,
+        caller,  # caller != borrower, but approved
+        monetary_policy,
+        admin,
+    )
+
+    # --- VARIES: different caller, borrower's balances unchanged ---
+    assert borrowed_token_after["caller"] == borrowed_token_before["caller"]
+    assert collateral_token_after["borrower"] == collateral_token_before["borrower"]
+
+    # --- VARIES: approved caller DOES update liquidation discount ---
+    assert (
+        controller.liquidation_discounts(borrower_with_existing_loan)
+        == new_liquidation_discount
+    )
+    assert (
+        controller.liquidation_discounts(borrower_with_existing_loan)
+        != old_liquidation_discount
+    )
 
 
 def test_add_collateral_no_loan_exists(
