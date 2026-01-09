@@ -1376,6 +1376,9 @@ def test_partial_repay_from_xy0_underwater_shrink(
     with boa.env.prank(trader):
         max_approve(borrowed_token, amm)
         amm.exchange_dy(0, 1, amount_out, amount_in + 1)
+
+    # ================= Get tokens_to_shrink =================
+
     assert controller.tokens_to_shrink(borrower) == 0
 
     # ================= Capture initial state =================
@@ -1497,6 +1500,9 @@ def test_partial_repay_from_xy0_and_wallet_underwater_shrink(
         max_approve(borrowed_token, amm)
         amm.exchange_dy(0, 1, amount_out, 2**256 - 1)
     assert controller.user_state(borrower)[1] > 0
+
+    # ================= Get tokens_to_shrink =================
+
     tokens_to_shrink = controller.tokens_to_shrink(borrower)
     assert tokens_to_shrink > 0
 
@@ -1574,9 +1580,6 @@ def test_partial_repay_from_xy0_and_wallet_underwater_shrink(
     # ================= Verify position state =================
 
     user_state_after = controller.user_state(borrower)
-    print(user_state_after)
-    print(debt, user_state_before[1], wallet_borrowed)
-    print(amm.read_user_tick_numbers(borrower))
     assert user_state_after[0] == user_state_before[0]  # collateral in AMM unchanged
     assert user_state_after[1] == 0  # no borrowed tokens in AMM (exited underwater)
     assert (
@@ -1651,9 +1654,11 @@ def test_partial_repay_from_xy0_and_callback_underwater_shrink(
         max_approve(borrowed_token, amm)
         amm.exchange_dy(0, 1, amount_out, 2**256 - 1)
     assert controller.user_state(borrower)[1] > 0
-    tokens_to_shrink = controller.tokens_to_shrink(borrower)
-    # TODO add d_collateral to tokens_to_shrink() method
-    tokens_to_shrink += 2 * amm.price_oracle() // 10**(18 + collateral_token.decimals() - borrowed_token.decimals())
+
+    # ================= Get tokens_to_shrink =================
+
+    d_collateral = 2  # The amount of user's position collateral to be used by callback
+    tokens_to_shrink = controller.tokens_to_shrink(borrower, d_collateral)
     assert tokens_to_shrink > 0
 
     # ================= Capture initial state =================
@@ -1667,7 +1672,7 @@ def test_partial_repay_from_xy0_and_callback_underwater_shrink(
     # ================= Setup callback tokens =================
 
     callback_borrowed = tokens_to_shrink  # Additional callback repayment
-    callback_collateral = user_state_before[0] - 2  # Some collateral from callback
+    callback_collateral = user_state_before[0] - d_collateral  # Some collateral from callback
     calldata = get_calldata(callback_borrowed, callback_collateral)
     boa.deal(borrowed_token, dummy_callback, callback_borrowed)
     repay_hits = dummy_callback.callback_repay_hits()
@@ -1807,17 +1812,17 @@ def test_partial_repay_from_xy0_and_wallet_and_callback_underwater_shrink(
         max_approve(borrowed_token, amm)
         amm.exchange_dy(0, 1, amount_out, 2**256 - 1)
     assert controller.user_state(borrower)[1] > 0
-    tokens_to_shrink = controller.tokens_to_shrink(borrower)
-    # TODO add d_collateral to tokens_to_shrink() method
-    tokens_to_shrink += 2 * amm.price_oracle() // 10**(18 + collateral_token.decimals() - borrowed_token.decimals())
+
+    # ================= Get tokens_to_shrink =================
+
+    d_collateral = 2  # The amount of user's position collateral to be used by callback
+    tokens_to_shrink = controller.tokens_to_shrink(borrower, d_collateral)
     assert tokens_to_shrink > 0
 
     # ================= Capture initial state =================
 
     user_state_before = controller.user_state(borrower)
     debt = user_state_before[2]
-    print("Debt", debt)
-    print("tokens_to_shrink", tokens_to_shrink)
     assert 0 < user_state_before[1] < debt and user_state_before[0] > 0
     total_debt = controller.total_debt()
     repaid = controller.eval("core.repaid")
@@ -1834,7 +1839,7 @@ def test_partial_repay_from_xy0_and_wallet_and_callback_underwater_shrink(
     callback_borrowed = (
         tokens_to_shrink - wallet_borrowed
     )  # Callback provides 1/6 of debt
-    callback_collateral = user_state_before[0] - 2  # Some collateral from callback
+    callback_collateral = user_state_before[0] - d_collateral  # Some collateral from callback
     calldata = get_calldata(callback_borrowed, callback_collateral)
     boa.deal(borrowed_token, dummy_callback, callback_borrowed)
     repay_hits = dummy_callback.callback_repay_hits()
