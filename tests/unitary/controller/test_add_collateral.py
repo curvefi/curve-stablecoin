@@ -2,11 +2,7 @@ import pytest
 import boa
 from tests.utils import max_approve, filter_logs
 
-
-COLLATERAL = 10**17
-DEBT = 10**20
 N_BANDS = 6
-ADDITIONAL_COLLATERAL = 5 * 10**16  # Half of initial collateral
 
 
 @pytest.fixture(scope="module")
@@ -22,18 +18,27 @@ def snapshot(controller, amm, dummy_callback):
     return fn
 
 
+@pytest.fixture(scope="module")
+def amounts(collateral_decimals, borrowed_decimals):
+    return {
+        "collateral": int(0.1 * 10**collateral_decimals),
+        "additional_collateral": int(0.05 * 10**collateral_decimals),
+        "debt": int(100 * 10**borrowed_decimals),
+    }
+
+
 @pytest.fixture(scope="function")
-def borrower_with_existing_loan(controller, collateral_token):
+def borrower_with_existing_loan(controller, collateral_token, amounts):
     """
     Create an existing loan for testing add_collateral.
     """
     borrower = boa.env.eoa
-    boa.deal(collateral_token, borrower, COLLATERAL)
+    boa.deal(collateral_token, borrower, amounts["collateral"])
     max_approve(collateral_token, controller, sender=borrower)
 
-    controller.create_loan(COLLATERAL, DEBT, N_BANDS, sender=borrower)
+    controller.create_loan(amounts["collateral"], amounts["debt"], N_BANDS, sender=borrower)
     assert controller.loan_exists(borrower)
-    assert controller.debt(borrower) == DEBT
+    assert controller.debt(borrower) == amounts["debt"]
 
     return borrower
 
@@ -48,6 +53,7 @@ def _test_add_collateral_default_behavior(
     caller,
     monetary_policy,
     admin,
+    amounts,
 ):
     """
     Helper for testing add_collateral default behavior.
@@ -86,16 +92,16 @@ def _test_add_collateral_default_behavior(
 
     # ================= Setup caller tokens =================
 
-    boa.deal(collateral_token, caller, ADDITIONAL_COLLATERAL)
+    boa.deal(collateral_token, caller, amounts["additional_collateral"])
     max_approve(collateral_token, controller, sender=caller)
 
     # ================= Calculate future health =================
 
     preview_health = controller.add_collateral_health_preview(
-        ADDITIONAL_COLLATERAL, borrower, caller, False
+        amounts["additional_collateral"], borrower, caller, False
     )
     preview_health_full = controller.add_collateral_health_preview(
-        ADDITIONAL_COLLATERAL, borrower, caller, True
+        amounts["additional_collateral"], borrower, caller, True
     )
     # health improves
     assert preview_health_full > controller.health(borrower, True)
@@ -107,7 +113,7 @@ def _test_add_collateral_default_behavior(
 
     # ================= Execute add_collateral =================
 
-    controller.add_collateral(ADDITIONAL_COLLATERAL, borrower, sender=caller)
+    controller.add_collateral(amounts["additional_collateral"], borrower, sender=caller)
 
     # ================= Capture logs =================
 
@@ -130,7 +136,7 @@ def _test_add_collateral_default_behavior(
 
     user_state_after = controller.user_state(borrower)
     assert (
-        user_state_after[0] == initial_collateral + ADDITIONAL_COLLATERAL
+        user_state_after[0] == initial_collateral + amounts["additional_collateral"]
     )  # collateral increased
     assert user_state_after[1] == 0  # no borrowed tokens in AMM
     assert user_state_after[2] == initial_debt  # debt unchanged
@@ -150,12 +156,12 @@ def _test_add_collateral_default_behavior(
 
     assert len(borrow_logs) == 1
     assert borrow_logs[0].user == borrower
-    assert borrow_logs[0].collateral_increase == ADDITIONAL_COLLATERAL
+    assert borrow_logs[0].collateral_increase == amounts["additional_collateral"]
     assert borrow_logs[0].loan_increase == 0  # No debt increase
 
     assert len(state_logs) == 1
     assert state_logs[0].user == borrower
-    assert state_logs[0].collateral == initial_collateral + ADDITIONAL_COLLATERAL
+    assert state_logs[0].collateral == initial_collateral + amounts["additional_collateral"]
     assert state_logs[0].borrowed == 0
     assert state_logs[0].debt == initial_debt
     assert state_logs[0].n2 - state_logs[0].n1 + 1 == N_BANDS
@@ -165,8 +171,8 @@ def _test_add_collateral_default_behavior(
 
     # ================= Verify money flows =================
 
-    assert collateral_to_amm == ADDITIONAL_COLLATERAL
-    assert collateral_from_caller == -ADDITIONAL_COLLATERAL
+    assert collateral_to_amm == amounts["additional_collateral"]
+    assert collateral_from_caller == -amounts["additional_collateral"]
     assert collateral_token_after["controller"] == collateral_token_before["controller"]
 
     assert borrowed_token_after["borrower"] == borrowed_token_before["borrower"]
@@ -192,6 +198,7 @@ def test_default_behavior_self_caller(
     borrower_with_existing_loan,
     monetary_policy,
     admin,
+    amounts,
 ):
     """Test adding collateral to an existing loan by the borrower themselves."""
     # --- VARIES: caller is the borrower (self-call) ---
@@ -212,6 +219,7 @@ def test_default_behavior_self_caller(
         borrower_with_existing_loan,  # caller == borrower
         monetary_policy,
         admin,
+        amounts,
     )
 
     # --- VARIES: self-call updates liquidation discount ---
@@ -234,6 +242,7 @@ def test_default_behavior_different_caller(
     borrower_with_existing_loan,
     monetary_policy,
     admin,
+    amounts,
 ):
     """Test adding collateral to an existing loan by a different (unapproved) caller."""
     # --- VARIES: caller is a different address, not approved ---
@@ -254,6 +263,7 @@ def test_default_behavior_different_caller(
         boa.env.generate_address(),  # caller != borrower, unapproved
         monetary_policy,
         admin,
+        amounts,
     )
 
     # --- VARIES: different caller, borrower's balances unchanged ---
@@ -276,6 +286,7 @@ def test_default_behavior_approved_caller(
     borrower_with_existing_loan,
     monetary_policy,
     admin,
+    amounts,
 ):
     """Test adding collateral to an existing loan by an approved caller."""
     # --- VARIES: caller is a different address, but approved ---
@@ -299,6 +310,7 @@ def test_default_behavior_approved_caller(
         caller,  # caller != borrower, but approved
         monetary_policy,
         admin,
+        amounts,
     )
 
     # --- VARIES: different caller, borrower's balances unchanged ---
@@ -320,19 +332,20 @@ def test_add_collateral_no_loan_exists(
     controller,
     collateral_token,
     borrowed_token,
+    amounts,
 ):
     """
     Test that adding collateral when no loan exists reverts.
     """
     borrower = boa.env.eoa
-    boa.deal(collateral_token, borrower, ADDITIONAL_COLLATERAL)
+    boa.deal(collateral_token, borrower, amounts["additional_collateral"])
     max_approve(collateral_token, controller, sender=borrower)
 
     assert not controller.loan_exists(borrower)
 
     # Try to add collateral without a loan - should revert
     with boa.reverts("Loan doesn't exist"):
-        controller.add_collateral(ADDITIONAL_COLLATERAL, sender=borrower)
+        controller.add_collateral(amounts["additional_collateral"], sender=borrower)
 
 
 def test_add_collateral_zero_amount(
@@ -360,6 +373,7 @@ def test_add_collateral_underwater(
     amm,
     borrowed_token,
     collateral_token,
+    amounts,
 ):
     """
     Test that adding collateral when position is underwater reverts.
@@ -368,11 +382,11 @@ def test_add_collateral_underwater(
     # ================= Create loan with max debt =================
 
     borrower = boa.env.eoa
-    max_debt = controller.max_borrowable(COLLATERAL, N_BANDS)
-    boa.deal(collateral_token, borrower, COLLATERAL)
+    max_debt = controller.max_borrowable(amounts["collateral"], N_BANDS)
+    boa.deal(collateral_token, borrower, amounts["collateral"])
     max_approve(collateral_token, controller, sender=borrower)
 
-    controller.create_loan(COLLATERAL, max_debt, N_BANDS, sender=borrower)
+    controller.create_loan(amounts["collateral"], max_debt, N_BANDS, sender=borrower)
 
     # ================= Push position to underwater =================
 
@@ -392,4 +406,4 @@ def test_add_collateral_underwater(
 
     # Try to add collateral when underwater - should revert
     with boa.reverts("Underwater"):
-        controller.add_collateral(ADDITIONAL_COLLATERAL, sender=borrower)
+        controller.add_collateral(amounts["additional_collateral"], sender=borrower)
