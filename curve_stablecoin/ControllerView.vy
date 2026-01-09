@@ -141,8 +141,8 @@ def _check_approval(_for: address, _caller: address) -> bool:
 @internal
 @view
 def _calc_health(_x_eff: uint256, _debt: uint256, _ld: uint256) -> int256:
-    health: int256 = convert(unsafe_div(_x_eff, _debt), int256)
-    health = health - unsafe_div(health * convert(_ld, int256), SWAD) - SWAD
+    health: int256 = SWAD - convert(_ld, int256)
+    health = unsafe_div(convert(_x_eff, int256) * health, convert(_debt, int256)) - SWAD
 
     return health
 
@@ -151,14 +151,17 @@ def _calc_health(_x_eff: uint256, _debt: uint256, _ld: uint256) -> int256:
 @view
 def _calc_full_health(_collateral: uint256, _debt: uint256, _N: uint256, _n1: int256, _ld: uint256, _full: bool) -> int256:
     p0: uint256 = staticcall AMM.p_oracle_up(_n1)
-    x_eff: uint256 = self._get_y_effective(_collateral, _N, 0) * p0
+    x_eff: uint256 = self._get_y_effective(_collateral * COLLATERAL_PRECISION, _N, 0) * p0 // BORROWED_PRECISION // WAD
 
     health: int256 = self._calc_health(x_eff, _debt, _ld)
 
     if _full:
         p_diff: uint256 = crv_math.sub_or_zero(staticcall AMM.price_oracle(), p0)
         if p_diff > 0:
-            health += unsafe_div(convert(p_diff, int256) * convert(_collateral, int256), convert(_debt, int256))
+            health += unsafe_div(
+                convert(p_diff, int256) * convert(_collateral * COLLATERAL_PRECISION, int256),
+                convert(_debt * BORROWED_PRECISION, int256)
+            )
 
     return health
 
@@ -177,10 +180,8 @@ def create_loan_health_preview(
     assert _debt > 0, "debt<0"
     n1: int256 = self._calculate_debt_n1(_collateral, _debt, _N)
     ld: uint256 = self._liquidation_discount()
-    collateral: uint256 = _collateral * COLLATERAL_PRECISION  # now has 18 decimals
-    debt: uint256 = _debt * BORROWED_PRECISION  # now has 18 decimals
 
-    return self._calc_full_health(collateral, debt, _N, n1, ld, _full)
+    return self._calc_full_health(_collateral, _debt, _N, n1, ld, _full)
 
 
 @internal
@@ -213,8 +214,6 @@ def _add_collateral_borrow_health_preview(
     debt += _debt
 
     n1: int256 = self._calculate_debt_n1(collateral, debt, N, _for)
-    collateral *= COLLATERAL_PRECISION  # now has 18 decimals
-    debt *= BORROWED_PRECISION  # now has 18 decimals
 
     ld: uint256 = 0
     if _update_ld:
@@ -315,7 +314,7 @@ def repay_health_preview(
 
         return self._calc_full_health(collateral, debt, N, n1, ld, _full)
     else:
-        x_eff: uint256 = staticcall AMM.get_x_down(_for) * unsafe_mul(WAD, BORROWED_PRECISION)
+        x_eff: uint256 = staticcall AMM.get_x_down(_for)
 
         return self._calc_health(x_eff, debt, ld)
 
@@ -348,7 +347,7 @@ def liquidate_health_preview(
         health_limit = ld
     f_remove: uint256 = core._get_f_remove(_frac, health_limit)
 
-    x_eff: uint256 = staticcall AMM.get_x_down(_user) * unsafe_mul(WAD, BORROWED_PRECISION) * (WAD - f_remove) // WAD
+    x_eff: uint256 = staticcall AMM.get_x_down(_user) * (WAD - f_remove) // WAD
     debt = debt * (WAD - _frac) // WAD
     health: int256 = self._calc_health(x_eff, debt, ld)
 
