@@ -531,7 +531,7 @@ def min_collateral(
 
 @internal
 @view
-def _tokens_to_shrink(_user: address, _cap: uint256) -> uint256:
+def _tokens_to_shrink(_user: address, _cap: uint256, _d_collateral: uint256) -> uint256:
     active_band: int256 = staticcall AMM.active_band_with_skip()
     ns: int256[2] = staticcall AMM.read_user_tick_numbers(_user)
 
@@ -541,21 +541,22 @@ def _tokens_to_shrink(_user: address, _cap: uint256) -> uint256:
     assert ns[1] >= active_band + MIN_TICKS, "Can't shrink"
     size: uint256 = convert(unsafe_add(unsafe_sub(ns[1], active_band + 1), 1), uint256)
     xy: uint256[2] = staticcall AMM.get_sum_xy(_user)
+    assert xy[1] > _d_collateral, "Can't remove more collateral than user has"
     current_debt: uint256 = self._debt(_user)
     new_debt: uint256 = crv_math.sub_or_zero(current_debt, xy[0])
 
     # Cannot borrow beyond the amount of coins Controller has
     _cap += new_debt
 
-    max_borrowable: uint256 = self._max_borrowable(xy[1], size, _cap, _user)
+    max_borrowable: uint256 = self._max_borrowable(xy[1] - _d_collateral, size, _cap, _user)
 
     return crv_math.sub_or_zero(new_debt, max_borrowable)
 
 
 @external
 @view
-def tokens_to_shrink(_user: address) -> uint256:
+def tokens_to_shrink(_user: address, _d_collateral: uint256 = 0) -> uint256:
     """
     @notice Natspec for this function is available in its controller contract
     """
-    return self._tokens_to_shrink(_user, staticcall BORROWED_TOKEN.balanceOf(CONTROLLER.address))
+    return self._tokens_to_shrink(_user, self._get_cap(), _d_collateral)
