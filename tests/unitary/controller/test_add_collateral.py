@@ -36,7 +36,9 @@ def borrower_with_existing_loan(controller, collateral_token, amounts):
     boa.deal(collateral_token, borrower, amounts["collateral"])
     max_approve(collateral_token, controller, sender=borrower)
 
-    controller.create_loan(amounts["collateral"], amounts["debt"], N_BANDS, sender=borrower)
+    controller.create_loan(
+        amounts["collateral"], amounts["debt"], N_BANDS, sender=borrower
+    )
     assert controller.loan_exists(borrower)
     assert controller.debt(borrower) == amounts["debt"]
 
@@ -161,7 +163,10 @@ def _test_add_collateral_default_behavior(
 
     assert len(state_logs) == 1
     assert state_logs[0].user == borrower
-    assert state_logs[0].collateral == initial_collateral + amounts["additional_collateral"]
+    assert (
+        state_logs[0].collateral
+        == initial_collateral + amounts["additional_collateral"]
+    )
     assert state_logs[0].borrowed == 0
     assert state_logs[0].debt == initial_debt
     assert state_logs[0].n2 - state_logs[0].n1 + 1 == N_BANDS

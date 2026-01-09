@@ -20,7 +20,7 @@ def create_loan(controller, collateral_token, borrowed_token, collateral_amount)
         boa.deal(collateral_token, borrower, collateral_amount)
         max_approve(collateral_token, controller)
         max_approve(borrowed_token, controller)
-        debt = 10**borrowed_token.decimals()
+        debt = 10 ** borrowed_token.decimals()
         if max_debt:
             debt = controller.max_borrowable(collateral_amount, N_BANDS)
         controller.create_loan(collateral_amount, debt, N_BANDS)
@@ -62,7 +62,13 @@ def snapshot(controller, amm, dummy_callback):
 
 @pytest.mark.parametrize("different_payer", [True, False])
 def test_full_repay_from_wallet(
-    controller, borrowed_token, collateral_token, create_loan, snapshot, collateral_amount, different_payer
+    controller,
+    borrowed_token,
+    collateral_token,
+    create_loan,
+    snapshot,
+    collateral_amount,
+    different_payer,
 ):
     """
     Test full repayment using wallet tokens.
@@ -1102,7 +1108,9 @@ def test_partial_repay_from_wallet_and_callback(
     debt = user_state_before[2]
     wallet_borrowed = debt // 3  # Wallet provides 1/3 of debt
     callback_borrowed = debt // 3  # Callback provides 1/3 of debt
-    callback_collateral = collateral_amount * 2 // 3  # Callback provides 2/3 of collateral
+    callback_collateral = (
+        collateral_amount * 2 // 3
+    )  # Callback provides 2/3 of collateral
     total_debt = controller.total_debt()
     repaid = controller.eval("core.repaid")
 
@@ -1493,7 +1501,9 @@ def test_partial_repay_from_xy0_and_wallet_underwater_shrink(
     trader = boa.env.generate_address()
     ticks_before = amm.read_user_tick_numbers(borrower)
     assert ticks_before[1] - ticks_before[0] == 5
-    amount_out = amm.bands_y(ticks_before[0]) // 100 // 10 ** (18 - collateral_token.decimals())  # 1 / 100
+    amount_out = (
+        amm.bands_y(ticks_before[0]) // 100 // 10 ** (18 - collateral_token.decimals())
+    )  # 1 / 100
     amount_out = max(amount_out, 1)
     boa.deal(borrowed_token, trader, amm.get_dx(0, 1, amount_out))
     with boa.env.prank(trader):
@@ -1647,7 +1657,9 @@ def test_partial_repay_from_xy0_and_callback_underwater_shrink(
     trader = boa.env.generate_address()
     ticks_before = amm.read_user_tick_numbers(borrower)
     assert ticks_before[1] - ticks_before[0] == 5
-    amount_out = amm.bands_y(ticks_before[0]) // 100 // 10 ** (18 - collateral_token.decimals())  # 1 / 100
+    amount_out = (
+        amm.bands_y(ticks_before[0]) // 100 // 10 ** (18 - collateral_token.decimals())
+    )  # 1 / 100
     amount_out = max(amount_out, 1)
     boa.deal(borrowed_token, trader, amm.get_dx(0, 1, amount_out))
     with boa.env.prank(trader):
@@ -1672,7 +1684,9 @@ def test_partial_repay_from_xy0_and_callback_underwater_shrink(
     # ================= Setup callback tokens =================
 
     callback_borrowed = tokens_to_shrink  # Additional callback repayment
-    callback_collateral = user_state_before[0] - d_collateral  # Some collateral from callback
+    callback_collateral = (
+        user_state_before[0] - d_collateral
+    )  # Some collateral from callback
     calldata = get_calldata(callback_borrowed, callback_collateral)
     boa.deal(borrowed_token, dummy_callback, callback_borrowed)
     repay_hits = dummy_callback.callback_repay_hits()
@@ -1805,7 +1819,9 @@ def test_partial_repay_from_xy0_and_wallet_and_callback_underwater_shrink(
     trader = boa.env.generate_address()
     ticks_before = amm.read_user_tick_numbers(borrower)
     assert ticks_before[1] - ticks_before[0] == 5
-    amount_out = amm.bands_y(ticks_before[0]) // 100 // 10 ** (18 - collateral_token.decimals())  # 1 / 100
+    amount_out = (
+        amm.bands_y(ticks_before[0]) // 100 // 10 ** (18 - collateral_token.decimals())
+    )  # 1 / 100
     amount_out = max(amount_out, 1)
     boa.deal(borrowed_token, trader, amm.get_dx(0, 1, amount_out))
     with boa.env.prank(trader):
@@ -1839,7 +1855,9 @@ def test_partial_repay_from_xy0_and_wallet_and_callback_underwater_shrink(
     callback_borrowed = (
         tokens_to_shrink - wallet_borrowed
     )  # Callback provides 1/6 of debt
-    callback_collateral = user_state_before[0] - d_collateral  # Some collateral from callback
+    callback_collateral = (
+        user_state_before[0] - d_collateral
+    )  # Some collateral from callback
     calldata = get_calldata(callback_borrowed, callback_collateral)
     boa.deal(borrowed_token, dummy_callback, callback_borrowed)
     repay_hits = dummy_callback.callback_repay_hits()
