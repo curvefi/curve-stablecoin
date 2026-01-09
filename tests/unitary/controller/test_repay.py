@@ -830,8 +830,16 @@ def test_full_repay_from_xy0_and_wallet_and_callback(
 
 
 @pytest.mark.parametrize("different_payer", [True, False])
+@pytest.mark.parametrize("approval", [True, False])
 def test_partial_repay_from_wallet(
-    controller, borrowed_token, collateral_token, create_loan, snapshot, different_payer
+    controller,
+    borrowed_token,
+    collateral_token,
+    create_loan,
+    snapshot,
+    admin,
+    different_payer,
+    approval,
 ):
     """
     Test partial repayment using wallet tokens.
@@ -844,6 +852,14 @@ def test_partial_repay_from_wallet(
     payer = boa.env.eoa
     if different_payer:
         payer = boa.env.generate_address()
+
+    # ================= Set new liquidation discount =================
+
+    old_liquidation_discount = controller.liquidation_discount()
+    new_liquidation_discount = old_liquidation_discount // 2
+    controller.set_borrowing_discounts(
+        controller.loan_discount(), new_liquidation_discount, sender=admin
+    )
 
     # ================= Capture initial state =================
 
@@ -860,6 +876,10 @@ def test_partial_repay_from_wallet(
         max_approve(borrowed_token, controller, sender=payer)
 
     # ================= Calculate future health =================
+
+    # Approved caller triggers borrower's liquidation discount update which affects health
+    if different_payer and approval:
+        controller.approve(payer, True, sender=borrower)
 
     d_collateral = 0
     d_debt = wallet_borrowed
@@ -1186,6 +1206,7 @@ def test_partial_repay_from_wallet_and_callback(
 
 
 @pytest.mark.parametrize("different_payer", [True, False])
+@pytest.mark.parametrize("approval", [True, False])
 def test_partial_repay_from_wallet_underwater(
     controller,
     amm,
@@ -1193,7 +1214,9 @@ def test_partial_repay_from_wallet_underwater(
     collateral_token,
     create_loan,
     snapshot,
+    admin,
     different_payer,
+    approval,
 ):
     """
     Test partial repayment from wallet when position is underwater (soft-liquidated).
@@ -1226,6 +1249,14 @@ def test_partial_repay_from_wallet_underwater(
     total_debt = controller.total_debt()
     repaid = controller.eval("core.repaid")
 
+    # ================= Set new liquidation discount =================
+
+    old_liquidation_discount = controller.liquidation_discount()
+    new_liquidation_discount = old_liquidation_discount // 2
+    controller.set_borrowing_discounts(
+        controller.loan_discount(), new_liquidation_discount, sender=admin
+    )
+
     # ================= Setup payer tokens =================
 
     wallet_borrowed = debt // 3  # Repay 1/3 of the debt
@@ -1234,6 +1265,10 @@ def test_partial_repay_from_wallet_underwater(
         max_approve(borrowed_token, controller, sender=payer)
 
     # ================= Calculate future health =================
+
+    # Approved caller triggers borrower's liquidation discount update which affects health
+    if different_payer and approval:
+        controller.approve(payer, True, sender=borrower)
 
     d_collateral = 0
     d_debt = wallet_borrowed

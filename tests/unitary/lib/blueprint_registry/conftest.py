@@ -37,3 +37,18 @@ def get_all_ids() -> DynArray[String[4], 10]:
 @pytest.fixture()
 def blueprint_registry(blueprint_registry_deployer):
     return blueprint_registry_deployer(["AMM", "CTR", "VLT", "CTRV"])
+
+
+@pytest.fixture()
+def get_allowed_ids():
+    def f(blueprint_registry):
+        ids = []
+        for i in range(blueprint_registry._constants.MAX_LENGTH):
+            try:
+                ids.append(blueprint_registry.eval(f"BLUEPRINT_REGISTRY_IDS[{i}]"))
+            except Exception:
+                break
+
+        return ids
+
+    return f
