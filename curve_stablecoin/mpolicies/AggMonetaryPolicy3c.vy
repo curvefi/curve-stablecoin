@@ -122,7 +122,7 @@ def __init__(admin: address,
 def set_admin(admin: address):
     assert msg.sender == self.admin
     self.admin = admin
-    log SetAdmin(admin)
+    log SetAdmin(admin=admin)
 
 
 @external
@@ -134,7 +134,7 @@ def add_peg_keeper(pk: PegKeeper):
         assert _pk != pk, "Already added"
         if _pk.address == empty(address):
             self.peg_keepers[i] = pk
-            log AddPegKeeper(pk.address)
+            log AddPegKeeper(peg_keeper=pk.address)
             break
 
 
@@ -146,7 +146,7 @@ def remove_peg_keeper(pk: PegKeeper):
         _pk: PegKeeper = self.peg_keepers[i]
         if _pk == pk:
             replaced_peg_keeper = i
-            log RemovePegKeeper(pk.address)
+            log RemovePegKeeper(peg_keeper=pk.address)
         if _pk.address == empty(address):
             if replaced_peg_keeper < i:
                 if replaced_peg_keeper < i - 1:
@@ -366,7 +366,7 @@ def set_rate(rate: uint256):
     assert msg.sender == self.admin
     assert rate <= MAX_RATE
     self.rate0 = rate
-    log SetRate(rate)
+    log SetRate(rate=rate)
 
 
 @external
@@ -376,7 +376,7 @@ def set_sigma(sigma: int256):
     assert sigma <= MAX_SIGMA
 
     self.sigma = sigma
-    log SetSigma(sigma)
+    log SetSigma(sigma=sigma)
 
 
 @external
@@ -386,7 +386,7 @@ def set_target_debt_fraction(target_debt_fraction: uint256):
     assert target_debt_fraction > 0
 
     self.target_debt_fraction = target_debt_fraction
-    log SetTargetDebtFraction(target_debt_fraction)
+    log SetTargetDebtFraction(target_debt_fraction=target_debt_fraction)
 
 
 @external
@@ -395,4 +395,4 @@ def set_extra_const(extra_const: uint256):
     assert extra_const <= MAX_EXTRA_CONST
 
     self.extra_const = extra_const
-    log SetExtraConst(extra_const)
+    log SetExtraConst(extra_const=extra_const)
