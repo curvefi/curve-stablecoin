@@ -112,8 +112,8 @@ def max_borrowable(
 
 @external
 @view
-def tokens_to_shrink(_user: address) -> uint256:
+def tokens_to_shrink(_user: address, _d_collateral: uint256 = 0) -> uint256:
     """
     @notice Natspec for this function is available in its controller contract
     """
-    return core._tokens_to_shrink(_user, self._get_cap())
+    return core._tokens_to_shrink(_user, self._get_cap(), _d_collateral)
