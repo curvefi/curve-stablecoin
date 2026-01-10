@@ -11,7 +11,6 @@ from tests.utils.deployers import (
     AMM_DEPLOYER,
     CONSTANT_MONETARY_POLICY_DEPLOYER,
     LM_CALLBACK_DEPLOYER,
-    BLOCK_COUNTER_DEPLOYER,
     LEND_CONTROLLER_DEPLOYER,
 )
 
@@ -181,9 +180,3 @@ def lm_callback(
         gauge_controller.add_gauge(cb.address, 0, 10**18)
 
         return cb
-
-
-@pytest.fixture(scope="module")
-def block_counter(admin):
-    with boa.env.prank(admin):
-        return BLOCK_COUNTER_DEPLOYER.deploy()
