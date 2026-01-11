@@ -8,6 +8,11 @@
 # This version uses min(last day) debt when calculating per-market rates
 # Should be used for Controllers which update borrow rate too early (not at the end of every call)
 
+from snekmate.utils import math
+from curve_std import ema
+
+initializes: ema
+
 
 interface PegKeeper:
     def debt() -> uint256: view
@@ -53,6 +58,9 @@ event SetTargetDebtFraction:
 event SetExtraConst:
     extra_const: uint256
 
+event SetDebtRatioEmaTime:
+    debt_ratio_ema_time: uint256
+
 
 admin: public(address)
 
@@ -80,6 +88,8 @@ DEBT_CANDLE_TIME: constant(uint256) = 86400 // 2
 min_debt_candles: public(HashMap[address, DebtCandle])
 
 
+DEBT_RATIO_EMA_ID: constant(String[4]) = "pkr"
+
 MAX_TARGET_DEBT_FRACTION: constant(uint256) = 10**18
 MAX_SIGMA: constant(int256) = 10**18
 MIN_SIGMA: constant(int256) = 10**14
@@ -97,7 +107,8 @@ def __init__(admin: address,
              rate: uint256,
              sigma: int256,
              target_debt_fraction: uint256,
-             extra_const: uint256):
+             extra_const: uint256,
+             _debt_ratio_ema_time: uint256):
     self.admin = admin
     PRICE_ORACLE = price_oracle
     CONTROLLER_FACTORY = controller_factory
@@ -116,6 +127,8 @@ def __init__(admin: address,
     self.sigma = sigma
     self.target_debt_fraction = target_debt_fraction
     self.extra_const = extra_const
+
+    ema.__init__([ema.EMAConfig(ema_id=DEBT_RATIO_EMA_ID, initial_value=target_debt_fraction, ema_time=_debt_ratio_ema_time)])
 
 
 @external
@@ -286,7 +299,7 @@ def read_debt(_for: address, ro: bool) -> (uint256, uint256):
 
 @internal
 @view
-def calculate_rate(_for: address, _price: uint256, ro: bool) -> uint256:
+def calculate_rate(_for: address, _price: uint256, ro: bool) -> (uint256, uint256):
     sigma: int256 = self.sigma
     target_debt_fraction: uint256 = self.target_debt_fraction
 
@@ -302,11 +315,14 @@ def calculate_rate(_for: address, _price: uint256, ro: bool) -> uint256:
     total_debt, debt_for = self.read_debt(_for, ro)
 
     power: int256 = (10**18 - p) * 10**18 // sigma  # high price -> negative pow -> low rate
+    smoothed_ratio: uint256 = 0
     if pk_debt > 0:
         if total_debt == 0:
-            return 0
+            return 0, 0
         else:
-            power -= convert(pk_debt * 10**18 // total_debt * 10**18 // target_debt_fraction, int256)
+            ratio: uint256 = pk_debt * 10**18 // total_debt
+            smoothed_ratio = ema.compute(DEBT_RATIO_EMA_ID, ratio)
+            power -= convert(smoothed_ratio * 10**18 // target_debt_fraction, int256)
 
     # Rate accounting for crvUSD price and PegKeeper debt
     rate: uint256 = self.rate0 * min(self.exp(power), MAX_EXP) // 10**18 + self.extra_const
@@ -329,13 +345,16 @@ def calculate_rate(_for: address, _price: uint256, ro: bool) -> uint256:
     #   f = 0.9
     #   new_rate = rate * ((1.0 - 0.1) + 0.1 / (1.0 - 0.9)) = rate * (1.0 + 1.0 - 0.1) = 1.9 * rate
 
-    return rate
+    return rate, smoothed_ratio
 
 
 @view
 @external
 def rate(_for: address = msg.sender) -> uint256:
-    return self.calculate_rate(_for, staticcall PRICE_ORACLE.price(), True)
+    rate: uint256 = 0
+    smoothed_ratio: uint256 = 0
+    rate, smoothed_ratio = self.calculate_rate(_for, staticcall PRICE_ORACLE.price(), True)
+    return rate
 
 
 @external
@@ -358,7 +377,11 @@ def rate_write(_for: address = msg.sender) -> uint256:
     self.save_candle(empty(address), total_debt)
     self.save_candle(_for, debt_for)
 
-    return self.calculate_rate(_for, extcall PRICE_ORACLE.price_w(), False)
+    rate: uint256 = 0
+    smoothed_ratio: uint256 = 0
+    rate, smoothed_ratio = self.calculate_rate(_for, extcall PRICE_ORACLE.price_w(), False)
+    ema._save(DEBT_RATIO_EMA_ID, smoothed_ratio)
+    return rate
 
 
 @external
@@ -396,3 +419,16 @@ def set_extra_const(extra_const: uint256):
 
     self.extra_const = extra_const
     log SetExtraConst(extra_const=extra_const)
+
+
+@external
+def set_debt_ratio_ema_time(_debt_ratio_ema_time: uint256):
+    assert msg.sender == self.admin
+
+    ema.set_ema_time(DEBT_RATIO_EMA_ID, _debt_ratio_ema_time)
+    log SetDebtRatioEmaTime(debt_ratio_ema_time=_debt_ratio_ema_time)
+
+@external
+@view
+def debt_ratio_ema_time() -> uint256:
+    return ema._emas[DEBT_RATIO_EMA_ID].ema_time
