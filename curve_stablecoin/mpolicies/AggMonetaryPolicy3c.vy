@@ -3,6 +3,8 @@
 @title AggMonetaryPolicy - monetary policy based on aggregated prices for crvUSD
 @author Curve.Fi
 @license Copyright (c) Curve.Fi, 2020-2024 - all rights reserved
+@custom:kill This contract doesn't have a kill switch as halting it would brick most markets.
+    to stop it, simply set another monetary policy in all Controllers using this one.
 """
 
 # This version uses min(last day) debt when calculating per-market rates
