@@ -3,6 +3,7 @@ Centralized deployers for all contracts used in tests.
 Each deployer is a VyperDeployer object returned using boa.load_partial().
 """
 
+import curve_stablecoin
 from pathlib import Path
 
 import boa
@@ -21,9 +22,8 @@ compiler_args_codesize = {
 # Contracts with #pragma optimize gas
 compiler_args_gas = {**compiler_args_default, "optimize": OptimizationLevel.GAS}
 
-# Get the absolute path to the curve_stablecoin package
-import curve_stablecoin
 
+# Get the absolute path to the curve_stablecoin package
 _PACKAGE_ROOT = Path(curve_stablecoin.__file__).parent
 
 # Contract paths (absolute)
@@ -34,7 +34,9 @@ MPOLICIES_CONTRACT_PATH = _PACKAGE_ROOT / "mpolicies"
 PRICE_ORACLES_CONTRACT_PATH = _PACKAGE_ROOT / "price_oracles"
 STABILIZER_CONTRACT_PATH = _PACKAGE_ROOT / "stabilizer"
 FLASHLOAN_CONTRACT_PATH = _PACKAGE_ROOT / "flashloan"
-STABLESWAP_NG_PATH = _PACKAGE_ROOT / "testing" / "stableswap-ng" / "curve_stablecoin" / "main"
+STABLESWAP_NG_PATH = (
+    _PACKAGE_ROOT / "testing" / "stableswap-ng" / "curve_stablecoin" / "main"
+)
 ZAPS_CONTRACT_PATH = _PACKAGE_ROOT / "zaps"
 
 # Constants contract (for accessing constants)
@@ -267,7 +269,10 @@ MOCK_CRYPTO_SWAP_DEPLOYER = boa.load_partial(
     compiler_args=compiler_args_default,
 )
 MOCK_STABLE_SWAP_NO_ARGUMENT_DEPLOYER = boa.load_partial(
-    PRICE_ORACLES_CONTRACT_PATH / "lp-oracles" / "testing" / "MockStableSwapNoArgument.vy",
+    PRICE_ORACLES_CONTRACT_PATH
+    / "lp-oracles"
+    / "testing"
+    / "MockStableSwapNoArgument.vy",
     compiler_args=compiler_args_default,
 )
 
