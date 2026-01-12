@@ -10,7 +10,6 @@
 # This version uses min(last day) debt when calculating per-market rates
 # Should be used for Controllers which update borrow rate too early (not at the end of every call)
 
-from snekmate.utils import math
 from curve_std import ema
 
 initializes: ema
