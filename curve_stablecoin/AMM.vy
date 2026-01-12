@@ -693,22 +693,8 @@ def deposit_range(user: address, amount: uint256, n1: int256, n2: int256):
     log IAMM.Deposit(provider=user, amount=amount, n1=n1, n2=n2)
 
     if lm.address != empty(address):
-        success: bool = False
-        res: Bytes[32] = empty(Bytes[32])
-        success, res = raw_call(
-            lm.address,
-            abi_encode(
-                n1, collateral_shares, n_bands,
-                method_id=method_id("callback_collateral_shares(int256,uint256[],uint256)")
-            ),
-            max_outsize=32, revert_on_failure=False)
-        success, res = raw_call(
-            lm.address,
-            abi_encode(
-                user, n1, empty(DynArray[uint256, MAX_TICKS_UINT]), n_bands,
-                method_id=method_id("callback_user_shares(address,int256,uint256[],uint256)")
-            ),
-            max_outsize=32, revert_on_failure=False)
+        extcall lm.callback_collateral_shares(n1, collateral_shares, n_bands)
+        extcall lm.callback_user_shares(user, n1, empty(DynArray[uint256, MAX_TICKS_UINT]), n_bands)
 
 
 @external
@@ -790,22 +776,8 @@ def withdraw(user: address, frac: uint256) -> uint256[2]:
     log IAMM.Withdraw(provider=user, amount_borrowed=total_x, amount_collateral=total_y)
 
     if lm.address != empty(address):
-        success: bool = False
-        res: Bytes[32] = empty(Bytes[32])
-        success, res = raw_call(
-            lm.address,
-            abi_encode(
-                ns[0], empty(DynArray[uint256, MAX_TICKS_UINT]), len(old_user_shares),
-                method_id=method_id("callback_collateral_shares(int256,uint256[],uint256)")
-            ),
-            max_outsize=32, revert_on_failure=False)
-        success, res = raw_call(
-            lm.address,
-            abi_encode(
-                user, ns[0], old_user_shares, len(old_user_shares),
-                method_id=method_id("callback_user_shares(address,int256,uint256[],uint256)")
-            ),
-            max_outsize=32, revert_on_failure=False)
+        extcall lm.callback_collateral_shares(ns[0], empty(DynArray[uint256, MAX_TICKS_UINT]), len(old_user_shares))
+        extcall lm.callback_user_shares(user, ns[0], old_user_shares, len(old_user_shares))
 
     return [total_x, total_y]
 
@@ -1094,15 +1066,7 @@ def _exchange(i: uint256, j: uint256, amount: uint256, minmax_amount: uint256, _
     log IAMM.TokenExchange(buyer=_for, sold_id=i, tokens_sold=in_amount_done, bought_id=j, tokens_bought=out_amount_done)
 
     if lm.address != empty(address):
-        success: bool = False
-        res: Bytes[32] = empty(Bytes[32])
-        success, res = raw_call(
-            lm.address,
-            abi_encode(
-                n_start, collateral_shares, len(collateral_shares),
-                method_id=method_id("callback_collateral_shares(int256,uint256[],uint256)")
-            ),
-            max_outsize=32, revert_on_failure=False)
+        extcall lm.callback_collateral_shares(n_start, collateral_shares, len(collateral_shares))
 
     tkn.transfer_from(in_coin, msg.sender, self, in_amount_done)
     tkn.transfer(out_coin, _for, out_amount_done)
