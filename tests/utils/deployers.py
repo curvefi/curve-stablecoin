@@ -121,7 +121,7 @@ AGG_MONETARY_POLICY3_DEPLOYER = boa.load_partial(
     compiler_args=compiler_args_default,
 )
 AGG_MONETARY_POLICY3C_DEPLOYER = boa.load_partial(
-    MPOLICIES_CONTRACT_PATH + "AggMonetaryPolicy3c.vy",
+    MPOLICIES_CONTRACT_PATH / "AggMonetaryPolicy3c.vy",
     compiler_args=compiler_args_default,
 )
 
