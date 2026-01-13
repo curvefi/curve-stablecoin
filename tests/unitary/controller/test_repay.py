@@ -9,8 +9,8 @@ N_BANDS = 6
 
 
 @pytest.fixture(scope="module")
-def collateral_amount(collateral_decimals):
-    return int(N_BANDS * 0.05 * 10**collateral_decimals)
+def collateral_amount(collateral_token):
+    return int(N_BANDS * 0.05 * 10**collateral_token.decimals())
 
 
 @pytest.fixture(scope="module")
@@ -31,7 +31,7 @@ def create_loan(controller, collateral_token, borrowed_token, collateral_amount)
 
 
 @pytest.fixture(scope="module")
-def get_calldata(dummy_callback, borrowed_token, collateral_token):
+def get_calldata(borrowed_token, collateral_token):
     def fn(borrowed_amount, collateral_amount):
         return encode(
             ["address", "address", "uint256", "uint256"],

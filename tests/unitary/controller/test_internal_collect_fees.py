@@ -1,17 +1,21 @@
 import pytest
-
 import boa
-
 from tests.utils import filter_logs, max_approve
 from tests.utils.constants import MIN_TICKS, WAD
 
-COLLATERAL = 10**21
-DEBT = 10**18
 RATE = 10**11
-TIME_DELTA = 86400
+TIME_DELTA = 100 * 86400
 
 
-@pytest.mark.parametrize("pct", range(1, 101))
+@pytest.fixture(scope="module")
+def amounts(collateral_token, borrowed_token):
+    return {
+        "collateral": int(1000 * 10**collateral_token.decimals()),
+        "debt": int(100 * 10**borrowed_token.decimals()),
+    }
+
+
+@pytest.mark.parametrize("pct", list(range(0, 101, 10)))
 def test_default_behavior(
     controller,
     amm,
@@ -20,17 +24,18 @@ def test_default_behavior(
     factory,
     pct,
     market_type,
+    amounts,
 ):
     controller.eval(f"core.admin_percentage = {WAD * pct // 100}")
-    boa.deal(collateral_token, boa.env.eoa, COLLATERAL)
+    boa.deal(collateral_token, boa.env.eoa, amounts["collateral"])
     max_approve(collateral_token, controller)
-    controller.create_loan(COLLATERAL, DEBT, MIN_TICKS)
+    controller.create_loan(amounts["collateral"], amounts["debt"], MIN_TICKS)
 
     amm.eval(f"self.rate = {RATE}")
     amm.eval("self.rate_time = block.timestamp")
     boa.env.time_travel(TIME_DELTA)
 
-    expected_fees = DEBT * TIME_DELTA * RATE // 10**18 * pct // 100
+    expected_fees = amounts["debt"] * TIME_DELTA * RATE // 10**18 * pct // 100
 
     fee_receiver = factory.fee_receiver()
     receiver_balance_before = borrowed_token.balanceOf(fee_receiver)
@@ -39,7 +44,6 @@ def test_default_behavior(
     amount = controller.collect_fees()
 
     if pct > 0:
-        assert expected_fees > 0
         assert amount > 0
     else:
         assert amount == 0

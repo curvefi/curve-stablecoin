@@ -1,14 +1,19 @@
 import pytest
 import boa
 from eth_abi import encode
-
 from tests.utils import max_approve, filter_logs
 
-COLLATERAL = 10**17
-DEBT = 10**20
 N_BANDS = 6
-ADDITIONAL_COLLATERAL = 5 * 10**16  # Half of initial collateral
-ADDITIONAL_DEBT = 5 * 10**19  # Half of initial debt
+
+
+@pytest.fixture(scope="module")
+def amounts(collateral_token, borrowed_token):
+    return {
+        "collateral": int(0.1 * 10**collateral_token.decimals()),
+        "additional_collateral": int(0.05 * 10**collateral_token.decimals()),
+        "debt": int(100 * 10**borrowed_token.decimals()),
+        "additional_debt": int(50 * 10**borrowed_token.decimals()),
+    }
 
 
 @pytest.fixture(scope="module")
@@ -42,17 +47,17 @@ def snapshot(controller, amm, dummy_callback):
 
 
 @pytest.fixture(scope="function")
-def borrower_with_existing_loan(controller, collateral_token):
+def borrower_with_existing_loan(controller, collateral_token, amounts):
     """
     Create an existing loan for testing borrow_more.
     """
     borrower = boa.env.eoa
-    boa.deal(collateral_token, borrower, COLLATERAL)
+    boa.deal(collateral_token, borrower, amounts["collateral"])
     max_approve(collateral_token, controller, sender=borrower)
 
-    controller.create_loan(COLLATERAL, DEBT, N_BANDS, sender=borrower)
+    controller.create_loan(amounts["collateral"], amounts["debt"], N_BANDS, sender=borrower)
     assert controller.loan_exists(borrower)
-    assert controller.debt(borrower) == DEBT
+    assert controller.debt(borrower) == amounts["debt"]
 
     return borrower
 
@@ -65,9 +70,10 @@ def test_borrow_more_from_wallet(
     collateral_token,
     snapshot,
     borrower_with_existing_loan,
-    different_caller,
     monetary_policy,
     admin,
+    amounts,
+    different_caller,
 ):
     """
     Test borrowing more with collateral from wallet only.
@@ -100,16 +106,16 @@ def test_borrow_more_from_wallet(
 
     # ================= Setup caller tokens =================
 
-    boa.deal(collateral_token, caller, ADDITIONAL_COLLATERAL)
+    boa.deal(collateral_token, caller, amounts["additional_collateral"])
     max_approve(collateral_token, controller, sender=caller)
 
     # ================= Calculate future health =================
 
     preview_health = controller.borrow_more_health_preview(
-        ADDITIONAL_COLLATERAL, ADDITIONAL_DEBT, borrower, False
+        amounts["additional_collateral"], amounts["additional_debt"], borrower, False
     )
     preview_health_full = controller.borrow_more_health_preview(
-        ADDITIONAL_COLLATERAL, ADDITIONAL_DEBT, borrower, True
+        amounts["additional_collateral"], amounts["additional_debt"], borrower, True
     )
 
     # ================= Capture initial balances =================
@@ -123,12 +129,12 @@ def test_borrow_more_from_wallet(
         # Can't borrow more for different user without approval
         with boa.reverts():
             controller.borrow_more(
-                ADDITIONAL_COLLATERAL, ADDITIONAL_DEBT, borrower, sender=caller
+                amounts["additional_collateral"], amounts["additional_debt"], borrower, sender=caller
             )
         controller.approve(caller, True, sender=borrower)
 
     controller.borrow_more(
-        ADDITIONAL_COLLATERAL, ADDITIONAL_DEBT, borrower, sender=caller
+        amounts["additional_collateral"], amounts["additional_debt"], borrower, sender=caller
     )
 
     # ================= Capture logs =================
@@ -158,14 +164,14 @@ def test_borrow_more_from_wallet(
 
     user_state_after = controller.user_state(borrower)
     assert (
-        user_state_after[0] == initial_collateral + ADDITIONAL_COLLATERAL
+        user_state_after[0] == initial_collateral + amounts["additional_collateral"]
     )  # collateral increased
     assert user_state_after[1] == 0  # no borrowed tokens in AMM
-    assert user_state_after[2] == initial_debt + ADDITIONAL_DEBT  # debt increased
+    assert user_state_after[2] == initial_debt + amounts["additional_debt"]  # debt increased
     assert user_state_after[3] == N_BANDS  # N bands unchanged
-    assert controller.total_debt() == total_debt_before + ADDITIONAL_DEBT
-    assert controller.eval("core.lent") == initial_lent + ADDITIONAL_DEBT
-    assert controller.debt(borrower) == initial_debt + ADDITIONAL_DEBT
+    assert controller.total_debt() == total_debt_before + amounts["additional_debt"]
+    assert controller.eval("core.lent") == initial_lent + amounts["additional_debt"]
+    assert controller.debt(borrower) == initial_debt + amounts["additional_debt"]
     assert controller.loan_exists(borrower)
     assert controller.health(borrower) == pytest.approx(preview_health, rel=1e-10)
     assert controller.health(borrower, True) == pytest.approx(
@@ -178,14 +184,14 @@ def test_borrow_more_from_wallet(
 
     assert len(borrow_logs) == 1
     assert borrow_logs[0].user == borrower
-    assert borrow_logs[0].collateral_increase == ADDITIONAL_COLLATERAL
-    assert borrow_logs[0].loan_increase == ADDITIONAL_DEBT
+    assert borrow_logs[0].collateral_increase == amounts["additional_collateral"]
+    assert borrow_logs[0].loan_increase == amounts["additional_debt"]
 
     assert len(state_logs) == 1
     assert state_logs[0].user == borrower
-    assert state_logs[0].collateral == initial_collateral + ADDITIONAL_COLLATERAL
+    assert state_logs[0].collateral == initial_collateral + amounts["additional_collateral"]
     assert state_logs[0].borrowed == 0
-    assert state_logs[0].debt == initial_debt + ADDITIONAL_DEBT
+    assert state_logs[0].debt == initial_debt + amounts["additional_debt"]
     assert state_logs[0].n2 - state_logs[0].n1 + 1 == N_BANDS
     assert state_logs[0].liquidation_discount == controller.liquidation_discounts(
         borrower
@@ -193,13 +199,13 @@ def test_borrow_more_from_wallet(
 
     # ================= Verify money flows =================
 
-    assert borrowed_to_borrower == ADDITIONAL_DEBT
-    assert borrowed_from_controller == -ADDITIONAL_DEBT
+    assert borrowed_to_borrower == amounts["additional_debt"]
+    assert borrowed_from_controller == -amounts["additional_debt"]
     assert borrowed_token_after["amm"] == borrowed_token_before["amm"]
     assert borrowed_token_after["callback"] == borrowed_token_before["callback"]
 
-    assert collateral_to_amm == ADDITIONAL_COLLATERAL
-    assert collateral_from_caller == -ADDITIONAL_COLLATERAL
+    assert collateral_to_amm == amounts["additional_collateral"]
+    assert collateral_from_caller == -amounts["additional_collateral"]
     assert collateral_token_after["controller"] == collateral_token_before["controller"]
     assert collateral_token_after["callback"] == collateral_token_before["callback"]
 
@@ -218,9 +224,10 @@ def test_borrow_more_from_callback(
     borrower_with_existing_loan,
     dummy_callback,
     get_calldata,
-    different_caller,
     monetary_policy,
     admin,
+    amounts,
+    different_caller,
 ):
     """
     Test borrowing more with collateral from callback only.
@@ -254,7 +261,7 @@ def test_borrow_more_from_callback(
 
     # ================= Setup callback tokens =================
 
-    callback_collateral = ADDITIONAL_COLLATERAL
+    callback_collateral = amounts["additional_collateral"]
     total_collateral = callback_collateral
     calldata = get_calldata(0, callback_collateral)
     boa.deal(collateral_token, dummy_callback, callback_collateral)
@@ -262,10 +269,10 @@ def test_borrow_more_from_callback(
     # ================= Calculate future health =================
 
     preview_health = controller.borrow_more_health_preview(
-        total_collateral, ADDITIONAL_DEBT, borrower, False
+        total_collateral, amounts["additional_debt"], borrower, False
     )
     preview_health_full = controller.borrow_more_health_preview(
-        total_collateral, ADDITIONAL_DEBT, borrower, True
+        total_collateral, amounts["additional_debt"], borrower, True
     )
 
     # ================= Capture initial balances =================
@@ -280,7 +287,7 @@ def test_borrow_more_from_callback(
         with boa.reverts():
             controller.borrow_more(
                 0,
-                ADDITIONAL_DEBT,
+                amounts["additional_debt"],
                 borrower,
                 dummy_callback,
                 calldata,
@@ -290,7 +297,7 @@ def test_borrow_more_from_callback(
 
     controller.borrow_more(
         0,
-        ADDITIONAL_DEBT,
+        amounts["additional_debt"],
         borrower,
         dummy_callback,
         calldata,
@@ -327,11 +334,11 @@ def test_borrow_more_from_callback(
         user_state_after[0] == initial_collateral + total_collateral
     )  # collateral increased (callback only)
     assert user_state_after[1] == 0  # no borrowed tokens in AMM
-    assert user_state_after[2] == initial_debt + ADDITIONAL_DEBT  # debt increased
+    assert user_state_after[2] == initial_debt + amounts["additional_debt"]  # debt increased
     assert user_state_after[3] == N_BANDS  # N bands unchanged
-    assert controller.total_debt() == total_debt_before + ADDITIONAL_DEBT
-    assert controller.eval("core.lent") == initial_lent + ADDITIONAL_DEBT
-    assert controller.debt(borrower) == initial_debt + ADDITIONAL_DEBT
+    assert controller.total_debt() == total_debt_before + amounts["additional_debt"]
+    assert controller.eval("core.lent") == initial_lent + amounts["additional_debt"]
+    assert controller.debt(borrower) == initial_debt + amounts["additional_debt"]
     assert controller.loan_exists(borrower)
     assert dummy_callback.callback_deposit_hits() == callback_hits + 1
     assert controller.health(borrower) == pytest.approx(preview_health, rel=1e-10)
@@ -346,13 +353,13 @@ def test_borrow_more_from_callback(
     assert len(borrow_logs) == 1
     assert borrow_logs[0].user == borrower
     assert borrow_logs[0].collateral_increase == total_collateral
-    assert borrow_logs[0].loan_increase == ADDITIONAL_DEBT
+    assert borrow_logs[0].loan_increase == amounts["additional_debt"]
 
     assert len(state_logs) == 1
     assert state_logs[0].user == borrower
     assert state_logs[0].collateral == initial_collateral + total_collateral
     assert state_logs[0].borrowed == 0
-    assert state_logs[0].debt == initial_debt + ADDITIONAL_DEBT
+    assert state_logs[0].debt == initial_debt + amounts["additional_debt"]
     assert state_logs[0].n2 - state_logs[0].n1 + 1 == N_BANDS
     assert state_logs[0].liquidation_discount == controller.liquidation_discounts(
         borrower
@@ -360,8 +367,8 @@ def test_borrow_more_from_callback(
 
     # ================= Verify money flows =================
 
-    assert borrowed_to_callback == ADDITIONAL_DEBT
-    assert borrowed_from_controller == -ADDITIONAL_DEBT
+    assert borrowed_to_callback == amounts["additional_debt"]
+    assert borrowed_from_controller == -amounts["additional_debt"]
     assert borrowed_token_after["borrower"] == borrowed_token_before["borrower"]
     assert borrowed_token_after["amm"] == borrowed_token_before["amm"]
 
@@ -385,9 +392,10 @@ def test_borrow_more_from_wallet_and_callback(
     borrower_with_existing_loan,
     dummy_callback,
     get_calldata,
-    different_caller,
     monetary_policy,
     admin,
+    amounts,
+    different_caller,
 ):
     """
     Test borrowing more with collateral from both wallet and callback.
@@ -422,8 +430,8 @@ def test_borrow_more_from_wallet_and_callback(
 
     # ================= Setup caller tokens =================
 
-    wallet_collateral = ADDITIONAL_COLLATERAL
-    callback_collateral = ADDITIONAL_COLLATERAL // 3
+    wallet_collateral = amounts["additional_collateral"]
+    callback_collateral = amounts["additional_collateral"] // 3
     total_collateral = wallet_collateral + callback_collateral
     boa.deal(collateral_token, caller, wallet_collateral)
     max_approve(collateral_token, controller, sender=caller)
@@ -436,10 +444,10 @@ def test_borrow_more_from_wallet_and_callback(
     # ================= Calculate future health =================
 
     preview_health = controller.borrow_more_health_preview(
-        total_collateral, ADDITIONAL_DEBT, borrower, False
+        total_collateral, amounts["additional_debt"], borrower, False
     )
     preview_health_full = controller.borrow_more_health_preview(
-        total_collateral, ADDITIONAL_DEBT, borrower, True
+        total_collateral, amounts["additional_debt"], borrower, True
     )
 
     # ================= Capture initial balances =================
@@ -454,7 +462,7 @@ def test_borrow_more_from_wallet_and_callback(
         with boa.reverts():
             controller.borrow_more(
                 wallet_collateral,
-                ADDITIONAL_DEBT,
+                amounts["additional_debt"],
                 borrower,
                 dummy_callback,
                 calldata,
@@ -464,7 +472,7 @@ def test_borrow_more_from_wallet_and_callback(
 
     controller.borrow_more(
         wallet_collateral,
-        ADDITIONAL_DEBT,
+        amounts["additional_debt"],
         borrower,
         dummy_callback,
         calldata,
@@ -504,11 +512,11 @@ def test_borrow_more_from_wallet_and_callback(
         user_state_after[0] == initial_collateral + total_collateral
     )  # collateral increased (wallet + callback)
     assert user_state_after[1] == 0  # no borrowed tokens in AMM
-    assert user_state_after[2] == initial_debt + ADDITIONAL_DEBT  # debt increased
+    assert user_state_after[2] == initial_debt + amounts["additional_debt"]  # debt increased
     assert user_state_after[3] == N_BANDS  # N bands unchanged
-    assert controller.total_debt() == total_debt_before + ADDITIONAL_DEBT
-    assert controller.eval("core.lent") == initial_lent + ADDITIONAL_DEBT
-    assert controller.debt(borrower) == initial_debt + ADDITIONAL_DEBT
+    assert controller.total_debt() == total_debt_before + amounts["additional_debt"]
+    assert controller.eval("core.lent") == initial_lent + amounts["additional_debt"]
+    assert controller.debt(borrower) == initial_debt + amounts["additional_debt"]
     assert controller.loan_exists(borrower)
     assert dummy_callback.callback_deposit_hits() == callback_hits + 1
     assert controller.health(borrower) == pytest.approx(preview_health, rel=1e-10)
@@ -523,13 +531,13 @@ def test_borrow_more_from_wallet_and_callback(
     assert len(borrow_logs) == 1
     assert borrow_logs[0].user == borrower
     assert borrow_logs[0].collateral_increase == total_collateral
-    assert borrow_logs[0].loan_increase == ADDITIONAL_DEBT
+    assert borrow_logs[0].loan_increase == amounts["additional_debt"]
 
     assert len(state_logs) == 1
     assert state_logs[0].user == borrower
     assert state_logs[0].collateral == initial_collateral + total_collateral
     assert state_logs[0].borrowed == 0
-    assert state_logs[0].debt == initial_debt + ADDITIONAL_DEBT
+    assert state_logs[0].debt == initial_debt + amounts["additional_debt"]
     assert state_logs[0].n2 - state_logs[0].n1 + 1 == N_BANDS
     assert state_logs[0].liquidation_discount == controller.liquidation_discounts(
         borrower
@@ -537,8 +545,8 @@ def test_borrow_more_from_wallet_and_callback(
 
     # ================= Verify money flows =================
 
-    assert borrowed_to_callback == ADDITIONAL_DEBT
-    assert borrowed_from_controller == -ADDITIONAL_DEBT
+    assert borrowed_to_callback == amounts["additional_debt"]
+    assert borrowed_from_controller == -amounts["additional_debt"]
     assert borrowed_token_after["borrower"] == borrowed_token_before["borrower"]
     assert borrowed_token_after["amm"] == borrowed_token_before["amm"]
 
@@ -556,25 +564,27 @@ def test_borrow_more_no_loan_exists(
     controller,
     collateral_token,
     borrowed_token,
+    amounts,
 ):
     """
     Test that borrowing more when no loan exists reverts.
     """
     borrower = boa.env.eoa
-    boa.deal(collateral_token, borrower, ADDITIONAL_COLLATERAL)
+    boa.deal(collateral_token, borrower, amounts["additional_collateral"])
     max_approve(collateral_token, controller, sender=borrower)
 
     assert not controller.loan_exists(borrower)
 
     # Try to borrow more without a loan - should revert
     with boa.reverts("Loan doesn't exist"):
-        controller.borrow_more(ADDITIONAL_COLLATERAL, ADDITIONAL_DEBT, sender=borrower)
+        controller.borrow_more(amounts["additional_collateral"], amounts["additional_debt"], sender=borrower)
 
 
 def test_borrow_more_zero_debt(
     controller,
     collateral_token,
     borrower_with_existing_loan,
+    amounts,
 ):
     """
     Test that borrowing zero debt does nothing (early return).
@@ -585,7 +595,7 @@ def test_borrow_more_zero_debt(
     initial_debt = user_state_before[2]
 
     # Borrow zero debt - should return early without error
-    controller.borrow_more(ADDITIONAL_COLLATERAL, 0, sender=borrower)
+    controller.borrow_more(amounts["additional_collateral"], 0, sender=borrower)
 
     # State should be unchanged (collateral not added when debt is 0)
     user_state_after = controller.user_state(borrower)
@@ -598,6 +608,7 @@ def test_borrow_more_underwater(
     amm,
     borrowed_token,
     collateral_token,
+    amounts,
 ):
     """
     Test that borrowing more when position is underwater reverts.
@@ -606,11 +617,11 @@ def test_borrow_more_underwater(
     # ================= Create loan with max debt =================
 
     borrower = boa.env.eoa
-    max_debt = controller.max_borrowable(COLLATERAL, N_BANDS)
-    boa.deal(collateral_token, borrower, COLLATERAL)
+    max_debt = controller.max_borrowable(amounts["collateral"], N_BANDS)
+    boa.deal(collateral_token, borrower, amounts["collateral"])
     max_approve(collateral_token, controller, sender=borrower)
 
-    controller.create_loan(COLLATERAL, max_debt, N_BANDS, sender=borrower)
+    controller.create_loan(amounts["collateral"], max_debt, N_BANDS, sender=borrower)
 
     # ================= Push position to underwater =================
 
@@ -630,4 +641,4 @@ def test_borrow_more_underwater(
 
     # Try to borrow more when underwater - should revert
     with boa.reverts("Underwater"):
-        controller.borrow_more(ADDITIONAL_COLLATERAL, ADDITIONAL_DEBT, sender=borrower)
+        controller.borrow_more(amounts["additional_collateral"], amounts["additional_debt"], sender=borrower)

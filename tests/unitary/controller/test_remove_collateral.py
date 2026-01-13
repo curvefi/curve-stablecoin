@@ -2,11 +2,16 @@ import pytest
 import boa
 from tests.utils import max_approve, filter_logs
 
-
-COLLATERAL = 10**17
-DEBT = 10**20
 N_BANDS = 6
-REMOVE_COLLATERAL = 5 * 10**16  # Half of initial collateral
+
+
+@pytest.fixture(scope="module")
+def amounts(collateral_token, borrowed_token):
+    return {
+        "collateral": int(0.1 * 10**collateral_token.decimals()),
+        "remove_collateral": int(0.05 * 10**collateral_token.decimals()),
+        "debt": int(100 * 10**borrowed_token.decimals()),
+    }
 
 
 @pytest.fixture(scope="module")
@@ -23,17 +28,17 @@ def snapshot(controller, amm):
 
 
 @pytest.fixture(scope="function")
-def borrower_with_existing_loan(controller, collateral_token):
+def borrower_with_existing_loan(controller, collateral_token, amounts):
     """
     Create an existing loan for testing remove_collateral.
     """
     borrower = boa.env.eoa
-    boa.deal(collateral_token, borrower, COLLATERAL)
+    boa.deal(collateral_token, borrower, amounts["collateral"])
     max_approve(collateral_token, controller, sender=borrower)
 
-    controller.create_loan(COLLATERAL, DEBT, N_BANDS, sender=borrower)
+    controller.create_loan(amounts["collateral"], amounts["debt"], N_BANDS, sender=borrower)
     assert controller.loan_exists(borrower)
-    assert controller.debt(borrower) == DEBT
+    assert controller.debt(borrower) == amounts["debt"]
 
     return borrower
 
@@ -46,9 +51,10 @@ def test_remove_collateral(
     collateral_token,
     snapshot,
     borrower_with_existing_loan,
-    different_caller,
     monetary_policy,
     admin,
+    amounts,
+    different_caller,
 ):
     """
     Test removing collateral from an existing loan.
@@ -82,10 +88,10 @@ def test_remove_collateral(
     # ================= Calculate future health =================
 
     preview_health = controller.remove_collateral_health_preview(
-        REMOVE_COLLATERAL, borrower, False
+        amounts["remove_collateral"], borrower, False
     )
     preview_health_full = controller.remove_collateral_health_preview(
-        REMOVE_COLLATERAL, borrower, True
+        amounts["remove_collateral"], borrower, True
     )
     # health decreases
     assert preview_health_full < controller.health(borrower, True)
@@ -100,10 +106,10 @@ def test_remove_collateral(
     if different_caller:
         # Can't remove collateral for different user without approval
         with boa.reverts():
-            controller.remove_collateral(REMOVE_COLLATERAL, borrower, sender=caller)
+            controller.remove_collateral(amounts["remove_collateral"], borrower, sender=caller)
         controller.approve(caller, True, sender=borrower)
 
-    controller.remove_collateral(REMOVE_COLLATERAL, borrower, sender=caller)
+    controller.remove_collateral(amounts["remove_collateral"], borrower, sender=caller)
 
     # ================= Capture logs =================
 
@@ -126,7 +132,7 @@ def test_remove_collateral(
 
     user_state_after = controller.user_state(borrower)
     assert (
-        user_state_after[0] == initial_collateral - REMOVE_COLLATERAL
+        user_state_after[0] == initial_collateral - amounts["remove_collateral"]
     )  # collateral decreased
     assert user_state_after[1] == 0  # no borrowed tokens in AMM
     assert user_state_after[2] == initial_debt  # debt unchanged
@@ -146,11 +152,11 @@ def test_remove_collateral(
 
     assert len(remove_collateral_logs) == 1
     assert remove_collateral_logs[0].user == borrower
-    assert remove_collateral_logs[0].collateral_decrease == REMOVE_COLLATERAL
+    assert remove_collateral_logs[0].collateral_decrease == amounts["remove_collateral"]
 
     assert len(state_logs) == 1
     assert state_logs[0].user == borrower
-    assert state_logs[0].collateral == initial_collateral - REMOVE_COLLATERAL
+    assert state_logs[0].collateral == initial_collateral - amounts["remove_collateral"]
     assert state_logs[0].borrowed == 0
     assert state_logs[0].debt == initial_debt
     assert state_logs[0].n2 - state_logs[0].n1 + 1 == N_BANDS
@@ -160,8 +166,8 @@ def test_remove_collateral(
 
     # ================= Verify money flows =================
 
-    assert collateral_from_amm == -REMOVE_COLLATERAL
-    assert collateral_to_borrower == REMOVE_COLLATERAL
+    assert collateral_from_amm == -amounts["remove_collateral"]
+    assert collateral_to_borrower == amounts["remove_collateral"]
     assert collateral_token_after["controller"] == collateral_token_before["controller"]
 
     assert borrowed_token_after["borrower"] == borrowed_token_before["borrower"]
@@ -177,6 +183,7 @@ def test_remove_collateral_no_loan_exists(
     controller,
     collateral_token,
     borrowed_token,
+    amounts,
 ):
     """
     Test that removing collateral when no loan exists reverts.
@@ -187,7 +194,7 @@ def test_remove_collateral_no_loan_exists(
 
     # Try to remove collateral without a loan - should revert
     with boa.reverts("Loan doesn't exist"):
-        controller.remove_collateral(REMOVE_COLLATERAL, sender=borrower)
+        controller.remove_collateral(amounts["remove_collateral"], sender=borrower)
 
 
 def test_remove_collateral_zero_amount(
@@ -236,6 +243,7 @@ def test_remove_collateral_underwater(
     amm,
     borrowed_token,
     collateral_token,
+    amounts,
 ):
     """
     Test that removing collateral when position is underwater reverts.
@@ -244,11 +252,11 @@ def test_remove_collateral_underwater(
     # ================= Create loan with max debt =================
 
     borrower = boa.env.eoa
-    max_debt = controller.max_borrowable(COLLATERAL, N_BANDS)
-    boa.deal(collateral_token, borrower, COLLATERAL)
+    max_debt = controller.max_borrowable(amounts["collateral"], N_BANDS)
+    boa.deal(collateral_token, borrower, amounts["collateral"])
     max_approve(collateral_token, controller, sender=borrower)
 
-    controller.create_loan(COLLATERAL, max_debt, N_BANDS, sender=borrower)
+    controller.create_loan(amounts["collateral"], max_debt, N_BANDS, sender=borrower)
 
     # ================= Push position to underwater =================
 
@@ -268,4 +276,4 @@ def test_remove_collateral_underwater(
 
     # Try to remove collateral when underwater - should revert
     with boa.reverts("Underwater"):
-        controller.remove_collateral(REMOVE_COLLATERAL, sender=borrower)
+        controller.remove_collateral(amounts["remove_collateral"], sender=borrower)
