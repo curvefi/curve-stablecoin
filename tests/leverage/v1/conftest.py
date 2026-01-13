@@ -1,7 +1,16 @@
 import os
 import boa
 import pytest
-from v1.constants import ROUTER_PARAMS, ROUTER_PARAMS_DELEVERAGE, COLLATERALS, CONTROLLERS, LLAMMAS, ROUTERS, ROUTERS_DELEVERAGE, CRVUSD
+from v1.constants import (
+    ROUTER_PARAMS,
+    ROUTER_PARAMS_DELEVERAGE,
+    COLLATERALS,
+    CONTROLLERS,
+    LLAMMAS,
+    ROUTERS,
+    ROUTERS_DELEVERAGE,
+    CRVUSD,
+)
 
 
 @pytest.fixture(scope="module", autouse=True)
