@@ -34,11 +34,15 @@ curve-std = { git = "https://github.com/curvefi/curve-std", rev = "dcbfbc1658d5a
 
 
 [tool.ruff.lint]
+select = ["TID252"]
 ignore = [
     # Should be eventually fixed
     "E722" ,
     "F821"
 ]
+
+[tool.ruff.lint.flake8-tidy-imports]
+ban-relative-imports = "all"
 
 
 [build-system]
@@ -46,4 +50,4 @@ requires = ["hatchling>=1.25"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
-packages = ["curve_stablecoin"]
+packages = ["curve_stablecoin", "tests"]

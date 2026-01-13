@@ -1,6 +1,10 @@
 import boa
 import pytest
-from .settings import WEB3_PROVIDER_URL, EXPLORER_URL, EXPLORER_TOKEN
+from tests.forked.price_oracles.settings import (
+    WEB3_PROVIDER_URL,
+    EXPLORER_URL,
+    EXPLORER_TOKEN,
+)
 
 
 @pytest.fixture(scope="module", autouse=True)
