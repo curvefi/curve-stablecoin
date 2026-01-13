@@ -12,7 +12,7 @@ def boa_fork():
     assert WEB3_PROVIDER_URL is not None, (
         "Provider url is not set, add WEB3_PROVIDER_URL param to env"
     )
-    boa.fork(WEB3_PROVIDER_URL)
+    boa.fork(WEB3_PROVIDER_URL, allow_dirty=True)
 
 
 @pytest.fixture(scope="module")
