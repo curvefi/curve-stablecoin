@@ -225,6 +225,8 @@ def _convert_to_assets(_shares: uint256, _is_floor: bool = True,
 def pricePerShare(_is_floor: bool = True) -> uint256:
     """
     @notice Method which shows how much one pool share costs in asset tokens if they are normalized to 18 decimals
+    @dev pricePerShare can decrease if totalSupply reaches zero (e.g., when all shares are burned).
+         In this case, it resets to the initial value.
     """
     supply: uint256 = self.totalSupply
     if supply == 0:

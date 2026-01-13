@@ -1,6 +1,6 @@
 import pytest
 import boa
-from . import base
+from tests.stableborrow.stabilize.stateful import base
 from boa import BoaError
 from hypothesis import settings
 from hypothesis.stateful import run_state_machine_as_test, rule, invariant
