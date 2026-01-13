@@ -4,7 +4,7 @@ import pytest
 
 @pytest.fixture()
 def blueprint_registry_deployer():
-    return boa.load_partial("curve_stablecoin/lib/blueprint_registry.vy")
+    return boa.load_partial("curve_stablecoin/lending/blueprint_registry.vy")
 
 
 @pytest.fixture()
