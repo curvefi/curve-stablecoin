@@ -1,4 +1,4 @@
-from .test_health_in_trades import AdiabaticTrader
+from tests.lending.test_health_in_trades import AdiabaticTrader
 from hypothesis import strategies as st
 from hypothesis.stateful import initialize, run_state_machine_as_test
 from hypothesis import settings
