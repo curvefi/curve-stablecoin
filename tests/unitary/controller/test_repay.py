@@ -10,7 +10,7 @@ N_BANDS = 6
 
 @pytest.fixture(scope="module")
 def collateral_amount(collateral_token):
-    return int(N_BANDS * 0.05 * 10**collateral_token.decimals())
+    return int(N_BANDS * 0.05 * 10 ** collateral_token.decimals())
 
 
 @pytest.fixture(scope="module")

@@ -9,7 +9,7 @@ N_BANDS = 6
 
 @pytest.fixture(scope="module")
 def collateral_amount(collateral_token):
-    return int(0.1 * 10**collateral_token.decimals())
+    return int(0.1 * 10 ** collateral_token.decimals())
 
 
 @pytest.fixture(scope="module")
@@ -1196,7 +1196,8 @@ def test_liquidate_partial_from_wallet(
 
     user_state_after = controller.user_state(borrower)
     assert user_state_after[0] == pytest.approx(
-        user_state_before[0] - collateral_to_remove, abs=5 if collateral_to_remove > 100 else 1
+        user_state_before[0] - collateral_to_remove,
+        abs=5 if collateral_to_remove > 100 else 1,
     )  # some collateral remains in AMM
     assert user_state_after[1] == user_state_before[1] == 0
     assert user_state_after[2] == debt - debt_to_repay  # partial debt repaid
@@ -1249,8 +1250,12 @@ def test_liquidate_partial_from_wallet(
     assert borrowed_token_after["amm"] == borrowed_token_before["amm"]
     assert borrowed_token_after["callback"] == borrowed_token_before["callback"]
 
-    assert collateral_to_liquidator == pytest.approx(collateral_to_remove, abs=5 if collateral_to_remove > 100 else 1)
-    assert collateral_from_amm == pytest.approx(-collateral_to_remove, abs=5 if collateral_to_remove > 100 else 1)
+    assert collateral_to_liquidator == pytest.approx(
+        collateral_to_remove, abs=5 if collateral_to_remove > 100 else 1
+    )
+    assert collateral_from_amm == pytest.approx(
+        -collateral_to_remove, abs=5 if collateral_to_remove > 100 else 1
+    )
     assert collateral_token_after["controller"] == collateral_token_before["controller"]
     assert collateral_token_after["callback"] == collateral_token_before["callback"]
 
@@ -1403,9 +1408,12 @@ def test_liquidate_partial_from_wallet_underwater(
 
     user_state_after = controller.user_state(borrower)
     assert user_state_after[0] == pytest.approx(
-        user_state_before[0] - collateral_to_remove, abs=5 if collateral_to_remove > 100 else 1
+        user_state_before[0] - collateral_to_remove,
+        abs=5 if collateral_to_remove > 100 else 1,
     )
-    assert user_state_after[1] == pytest.approx(user_state_before[1] - borrowed_to_remove, abs=1)
+    assert user_state_after[1] == pytest.approx(
+        user_state_before[1] - borrowed_to_remove, abs=1
+    )
     assert user_state_after[2] == debt - debt_to_repay  # partial debt repaid
     assert user_state_after[3] == user_state_before[3]  # N unchanged
     assert controller.total_debt() == total_debt - debt_to_repay
@@ -1433,8 +1441,8 @@ def test_liquidate_partial_from_wallet_underwater(
     assert liquidate_logs[0].collateral_received == pytest.approx(
         collateral_to_remove, abs=3 if collateral_to_remove > 100 else 1
     )  # collateral tokens withdrawn from AMM
-    assert (
-        liquidate_logs[0].borrowed_received == pytest.approx(borrowed_to_remove, abs=1)
+    assert liquidate_logs[0].borrowed_received == pytest.approx(
+        borrowed_to_remove, abs=1
     )  # Borrowed tokens withdrawn from AMM
     assert liquidate_logs[0].debt == debt_to_repay
 
@@ -1458,8 +1466,12 @@ def test_liquidate_partial_from_wallet_underwater(
     assert borrowed_from_amm == pytest.approx(-borrowed_to_remove, abs=1)
     assert borrowed_token_after["callback"] == borrowed_token_before["callback"]
 
-    assert collateral_to_liquidator == pytest.approx(collateral_to_remove, abs=3 if collateral_to_remove > 100 else 1)
-    assert collateral_from_amm == pytest.approx(-collateral_to_remove, abs=3 if collateral_to_remove > 100 else 1)
+    assert collateral_to_liquidator == pytest.approx(
+        collateral_to_remove, abs=3 if collateral_to_remove > 100 else 1
+    )
+    assert collateral_from_amm == pytest.approx(
+        -collateral_to_remove, abs=3 if collateral_to_remove > 100 else 1
+    )
     assert collateral_token_after["controller"] == collateral_token_before["controller"]
     assert collateral_token_after["callback"] == collateral_token_before["callback"]
 
@@ -1607,7 +1619,8 @@ def test_liquidate_partial_from_callback(
 
     user_state_after = controller.user_state(borrower)
     assert user_state_after[0] == pytest.approx(
-        user_state_before[0] - collateral_to_remove, abs=5 if collateral_to_remove > 100 else 1
+        user_state_before[0] - collateral_to_remove,
+        abs=5 if collateral_to_remove > 100 else 1,
     )  # some collateral remains in AMM
     assert user_state_after[1] == user_state_before[1] == 0
     assert user_state_after[2] == debt - debt_to_repay  # partial debt repaid
@@ -1663,9 +1676,12 @@ def test_liquidate_partial_from_callback(
 
     assert collateral_to_liquidator == callback_collateral
     assert collateral_to_callback == pytest.approx(
-        collateral_to_remove - callback_collateral, abs=3 if collateral_to_remove > 100 else 1
+        collateral_to_remove - callback_collateral,
+        abs=3 if collateral_to_remove > 100 else 1,
     )
-    assert collateral_from_amm == pytest.approx(-collateral_to_remove, abs=3 if collateral_to_remove > 100 else 1)
+    assert collateral_from_amm == pytest.approx(
+        -collateral_to_remove, abs=3 if collateral_to_remove > 100 else 1
+    )
     assert collateral_token_after["controller"] == collateral_token_before["controller"]
 
     if different_liquidator:
@@ -1806,7 +1822,12 @@ def test_liquidate_partial_from_callback_underwater(
             sender=liquidator,
         )
     controller.liquidate(
-        borrower, borrowed_to_remove - 1, frac, dummy_callback, calldata, sender=liquidator
+        borrower,
+        borrowed_to_remove - 1,
+        frac,
+        dummy_callback,
+        calldata,
+        sender=liquidator,
     )
 
     # ================= Capture logs =================
@@ -1844,9 +1865,12 @@ def test_liquidate_partial_from_callback_underwater(
 
     user_state_after = controller.user_state(borrower)
     assert user_state_after[0] == pytest.approx(
-        user_state_before[0] - collateral_to_remove, abs=5 if collateral_to_remove > 100 else 1
+        user_state_before[0] - collateral_to_remove,
+        abs=5 if collateral_to_remove > 100 else 1,
     )
-    assert user_state_after[1] == pytest.approx(user_state_before[1] - borrowed_to_remove, abs=1)
+    assert user_state_after[1] == pytest.approx(
+        user_state_before[1] - borrowed_to_remove, abs=1
+    )
     assert user_state_after[2] == debt - debt_to_repay  # partial debt repaid
     assert user_state_after[3] == user_state_before[3]  # N unchanged
     assert controller.total_debt() == total_debt - debt_to_repay
@@ -1875,8 +1899,8 @@ def test_liquidate_partial_from_callback_underwater(
     assert liquidate_logs[0].collateral_received == pytest.approx(
         collateral_to_remove, abs=3 if collateral_to_remove > 100 else 1
     )  # collateral tokens withdrawn from AMM
-    assert (
-        liquidate_logs[0].borrowed_received == pytest.approx(borrowed_to_remove, abs=1)
+    assert liquidate_logs[0].borrowed_received == pytest.approx(
+        borrowed_to_remove, abs=1
     )  # Borrowed tokens withdrawn from AMM
     assert liquidate_logs[0].debt == debt_to_repay
 
@@ -1902,9 +1926,12 @@ def test_liquidate_partial_from_callback_underwater(
 
     assert collateral_to_liquidator == callback_collateral
     assert collateral_to_callback == pytest.approx(
-        collateral_to_remove - callback_collateral, abs=3 if collateral_to_remove > 100 else 1
+        collateral_to_remove - callback_collateral,
+        abs=3 if collateral_to_remove > 100 else 1,
     )
-    assert collateral_from_amm == pytest.approx(-collateral_to_remove, abs=3 if collateral_to_remove > 100 else 1)
+    assert collateral_from_amm == pytest.approx(
+        -collateral_to_remove, abs=3 if collateral_to_remove > 100 else 1
+    )
     assert collateral_token_after["controller"] == collateral_token_before["controller"]
 
     if different_liquidator:

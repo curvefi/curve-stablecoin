@@ -11,8 +11,8 @@ N_BANDS = 6
 @pytest.fixture(scope="module")
 def amounts(collateral_token, borrowed_token):
     return {
-        "collateral": int(0.1 * 10**collateral_token.decimals()),
-        "debt": int(100 * 10**borrowed_token.decimals()),
+        "collateral": int(0.1 * 10 ** collateral_token.decimals()),
+        "debt": int(100 * 10 ** borrowed_token.decimals()),
     }
 
 
@@ -109,10 +109,18 @@ def test_create_loan(
     if different_creator:
         # Can't create loan for different user without approval
         with boa.reverts():
-            controller.create_loan(amounts["collateral"], amounts["debt"], N_BANDS, borrower, sender=creator)
+            controller.create_loan(
+                amounts["collateral"],
+                amounts["debt"],
+                N_BANDS,
+                borrower,
+                sender=creator,
+            )
         controller.approve(creator, True, sender=borrower)
 
-    controller.create_loan(amounts["collateral"], amounts["debt"], N_BANDS, borrower, sender=creator)
+    controller.create_loan(
+        amounts["collateral"], amounts["debt"], N_BANDS, borrower, sender=creator
+    )
 
     # ================= Capture logs =================
 
@@ -382,12 +390,16 @@ def test_create_loan_already_exists(
     max_approve(collateral_token, controller, sender=borrower)
 
     # Create first loan
-    controller.create_loan(amounts["collateral"], amounts["debt"], N_BANDS, sender=borrower)
+    controller.create_loan(
+        amounts["collateral"], amounts["debt"], N_BANDS, sender=borrower
+    )
     assert controller.loan_exists(borrower)
 
     # Try to create another loan - should revert
     with boa.reverts("Loan already created"):
-        controller.create_loan(amounts["collateral"], amounts["debt"], N_BANDS, sender=borrower)
+        controller.create_loan(
+            amounts["collateral"], amounts["debt"], N_BANDS, sender=borrower
+        )
 
 
 def test_create_loan_invalid_ticks(
@@ -405,11 +417,15 @@ def test_create_loan_invalid_ticks(
 
     # Too few ticks
     with boa.reverts("Need more ticks"):
-        controller.create_loan(amounts["collateral"], amounts["debt"], MIN_TICKS - 1, sender=borrower)
+        controller.create_loan(
+            amounts["collateral"], amounts["debt"], MIN_TICKS - 1, sender=borrower
+        )
 
     # Too many ticks
     with boa.reverts("Need less ticks"):
-        controller.create_loan(amounts["collateral"], amounts["debt"], MAX_TICKS + 1, sender=borrower)
+        controller.create_loan(
+            amounts["collateral"], amounts["debt"], MAX_TICKS + 1, sender=borrower
+        )
 
 
 def test_create_loan_debt_too_high(

@@ -10,8 +10,8 @@ TIME_DELTA = 100 * 86400
 @pytest.fixture(scope="module")
 def amounts(collateral_token, borrowed_token):
     return {
-        "collateral": int(1000 * 10**collateral_token.decimals()),
-        "debt": int(100 * 10**borrowed_token.decimals()),
+        "collateral": int(1000 * 10 ** collateral_token.decimals()),
+        "debt": int(100 * 10 ** borrowed_token.decimals()),
     }
 
 

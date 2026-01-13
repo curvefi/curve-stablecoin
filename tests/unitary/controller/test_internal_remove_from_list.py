@@ -9,8 +9,8 @@ N_BANDS = 6
 @pytest.fixture(scope="module")
 def amounts(collateral_token, borrowed_token):
     return {
-        "collateral": int(1000 * 10**collateral_token.decimals()),
-        "debt": int(100 * 10**borrowed_token.decimals()),
+        "collateral": int(1000 * 10 ** collateral_token.decimals()),
+        "debt": int(100 * 10 ** borrowed_token.decimals()),
     }
 
 
@@ -32,7 +32,9 @@ def open_loans(controller, collateral_token, borrowers, amounts):
     for index, borrower in enumerate(borrowers):
         boa.deal(collateral_token, borrower, amounts["collateral"])
         max_approve(collateral_token, controller, sender=borrower)
-        controller.create_loan(amounts["collateral"], amounts["debt"], N_BANDS, sender=borrower)
+        controller.create_loan(
+            amounts["collateral"], amounts["debt"], N_BANDS, sender=borrower
+        )
         assert controller.loans(index) == borrower
         assert controller.loan_ix(borrower) == index
 

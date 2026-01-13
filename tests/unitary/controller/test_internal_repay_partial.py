@@ -9,7 +9,7 @@ N_BANDS = 6
 
 @pytest.fixture(scope="module")
 def collateral_amount(collateral_token):
-    return int(N_BANDS * 0.05 * 10**collateral_token.decimals())
+    return int(N_BANDS * 0.05 * 10 ** collateral_token.decimals())
 
 
 @pytest.fixture(scope="module", autouse=True)
@@ -51,7 +51,14 @@ def snapshot(controller, amm, fake_leverage):
 
 @pytest.mark.parametrize("different_payer", [True, False])
 def test_repay_partial_from_wallet(
-    controller, borrowed_token, collateral_token, amm, snapshot, admin, collateral_amount, different_payer
+    controller,
+    borrowed_token,
+    collateral_token,
+    amm,
+    snapshot,
+    admin,
+    collateral_amount,
+    different_payer,
 ):
     """
     Test partial repayment using only wallet tokens (no soft-liquidation).
@@ -66,7 +73,7 @@ def test_repay_partial_from_wallet(
 
     boa.deal(collateral_token, borrower, collateral_amount)
     max_approve(collateral_token, controller)
-    controller.create_loan(collateral_amount, 10**borrowed_token.decimals(), N_BANDS)
+    controller.create_loan(collateral_amount, 10 ** borrowed_token.decimals(), N_BANDS)
 
     # ================= Set liquidation discount =================
 
@@ -220,7 +227,7 @@ def test_repay_partial_from_callback(
 
     boa.deal(collateral_token, borrower, collateral_amount)
     max_approve(collateral_token, controller)
-    controller.create_loan(collateral_amount, 10**borrowed_token.decimals(), N_BANDS)
+    controller.create_loan(collateral_amount, 10 ** borrowed_token.decimals(), N_BANDS)
 
     # ================= Set new liquidation discount =================
 
@@ -383,7 +390,7 @@ def test_repay_partial_from_wallet_and_callback(
 
     boa.deal(collateral_token, borrower, collateral_amount)
     max_approve(collateral_token, controller)
-    controller.create_loan(collateral_amount, 10**borrowed_token.decimals(), N_BANDS)
+    controller.create_loan(collateral_amount, 10 ** borrowed_token.decimals(), N_BANDS)
 
     # ================= Set new liquidation discount =================
 

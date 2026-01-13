@@ -8,9 +8,9 @@ N_BANDS = 6
 @pytest.fixture(scope="module")
 def amounts(collateral_token, borrowed_token):
     return {
-        "collateral": int(0.1 * 10**collateral_token.decimals()),
-        "remove_collateral": int(0.05 * 10**collateral_token.decimals()),
-        "debt": int(100 * 10**borrowed_token.decimals()),
+        "collateral": int(0.1 * 10 ** collateral_token.decimals()),
+        "remove_collateral": int(0.05 * 10 ** collateral_token.decimals()),
+        "debt": int(100 * 10 ** borrowed_token.decimals()),
     }
 
 
@@ -36,7 +36,9 @@ def borrower_with_existing_loan(controller, collateral_token, amounts):
     boa.deal(collateral_token, borrower, amounts["collateral"])
     max_approve(collateral_token, controller, sender=borrower)
 
-    controller.create_loan(amounts["collateral"], amounts["debt"], N_BANDS, sender=borrower)
+    controller.create_loan(
+        amounts["collateral"], amounts["debt"], N_BANDS, sender=borrower
+    )
     assert controller.loan_exists(borrower)
     assert controller.debt(borrower) == amounts["debt"]
 
@@ -106,7 +108,9 @@ def test_remove_collateral(
     if different_caller:
         # Can't remove collateral for different user without approval
         with boa.reverts():
-            controller.remove_collateral(amounts["remove_collateral"], borrower, sender=caller)
+            controller.remove_collateral(
+                amounts["remove_collateral"], borrower, sender=caller
+            )
         controller.approve(caller, True, sender=borrower)
 
     controller.remove_collateral(amounts["remove_collateral"], borrower, sender=caller)

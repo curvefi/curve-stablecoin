@@ -332,7 +332,6 @@ def liquidate_health_preview(
     assert _frac < WAD, "frac >= 100%"
     debt: uint256 = self._debt(_user)
     ns: int256[2] = staticcall AMM.read_user_tick_numbers(_user)
-    N: uint256 = convert(unsafe_add(unsafe_sub(ns[1], ns[0]), 1), uint256)
     xy: uint256[2] = staticcall AMM.get_sum_xy(_user)
     active_band: int256 = staticcall AMM.active_band_with_skip()
 

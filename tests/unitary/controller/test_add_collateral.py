@@ -21,9 +21,9 @@ def snapshot(controller, amm, dummy_callback):
 @pytest.fixture(scope="module")
 def amounts(collateral_token, borrowed_token):
     return {
-        "collateral": int(0.1 * 10**collateral_token.decimals()),
-        "additional_collateral": int(0.05 * 10**collateral_token.decimals()),
-        "debt": int(100 * 10**borrowed_token.decimals()),
+        "collateral": int(0.1 * 10 ** collateral_token.decimals()),
+        "additional_collateral": int(0.05 * 10 ** collateral_token.decimals()),
+        "debt": int(100 * 10 ** borrowed_token.decimals()),
     }
 
 
