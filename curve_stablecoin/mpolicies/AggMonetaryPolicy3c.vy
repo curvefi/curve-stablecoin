@@ -316,14 +316,13 @@ def calculate_rate(_for: address, _price: uint256, ro: bool) -> (uint256, uint25
     total_debt, debt_for = self.read_debt(_for, ro)
 
     power: int256 = (10**18 - p) * 10**18 // sigma  # high price -> negative pow -> low rate
-    smoothed_ratio: uint256 = 0
+    ratio: uint256 = 0
     if pk_debt > 0:
         if total_debt == 0:
             return 0, 0
         else:
-            ratio: uint256 = pk_debt * 10**18 // total_debt
-            smoothed_ratio = ema.compute(DEBT_RATIO_EMA_ID, ratio)
-            power -= convert(smoothed_ratio * 10**18 // target_debt_fraction, int256)
+            ratio = pk_debt * 10**18 // total_debt
+            power -= convert(ema.read(DEBT_RATIO_EMA_ID) * 10**18 // target_debt_fraction, int256)
 
     # Rate accounting for crvUSD price and PegKeeper debt
     rate: uint256 = self.rate0 * min(self.exp(power), MAX_EXP) // 10**18 + self.extra_const
@@ -346,15 +345,15 @@ def calculate_rate(_for: address, _price: uint256, ro: bool) -> (uint256, uint25
     #   f = 0.9
     #   new_rate = rate * ((1.0 - 0.1) + 0.1 / (1.0 - 0.9)) = rate * (1.0 + 1.0 - 0.1) = 1.9 * rate
 
-    return rate, smoothed_ratio
+    return rate, ratio
 
 
 @view
 @external
 def rate(_for: address = msg.sender) -> uint256:
     rate: uint256 = 0
-    smoothed_ratio: uint256 = 0
-    rate, smoothed_ratio = self.calculate_rate(_for, staticcall PRICE_ORACLE.price(), True)
+    _: uint256 = 0
+    rate, _ = self.calculate_rate(_for, staticcall PRICE_ORACLE.price(), True)
     return rate
 
 
@@ -379,9 +378,9 @@ def rate_write(_for: address = msg.sender) -> uint256:
     self.save_candle(_for, debt_for)
 
     rate: uint256 = 0
-    smoothed_ratio: uint256 = 0
-    rate, smoothed_ratio = self.calculate_rate(_for, extcall PRICE_ORACLE.price_w(), False)
-    ema._save(DEBT_RATIO_EMA_ID, smoothed_ratio)
+    ratio: uint256 = 0
+    rate, ratio = self.calculate_rate(_for, extcall PRICE_ORACLE.price_w(), False)
+    ema.update(DEBT_RATIO_EMA_ID, ratio)
     return rate
 
 
