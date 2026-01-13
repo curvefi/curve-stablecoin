@@ -11,7 +11,7 @@ from hypothesis.stateful import (
     initialize,
 )
 from hypothesis import Phase
-from ..utils import mint_for_testing
+from tests.utils import mint_for_testing
 from tests.utils.deployers import ERC20_MOCK_DEPLOYER
 
 

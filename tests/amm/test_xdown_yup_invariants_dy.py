@@ -2,7 +2,7 @@ from hypothesis import given, settings
 from hypothesis import strategies as st
 import boa
 import pytest
-from ..utils import mint_for_testing
+from tests.utils import mint_for_testing
 
 """
 Test that get_x_down and get_y_up don't change:

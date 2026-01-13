@@ -1,10 +1,10 @@
 import boa
 import pytest
 
-from .constants import COLLATERALS, CONTROLLERS, FACTORIES, ROUTER
-from .constants import frxETH as frxETH_address
-from .settings import WEB3_PROVIDER_URL
-from .utils import Router1inch, get_contract_from_explorer
+from v2.constants import COLLATERALS, CONTROLLERS, FACTORIES, ROUTER
+from v2.constants import frxETH as frxETH_address
+from v2.settings import WEB3_PROVIDER_URL
+from v2.utils import Router1inch, get_contract_from_explorer
 
 
 def pytest_generate_tests(metafunc):

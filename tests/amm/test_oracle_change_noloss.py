@@ -4,7 +4,7 @@ import boa
 import pytest
 from hypothesis import given, settings, example
 from hypothesis import strategies as st
-from ..utils import mint_for_testing
+from tests.utils import mint_for_testing
 
 
 @pytest.fixture(scope="module")
