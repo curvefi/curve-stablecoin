@@ -353,7 +353,15 @@ def liquidate_health_preview(
 
     if health > 0 and ns[0] > active_band:
         collateral: uint256 = xy[1] * (WAD - f_remove) // WAD
-        health = self._calc_full_health(collateral, debt, N, ns[0], ld, _full)
+        p0: uint256 = staticcall AMM.p_oracle_up(ns[0])
+
+        if _full:
+            p_diff: uint256 = crv_math.sub_or_zero(staticcall AMM.price_oracle(), p0)
+            if p_diff > 0:
+                health += unsafe_div(
+                    convert(p_diff, int256) * convert(collateral * COLLATERAL_PRECISION, int256),
+                    convert(debt * BORROWED_PRECISION, int256)
+                )
 
     return health
 
