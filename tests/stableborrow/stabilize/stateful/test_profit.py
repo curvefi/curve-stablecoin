@@ -5,7 +5,7 @@ from hypothesis import settings
 from hypothesis.stateful import run_state_machine_as_test, invariant
 from hypothesis._settings import HealthCheck
 
-from . import base
+from tests.stableborrow.stabilize.stateful import base
 
 pytestmark = pytest.mark.usefixtures("add_initial_liquidity", "mint_alice")
 
