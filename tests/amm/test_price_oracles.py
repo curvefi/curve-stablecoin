@@ -1,6 +1,6 @@
 import boa
 import pytest
-from .conftest import PRICE
+from tests.amm.conftest import PRICE
 from tests.utils.deployers import EMA_PRICE_ORACLE_DEPLOYER
 
 

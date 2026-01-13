@@ -2,7 +2,7 @@ import boa
 from hypothesis import strategies as st
 from hypothesis.stateful import RuleBasedStateMachine, rule, invariant
 from boa import BoaError
-from ..conftest import BASE_AMOUNT
+from tests.stableborrow.stabilize.conftest import BASE_AMOUNT
 
 
 class StateMachine(RuleBasedStateMachine):

@@ -1,6 +1,6 @@
 import boa
 from pytest import mark  # noqa
-from ..utils import mint_for_testing
+from tests.utils import mint_for_testing
 
 # 1. deposit below (N > 0 in 5 bands)
 # 2. change price_oracle in a cycle downwards (by 15% just in case?)

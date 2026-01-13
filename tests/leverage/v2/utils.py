@@ -1,8 +1,8 @@
 import boa
 import requests
 
-from .constants import CRVUSD
-from .settings import EXPLORER_TOKEN, EXPLORER_URL, ROUTER_1INCH_TOKEN
+from v2.constants import CRVUSD
+from v2.settings import EXPLORER_TOKEN, EXPLORER_URL, ROUTER_1INCH_TOKEN
 
 
 def get_contract_from_explorer(address: str):

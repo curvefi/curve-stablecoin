@@ -2,7 +2,7 @@ import boa
 import pytest
 from hypothesis import given
 from hypothesis import strategies as st
-from ..utils import mint_for_testing
+from tests.utils import mint_for_testing
 
 
 from tests.utils.constants import DEAD_SHARES
