@@ -29,7 +29,7 @@ dev = [
 
 [tool.uv.sources]
 titanoboa = { git = "https://github.com/AlbertoCentonze/titanoboa", rev = "vvm-eval" }
-curve-std = { git = "https://github.com/curvefi/curve-std", rev = "dcbfbc1658d5a47489dea6cd88be43e721b24a18" }
+curve-std = { git = "https://github.com/curvefi/curve-std", rev = "c8025a06d805b4eeb1a50e721d9250841dc1d4ea" }
 # TODO add stableswap here as a package instead of git submodule
 
 
