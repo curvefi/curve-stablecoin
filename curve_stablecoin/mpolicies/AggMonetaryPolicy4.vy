@@ -118,12 +118,12 @@ def __init__(admin: address,
             break
         self.peg_keepers[i] = peg_keepers[i]
 
-    assert sigma >= MIN_SIGMA
-    assert sigma <= MAX_SIGMA
-    assert target_debt_fraction > 0
-    assert target_debt_fraction <= MAX_TARGET_DEBT_FRACTION
-    assert rate <= MAX_RATE
-    assert extra_const <= MAX_EXTRA_CONST
+    assert sigma >= MIN_SIGMA  # dev: sigma too low
+    assert sigma <= MAX_SIGMA  # dev: sigma too high
+    assert target_debt_fraction > 0  # dev: target debt fraction is zero
+    assert target_debt_fraction <= MAX_TARGET_DEBT_FRACTION  # dev: target debt fraction too high
+    assert rate <= MAX_RATE  # dev: rate too high
+    assert extra_const <= MAX_EXTRA_CONST  # dev: extra const too high
     self.rate0 = rate
     self.sigma = sigma
     self.target_debt_fraction = target_debt_fraction
@@ -134,15 +134,15 @@ def __init__(admin: address,
 
 @external
 def set_admin(admin: address):
-    assert msg.sender == self.admin
+    assert msg.sender == self.admin  # dev: only admin
     self.admin = admin
     log SetAdmin(admin=admin)
 
 
 @external
 def add_peg_keeper(pk: PegKeeper):
-    assert msg.sender == self.admin
-    assert pk.address != empty(address)
+    assert msg.sender == self.admin  # dev: only admin
+    assert pk.address != empty(address)  # dev: peg keeper is zero address
     for i: uint256 in range(1000):
         _pk: PegKeeper = self.peg_keepers[i]
         assert _pk != pk, "Already added"
@@ -154,7 +154,7 @@ def add_peg_keeper(pk: PegKeeper):
 
 @external
 def remove_peg_keeper(pk: PegKeeper):
-    assert msg.sender == self.admin
+    assert msg.sender == self.admin  # dev: only admin
     replaced_peg_keeper: uint256 = 10000
     for i: uint256 in range(1001):  # 1001th element is always 0x0
         _pk: PegKeeper = self.peg_keepers[i]
@@ -386,17 +386,17 @@ def rate_write(_for: address = msg.sender) -> uint256:
 
 @external
 def set_rate(rate: uint256):
-    assert msg.sender == self.admin
-    assert rate <= MAX_RATE
+    assert msg.sender == self.admin  # dev: only admin
+    assert rate <= MAX_RATE  # dev: rate too high
     self.rate0 = rate
     log SetRate(rate=rate)
 
 
 @external
 def set_sigma(sigma: int256):
-    assert msg.sender == self.admin
-    assert sigma >= MIN_SIGMA
-    assert sigma <= MAX_SIGMA
+    assert msg.sender == self.admin  # dev: only admin
+    assert sigma >= MIN_SIGMA  # dev: sigma too low
+    assert sigma <= MAX_SIGMA  # dev: sigma too high
 
     self.sigma = sigma
     log SetSigma(sigma=sigma)
@@ -404,9 +404,9 @@ def set_sigma(sigma: int256):
 
 @external
 def set_target_debt_fraction(target_debt_fraction: uint256):
-    assert msg.sender == self.admin
-    assert target_debt_fraction <= MAX_TARGET_DEBT_FRACTION
-    assert target_debt_fraction > 0
+    assert msg.sender == self.admin  # dev: only admin
+    assert target_debt_fraction <= MAX_TARGET_DEBT_FRACTION  # dev: target debt fraction too high
+    assert target_debt_fraction > 0  # dev: target debt fraction is zero
 
     self.target_debt_fraction = target_debt_fraction
     log SetTargetDebtFraction(target_debt_fraction=target_debt_fraction)
@@ -414,8 +414,8 @@ def set_target_debt_fraction(target_debt_fraction: uint256):
 
 @external
 def set_extra_const(extra_const: uint256):
-    assert msg.sender == self.admin
-    assert extra_const <= MAX_EXTRA_CONST
+    assert msg.sender == self.admin  # dev: only admin
+    assert extra_const <= MAX_EXTRA_CONST  # dev: extra const too high
 
     self.extra_const = extra_const
     log SetExtraConst(extra_const=extra_const)
@@ -423,7 +423,7 @@ def set_extra_const(extra_const: uint256):
 
 @external
 def set_debt_ratio_ema_time(_debt_ratio_ema_time: uint256):
-    assert msg.sender == self.admin
+    assert msg.sender == self.admin  # dev: only admin
 
     ema.set_ema_time(DEBT_RATIO_EMA_ID, _debt_ratio_ema_time)
     log SetDebtRatioEmaTime(debt_ratio_ema_time=_debt_ratio_ema_time)
