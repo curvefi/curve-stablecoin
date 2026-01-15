@@ -516,7 +516,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "curve-std", git = "https://github.com/curvefi/curve-std?rev=dcbfbc1658d5a47489dea6cd88be43e721b24a18" },
+    { name = "curve-std", git = "https://github.com/curvefi/curve-std?rev=c8025a06d805b4eeb1a50e721d9250841dc1d4ea" },
     { name = "snekmate", specifier = ">=0.1.1" },
     { name = "vyper", specifier = "==0.4.3" },
 ]
@@ -537,7 +537,7 @@ dev = [
 [[package]]
 name = "curve-std"
 version = "0.1.0"
-source = { git = "https://github.com/curvefi/curve-std?rev=dcbfbc1658d5a47489dea6cd88be43e721b24a18#dcbfbc1658d5a47489dea6cd88be43e721b24a18" }
+source = { git = "https://github.com/curvefi/curve-std?rev=c8025a06d805b4eeb1a50e721d9250841dc1d4ea#c8025a06d805b4eeb1a50e721d9250841dc1d4ea" }
 dependencies = [
     { name = "snekmate" },
     { name = "vyper" },
