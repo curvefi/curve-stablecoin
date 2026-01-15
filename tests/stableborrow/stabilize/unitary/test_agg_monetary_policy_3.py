@@ -5,7 +5,7 @@ from tests.utils.deployers import (
     MOCK_FACTORY_DEPLOYER,
     MOCK_MARKET_DEPLOYER,
     MOCK_PEG_KEEPER_DEPLOYER,
-    AGG_MONETARY_POLICY3_DEPLOYER,
+    AGG_MONETARY_POLICY4_DEPLOYER,
 )
 from tests.utils.constants import ZERO_ADDRESS
 
@@ -38,15 +38,17 @@ def mp(mock_factory, mock_peg_keepers, price_oracle, admin):
     with boa.env.prank(admin):
         price_oracle.set_price(10**18)
 
-        return AGG_MONETARY_POLICY3_DEPLOYER.deploy(
+        return AGG_MONETARY_POLICY4_DEPLOYER.deploy(
             admin,
             price_oracle.address,
             mock_factory.address,
             [p.address for p in mock_peg_keepers] + [ZERO_ADDRESS],
             RATE0,
             2 * 10**16,  # Sigma 2%
-            5 * 10**16,
-        )  # Target debt fraction 5%
+            5 * 10**16,  # Target debt fraction 5%
+            0,
+            86400,
+        )
 
 
 def test_broken_markets(mp, mock_factory, admin):

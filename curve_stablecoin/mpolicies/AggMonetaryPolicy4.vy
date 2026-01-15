@@ -1,12 +1,18 @@
-# @version 0.3.10
+#pragma version 0.4.3
 """
 @title AggMonetaryPolicy - monetary policy based on aggregated prices for crvUSD
 @author Curve.Fi
 @license Copyright (c) Curve.Fi, 2020-2024 - all rights reserved
+@custom:kill This contract doesn't have a kill switch as halting it would brick most markets.
+    to stop it, simply set another monetary policy in all Controllers using this one.
 """
 
 # This version uses min(last day) debt when calculating per-market rates
 # Should be used for Controllers which update borrow rate too early (not at the end of every call)
+
+from curve_std import ema
+
+initializes: ema
 
 
 interface PegKeeper:
@@ -53,6 +59,9 @@ event SetTargetDebtFraction:
 event SetExtraConst:
     extra_const: uint256
 
+event SetDebtRatioEmaTime:
+    debt_ratio_ema_time: uint256
+
 
 admin: public(address)
 
@@ -76,9 +85,11 @@ struct DebtCandle:
     candle1: uint256   # later 1/2 day candle
     timestamp: uint256
 
-DEBT_CANDLE_TIME: constant(uint256) = 86400 / 2
+DEBT_CANDLE_TIME: constant(uint256) = 86400 // 2
 min_debt_candles: public(HashMap[address, DebtCandle])
 
+
+DEBT_RATIO_EMA_ID: constant(String[4]) = "pkr"
 
 MAX_TARGET_DEBT_FRACTION: constant(uint256) = 10**18
 MAX_SIGMA: constant(int256) = 10**18
@@ -89,7 +100,7 @@ TARGET_REMAINDER: constant(uint256) = 10**17  # rate is x1.9 when 10% left befor
 MAX_EXTRA_CONST: constant(uint256) = MAX_RATE
 
 
-@external
+@deploy
 def __init__(admin: address,
              price_oracle: PriceOracle,
              controller_factory: ControllerFactory,
@@ -97,56 +108,59 @@ def __init__(admin: address,
              rate: uint256,
              sigma: int256,
              target_debt_fraction: uint256,
-             extra_const: uint256):
+             extra_const: uint256,
+             _debt_ratio_ema_time: uint256):
     self.admin = admin
     PRICE_ORACLE = price_oracle
     CONTROLLER_FACTORY = controller_factory
-    for i in range(5):
+    for i: uint256 in range(5):
         if peg_keepers[i].address == empty(address):
             break
         self.peg_keepers[i] = peg_keepers[i]
 
-    assert sigma >= MIN_SIGMA
-    assert sigma <= MAX_SIGMA
-    assert target_debt_fraction > 0
-    assert target_debt_fraction <= MAX_TARGET_DEBT_FRACTION
-    assert rate <= MAX_RATE
-    assert extra_const <= MAX_EXTRA_CONST
+    assert sigma >= MIN_SIGMA  # dev: sigma too low
+    assert sigma <= MAX_SIGMA  # dev: sigma too high
+    assert target_debt_fraction > 0  # dev: target debt fraction is zero
+    assert target_debt_fraction <= MAX_TARGET_DEBT_FRACTION  # dev: target debt fraction too high
+    assert rate <= MAX_RATE  # dev: rate too high
+    assert extra_const <= MAX_EXTRA_CONST  # dev: extra const too high
     self.rate0 = rate
     self.sigma = sigma
     self.target_debt_fraction = target_debt_fraction
     self.extra_const = extra_const
 
+    ema.__init__([ema.EMAConfig(ema_id=DEBT_RATIO_EMA_ID, initial_value=target_debt_fraction, ema_time=_debt_ratio_ema_time)])
+
 
 @external
 def set_admin(admin: address):
-    assert msg.sender == self.admin
+    assert msg.sender == self.admin  # dev: only admin
     self.admin = admin
-    log SetAdmin(admin)
+    log SetAdmin(admin=admin)
 
 
 @external
 def add_peg_keeper(pk: PegKeeper):
-    assert msg.sender == self.admin
-    assert pk.address != empty(address)
-    for i in range(1000):
+    assert msg.sender == self.admin  # dev: only admin
+    assert pk.address != empty(address)  # dev: peg keeper is zero address
+    for i: uint256 in range(1000):
         _pk: PegKeeper = self.peg_keepers[i]
         assert _pk != pk, "Already added"
         if _pk.address == empty(address):
             self.peg_keepers[i] = pk
-            log AddPegKeeper(pk.address)
+            log AddPegKeeper(peg_keeper=pk.address)
             break
 
 
 @external
 def remove_peg_keeper(pk: PegKeeper):
-    assert msg.sender == self.admin
+    assert msg.sender == self.admin  # dev: only admin
     replaced_peg_keeper: uint256 = 10000
-    for i in range(1001):  # 1001th element is always 0x0
+    for i: uint256 in range(1001):  # 1001th element is always 0x0
         _pk: PegKeeper = self.peg_keepers[i]
         if _pk == pk:
             replaced_peg_keeper = i
-            log RemovePegKeeper(pk.address)
+            log RemovePegKeeper(peg_keeper=pk.address)
         if _pk.address == empty(address):
             if replaced_peg_keeper < i:
                 if replaced_peg_keeper < i - 1:
@@ -199,7 +213,7 @@ def get_total_debt(_for: address) -> (uint256, uint256):
     total_debt: uint256 = 0
     debt_for: uint256 = 0
 
-    for i in range(MAX_CONTROLLERS):
+    for i: uint256 in range(MAX_CONTROLLERS):
         if i >= n_controllers:
             break
         controller: address = self.controllers[i]
@@ -221,12 +235,12 @@ def read_candle(_for: address) -> uint256:
     out: uint256 = 0
     candle: DebtCandle = self.min_debt_candles[_for]
 
-    if block.timestamp < candle.timestamp / DEBT_CANDLE_TIME * DEBT_CANDLE_TIME + DEBT_CANDLE_TIME:
+    if block.timestamp < candle.timestamp // DEBT_CANDLE_TIME * DEBT_CANDLE_TIME + DEBT_CANDLE_TIME:
         if candle.candle0 > 0:
             out = min(candle.candle0, candle.candle1)
         else:
             out = candle.candle1
-    elif block.timestamp < candle.timestamp / DEBT_CANDLE_TIME * DEBT_CANDLE_TIME + DEBT_CANDLE_TIME * 2:
+    elif block.timestamp < candle.timestamp // DEBT_CANDLE_TIME * DEBT_CANDLE_TIME + DEBT_CANDLE_TIME * 2:
         out = candle.candle1
 
     return out
@@ -240,8 +254,8 @@ def save_candle(_for: address, _value: uint256):
         # This record did not exist before, and value is zero -> not recording anything
         return
 
-    if block.timestamp >= candle.timestamp / DEBT_CANDLE_TIME * DEBT_CANDLE_TIME + DEBT_CANDLE_TIME:
-        if block.timestamp < candle.timestamp / DEBT_CANDLE_TIME * DEBT_CANDLE_TIME + DEBT_CANDLE_TIME * 2:
+    if block.timestamp >= candle.timestamp // DEBT_CANDLE_TIME * DEBT_CANDLE_TIME + DEBT_CANDLE_TIME:
+        if block.timestamp < candle.timestamp // DEBT_CANDLE_TIME * DEBT_CANDLE_TIME + DEBT_CANDLE_TIME * 2:
             candle.candle0 = candle.candle1
             candle.candle1 = _value
         else:
@@ -286,36 +300,38 @@ def read_debt(_for: address, ro: bool) -> (uint256, uint256):
 
 @internal
 @view
-def calculate_rate(_for: address, _price: uint256, ro: bool) -> uint256:
+def calculate_rate(_for: address, _price: uint256, ro: bool) -> (uint256, uint256):
     sigma: int256 = self.sigma
     target_debt_fraction: uint256 = self.target_debt_fraction
 
     p: int256 = convert(_price, int256)
     pk_debt: uint256 = 0
-    for pk in self.peg_keepers:
+    for pk: PegKeeper in self.peg_keepers:
         if pk.address == empty(address):
             break
-        pk_debt += pk.debt()
+        pk_debt += staticcall pk.debt()
 
     total_debt: uint256 = 0
     debt_for: uint256 = 0
     total_debt, debt_for = self.read_debt(_for, ro)
 
-    power: int256 = (10**18 - p) * 10**18 / sigma  # high price -> negative pow -> low rate
+    power: int256 = (10**18 - p) * 10**18 // sigma  # high price -> negative pow -> low rate
+    ratio: uint256 = 0
     if pk_debt > 0:
         if total_debt == 0:
-            return 0
+            return 0, 0
         else:
-            power -= convert(pk_debt * 10**18 / total_debt * 10**18 / target_debt_fraction, int256)
+            ratio = pk_debt * 10**18 // total_debt
+            power -= convert(ema.read(DEBT_RATIO_EMA_ID) * 10**18 // target_debt_fraction, int256)
 
     # Rate accounting for crvUSD price and PegKeeper debt
-    rate: uint256 = self.rate0 * min(self.exp(power), MAX_EXP) / 10**18 + self.extra_const
+    rate: uint256 = self.rate0 * min(self.exp(power), MAX_EXP) // 10**18 + self.extra_const
 
     # Account for individual debt ceiling to dynamically tune rate depending on filling the market
-    ceiling: uint256 = CONTROLLER_FACTORY.debt_ceiling(_for)
+    ceiling: uint256 = staticcall CONTROLLER_FACTORY.debt_ceiling(_for)
     if ceiling > 0:
-        f: uint256 = min(debt_for * 10**18 / ceiling, 10**18 - TARGET_REMAINDER / 1000)
-        rate = min(rate * ((10**18 - TARGET_REMAINDER) + TARGET_REMAINDER * 10**18 / (10**18 - f)) / 10**18, MAX_RATE)
+        f: uint256 = min(debt_for * 10**18 // ceiling, 10**18 - TARGET_REMAINDER // 1000)
+        rate = min(rate * ((10**18 - TARGET_REMAINDER) + TARGET_REMAINDER * 10**18 // (10**18 - f)) // 10**18, MAX_RATE)
 
     # Rate multiplication at different ceilings (target = 0.1):
     # debt = 0:
@@ -329,24 +345,27 @@ def calculate_rate(_for: address, _price: uint256, ro: bool) -> uint256:
     #   f = 0.9
     #   new_rate = rate * ((1.0 - 0.1) + 0.1 / (1.0 - 0.9)) = rate * (1.0 + 1.0 - 0.1) = 1.9 * rate
 
-    return rate
+    return rate, ratio
 
 
 @view
 @external
 def rate(_for: address = msg.sender) -> uint256:
-    return self.calculate_rate(_for, PRICE_ORACLE.price(), True)
+    rate: uint256 = 0
+    _: uint256 = 0
+    rate, _ = self.calculate_rate(_for, staticcall PRICE_ORACLE.price(), True)
+    return rate
 
 
 @external
 def rate_write(_for: address = msg.sender) -> uint256:
     # Update controller list
     n_controllers: uint256 = self.n_controllers
-    n_factory_controllers: uint256 = CONTROLLER_FACTORY.n_collaterals()
+    n_factory_controllers: uint256 = staticcall CONTROLLER_FACTORY.n_collaterals()
     if n_factory_controllers > n_controllers:
         self.n_controllers = n_factory_controllers
-        for i in range(MAX_CONTROLLERS):
-            self.controllers[n_controllers] = CONTROLLER_FACTORY.controllers(n_controllers)
+        for i: uint256 in range(MAX_CONTROLLERS):
+            self.controllers[n_controllers] = staticcall CONTROLLER_FACTORY.controllers(n_controllers)
             n_controllers += 1
             if n_controllers >= n_factory_controllers:
                 break
@@ -358,41 +377,58 @@ def rate_write(_for: address = msg.sender) -> uint256:
     self.save_candle(empty(address), total_debt)
     self.save_candle(_for, debt_for)
 
-    return self.calculate_rate(_for, PRICE_ORACLE.price_w(), False)
+    rate: uint256 = 0
+    ratio: uint256 = 0
+    rate, ratio = self.calculate_rate(_for, extcall PRICE_ORACLE.price_w(), False)
+    ema.update(DEBT_RATIO_EMA_ID, ratio)
+    return rate
 
 
 @external
 def set_rate(rate: uint256):
-    assert msg.sender == self.admin
-    assert rate <= MAX_RATE
+    assert msg.sender == self.admin  # dev: only admin
+    assert rate <= MAX_RATE  # dev: rate too high
     self.rate0 = rate
-    log SetRate(rate)
+    log SetRate(rate=rate)
 
 
 @external
 def set_sigma(sigma: int256):
-    assert msg.sender == self.admin
-    assert sigma >= MIN_SIGMA
-    assert sigma <= MAX_SIGMA
+    assert msg.sender == self.admin  # dev: only admin
+    assert sigma >= MIN_SIGMA  # dev: sigma too low
+    assert sigma <= MAX_SIGMA  # dev: sigma too high
 
     self.sigma = sigma
-    log SetSigma(sigma)
+    log SetSigma(sigma=sigma)
 
 
 @external
 def set_target_debt_fraction(target_debt_fraction: uint256):
-    assert msg.sender == self.admin
-    assert target_debt_fraction <= MAX_TARGET_DEBT_FRACTION
-    assert target_debt_fraction > 0
+    assert msg.sender == self.admin  # dev: only admin
+    assert target_debt_fraction <= MAX_TARGET_DEBT_FRACTION  # dev: target debt fraction too high
+    assert target_debt_fraction > 0  # dev: target debt fraction is zero
 
     self.target_debt_fraction = target_debt_fraction
-    log SetTargetDebtFraction(target_debt_fraction)
+    log SetTargetDebtFraction(target_debt_fraction=target_debt_fraction)
 
 
 @external
 def set_extra_const(extra_const: uint256):
-    assert msg.sender == self.admin
-    assert extra_const <= MAX_EXTRA_CONST
+    assert msg.sender == self.admin  # dev: only admin
+    assert extra_const <= MAX_EXTRA_CONST  # dev: extra const too high
 
     self.extra_const = extra_const
-    log SetExtraConst(extra_const)
+    log SetExtraConst(extra_const=extra_const)
+
+
+@external
+def set_debt_ratio_ema_time(_debt_ratio_ema_time: uint256):
+    assert msg.sender == self.admin  # dev: only admin
+
+    ema.set_ema_time(DEBT_RATIO_EMA_ID, _debt_ratio_ema_time)
+    log SetDebtRatioEmaTime(debt_ratio_ema_time=_debt_ratio_ema_time)
+
+@external
+@view
+def debt_ratio_ema_time() -> uint256:
+    return ema._emas[DEBT_RATIO_EMA_ID].ema_time

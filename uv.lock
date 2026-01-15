@@ -497,7 +497,6 @@ version = "2.0.0"
 source = { editable = "." }
 dependencies = [
     { name = "curve-std" },
-    { name = "ownership-proxy" },
     { name = "snekmate" },
     { name = "vyper" },
 ]
@@ -517,8 +516,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "curve-std", git = "https://github.com/curvefi/curve-std?rev=6db238291a62eee43446a0f86323f071e5a001eb" },
-    { name = "ownership-proxy", git = "https://github.com/curvefi/ownership-proxy?rev=19a63d09ba8d72ec8c2d96328caea2edf43c02f5" },
+    { name = "curve-std", git = "https://github.com/curvefi/curve-std?rev=c8025a06d805b4eeb1a50e721d9250841dc1d4ea" },
     { name = "snekmate", specifier = ">=0.1.1" },
     { name = "vyper", specifier = "==0.4.3" },
 ]
@@ -539,7 +537,11 @@ dev = [
 [[package]]
 name = "curve-std"
 version = "0.1.0"
-source = { git = "https://github.com/curvefi/curve-std?rev=6db238291a62eee43446a0f86323f071e5a001eb#6db238291a62eee43446a0f86323f071e5a001eb" }
+source = { git = "https://github.com/curvefi/curve-std?rev=c8025a06d805b4eeb1a50e721d9250841dc1d4ea#c8025a06d805b4eeb1a50e721d9250841dc1d4ea" }
+dependencies = [
+    { name = "snekmate" },
+    { name = "vyper" },
+]
 
 [[package]]
 name = "cytoolz"
@@ -1309,16 +1311,6 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/43/16/fc88b08840de0e0a72a2f9d8c6bae36be573e475a6326ae854bcc549fc45/nodeenv-1.9.1.tar.gz", hash = "sha256:6ec12890a2dab7946721edbfbcd91f3319c6ccc9aec47be7c7e6b7011ee6645f", size = 47437, upload-time = "2024-06-04T18:44:11.171Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/d2/1d/1b658dbd2b9fa9c4c9f32accbfc0205d532c8c6194dc0f2a4c0428e7128a/nodeenv-1.9.1-py2.py3-none-any.whl", hash = "sha256:ba11c9782d29c27c70ffbdda2d7415098754709be8a7056d79a737cd901155c9", size = 22314, upload-time = "2024-06-04T18:44:08.352Z" },
-]
-
-[[package]]
-name = "ownership-proxy"
-version = "0.1.0"
-source = { git = "https://github.com/curvefi/ownership-proxy?rev=19a63d09ba8d72ec8c2d96328caea2edf43c02f5#19a63d09ba8d72ec8c2d96328caea2edf43c02f5" }
-dependencies = [
-    { name = "curve-std" },
-    { name = "snekmate" },
-    { name = "vyper" },
 ]
 
 [[package]]

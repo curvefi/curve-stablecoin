@@ -112,12 +112,8 @@ SECONDARY_MONETARY_POLICY_DEPLOYER = boa.load_partial(
     MPOLICIES_CONTRACT_PATH / "SecondaryMonetaryPolicy.vy",
     compiler_args=compiler_args_default,
 )
-AGG_MONETARY_POLICY2_DEPLOYER = boa.load_partial(
-    MPOLICIES_CONTRACT_PATH / "AggMonetaryPolicy2.vy",
-    compiler_args=compiler_args_default,
-)
-AGG_MONETARY_POLICY3_DEPLOYER = boa.load_partial(
-    MPOLICIES_CONTRACT_PATH / "AggMonetaryPolicy3.vy",
+AGG_MONETARY_POLICY4_DEPLOYER = boa.load_partial(
+    MPOLICIES_CONTRACT_PATH / "AggMonetaryPolicy4.vy",
     compiler_args=compiler_args_default,
 )
 

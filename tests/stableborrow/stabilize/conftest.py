@@ -16,7 +16,7 @@ from tests.utils.deployers import (
     MOCK_PEG_KEEPER_DEPLOYER,
     PEG_KEEPER_REGULATOR_DEPLOYER,
     PEG_KEEPER_V2_DEPLOYER,
-    AGG_MONETARY_POLICY2_DEPLOYER,
+    AGG_MONETARY_POLICY4_DEPLOYER,
     CHAINLINK_AGGREGATOR_MOCK_DEPLOYER,
     AMM_DEPLOYER,
     LEND_CONTROLLER_DEPLOYER,
@@ -277,15 +277,17 @@ def peg_keepers(
 @pytest.fixture(scope="module")
 def agg_monetary_policy(peg_keepers, agg, controller_factory, admin):
     with boa.env.prank(admin):
-        mp = AGG_MONETARY_POLICY2_DEPLOYER.deploy(
+        mp = AGG_MONETARY_POLICY4_DEPLOYER.deploy(
             admin,
             agg.address,
             controller_factory.address,
             [p.address for p in peg_keepers] + [ZERO_ADDRESS] * 3,
             0,  # Rate
             2 * 10**16,  # Sigma 2%
-            5 * 10**16,
-        )  # Target debt fraction 5%
+            5 * 10**16,  # Target debt fraction 5%
+            0,
+            86400,
+        )
         mp.rate_write()
         return mp
 
