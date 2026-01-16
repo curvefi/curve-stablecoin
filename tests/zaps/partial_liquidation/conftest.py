@@ -16,7 +16,7 @@ def partial_repay_zap(admin):
 @pytest.fixture(scope="module")
 def partial_repay_zap_callback(admin):
     with boa.env.prank(admin):
-        return PARTIAL_REPAY_ZAP_CALLBACK_DEPLOYER.deploy(5 * 10**16, 1 * 10**16)
+        return PARTIAL_REPAY_ZAP_CALLBACK_DEPLOYER.deploy(20 * 10**16, 1 * 10**16)
 
 
 @pytest.fixture(scope="module")
@@ -36,7 +36,7 @@ def controller_for_liquidation(
 ):
     def f(sleep_time, user):
         N = 5
-        collateral_amount = 10**18
+        collateral_amount = 10 ** collateral_token.decimals()
 
         with boa.env.prank(admin):
             controller.set_amm_fee(10**6)
