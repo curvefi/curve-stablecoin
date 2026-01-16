@@ -243,11 +243,11 @@ def vault(market, market_type):
 
 
 @pytest.fixture(scope="module")
-def seed_liquidity():
+def seed_liquidity(borrowed_token):
     """Default liquidity amount used to seed markets at creation time.
     Override in tests to customize seeding.
     """
-    return 1000 * 10**18
+    return 1000 * 10 ** borrowed_token.decimals()
 
 
 @pytest.fixture(scope="module")
@@ -281,6 +281,7 @@ def collateral_decimals(request):
 
 @pytest.fixture(scope="module", params=TESTING_DECIMALS)
 def borrowed_decimals(request):
+    """@notice Don't use this fixture in tests because for mint markets borrowed decimals are always 18. Use"""
     return request.param
 
 
