@@ -3,6 +3,7 @@ import boa
 from tests.utils import max_approve
 from tests.utils.deployers import ERC20_MOCK_DEPLOYER
 from tests.utils.constants import WAD
+
 N_BANDS = 6
 
 
@@ -54,7 +55,7 @@ def test_liquidate_preview_repro_big_diff_poc(
     liquidate_preview_fuzz_samples_71929_test_liquidate_preview_fuzz_1767787115.csv
     (collateral=835124687784591872, debt_frac≈0.8351, frac≈0.924, different_liquidator=True).
     """
-    collateral = 835124687784591872 // 10**(18 - collateral_token.decimals())
+    collateral = 835124687784591872 // 10 ** (18 - collateral_token.decimals())
     debt_frac = 835124687784591872  # ~0.8351 WAD
     frac = 923976430962901376  # ~0.924 WAD
 
