@@ -31,8 +31,8 @@ def test_fee_receiver_flow(
         controller.set_admin_percentage(admin_fee)
 
     # Setup
-    collateral_amount = 10**18
-    debt_amount = 10**18
+    collateral_amount = 10 ** collateral_token.decimals()
+    debt_amount = 500 * 10 ** borrowed_token.decimals()
     bands = 10
 
     boa.deal(collateral_token, boa.env.eoa, collateral_amount * 10)

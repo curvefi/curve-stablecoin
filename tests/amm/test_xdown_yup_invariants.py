@@ -35,6 +35,7 @@ def test_immediate(
     f_trade,
     is_pump,
 ):
+    deposit_amount = deposit_amount // 10 ** (18 - collateral_token.decimals())
     user = accounts[0]
     with boa.env.prank(admin):
         price_oracle.set_price(p_o)
@@ -95,6 +96,7 @@ def test_immediate_above_p0(
     amm, price_oracle, collateral_token, borrowed_token, accounts, admin
 ):
     deposit_amount = 5805319702344997833315303
+    deposit_amount = deposit_amount // 10 ** (18 - collateral_token.decimals())
     user = accounts[0]
 
     with boa.env.prank(admin):
@@ -141,6 +143,7 @@ def test_immediate_in_band(
     amm, price_oracle, collateral_token, borrowed_token, accounts, admin
 ):
     deposit_amount = 835969548449222546344625
+    deposit_amount = deposit_amount // 10 ** (18 - collateral_token.decimals())
 
     user = accounts[0]
     with boa.env.prank(admin):
@@ -203,6 +206,7 @@ def test_adiabatic(
     dn,
     deposit_amount,
 ):
+    deposit_amount = deposit_amount // 10 ** (18 - collateral_token.decimals())
     N_STEPS = 101
     user = accounts[0]
 

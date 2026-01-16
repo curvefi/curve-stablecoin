@@ -32,7 +32,7 @@ def test_buy_with_shift(
     price_shift,
 ):
     user = accounts[1]
-    collateral_amount = 10**18
+    collateral_amount = 10 ** collateral_token.decimals()
 
     # Deposit
     with boa.env.prank(admin):
@@ -87,7 +87,7 @@ def test_sell_with_shift(
     price_shift,
 ):
     user = accounts[1]
-    collateral_amount = 10**18
+    collateral_amount = 10 ** collateral_token.decimals()
     MANY = 10**24
     b_balances = []
 
@@ -146,7 +146,7 @@ def test_no_untradable_funds(
 ):
     # Same as buy test at the beginning
     user = accounts[1]
-    collateral_amount = 10**18
+    collateral_amount = 10 ** collateral_token.decimals()
 
     # Deposit
     with boa.env.prank(admin):
@@ -211,7 +211,7 @@ def test_no_untradable_funds_in(
 ):
     # Same as test_no_untradable_funds but with exchange_dy
     user = accounts[1]
-    collateral_amount = 10**18
+    collateral_amount = 10 ** collateral_token.decimals()
 
     # Deposit
     with boa.env.prank(admin):

@@ -14,7 +14,7 @@ from tests.utils.protocols import Llamalend
 boa.env.enable_fast_mode()
 
 
-TESTING_DECIMALS = [2, 6, 8, 9, 18]
+TESTING_DECIMALS = [2, 18]
 
 
 no_shrink = settings.register_profile(
@@ -54,18 +54,19 @@ def stablecoin(proto):
 
 
 @pytest.fixture(scope="module")
-def collateral_token():
-    # TODO hook decimals fixture
-    return ERC20_MOCK_DEPLOYER.deploy(18)
+def collateral_token(collateral_decimals):
+    return ERC20_MOCK_DEPLOYER.deploy(collateral_decimals)
 
 
 @pytest.fixture(scope="module")
-def borrowed_token(stablecoin):
-    """Default borrowed token for lending tests (crvUSD).
-    Specific test modules can override this if needed.
+def borrowed_token(market_type, stablecoin, borrowed_decimals):
+    """Borrowed token for markets.
+    - Mint markets always use crvUSD (stablecoin).
+    - Lending markets use a mock token with parameterized decimals.
     """
-    # TODO should parametrize to use other tokens in lending
-    return stablecoin
+    if market_type == "mint":
+        return stablecoin
+    return ERC20_MOCK_DEPLOYER.deploy(borrowed_decimals)
 
 
 @pytest.fixture(scope="module")
@@ -242,11 +243,11 @@ def vault(market, market_type):
 
 
 @pytest.fixture(scope="module")
-def seed_liquidity():
+def seed_liquidity(borrowed_token):
     """Default liquidity amount used to seed markets at creation time.
     Override in tests to customize seeding.
     """
-    return 1000 * 10**18
+    return 1000 * 10 ** borrowed_token.decimals()
 
 
 @pytest.fixture(scope="module")
@@ -274,7 +275,13 @@ def alice():
 
 
 @pytest.fixture(scope="module", params=TESTING_DECIMALS)
-def decimals(request):
+def collateral_decimals(request):
+    return request.param
+
+
+@pytest.fixture(scope="module", params=TESTING_DECIMALS)
+def borrowed_decimals(request):
+    """@notice Don't use this fixture in tests because for mint markets borrowed decimals are always 18. Use"""
     return request.param
 
 

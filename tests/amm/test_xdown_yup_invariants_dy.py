@@ -43,6 +43,7 @@ def test_immediate(
     collateral_decimals = collateral_token.decimals()
     borrowed_decimals = borrowed_token.decimals()
     deposit_amount = int(deposit_amount * 10**collateral_decimals)
+    deposit_amount = max(deposit_amount, dn + 1)
     user = accounts[0]
     prices = []
     prices.append(amm.get_p())
@@ -79,7 +80,7 @@ def test_immediate(
         trade_recv_amount = int(
             p_o
             * deposit_amount
-            / 10**collateral_decimals
+            / 10**18
             * f_trade
             / 10 ** (collateral_decimals - borrowed_decimals)
         )

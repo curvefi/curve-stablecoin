@@ -1,6 +1,6 @@
 import boa
 import pytest
-from hypothesis import given
+from hypothesis import given, reproduce_failure
 from hypothesis import strategies as st
 from tests.utils import mint_for_testing
 from tests.utils.deployers import ERC20_MOCK_DEPLOYER
@@ -42,12 +42,17 @@ def test_dydx_limits(
     assert dx == dy == 0
 
     # Small swap
-    dy, dx = amm.get_dydx(0, 1, 10 ** (collateral_decimals - 6))  # 0.000001 ETH
-    assert dy == 10**12
+    small_y_amount = 10 ** (collateral_decimals - 6)  # 0.000001 ETH
+    small_y_amount = max(1, small_y_amount)
+    dy, dx = amm.get_dydx(0, 1, small_y_amount)
+    assert dy == small_y_amount
     if min(ns) == 1:
+        rel_precision = 4e-2 + 2 * min(ns) / amm.A()
+        if dy == 1:
+            rel_precision *= 2
         assert dx == pytest.approx(
             dy * 3000 / 10 ** (collateral_decimals - borrowed_decimals),
-            rel=4e-2 + 2 * min(ns) / amm.A(),
+            rel=rel_precision,
         )
     else:
         assert dx >= dy * 3000 / 10 ** (collateral_decimals - borrowed_decimals)
@@ -98,11 +103,23 @@ def test_dydx_compare_to_dxdy(
     dy1, dx1 = amm.get_dydx(0, 1, 10 ** (collateral_decimals - 2))
     dx2, dy2 = amm.get_dxdy(0, 1, dx1)
     assert dx1 == dx2
-    assert abs(dy1 - dy2) <= collateral_precision
+    if dy1 == 1 or dy2 == 1:
+        assert abs(dy1 - dy2) <= 1
+    else:
+        assert abs(dy1 - dy2) <= collateral_precision
 
-    dx1, dy1 = amm.get_dxdy(0, 1, 10 ** (borrowed_decimals - 2))
+    # Small swap
+    small_x_amount = amm.price_oracle() // 10 ** (
+        18 + collateral_decimals - borrowed_decimals
+    )
+    # 100 for 18 decimals, small_x_amount * 15 // 10 for 2 decimals
+    small_x_amount = max(100, small_x_amount * 15 // 10)
+    dx1, dy1 = amm.get_dxdy(0, 1, small_x_amount)
     dy2, dx2 = amm.get_dydx(0, 1, dy1)
-    assert abs(dx1 - dx2) <= borrowed_precision
+    if dy1 == 1 or dy2 == 1:
+        assert dx1 == pytest.approx(dx2, rel=0.5)
+    else:
+        assert abs(dx1 - dx2) <= borrowed_precision
     assert dy1 == dy2
 
     dy, dx = amm.get_dydx(1, 0, 10 ** (collateral_decimals - 2))  # No liquidity
@@ -148,7 +165,7 @@ def test_exchange_dy_down_up(
     with boa.env.prank(admin):
         for user, amt, n1, dn in zip(accounts[1:6], amounts, ns, dns):
             n2 = n1 + dn
-            if amt // (dn + 1) <= 100:
+            if amt * 10 ** (18 - collateral_decimals) // (dn + 1) <= 100:
                 with boa.reverts("Amount too low"):
                     amm.deposit_range(user, amt, n1, n2)
             else:
@@ -197,7 +214,10 @@ def test_exchange_dy_down_up(
 
     dy, dx = amm.get_dydx(1, 0, out_amount)
     assert dx >= expected_in_amount
-    assert abs(dx - expected_in_amount) <= 2 * (fee + 0.01) * expected_in_amount
+    assert (
+        abs(dx - expected_in_amount) <= 1
+        or abs(dx - expected_in_amount) <= 2 * (fee + 0.01) * expected_in_amount
+    )
     assert out_amount - dy <= 1
 
     mint_for_testing(collateral_token, u, dx - collateral_token.balanceOf(u))

@@ -19,6 +19,9 @@ from tests.utils.constants import DEAD_SHARES
 def test_deposit_withdraw(
     amm, amounts, accounts, ns, dns, fracs, collateral_token, admin
 ):
+    amounts = list(
+        map(lambda x: x // 10 ** (18 - collateral_token.decimals()), amounts)
+    )
     deposits = {}
     precisions = {}
     with boa.env.prank(admin):
@@ -28,7 +31,7 @@ def test_deposit_withdraw(
             else:
                 precisions[user] = DEAD_SHARES / (amount // (dn + 1)) + 1e-6
             n2 = n1 + dn
-            if amount // (dn + 1) <= 100:
+            if amount * 10 ** (18 - collateral_token.decimals()) // (dn + 1) <= 100:
                 with boa.reverts("Amount too low"):
                     amm.deposit_range(user, amount, n1, n2)
             else:

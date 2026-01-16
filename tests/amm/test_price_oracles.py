@@ -1,6 +1,6 @@
 import boa
 import pytest
-from tests.amm.conftest import PRICE
+from tests.amm.conftest import BASE_PRICE
 from tests.utils.deployers import EMA_PRICE_ORACLE_DEPLOYER
 
 
@@ -13,7 +13,7 @@ def ema_price_oracle(price_oracle, admin):
 
 
 def test_price_oracle(price_oracle, amm):
-    assert price_oracle.price() == PRICE * 10**18
+    assert price_oracle.price() == BASE_PRICE * 10**18
     assert amm.price_oracle() == price_oracle.price()
 
 

@@ -46,7 +46,7 @@ def test_liquidate_partial(
     assert 0.9 < h < 1
 
     # Ensure liquidator has stablecoin
-    boa.deal(borrowed_token, liquidator, 10**21)
+    boa.deal(borrowed_token, liquidator, 1000 * 10 ** borrowed_token.decimals())
     with boa.env.prank(liquidator):
         borrowed_token.approve(partial_repay_zap_callback.address, 2**256 - 1)
         partial_repay_zap_callback.liquidate_partial(controller.address, user, 0)
@@ -74,7 +74,9 @@ def test_liquidate_partial_callback(
 
     initial_collateral = collateral_token.balanceOf(partial_repay_zap_tester.address)
     # Ensure partial_repay_zap_tester has stablecoin
-    boa.deal(borrowed_token, partial_repay_zap_tester, 10**21)
+    boa.deal(
+        borrowed_token, partial_repay_zap_tester, 1000 * 10 ** borrowed_token.decimals()
+    )
     with boa.env.prank(liquidator):
         borrowed_token.approve(partial_repay_zap_callback.address, 2**256 - 1)
         partial_repay_zap_callback.liquidate_partial(
@@ -110,7 +112,11 @@ def test_liquidate_partial_uses_exact_amount(
 
     if use_callback:
         calldata = to_bytes(hexstr=borrowed_token.address)
-        boa.deal(borrowed_token, partial_repay_zap_tester, 10**21)
+        boa.deal(
+            borrowed_token,
+            partial_repay_zap_tester,
+            1000 * 10 ** borrowed_token.decimals(),
+        )
         pre_balance = borrowed_token.balanceOf(partial_repay_zap_tester)
 
         with boa.env.prank(liquidator):
@@ -123,7 +129,7 @@ def test_liquidate_partial_uses_exact_amount(
 
     else:
         # get money to liquidate: in real scenario this would be a separate address
-        boa.deal(borrowed_token, liquidator, 10**21)
+        boa.deal(borrowed_token, liquidator, 1000 * 10 ** borrowed_token.decimals())
         pre_balance = borrowed_token.balanceOf(liquidator)
         with boa.env.prank(liquidator):
             borrowed_token.approve(partial_repay_zap_callback.address, MAX_UINT256)

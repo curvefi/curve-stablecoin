@@ -41,7 +41,7 @@ def test_liquidate_partial(
     assert 0.9 < h < 1
 
     # Ensure liquidator has stablecoin
-    boa.deal(borrowed_token, liquidator, 10**21)
+    boa.deal(borrowed_token, liquidator, 1000 * 10 ** borrowed_token.decimals())
     with boa.env.prank(liquidator):
         borrowed_token.approve(partial_repay_zap.address, 2**256 - 1)
         partial_repay_zap.liquidate_partial(controller.address, user, 0)

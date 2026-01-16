@@ -21,6 +21,7 @@ def test_amount_for_price(
     collateral_token,
     borrowed_token,
     admin,
+    get_price_oracle_band,
     oracle_price,
     n1,
     dn,
@@ -28,6 +29,8 @@ def test_amount_for_price(
     init_trade_frac,
     p_frac,
 ):
+    deposit_amount = deposit_amount // 10 ** (18 - collateral_token.decimals())
+    deposit_amount = max(deposit_amount, 101 * (dn + 1))
     user = accounts[0]
     with boa.env.prank(admin):
         amm.set_fee(0)
@@ -71,7 +74,7 @@ def test_amount_for_price(
     n_final = amm.active_band()
 
     if eamount > 0:
-        assert abs(n_final - n0) < 50
+        assert abs(n_final - get_price_oracle_band()) < 50
 
     if p_final > p_max:
         p_final = p_max
@@ -108,7 +111,13 @@ def test_amount_for_price(
 
 
 def test_amount_for_price_ticks_too_far(
-    price_oracle, amm, accounts, collateral_token, borrowed_token, admin
+    price_oracle,
+    amm,
+    accounts,
+    collateral_token,
+    borrowed_token,
+    admin,
+    get_price_oracle_band,
 ):
     with boa.env.anchor():
         test_amount_for_price.hypothesis.inner_test(
@@ -118,6 +127,7 @@ def test_amount_for_price_ticks_too_far(
             collateral_token,
             borrowed_token,
             admin,
+            get_price_oracle_band,
             oracle_price=2000000000000000000000,
             n1=50,
             dn=0,

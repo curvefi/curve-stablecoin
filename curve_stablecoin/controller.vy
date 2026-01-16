@@ -1179,13 +1179,14 @@ def repay(
 
 @external
 @view
-def tokens_to_shrink(_user: address) -> uint256:
+def tokens_to_shrink(_user: address, _d_collateral: uint256 = 0) -> uint256:
     """
     @notice Calculate the amount of borrowed asset required to shrink the user's position
     @param _user Address of the user to shrink the position for
+    @param _d_collateral The amount of collateral from user's position which is going to be used by callback
     @return The amount of borrowed asset needed
     """
-    return staticcall self._view.tokens_to_shrink(_user)
+    return staticcall self._view.tokens_to_shrink(_user, _d_collateral)
 
 
 @internal
