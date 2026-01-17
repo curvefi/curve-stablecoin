@@ -1,4 +1,5 @@
 import boa
+import pytest
 from hypothesis import settings
 from hypothesis import strategies as st
 from hypothesis.stateful import (
@@ -10,6 +11,15 @@ from hypothesis.stateful import (
 
 
 from tests.utils.constants import DEAD_SHARES
+
+
+@pytest.fixture(scope="module")
+def seed_liquidity():
+    """Default liquidity amount used to seed markets at creation time.
+    Override in tests to customize seeding.
+    """
+    return 0
+
 
 MIN_RATE = 10**15 // (365 * 86400)  # 0.1%
 MAX_RATE = 10**19 // (365 * 86400)  # 1000%
@@ -37,6 +47,7 @@ class StatefulLendBorrow(RuleBasedStateMachine):
                 self.collateral_token.approve(self.controller.address, 2**256 - 1)
                 self.borrowed_token.approve(self.controller.address, 2**256 - 1)
         self.debt_ceiling = 10**6 * 10 ** (self.borrowed_token.decimals())
+        self.controller.set_borrow_cap(self.debt_ceiling, sender=self.admin)
         with boa.env.prank(self.accounts[0]):
             self.borrowed_token.approve(self.vault.address, 2**256 - 1)
             boa.deal(self.borrowed_token, self.accounts[0], self.debt_ceiling)
@@ -125,7 +136,7 @@ class StatefulLendBorrow(RuleBasedStateMachine):
         to_repay = min(self.controller.debt(user), amount)
         user_balance = self.borrowed_token.balanceOf(user)
         if to_repay > user_balance:
-            boa.deal(self.borrowed_token, user, to_repay - user_balance)
+            boa.deal(self.borrowed_token, user, to_repay)
 
         with boa.env.prank(user):
             if amount == 0:
