@@ -16,11 +16,11 @@ def test_create_loan(
     user = accounts[0]
     with boa.env.anchor():
         with boa.env.prank(user):
-            initial_amount = 10**25
+            initial_amount = 10**7 * 10 ** collateral_token.decimals()
             boa.deal(collateral_token, user, initial_amount)
-            c_amount = int(2 * 1e6 * 1e18 * 1.5 / 3000)
+            c_amount = int(2 * 1e6 * 10 ** collateral_token.decimals() * 1.5 / 3000)
 
-            l_amount = 2 * 10**6 * 10**18
+            l_amount = 2 * 10**6 * 10 ** stablecoin.decimals()
             with boa.reverts():
                 market_controller.create_loan(c_amount, l_amount, 5)
 
@@ -49,7 +49,13 @@ def test_create_loan(
             assert market_controller.debt(user) == l_amount
 
             p_up, p_down = market_controller.user_prices(user)
-            p_lim = l_amount / c_amount / (1 - market_controller.loan_discount() / 1e18)
+            p_lim = (
+                l_amount
+                * 10 ** collateral_token.decimals()
+                // 10 ** stablecoin.decimals()
+                / c_amount
+                / (1 - market_controller.loan_discount() / 1e18)
+            )
             assert p_lim == pytest.approx(
                 (p_down * p_up) ** 0.5 / 1e18, rel=2 / market_amm.A()
             )
@@ -58,14 +64,26 @@ def test_create_loan(
             assert h >= 0.05 and h <= 0.06
 
             h = market_controller.health(user, True) / 1e18 + 0.02
-            assert h == pytest.approx(c_amount * 3000 / l_amount - 1, rel=0.02)
+            assert h == pytest.approx(
+                c_amount
+                * 10 ** stablecoin.decimals()
+                // 10 ** collateral_token.decimals()
+                * 3000
+                / l_amount
+                - 1,
+                rel=0.02,
+            )
 
 
 @given(
     collateral_amount=st.integers(min_value=10**9, max_value=10**20),
     n=st.integers(min_value=5, max_value=50),
 )
-def test_max_borrowable(market_controller, accounts, collateral_amount, n):
+def test_max_borrowable(
+    market_controller, accounts, collateral_token, collateral_amount, n
+):
+    collateral_amount = collateral_amount // 10 ** (18 - collateral_token.decimals())
+    collateral_amount = max(collateral_amount, 1)
     max_borrowable = market_controller.max_borrowable(collateral_amount, n)
     with boa.reverts("Debt too high"):
         market_controller.calculate_debt_n1(
@@ -75,10 +93,10 @@ def test_max_borrowable(market_controller, accounts, collateral_amount, n):
 
 
 @pytest.fixture(scope="module")
-def existing_loan(collateral_token, market_controller, accounts):
+def existing_loan(collateral_token, stablecoin, market_controller, accounts):
     user = accounts[0]
-    c_amount = int(2 * 1e6 * 1e18 * 1.5 / 3000)
-    l_amount = 5 * 10**5 * 10**18
+    c_amount = int(2 * 1e6 * 10 ** collateral_token.decimals() * 1.5 / 3000)
+    l_amount = 5 * 10**5 * 10 ** stablecoin.decimals()
     n = 5
 
     with boa.env.prank(user):
@@ -92,7 +110,7 @@ def test_repay_all(
     user = accounts[0]
     with boa.env.anchor():
         with boa.env.prank(user):
-            c_amount = int(2 * 1e6 * 1e18 * 1.5 / 3000)
+            c_amount = int(2 * 1e6 * 10 ** collateral_token.decimals() * 1.5 / 3000)
             amm = market_controller.amm()
             stablecoin.approve(market_controller, 2**256 - 1)
             market_controller.repay(2**100, user)
@@ -111,7 +129,7 @@ def test_repay_half(
 
     with boa.env.anchor():
         with boa.env.prank(user):
-            c_amount = int(2 * 1e6 * 1e18 * 1.5 / 3000)
+            c_amount = int(2 * 1e6 * 10 ** collateral_token.decimals() * 1.5 / 3000)
             debt = market_controller.debt(user)
             to_repay = debt // 2
 
@@ -138,7 +156,7 @@ def test_add_collateral(
     user = accounts[0]
 
     with boa.env.anchor():
-        c_amount = int(2 * 1e6 * 1e18 * 1.5 / 3000)
+        c_amount = int(2 * 1e6 * 10 ** collateral_token.decimals() * 1.5 / 3000)
         debt = market_controller.debt(user)
 
         n_before_0, n_before_1 = market_amm.read_user_tick_numbers(user)
@@ -168,7 +186,7 @@ def test_borrow_more(
         with boa.env.prank(user):
             debt = market_controller.debt(user)
             more_debt = debt // 10
-            c_amount = int(2 * 1e6 * 1e18 * 1.5 / 3000)
+            c_amount = int(2 * 1e6 * 10 ** collateral_token.decimals() * 1.5 / 3000)
 
             n_before_0, n_before_1 = market_amm.read_user_tick_numbers(user)
             market_controller.borrow_more(0, more_debt)

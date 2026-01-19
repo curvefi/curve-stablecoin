@@ -83,26 +83,25 @@ def get_market(
 ):
     def f(collateral_token):
         with boa.env.prank(admin):
-            if controller_factory.n_collaterals() == 0:
-                controller_factory.add_market(
-                    collateral_token.address,
-                    100,
-                    10**16,
-                    0,
-                    price_oracle.address,
-                    monetary_policy.address,
-                    5 * 10**16,
-                    2 * 10**16,
-                    10**6 * 10**18,
-                )
-                amm = controller_factory.get_amm(collateral_token.address)
-                controller = controller_factory.get_controller(collateral_token.address)
-                for acc in accounts:
-                    with boa.env.prank(acc):
-                        collateral_token.approve(amm, 2**256 - 1)
-                        stablecoin.approve(amm, 2**256 - 1)
-                        collateral_token.approve(controller, 2**256 - 1)
-                        stablecoin.approve(controller, 2**256 - 1)
+            controller_factory.add_market(
+                collateral_token.address,
+                100,
+                10**16,
+                0,
+                price_oracle.address,
+                monetary_policy.address,
+                5 * 10**16,
+                2 * 10**16,
+                10**6 * 10**18,
+            )
+            amm = controller_factory.get_amm(collateral_token.address)
+            controller = controller_factory.get_controller(collateral_token.address)
+            for acc in accounts:
+                with boa.env.prank(acc):
+                    collateral_token.approve(amm, 2**256 - 1)
+                    stablecoin.approve(amm, 2**256 - 1)
+                    collateral_token.approve(controller, 2**256 - 1)
+                    stablecoin.approve(controller, 2**256 - 1)
             return controller_factory
 
     return f
