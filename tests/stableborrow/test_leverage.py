@@ -1,7 +1,6 @@
 import boa
 import pytest
 from eth_abi import encode
-
 from hypothesis import given, settings
 from hypothesis import strategies as st
 
@@ -91,7 +90,9 @@ def test_leverage_property(
             * 3000
             // 10 ** (collateral_token.decimals() - stablecoin.decimals())
         )
-        debt = min(debt, market_controller.max_borrowable(amount, 5))
+        debt_eff = min(debt, market_controller.max_borrowable(amount, 5))
+        loan_mul_eff = loan_mul if debt == 0 else loan_mul * debt_eff / debt
+        debt = debt_eff
         calldata = encode(["uint256"], [0])
         if (
             debt // 3000 // 10 ** (stablecoin.decimals() - collateral_token.decimals())
@@ -106,7 +107,7 @@ def test_leverage_property(
                 )
             return
         assert collateral_token.balanceOf(user) == 0
-        expected_collateral = int((1 + loan_mul) * amount)
+        expected_collateral = int((1 + loan_mul_eff) * amount)
         assert collateral_token.balanceOf(market_amm.address) == pytest.approx(
             expected_collateral, rel=1e-9, abs=10
         )
@@ -123,11 +124,17 @@ def test_leverage_property(
             // 10 ** (collateral_token.decimals() - stablecoin.decimals())
         )
         user_state = market_controller.user_state(user)
-        more_debt = min(
+        more_debt_eff = min(
             more_debt,
             market_controller.max_borrowable(user_state[0] + amount, 5, user_state[2])
             - user_state[2],
         )
+        loan_more_mul_eff = (
+            loan_more_mul
+            if more_debt == 0
+            else loan_more_mul * more_debt_eff / more_debt
+        )
+        more_debt = more_debt_eff
         if (
             more_debt
             // 3000
@@ -141,7 +148,9 @@ def test_leverage_property(
             debt += more_debt
             if more_debt > 0:
                 assert collateral_token.balanceOf(user) == 0
-                expected_collateral = int((2 + loan_mul + loan_more_mul) * amount)
+                expected_collateral = int(
+                    (2 + loan_mul_eff + loan_more_mul_eff) * amount
+                )
                 assert collateral_token.balanceOf(market_amm.address) == pytest.approx(
                     expected_collateral, rel=1e-9, abs=10
                 )
