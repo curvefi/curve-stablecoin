@@ -9,7 +9,7 @@ env:
 jobs:
   pre-commit:
     name: pre-commit
-    runs-on: blacksmith-2vcpu-ubuntu-2404
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout repo
         uses: actions/checkout@v5
@@ -41,7 +41,7 @@ jobs:
           - folder: "tests/e2e"
             runs-on: "ubuntu-latest"
           # - folder: "tests/stateful" not ready yet
-          #   runs-on: "blacksmith-32vcpu-ubuntu-2204"
+          #   runs-on: "ubuntu-latest"
           # Old tests to be migrated
           - folder: "tests/flashloan"
             runs-on: "ubuntu-latest"
