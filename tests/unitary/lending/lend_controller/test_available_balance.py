@@ -1,11 +1,16 @@
 import boa
-
+import pytest
 from tests.utils import max_approve
 from tests.utils.constants import MIN_TICKS, WAD
 
-COLLATERAL = 10**21
-DEPOSIT = 10**18
-DEBT = 10**18
+
+@pytest.fixture(scope="module")
+def amounts(collateral_token, borrowed_token):
+    return {
+        "collateral": int(1000 * 10 ** collateral_token.decimals()),
+        "deposit": int(10 ** borrowed_token.decimals()),
+        "debt": int(10 ** borrowed_token.decimals()),
+    }
 
 
 def snapshot(controller, vault):
@@ -23,16 +28,16 @@ def expect_same(before, after, *fields):
         assert after[field] == before[field]
 
 
-def test_increases_after_deposit(controller, vault, borrowed_token):
-    boa.deal(borrowed_token, boa.env.eoa, DEPOSIT)
+def test_increases_after_deposit(controller, vault, borrowed_token, amounts):
+    boa.deal(borrowed_token, boa.env.eoa, amounts["deposit"])
     max_approve(borrowed_token, vault.address)
 
     before = snapshot(controller, vault)
-    vault.deposit(DEPOSIT)
+    vault.deposit(amounts["deposit"])
     after = snapshot(controller, vault)
 
-    assert after["borrowed"] == before["borrowed"] + DEPOSIT
-    assert after["asset_balance"] == before["asset_balance"] + DEBT
+    assert after["borrowed"] == before["borrowed"] + amounts["deposit"]
+    assert after["asset_balance"] == before["asset_balance"] + amounts["debt"]
     expect_same(before, after, "lent", "repaid", "collected")
 
 
@@ -41,59 +46,62 @@ def test_decreases_after_withdraw(
     vault,
     collateral_token,
     borrowed_token,
+    amounts,
 ):
-    boa.deal(borrowed_token, boa.env.eoa, DEPOSIT)
+    boa.deal(borrowed_token, boa.env.eoa, amounts["deposit"])
     max_approve(borrowed_token, vault.address)
-    vault.deposit(DEPOSIT)
+    vault.deposit(amounts["deposit"])
 
     before = snapshot(controller, vault)
-    vault.withdraw(DEPOSIT)
+    vault.withdraw(amounts["deposit"])
     after = snapshot(controller, vault)
 
-    assert after["borrowed"] == before["borrowed"] - DEPOSIT
-    assert after["asset_balance"] == before["asset_balance"] - DEPOSIT
+    assert after["borrowed"] == before["borrowed"] - amounts["deposit"]
+    assert after["asset_balance"] == before["asset_balance"] - amounts["deposit"]
     expect_same(before, after, "lent", "repaid", "collected")
 
 
-def test_decreases_after_create(controller, vault, collateral_token):
-    boa.deal(collateral_token, boa.env.eoa, COLLATERAL)
+def test_decreases_after_create(controller, vault, collateral_token, amounts):
+    boa.deal(collateral_token, boa.env.eoa, amounts["collateral"])
     max_approve(collateral_token, controller.address)
 
     before = snapshot(controller, vault)
-    controller.create_loan(COLLATERAL, DEBT, MIN_TICKS)
+    controller.create_loan(amounts["collateral"], amounts["debt"], MIN_TICKS)
     after = snapshot(controller, vault)
 
-    assert after["borrowed"] == before["borrowed"] - DEBT
-    assert after["lent"] == before["lent"] + DEBT
+    assert after["borrowed"] == before["borrowed"] - amounts["debt"]
+    assert after["lent"] == before["lent"] + amounts["debt"]
     expect_same(before, after, "repaid", "collected", "asset_balance")
 
 
-def test_decreases_after_borrow_more(controller, vault, collateral_token):
-    boa.deal(collateral_token, boa.env.eoa, 2 * COLLATERAL)
+def test_decreases_after_borrow_more(controller, vault, collateral_token, amounts):
+    boa.deal(collateral_token, boa.env.eoa, 2 * amounts["collateral"])
     max_approve(collateral_token, controller.address)
-    controller.create_loan(COLLATERAL, DEBT, MIN_TICKS)
+    controller.create_loan(amounts["collateral"], amounts["debt"], MIN_TICKS)
 
     before = snapshot(controller, vault)
-    controller.borrow_more(COLLATERAL, DEBT)
+    controller.borrow_more(amounts["collateral"], amounts["debt"])
     after = snapshot(controller, vault)
 
-    assert after["borrowed"] == before["borrowed"] - DEBT
-    assert after["lent"] == before["lent"] + DEBT
+    assert after["borrowed"] == before["borrowed"] - amounts["debt"]
+    assert after["lent"] == before["lent"] + amounts["debt"]
     expect_same(before, after, "repaid", "collected", "asset_balance")
 
 
-def test_increases_after_repay(controller, vault, collateral_token, borrowed_token):
-    boa.deal(collateral_token, boa.env.eoa, COLLATERAL)
+def test_increases_after_repay(
+    controller, vault, collateral_token, borrowed_token, amounts
+):
+    boa.deal(collateral_token, boa.env.eoa, amounts["collateral"])
     max_approve(collateral_token, controller.address)
     max_approve(borrowed_token, controller.address)
-    controller.create_loan(COLLATERAL, DEBT, MIN_TICKS)
+    controller.create_loan(amounts["collateral"], amounts["debt"], MIN_TICKS)
 
     before = snapshot(controller, vault)
-    controller.repay(DEBT)
+    controller.repay(amounts["debt"])
     after = snapshot(controller, vault)
 
-    assert after["borrowed"] == before["borrowed"] + DEBT
-    assert after["repaid"] == before["repaid"] + DEBT
+    assert after["borrowed"] == before["borrowed"] + amounts["debt"]
+    assert after["repaid"] == before["repaid"] + amounts["debt"]
     expect_same(before, after, "lent", "collected", "asset_balance")
 
 
@@ -103,16 +111,17 @@ def test_collect_fees_reduces_balance(
     amm,
     collateral_token,
     vault,
+    amounts,
 ):
     ADMIN_FEE = WAD // 2
     RATE = 10**11
-    TIME_DELTA = 86400
+    TIME_DELTA = 180 * 86400
 
     controller.set_admin_percentage(ADMIN_FEE, sender=admin)
 
-    boa.deal(collateral_token, boa.env.eoa, COLLATERAL)
+    boa.deal(collateral_token, boa.env.eoa, amounts["collateral"])
     max_approve(collateral_token, controller.address)
-    controller.create_loan(COLLATERAL, DEBT, MIN_TICKS)
+    controller.create_loan(amounts["collateral"], amounts["debt"], MIN_TICKS)
 
     amm.eval(f"self.rate = {RATE}")
     amm.eval("self.rate_time = block.timestamp")

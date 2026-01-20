@@ -76,12 +76,18 @@ class StatefulLendBorrow(RuleBasedStateMachine):
             except Exception:
                 return  # Probably overflow
 
-            if c_amount // n > (2**128 - 1) // DEAD_SHARES:
+            if (
+                c_amount * 10 ** (18 - self.collateral_token.decimals()) // n
+                > (2**128 - 1) // DEAD_SHARES
+            ):
                 with boa.reverts():
                     self.controller.create_loan(c_amount, amount, n)
                 return
 
-            if c_amount // n <= DEAD_SHARES:
+            if (
+                c_amount * 10 ** (18 - self.collateral_token.decimals()) // n
+                <= DEAD_SHARES
+            ):
                 with boa.reverts():
                     # Amount too low or too deep
                     self.controller.create_loan(c_amount, amount, n)
@@ -91,8 +97,10 @@ class StatefulLendBorrow(RuleBasedStateMachine):
                 self.controller.create_loan(c_amount, amount, n)
             except Exception as e:
                 if (
-                    c_amount // n > 2 * DEAD_SHARES
-                    and c_amount // n < (2**128 - 1) // DEAD_SHARES
+                    c_amount * 10 ** (18 - self.collateral_token.decimals()) // n
+                    > 2 * DEAD_SHARES
+                    and c_amount * 10 ** (18 - self.collateral_token.decimals()) // n
+                    < (2**128 - 1) // DEAD_SHARES
                 ):
                     if "Too deep" not in str(e):
                         raise

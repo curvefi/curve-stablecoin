@@ -23,7 +23,7 @@ def test_reverts_when_lent_exceeds_deposited_under_donation(
     """
     initial_balance = vault.net_deposits()
 
-    COLLATERAL = 10**30
+    COLLATERAL = 10**12 * 10 ** collateral_token.decimals()
     N_BANDS = 5
     DONATION = 1
 
