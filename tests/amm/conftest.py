@@ -3,7 +3,7 @@ import pytest
 from math import sqrt, log
 from tests.utils.deployers import AMM_DEPLOYER, ERC20_MOCK_DEPLOYER
 
-PRICE = 3000
+BASE_PRICE = 3000
 
 
 @pytest.fixture(scope="module")
@@ -23,7 +23,7 @@ def get_amm(price_oracle, admin, accounts):
                 100,
                 int(sqrt(100 / 99) * 1e18),
                 int(log(100 / 99) * 1e18),
-                PRICE * 10**18,
+                BASE_PRICE * 10**18,
                 10**16,
                 0,
                 price_oracle.address,
@@ -41,3 +41,19 @@ def get_amm(price_oracle, admin, accounts):
 @pytest.fixture(scope="module")
 def amm(collateral_token, borrowed_token, get_amm):
     return get_amm(collateral_token, borrowed_token)
+
+
+@pytest.fixture(scope="module")
+def get_price_oracle_band(price_oracle, amm):
+    def f():
+        A = amm.A()
+        p_o = price_oracle.price()
+
+        # p_o = BASE_PRICE * ((A - 1) / A)**band_p_o
+        band_p_o = int(log(p_o / BASE_PRICE) / ((A - 1) / A))
+        while amm.p_oracle_down(band_p_o) > p_o:
+            band_p_o += 1
+
+        return band_p_o
+
+    return f

@@ -8,13 +8,23 @@ from hypothesis import strategies as st
     debt=st.integers(min_value=10**6, max_value=2 * 10**6 * 10**18),
     collateral=st.integers(min_value=10**6, max_value=10**9 * 10**18 // 3000),
 )
-def test_n1(market_amm, market_controller, collateral, debt, n):
+def test_n1(
+    market_amm, market_controller, collateral_token, stablecoin, collateral, debt, n
+):
+    collateral = collateral // 10 ** (18 - collateral_token.decimals())
+    collateral = max(collateral, 1)
+    debt = debt // 10 ** (18 - stablecoin.decimals())
+    debt = max(debt, 1)
     n0 = market_amm.active_band()
     A = market_amm.A()
     p0 = market_amm.p_oracle_down(n0) / 1e18
     discounted_collateral = (
-        collateral * (10**18 - market_controller.loan_discount()) // 10**18
-    )
+        collateral
+        * 10 ** stablecoin.decimals()
+        // 10 ** collateral_token.decimals()
+        * (10**18 - market_controller.loan_discount())
+        // 10**18
+    )  # coerced to stablecoin decimals
 
     too_high = False
     too_deep = False

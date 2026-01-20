@@ -23,7 +23,7 @@ def controller_for_liquidation(
         user = admin
         user2 = accounts[2]
         fee_receiver = accounts[0]  # same as liquidator
-        collateral_amount = 10**18
+        collateral_amount = 10 ** collateral_token.decimals()
         with boa.env.prank(admin):
             market_controller.set_amm_fee(10**6)
             monetary_policy.set_rate(int(1e18 * 1.0 / 365 / 86400))  # 100% APY
@@ -134,10 +134,12 @@ def test_liquidate_callback(
         # we do it by borrowing
         if f != 10**18:
             with boa.env.prank(fee_receiver):
-                boa.deal(collateral_token, fee_receiver, 10**18)
+                boa.deal(
+                    collateral_token, fee_receiver, 10 ** collateral_token.decimals()
+                )
                 collateral_token.approve(controller.address, 2**256 - 1)
-                debt2 = controller.max_borrowable(10**18, 5)
-                controller.create_loan(10**18, debt2, 5)
+                debt2 = controller.max_borrowable(10 ** collateral_token.decimals(), 5)
+                controller.create_loan(10 ** collateral_token.decimals(), debt2, 5)
                 stablecoin.transfer(fake_leverage.address, debt2)
 
         with boa.reverts("Slippage"):
@@ -155,7 +157,13 @@ def test_liquidate_callback(
             dx = stablecoin.balanceOf(fee_receiver) - b
             if f > 0:
                 p = market_amm.get_p() / 1e18
-                assert dy * p + dx > 0, "Liquidator didn't make money"
+                assert (
+                    dy
+                    * p
+                    // 10 ** (collateral_token.decimals() - stablecoin.decimals())
+                    + dx
+                    > 0
+                ), "Liquidator didn't make money"
             if f != 10**18 and f > 0:
                 assert controller.health(user) > health_before
         except BoaError as e:

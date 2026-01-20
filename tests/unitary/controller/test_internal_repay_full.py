@@ -1,12 +1,15 @@
 import boa
 import pytest
 from textwrap import dedent
-
 from tests.utils import filter_logs, max_approve
 from tests.utils.constants import ZERO_ADDRESS
 
-COLLATERAL = 10**17
 N_BANDS = 6
+
+
+@pytest.fixture(scope="module")
+def collateral_amount(collateral_token):
+    return int(0.1 * 10 ** collateral_token.decimals())
 
 
 @pytest.fixture(scope="module", autouse=True)
@@ -45,7 +48,13 @@ def snapshot(controller, amm, fake_leverage):
 
 @pytest.mark.parametrize("different_payer", [True, False])
 def test_repay_full_from_wallet(
-    controller, borrowed_token, collateral_token, amm, snapshot, different_payer
+    controller,
+    borrowed_token,
+    collateral_token,
+    amm,
+    snapshot,
+    collateral_amount,
+    different_payer,
 ):
     """
     Test full repayment using only wallet tokens (no soft-liquidation).
@@ -59,9 +68,9 @@ def test_repay_full_from_wallet(
 
     # ================= Create loan =================
 
-    boa.deal(collateral_token, borrower, COLLATERAL)
+    boa.deal(collateral_token, borrower, collateral_amount)
     max_approve(collateral_token, controller)
-    controller.create_loan(COLLATERAL, 10**18, N_BANDS)
+    controller.create_loan(collateral_amount, 10 ** borrowed_token.decimals(), N_BANDS)
 
     # ================= Capture initial state =================
 
@@ -146,8 +155,8 @@ def test_repay_full_from_wallet(
     assert borrowed_token_after["amm"] == borrowed_token_before["amm"]
     assert borrowed_token_after["callback"] == borrowed_token_before["callback"]
 
-    assert collateral_to_borrower == COLLATERAL
-    assert collateral_from_amm == -COLLATERAL
+    assert collateral_to_borrower == collateral_amount
+    assert collateral_from_amm == -collateral_amount
     assert collateral_token_after["callback"] == collateral_token_before["callback"]
     assert collateral_token_after["controller"] == collateral_token_before["controller"]
 
@@ -164,6 +173,7 @@ def test_repay_full_from_callback(
     amm,
     snapshot,
     fake_leverage,
+    collateral_amount,
     different_payer,
 ):
     """
@@ -179,9 +189,9 @@ def test_repay_full_from_callback(
 
     # ================= Create loan =================
 
-    boa.deal(collateral_token, borrower, COLLATERAL)
+    boa.deal(collateral_token, borrower, collateral_amount)
     max_approve(collateral_token, controller)
-    controller.create_loan(COLLATERAL, 10**18, N_BANDS)
+    controller.create_loan(collateral_amount, 10 ** borrowed_token.decimals(), N_BANDS)
 
     # ================= Capture initial state =================
 
@@ -194,9 +204,9 @@ def test_repay_full_from_callback(
 
     # Mock collateral withdraw from amm to callbacker and mint borrowed for callbacker
     amm.withdraw(borrower, 10**18, sender=controller.address)
-    collateral_token.transfer(fake_leverage, COLLATERAL, sender=amm.address)
+    collateral_token.transfer(fake_leverage, collateral_amount, sender=amm.address)
     boa.deal(borrowed_token, fake_leverage, debt + 1)
-    cb = (amm.active_band(), debt + 1, COLLATERAL // 2)
+    cb = (amm.active_band(), debt + 1, collateral_amount // 2)
 
     # ================= Capture initial balances =================
 
@@ -267,7 +277,7 @@ def test_repay_full_from_callback(
     assert len(repay_logs) == 1
     assert repay_logs[0].user == borrower
     assert repay_logs[0].loan_decrease == borrowed_to_controller
-    assert repay_logs[0].collateral_decrease == COLLATERAL
+    assert repay_logs[0].collateral_decrease == collateral_amount
 
     # ================= Verify money flows =================
 
@@ -276,8 +286,8 @@ def test_repay_full_from_callback(
     assert borrowed_from_callback == -(debt + 1)
     assert borrowed_token_after["amm"] == borrowed_token_before["amm"]
 
-    assert collateral_to_borrower == COLLATERAL // 2
-    assert collateral_from_callbacker == -(COLLATERAL // 2)
+    assert collateral_to_borrower == collateral_amount // 2
+    assert collateral_from_callbacker == -(collateral_amount // 2)
     assert collateral_token_after["amm"] == collateral_token_before["amm"]
     assert collateral_token_after["controller"] == collateral_token_before["controller"]
 
@@ -288,7 +298,13 @@ def test_repay_full_from_callback(
 
 @pytest.mark.parametrize("different_payer", [True, False])
 def test_repay_full_from_xy0(
-    controller, borrowed_token, collateral_token, amm, snapshot, different_payer
+    controller,
+    borrowed_token,
+    collateral_token,
+    amm,
+    snapshot,
+    collateral_amount,
+    different_payer,
 ):
     """
     Test full repayment using only AMM soft-liquidation (xy[0] >= DEBT).
@@ -303,11 +319,11 @@ def test_repay_full_from_xy0(
 
     # ================= Create loan =================
 
-    boa.deal(collateral_token, borrower, COLLATERAL)
+    boa.deal(collateral_token, borrower, collateral_amount)
     max_approve(collateral_token, controller)
-    debt = controller.max_borrowable(COLLATERAL, N_BANDS)
+    debt = controller.max_borrowable(collateral_amount, N_BANDS)
     assert debt > 0
-    controller.create_loan(COLLATERAL, debt, N_BANDS)
+    controller.create_loan(collateral_amount, debt, N_BANDS)
 
     # ================= Push position to soft-liquidation =================
 
@@ -414,6 +430,7 @@ def test_repay_full_from_wallet_and_callback(
     amm,
     snapshot,
     fake_leverage,
+    collateral_amount,
     different_payer,
 ):
     """
@@ -428,9 +445,9 @@ def test_repay_full_from_wallet_and_callback(
 
     # ================= Create loan =================
 
-    boa.deal(collateral_token, borrower, COLLATERAL)
+    boa.deal(collateral_token, borrower, collateral_amount)
     max_approve(collateral_token, controller)
-    controller.create_loan(COLLATERAL, 10**18, N_BANDS)
+    controller.create_loan(collateral_amount, 10 ** borrowed_token.decimals(), N_BANDS)
 
     # ================= Capture initial state =================
 
@@ -448,9 +465,9 @@ def test_repay_full_from_wallet_and_callback(
 
     # Mock collateral withdraw from amm to callbacker and mint borrowed for callbacker
     amm.withdraw(borrower, 10**18, sender=controller.address)
-    collateral_token.transfer(fake_leverage, COLLATERAL, sender=amm.address)
+    collateral_token.transfer(fake_leverage, collateral_amount, sender=amm.address)
     boa.deal(borrowed_token, fake_leverage, debt - 1)
-    cb = (amm.active_band(), debt - 1, COLLATERAL // 2)
+    cb = (amm.active_band(), debt - 1, collateral_amount // 2)
 
     # ================= Capture initial balances =================
 
@@ -520,7 +537,7 @@ def test_repay_full_from_wallet_and_callback(
     assert len(repay_logs) == 1
     assert repay_logs[0].user == borrower
     assert repay_logs[0].loan_decrease == borrowed_to_controller
-    assert repay_logs[0].collateral_decrease == COLLATERAL
+    assert repay_logs[0].collateral_decrease == collateral_amount
 
     # ================= Verify money flows =================
 
@@ -529,8 +546,8 @@ def test_repay_full_from_wallet_and_callback(
     assert borrowed_from_callback == -(debt - 1)
     assert borrowed_token_after["amm"] == borrowed_token_before["amm"]
 
-    assert collateral_to_borrower == COLLATERAL // 2
-    assert collateral_from_callbacker == -(COLLATERAL // 2)
+    assert collateral_to_borrower == collateral_amount // 2
+    assert collateral_from_callbacker == -(collateral_amount // 2)
     assert collateral_token_after["amm"] == collateral_token_before["amm"]
     assert collateral_token_after["controller"] == collateral_token_before["controller"]
 
@@ -541,7 +558,13 @@ def test_repay_full_from_wallet_and_callback(
 
 @pytest.mark.parametrize("different_payer", [True, False])
 def test_repay_full_from_xy0_and_wallet(
-    controller, borrowed_token, collateral_token, amm, snapshot, different_payer
+    controller,
+    borrowed_token,
+    collateral_token,
+    amm,
+    snapshot,
+    collateral_amount,
+    different_payer,
 ):
     """
     Test full repayment using both AMM soft-liquidation (xy[0]) and wallet tokens.
@@ -555,11 +578,11 @@ def test_repay_full_from_xy0_and_wallet(
 
     # ================= Create loan =================
 
-    boa.deal(collateral_token, borrower, COLLATERAL)
+    boa.deal(collateral_token, borrower, collateral_amount)
     max_approve(collateral_token, controller)
-    debt = controller.max_borrowable(COLLATERAL, N_BANDS)
+    debt = controller.max_borrowable(collateral_amount, N_BANDS)
     assert debt > 0 and debt // 2 > 0
-    controller.create_loan(COLLATERAL, debt, N_BANDS)
+    controller.create_loan(collateral_amount, debt, N_BANDS)
 
     # ================= Push position to soft-liquidation =================
 
@@ -670,6 +693,7 @@ def test_repay_full_from_xy0_and_callback(
     amm,
     snapshot,
     fake_leverage,
+    collateral_amount,
     different_payer,
 ):
     """
@@ -685,11 +709,11 @@ def test_repay_full_from_xy0_and_callback(
 
     # ================= Create loan =================
 
-    boa.deal(collateral_token, borrower, COLLATERAL)
+    boa.deal(collateral_token, borrower, collateral_amount)
     max_approve(collateral_token, controller)
-    debt = controller.max_borrowable(COLLATERAL, N_BANDS)
+    debt = controller.max_borrowable(collateral_amount, N_BANDS)
     assert debt > 0
-    controller.create_loan(COLLATERAL, debt, N_BANDS)
+    controller.create_loan(collateral_amount, debt, N_BANDS)
 
     # ================= Push position to soft-liquidation =================
 
@@ -809,6 +833,7 @@ def test_repay_full_from_wallet_and_xy0_and_callback(
     amm,
     snapshot,
     fake_leverage,
+    collateral_amount,
     different_payer,
 ):
     """
@@ -823,11 +848,11 @@ def test_repay_full_from_wallet_and_xy0_and_callback(
 
     # ================= Create loan =================
 
-    boa.deal(collateral_token, borrower, COLLATERAL)
+    boa.deal(collateral_token, borrower, collateral_amount)
     max_approve(collateral_token, controller)
-    debt = controller.max_borrowable(COLLATERAL, N_BANDS)
+    debt = controller.max_borrowable(collateral_amount, N_BANDS)
     assert debt > 0
-    controller.create_loan(COLLATERAL, debt, N_BANDS)
+    controller.create_loan(collateral_amount, debt, N_BANDS)
 
     # ================= Push position to soft-liquidation =================
 

@@ -34,7 +34,7 @@ def repay_health_preview(_d_collateral: uint256, _d_debt: uint256, _for: address
 
 @view
 @external
-def tokens_to_shrink(user: address) -> uint256:
+def tokens_to_shrink(user: address, _d_collateral: uint256) -> uint256:
     ...
 
 
