@@ -8,13 +8,6 @@ from tests.utils.constants import MAX_UINT256, MAX_ORACLE_PRICE_DEVIATION
 
 
 @pytest.fixture(scope="module")
-def decimals():
-    # Overrides global fixture as these tests don't
-    # change behavior with different decimals
-    return 18
-
-
-@pytest.fixture(scope="module")
 def new_oracle(admin):
     """Deploy a new price oracle for testing."""
     return DUMMY_PRICE_ORACLE_DEPLOYER.deploy(admin, 3000 * 10**18, sender=admin)
