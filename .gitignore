@@ -26,3 +26,6 @@ prof
 .pytest_cache
 AGENTS.md
 .ruff_cache
+out
+broadcast
+.DS_Store
