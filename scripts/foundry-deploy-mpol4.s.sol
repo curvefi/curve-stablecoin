@@ -7,7 +7,7 @@ import {Script, console} from "forge-std/Script.sol";
  * @title AggMonetaryPolicy4 Deployment Script
  * @notice Deploys the AggMonetaryPolicy4 Vyper contract using Foundry
  * @dev This script uses deployCode to deploy Vyper contracts with hardcoded parameters
- * 
+ *
  * Deployment Parameters:
  * - Admin: 0x40907540d8a6C65c637785e8f8B742ae6b0b9968
  * - Price Oracle: 0x18672b1b0c623a30089A280Ed9256379fb0E4E62
@@ -22,25 +22,25 @@ contract DeployAggMonetaryPolicy4 is Script {
     address constant ADMIN = 0x40907540d8a6C65c637785e8f8B742ae6b0b9968;
     address constant PRICE_ORACLE = 0x18672b1b0c623a30089A280Ed9256379fb0E4E62;
     address constant CONTROLLER_FACTORY = 0xC9332fdCB1C491Dcc683bAe86Fe3cb70360738BC;
-    
+
     // PegKeepers
     address constant PEG_KEEPER_0 = 0x9201da0D97CaAAff53f01B2fB56767C7072dE340;
     address constant PEG_KEEPER_1 = 0xFb726F57d251aB5C731E5C64eD4F5F94351eF9F3;
     address constant PEG_KEEPER_2 = 0x3fA20eAa107DE08B38a8734063D605d5842fe09C;
     address constant PEG_KEEPER_3 = 0x338Cb2D827112d989A861cDe87CD9FfD913A1f9D;
     address constant PEG_KEEPER_4 = address(0); // empty(address)
-    
+
     // Monetary Policy Parameters
     uint256 constant RATE = 3662480974;                      // ~12.24% APR base rate
     int256 constant SIGMA = 7000000000000000;                // 7e15 (0.7%)
     uint256 constant TARGET_DEBT_FRACTION = 266700000000000000; // ~26.67%
-    uint256 constant EXTRA_CONST = 475646879;                
+    uint256 constant EXTRA_CONST = 475646879;
     uint256 constant DEBT_RATIO_EMA_TIME = 777600;           // 9 days (9 * 86400)
-    
+
     function run() public returns (address) {
         console.log("=== AggMonetaryPolicy4 Deployment ===");
         console.log("");
-        
+
         // Build pegKeepers array
         address[5] memory pegKeepers = [
             PEG_KEEPER_0,
@@ -49,7 +49,7 @@ contract DeployAggMonetaryPolicy4 is Script {
             PEG_KEEPER_3,
             PEG_KEEPER_4
         ];
-        
+
         // Log all parameters
         console.log("Admin:", ADMIN);
         console.log("Price Oracle:", PRICE_ORACLE);
@@ -68,17 +68,17 @@ contract DeployAggMonetaryPolicy4 is Script {
         console.log("Extra Const:", EXTRA_CONST);
         console.log("Debt Ratio EMA Time:", DEBT_RATIO_EMA_TIME, "(9 days)");
         console.log("");
-        
+
         // Get deployer private key from environment
         uint256 deployerPrivateKey = vm.envUint("PRIVATE_KEY");
         address deployer = vm.addr(deployerPrivateKey);
         console.log("Deployer:", deployer);
         console.log("Deployer balance:", deployer.balance);
         console.log("");
-        
+
         // Start broadcasting transactions
         vm.startBroadcast(deployerPrivateKey);
-        
+
         // Deploy Vyper contract using deployCode
         address deployedContract = deployCode(
             "curve_stablecoin/mpolicies/AggMonetaryPolicy4.vy",
@@ -94,9 +94,9 @@ contract DeployAggMonetaryPolicy4 is Script {
                 DEBT_RATIO_EMA_TIME
             )
         );
-        
+
         vm.stopBroadcast();
-        
+
         console.log("=== Deployment Successful ===");
         console.log("AggMonetaryPolicy4 deployed at:", deployedContract);
         console.log("");
@@ -111,7 +111,7 @@ contract DeployAggMonetaryPolicy4 is Script {
         console.log("   - 0x652aEa6B22310C89DCc506710CaD24d2Dba56B11 (weETH)");
         console.log("   - 0xf8C786b1064889fFd3c8A08B48D5e0c159F4cBe3 (cbBTC)");
         console.log("   - 0x8aca5A776a878Ea1F8967e70a23b8563008f58Ef (LBTC)");
-        
+
         return deployedContract;
     }
 }

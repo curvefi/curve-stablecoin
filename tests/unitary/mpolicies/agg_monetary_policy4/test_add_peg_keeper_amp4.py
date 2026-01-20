@@ -14,15 +14,24 @@ def test_default_behavior(admin, price_oracle, mock_factory):
     pk_array = [ZERO_ADDRESS] * 5
     with boa.env.prank(admin):
         mp = AGG_MONETARY_POLICY4_DEPLOYER.deploy(
-            admin, price_oracle.address, mock_factory.address, pk_array,
-            634195839, 2 * 10**16, 10**17, 0, 86400,
+            admin,
+            price_oracle.address,
+            mock_factory.address,
+            pk_array,
+            634195839,
+            2 * 10**16,
+            10**17,
+            0,
+            86400,
         )
 
-    new_pk = MOCK_PEG_KEEPER_DEPLOYER.deploy(10**18, boa.env.generate_address("stablecoin"))
+    new_pk = MOCK_PEG_KEEPER_DEPLOYER.deploy(
+        10**18, boa.env.generate_address("stablecoin")
+    )
 
     with boa.env.prank(admin):
         mp.add_peg_keeper(new_pk.address)
-    
+
     # Verify AddPegKeeper event is emitted with new peg keeper address (must be right after call)
     logs = filter_logs(mp, "AddPegKeeper")
     assert len(logs) == 1
@@ -33,7 +42,9 @@ def test_default_behavior(admin, price_oracle, mock_factory):
 
 def test_default_behavior_appends_to_array(mp, admin, peg_keepers):
     """New peg keeper is appended after existing ones."""
-    new_pk = MOCK_PEG_KEEPER_DEPLOYER.deploy(10**18, boa.env.generate_address("stablecoin"))
+    new_pk = MOCK_PEG_KEEPER_DEPLOYER.deploy(
+        10**18, boa.env.generate_address("stablecoin")
+    )
 
     with boa.env.prank(admin):
         mp.add_peg_keeper(new_pk.address)
@@ -48,7 +59,9 @@ def test_default_behavior_appends_to_array(mp, admin, peg_keepers):
 def test_revert_unauthorized(mp):
     """Non-admin cannot add peg keeper."""
     unauthorized = boa.env.generate_address("unauthorized")
-    new_pk = MOCK_PEG_KEEPER_DEPLOYER.deploy(10**18, boa.env.generate_address("stablecoin"))
+    new_pk = MOCK_PEG_KEEPER_DEPLOYER.deploy(
+        10**18, boa.env.generate_address("stablecoin")
+    )
 
     with boa.env.prank(unauthorized):
         with boa.reverts(dev="only admin"):

@@ -46,7 +46,9 @@ def peg_keepers():
     keepers = []
     for i in range(3):
         # MockPegKeeper(price, stablecoin) - we don't need real stablecoin for tests
-        pk = MOCK_PEG_KEEPER_DEPLOYER.deploy(10**18, boa.env.generate_address(f"stablecoin_{i}"))
+        pk = MOCK_PEG_KEEPER_DEPLOYER.deploy(
+            10**18, boa.env.generate_address(f"stablecoin_{i}")
+        )
         keepers.append(pk)
     return keepers
 
@@ -101,7 +103,9 @@ def mp(
 ):
     """Deploy AggMonetaryPolicy4 with default parameters."""
     # Create peg keeper array with padding to 5 elements
-    pk_array = [pk.address for pk in peg_keepers] + [ZERO_ADDRESS] * (5 - len(peg_keepers))
+    pk_array = [pk.address for pk in peg_keepers] + [ZERO_ADDRESS] * (
+        5 - len(peg_keepers)
+    )
 
     with boa.env.prank(admin):
         return AGG_MONETARY_POLICY4_DEPLOYER.deploy(

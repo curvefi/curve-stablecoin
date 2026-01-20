@@ -13,7 +13,7 @@ def test_default_behavior(mp, admin):
 
     with boa.env.prank(admin):
         mp.set_target_debt_fraction(new_fraction)
-    
+
     logs = filter_logs(mp, "SetTargetDebtFraction")
 
     assert mp.target_debt_fraction() == new_fraction
