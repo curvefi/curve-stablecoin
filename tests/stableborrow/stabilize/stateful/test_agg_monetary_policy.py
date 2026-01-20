@@ -10,7 +10,7 @@ from hypothesis.stateful import (
 from boa.interpret import VyperContract
 import boa
 from tests.utils.deployers import (
-    AGG_MONETARY_POLICY2_DEPLOYER,
+    AGG_MONETARY_POLICY4_DEPLOYER,
     ERC20_MOCK_DEPLOYER,
     PEG_KEEPER_V2_DEPLOYER,
     AGGREGATE_STABLE_PRICE3_DEPLOYER,
@@ -19,6 +19,8 @@ from tests.utils.deployers import (
 from tests.utils.constants import ZERO_ADDRESS
 
 RATE0 = 634195839  # 2%
+EXTRA_CONST = 0
+DEBT_RATIO_EMA_TIME = 86400
 
 
 class AggMonetaryPolicyCreation(RuleBasedStateMachine):
@@ -32,7 +34,7 @@ class AggMonetaryPolicyCreation(RuleBasedStateMachine):
     rate = st.integers(min_value=0, max_value=43959106799)
     sigma = st.integers(min_value=10**14, max_value=10**18)
     target_debt_fraction = st.integers(min_value=1, max_value=10**18)
-    MPOLICY = AGG_MONETARY_POLICY2_DEPLOYER
+    MPOLICY = AGG_MONETARY_POLICY4_DEPLOYER
     ERC20 = ERC20_MOCK_DEPLOYER
     PK = PEG_KEEPER_V2_DEPLOYER
 
@@ -76,8 +78,10 @@ class AggMonetaryPolicyCreation(RuleBasedStateMachine):
             [p.address for p in self.peg_keepers] + [ZERO_ADDRESS] * (5 - len(digits)),
             RATE0,
             2 * 10**16,  # Sigma 2%
-            5 * 10**16,
-        )  # Target debt fraction 5%
+            5 * 10**16,  # Target debt fraction 5%
+            EXTRA_CONST,
+            DEBT_RATIO_EMA_TIME,
+        )
 
     def add_stablecoin(self, digits):
         with boa.env.prank(self.admin):
