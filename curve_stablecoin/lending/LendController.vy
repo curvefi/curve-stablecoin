@@ -34,7 +34,6 @@ implements: core.VirtualMethods
 initializes: core
 
 from curve_std import token as tkn
-from curve_std import math as crv_math
 
 exports: (
     # Loan management
