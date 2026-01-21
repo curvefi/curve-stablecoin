@@ -101,24 +101,6 @@ def _calculate_debt_n1(
 
 @internal
 @view
-def _n_loans() -> uint256:
-    return staticcall CONTROLLER.n_loans()
-
-
-@internal
-@view
-def _loans(_for: uint256) -> address:
-    return staticcall CONTROLLER.loans(_for)
-
-
-@internal
-@view
-def _health(_for: address, _full: bool = False) -> int256:
-    return staticcall CONTROLLER.health(_for, _full)
-
-
-@internal
-@view
 def _extra_health(_for: address) -> uint256:
     return staticcall CONTROLLER.extra_health(_for)
 
