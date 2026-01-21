@@ -773,7 +773,7 @@ def _add_collateral_borrow(
             # We need d(x + p*y) > 1 wei. For that, we do an equivalent check (but with x2 for safety)
             # This check is only needed when we add collateral for someone else, so gas is not an issue
             # 2 * 10**(18 - borrow_decimals + collateral_decimals) =
-            # = 2 * 10**18 * 10**(18 - borrow_decimals) / 10**(collateral_decimals)
+            # = 2 * 10**18 * 10**(18 - borrow_decimals) / 10**(18 - collateral_decimals)
             assert (
                 _d_collateral * staticcall AMM.price_oracle()
                 > 2 * WAD * BORROWED_PRECISION // COLLATERAL_PRECISION
