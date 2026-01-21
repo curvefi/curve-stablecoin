@@ -176,7 +176,7 @@ def create_loan_health_preview(
     """
     @notice Natspec for this function is available in its controller contract
     """
-    assert _debt > 0, "debt<0"
+    assert _debt > 0, "debt==0"
     n1: int256 = self._calculate_debt_n1(_collateral, _debt, _N)
     ld: uint256 = self._liquidation_discount()
 
@@ -201,7 +201,7 @@ def _add_collateral_borrow_health_preview(
     N: uint256 = convert(unsafe_add(unsafe_sub(ns[1], ns[0]), 1), uint256)
     xy: uint256[2] = staticcall AMM.get_sum_xy(_for)
 
-    assert debt > 0, "debt < 0"
+    assert debt > 0, "debt==0"
     assert xy[0] == 0, "Underwater"
 
     collateral: uint256 = xy[1]
