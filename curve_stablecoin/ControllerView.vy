@@ -90,17 +90,6 @@ def _loan_discount() -> uint256:
 
 @internal
 @view
-def _calculate_debt_n1(
-    _collateral: uint256,
-    _debt: uint256,
-    _N: uint256,
-    _user: address = empty(address),
-) -> int256:
-    return staticcall CONTROLLER.calculate_debt_n1(_collateral, _debt, _N, _user)
-
-
-@internal
-@view
 def _extra_health(_for: address) -> uint256:
     return staticcall CONTROLLER.extra_health(_for)
 
@@ -145,6 +134,82 @@ def _calc_full_health(_collateral: uint256, _debt: uint256, _N: uint256, _n1: in
             )
 
     return health
+
+
+@internal
+@view
+def _calculate_debt_n1(
+    _collateral: uint256,
+    _debt: uint256,
+    _N: uint256,
+    _user: address = empty(address),
+) -> int256:
+    """
+    @notice Calculate the upper band number for the deposit to sit in to support
+            the given debt. Reverts if requested debt is too high.
+    @param _collateral Amount of collateral (at its native precision)
+    @param _debt Amount of requested debt
+    @param _N Number of bands to deposit into
+    @return Upper band n1 (n1 <= n2) to deposit into. Signed integer
+    """
+    assert _debt > 0, "No loan"
+    n0: int256 = staticcall AMM.active_band()
+    p_base: uint256 = staticcall AMM.p_oracle_up(n0)
+
+    # x_effective = y / N * p_oracle_up(n1) * sqrt((A - 1) / A) * sum_{0..N-1}(((A-1) / A)**k)
+    # === d_y_effective * p_oracle_up(n1) * sum(...) === y_effective * p_oracle_up(n1)
+    # d_y_effective = y / N / sqrt(A / (A - 1))
+    y_effective: uint256 = self._get_y_effective(
+        _collateral * COLLATERAL_PRECISION,
+        _N,
+        self._loan_discount() + self._extra_health(_user),
+    )
+    # p_oracle_up(n1) = base_price * ((A - 1) / A)**n1
+
+    # We borrow up until min band touches p_oracle,
+    # or it touches non-empty bands which cannot be skipped.
+    # We calculate required n1 for given (collateral, debt),
+    # and if n1 corresponds to price_oracle being too high, or unreachable band
+    # - we revert.
+
+    # n1 is band number based on adiabatic trading, e.g. when p_oracle ~ p
+    y_effective = unsafe_div(
+        y_effective * p_base, _debt * BORROWED_PRECISION + 1
+    )  # Now it's a ratio
+
+    # n1 = floor(log(y_effective) / self.logAratio)
+    # EVM semantics is not doing floor unlike Python, so we do this
+    assert y_effective > 0, "Amount too low"
+    n1: int256 = math._wad_ln(convert(y_effective, int256))
+    if n1 < 0:
+        n1 -= unsafe_sub(
+            LOGN_A_RATIO, 1
+        )  # This is to deal with vyper's rounding of negative numbers
+    n1 = unsafe_div(n1, LOGN_A_RATIO)
+
+    n1 = min(n1, 1024 - convert(_N, int256)) + n0
+    if n1 <= n0:
+        assert staticcall AMM.can_skip_bands(n1 - 1), "Debt too high"
+
+    assert (
+        staticcall AMM.p_oracle_up(n1) <= staticcall AMM.price_oracle()
+    ), "Debt too high"
+
+    return n1
+
+
+@external
+@view
+def calculate_debt_n1(
+    _collateral: uint256,
+    _debt: uint256,
+    _N: uint256,
+    _user: address = empty(address),
+) -> int256:
+    """
+    @notice Natspec for this function is available in its controller contract
+    """
+    return self._calculate_debt_n1(_collateral, _debt, _N, _user)
 
 
 @external
