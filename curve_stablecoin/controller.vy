@@ -79,18 +79,7 @@ view_impl: public(address)
 _view: IView
 
 liquidation_discount: public(uint256)
-
-_loan_discount: uint256
-
-@external
-@view
-@reentrant
-def loan_discount() -> uint256:
-    """
-    @notice Loan discount (10**18 == 100%)
-    """
-    return self._loan_discount
-
+loan_discount: public(reentrant(uint256))
 _monetary_policy: IMonetaryPolicy
 
 # https://github.com/vyperlang/vyper/issues/4721
@@ -104,16 +93,7 @@ def monetary_policy() -> IMonetaryPolicy:
 
 
 approval: public(HashMap[address, HashMap[address, bool]])
-_extra_health: HashMap[address, uint256]
-
-@external
-@view
-@reentrant
-def extra_health(_user: address) -> uint256:
-    """
-    @notice 1e18-based addition to loan_discount
-    """
-    return self._extra_health[_user]
+extra_health: public(reentrant(HashMap[address, uint256]))
 
 loan: HashMap[address, IController.Loan]
 liquidation_discounts: public(HashMap[address, uint256])
@@ -1463,7 +1443,7 @@ def _set_borrowing_discounts(
     assert _loan_discount < WAD # dev: loan discount >= 100%
     assert _loan_discount > _liquidation_discount # dev: loan discount <= liquidation discount
     self.liquidation_discount = _liquidation_discount
-    self._loan_discount = _loan_discount
+    self.loan_discount = _loan_discount
     log IController.SetBorrowingDiscounts(
         loan_discount=_loan_discount, liquidation_discount=_liquidation_discount
     )
@@ -1546,5 +1526,5 @@ def set_extra_health(_value: uint256):
     @notice Add a little bit more to loan_discount to start SL with health higher than usual
     @param _value 1e18-based addition to loan_discount
     """
-    self._extra_health[msg.sender] = _value
+    self.extra_health[msg.sender] = _value
     log IController.SetExtraHealth(user=msg.sender, health=_value)
