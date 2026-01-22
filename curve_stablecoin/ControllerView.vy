@@ -209,6 +209,8 @@ def calculate_debt_n1(
     """
     @notice Natspec for this function is available in its controller contract
     """
+    assert _N > MIN_TICKS_UINT - 1, "Need more ticks"
+    assert _N < MAX_TICKS_UINT + 1, "Need less ticks"
     return self._calculate_debt_n1(_collateral, _debt, _N, _user)
 
 
@@ -225,6 +227,8 @@ def create_loan_health_preview(
     @notice Natspec for this function is available in its controller contract
     """
     assert _debt > 0, "debt==0"
+    assert _N > MIN_TICKS_UINT - 1, "Need more ticks"
+    assert _N < MAX_TICKS_UINT + 1, "Need less ticks"
     n1: int256 = self._calculate_debt_n1(_collateral, _debt, _N, _for)
     ld: uint256 = self._liquidation_discount()
 
