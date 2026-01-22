@@ -29,6 +29,7 @@ SUPPLY_LIMIT = 2**256 - 1
 
 OBSERVATIONS = 20
 INTERVAL = 30
+CHAIN_ID = 10
 
 
 class RetryRPC(EthereumRPC):
@@ -174,4 +175,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-CHAIN_ID = 10
