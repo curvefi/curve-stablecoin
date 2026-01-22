@@ -1,0 +1,27 @@
+// TESTING ONLY: do not use for production references.
+{
+  "chain_id": 10,
+  "deployer": "0xD48bFA23b153d9D6Bd5E762bAE6Fe91Dcc6A207B",
+  "dry_run": false,
+  "timestamp": 1769096775,
+  "factory": "0x0697aE78D15fE87623B5b85841faC9f10334906E",
+  "monetary_policy": "0xD18b4512301442CB21C95B0249A666C4056bb572",
+  "price_oracle": "0x2A1DcB848F0bF537d3f470cF30FD6069B2F91732",
+  "vault": "0xeB4b27D4A5Afa74c92e9D3d14f45CBe4F457E117",
+  "controller": "0x7F7aa0bC05C5539Dd8412927D714266ADC183142",
+  "amm": "0x565De79a44b9Eb7CCbCAfB7E56ef91b813b4aF6D",
+  "params": {
+    "borrowed_token": "0x4200000000000000000000000000000000000006",
+    "collateral_token": "0x1F32b1c2345538c0c6f582fCB022739c4A194Ebb",
+    "chainlink_feed": "0x524299Ab0987a7c4B3c8022a35669DdcdC715a10",
+    "A": 70,
+    "fee": 6000000000000000,
+    "loan_discount": 70000000000000008,
+    "liquidation_discount": 40000000000000000,
+    "min_rate": 31709791,
+    "max_rate": 317097919837,
+    "supply_limit": 115792089237316195423570985008687907853269984665640564039457584007913129639935,
+    "observations": 20,
+    "interval": 30
+  }
+}
