@@ -1527,5 +1527,6 @@ def set_extra_health(_value: uint256):
     @notice Add a little bit more to loan_discount to start SL with health higher than usual
     @param _value 1e18-based addition to loan_discount
     """
+    assert _value < WAD, "extra_health too high"
     self.extra_health[msg.sender] = _value
     log IController.SetExtraHealth(user=msg.sender, health=_value)
