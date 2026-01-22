@@ -1,0 +1,50 @@
+name: Deploy LlamaLend OP
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Dry run (no broadcast)"
+        type: boolean
+        default: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: op-mainnet
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v5
+        with:
+          submodules: recursive
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+
+      - name: Install Python dependencies
+        run: uv sync --no-dev
+
+      - name: Deploy to OP Mainnet
+        env:
+          PRIVATE_KEY: ${{ secrets.DEPLOYER_PRIVATE_KEY }}
+          OP_RPC_URL: ${{ secrets.OP_RPC_URL }}
+        run: |
+          DRY_FLAG=""
+          if [ "${{ inputs.dry_run }}" = "true" ]; then
+            DRY_FLAG="--dry-run"
+          fi
+          uv run python scripts/boa-deploy-llamalend-op.py \
+            --rpc-url "$OP_RPC_URL" \
+            $DRY_FLAG
+
+      - name: Commit deployment report
+        if: ${{ inputs.dry_run == false }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          git add deployments/llamalend-op-testing.jsonc
+          git -c user.name="llamalend-deployer" -c user.email="llamalend-deployer@users.noreply.github.com" \
+            commit -m "Update OP LlamaLend deployment report"
+          git push
