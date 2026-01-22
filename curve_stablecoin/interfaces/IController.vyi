@@ -263,7 +263,7 @@ def user_state(user: address) -> uint256[4]:
 
 @view
 @external
-def create_loan_health_preview(collateral: uint256, debt: uint256, N: uint256, full: bool) -> int256:
+def create_loan_health_preview(collateral: uint256, debt: uint256, N: uint256, _for: address, full: bool) -> int256:
     ...
 
 

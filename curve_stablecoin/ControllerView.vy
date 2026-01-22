@@ -142,7 +142,7 @@ def _calculate_debt_n1(
     _collateral: uint256,
     _debt: uint256,
     _N: uint256,
-    _user: address = empty(address),
+    _user: address,
 ) -> int256:
     """
     @notice Calculate the upper band number for the deposit to sit in to support
@@ -218,13 +218,14 @@ def create_loan_health_preview(
     _collateral: uint256,
     _debt: uint256,
     _N: uint256,
+    _for: address,
     _full: bool,
 ) -> int256:
     """
     @notice Natspec for this function is available in its controller contract
     """
     assert _debt > 0, "debt==0"
-    n1: int256 = self._calculate_debt_n1(_collateral, _debt, _N)
+    n1: int256 = self._calculate_debt_n1(_collateral, _debt, _N, _for)
     ld: uint256 = self._liquidation_discount()
 
     return self._calc_full_health(_collateral, _debt, _N, n1, ld, _full)
@@ -356,7 +357,7 @@ def repay_health_preview(
 
         assert ns[1] >= active_band + MIN_TICKS, "Can't shrink"
         N: uint256 = convert(unsafe_add(unsafe_sub(ns[1], max(ns[0], active_band + 1)), 1), uint256)
-        n1: int256 = self._calculate_debt_n1(collateral, debt, N)
+        n1: int256 = self._calculate_debt_n1(collateral, debt, N, _for)
 
         return self._calc_full_health(collateral, debt, N, n1, ld, _full)
     else:

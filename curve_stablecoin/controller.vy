@@ -563,6 +563,7 @@ def create_loan_health_preview(
     _collateral: uint256,
     _debt: uint256,
     _N: uint256,
+    _for: address,
     _full: bool,
 ) -> int256:
     """
@@ -576,7 +577,7 @@ def create_loan_health_preview(
     @return Signed health value
     """
     return staticcall self._view.create_loan_health_preview(
-        _collateral, _debt, _N, _full
+        _collateral, _debt, _N, _for, _full
     )
 
 
