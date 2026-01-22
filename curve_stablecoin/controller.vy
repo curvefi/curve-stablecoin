@@ -1346,7 +1346,7 @@ def tokens_to_liquidate(_user: address, _frac: uint256 = WAD) -> uint256:
         * self._get_f_remove(_frac, health_limit),
         WAD,
     )
-    debt: uint256 = unsafe_div(self._debt(_user)[0] * _frac, WAD)
+    debt: uint256 = unsafe_div(self._debt(_user)[0] * _frac + (WAD - 1), WAD)
 
     return crv_math.sub_or_zero(debt, borrowed)
 
