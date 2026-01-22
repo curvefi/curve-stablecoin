@@ -54,15 +54,15 @@ def _deploy(deployer: str, dry_run: bool, report_path: Path) -> None:
         boa.env.suppress_debug_tt()
 
     amm_blueprint = boa.load_partial("curve_stablecoin/AMM.vy").deploy_as_blueprint()
-    controller_blueprint = (
-        boa.load_partial("curve_stablecoin/lending/LendController.vy").deploy_as_blueprint()
-    )
-    vault_blueprint = (
-        boa.load_partial("curve_stablecoin/lending/Vault.vy").deploy_as_blueprint()
-    )
-    controller_view_blueprint = (
-        boa.load_partial("curve_stablecoin/lending/LendControllerView.vy").deploy_as_blueprint()
-    )
+    controller_blueprint = boa.load_partial(
+        "curve_stablecoin/lending/LendController.vy"
+    ).deploy_as_blueprint()
+    vault_blueprint = boa.load_partial(
+        "curve_stablecoin/lending/Vault.vy"
+    ).deploy_as_blueprint()
+    controller_view_blueprint = boa.load_partial(
+        "curve_stablecoin/lending/LendControllerView.vy"
+    ).deploy_as_blueprint()
 
     factory = boa.load_partial("curve_stablecoin/lending/LendFactory.vy").deploy(
         amm_blueprint.address,
