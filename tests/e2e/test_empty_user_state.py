@@ -1,16 +1,7 @@
 import boa
-import pytest
-from tests.utils.constants import ZERO_ADDRESS, WAD
 
 
-@pytest.fixture(scope="module")
-def market_type():
-    return "lending"
-
-
-def test_empty_user_state(
-    controller, factory, admin, collateral_token, borrowed_token, amm
-):
+def test_empty_user_state(controller, collateral_token, borrowed_token):
     user = boa.env.eoa
 
     user_state = controller.user_state(user)
