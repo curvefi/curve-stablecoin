@@ -384,7 +384,6 @@ def liquidate_health_preview(
     assert _frac < WAD, "frac >= 100%"
     debt: uint256 = self._debt(_user)
     ns: int256[2] = staticcall AMM.read_user_tick_numbers(_user)
-    xy: uint256[2] = staticcall AMM.get_sum_xy(_user)
     active_band: int256 = staticcall AMM.active_band_with_skip()
 
     approval: bool = self._check_approval(_user, _caller)
@@ -402,6 +401,7 @@ def liquidate_health_preview(
     health: int256 = self._calc_health(x_eff, debt, ld)
 
     if health > 0 and ns[0] > active_band:
+        xy: uint256[2] = staticcall AMM.get_sum_xy(_user)
         collateral: uint256 = xy[1] * (WAD - f_remove) // WAD
         p0: uint256 = staticcall AMM.p_oracle_up(ns[0])
 
