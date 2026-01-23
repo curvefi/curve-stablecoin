@@ -340,7 +340,7 @@ def repay_health_preview(
     active_band: int256 = staticcall AMM.active_band_with_skip()
 
     assert debt > 0, "debt == 0"
-    assert debt > _d_debt, "Can't repay more debt than user has"
+    assert debt > _d_debt, "Repay amount is too high"
     debt -= _d_debt
 
     ld: uint256 = 0
@@ -349,10 +349,10 @@ def repay_health_preview(
     else:
         ld = self._liquidation_discounts(_for)
 
-    if ns[0] > active_band or _shrink:  # re-deposit
-        xy: uint256[2] = staticcall AMM.get_sum_xy(_for)
+    xy: uint256[2] = staticcall AMM.get_sum_xy(_for)
+    assert debt > xy[0], "Repay amount is too high"
 
-        assert debt > xy[0], "Can't repay more debt than user has"
+    if ns[0] > active_band or _shrink:  # re-deposit
         debt -= xy[0]
 
         collateral: uint256 = xy[1]
