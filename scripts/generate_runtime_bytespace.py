@@ -1,7 +1,10 @@
 #!/usr/bin/env python3
+import argparse
 import csv
+import os
 import re
 import subprocess
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 
 
@@ -110,9 +113,33 @@ def dummy_return(ret_type: str | None) -> str:
 
 
 def main() -> None:
+    parser = argparse.ArgumentParser(
+        description="Estimate runtime bytespace per function using dummy bodies."
+    )
+    parser.add_argument(
+        "--source",
+        default="curve_stablecoin/controller.vy",
+        help="Contract source file path relative to repo root.",
+    )
+    parser.add_argument(
+        "--output-dir",
+        default=".tmp/runtime-run",
+        help="Output directory for runtime bytespace reports.",
+    )
+    parser.add_argument(
+        "--jobs",
+        type=int,
+        default=0,
+        help="Parallel workers for function analysis (0 = CPU count).",
+    )
+    args = parser.parse_args()
+
     repo = Path(".")
-    source_path = repo / "curve_stablecoin/controller.vy"
-    runtime_root = repo / ".tmp/runtime-run"
+    source_path = repo / args.source
+    runtime_root = repo / args.output_dir
+
+    if not source_path.exists():
+        raise FileNotFoundError(f"Source file not found: {source_path}")
     runtime_dir = runtime_root / "contracts"
     results_dir = runtime_root / "results"
     runtime_dir.mkdir(parents=True, exist_ok=True)
@@ -126,8 +153,7 @@ def main() -> None:
     )
     base_size = len(base_out.encode())
 
-    results = []
-    for func in funcs:
+    def compile_function(func: dict) -> tuple[str, int | None, int | None]:
         name = func["name"]
         ret_type = func["ret_type"]
         dummy = dummy_return(ret_type)
@@ -138,7 +164,7 @@ def main() -> None:
 
         new_lines = list(source_lines)
         new_lines[body_start:end] = [dummy_line]
-        tmp_path = runtime_dir / f"controller-{name}.vy"
+        tmp_path = runtime_dir / f"{source_path.stem}-{name}.vy"
         tmp_path.write_text("\n".join(new_lines) + "\n")
 
         result_path = results_dir / f"{name}.md"
@@ -155,7 +181,7 @@ def main() -> None:
                 f"- Savings: {savings} bytes\n"
                 f"- Status: success\n"
             )
-            results.append((name, size, savings))
+            return (name, size, savings)
         except subprocess.CalledProcessError as exc:
             result_path.write_text(
                 f"# {name} runtime bytespace\n\n"
@@ -163,7 +189,20 @@ def main() -> None:
                 f"- Status: failed\n"
                 f"- Error: {exc}\n"
             )
-            results.append((name, None, None))
+            return (name, None, None)
+
+    results = []
+    worker_count = args.jobs if args.jobs > 0 else (os.cpu_count() or 1)
+    worker_count = max(1, min(worker_count, len(funcs)))
+
+    if worker_count == 1:
+        for func in funcs:
+            results.append(compile_function(func))
+    else:
+        with ThreadPoolExecutor(max_workers=worker_count) as executor:
+            futures = [executor.submit(compile_function, func) for func in funcs]
+            for future in as_completed(futures):
+                results.append(future.result())
 
     report_md = runtime_root / "bytespace-report-runtime.md"
     report_csv = runtime_root / "bytespace-report-runtime.csv"
