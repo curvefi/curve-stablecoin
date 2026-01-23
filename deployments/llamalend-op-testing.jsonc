@@ -1,15 +1,14 @@
-// TESTING ONLY: do not use for production references.
 {
   "chain_id": 10,
   "deployer": "0xD48bFA23b153d9D6Bd5E762bAE6Fe91Dcc6A207B",
   "dry_run": false,
-  "timestamp": 1769096775,
-  "factory": "0x0697aE78D15fE87623B5b85841faC9f10334906E",
-  "monetary_policy": "0xD18b4512301442CB21C95B0249A666C4056bb572",
-  "price_oracle": "0x2A1DcB848F0bF537d3f470cF30FD6069B2F91732",
-  "vault": "0xeB4b27D4A5Afa74c92e9D3d14f45CBe4F457E117",
-  "controller": "0x7F7aa0bC05C5539Dd8412927D714266ADC183142",
-  "amm": "0x565De79a44b9Eb7CCbCAfB7E56ef91b813b4aF6D",
+  "timestamp": 1769099649,
+  "factory": "0x7E0D6AA94d342c8EaccCf30ff84911ea6b5d5C15",
+  "monetary_policy": "0x0e8ACA515a6A735eaa4F05B8ba69dbB6285140A1",
+  "price_oracle": "0x150Cb15115ff17058f71C4Bc41C66A3C674c3114",
+  "vault": "0x1E8cFC6109eE6FC3b13ceF87748CFdA95E0E6777",
+  "controller": "0x1E65089C0d0e13945003B3D5236Ae8cABe6Be0c1",
+  "amm": "0x90DDb6626D9a39747937693637ff8a9b57455bb2",
   "params": {
     "borrowed_token": "0x4200000000000000000000000000000000000006",
     "collateral_token": "0x1F32b1c2345538c0c6f582fCB022739c4A194Ebb",

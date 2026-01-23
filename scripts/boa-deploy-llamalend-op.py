@@ -29,6 +29,7 @@ SUPPLY_LIMIT = 2**256 - 1
 
 OBSERVATIONS = 20
 INTERVAL = 30
+CHAIN_ID = 10
 
 
 class RetryRPC(EthereumRPC):
@@ -99,8 +100,12 @@ def _deploy(deployer: str, dry_run: bool, report_path: Path) -> None:
         sender=deployer,
     )
 
+    chain_id = CHAIN_ID
+    if hasattr(boa.env, "get_chain_id"):
+        chain_id = boa.env.get_chain_id()
+
     report = {
-        "chain_id": boa.env.get_chain_id(),
+        "chain_id": chain_id,
         "deployer": deployer,
         "dry_run": dry_run,
         "timestamp": int(time.time()),
