@@ -64,9 +64,7 @@ def build_report(
             ]
         )
         for name, base, head, delta in deltas:
-            lines.append(
-                f"| {name} | {base} | {head} | {format_delta(delta)} |"
-            )
+            lines.append(f"| {name} | {base} | {head} | {format_delta(delta)} |")
     else:
         lines.extend(["", "_No function-level size changes detected._"])
 
