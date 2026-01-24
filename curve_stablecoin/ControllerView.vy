@@ -259,7 +259,7 @@ def _add_collateral_borrow_health_preview(
     collateral: uint256 = xy[1]
     if _remove:
         assert collateral > _collateral, "Can't remove more collateral than user has"
-        collateral -= _collateral
+        collateral = unsafe_sub(collateral, _collateral)
     else:
         collateral += _collateral
     debt += _debt
@@ -341,7 +341,7 @@ def repay_health_preview(
 
     assert debt > 0, "debt == 0"
     assert debt > _d_debt, "Repay amount is too high"
-    debt -= _d_debt
+    debt = unsafe_sub(debt, _d_debt)
 
     ld: uint256 = 0
     if self._check_approval(_for, _caller):
@@ -353,11 +353,11 @@ def repay_health_preview(
     assert debt > xy[0], "Repay amount is too high"
 
     if ns[0] > active_band or _shrink:  # re-deposit
-        debt -= xy[0]
+        debt = unsafe_sub(debt, xy[0])
 
         collateral: uint256 = xy[1]
-        assert _d_collateral < collateral, "Can't remove more collateral than user has"
-        collateral -= _d_collateral
+        assert collateral > _d_collateral, "Can't remove more collateral than user has"
+        collateral = unsafe_sub(collateral, _d_collateral)
 
         if _shrink:
             assert ns[1] >= active_band + MIN_TICKS, "Can't shrink"
