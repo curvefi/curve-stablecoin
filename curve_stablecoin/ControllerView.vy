@@ -359,7 +359,9 @@ def repay_health_preview(
         assert _d_collateral < collateral, "Can't remove more collateral than user has"
         collateral -= _d_collateral
 
-        assert ns[1] >= active_band + MIN_TICKS, "Can't shrink"
+        if _shrink:
+            assert ns[1] >= active_band + MIN_TICKS, "Can't shrink"
+
         N: uint256 = convert(unsafe_add(unsafe_sub(ns[1], max(ns[0], active_band + 1)), 1), uint256)
         n1: int256 = self._calculate_debt_n1(collateral, debt, N, _for)
 
@@ -638,7 +640,7 @@ def _tokens_to_shrink(_user: address, _cap: uint256, _d_collateral: uint256) -> 
         return 0
 
     assert ns[1] >= active_band + MIN_TICKS, "Can't shrink"
-    size: uint256 = convert(unsafe_add(unsafe_sub(ns[1], active_band + 1), 1), uint256)
+    size: uint256 = convert(unsafe_sub(ns[1], active_band), uint256)
     xy: uint256[2] = staticcall AMM.get_sum_xy(_user)
     assert xy[1] > _d_collateral, "Can't remove more collateral than user has"
     current_debt: uint256 = self._debt(_user)

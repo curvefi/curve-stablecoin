@@ -957,6 +957,7 @@ def _repay_partial(
     _shrink: bool,
 ) -> uint256:
     # slippage-like check to prevent dos on repay (grief attack)
+    assert _approval or not _shrink, "Need approval to shrink"
     active_band: int256 = staticcall AMM.active_band_with_skip()
     new_collateral: uint256 = _xy[1]
     if _callbacker != empty(address):
@@ -998,7 +999,6 @@ def _repay_partial(
 
     # ================= Recover borrowed tokens (xy[0]) =================
     if _shrink:
-        assert _approval  # dev: need approval to shrink
         tkn.transfer_from(BORROWED_TOKEN, AMM.address, self, _xy[0])
     tkn.transfer_from(BORROWED_TOKEN, _callbacker, self, _cb.borrowed)
     tkn.transfer_from(BORROWED_TOKEN, msg.sender, self, _wallet_d_debt)
@@ -1172,18 +1172,20 @@ def _health(
 @pure
 def _get_f_remove(_frac: uint256, _health_limit: uint256) -> uint256:
     # f_remove = ((1 + h / 2) / (1 + h) * (1 - frac) + frac) * frac
-    f_remove: uint256 = WAD
-    if _frac < WAD:
-        f_remove = unsafe_div(
-            unsafe_mul(
-                unsafe_add(WAD, unsafe_div(_health_limit, 2)),
-                unsafe_sub(WAD, _frac),
-            ),
-            unsafe_add(WAD, _health_limit),
-        )
-        f_remove = unsafe_div(unsafe_mul(unsafe_add(f_remove, _frac), _frac), WAD)
+    if _health_limit == 0:
+        return _frac
+    if _frac == WAD:
+        return WAD
 
-    return f_remove
+    f_remove: uint256 = unsafe_div(
+        unsafe_mul(
+            unsafe_add(WAD, unsafe_div(_health_limit, 2)),
+            unsafe_sub(WAD, _frac),
+        ),
+        unsafe_add(WAD, _health_limit),
+    )
+
+    return unsafe_div(unsafe_mul(unsafe_add(f_remove, _frac), _frac), WAD)
 
 
 @external
@@ -1338,6 +1340,7 @@ def tokens_to_liquidate(_user: address, _frac: uint256 = WAD) -> uint256:
     @param _frac Fraction to liquidate; 100% = 10**18
     @return The amount of borrowed asset needed
     """
+    assert _frac <= WAD, "frac>100%"
     health_limit: uint256 = 0
     if not self._check_approval(_user):
         health_limit = self.liquidation_discounts[_user]
