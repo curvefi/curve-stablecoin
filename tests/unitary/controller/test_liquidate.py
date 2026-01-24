@@ -159,7 +159,7 @@ def test_liquidate_full_from_wallet(
     assert user_state_after[0] == 0  # no collateral in AMM
     assert user_state_after[1] == 0  # no borrowed tokens in AMM
     assert user_state_after[2] == 0  # debt fully repaid
-    assert user_state_after[3] == user_state_before[3]  # N unchanged
+    assert user_state_after[3] == 0  # N == 0
     assert controller.total_debt() == total_debt - debt
     assert controller.eval("core.repaid") == repaid + debt
     assert controller.n_loans() == 0  # loan removed after full liquidation
@@ -320,7 +320,7 @@ def test_liquidate_full_from_wallet_underwater(
     assert user_state_after[0] == 0  # no collateral in AMM
     assert user_state_after[1] == 0  # no borrowed tokens in AMM
     assert user_state_after[2] == 0  # debt fully repaid
-    assert user_state_after[3] == user_state_before[3]  # N unchanged
+    assert user_state_after[3] == 0  # N == 0
     assert controller.total_debt() == total_debt - debt
     assert controller.eval("core.repaid") == repaid + debt
     assert controller.n_loans() == 0  # loan removed after full liquidation
@@ -493,7 +493,7 @@ def test_liquidate_full_from_callback(
     assert user_state_after[0] == 0  # no collateral in AMM
     assert user_state_after[1] == 0  # no borrowed tokens in AMM
     assert user_state_after[2] == 0  # debt fully repaid
-    assert user_state_after[3] == user_state_before[3]  # N unchanged
+    assert user_state_after[3] == 0  # N == 0
     assert controller.total_debt() == total_debt - debt
     assert controller.eval("core.repaid") == repaid + debt
     assert controller.n_loans() == 0  # loan removed after full liquidation
@@ -683,7 +683,7 @@ def test_liquidate_full_from_callback_underwater(
     assert user_state_after[0] == 0  # no collateral in AMM
     assert user_state_after[1] == 0  # no borrowed tokens in AMM
     assert user_state_after[2] == 0  # debt fully repaid
-    assert user_state_after[3] == user_state_before[3]  # N unchanged
+    assert user_state_after[3] == 0  # N == 0
     assert controller.total_debt() == total_debt - debt
     assert controller.eval("core.repaid") == repaid + debt
     assert controller.n_loans() == 0  # loan removed after full liquidation
@@ -841,7 +841,7 @@ def test_liquidate_full_from_xy0_underwater(
     assert user_state_after[0] == 0  # no collateral in AMM
     assert user_state_after[1] == 0  # no borrowed tokens in AMM
     assert user_state_after[2] == 0  # debt fully repaid
-    assert user_state_after[3] == user_state_before[3]  # N unchanged
+    assert user_state_after[3] == 0  # N == 0
     assert controller.total_debt() == total_debt - debt
     assert controller.eval("core.repaid") == repaid + debt
     assert controller.n_loans() == 0  # loan removed after full liquidation
@@ -1009,7 +1009,7 @@ def test_liquidate_full_from_xy0_underwater_exact(
     assert user_state_after[0] == 0  # no collateral in AMM
     assert user_state_after[1] == 0  # no borrowed tokens in AMM
     assert user_state_after[2] == 0  # debt fully repaid
-    assert user_state_after[3] == user_state_before[3]  # N unchanged
+    assert user_state_after[3] == 0  # N == 0
     assert controller.total_debt() == total_debt - debt
     assert controller.eval("core.repaid") == repaid + debt
     assert controller.n_loans() == 0  # loan removed after full liquidation

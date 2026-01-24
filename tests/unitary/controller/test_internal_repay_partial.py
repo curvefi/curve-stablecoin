@@ -1556,7 +1556,7 @@ def test_repay_partial_cannot_shrink(
                 borrower,
                 debt,
                 0,
-                False,
+                True,
                 xy_before,
                 (0, 0, 0),
                 ZERO_ADDRESS,

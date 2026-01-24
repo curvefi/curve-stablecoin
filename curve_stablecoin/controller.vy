@@ -956,8 +956,8 @@ def _repay_partial(
     _max_active_band: int256,
     _shrink: bool,
 ) -> uint256:
-    # slippage-like check to prevent dos on repay (grief attack)
     assert _approval or not _shrink, "Need approval to shrink"
+    # slippage-like check to prevent dos on repay (grief attack)
     active_band: int256 = staticcall AMM.active_band_with_skip()
     new_collateral: uint256 = _xy[1]
     if _callbacker != empty(address):
