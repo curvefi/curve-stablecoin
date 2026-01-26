@@ -61,9 +61,6 @@ market_count: public(uint256)
 # Checks if a contract (vault, controller or amm) has been deployed by this factory
 check_contract: public(HashMap[address, bool])
 
-# TODO remove
-names: public(HashMap[uint256, String[64]])
-
 
 @deploy
 def __init__(
@@ -202,7 +199,6 @@ def create(
     self._vaults[market_count] = vault
     # Store index with 2**128 offset so missing vault lookups revert (e.g. nonexistent vault would otherwise read index 0)
     self._vaults_index[vault] = market_count + 2**128
-    self.names[market_count] = _name
     self.market_count = market_count + 1
 
     if _supply_limit < max_value(uint256):
