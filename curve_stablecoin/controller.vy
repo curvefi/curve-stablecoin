@@ -600,10 +600,7 @@ def create_loan(
     @param _callbacker Address of the callback contract
     @param _calldata Any data for callbacker
     """
-    if _for != tx.origin:
-        # We can create a loan for tx.origin (for example when wrapping ETH with EOA),
-        # however need to approve in other cases
-        assert self._check_approval(_for)
+    assert self._check_approval(_for)
 
     more_collateral: uint256 = 0
     if _callbacker != empty(address):
