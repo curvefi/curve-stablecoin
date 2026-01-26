@@ -171,5 +171,3 @@ def market_count() -> uint256:
 @external
 def check_contract(_contract: address) -> bool:
     ...
-
-# TODO add new functions from recent edits
