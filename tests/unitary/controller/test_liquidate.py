@@ -1342,9 +1342,10 @@ def test_liquidate_partial_from_wallet_underwater(
         # Approval is required to liquidate healthy users,
         # so we pass sender=borrower to get the correct number as for approved user
         tokens_needed = controller.tokens_to_liquidate(borrower, frac, sender=borrower)
-    tokens_needed += 2  # Inaccuracy
+    tokens_needed += 1  # Inaccuracy
     debt_to_repay = (debt * frac + WAD - 1) // WAD
-    assert 0 < tokens_needed == pytest.approx(debt_to_repay - borrowed_to_remove, abs=2)
+    assert 0 < tokens_needed == pytest.approx(debt_to_repay - borrowed_to_remove, abs=1)
+    assert tokens_needed >= debt_to_repay - borrowed_to_remove
 
     if different_liquidator:
         boa.deal(borrowed_token, liquidator, tokens_needed)
@@ -1545,7 +1546,8 @@ def test_liquidate_partial_from_callback(
         controller.tokens_to_liquidate(borrower, frac, sender=liquidator) + 1
     )  # Inaccuracy
     debt_to_repay = (debt * frac + WAD - 1) // WAD
-    assert tokens_needed == pytest.approx(debt_to_repay, abs=1)
+    assert 0 < tokens_needed == pytest.approx(debt_to_repay, abs=1)
+    assert tokens_needed >= debt_to_repay
     profit = 1
     callback_borrowed = tokens_needed + profit
     callback_collateral = collateral_to_remove // 3
@@ -1771,7 +1773,6 @@ def test_liquidate_partial_from_callback_underwater(
         # Approval is required to liquidate healthy users,
         # so we pass sender=borrower to get the correct number as for approved user
         tokens_needed = controller.tokens_to_liquidate(borrower, frac, sender=borrower)
-    tokens_needed += 1  # Inaccuracy
     debt_to_repay = (debt * frac + WAD - 1) // WAD
     assert 0 < tokens_needed == pytest.approx(debt_to_repay - borrowed_to_remove, abs=1)
     profit = 1
