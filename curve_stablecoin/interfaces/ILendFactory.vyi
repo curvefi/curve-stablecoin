@@ -155,12 +155,6 @@ def fee_receiver(_controller: address = msg.sender) -> address:
     ...
 
 
-@view
-@external
-def vaults(_index: uint256) -> IVault:
-    ...
-
-
 @external
 @view
 def version() -> String[5]:

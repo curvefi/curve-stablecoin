@@ -53,19 +53,7 @@ WAD: constant(uint256) = c.WAD
 default_fee_receiver: public(address)
 fee_receivers: HashMap[address, address]
 
-# TODO getter here is useless
-# Vaults can only be created but not removed
 _vaults: IVault[10**18]
-# https://github.com/vyperlang/vyper/issues/4721
-@external
-@view
-def vaults(_index: uint256) -> IVault:
-    """
-    @notice Address of the vault by its index
-    """
-    return self._vaults[_index]
-
-
 _vaults_index: HashMap[IVault, uint256]
 market_count: public(uint256)
 
