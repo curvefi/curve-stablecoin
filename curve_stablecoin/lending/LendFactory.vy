@@ -171,7 +171,6 @@ def create(
             _loan_discount,
             _liquidation_discount,
             blueprint_registry.get("CTRV"),
-            code_offset=3, # TODO remove code offsets
         )
     )
     self.check_contract[vault.address] = True
