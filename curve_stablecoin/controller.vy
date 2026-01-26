@@ -1243,14 +1243,17 @@ def liquidate(
     assert debt > 0
     final_debt = unsafe_sub(final_debt, debt)
 
+    # If liquidating entire debt, ensure full collateral withdrawal
+    f_remove: uint256 = self._get_f_remove(_frac, health_limit)
+    if final_debt == 0:
+        f_remove = WAD
+
     # Withdraw sender's borrowed and collateral to our contract
     # When frac is set - we withdraw a bit less for the same debt fraction
     # f_remove = ((1 + h/2) / (1 + h) * (1 - frac) + frac) * frac
     # where h is health limit.
     # This is less than full h discount but more than no discount
-    xy: uint256[2] = extcall AMM.withdraw(
-        _user, self._get_f_remove(_frac, health_limit)
-    )  # [stable, collateral]
+    xy: uint256[2] = extcall AMM.withdraw(_user, f_remove)  # [stable, collateral]
 
     # x increase in same block -> price up -> good
     # x decrease in same block -> price down -> bad
