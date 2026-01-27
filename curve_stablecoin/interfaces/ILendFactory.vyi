@@ -48,6 +48,17 @@ struct Market:
     monetary_policy: IMonetaryPolicy
 
 
+flag ContractType:
+    VAULT
+    CONTROLLER
+    AMM
+
+
+struct ContractInfo:
+    market_index: uint256
+    contract_type: ContractType
+
+
 @external
 def transfer_ownership(new_owner: address):
     ...
@@ -169,5 +180,5 @@ def market_count() -> uint256:
 
 @view
 @external
-def check_contract(_contract: address) -> bool:
+def check_contract(_contract: address) -> ContractInfo:
     ...

@@ -57,9 +57,8 @@ _vaults: IVault[10**18]
 _vaults_index: HashMap[IVault, uint256]
 market_count: public(uint256)
 
-# TODO extend this to simplify reverse search
-# Checks if a contract (vault, controller or amm) has been deployed by this factory
-check_contract: public(HashMap[address, bool])
+# Maps contract addresses to market index and type for reverse lookup
+check_contract: public(HashMap[address, ILendFactory.ContractInfo])
 
 
 @deploy
@@ -173,9 +172,19 @@ def create(
             blueprint_registry.get("CTRV"),
         )
     )
-    self.check_contract[vault.address] = True
-    self.check_contract[amm.address] = True
-    self.check_contract[controller.address] = True
+    market_count: uint256 = self.market_count
+    self.check_contract[vault.address] = ILendFactory.ContractInfo(
+        market_index=market_count,
+        contract_type=ILendFactory.ContractType.VAULT,
+    )
+    self.check_contract[controller.address] = ILendFactory.ContractInfo(
+        market_index=market_count,
+        contract_type=ILendFactory.ContractType.CONTROLLER,
+    )
+    self.check_contract[amm.address] = ILendFactory.ContractInfo(
+        market_index=market_count,
+        contract_type=ILendFactory.ContractType.AMM,
+    )
 
     extcall amm.set_admin(controller.address)
 
@@ -183,8 +192,6 @@ def create(
 
     # Validate monetary policy using controller context
     extcall _monetary_policy.rate_write(controller.address)
-
-    market_count: uint256 = self.market_count
     log ILendFactory.NewVault(
         id=market_count,
         collateral_token=_collateral_token,
@@ -321,7 +328,8 @@ def set_custom_fee_receiver(_controller: address, _fee_receiver: address):
     @param _fee_receiver Address of the receiver
     """
     ownable._check_owner()
-    # TODO checks controller belongs to factory
+    contract_info: ILendFactory.ContractInfo = self.check_contract[_controller]
+    assert contract_info.contract_type == ILendFactory.ContractType.CONTROLLER, "not a controller"
     self.fee_receivers[_controller] = _fee_receiver
     log ILendFactory.CustomSetFeeReceiver(controller=_controller, fee_receiver=_fee_receiver)
 
