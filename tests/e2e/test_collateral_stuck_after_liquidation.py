@@ -4,7 +4,7 @@ from tests.utils.protocols import Llamalend
 from tests.utils.deployers import ERC20_MOCK_DEPLOYER, DUMMY_PRICE_ORACLE_DEPLOYER
 from tests.utils.constants import MAX_UINT256
 
-WAD = 10 ** 18
+WAD = 10**18
 
 
 @pytest.fixture(scope="module")
@@ -28,7 +28,7 @@ def collateral_token():
 @pytest.fixture(scope="module")
 def price_oracle(admin):
     """Create price oracle with initial price of 3000 * 10**18."""
-    initial_price = 3000 * 10 ** 18
+    initial_price = 3000 * 10**18
     return DUMMY_PRICE_ORACLE_DEPLOYER.deploy(admin, initial_price)
 
 
@@ -49,13 +49,13 @@ def lending_market(proto, borrowed_token, collateral_token, price_oracle):
         borrowed_token=borrowed_token,
         collateral_token=collateral_token,
         A=100,
-        fee=10 ** 16,  # 1% fee
-        loan_discount=int(0.09 * 10 ** 18),  # 9%
-        liquidation_discount=int(0.06 * 10 ** 18),  # 6%
+        fee=10**16,  # 1% fee
+        loan_discount=int(0.09 * 10**18),  # 9%
+        liquidation_discount=int(0.06 * 10**18),  # 6%
         price_oracle=price_oracle,
         name="Test Vault 6 Decimals",
-        min_borrow_rate=10 ** 15 // (365 * 86400),  # 0.1% APR
-        max_borrow_rate=10 ** 18 // (365 * 86400),  # 100% APR
+        min_borrow_rate=10**15 // (365 * 86400),  # 0.1% APR
+        max_borrow_rate=10**18 // (365 * 86400),  # 100% APR
         seed_amount=0,  # Don't seed yet, we'll do it manually
     )
 
@@ -90,15 +90,15 @@ def liquidator():
 
 
 def test_liquidate_full_debt_partial_collateral(
-        vault,
-        controller,
-        amm,
-        admin,
-        borrowed_token,
-        collateral_token,
-        price_oracle,
-        borrower,
-        liquidator,
+    vault,
+    controller,
+    amm,
+    admin,
+    borrowed_token,
+    collateral_token,
+    price_oracle,
+    borrower,
+    liquidator,
 ):
     """
     Demonstrate that liquidating with frac = WAD - 1 can result in:
@@ -111,7 +111,7 @@ def test_liquidate_full_debt_partial_collateral(
 
     # Step 1: Seed vault with a large amount of borrowed tokens
     # Using larger amounts to ensure AMM shares are large enough for dust to remain
-    seed_amount = 100_000_000 * 10 ** borrowed_decimals  # 100M tokens
+    seed_amount = 100_000_000 * 10**borrowed_decimals  # 100M tokens
     with boa.env.prank(admin):
         boa.deal(borrowed_token, admin, seed_amount)
         borrowed_token.approve(vault.address, MAX_UINT256)
@@ -125,7 +125,7 @@ def test_liquidate_full_debt_partial_collateral(
     # Use a large collateral amount to ensure large share values in AMM
     # This is critical for the vulnerability - with larger shares, the
     # integer division in AMM.withdraw leaves dust when frac < WAD
-    test_collateral = 10_000 * 10 ** collateral_decimals  # 10,000 ETH worth
+    test_collateral = 10_000 * 10**collateral_decimals  # 10,000 ETH worth
 
     max_borrow = controller.max_borrowable(test_collateral, n_bands)
     print(f"\n=== Step 2: Calculate loan parameters ===")
@@ -182,7 +182,8 @@ def test_liquidate_full_debt_partial_collateral(
             price_oracle.set_price(new_price)
         health_after_drop = controller.health(borrower, True)
         print(
-            f"Adjusted price: {new_price / 10 ** 18} ({price_drop_pct}% drop), health: {health_after_drop / 10 ** 18}")
+            f"Adjusted price: {new_price / 10**18} ({price_drop_pct}% drop), health: {health_after_drop / 10**18}"
+        )
 
     print(f"Position is now liquidatable (health < 0)")
 
@@ -200,7 +201,7 @@ def test_liquidate_full_debt_partial_collateral(
     print(f"Tokens needed to liquidate: {tokens_needed}")
 
     # Give liquidator enough borrowed tokens
-    liquidator_amount = debt_before_liquidation + tokens_needed + 10 ** borrowed_decimals
+    liquidator_amount = debt_before_liquidation + tokens_needed + 10**borrowed_decimals
     with boa.env.prank(liquidator):
         boa.deal(borrowed_token, liquidator, liquidator_amount)
         borrowed_token.approve(controller.address, MAX_UINT256)
@@ -251,15 +252,15 @@ def test_liquidate_full_debt_partial_collateral(
     # Try to add collateral - should also fail
     with boa.reverts("Loan doesn't exist"):
         with boa.env.prank(borrower):
-            boa.deal(collateral_token, borrower, 10 ** collateral_decimals)
+            boa.deal(collateral_token, borrower, 10**collateral_decimals)
             collateral_token.approve(controller.address, MAX_UINT256)
-            controller.add_collateral(10 ** collateral_decimals, borrower)
+            controller.add_collateral(10**collateral_decimals, borrower)
 
     with boa.env.prank(borrower):
         boa.deal(collateral_token, borrower, collateral_amount)
-        debt_amount_adjusted = controller.max_borrowable(
-            collateral_amount, n_bands
-        ) * 99 // 100  # we should recalculate due change in price oracle
+        debt_amount_adjusted = (
+            controller.max_borrowable(collateral_amount, n_bands) * 99 // 100
+        )  # we should recalculate due change in price oracle
         controller.create_loan(collateral_amount, debt_amount_adjusted, n_bands)
 
     # Check the raw collateral amounts by bands (not affected by precision rounding)
