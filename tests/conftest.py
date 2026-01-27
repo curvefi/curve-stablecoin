@@ -261,11 +261,13 @@ def borrow_cap(seed_liquidity):
 # ============== Account Fixtures ==============
 
 
+# Deprecated everywhere: prefer inline role-named addresses.
 @pytest.fixture(scope="session")
 def accounts():
     return [boa.env.generate_address() for _ in range(10)]
 
 
+# Deprecated everywhere: prefer inline role-named addresses.
 @pytest.fixture(scope="module")
 def alice():
     return boa.env.generate_address("alice")
