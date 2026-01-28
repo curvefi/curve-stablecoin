@@ -66,10 +66,7 @@ def crvusd(mint_factory):
 
 @pytest.fixture(scope="module")
 def borrower(collateral_token):
-    _borrower = boa.env.generate_address()
-    boa.deal(collateral_token, _borrower, 100 * 10**18)
-
-    return _borrower
+    return boa.env.generate_address()
 
 
 @pytest.fixture(scope="module")

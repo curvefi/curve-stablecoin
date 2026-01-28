@@ -61,6 +61,7 @@ def test_new_implementations(
     # --- BORROW ALL ---
 
     with boa.env.prank(borrower):
+        boa.deal(collateral_token, borrower, 100 * 10 ** 18)
         collateral_token.approve(controller, 2**256 - 1)
         controller.create_loan(10 * 10**18, DEBT_CEILING // 2, 10)
     assert crvusd.balanceOf(controller) == 0
