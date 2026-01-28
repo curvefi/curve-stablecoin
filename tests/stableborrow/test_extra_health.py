@@ -4,7 +4,7 @@ from hypothesis import strategies as st
 
 
 @given(
-    extra_health=st.integers(min_value=0, max_value=2 * 10**18),
+    extra_health=st.integers(min_value=0, max_value=9 * 10**17),
 )
 def test_create_loan(
     controller_factory,

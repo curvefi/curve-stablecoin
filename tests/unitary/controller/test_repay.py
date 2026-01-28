@@ -127,7 +127,7 @@ def test_full_repay_from_wallet(
     assert user_state_after[0] == 0  # collateral in AMM
     assert user_state_after[1] == 0  # borrowed in AMM
     assert user_state_after[2] == 0  # debt
-    assert user_state_after[3] == user_state_before[3]  # N
+    assert user_state_after[3] == 0  # N == 0
     assert controller.total_debt() == total_debt - debt
     assert controller.eval("core.repaid") == repaid + debt
 
@@ -238,7 +238,7 @@ def test_full_repay_from_callback(
     assert user_state_after[0] == 0  # collateral in AMM
     assert user_state_after[1] == 0  # borrowed in AMM
     assert user_state_after[2] == 0  # debt
-    assert user_state_after[3] == user_state_before[3]  # N
+    assert user_state_after[3] == 0  # N == 0
     assert controller.total_debt() == total_debt - debt
     assert controller.eval("core.repaid") == repaid + debt
     assert dummy_callback.callback_repay_hits() == repay_hits + 1
@@ -341,7 +341,7 @@ def test_full_repay_from_xy0(
     assert user_state_after[0] == 0  # collateral in AMM
     assert user_state_after[1] == 0  # borrowed in AMM
     assert user_state_after[2] == 0  # debt
-    assert user_state_after[3] == user_state_before[3]  # N
+    assert user_state_after[3] == 0  # N == 0
     assert controller.total_debt() == total_debt - debt
     assert controller.eval("core.repaid") == repaid + debt
 
@@ -460,7 +460,7 @@ def test_full_repay_from_wallet_and_callback(
     assert user_state_after[0] == 0  # collateral in AMM
     assert user_state_after[1] == 0  # borrowed in AMM
     assert user_state_after[2] == 0  # debt
-    assert user_state_after[3] == user_state_before[3]  # N
+    assert user_state_after[3] == 0  # N == 0
     assert controller.total_debt() == total_debt - debt
     assert controller.eval("core.repaid") == repaid + debt
     assert dummy_callback.callback_repay_hits() == repay_hits + 1
@@ -566,7 +566,7 @@ def test_full_repay_from_xy0_and_wallet(
     assert user_state_after[0] == 0  # collateral in AMM
     assert user_state_after[1] == 0  # borrowed in AMM
     assert user_state_after[2] == 0  # debt
-    assert user_state_after[3] == user_state_before[3]  # N
+    assert user_state_after[3] == 0  # N == 0
     assert controller.total_debt() == total_debt - debt
     assert controller.eval("core.repaid") == repaid + debt
 
@@ -688,7 +688,7 @@ def test_full_repay_from_xy0_and_callback(
     assert user_state_after[0] == 0  # collateral in AMM
     assert user_state_after[1] == 0  # borrowed in AMM
     assert user_state_after[2] == 0  # debt
-    assert user_state_after[3] == user_state_before[3]  # N
+    assert user_state_after[3] == 0  # N == 0
     assert controller.total_debt() == total_debt - debt
     assert controller.eval("core.repaid") == repaid + debt
     assert dummy_callback.callback_repay_hits() == repay_hits + 1
@@ -819,7 +819,7 @@ def test_full_repay_from_xy0_and_wallet_and_callback(
     assert user_state_after[0] == 0  # collateral in AMM
     assert user_state_after[1] == 0  # borrowed in AMM
     assert user_state_after[2] == 0  # debt
-    assert user_state_after[3] == user_state_before[3]  # N
+    assert user_state_after[3] == 0  # N == 0
     assert controller.total_debt() == total_debt - debt
     assert controller.eval("core.repaid") == repaid + debt
     assert dummy_callback.callback_repay_hits() == repay_hits + 1
@@ -929,7 +929,7 @@ def test_partial_repay_from_wallet(
     assert user_state_after[0] == user_state_before[0]  # collateral in AMM
     assert user_state_after[1] == user_state_before[1]  # borrowed in AMM
     assert user_state_after[2] == debt - wallet_borrowed  # debt
-    assert user_state_after[3] == user_state_before[3]  # N
+    assert user_state_after[3] == user_state_before[3]  # N unchanged
     assert controller.total_debt() == total_debt - wallet_borrowed
     assert controller.eval("core.repaid") == repaid + wallet_borrowed
     assert controller.health(borrower) == pytest.approx(preview_health, rel=1e-10)
@@ -1050,7 +1050,7 @@ def test_partial_repay_from_callback(
     assert user_state_after[0] == callback_collateral  # collateral in AMM
     assert user_state_after[1] == user_state_before[1]  # borrowed in AMM
     assert user_state_after[2] == debt - callback_borrowed  # debt
-    assert user_state_after[3] == user_state_before[3]  # N
+    assert user_state_after[3] == user_state_before[3]  # N unchanged
     assert controller.total_debt() == total_debt - callback_borrowed
     assert controller.eval("core.repaid") == repaid + callback_borrowed
     assert dummy_callback.callback_repay_hits() == repay_hits + 1
@@ -1193,7 +1193,7 @@ def test_partial_repay_from_wallet_and_callback(
     assert user_state_after[0] == callback_collateral  # collateral in AMM
     assert user_state_after[1] == user_state_before[1]  # borrowed in AMM
     assert user_state_after[2] == debt - wallet_borrowed - callback_borrowed  # debt
-    assert user_state_after[3] == user_state_before[3]  # N
+    assert user_state_after[3] == user_state_before[3]  # N unchanged
     assert controller.total_debt() == total_debt - wallet_borrowed - callback_borrowed
     assert (
         controller.eval("core.repaid") == repaid + wallet_borrowed + callback_borrowed
@@ -2034,6 +2034,7 @@ def test_partial_repay_cannot_shrink(
         )
 
     with boa.reverts("Can't shrink"):
+        controller.approve(payer, True, sender=borrower)
         controller.repay(
             0, borrower, amm.active_band(), ZERO_ADDRESS, b"", True, sender=payer
         )

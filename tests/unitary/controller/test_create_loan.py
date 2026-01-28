@@ -93,10 +93,10 @@ def test_create_loan(
     # ================= Calculate future health =================
 
     preview_health = controller.create_loan_health_preview(
-        amounts["collateral"], amounts["debt"], N_BANDS, False
+        amounts["collateral"], amounts["debt"], N_BANDS, borrower, False
     )
     preview_health_full = controller.create_loan_health_preview(
-        amounts["collateral"], amounts["debt"], N_BANDS, True
+        amounts["collateral"], amounts["debt"], N_BANDS, borrower, True
     )
 
     # ================= Capture initial balances =================
@@ -257,10 +257,10 @@ def test_create_loan_with_callback(
     # ================= Calculate future health =================
 
     preview_health = controller.create_loan_health_preview(
-        total_collateral, amounts["debt"], N_BANDS, False
+        total_collateral, amounts["debt"], N_BANDS, borrower, False
     )
     preview_health_full = controller.create_loan_health_preview(
-        total_collateral, amounts["debt"], N_BANDS, True
+        total_collateral, amounts["debt"], N_BANDS, borrower, True
     )
 
     # ================= Capture initial balances =================

@@ -4,7 +4,13 @@ from curve_stablecoin.interfaces import IController
 
 @view
 @external
-def create_loan_health_preview(_collateral: uint256, _debt: uint256, _N: uint256, _full: bool) -> int256:
+def calculate_debt_n1(collateral: uint256, debt: uint256, N: uint256, user: address) -> int256:
+    ...
+
+
+@view
+@external
+def create_loan_health_preview(_collateral: uint256, _debt: uint256, _N: uint256, _for: address, _full: bool) -> int256:
     ...
 
 
