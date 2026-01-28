@@ -10,8 +10,8 @@ DEBT_CEILING = 1000 * 10**18
 
 def test_new_implementations(
     mint_factory,
-    controller_impl,
-    amm_impl,
+    controller_blueprint,
+    amm_blueprint,
     admin,
     borrower,
     collateral_token,
@@ -21,13 +21,13 @@ def test_new_implementations(
 ):
     # --- SET NEW IMPLEMENTATIONS ---
 
-    assert mint_factory.controller_implementation() != controller_impl.address
-    assert mint_factory.amm_implementation() != amm_impl.address
+    assert mint_factory.controller_implementation() != controller_blueprint.address
+    assert mint_factory.amm_implementation() != amm_blueprint.address
 
-    mint_factory.set_implementations(controller_impl, amm_impl, sender=admin)
+    mint_factory.set_implementations(controller_blueprint, amm_blueprint, sender=admin)
 
-    assert mint_factory.controller_implementation() == controller_impl.address
-    assert mint_factory.amm_implementation() == amm_impl.address
+    assert mint_factory.controller_implementation() == controller_blueprint.address
+    assert mint_factory.amm_implementation() == amm_blueprint.address
 
     # --- CREATE A MARKET WITH NEW IMPLEMENTATIONS ---
 

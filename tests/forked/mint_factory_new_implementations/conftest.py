@@ -34,7 +34,7 @@ def admin(mint_factory):
 
 
 @pytest.fixture(scope="module")
-def controller_impl():
+def controller_blueprint():
     controller_view_blueprint = CONTROLLER_VIEW_DEPLOYER.deploy_as_blueprint()
 
     with open("curve_stablecoin/MintController.vy", "r") as f:
@@ -50,7 +50,7 @@ def controller_impl():
 
 
 @pytest.fixture(scope="module")
-def amm_impl():
+def amm_blueprint():
     return AMM_DEPLOYER.deploy_as_blueprint()
 
 
