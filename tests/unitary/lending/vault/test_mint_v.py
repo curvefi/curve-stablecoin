@@ -21,7 +21,7 @@ def test_mint_basic(vault, controller, amm, monetary_policy, borrowed_token):
 
     assert amm.eval("self.rate_time") == 0
 
-    shares = 100 * 10**18
+    shares = 100000 * 10**18
 
     # Check preview matches
     expected_assets = vault.previewMint(shares)
@@ -76,7 +76,7 @@ def test_mint_with_receiver(vault, controller, amm, monetary_policy, borrowed_to
 
     assert amm.eval("self.rate_time") == 0
 
-    shares = 100 * 10**18
+    shares = 100000 * 10**18
 
     # Check preview matches
     expected_assets = vault.previewMint(shares)

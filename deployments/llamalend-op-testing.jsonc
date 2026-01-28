@@ -1,0 +1,26 @@
+{
+  "chain_id": 10,
+  "deployer": "0xD48bFA23b153d9D6Bd5E762bAE6Fe91Dcc6A207B",
+  "dry_run": false,
+  "timestamp": 1769099649,
+  "factory": "0x7E0D6AA94d342c8EaccCf30ff84911ea6b5d5C15",
+  "monetary_policy": "0x0e8ACA515a6A735eaa4F05B8ba69dbB6285140A1",
+  "price_oracle": "0x150Cb15115ff17058f71C4Bc41C66A3C674c3114",
+  "vault": "0x1E8cFC6109eE6FC3b13ceF87748CFdA95E0E6777",
+  "controller": "0x1E65089C0d0e13945003B3D5236Ae8cABe6Be0c1",
+  "amm": "0x90DDb6626D9a39747937693637ff8a9b57455bb2",
+  "params": {
+    "borrowed_token": "0x4200000000000000000000000000000000000006",
+    "collateral_token": "0x1F32b1c2345538c0c6f582fCB022739c4A194Ebb",
+    "chainlink_feed": "0x524299Ab0987a7c4B3c8022a35669DdcdC715a10",
+    "A": 70,
+    "fee": 6000000000000000,
+    "loan_discount": 70000000000000008,
+    "liquidation_discount": 40000000000000000,
+    "min_rate": 31709791,
+    "max_rate": 317097919837,
+    "supply_limit": 115792089237316195423570985008687907853269984665640564039457584007913129639935,
+    "observations": 20,
+    "interval": 30
+  }
+}

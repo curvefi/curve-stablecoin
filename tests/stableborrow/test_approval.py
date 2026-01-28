@@ -3,10 +3,10 @@ import pytest
 
 
 @pytest.fixture(scope="module")
-def existing_loan(collateral_token, market_controller, accounts):
+def existing_loan(collateral_token, stablecoin, market_controller, accounts):
     user = accounts[0]
-    c_amount = int(2 * 1e6 * 1e18 * 1.5 / 3000)
-    l_amount = 5 * 10**5 * 10**18
+    c_amount = int(2 * 1e6 * 10 ** collateral_token.decimals() * 1.5 / 3000)
+    l_amount = 5 * 10**5 * 10 ** stablecoin.decimals()
     n = 5
 
     with boa.env.prank(user):
@@ -27,8 +27,8 @@ def test_create_loan(
     someone_else = accounts[1]
 
     initial_amount = 10**25
-    c_amount = int(2 * 1e6 * 1e18 * 1.5 / 3000)
-    l_amount = 5 * 10**5 * 10**18
+    c_amount = int(2 * 1e6 * 10 ** collateral_token.decimals() * 1.5 / 3000)
+    l_amount = 5 * 10**5 * 10 ** stablecoin.decimals()
 
     with boa.env.prank(user):
         with boa.env.anchor():
@@ -57,7 +57,7 @@ def test_repay_all(
 ):
     user = accounts[0]
     someone_else = accounts[1]
-    c_amount = int(2 * 1e6 * 1e18 * 1.5 / 3000)
+    c_amount = int(2 * 1e6 * 10 ** collateral_token.decimals() * 1.5 / 3000)
     amm = market_controller.amm()
 
     with boa.env.prank(user):
@@ -88,7 +88,7 @@ def test_borrow_more(
 
     debt = market_controller.debt(user)
     more_debt = debt // 10
-    c_amount = int(2 * 1e6 * 1e18 * 1.5 / 3000)
+    c_amount = int(2 * 1e6 * 10 ** collateral_token.decimals() * 1.5 / 3000)
 
     n_before_0, n_before_1 = market_amm.read_user_tick_numbers(user)
 
@@ -122,7 +122,7 @@ def test_remove_collateral(
     someone_else = accounts[1]
 
     debt = market_controller.debt(user)
-    c_amount = int(2 * 1e6 * 1e18 * 1.5 / 3000)
+    c_amount = int(2 * 1e6 * 10 ** collateral_token.decimals() * 1.5 / 3000)
 
     with boa.env.prank(someone_else):
         with boa.reverts():
@@ -154,7 +154,7 @@ def controller_for_liquidation(
 ):
     def f(sleep_time, user, someone_else):
         N = 5
-        collateral_amount = 10**18
+        collateral_amount = 10 ** collateral_token.decimals()
 
         with boa.env.prank(admin):
             market_controller.set_amm_fee(10**6)
