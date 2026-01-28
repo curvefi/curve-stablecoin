@@ -100,6 +100,7 @@ VAULT: immutable(IVault)
 # https://github.com/vyperlang/vyper/issues/4721
 @external
 @view
+@reentrant
 def vault() -> address:
     """
     @notice Address of the vault
@@ -149,6 +150,7 @@ def __init__(
 
 @external
 @view
+@reentrant
 def version() -> String[10]:
     """
     @notice Version of this controller

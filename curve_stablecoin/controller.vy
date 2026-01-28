@@ -301,6 +301,7 @@ def set_price_oracle(_price_oracle: IPriceOracle, _max_deviation: uint256):
 
 @external
 @view
+@reentrant
 def factory() -> IFactory:
     """
     @notice Address of the factory
