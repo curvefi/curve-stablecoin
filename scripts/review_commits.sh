@@ -28,10 +28,10 @@ for commit in $commits; do
     count=$((count + 1))
     commit_msg=$(git log -1 --format='%s' "$commit")
     commit_short=$(git rev-parse --short "$commit")
-    
+
     echo "[$count/$total] Reviewing commit $commit_short: $commit_msg"
     echo ""
-    
+
     # Add commit header to output
     echo "" >> "$OUTPUT_FILE"
     echo "========================================" >> "$OUTPUT_FILE"
@@ -40,14 +40,14 @@ for commit in $commits; do
     echo "Full SHA: $commit" >> "$OUTPUT_FILE"
     echo "========================================" >> "$OUTPUT_FILE"
     echo "" >> "$OUTPUT_FILE"
-    
+
     # Run codex review and append to file
     codex review --commit "$commit" >> "$OUTPUT_FILE" 2>&1
-    
+
     echo "" >> "$OUTPUT_FILE"
     echo "--- END OF REVIEW FOR COMMIT $commit_short ---" >> "$OUTPUT_FILE"
     echo "" >> "$OUTPUT_FILE"
-    
+
     # Small delay to avoid rate limiting
     sleep 1
 done
