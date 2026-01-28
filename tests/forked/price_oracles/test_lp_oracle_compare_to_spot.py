@@ -1,5 +1,5 @@
 import boa
-from tests.forked.price_oracles.settings import EXPLORER_URL, EXPLORER_TOKEN
+from tests.forked.settings import EXPLORER_URL, EXPLORER_TOKEN
 
 
 def test_tricrypto_usdc(lp_oracle_factory, stablecoin_aggregator, admin, trader):

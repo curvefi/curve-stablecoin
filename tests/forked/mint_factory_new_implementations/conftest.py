@@ -1,6 +1,6 @@
 import boa
 import pytest
-from ..settings import WEB3_PROVIDER_URL, EXPLORER_URL, EXPLORER_TOKEN
+from tests.forked.settings import WEB3_PROVIDER_URL, EXPLORER_URL, EXPLORER_TOKEN
 from tests.utils.deployers import (
     ERC20_MOCK_DEPLOYER,
     CONTROLLER_VIEW_DEPLOYER,
