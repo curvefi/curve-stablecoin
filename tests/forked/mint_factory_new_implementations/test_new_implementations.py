@@ -13,7 +13,6 @@ def test_new_implementations(
     controller_blueprint,
     amm_blueprint,
     admin,
-    borrower,
     collateral_token,
     crvusd,
     price_oracle,
@@ -60,6 +59,7 @@ def test_new_implementations(
 
     # --- BORROW ALL ---
 
+    borrower = boa.env.generate_address()
     with boa.env.prank(borrower):
         boa.deal(collateral_token, borrower, 100 * 10**18)
         collateral_token.approve(controller, 2**256 - 1)

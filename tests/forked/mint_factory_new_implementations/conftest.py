@@ -69,11 +69,6 @@ def crvusd(mint_factory):
 
 
 @pytest.fixture(scope="module")
-def borrower(collateral_token):
-    return boa.env.generate_address()
-
-
-@pytest.fixture(scope="module")
 def price_oracle(admin):
     return DUMMY_PRICE_ORACLE_DEPLOYER.deploy(admin, 100 * 10**18, sender=admin)
 
