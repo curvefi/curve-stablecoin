@@ -51,7 +51,7 @@ def test_default_behavior(
     logs = filter_logs(controller, "CollectFees")
     assert len(logs) == 1
     assert logs[0].amount == amount
-    assert logs[0].new_supply == controller.eval("core._total_debt.initial_debt")
+    assert logs[0].new_debt == controller.eval("core._total_debt.initial_debt")
 
     receiver_balance_after = borrowed_token.balanceOf(fee_receiver)
     controller_balance_after = borrowed_token.balanceOf(controller)
