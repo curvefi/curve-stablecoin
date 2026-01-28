@@ -1,0 +1,13 @@
+[profile.default]
+src = "curve_stablecoin/mpolicies"
+script = "scripts"
+out = "out"
+libs = ["lib", ".venv/lib/python3.10/site-packages"]
+solc = "0.8.26"
+evm_version = "cancun"
+# Only compile AggMonetaryPolicy4.vy, skip all other .vy files
+skip = ["**/EMA*.vy", "**/Kinked*.vy", "**/Secondary*.vy", "**/Semilog*.vy", "**/Susde*.vy"]
+vyper = { path = "/Users/albe/Repos/sc/curve/curve-stablecoin/.venv/bin/vyper", search_paths = ["/Users/albe/Repos/sc/curve/curve-stablecoin", "/Users/albe/Repos/sc/curve/curve-stablecoin/.venv/lib/python3.10/site-packages"] }
+
+[rpc_endpoints]
+mainnet = "https://eth-mainnet.g.alchemy.com/v2/${ALCHEMY_API_KEY}"

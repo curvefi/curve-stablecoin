@@ -19,9 +19,9 @@ def test_create_loan(
     user = accounts[0]
 
     with boa.env.prank(user):
-        initial_amount = 10**25
+        initial_amount = 10**7 * 10 ** collateral_token.decimals()
         boa.deal(collateral_token, user, initial_amount)
-        c_amount = int(2 * 1e6 * 1e18 * 1.5 / 3000)
+        c_amount = int(2 * 1e6 * 10 ** collateral_token.decimals() * 1.5 / 3000)
         max_l_amount = market_controller.max_borrowable(c_amount, 5)
         loan_discount = market_controller.loan_discount() / 1e18
 
@@ -51,8 +51,10 @@ def test_create_loan(
     extra_health=st.integers(min_value=0, max_value=9 * 10**17),
 )
 def test_max_borrowable(
-    market_controller, accounts, collateral_amount, n, extra_health
+    market_controller, accounts, collateral_token, collateral_amount, n, extra_health
 ):
+    collateral_amount = collateral_amount // 10 ** (18 - collateral_token.decimals())
+    collateral_amount = max(collateral_amount, 1)
     max_borrowable = market_controller.max_borrowable(collateral_amount, n)
     market_controller.calculate_debt_n1(collateral_amount, max_borrowable, n)
     loan_discount = market_controller.loan_discount() / 1e18

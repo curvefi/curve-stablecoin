@@ -1,0 +1,115 @@
+name: runtime-bytespace
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  bytespace:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+
+      - name: Install Python 3.12.6
+        run: uv python install 3.12.6
+
+      - name: Install requirements
+        run: uv sync
+
+      - name: Add virtualenv to PATH
+        run: echo "$PWD/.venv/bin" >> "$GITHUB_PATH"
+
+      - name: Detect changed contracts
+        id: contracts
+        run: |
+          mkdir -p .tmp/bytespace
+          base="${{ github.event.pull_request.base.sha }}"
+          head="${{ github.sha }}"
+          git diff --name-only "$base" "$head" -- 'curve_stablecoin/**/*.vy' > .tmp/bytespace/contracts.txt
+          grep -v '^curve_stablecoin/testing/' .tmp/bytespace/contracts.txt > .tmp/bytespace/contracts-filtered.txt || true
+          if [ ! -s .tmp/bytespace/contracts-filtered.txt ]; then
+            echo "has_changes=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "has_changes=true" >> "$GITHUB_OUTPUT"
+
+      - name: Create base worktree
+        if: steps.contracts.outputs.has_changes == 'true'
+        run: |
+          base="${{ github.event.pull_request.base.sha }}"
+          git worktree add --detach .tmp/bytespace/base "$base"
+
+      - name: Generate bytespace report
+        id: report
+        if: steps.contracts.outputs.has_changes == 'true'
+        run: |
+          report=".tmp/bytespace/report.md"
+          echo "Note: This analysis is qualitative; immutables aren't accounted for (static analysis on predeployment bytecode)." > "$report"
+          echo "" >> "$report"
+          echo "## Runtime bytespace changes" >> "$report"
+          has_section=false
+          workspace="$GITHUB_WORKSPACE"
+          while read -r contract; do
+            [ -z "$contract" ] && continue
+            slug=$(echo "$contract" | tr '/.' '__')
+            head_output="$workspace/.tmp/bytespace/head/$slug"
+            base_output="$workspace/.tmp/bytespace/base/$slug"
+            head_source="$workspace/$contract"
+            base_source="$workspace/.tmp/bytespace/base/$contract"
+            rm -rf "$head_output" "$base_output"
+            if [ -f "$head_source" ]; then
+              python scripts/generate_runtime_bytespace.py --source "$contract" --output-dir "$head_output"
+            fi
+            if [ -f "$base_source" ]; then
+              (cd .tmp/bytespace/base && python scripts/generate_runtime_bytespace.py --source "$contract" --output-dir "$base_output")
+            fi
+            section=".tmp/bytespace/section.md"
+            python scripts/compare_runtime_bytespace.py \
+              --contract "$contract" \
+              --base "$base_output/bytespace-report-runtime.csv" \
+              --head "$head_output/bytespace-report-runtime.csv" \
+              --output "$section"
+            if [ -s "$section" ]; then
+              cat "$section" >> "$report"
+              echo "" >> "$report"
+              has_section=true
+            fi
+          done < .tmp/bytespace/contracts-filtered.txt
+          if [ "$has_section" = true ]; then
+            echo "has_report=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_report=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Post bytespace comment
+        if: steps.report.outputs.has_report == 'true'
+        uses: marocchino/sticky-pull-request-comment@v2
+        with:
+          header: runtime-bytespace
+          path: .tmp/bytespace/report.md
+
+      - name: Clear bytespace comment
+        if: steps.contracts.outputs.has_changes == 'false' || steps.report.outputs.has_report == 'false'
+        uses: marocchino/sticky-pull-request-comment@v2
+        with:
+          header: runtime-bytespace
+          delete: true
+
+      - name: Cleanup worktree
+        if: always()
+        run: |
+          if [ -d .tmp/bytespace/base ]; then
+            git worktree remove --force .tmp/bytespace/base
+          fi

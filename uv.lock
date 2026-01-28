@@ -116,6 +116,16 @@ wheels = [
 ]
 
 [[package]]
+name = "boa-solidity"
+version = "0.1.2"
+source = { git = "https://github.com/z80dev/boa-solidity?rev=main#3e00649f643ce69108f266942c90bffc717b18b7" }
+dependencies = [
+    { name = "eth-abi" },
+    { name = "py-solc-x" },
+    { name = "titanoboa" },
+]
+
+[[package]]
 name = "cached-property"
 version = "2.0.1"
 source = { registry = "https://pypi.org/simple" }
@@ -496,8 +506,8 @@ name = "curve-stablecoin"
 version = "2.0.0"
 source = { editable = "." }
 dependencies = [
+    { name = "boa-solidity" },
     { name = "curve-std" },
-    { name = "ownership-proxy" },
     { name = "snekmate" },
     { name = "vyper" },
 ]
@@ -517,8 +527,8 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "curve-std", git = "https://github.com/curvefi/curve-std?rev=6db238291a62eee43446a0f86323f071e5a001eb" },
-    { name = "ownership-proxy", git = "https://github.com/curvefi/ownership-proxy?rev=19a63d09ba8d72ec8c2d96328caea2edf43c02f5" },
+    { name = "boa-solidity", git = "https://github.com/z80dev/boa-solidity?rev=main" },
+    { name = "curve-std", git = "https://github.com/curvefi/curve-std?rev=c8025a06d805b4eeb1a50e721d9250841dc1d4ea" },
     { name = "snekmate", specifier = ">=0.1.1" },
     { name = "vyper", specifier = "==0.4.3" },
 ]
@@ -539,7 +549,11 @@ dev = [
 [[package]]
 name = "curve-std"
 version = "0.1.0"
-source = { git = "https://github.com/curvefi/curve-std?rev=6db238291a62eee43446a0f86323f071e5a001eb#6db238291a62eee43446a0f86323f071e5a001eb" }
+source = { git = "https://github.com/curvefi/curve-std?rev=c8025a06d805b4eeb1a50e721d9250841dc1d4ea#c8025a06d805b4eeb1a50e721d9250841dc1d4ea" }
+dependencies = [
+    { name = "snekmate" },
+    { name = "vyper" },
+]
 
 [[package]]
 name = "cytoolz"
@@ -1312,16 +1326,6 @@ wheels = [
 ]
 
 [[package]]
-name = "ownership-proxy"
-version = "0.1.0"
-source = { git = "https://github.com/curvefi/ownership-proxy?rev=19a63d09ba8d72ec8c2d96328caea2edf43c02f5#19a63d09ba8d72ec8c2d96328caea2edf43c02f5" }
-dependencies = [
-    { name = "curve-std" },
-    { name = "snekmate" },
-    { name = "vyper" },
-]
-
-[[package]]
 name = "packaging"
 version = "24.2"
 source = { registry = "https://pypi.org/simple" }
@@ -1435,6 +1439,19 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/0a/57/a0a84d991bac43058200245d853de9e7e819d216b56e22f66654fdf596d5/py_evm-0.12.1b1.tar.gz", hash = "sha256:7bcd9935a3ac2989c8f068b2006f136189281ebc6e279663405cb2c5397ed890", size = 851927, upload-time = "2025-05-14T17:25:14.686Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/9f/be/1e0de8a1f1dbe3911ccae2d598a2c60610e2f4984a918690b5469e8c8774/py_evm-0.12.1b1-py3-none-any.whl", hash = "sha256:015ebc8dd95925030be87ce4b3fd31e3c70df626c5ad8665fb06cd611c73eb68", size = 798589, upload-time = "2025-05-14T17:25:12.707Z" },
+]
+
+[[package]]
+name = "py-solc-x"
+version = "2.0.5"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "packaging" },
+    { name = "requests" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/34/8d/f30778d5f08387cc3f7576aedf4a1e6841caeb8d6d600bb070aa9480b689/py_solc_x-2.0.5.tar.gz", hash = "sha256:2d8440d2be8a5577137fb2313ee211b5b35f36c4c922f274192d34f401616e83", size = 78761, upload-time = "2025-12-10T20:27:51.141Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/4e/37/60ccc88d918d8f1cd218e413fb6263afcde350dc259fb2ba413d9f7d1051/py_solc_x-2.0.5-py3-none-any.whl", hash = "sha256:d6c24b699a7db8f7bf731f32dcfe8c43d7ea9d181191b2a3b7cb5e60395dd449", size = 18750, upload-time = "2025-12-10T20:27:50.033Z" },
 ]
 
 [[package]]

@@ -16,7 +16,7 @@ def fresh_market(
     max_borrow_rate,
 ):
     return proto.create_lending_market(
-        borrowed_token=proto.crvUSD,
+        borrowed_token=borrowed_token,
         collateral_token=collateral_token,
         A=amm_A,
         fee=amm_fee,
