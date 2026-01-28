@@ -1,5 +1,4 @@
 import boa
-from tests.forked.price_oracles.settings import EXPLORER_URL, EXPLORER_TOKEN
 
 
 def test_tricrypto_usdc(lp_oracle_factory, stablecoin_aggregator, admin, trader):
@@ -8,15 +7,11 @@ def test_tricrypto_usdc(lp_oracle_factory, stablecoin_aggregator, admin, trader)
 
     tricrypto_usdc_pool = boa.from_etherscan(
         tricrypto_usdc_pool_address,
-        "TricryptoUSDC",
-        uri=EXPLORER_URL,
-        api_key=EXPLORER_TOKEN,
+        name="TricryptoUSDC",
     )
     crvusd_usdc_pool = boa.from_etherscan(
         crvusd_usdc_pool_address,
-        "crvUSD/USDC",
-        uri=EXPLORER_URL,
-        api_key=EXPLORER_TOKEN,
+        name="crvUSD/USDC",
     )
 
     usdc_crvusd_oracle = boa.load(
@@ -140,15 +135,11 @@ def test_tricrypto_usdt(lp_oracle_factory, stablecoin_aggregator, admin, trader)
 
     tricrypto_usdt_pool = boa.from_etherscan(
         tricrypto_usdt_pool_address,
-        "TricryptoUSDT",
-        uri=EXPLORER_URL,
-        api_key=EXPLORER_TOKEN,
+        name="TricryptoUSDT",
     )
     crvusd_usdt_pool = boa.from_etherscan(
         crvusd_usdt_pool_address,
-        "crvUSD/USDT",
-        uri=EXPLORER_URL,
-        api_key=EXPLORER_TOKEN,
+        name="crvUSD/USDT",
     )
 
     usdt_crvusd_oracle = boa.load(
@@ -184,7 +175,8 @@ def test_tricrypto_usdt(lp_oracle_factory, stablecoin_aggregator, admin, trader)
 
     # USDT interface is different (does not return bool from 'approve' method, for example)
     usdt = boa.from_etherscan(
-        tricrypto_usdt_pool.coins(0), "USDT", uri=EXPLORER_URL, api_key=EXPLORER_TOKEN
+        tricrypto_usdt_pool.coins(0),
+        name="USDT",
     )
     wbtc = boa.load_partial("curve_stablecoin/testing/ERC20Mock.vy").at(
         tricrypto_usdt_pool.coins(1)
@@ -274,7 +266,8 @@ def test_tricrv(lp_oracle_factory, stablecoin_aggregator, admin, trader):
     tricrv_pool_address = "0x4eBdF703948ddCEA3B11f675B4D1Fba9d2414A14"
 
     tricrv_pool = boa.from_etherscan(
-        tricrv_pool_address, "TriCRV", uri=EXPLORER_URL, api_key=EXPLORER_TOKEN
+        tricrv_pool_address,
+        name="TriCRV",
     )
     with boa.env.prank(admin):
         tricrv_crvusd_lp_oracle = boa.load_partial(
@@ -383,15 +376,11 @@ def test_strategic_reserve(lp_oracle_factory, stablecoin_aggregator, admin, trad
 
     strategic_reserve_pool = boa.from_etherscan(
         strategic_reserve_pool_address,
-        "StrategicReserveUSD",
-        uri=EXPLORER_URL,
-        api_key=EXPLORER_TOKEN,
+        name="StrategicReserveUSD",
     )
     crvusd_usdc_pool = boa.from_etherscan(
         crvusd_usdc_pool_address,
-        "crvUSD/USDC",
-        uri=EXPLORER_URL,
-        api_key=EXPLORER_TOKEN,
+        name="crvUSD/USDC",
     )
 
     usdc_crvusd_oracle = boa.load(
@@ -430,9 +419,7 @@ def test_strategic_reserve(lp_oracle_factory, stablecoin_aggregator, admin, trad
     # USDT interface is different (does not return bool from 'approve' method, for example)
     usdt = boa.from_etherscan(
         strategic_reserve_pool.coins(1),
-        "USDT",
-        uri=EXPLORER_URL,
-        api_key=EXPLORER_TOKEN,
+        name="USDT",
     )
     boa.deal(usdc, trader, usdc.balanceOf(strategic_reserve_pool) * 10)
     boa.deal(usdt, trader, usdt.balanceOf(strategic_reserve_pool) * 10)
@@ -519,19 +506,16 @@ def test_weeth_weth(lp_oracle_factory, stablecoin_aggregator, admin, trader):
     crvusd_usdt_pool_address = "0x390f3595bCa2Df7d23783dFd126427CCeb997BF4"
 
     weeth_ng_pool = boa.from_etherscan(
-        weeth_ng_pool_address, "weETH-ng", uri=EXPLORER_URL, api_key=EXPLORER_TOKEN
+        weeth_ng_pool_address,
+        name="weETH-ng",
     )
     tricrypto_usdt_pool = boa.from_etherscan(
         tricrypto_usdt_pool_address,
-        "TricryptoUSDT",
-        uri=EXPLORER_URL,
-        api_key=EXPLORER_TOKEN,
+        name="TricryptoUSDT",
     )
     crvusd_usdt_pool = boa.from_etherscan(
         crvusd_usdt_pool_address,
-        "crvUSD/USDT",
-        uri=EXPLORER_URL,
-        api_key=EXPLORER_TOKEN,
+        name="crvUSD/USDT",
     )
 
     usdt_crvusd_oracle = boa.load(
@@ -662,10 +646,12 @@ def test_cvxcrv(lp_oracle_factory, stablecoin_aggregator, admin, trader):
     tricrv_pool_address = "0x4eBdF703948ddCEA3B11f675B4D1Fba9d2414A14"
 
     cvxcrv_pool = boa.from_etherscan(
-        cvxcrv_pool_address, "cvxCRV/CRV", uri=EXPLORER_URL, api_key=EXPLORER_TOKEN
+        cvxcrv_pool_address,
+        name="cvxCRV/CRV",
     )
     tricrv_pool = boa.from_etherscan(
-        tricrv_pool_address, "TriCRV", uri=EXPLORER_URL, api_key=EXPLORER_TOKEN
+        tricrv_pool_address,
+        name="TriCRV",
     )
 
     crv_crvusd_oracle = boa.load(

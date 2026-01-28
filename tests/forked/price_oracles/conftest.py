@@ -1,10 +1,6 @@
 import boa
 import pytest
-from tests.forked.price_oracles.settings import (
-    WEB3_PROVIDER_URL,
-    EXPLORER_URL,
-    EXPLORER_TOKEN,
-)
+from tests.forked.settings import WEB3_PROVIDER_URL, EXPLORER_TOKEN
 
 
 @pytest.fixture(scope="module", autouse=True)
@@ -12,16 +8,20 @@ def boa_fork():
     assert WEB3_PROVIDER_URL is not None, (
         "Provider url is not set, add WEB3_PROVIDER_URL param to env"
     )
-    boa.fork(WEB3_PROVIDER_URL)
+    boa.fork(WEB3_PROVIDER_URL, allow_dirty=True)
+
+
+@pytest.fixture(scope="module", autouse=True)
+def api_key():
+    with boa.set_etherscan(api_key=EXPLORER_TOKEN):
+        yield
 
 
 @pytest.fixture(scope="module")
 def stablecoin_aggregator():
     return boa.from_etherscan(
         "0x18672b1b0c623a30089A280Ed9256379fb0E4E62",
-        "AggregatorStablePrice",
-        uri=EXPLORER_URL,
-        api_key=EXPLORER_TOKEN,
+        name="AggregatorStablePrice",
     )  # USD/crvUSD
 
 

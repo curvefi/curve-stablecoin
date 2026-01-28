@@ -1,0 +1,4 @@
+import os
+
+WEB3_PROVIDER_URL = os.getenv("WEB3_PROVIDER_URL")
+EXPLORER_TOKEN = os.getenv("EXPLORER_TOKEN")
