@@ -1,6 +1,6 @@
 import boa
 import pytest
-from tests.forked.settings import WEB3_PROVIDER_URL, EXPLORER_URL, EXPLORER_TOKEN
+from tests.forked.settings import WEB3_PROVIDER_URL, EXPLORER_TOKEN
 from tests.utils.deployers import (
     ERC20_MOCK_DEPLOYER,
     CONTROLLER_VIEW_DEPLOYER,
@@ -18,13 +18,17 @@ def boa_fork():
     boa.fork(WEB3_PROVIDER_URL, allow_dirty=True)
 
 
+@pytest.fixture(scope="module", autouse=True)
+def api_key():
+    with boa.set_etherscan(api_key=EXPLORER_TOKEN):
+        yield
+
+
 @pytest.fixture(scope="module")
 def mint_factory():
     return boa.from_etherscan(
         "0xC9332fdCB1C491Dcc683bAe86Fe3cb70360738BC",
-        "MintFactory",
-        uri=EXPLORER_URL,
-        api_key=EXPLORER_TOKEN,
+        name="MintFactory",
     )
 
 
