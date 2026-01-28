@@ -390,11 +390,11 @@ def users_with_health(
         if ix >= n_loans or i == limit:
             break
         user: address = staticcall _controller.loans(ix)
+        if _require_approval and not staticcall _controller.approval(user, _approval_spender):
+            ix += 1
+            continue
         h: int256 = staticcall _controller.health(user, _full)
-        ok: bool = h < _threshold
-        if ok and _require_approval:
-            ok = staticcall _controller.approval(user, _approval_spender)
-        if ok:
+        if h < _threshold:
             xy: uint256[2] = staticcall AMM_.get_sum_xy(user)
             debt: uint256 = staticcall _controller.debt(user)
             out.append(
