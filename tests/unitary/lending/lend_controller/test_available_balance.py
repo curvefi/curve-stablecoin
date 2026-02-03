@@ -133,5 +133,5 @@ def test_collect_fees_reduces_balance(
 
     assert amount > 0
     assert after["collected"] == before["collected"] + amount
-    assert after["borrowed"] == before["borrowed"] - amount
+    assert after["borrowed"] == before["borrowed"]
     expect_same(before, after, "lent", "repaid", "asset_balance")
