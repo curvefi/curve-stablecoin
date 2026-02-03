@@ -157,17 +157,30 @@ def version() -> String[10]:
 
 @external
 @view
-def available_balance() -> uint256:
+def available_balance() -> int256:
     """
     @notice Amount of borrowed token the vault can use for withdrawals or new loans
     @dev Used by the vault for its accounting logic to ignore tokens sent directly to the controller.
+         Make sure to understand when and how the balance can go negative if using this function as
+         a third party integrator. In most cases you want to clamp this value to zero if negative.
     """
     return self._available_balance()
 
 
 @internal
 @view
-def _available_balance() -> uint256:
+def _pending_admin_fees() -> uint256:
+    loan: IController.Loan = core._total_debt
+    rate_mul: uint256 = staticcall core.AMM.get_rate_mul()
+    accrued_admin_fees: uint256 = 0
+    _: uint256 = 0
+    _, accrued_admin_fees = core._preview_total_debt(rate_mul, loan)
+    return accrued_admin_fees
+
+
+@internal
+@view
+def _available_balance() -> int256:
     # This functions provides the balance of tokens in the controller
     # that can be withdrawn or used for new loans at any time.
 
@@ -185,18 +198,13 @@ def _available_balance() -> uint256:
     # We deduce outstanding balance from the available balance
     available_balance -= outstanding
 
-    # TODO make sure this can NEVER happen through testing
-    assert available_balance >= 0 # dev: sanity check
-
     # We compute the total admin fees combining fees that have already been
-    # collected and fees that still live in the controller's balance
-    total_admin_fees: uint256 = core.collected + core.admin_fees
+    # collected, fees that still live in the controller's balance, and pending fees
+    total_admin_fees: uint256 = core.collected + core.admin_fees + self._pending_admin_fees()
 
     available_balance -= convert(total_admin_fees, int256)
 
-    if available_balance < 0:
-        return 0
-    return convert(available_balance, uint256)
+    return available_balance
 
 
 @external
@@ -230,7 +238,9 @@ def _on_debt_increased(_delta: uint256, _total_debt: uint256):
     """
     assert msg.sender == self # dev: virtual method protection
     assert _total_debt <= self.borrow_cap, "Borrow cap exceeded"
-    assert _delta <= self._available_balance(), "Available balance exceeded"
+    available_balance: int256 = self._available_balance()
+    assert available_balance >= 0, "Available balance exceeded"
+    assert _delta <= convert(available_balance, uint256), "Available balance exceeded"
 
 
 @external

@@ -177,7 +177,12 @@ def asset() -> IERC20:
 @view
 def _total_assets() -> uint256:
     # admin fee should be accounted for here when enabled
-    return staticcall ILendController(self._controller.address).available_balance() + staticcall self._controller.total_debt()
+    available_balance: int256 = staticcall ILendController(self._controller.address).available_balance()
+    total_debt: uint256 = staticcall self._controller.total_debt()
+    total_assets: int256 = available_balance + convert(total_debt, int256)
+    if total_assets < 0:
+        return 0
+    return convert(total_assets, uint256)
 
 
 @external
@@ -366,9 +371,12 @@ def maxWithdraw(_owner: address) -> uint256:
     """
     @notice Maximum amount of assets which a given user can withdraw. Aware of both user's balance and available liquidity
     """
+    available_balance: int256 = staticcall ILendController(self._controller.address).available_balance()
+    if available_balance < 0:
+        return 0
     return min(
         self._convert_to_assets(self.balanceOf[_owner]),
-        staticcall ILendController(self._controller.address).available_balance())
+        convert(available_balance, uint256))
 
 
 @external
@@ -414,8 +422,11 @@ def maxRedeem(_owner: address) -> uint256:
     """
     @notice Calculate maximum amount of shares which a given user can redeem
     """
+    available_balance: int256 = staticcall ILendController(self._controller.address).available_balance()
+    if available_balance < 0:
+        return 0
     return min(
-        self._convert_to_shares(staticcall ILendController(self._controller.address).available_balance(), False),
+        self._convert_to_shares(convert(available_balance, uint256), False),
         self.balanceOf[_owner])
 
 

@@ -26,7 +26,7 @@ def set_admin_percentage(_admin_percentage: uint256):
 
 @external
 @view
-def available_balance() -> uint256:
+def available_balance() -> int256:
     ...
 
 

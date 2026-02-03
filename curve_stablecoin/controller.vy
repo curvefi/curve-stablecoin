@@ -236,6 +236,17 @@ def _get_total_debt() -> uint256:
 
 
 @internal
+@view
+def _preview_total_debt(
+    _rate_mul: uint256, _loan: IController.Loan
+) -> (uint256, uint256):
+    loan_with_interest: uint256 = _loan.initial_debt * _rate_mul // _loan.rate_mul
+    accrued_interest: uint256 = loan_with_interest - _loan.initial_debt
+    accrued_admin_fees: uint256 = accrued_interest * self.admin_percentage // WAD
+    return (loan_with_interest, accrued_admin_fees)
+
+
+@internal
 def _update_total_debt(
     _d_debt: uint256, _rate_mul: uint256, _is_increase: bool
 ) -> IController.Loan:
@@ -247,18 +258,24 @@ def _update_total_debt(
     @param is_increase Whether debt increases or decreases
     """
     loan: IController.Loan = self._total_debt
-    loan_with_interest: uint256 = loan.initial_debt * _rate_mul // loan.rate_mul
-    accrued_interest: uint256 = loan_with_interest - loan.initial_debt
-    accrued_admin_fees: uint256 = accrued_interest * self.admin_percentage // WAD
+    loan_with_interest: uint256 = 0
+    accrued_admin_fees: uint256 = 0
+    loan_with_interest, accrued_admin_fees = self._preview_total_debt(
+        _rate_mul, loan
+    )
     self.admin_fees += accrued_admin_fees
     loan.initial_debt = loan_with_interest
     if _is_increase:
         loan.initial_debt += _d_debt
-        extcall VIRTUAL._on_debt_increased(_d_debt, loan.initial_debt)
     else:
         loan.initial_debt = crv_math.sub_or_zero(loan.initial_debt, _d_debt)
     loan.rate_mul = _rate_mul
     self._total_debt = loan
+
+    # It is important to run this hook after `self._total_debt` has been updated
+    # to account for the accrued interest.
+    if _is_increase:
+        extcall VIRTUAL._on_debt_increased(_d_debt, loan.initial_debt)
 
     return loan
 

@@ -83,7 +83,10 @@ def _available_balance() -> uint256:
     ll_core: ILendController = ILendController(
         core.CONTROLLER.address
     )
-    return staticcall ll_core.available_balance()
+    available_balance: int256 = staticcall ll_core.available_balance()
+    if available_balance < 0:
+        return 0
+    return convert(available_balance, uint256)
 
 
 @internal
