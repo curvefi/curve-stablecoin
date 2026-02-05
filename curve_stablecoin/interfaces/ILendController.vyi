@@ -31,6 +31,12 @@ def available_balance() -> uint256:
 
 
 @external
+@view
+def admin_fee_deficit() -> uint256:
+    ...
+
+
+@external
 def on_vault_transfer(_delta: int256):
     ...
 

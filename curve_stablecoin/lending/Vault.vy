@@ -176,7 +176,12 @@ def asset() -> IERC20:
 @view
 def _total_assets() -> uint256:
     # admin fee should be accounted for here when enabled
-    return staticcall ILendController(self._controller.address).available_balance() + staticcall self._controller.total_debt()
+    controller: ILendController = ILendController(self._controller.address)
+    return (
+        staticcall controller.available_balance()
+        + staticcall self._controller.total_debt()
+        - staticcall controller.admin_fee_deficit()
+    )
 
 
 @external
