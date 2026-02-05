@@ -60,11 +60,6 @@ def maxSupply() -> uint256:
 
 
 @view
-def net_deposits() -> int256:
-    ...
-
-
-@view
 @external
 def asset() -> IERC20:
     ...

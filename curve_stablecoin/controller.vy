@@ -122,6 +122,8 @@ admin_percentage: public(uint256)
 # DANGER DO NOT RELY ON MSG.SENDER IN VIRTUAL METHODS
 interface VirtualMethods:
     def _on_debt_increased(_delta: uint256, _total_debt: uint256): nonpayable
+    def _on_debt_decreased(_delta: uint256): nonpayable
+    def _on_admin_fees_accrued(_amount: uint256): nonpayable
 
 implements: VirtualMethods
 
@@ -254,11 +256,19 @@ def _update_total_debt(
     loan.initial_debt = loan_with_interest
     if _is_increase:
         loan.initial_debt += _d_debt
-        extcall VIRTUAL._on_debt_increased(_d_debt, loan.initial_debt)
     else:
         loan.initial_debt = crv_math.sub_or_zero(loan.initial_debt, _d_debt)
     loan.rate_mul = _rate_mul
     self._total_debt = loan
+
+    # Run hooks after total debt is updated so they observe a consistent state.
+    if accrued_admin_fees > 0:
+        extcall VIRTUAL._on_admin_fees_accrued(accrued_admin_fees)
+    if _is_increase:
+        extcall VIRTUAL._on_debt_increased(_d_debt, loan.initial_debt)
+    else:
+        if _d_debt > 0:
+            extcall VIRTUAL._on_debt_decreased(_d_debt)
 
     return loan
 
@@ -1504,6 +1514,18 @@ def _collect_fees() -> uint256:
 @external
 @reentrant
 def _on_debt_increased(_delta: uint256, _total_debt: uint256):
+    pass
+
+
+@external
+@reentrant
+def _on_debt_decreased(_delta: uint256):
+    pass
+
+
+@external
+@reentrant
+def _on_admin_fees_accrued(_amount: uint256):
     pass
 
 
