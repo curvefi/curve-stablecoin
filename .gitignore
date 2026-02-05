@@ -19,6 +19,7 @@ venv
 /brownie-deploy-emas/build
 .coverage
 .claude
+.opencode
 .vscode
 .venv
 prof
