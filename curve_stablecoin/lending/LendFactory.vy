@@ -27,6 +27,10 @@ from snekmate.auth import ownable
 initializes: ownable
 initializes: pausable
 
+from curve_std.auth import admin_groups
+
+initializes: admin_groups
+
 from curve_stablecoin.lending import blueprint_registry
 
 initializes: blueprint_registry
@@ -37,8 +41,11 @@ from curve_stablecoin import constants as c
 exports: (
     # `owner` is not exported as we refer to it as `admin` for backwards compatibility
     # `renounce_ownership` is intentionally not exported
-    ownable.transfer_ownership,
     pausable.paused,
+
+    admin_groups.admin,
+    admin_groups.admins,
+    admin_groups.admin_group_of,
 )
 
 
@@ -91,6 +98,7 @@ def __init__(
     ownable.__init__()
     pausable.__init__()
     ownable._transfer_ownership(_admin)
+    admin_groups.__init__(_admin)
 
     self._set_default_fee_receiver(_fee_receiver)
 
@@ -274,14 +282,51 @@ def controller_view_blueprint() -> address:
 
 
 @external
-@view
-@reentrant
-def admin() -> address:
+def set_admin_group(_market: address, _group_id: uint256):
     """
-    @notice Get the admin of the factory
-    @dev Called `admin` for backwards compatibility
+    @notice Assign a _market to an admin group.
+    @param _market Market address.
+    @param _group_id Custom admin group.
     """
-    return ownable.owner
+    ownable._check_owner()
+    admin_groups._set_group(_market, _group_id)
+
+
+@external
+def add_new_admin_group(_admin: address) -> uint256:
+    """
+    @notice Create a new admin group.
+    @param _admin Address for the new group admin.
+    @return group_id The id assigned to the new group.
+    """
+    ownable._check_owner()
+    return admin_groups._add_admin(_admin)
+
+
+@external
+def replace_group_admin(_group_id: uint256, _new_admin: address):
+    """
+    @notice Replace the admin address for a group.
+    @param _group_id Admin group id.
+    @param _new_admin New admin address.
+    """
+    ownable._check_owner()
+    admin_groups._replace_group_admin(_group_id, _new_admin)
+
+@external
+def transfer_ownership(_new_owner: address):
+    """
+    @dev Transfers the ownership of the contract
+         to a new account `new_owner`.
+    @notice Note that this function can only be
+            called by the current `owner`. Also,
+            the `new_owner` cannot be the zero address.
+    @param _new_owner The 20-byte address of the new owner.
+    """
+    ownable._check_owner()
+    assert _new_owner != empty(address), "ownable: new owner is the zero address"
+    ownable._transfer_ownership(_new_owner)
+    admin_groups._replace_group_admin(0, _new_owner)
 
 
 @external
