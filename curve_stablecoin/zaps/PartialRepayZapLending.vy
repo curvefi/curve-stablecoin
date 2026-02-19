@@ -97,8 +97,8 @@ def liquidate_partial(
     _c_idx: uint256,
     _user: address,
     _min_x: uint256,
-    _callbacker: address = empty(address),
-    _calldata: Bytes[CALLDATA_MAX_SIZE - 32 * 5] = b"",
+    _exchange_contract: address = empty(address),
+    _exchange_calldata: Bytes[CALLDATA_MAX_SIZE - 32 * 5] = b"",
 ):
     """
     @notice Trigger partial self-liquidation of `user` using FRAC.
@@ -106,8 +106,8 @@ def liquidate_partial(
     @param _c_idx Index of the market in the factory
     @param _user Address of the position owner (must have approved this zap in controller)
     @param _min_x Minimal x withdrawn from AMM to guard against MEV
-    @param _callbacker Address of the callback contract
-    @param _calldata Any data for callbacker (address x 2 (64) + uint256 (32) + 2 * offset (32) + must be divided by 32 - slots (16))
+    @param _exchange_contract Address of the exchange contract (aggregator, router, etc.)
+    @param _exchange_calldata Calldata for the exchange contract
     """
     controller: IController = (staticcall FACTORY.markets(_c_idx)).controller
 
@@ -116,8 +116,6 @@ def liquidate_partial(
 
     assert staticcall controller.approval(_user, self), "not approved"
     assert staticcall controller.health(_user, False) < HEALTH_THRESHOLD, "health too high"
-
-    tkn.max_approve(borrowed_token, controller.address)
 
     total_debt: uint256 = staticcall controller.debt(_user)
     x_down: uint256 = self._x_down(controller, _user)
@@ -129,42 +127,27 @@ def liquidate_partial(
     to_repay: uint256 = staticcall controller.tokens_to_liquidate(_user, FRAC)
     borrowed_from_sender: uint256 = unsafe_div(unsafe_mul(to_repay, ratio), WAD)
 
-    if _callbacker != empty(address):
-        liquidate_calldata: Bytes[CALLDATA_MAX_SIZE] = abi_encode(_c_idx, borrowed_from_sender, _callbacker, _calldata)
+    tkn.max_approve(borrowed_token, controller.address)
+    if _exchange_contract != empty(address):
+        tkn.max_approve(collateral_token, _exchange_contract)
+        liquidate_calldata: Bytes[CALLDATA_MAX_SIZE] = abi_encode(_c_idx, borrowed_from_sender, _exchange_contract, _exchange_calldata)
         extcall controller.liquidate(_user, _min_x, FRAC, self, liquidate_calldata)
-
     else:
         tkn.transfer_from(borrowed_token, msg.sender, self, borrowed_from_sender)
-
         extcall controller.liquidate(_user, _min_x, FRAC)
-        collateral_received: uint256 = staticcall collateral_token.balanceOf(self)
-        tkn.transfer(collateral_token, msg.sender, collateral_received)
 
-    # surplus amount goes into position repay
-    borrowed_amount: uint256 = staticcall borrowed_token.balanceOf(self)
-    extcall controller.repay(borrowed_amount, _user)
+    # surplus borrowed amount goes into position repay
+    borrowed_balance: uint256 = staticcall borrowed_token.balanceOf(self)
+    extcall controller.repay(borrowed_balance, _user)
+
+    # surplus collateral amount goes to msg.sender
+    tkn.transfer(collateral_token, msg.sender, staticcall collateral_token.balanceOf(self))
 
     log IZap.PartialRepay(
         controller=controller,
         user=_user,
         borrowed_from_sender=borrowed_from_sender,
-        surplus_repaid=borrowed_amount,
-    )
-
-
-@internal
-def execute_callback(
-    callbacker: address,
-    callback_sig: bytes4,
-    calldata: Bytes[CALLDATA_MAX_SIZE - 32 * 5],
-):
-    response: Bytes[64] = raw_call(
-        callbacker,
-        concat(
-            callback_sig,
-            abi_encode(calldata),
-        ),
-        max_outsize=64,
+        surplus_repaid=borrowed_balance,
     )
 
 
@@ -183,27 +166,15 @@ def callback_liquidate(
     """
     c_idx: uint256 = 0
     borrowed_from_sender: uint256 = 0
-    callbacker: address = empty(address)
-    callbacker_calldata: Bytes[CALLDATA_MAX_SIZE - 32 * 5] = empty(Bytes[CALLDATA_MAX_SIZE - 32 * 5])
+    exchange_contract: address = empty(address)
+    exchange_calldata: Bytes[CALLDATA_MAX_SIZE - 32 * 5] = empty(Bytes[CALLDATA_MAX_SIZE - 32 * 5])
 
-    c_idx, borrowed_from_sender, callbacker, callbacker_calldata = abi_decode(_calldata, (uint256, uint256, address, Bytes[CALLDATA_MAX_SIZE - 32 * 5]))
+    c_idx, borrowed_from_sender, exchange_contract, exchange_calldata = abi_decode(_calldata, (uint256, uint256, address, Bytes[CALLDATA_MAX_SIZE - 32 * 5]))
 
     contract_info: ILendFactory.ContractInfo = staticcall FACTORY.check_contract(msg.sender)
     assert contract_info.contract_type == ILendFactory.ContractType.CONTROLLER, "wrong sender"
     assert contract_info.market_index == c_idx, "wrong sender"
-    controller: IController = IController(msg.sender)
-    borrowed_token: IERC20 = staticcall controller.borrowed_token()
-    collateral_token: IERC20 = staticcall controller.collateral_token()
 
-    collateral_received: uint256 = staticcall collateral_token.balanceOf(self)
-    tkn.transfer(collateral_token, callbacker, collateral_received)
-
-    self.execute_callback(
-        callbacker,
-        CALLBACK_SIGNATURE,
-        callbacker_calldata
-    )
-
-    tkn.transfer_from(borrowed_token, callbacker, self, borrowed_from_sender)
+    raw_call(exchange_contract, exchange_calldata)
 
     return [borrowed_from_sender, 0]
