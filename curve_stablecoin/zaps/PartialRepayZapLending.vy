@@ -109,43 +109,43 @@ def liquidate_partial(
     @param _callbacker Address of the callback contract
     @param _calldata Any data for callbacker (address x 2 (64) + uint256 (32) + 2 * offset (32) + must be divided by 32 - slots (16))
     """
-    CONTROLLER: IController = (staticcall FACTORY.markets(_c_idx)).controller
+    controller: IController = (staticcall FACTORY.markets(_c_idx)).controller
 
-    BORROWED: IERC20 = staticcall CONTROLLER.borrowed_token()
-    COLLATERAL: IERC20 = staticcall CONTROLLER.collateral_token()
+    borrowed_token: IERC20 = staticcall controller.borrowed_token()
+    collateral_token: IERC20 = staticcall controller.collateral_token()
 
-    assert staticcall CONTROLLER.approval(_user, self), "not approved"
-    assert staticcall CONTROLLER.health(_user, False) < HEALTH_THRESHOLD, "health too high"
+    assert staticcall controller.approval(_user, self), "not approved"
+    assert staticcall controller.health(_user, False) < HEALTH_THRESHOLD, "health too high"
 
-    tkn.max_approve(BORROWED, CONTROLLER.address)
+    tkn.max_approve(borrowed_token, controller.address)
 
-    total_debt: uint256 = staticcall CONTROLLER.debt(_user)
-    x_down: uint256 = self._x_down(CONTROLLER, _user)
+    total_debt: uint256 = staticcall controller.debt(_user)
+    x_down: uint256 = self._x_down(controller, _user)
     ratio: uint256 = unsafe_div(unsafe_mul(x_down, WAD), total_debt)
 
     assert ratio > WAD, "position rekt"
 
     # Amount of borrowed token the liquidator must supply
-    to_repay: uint256 = staticcall CONTROLLER.tokens_to_liquidate(_user, FRAC)
+    to_repay: uint256 = staticcall controller.tokens_to_liquidate(_user, FRAC)
     borrowed_from_sender: uint256 = unsafe_div(unsafe_mul(to_repay, ratio), WAD)
 
     if _callbacker != empty(address):
         liquidate_calldata: Bytes[CALLDATA_MAX_SIZE] = abi_encode(_c_idx, _user, borrowed_from_sender, _callbacker, _calldata)
-        extcall CONTROLLER.liquidate(_user, _min_x, FRAC, self, liquidate_calldata)
+        extcall controller.liquidate(_user, _min_x, FRAC, self, liquidate_calldata)
 
     else:
-        tkn.transfer_from(BORROWED, msg.sender, self, borrowed_from_sender)
+        tkn.transfer_from(borrowed_token, msg.sender, self, borrowed_from_sender)
 
-        extcall CONTROLLER.liquidate(_user, _min_x, FRAC)
-        collateral_received: uint256 = staticcall COLLATERAL.balanceOf(self)
-        tkn.transfer(COLLATERAL, msg.sender, collateral_received)
+        extcall controller.liquidate(_user, _min_x, FRAC)
+        collateral_received: uint256 = staticcall collateral_token.balanceOf(self)
+        tkn.transfer(collateral_token, msg.sender, collateral_received)
 
     # surplus amount goes into position repay
-    borrowed_amount: uint256 = staticcall BORROWED.balanceOf(self)
-    extcall CONTROLLER.repay(borrowed_amount, _user)
+    borrowed_amount: uint256 = staticcall borrowed_token.balanceOf(self)
+    extcall controller.repay(borrowed_amount, _user)
 
     log IZap.PartialRepay(
-        controller=CONTROLLER,
+        controller=controller,
         user=_user,
         borrowed_from_sender=borrowed_from_sender,
         surplus_repaid=borrowed_amount,
@@ -192,12 +192,12 @@ def callback_liquidate(
     contract_info: ILendFactory.ContractInfo = staticcall FACTORY.check_contract(msg.sender)
     assert contract_info.contract_type == ILendFactory.ContractType.CONTROLLER, "wrong sender"
     assert contract_info.market_index == c_idx, "wrong sender"
-    CONTROLLER: IController = IController(msg.sender)
-    BORROWED: IERC20 = staticcall CONTROLLER.borrowed_token()
-    COLLATERAL: IERC20 = staticcall CONTROLLER.collateral_token()
+    controller: IController = IController(msg.sender)
+    borrowed_token: IERC20 = staticcall controller.borrowed_token()
+    collateral_token: IERC20 = staticcall controller.collateral_token()
 
-    collateral_received: uint256 = staticcall COLLATERAL.balanceOf(self)
-    tkn.transfer(COLLATERAL, callbacker, collateral_received)
+    collateral_received: uint256 = staticcall collateral_token.balanceOf(self)
+    tkn.transfer(collateral_token, callbacker, collateral_received)
 
     self.execute_callback(
         callbacker,
@@ -205,6 +205,6 @@ def callback_liquidate(
         callbacker_calldata
     )
 
-    tkn.transfer_from(BORROWED, callbacker, self, borrowed_from_sender)
+    tkn.transfer_from(borrowed_token, callbacker, self, borrowed_from_sender)
 
     return [borrowed_from_sender, 0]
