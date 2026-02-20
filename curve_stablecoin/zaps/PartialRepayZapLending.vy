@@ -22,22 +22,27 @@ implements: IZap
 
 # https://github.com/vyperlang/vyper/issues/4723
 WAD: constant(uint256) = c.WAD
+CALLDATA_MAX_SIZE: constant(uint256) = c.CALLDATA_MAX_SIZE
+CALLBACK_SIGNATURE: constant(bytes4) = method_id("callback_liquidate_partial(bytes)", output_type=bytes4)
 
-FACTORY: public(immutable(ILendFactory))
 FRAC: public(immutable(uint256))                         # fraction of position to repay (1e18 = 100%)
 HEALTH_THRESHOLD: public(immutable(int256))              # trigger threshold on controller.health(user, false)
 
-CALLDATA_MAX_SIZE: constant(uint256) = c.CALLDATA_MAX_SIZE
-CALLBACK_SIGNATURE: constant(bytes4) = method_id("callback_liquidate_partial(bytes)", output_type=bytes4)
+_LEND_FACTORY: immutable(ILendFactory)
+
+@view
+@external
+def FACTORY() -> address:
+    return _LEND_FACTORY.address
 
 
 @deploy
 def __init__(
-        _factory: ILendFactory,
+        _factory: address,
         _frac: uint256,                       # e.g. 5e16 == 5%
         _health_threshold: int256,            # e.g. 1e16 == 1%
     ):
-    FACTORY = _factory
+    _LEND_FACTORY = ILendFactory(_factory)
     FRAC = _frac
     HEALTH_THRESHOLD = _health_threshold
 
@@ -53,13 +58,13 @@ def _x_down(_controller: IController, _user: address) -> uint256:
 @internal
 @view
 def _get_controller(_c_idx: uint256) -> IController:
-    return (staticcall FACTORY.markets(_c_idx)).controller
+    return (staticcall _LEND_FACTORY.markets(_c_idx)).controller
 
 
 @internal
 @view
 def _check_controller(_controller: address, _c_idx: uint256):
-    contract_info: ILendFactory.ContractInfo = staticcall FACTORY.check_contract(_controller)
+    contract_info: ILendFactory.ContractInfo = staticcall _LEND_FACTORY.check_contract(_controller)
     assert contract_info.contract_type == ILendFactory.ContractType.CONTROLLER, "wrong sender"
     assert contract_info.market_index == _c_idx, "wrong sender"
 
