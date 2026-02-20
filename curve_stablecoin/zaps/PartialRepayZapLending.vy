@@ -137,17 +137,16 @@ def liquidate_partial(
         extcall controller.liquidate(_user, _min_x, FRAC)
 
     # surplus borrowed amount goes into position repay
-    borrowed_balance: uint256 = staticcall borrowed_token.balanceOf(self)
-    extcall controller.repay(borrowed_balance, _user)
+    extcall controller.repay(borrowed_from_sender - to_repay, _user)
 
-    # surplus collateral amount goes to msg.sender
+    tkn.transfer(borrowed_token, msg.sender, staticcall borrowed_token.balanceOf(self))
     tkn.transfer(collateral_token, msg.sender, staticcall collateral_token.balanceOf(self))
 
     log IZap.PartialRepay(
         controller=controller,
         user=_user,
         borrowed_from_sender=borrowed_from_sender,
-        surplus_repaid=borrowed_balance,
+        surplus_repaid=borrowed_from_sender - to_repay,
     )
 
 
