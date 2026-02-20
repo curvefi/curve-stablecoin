@@ -95,8 +95,8 @@ def _users_to_liquidate(
                 x=pos.x,
                 y=pos.y,
                 health=pos.health,
-                dx=unsafe_div(pos.y * ctrl._get_f_remove(FRAC, 0), WAD),
-                dy=unsafe_div(unsafe_mul(to_repay, ratio), WAD),
+                dx=unsafe_div(unsafe_mul(to_repay, ratio), WAD),
+                dy=unsafe_div(pos.y * ctrl._get_f_remove(FRAC, 0), WAD),
             )
         )
 
