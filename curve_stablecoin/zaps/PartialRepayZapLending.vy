@@ -50,6 +50,102 @@ def _x_down(_controller: IController, _user: address) -> uint256:
     return staticcall (staticcall _controller.amm()).get_x_down(_user)
 
 
+@internal
+@view
+def _get_controller(_c_idx: uint256) -> IController:
+    return (staticcall FACTORY.markets(_c_idx)).controller
+
+
+@internal
+@view
+def _check_controller(_controller: address, _c_idx: uint256):
+    contract_info: ILendFactory.ContractInfo = staticcall FACTORY.check_contract(_controller)
+    assert contract_info.contract_type == ILendFactory.ContractType.CONTROLLER, "wrong sender"
+    assert contract_info.market_index == _c_idx, "wrong sender"
+
+
+@internal
+@view
+def _users_to_liquidate(
+    _controller: IController,
+    _from: uint256,
+    _limit: uint256,
+) -> DynArray[IZap.Position, 1000]:
+    base_positions: DynArray[IController.Position, 1000] = view.users_with_health(
+        _controller, _from, _limit, HEALTH_THRESHOLD, True, self, False
+    )
+    out: DynArray[IZap.Position, 1000] = []
+    for i: uint256 in range(1000):
+        if i == len(base_positions):
+            break
+        pos: IController.Position = base_positions[i]
+        to_repay: uint256 = staticcall _controller.tokens_to_liquidate(pos.user, FRAC)
+        x_down: uint256 = self._x_down(_controller, pos.user)
+        ratio: uint256 = unsafe_div(unsafe_mul(x_down, WAD), pos.debt)
+        if ratio < WAD:
+            continue  # Skip positions that would fail ration check
+        out.append(
+            IZap.Position(
+                user=pos.user,
+                x=pos.x,
+                y=pos.y,
+                health=pos.health,
+                dx=unsafe_div(pos.y * ctrl._get_f_remove(FRAC, 0), WAD),
+                dy=unsafe_div(unsafe_mul(to_repay, ratio), WAD),
+            )
+        )
+
+    return out
+
+
+@internal
+def _liquidate_partial(
+    _controller: IController,
+    _c_idx: uint256,
+    _user: address,
+    _min_x: uint256,
+    _exchange_contract: address = empty(address),
+    _exchange_calldata: Bytes[CALLDATA_MAX_SIZE - 32 * 5] = b"",
+):
+    borrowed_token: IERC20 = staticcall _controller.borrowed_token()
+    collateral_token: IERC20 = staticcall _controller.collateral_token()
+
+    assert staticcall _controller.approval(_user, self), "not approved"
+    assert staticcall _controller.health(_user, False) < HEALTH_THRESHOLD, "health too high"
+
+    total_debt: uint256 = staticcall _controller.debt(_user)
+    x_down: uint256 = self._x_down(_controller, _user)
+    ratio: uint256 = unsafe_div(unsafe_mul(x_down, WAD), total_debt)
+
+    assert ratio > WAD, "position rekt"
+
+    # Amount of borrowed token the liquidator must supply
+    to_repay: uint256 = staticcall _controller.tokens_to_liquidate(_user, FRAC)
+    borrowed_from_sender: uint256 = unsafe_div(unsafe_mul(to_repay, ratio), WAD)
+
+    tkn.max_approve(borrowed_token, _controller.address)
+    if _exchange_contract != empty(address):
+        tkn.max_approve(collateral_token, _exchange_contract)
+        liquidate_calldata: Bytes[CALLDATA_MAX_SIZE] = abi_encode(_c_idx, borrowed_from_sender, _exchange_contract, _exchange_calldata)
+        extcall _controller.liquidate(_user, _min_x, FRAC, self, liquidate_calldata)
+    else:
+        tkn.transfer_from(borrowed_token, msg.sender, self, borrowed_from_sender)
+        extcall _controller.liquidate(_user, _min_x, FRAC)
+
+    # surplus borrowed amount goes into position repay
+    extcall _controller.repay(borrowed_from_sender - to_repay, _user)
+
+    tkn.transfer(borrowed_token, msg.sender, staticcall borrowed_token.balanceOf(self))
+    tkn.transfer(collateral_token, msg.sender, staticcall collateral_token.balanceOf(self))
+
+    log IZap.PartialRepay(
+        controller=_controller,
+        user=_user,
+        borrowed_from_sender=borrowed_from_sender,
+        surplus_repaid=borrowed_from_sender - to_repay,
+    )
+
+
 @external
 @view
 def users_to_liquidate(
@@ -64,32 +160,11 @@ def users_to_liquidate(
     @param _limit Number of loans to inspect (0 = all)
     @return Dynamic array with position info and zap-specific estimates
     """
-    CONTROLLER: IController = (staticcall FACTORY.markets(_c_idx)).controller
-
-    base_positions: DynArray[IController.Position, 1000] = view.users_with_health(
-        CONTROLLER, _from, _limit, HEALTH_THRESHOLD, True, self, False
+    return self._users_to_liquidate(
+        self._get_controller(_c_idx),
+        _from,
+        _limit,
     )
-    out: DynArray[IZap.Position, 1000] = []
-    for i: uint256 in range(1000):
-        if i == len(base_positions):
-            break
-        pos: IController.Position = base_positions[i]
-        to_repay: uint256 = staticcall CONTROLLER.tokens_to_liquidate(pos.user, FRAC)
-        x_down: uint256 = self._x_down(CONTROLLER, pos.user)
-        ratio: uint256 = unsafe_div(unsafe_mul(x_down, WAD), pos.debt)
-        if ratio < WAD:
-            continue  # Skip positions that would fail ration check
-        out.append(
-            IZap.Position(
-                user=pos.user,
-                x=pos.x,
-                y=pos.y,
-                health=pos.health,
-                dx=unsafe_div(pos.y * ctrl._get_f_remove(FRAC, 0), WAD),
-                dy=unsafe_div(unsafe_mul(to_repay, ratio), WAD),
-            )
-        )
-    return out
 
 
 @external
@@ -109,44 +184,13 @@ def liquidate_partial(
     @param _exchange_contract Address of the exchange contract (aggregator, router, etc.)
     @param _exchange_calldata Calldata for the exchange contract
     """
-    controller: IController = (staticcall FACTORY.markets(_c_idx)).controller
-
-    borrowed_token: IERC20 = staticcall controller.borrowed_token()
-    collateral_token: IERC20 = staticcall controller.collateral_token()
-
-    assert staticcall controller.approval(_user, self), "not approved"
-    assert staticcall controller.health(_user, False) < HEALTH_THRESHOLD, "health too high"
-
-    total_debt: uint256 = staticcall controller.debt(_user)
-    x_down: uint256 = self._x_down(controller, _user)
-    ratio: uint256 = unsafe_div(unsafe_mul(x_down, WAD), total_debt)
-
-    assert ratio > WAD, "position rekt"
-
-    # Amount of borrowed token the liquidator must supply
-    to_repay: uint256 = staticcall controller.tokens_to_liquidate(_user, FRAC)
-    borrowed_from_sender: uint256 = unsafe_div(unsafe_mul(to_repay, ratio), WAD)
-
-    tkn.max_approve(borrowed_token, controller.address)
-    if _exchange_contract != empty(address):
-        tkn.max_approve(collateral_token, _exchange_contract)
-        liquidate_calldata: Bytes[CALLDATA_MAX_SIZE] = abi_encode(_c_idx, borrowed_from_sender, _exchange_contract, _exchange_calldata)
-        extcall controller.liquidate(_user, _min_x, FRAC, self, liquidate_calldata)
-    else:
-        tkn.transfer_from(borrowed_token, msg.sender, self, borrowed_from_sender)
-        extcall controller.liquidate(_user, _min_x, FRAC)
-
-    # surplus borrowed amount goes into position repay
-    extcall controller.repay(borrowed_from_sender - to_repay, _user)
-
-    tkn.transfer(borrowed_token, msg.sender, staticcall borrowed_token.balanceOf(self))
-    tkn.transfer(collateral_token, msg.sender, staticcall collateral_token.balanceOf(self))
-
-    log IZap.PartialRepay(
-        controller=controller,
-        user=_user,
-        borrowed_from_sender=borrowed_from_sender,
-        surplus_repaid=borrowed_from_sender - to_repay,
+    self._liquidate_partial(
+        self._get_controller(_c_idx),
+        _c_idx,
+        _user,
+        _min_x,
+        _exchange_contract,
+        _exchange_calldata,
     )
 
 
@@ -170,9 +214,7 @@ def callback_liquidate(
 
     c_idx, borrowed_from_sender, exchange_contract, exchange_calldata = abi_decode(_calldata, (uint256, uint256, address, Bytes[CALLDATA_MAX_SIZE - 32 * 5]))
 
-    contract_info: ILendFactory.ContractInfo = staticcall FACTORY.check_contract(msg.sender)
-    assert contract_info.contract_type == ILendFactory.ContractType.CONTROLLER, "wrong sender"
-    assert contract_info.market_index == c_idx, "wrong sender"
+    self._check_controller(msg.sender, c_idx)
 
     raw_call(exchange_contract, exchange_calldata)
 
