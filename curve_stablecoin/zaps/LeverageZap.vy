@@ -13,6 +13,7 @@ from curve_stablecoin.interfaces import ILendFactory
 from curve_stablecoin.interfaces import IController
 from curve_stablecoin import ControllerView
 from curve_std.interfaces import IERC20
+from curve_std import token as tkn
 from snekmate.utils import math
 
 
@@ -109,20 +110,6 @@ def max_borrowable(controller: address, _user_collateral: uint256, _leverage_col
     return min(max_borrowable * 999 // 1000, staticcall IERC20(BORROWED_TOKEN).balanceOf(controller)) # Cannot borrow beyond the amount of coins Controller has
 
 
-@internal
-def _transferFrom(token: address, _from: address, _to: address, amount: uint256):
-    # TODO: use contracts.lib.token_lib.transferFrom
-    if amount > 0:
-        assert extcall IERC20(token).transferFrom(_from, _to, amount, default_return_value=True)
-
-
-@internal
-def _approve(coin: address, spender: address):
-    # TODO: use contracts.lib.token_lib.max_approve
-    if staticcall IERC20(coin).allowance(self, spender) == 0:
-        assert extcall IERC20(coin).approve(spender, max_value(uint256), default_return_value=True)
-
-
 @external
 @nonreentrant
 def callback_deposit(user: address, borrowed: uint256, user_collateral: uint256, d_debt: uint256,
@@ -142,8 +129,8 @@ def callback_deposit(user: address, borrowed: uint256, user_collateral: uint256,
     controller: address = (staticcall ILendFactory(self.FACTORIES[callback_args[0]]).markets(callback_args[1])).controller.address
     assert msg.sender == controller, "wrong controller"
     amm: IAMM = staticcall IController(controller).amm()
-    borrowed_token: address = staticcall amm.coins(0)
-    collateral_token: address = staticcall amm.coins(1)
+    borrowed_token: IERC20 = IERC20(staticcall amm.coins(0))
+    collateral_token: IERC20 = IERC20(staticcall amm.coins(1))
 
     router_address: address = empty(address)
     # address x1: 32 bytes x1
@@ -152,13 +139,13 @@ def callback_deposit(user: address, borrowed: uint256, user_collateral: uint256,
     exchange_calldata: Bytes[10 ** 4 - 96 - 16] = empty(Bytes[10 ** 4 - 96 - 16])
     router_address, exchange_calldata = abi_decode(callback_bytes, (address, Bytes[10 ** 4 - 96 - 16]))
 
-    self._approve(borrowed_token, router_address)
-    self._approve(collateral_token, controller)
+    tkn.max_approve(borrowed_token, router_address)
+    tkn.max_approve(collateral_token, controller)
 
     user_borrowed: uint256 = callback_args[2]
-    self._transferFrom(borrowed_token, user, self, user_borrowed)
+    tkn.transfer_from(borrowed_token, user, self, user_borrowed)
     raw_call(router_address, exchange_calldata)  # buys leverage_collateral for user_borrowed + d_debt
-    additional_collateral: uint256 = staticcall IERC20(collateral_token).balanceOf(self)
+    additional_collateral: uint256 = staticcall collateral_token.balanceOf(self)
     assert additional_collateral >= callback_args[3], "Slippage"
     leverage_collateral: uint256 = d_debt * WAD // (d_debt + user_borrowed) * additional_collateral // WAD
     user_collateral_from_borrowed: uint256 = additional_collateral - leverage_collateral
@@ -195,13 +182,13 @@ def callback_repay(user: address, borrowed: uint256, collateral: uint256, debt: 
     controller: address = (staticcall ILendFactory(self.FACTORIES[callback_args[0]]).markets(callback_args[1])).controller.address
     assert msg.sender == controller, "wrong controller"
     amm: IAMM = staticcall IController(controller).amm()
-    borrowed_token: address = staticcall amm.coins(0)
-    collateral_token: address = staticcall amm.coins(1)
+    borrowed_token: IERC20 = IERC20(staticcall amm.coins(0))
+    collateral_token: IERC20 = IERC20(staticcall amm.coins(1))
 
-    self._approve(borrowed_token, controller)
-    self._approve(collateral_token, controller)
+    tkn.max_approve(borrowed_token, controller)
+    tkn.max_approve(collateral_token, controller)
 
-    initial_collateral: uint256 = staticcall IERC20(collateral_token).balanceOf(self)
+    initial_collateral: uint256 = staticcall collateral_token.balanceOf(self)
     user_collateral: uint256 = callback_args[2]
     if callback_bytes != b"":
         router_address: address = empty(address)
@@ -211,19 +198,19 @@ def callback_repay(user: address, borrowed: uint256, collateral: uint256, debt: 
         exchange_calldata: Bytes[10 ** 4 - 96 - 16] = empty(Bytes[10 ** 4 - 96 - 16])
         router_address, exchange_calldata = abi_decode(callback_bytes, (address, Bytes[10 ** 4 - 96 - 16]))
 
-        self._transferFrom(collateral_token, user, self, user_collateral)
-        self._approve(collateral_token, router_address)
+        tkn.transfer_from(collateral_token, user, self, user_collateral)
+        tkn.max_approve(collateral_token, router_address)
 
         # Buys borrowed token for collateral from user's position + from user's wallet.
         # The amount to be spent is specified inside callback_bytes.
         raw_call(router_address, exchange_calldata)
     else:
         assert user_collateral == 0
-    remaining_collateral: uint256 = staticcall IERC20(collateral_token).balanceOf(self)
+    remaining_collateral: uint256 = staticcall collateral_token.balanceOf(self)
     state_collateral_used: uint256 = 0
     borrowed_from_state_collateral: uint256 = 0
     user_collateral_used: uint256 = user_collateral
-    borrowed_from_user_collateral: uint256 = staticcall IERC20(borrowed_token).balanceOf(self)  # here it's total borrowed_from_collateral
+    borrowed_from_user_collateral: uint256 = staticcall borrowed_token.balanceOf(self)  # here it's total borrowed_from_collateral
     assert borrowed_from_user_collateral >= callback_args[4], "Slippage"
     if remaining_collateral < initial_collateral:
         state_collateral_used = initial_collateral - remaining_collateral
@@ -233,7 +220,7 @@ def callback_repay(user: address, borrowed: uint256, collateral: uint256, debt: 
         user_collateral_used = user_collateral - (remaining_collateral - initial_collateral)
 
     user_borrowed: uint256 = callback_args[3]
-    self._transferFrom(borrowed_token, user, self, user_borrowed)
+    tkn.transfer_from(borrowed_token, user, self, user_borrowed)
 
     log Repay(
         user=user,
