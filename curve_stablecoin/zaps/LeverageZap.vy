@@ -9,8 +9,9 @@
 """
 
 from curve_stablecoin.interfaces import IAMM
-from curve_stablecoin.interfaces import IFactory
+from curve_stablecoin.interfaces import ILendFactory
 from curve_stablecoin.interfaces import IController
+from curve_stablecoin import ControllerView
 from curve_std.interfaces import IERC20
 
 
@@ -176,7 +177,7 @@ def _get_k_effective(controller: address, collateral: uint256, N: uint256) -> ui
     # d_k_effective: uint256 = 10**18 * unsafe_sub(10**18, discount) / (SQRT_BAND_RATIO * N)
     # Make some extra discount to always deposit lower when we have DEAD_SHARES rounding
     CONTROLLER: IController = IController(controller)
-    A: uint256 = staticcall IAMM(staticcall CONTROLLER.amm()).A()
+    A: uint256 = staticcall (staticcall CONTROLLER.amm()).A()
     SQRT_BAND_RATIO: uint256 = isqrt(unsafe_div(10 ** 36 * A, unsafe_sub(A, 1)))
 
     discount: uint256 = staticcall CONTROLLER.loan_discount()
@@ -192,38 +193,6 @@ def _get_k_effective(controller: address, collateral: uint256, N: uint256) -> ui
     return k_effective
 
 
-@internal
-@view
-def _max_p_base(controller: address) -> uint256:
-    """
-    @notice Calculate max base price including skipping bands
-    """
-    AMM: IAMM = IAMM(staticcall IController(controller).amm())
-    A: uint256 = staticcall AMM.A()
-    LOGN_A_RATIO: int256 = self.wad_ln(A * 10**18 // (A - 1))
-
-    p_oracle: uint256 = staticcall AMM.price_oracle()
-    # Should be correct unless price changes suddenly by MAX_P_BASE_BANDS+ bands
-    n1: int256 = self.wad_ln(staticcall AMM.get_base_price() * 10**18 // p_oracle)
-    if n1 < 0:
-        n1 -= LOGN_A_RATIO - 1  # This is to deal with vyper's rounding of negative numbers
-    n1 = unsafe_div(n1, LOGN_A_RATIO) + MAX_P_BASE_BANDS
-    n_min: int256 = staticcall AMM.active_band_with_skip()
-    n1 = max(n1, n_min + 1)
-    p_base: uint256 = staticcall AMM.p_oracle_up(n1)
-
-    for i: uint256 in range(MAX_SKIP_TICKS + 1):
-        n1 -= 1
-        if n1 <= n_min:
-            break
-        p_base_prev: uint256 = p_base
-        p_base = unsafe_div(p_base * A, A - 1)
-        if p_base > p_oracle:
-            return p_base_prev
-
-    return p_base
-
-
 @external
 @view
 def max_borrowable(controller: address, _user_collateral: uint256, _leverage_collateral: uint256, N: uint256, p_avg: uint256) -> uint256:
@@ -231,15 +200,17 @@ def max_borrowable(controller: address, _user_collateral: uint256, _leverage_col
     @notice Calculation of maximum which can be borrowed with leverage
     """
     # max_borrowable = collateral / (1 / (k_effective * max_p_base) - 1 / p_avg)
-    AMM: IAMM = IAMM(staticcall IController(controller).amm())
+    AMM: IAMM = staticcall IController(controller).amm()
     BORROWED_TOKEN: address = staticcall AMM.coins(0)
     COLLATERAL_TOKEN: address = staticcall AMM.coins(1)
-    COLLATERAL_PRECISION: uint256 = pow_mod256(10, 18 - staticcall IERC20(COLLATERAL_TOKEN).decimals())
+    COLLATERAL_PRECISION: uint256 = pow_mod256(10, convert(18 - staticcall IERC20(COLLATERAL_TOKEN).decimals(), uint256))
 
     user_collateral: uint256 = _user_collateral * COLLATERAL_PRECISION
     leverage_collateral: uint256 = _leverage_collateral * COLLATERAL_PRECISION
     k_effective: uint256 = self._get_k_effective(controller, user_collateral + leverage_collateral, N)
-    max_p_base: uint256 = self._max_p_base(controller)
+
+    A: uint256 = staticcall AMM.A()
+    max_p_base: uint256 = ControllerView._max_p_base(AMM, self.wad_ln(A * 10**18 // (A - 1)))
     max_borrowable: uint256 = user_collateral * 10**18 // (10**36 // k_effective * 10**18 // max_p_base - 10**36 // p_avg)
 
     return min(max_borrowable * 999 // 1000, staticcall IERC20(BORROWED_TOKEN).balanceOf(controller)) # Cannot borrow beyond the amount of coins Controller has
@@ -275,9 +246,9 @@ def callback_deposit(user: address, borrowed: uint256, user_collateral: uint256,
                          3. min_recv - the minimum amount to receive from exchange of (user_borrowed + d_debt) for collateral tokens
     return [0, user_collateral_from_borrowed + leverage_collateral]
     """
-    controller: address = staticcall IFactory(self.FACTORIES[callback_args[0]]).controllers(callback_args[1])
+    controller: address = (staticcall ILendFactory(self.FACTORIES[callback_args[0]]).markets(callback_args[1])).controller.address
     assert msg.sender == controller, "wrong controller"
-    amm: IAMM = IAMM(staticcall IController(controller).amm())
+    amm: IAMM = staticcall IController(controller).amm()
     borrowed_token: address = staticcall amm.coins(0)
     collateral_token: address = staticcall amm.coins(1)
 
@@ -328,9 +299,9 @@ def callback_repay(user: address, borrowed: uint256, collateral: uint256, debt: 
                          4. min_recv - the minimum amount to receive from exchange of (user_collateral + state_collateral) for borrowed tokens
     return [user_borrowed + borrowed_from_collateral, remaining_collateral]
     """
-    controller: address = staticcall IFactory(self.FACTORIES[callback_args[0]]).controllers(callback_args[1])
+    controller: address = (staticcall ILendFactory(self.FACTORIES[callback_args[0]]).markets(callback_args[1])).controller.address
     assert msg.sender == controller, "wrong controller"
-    amm: IAMM = IAMM(staticcall IController(controller).amm())
+    amm: IAMM = staticcall IController(controller).amm()
     borrowed_token: address = staticcall amm.coins(0)
     collateral_token: address = staticcall amm.coins(1)
 
