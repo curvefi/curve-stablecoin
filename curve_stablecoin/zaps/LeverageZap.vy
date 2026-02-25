@@ -8,30 +8,10 @@
 @notice Creates leverage on LlamaLend and crvUSD markets via any Aggregator Router. Does calculations for leverage.
 """
 
-interface ERC20:
-    def transferFrom(_from: address, _to: address, _value: uint256) -> bool: nonpayable
-    def balanceOf(_for: address) -> uint256: view
-    def allowance(_owner: address, _spender: address) -> uint256: view
-    def approve(_spender: address, _value: uint256) -> bool: nonpayable
-    def decimals() -> uint256: view
-
-interface Factory:
-    def controllers(i: uint256) -> address: view
-
-interface Controller:
-    def collateral_token() -> ERC20: view
-    def loan_discount() -> uint256: view
-    def amm() -> address: view
-    def create_loan_extended(collateral: uint256, debt: uint256, N: uint256, callbacker: address, callback_args: DynArray[uint256,5]): nonpayable
-
-interface LLAMMA:
-    def A() -> uint256: view
-    def coins(i: uint256) -> address: view
-    def active_band() -> int256: view
-    def get_base_price() -> uint256: view
-    def price_oracle() -> uint256: view
-    def p_oracle_up(n: int256) -> uint256: view
-    def active_band_with_skip() -> int256: view
+from curve_stablecoin.interfaces import IAMM
+from curve_stablecoin.interfaces import IFactory
+from curve_stablecoin.interfaces import IController
+from curve_std.interfaces import IERC20
 
 
 event Deposit:
@@ -195,8 +175,8 @@ def _get_k_effective(controller: address, collateral: uint256, N: uint256) -> ui
     # d_k_effective = 1 / N / sqrt(A / (A - 1))
     # d_k_effective: uint256 = 10**18 * unsafe_sub(10**18, discount) / (SQRT_BAND_RATIO * N)
     # Make some extra discount to always deposit lower when we have DEAD_SHARES rounding
-    CONTROLLER: Controller = Controller(controller)
-    A: uint256 = staticcall LLAMMA(staticcall CONTROLLER.amm()).A()
+    CONTROLLER: IController = IController(controller)
+    A: uint256 = staticcall IAMM(staticcall CONTROLLER.amm()).A()
     SQRT_BAND_RATIO: uint256 = isqrt(unsafe_div(10 ** 36 * A, unsafe_sub(A, 1)))
 
     discount: uint256 = staticcall CONTROLLER.loan_discount()
@@ -218,7 +198,7 @@ def _max_p_base(controller: address) -> uint256:
     """
     @notice Calculate max base price including skipping bands
     """
-    AMM: LLAMMA = LLAMMA(staticcall Controller(controller).amm())
+    AMM: IAMM = IAMM(staticcall IController(controller).amm())
     A: uint256 = staticcall AMM.A()
     LOGN_A_RATIO: int256 = self.wad_ln(A * 10**18 // (A - 1))
 
@@ -251,10 +231,10 @@ def max_borrowable(controller: address, _user_collateral: uint256, _leverage_col
     @notice Calculation of maximum which can be borrowed with leverage
     """
     # max_borrowable = collateral / (1 / (k_effective * max_p_base) - 1 / p_avg)
-    AMM: LLAMMA = LLAMMA(staticcall Controller(controller).amm())
+    AMM: IAMM = IAMM(staticcall IController(controller).amm())
     BORROWED_TOKEN: address = staticcall AMM.coins(0)
     COLLATERAL_TOKEN: address = staticcall AMM.coins(1)
-    COLLATERAL_PRECISION: uint256 = pow_mod256(10, 18 - staticcall ERC20(COLLATERAL_TOKEN).decimals())
+    COLLATERAL_PRECISION: uint256 = pow_mod256(10, 18 - staticcall IERC20(COLLATERAL_TOKEN).decimals())
 
     user_collateral: uint256 = _user_collateral * COLLATERAL_PRECISION
     leverage_collateral: uint256 = _leverage_collateral * COLLATERAL_PRECISION
@@ -262,21 +242,21 @@ def max_borrowable(controller: address, _user_collateral: uint256, _leverage_col
     max_p_base: uint256 = self._max_p_base(controller)
     max_borrowable: uint256 = user_collateral * 10**18 // (10**36 // k_effective * 10**18 // max_p_base - 10**36 // p_avg)
 
-    return min(max_borrowable * 999 // 1000, staticcall ERC20(BORROWED_TOKEN).balanceOf(controller)) # Cannot borrow beyond the amount of coins Controller has
+    return min(max_borrowable * 999 // 1000, staticcall IERC20(BORROWED_TOKEN).balanceOf(controller)) # Cannot borrow beyond the amount of coins Controller has
 
 
 @internal
 def _transferFrom(token: address, _from: address, _to: address, amount: uint256):
     # TODO: use contracts.lib.token_lib.transferFrom
     if amount > 0:
-        assert extcall ERC20(token).transferFrom(_from, _to, amount, default_return_value=True)
+        assert extcall IERC20(token).transferFrom(_from, _to, amount, default_return_value=True)
 
 
 @internal
 def _approve(coin: address, spender: address):
     # TODO: use contracts.lib.token_lib.max_approve
-    if staticcall ERC20(coin).allowance(self, spender) == 0:
-        assert extcall ERC20(coin).approve(spender, max_value(uint256), default_return_value=True)
+    if staticcall IERC20(coin).allowance(self, spender) == 0:
+        assert extcall IERC20(coin).approve(spender, max_value(uint256), default_return_value=True)
 
 
 @external
@@ -295,9 +275,9 @@ def callback_deposit(user: address, borrowed: uint256, user_collateral: uint256,
                          3. min_recv - the minimum amount to receive from exchange of (user_borrowed + d_debt) for collateral tokens
     return [0, user_collateral_from_borrowed + leverage_collateral]
     """
-    controller: address = staticcall Factory(self.FACTORIES[callback_args[0]]).controllers(callback_args[1])
+    controller: address = staticcall IFactory(self.FACTORIES[callback_args[0]]).controllers(callback_args[1])
     assert msg.sender == controller, "wrong controller"
-    amm: LLAMMA = LLAMMA(staticcall Controller(controller).amm())
+    amm: IAMM = IAMM(staticcall IController(controller).amm())
     borrowed_token: address = staticcall amm.coins(0)
     collateral_token: address = staticcall amm.coins(1)
 
@@ -314,7 +294,7 @@ def callback_deposit(user: address, borrowed: uint256, user_collateral: uint256,
     user_borrowed: uint256 = callback_args[2]
     self._transferFrom(borrowed_token, user, self, user_borrowed)
     raw_call(router_address, exchange_calldata)  # buys leverage_collateral for user_borrowed + d_debt
-    additional_collateral: uint256 = staticcall ERC20(collateral_token).balanceOf(self)
+    additional_collateral: uint256 = staticcall IERC20(collateral_token).balanceOf(self)
     assert additional_collateral >= callback_args[3], "Slippage"
     leverage_collateral: uint256 = d_debt * 10**18 // (d_debt + user_borrowed) * additional_collateral // 10**18
     user_collateral_from_borrowed: uint256 = additional_collateral - leverage_collateral
@@ -348,16 +328,16 @@ def callback_repay(user: address, borrowed: uint256, collateral: uint256, debt: 
                          4. min_recv - the minimum amount to receive from exchange of (user_collateral + state_collateral) for borrowed tokens
     return [user_borrowed + borrowed_from_collateral, remaining_collateral]
     """
-    controller: address = staticcall Factory(self.FACTORIES[callback_args[0]]).controllers(callback_args[1])
+    controller: address = staticcall IFactory(self.FACTORIES[callback_args[0]]).controllers(callback_args[1])
     assert msg.sender == controller, "wrong controller"
-    amm: LLAMMA = LLAMMA(staticcall Controller(controller).amm())
+    amm: IAMM = IAMM(staticcall IController(controller).amm())
     borrowed_token: address = staticcall amm.coins(0)
     collateral_token: address = staticcall amm.coins(1)
 
     self._approve(borrowed_token, controller)
     self._approve(collateral_token, controller)
 
-    initial_collateral: uint256 = staticcall ERC20(collateral_token).balanceOf(self)
+    initial_collateral: uint256 = staticcall IERC20(collateral_token).balanceOf(self)
     user_collateral: uint256 = callback_args[2]
     if callback_bytes != b"":
         router_address: address = empty(address)
@@ -375,11 +355,11 @@ def callback_repay(user: address, borrowed: uint256, collateral: uint256, debt: 
         raw_call(router_address, exchange_calldata)
     else:
         assert user_collateral == 0
-    remaining_collateral: uint256 = staticcall ERC20(collateral_token).balanceOf(self)
+    remaining_collateral: uint256 = staticcall IERC20(collateral_token).balanceOf(self)
     state_collateral_used: uint256 = 0
     borrowed_from_state_collateral: uint256 = 0
     user_collateral_used: uint256 = user_collateral
-    borrowed_from_user_collateral: uint256 = staticcall ERC20(borrowed_token).balanceOf(self)  # here it's total borrowed_from_collateral
+    borrowed_from_user_collateral: uint256 = staticcall IERC20(borrowed_token).balanceOf(self)  # here it's total borrowed_from_collateral
     assert borrowed_from_user_collateral >= callback_args[4], "Slippage"
     if remaining_collateral < initial_collateral:
         state_collateral_used = initial_collateral - remaining_collateral
