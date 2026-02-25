@@ -13,6 +13,7 @@ from curve_stablecoin.interfaces import ILendFactory
 from curve_stablecoin.interfaces import IController
 from curve_stablecoin import ControllerView
 from curve_std.interfaces import IERC20
+from snekmate.utils import math
 
 
 event Deposit:
@@ -32,11 +33,17 @@ event Repay:
     borrowed_from_user_collateral: uint256
     user_borrowed: uint256
 
+################################################################
+#                          CONSTANTS                           #
+################################################################
 
-DEAD_SHARES: constant(uint256) = 1000
-MAX_TICKS_UINT: constant(uint256) = 50
+from curve_stablecoin import constants as c
+
+WAD: constant(uint256) = c.WAD
+DEAD_SHARES: constant(uint256) = c.DEAD_SHARES
+MAX_TICKS_UINT: constant(uint256) = c.MAX_TICKS_UINT
 MAX_P_BASE_BANDS: constant(int256) = 5
-MAX_SKIP_TICKS: constant(uint256) = 1024
+MAX_SKIP_TICKS: constant(int256) = c.MAX_SKIP_TICKS
 
 FACTORIES: public(DynArray[address, 2])
 
@@ -181,8 +188,8 @@ def _get_k_effective(controller: address, collateral: uint256, N: uint256) -> ui
     SQRT_BAND_RATIO: uint256 = isqrt(unsafe_div(10 ** 36 * A, unsafe_sub(A, 1)))
 
     discount: uint256 = staticcall CONTROLLER.loan_discount()
-    d_k_effective: uint256 = 10**18 * unsafe_sub(
-        10**18, min(discount + (DEAD_SHARES * 10**18) // max(collateral // N, DEAD_SHARES), 10**18)
+    d_k_effective: uint256 = WAD * unsafe_sub(
+        WAD, min(discount + (DEAD_SHARES * WAD) // max(collateral // N, DEAD_SHARES), WAD)
     ) // (SQRT_BAND_RATIO * N)
     k_effective: uint256 = d_k_effective
     for i: uint256 in range(1, MAX_TICKS_UINT):
@@ -210,8 +217,8 @@ def max_borrowable(controller: address, _user_collateral: uint256, _leverage_col
     k_effective: uint256 = self._get_k_effective(controller, user_collateral + leverage_collateral, N)
 
     A: uint256 = staticcall AMM.A()
-    max_p_base: uint256 = ControllerView._max_p_base(AMM, self.wad_ln(A * 10**18 // (A - 1)))
-    max_borrowable: uint256 = user_collateral * 10**18 // (10**36 // k_effective * 10**18 // max_p_base - 10**36 // p_avg)
+    max_p_base: uint256 = ControllerView._max_p_base(AMM, self.wad_ln(A * WAD // (A - 1)))
+    max_borrowable: uint256 = user_collateral * WAD // (10**36 // k_effective * WAD // max_p_base - 10**36 // p_avg)
 
     return min(max_borrowable * 999 // 1000, staticcall IERC20(BORROWED_TOKEN).balanceOf(controller)) # Cannot borrow beyond the amount of coins Controller has
 
@@ -267,7 +274,7 @@ def callback_deposit(user: address, borrowed: uint256, user_collateral: uint256,
     raw_call(router_address, exchange_calldata)  # buys leverage_collateral for user_borrowed + d_debt
     additional_collateral: uint256 = staticcall IERC20(collateral_token).balanceOf(self)
     assert additional_collateral >= callback_args[3], "Slippage"
-    leverage_collateral: uint256 = d_debt * 10**18 // (d_debt + user_borrowed) * additional_collateral // 10**18
+    leverage_collateral: uint256 = d_debt * WAD // (d_debt + user_borrowed) * additional_collateral // WAD
     user_collateral_from_borrowed: uint256 = additional_collateral - leverage_collateral
 
     log Deposit(
@@ -334,7 +341,7 @@ def callback_repay(user: address, borrowed: uint256, collateral: uint256, debt: 
     assert borrowed_from_user_collateral >= callback_args[4], "Slippage"
     if remaining_collateral < initial_collateral:
         state_collateral_used = initial_collateral - remaining_collateral
-        borrowed_from_state_collateral = state_collateral_used * 10**18 // (state_collateral_used + user_collateral_used) * borrowed_from_user_collateral // 10**18
+        borrowed_from_state_collateral = state_collateral_used * WAD // (state_collateral_used + user_collateral_used) * borrowed_from_user_collateral // WAD
         borrowed_from_user_collateral = borrowed_from_user_collateral - borrowed_from_state_collateral
     else:
         user_collateral_used = user_collateral - (remaining_collateral - initial_collateral)
