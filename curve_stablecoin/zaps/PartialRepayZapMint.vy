@@ -8,16 +8,10 @@
         using controller callback to forward assets directly to the caller.
 """
 
-from curve_std.interfaces import IERC20
-from curve_stablecoin.interfaces import IAMM
 from curve_stablecoin.interfaces import IController
 from curve_stablecoin.interfaces import IControllerFactory
-from curve_stablecoin import controller as ctrl
 from curve_stablecoin import ControllerView as view
-from curve_std import token as tkn
 from curve_stablecoin.interfaces import IPartialRepayZap as IZap
-
-from curve_stablecoin import constants as c
 
 implements: IZap
 
