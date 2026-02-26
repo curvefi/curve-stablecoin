@@ -1,0 +1,39 @@
+event Deposit:
+    user: indexed(address)
+    user_collateral: uint256
+    user_borrowed: uint256
+    user_collateral_from_borrowed: uint256
+    debt: uint256
+    leverage_collateral: uint256
+
+
+event Repay:
+    user: indexed(address)
+    state_collateral_used: uint256
+    borrowed_from_state_collateral: uint256
+    user_collateral: uint256
+    user_collateral_used: uint256
+    borrowed_from_user_collateral: uint256
+    user_borrowed: uint256
+
+
+@view
+@external
+def FACTORIES(arg0: uint256) -> address:
+    ...
+
+
+@view
+@external
+def max_borrowable(controller: address, _user_collateral: uint256, _leverage_collateral: uint256, N: uint256, p_avg: uint256) -> uint256:
+    ...
+
+
+@external
+def callback_deposit(user: address, borrowed: uint256, user_collateral: uint256, d_debt: uint256, callback_args: DynArray[uint256, 10], callback_bytes: Bytes[10000]) -> uint256[2]:
+    ...
+
+
+@external
+def callback_repay(user: address, borrowed: uint256, collateral: uint256, debt: uint256, callback_args: DynArray[uint256, 10], callback_bytes: Bytes[10000]) -> uint256[2]:
+    ...

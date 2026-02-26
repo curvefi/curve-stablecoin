@@ -12,27 +12,12 @@ from curve_stablecoin.interfaces import IAMM
 from curve_stablecoin.interfaces import ILendFactory
 from curve_stablecoin.interfaces import IController
 from curve_stablecoin import ControllerView
+from curve_stablecoin.interfaces import ILeverageZap
 from curve_std.interfaces import IERC20
 from curve_std import token as tkn
 from snekmate.utils import math
 
-
-event Deposit:
-    user: indexed(address)
-    user_collateral: uint256
-    user_borrowed: uint256
-    user_collateral_from_borrowed: uint256
-    debt: uint256
-    leverage_collateral: uint256
-
-event Repay:
-    user: indexed(address)
-    state_collateral_used: uint256
-    borrowed_from_state_collateral: uint256
-    user_collateral: uint256
-    user_collateral_used: uint256
-    borrowed_from_user_collateral: uint256
-    user_borrowed: uint256
+implements: ILeverageZap
 
 ################################################################
 #                          CONSTANTS                           #
@@ -150,7 +135,7 @@ def callback_deposit(user: address, borrowed: uint256, user_collateral: uint256,
     leverage_collateral: uint256 = d_debt * WAD // (d_debt + user_borrowed) * additional_collateral // WAD
     user_collateral_from_borrowed: uint256 = additional_collateral - leverage_collateral
 
-    log Deposit(
+    log ILeverageZap.Deposit(
         user=user,
         user_collateral=user_collateral,
         user_borrowed=user_borrowed,
@@ -222,7 +207,7 @@ def callback_repay(user: address, borrowed: uint256, collateral: uint256, debt: 
     user_borrowed: uint256 = callback_args[3]
     tkn.transfer_from(borrowed_token, user, self, user_borrowed)
 
-    log Repay(
+    log ILeverageZap.Repay(
         user=user,
         state_collateral_used=state_collateral_used,
         borrowed_from_state_collateral=borrowed_from_state_collateral,
