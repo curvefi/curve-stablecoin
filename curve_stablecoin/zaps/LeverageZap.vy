@@ -31,12 +31,12 @@ MAX_TICKS_UINT: constant(uint256) = c.MAX_TICKS_UINT
 MAX_P_BASE_BANDS: constant(int256) = 5
 MAX_SKIP_TICKS: constant(int256) = c.MAX_SKIP_TICKS
 
-FACTORIES: public(DynArray[address, 2])
+FACTORY: public(address)
 
 
 @deploy
-def __init__(_factories: DynArray[address, 2]):
-    self.FACTORIES = _factories
+def __init__(_factory: address):
+    self.FACTORY = _factory
 
 
 @internal
@@ -106,12 +106,12 @@ def callback_deposit(user: address, borrowed: uint256, user_collateral: uint256,
     @param user_collateral The amount of collateral token provided by user
     @param d_debt The amount to be borrowed (in addition to what has already been borrowed)
     @param callback_args [factory_id, controller_id, user_borrowed]
-                         0-1. factory_id, controller_id are needed to check that msg.sender is the one of our controllers
-                         2. user_borrowed - the amount of borrowed token provided by user (needs to be exchanged for collateral)
-                         3. min_recv - the minimum amount to receive from exchange of (user_borrowed + d_debt) for collateral tokens
+                         0. controller_id is needed to check that msg.sender is the one of our controllers
+                         1. user_borrowed - the amount of borrowed token provided by user (needs to be exchanged for collateral)
+                         2. min_recv - the minimum amount to receive from exchange of (user_borrowed + d_debt) for collateral tokens
     return [0, user_collateral_from_borrowed + leverage_collateral]
     """
-    controller: address = (staticcall ILendFactory(self.FACTORIES[callback_args[0]]).markets(callback_args[1])).controller.address
+    controller: address = (staticcall ILendFactory(self.FACTORY).markets(callback_args[0])).controller.address
     assert msg.sender == controller, "wrong controller"
     amm: IAMM = staticcall IController(controller).amm()
     borrowed_token: IERC20 = IERC20(staticcall amm.coins(0))
@@ -127,11 +127,11 @@ def callback_deposit(user: address, borrowed: uint256, user_collateral: uint256,
     tkn.max_approve(borrowed_token, router_address)
     tkn.max_approve(collateral_token, controller)
 
-    user_borrowed: uint256 = callback_args[2]
+    user_borrowed: uint256 = callback_args[1]
     tkn.transfer_from(borrowed_token, user, self, user_borrowed)
     raw_call(router_address, exchange_calldata)  # buys leverage_collateral for user_borrowed + d_debt
     additional_collateral: uint256 = staticcall collateral_token.balanceOf(self)
-    assert additional_collateral >= callback_args[3], "Slippage"
+    assert additional_collateral >= callback_args[2], "Slippage"
     leverage_collateral: uint256 = d_debt * WAD // (d_debt + user_borrowed) * additional_collateral // WAD
     user_collateral_from_borrowed: uint256 = additional_collateral - leverage_collateral
 
@@ -158,13 +158,13 @@ def callback_repay(user: address, borrowed: uint256, collateral: uint256, debt: 
     @param collateral The value from user_state
     @param debt The value from user_state
     @param callback_args [factory_id, controller_id, user_collateral, user_borrowed]
-                         0-1. factory_id, controller_id are needed to check that msg.sender is the one of our controllers
-                         2. user_collateral - the amount of collateral token provided by user (needs to be exchanged for borrowed)
+                         0. controller_id is needed to check that msg.sender is the one of our controllers
+                         1. user_collateral - the amount of collateral token provided by user (needs to be exchanged for borrowed)
                          3. user_borrowed - the amount of borrowed token to repay from user's wallet
-                         4. min_recv - the minimum amount to receive from exchange of (user_collateral + state_collateral) for borrowed tokens
+                         2. min_recv - the minimum amount to receive from exchange of (user_collateral + state_collateral) for borrowed tokens
     return [user_borrowed + borrowed_from_collateral, remaining_collateral]
     """
-    controller: address = (staticcall ILendFactory(self.FACTORIES[callback_args[0]]).markets(callback_args[1])).controller.address
+    controller: address = (staticcall ILendFactory(self.FACTORY).markets(callback_args[0])).controller.address
     assert msg.sender == controller, "wrong controller"
     amm: IAMM = staticcall IController(controller).amm()
     borrowed_token: IERC20 = IERC20(staticcall amm.coins(0))
@@ -174,7 +174,7 @@ def callback_repay(user: address, borrowed: uint256, collateral: uint256, debt: 
     tkn.max_approve(collateral_token, controller)
 
     initial_collateral: uint256 = staticcall collateral_token.balanceOf(self)
-    user_collateral: uint256 = callback_args[2]
+    user_collateral: uint256 = callback_args[1]
     if callback_bytes != b"":
         router_address: address = empty(address)
         # address x1: 32 bytes x1
@@ -196,7 +196,7 @@ def callback_repay(user: address, borrowed: uint256, collateral: uint256, debt: 
     borrowed_from_state_collateral: uint256 = 0
     user_collateral_used: uint256 = user_collateral
     borrowed_from_user_collateral: uint256 = staticcall borrowed_token.balanceOf(self)  # here it's total borrowed_from_collateral
-    assert borrowed_from_user_collateral >= callback_args[4], "Slippage"
+    assert borrowed_from_user_collateral >= callback_args[3], "Slippage"
     if remaining_collateral < initial_collateral:
         state_collateral_used = initial_collateral - remaining_collateral
         borrowed_from_state_collateral = state_collateral_used * WAD // (state_collateral_used + user_collateral_used) * borrowed_from_user_collateral // WAD
@@ -204,7 +204,7 @@ def callback_repay(user: address, borrowed: uint256, collateral: uint256, debt: 
     else:
         user_collateral_used = user_collateral - (remaining_collateral - initial_collateral)
 
-    user_borrowed: uint256 = callback_args[3]
+    user_borrowed: uint256 = callback_args[2]
     tkn.transfer_from(borrowed_token, user, self, user_borrowed)
 
     log ILeverageZap.Repay(

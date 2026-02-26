@@ -19,7 +19,7 @@ event Repay:
 
 @view
 @external
-def FACTORIES(arg0: uint256) -> address:
+def FACTORY() -> address:
     ...
 
 
