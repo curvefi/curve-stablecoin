@@ -30,6 +30,7 @@ DEAD_SHARES: constant(uint256) = c.DEAD_SHARES
 MAX_TICKS_UINT: constant(uint256) = c.MAX_TICKS_UINT
 MAX_P_BASE_BANDS: constant(int256) = 5
 MAX_SKIP_TICKS: constant(int256) = c.MAX_SKIP_TICKS
+CALLDATA_MAX_SIZE: constant(uint256) = c.CALLDATA_MAX_SIZE
 
 FACTORY: public(address)
 
@@ -97,41 +98,53 @@ def max_borrowable(controller: address, _user_collateral: uint256, _leverage_col
 
 @external
 @nonreentrant
-def callback_deposit(user: address, borrowed: uint256, user_collateral: uint256, d_debt: uint256,
-                     callback_args: DynArray[uint256, 10], callback_bytes: Bytes[10**4] = b"") -> uint256[2]:
+def callback_deposit(
+        user: address,
+        borrowed: uint256,
+        user_collateral: uint256,
+        d_debt: uint256,
+        calldata: Bytes[CALLDATA_MAX_SIZE],
+) -> uint256[2]:
     """
     @notice Callback method which should be called by controller to create leveraged position
     @param user Address of the user
     @param borrowed Always 0
     @param user_collateral The amount of collateral token provided by user
     @param d_debt The amount to be borrowed (in addition to what has already been borrowed)
-    @param callback_args [factory_id, controller_id, user_borrowed]
-                         0. controller_id is needed to check that msg.sender is the one of our controllers
-                         1. user_borrowed - the amount of borrowed token provided by user (needs to be exchanged for collateral)
-                         2. min_recv - the minimum amount to receive from exchange of (user_borrowed + d_debt) for collateral tokens
+    @param calldata controller_id + user_borrowed + min_recv + exchange_address + exchange_calldata
+                    - controller_id is needed to check that msg.sender is the one of our controllers
+                    - user_borrowed - the amount of borrowed token provided by user (needs to be exchanged for collateral)
+                    - min_recv - the minimum amount to receive from exchange of (user_borrowed + d_debt) for collateral tokens
+                    - exchange_address - the address of the exchange (e. g. pool, router) to swap borrowed -> collateral
+                    - exchange_calldata - the data for the exchange (e. g. pool, router)
     return [0, user_collateral_from_borrowed + leverage_collateral]
     """
-    controller: address = (staticcall ILendFactory(self.FACTORY).markets(callback_args[0])).controller.address
+
+    controller_id: uint256 = 0
+    user_borrowed: uint256 = 0
+    min_recv: uint256 = 0
+    exchange_address: address = empty(address)
+    exchange_calldata: Bytes[CALLDATA_MAX_SIZE - 6 * 32] = empty(Bytes[CALLDATA_MAX_SIZE - 6 * 32])
+    controller_id, user_borrowed, min_recv, exchange_address, exchange_calldata = abi_decode(
+        calldata, (uint256, uint256, uint256, address, Bytes[CALLDATA_MAX_SIZE - 6 * 32])
+    )
+
+    controller: address = (staticcall ILendFactory(self.FACTORY).markets(controller_id)).controller.address
     assert msg.sender == controller, "wrong controller"
     amm: IAMM = staticcall IController(controller).amm()
     borrowed_token: IERC20 = IERC20(staticcall amm.coins(0))
     collateral_token: IERC20 = IERC20(staticcall amm.coins(1))
 
-    router_address: address = empty(address)
-    # address x1: 32 bytes x1
-    # offset: 32 bytes, length: 32 bytes
-    # TOTAL: 96 bytes
-    exchange_calldata: Bytes[10 ** 4 - 96 - 16] = empty(Bytes[10 ** 4 - 96 - 16])
-    router_address, exchange_calldata = abi_decode(callback_bytes, (address, Bytes[10 ** 4 - 96 - 16]))
-
-    tkn.max_approve(borrowed_token, router_address)
+    tkn.max_approve(borrowed_token, exchange_address)
     tkn.max_approve(collateral_token, controller)
-
-    user_borrowed: uint256 = callback_args[1]
     tkn.transfer_from(borrowed_token, user, self, user_borrowed)
-    raw_call(router_address, exchange_calldata)  # buys leverage_collateral for user_borrowed + d_debt
+
+    # Buys collateral token for user_borrowed (from wallet) + d_debt
+    # The amount to be spent is specified inside the exchange_calldata.
+    raw_call(exchange_address, exchange_calldata)  # buys leverage_collateral for user_borrowed + d_debt
+
     additional_collateral: uint256 = staticcall collateral_token.balanceOf(self)
-    assert additional_collateral >= callback_args[2], "Slippage"
+    assert additional_collateral >= min_recv, "Slippage"
     leverage_collateral: uint256 = d_debt * WAD // (d_debt + user_borrowed) * additional_collateral // WAD
     user_collateral_from_borrowed: uint256 = additional_collateral - leverage_collateral
 
@@ -149,54 +162,61 @@ def callback_deposit(user: address, borrowed: uint256, user_collateral: uint256,
 
 @external
 @nonreentrant
-def callback_repay(user: address, borrowed: uint256, collateral: uint256, debt: uint256,
-                   callback_args: DynArray[uint256,10], callback_bytes: Bytes[10 ** 4] = b"") -> uint256[2]:
+def callback_repay(
+        user: address,
+        borrowed: uint256,
+        collateral: uint256,
+        debt: uint256,
+        calldata: Bytes[CALLDATA_MAX_SIZE],
+) -> uint256[2]:
     """
     @notice Callback method which should be called by controller to create leveraged position
     @param user Address of the user
     @param borrowed The value from user_state
     @param collateral The value from user_state
     @param debt The value from user_state
-    @param callback_args [factory_id, controller_id, user_collateral, user_borrowed]
-                         0. controller_id is needed to check that msg.sender is the one of our controllers
-                         1. user_collateral - the amount of collateral token provided by user (needs to be exchanged for borrowed)
-                         3. user_borrowed - the amount of borrowed token to repay from user's wallet
-                         2. min_recv - the minimum amount to receive from exchange of (user_collateral + state_collateral) for borrowed tokens
+    @param calldata controller_id + user_collateral + user_borrowed + min_recv + exchange_address + exchange_calldata
+                    - controller_id is needed to check that msg.sender is the one of our controllers
+                    - user_collateral - the amount of collateral token provided by user (needs to be exchanged for borrowed)
+                    - user_borrowed - the amount of borrowed token to repay from user's wallet
+                    - min_recv - the minimum amount to receive from exchange of (user_collateral + state_collateral) for borrowed tokens
+                    - exchange_address - the address of the exchange (e. g. pool, router) to swap collateral -> borrowed
+                    - exchange_calldata - the data for the exchange (e. g. pool, router)
     return [user_borrowed + borrowed_from_collateral, remaining_collateral]
     """
-    controller: address = (staticcall ILendFactory(self.FACTORY).markets(callback_args[0])).controller.address
+    controller_id: uint256 = 0
+    user_collateral: uint256 = 0
+    user_borrowed: uint256 = 0
+    min_recv: uint256 = 0
+    exchange_address: address = empty(address)
+    exchange_calldata: Bytes[CALLDATA_MAX_SIZE - 7 * 32] = empty(Bytes[CALLDATA_MAX_SIZE - 7 * 32])
+    controller_id, user_collateral, user_borrowed, min_recv, exchange_address, exchange_calldata = abi_decode(
+        calldata, (uint256, uint256, uint256, uint256, address, Bytes[CALLDATA_MAX_SIZE - 7 * 32])
+    )
+
+    controller: address = (staticcall ILendFactory(self.FACTORY).markets(controller_id)).controller.address
     assert msg.sender == controller, "wrong controller"
     amm: IAMM = staticcall IController(controller).amm()
     borrowed_token: IERC20 = IERC20(staticcall amm.coins(0))
     collateral_token: IERC20 = IERC20(staticcall amm.coins(1))
+    initial_collateral: uint256 = staticcall collateral_token.balanceOf(self)
 
     tkn.max_approve(borrowed_token, controller)
     tkn.max_approve(collateral_token, controller)
+    tkn.max_approve(collateral_token, exchange_address)
 
-    initial_collateral: uint256 = staticcall collateral_token.balanceOf(self)
-    user_collateral: uint256 = callback_args[1]
-    if callback_bytes != b"":
-        router_address: address = empty(address)
-        # address x1: 32 bytes x1
-        # offset: 32 bytes, length: 32 bytes
-        # TOTAL: 96 bytes
-        exchange_calldata: Bytes[10 ** 4 - 96 - 16] = empty(Bytes[10 ** 4 - 96 - 16])
-        router_address, exchange_calldata = abi_decode(callback_bytes, (address, Bytes[10 ** 4 - 96 - 16]))
+    tkn.transfer_from(collateral_token, user, self, user_collateral)
 
-        tkn.transfer_from(collateral_token, user, self, user_collateral)
-        tkn.max_approve(collateral_token, router_address)
+    # Buy borrowed token for collateral from user's position + from user's wallet.
+    # The amount to be spent is specified inside the exchange_calldata.
+    raw_call(exchange_address, exchange_calldata)
 
-        # Buys borrowed token for collateral from user's position + from user's wallet.
-        # The amount to be spent is specified inside callback_bytes.
-        raw_call(router_address, exchange_calldata)
-    else:
-        assert user_collateral == 0
     remaining_collateral: uint256 = staticcall collateral_token.balanceOf(self)
     state_collateral_used: uint256 = 0
     borrowed_from_state_collateral: uint256 = 0
     user_collateral_used: uint256 = user_collateral
     borrowed_from_user_collateral: uint256 = staticcall borrowed_token.balanceOf(self)  # here it's total borrowed_from_collateral
-    assert borrowed_from_user_collateral >= callback_args[3], "Slippage"
+    assert borrowed_from_user_collateral >= min_recv, "Slippage"
     if remaining_collateral < initial_collateral:
         state_collateral_used = initial_collateral - remaining_collateral
         borrowed_from_state_collateral = state_collateral_used * WAD // (state_collateral_used + user_collateral_used) * borrowed_from_user_collateral // WAD
@@ -204,7 +224,6 @@ def callback_repay(user: address, borrowed: uint256, collateral: uint256, debt: 
     else:
         user_collateral_used = user_collateral - (remaining_collateral - initial_collateral)
 
-    user_borrowed: uint256 = callback_args[2]
     tkn.transfer_from(borrowed_token, user, self, user_borrowed)
 
     log ILeverageZap.Repay(
