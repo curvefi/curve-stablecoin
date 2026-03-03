@@ -28,8 +28,6 @@ from curve_stablecoin import constants as c
 WAD: constant(uint256) = c.WAD
 DEAD_SHARES: constant(uint256) = c.DEAD_SHARES
 MAX_TICKS_UINT: constant(uint256) = c.MAX_TICKS_UINT
-MAX_P_BASE_BANDS: constant(int256) = 5
-MAX_SKIP_TICKS: constant(int256) = c.MAX_SKIP_TICKS
 CALLDATA_MAX_SIZE: constant(uint256) = c.CALLDATA_MAX_SIZE
 
 FACTORY: public(address)
