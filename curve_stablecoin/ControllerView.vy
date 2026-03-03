@@ -519,30 +519,30 @@ def user_state(_user: address) -> uint256[4]:
 
 @internal
 @view
-def _max_p_base(amm: IAMM, logn_a_ration: int256) -> uint256:
+def _max_p_base(_amm: IAMM, _logn_a_ration: int256) -> uint256:
     """
     @notice Calculate max base price including skipping bands
     """
-    p_oracle: uint256 = staticcall amm.price_oracle()
+    p_oracle: uint256 = staticcall _amm.price_oracle()
     # Should be correct unless price changes suddenly by MAX_P_BASE_BANDS+ bands
     n1: int256 = math._wad_ln(
-        convert(staticcall amm.get_base_price() * WAD // p_oracle, int256)
+        convert(staticcall _amm.get_base_price() * WAD // p_oracle, int256)
     )
     if n1 < 0:
         n1 -= (
-            logn_a_ration - 1
+            _logn_a_ration - 1
         )  # This is to deal with vyper's rounding of negative numbers
-    n1 = unsafe_div(n1, logn_a_ration) + MAX_P_BASE_BANDS
-    n_min: int256 = staticcall amm.active_band_with_skip()
+    n1 = unsafe_div(n1, _logn_a_ration) + MAX_P_BASE_BANDS
+    n_min: int256 = staticcall _amm.active_band_with_skip()
     n1 = max(n1, n_min + 1)
-    p_base: uint256 = staticcall amm.p_oracle_up(n1)
+    p_base: uint256 = staticcall _amm.p_oracle_up(n1)
 
     for _: uint256 in range(MAX_SKIP_TICKS + 1):
         n1 -= 1
         if n1 <= n_min:
             break
         p_base_prev: uint256 = p_base
-        p_base = staticcall amm.p_oracle_up(n1)
+        p_base = staticcall _amm.p_oracle_up(n1)
         if p_base > p_oracle:
             return p_base_prev
     return p_base
