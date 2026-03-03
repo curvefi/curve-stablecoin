@@ -93,8 +93,14 @@ exports: (
 )
 
 borrow_cap: public(uint256)
-available_balance: public(uint256)
 VAULT: immutable(IVault)
+
+_available_balance: uint256
+
+@external
+@view
+def available_balance() -> uint256:
+    return self._available_balance
 
 
 # https://github.com/vyperlang/vyper/issues/4721
@@ -190,7 +196,7 @@ def on_borrowed_token_transfer_in(_amount: uint256):
             2. The vault on deposit/mint
     """
     assert msg.sender == VAULT.address or msg.sender == self # dev: vault or controller only
-    self.available_balance += _amount
+    self._available_balance += _amount
 
 
 @external
@@ -202,8 +208,8 @@ def on_borrowed_token_transfer_out(_amount: uint256):
             2. The vault on withdraw/redeem
     """
     assert msg.sender == VAULT.address or msg.sender == self # dev: vault or controller only
-    assert _amount <= self.available_balance, "Available balance exceeded"
-    self.available_balance -= _amount
+    assert _amount <= self._available_balance, "Available balance exceeded"
+    self._available_balance -= _amount
 
 
 @external

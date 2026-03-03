@@ -220,6 +220,12 @@ def redeemed() -> uint256:
     return self.repaid
 
 
+@external
+@view
+def available_balance() -> uint256:
+    return staticcall BORROWED_TOKEN.balanceOf(self)
+
+
 @internal
 @view
 def _check_admin():
