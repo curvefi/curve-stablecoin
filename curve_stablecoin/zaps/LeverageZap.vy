@@ -90,7 +90,7 @@ def max_borrowable(_controller: IController, _user_collateral: uint256, _leverag
     max_p_base: uint256 = ControllerView._max_p_base(amm, math._wad_ln(convert(A * WAD // (A - 1), int256)))
     max_borrowable: uint256 = user_collateral * WAD // (10**36 // k_effective * WAD // max_p_base - 10**36 // _p_avg)
 
-    return min(max_borrowable * 999 // 1000, staticcall borrowed_token.balanceOf(_controller.address)) # Cannot borrow beyond the amount of coins Controller has
+    return min(max_borrowable * 999 // 1000, staticcall _controller.available_balance()) # Cannot borrow beyond the amount of coins Controller has
 
 
 @external
