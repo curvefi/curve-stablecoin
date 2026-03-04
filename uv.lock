@@ -528,7 +528,7 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "boa-solidity", git = "https://github.com/z80dev/boa-solidity?rev=main" },
-    { name = "curve-std", git = "https://github.com/curvefi/curve-std?rev=18f448b187861730c2c4d6a2a2f310d4946471b7" },
+    { name = "curve-std", git = "https://github.com/curvefi/curve-std?rev=764a5ae2ab0754826ae3ed2a092ed43e599666b9" },
     { name = "snekmate", specifier = ">=0.1.1" },
     { name = "vyper", specifier = "==0.4.3" },
 ]
@@ -549,7 +549,7 @@ dev = [
 [[package]]
 name = "curve-std"
 version = "0.1.0"
-source = { git = "https://github.com/curvefi/curve-std?rev=18f448b187861730c2c4d6a2a2f310d4946471b7#18f448b187861730c2c4d6a2a2f310d4946471b7" }
+source = { git = "https://github.com/curvefi/curve-std?rev=764a5ae2ab0754826ae3ed2a092ed43e599666b9#764a5ae2ab0754826ae3ed2a092ed43e599666b9" }
 dependencies = [
     { name = "snekmate" },
     { name = "vyper" },

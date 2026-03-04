@@ -125,9 +125,9 @@ def set_default_fee_receiver(_fee_receiver: address):
     ...
 
 
-@external
-def set_custom_fee_receiver(_controller: address, _fee_receiver: address):
-    ...
+# @external
+# def set_custom_fee_receiver(_controller: address, _fee_receiver: address):
+#     ...
 
 
 @view
