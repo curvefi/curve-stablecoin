@@ -72,13 +72,18 @@ def _get_k_effective(_controller: IController, _collateral: uint256, _N: uint256
 
 @external
 @view
-def max_borrowable(_controller: IController, _user_collateral: uint256, _leverage_collateral: uint256, _N: uint256, _p_avg: uint256) -> uint256:
+def max_borrowable(
+        _controller: IController,
+        _user_collateral: uint256,
+        _leverage_collateral: uint256,
+        _N: uint256,
+        _p_avg: uint256,
+) -> uint256:
     """
     @notice Calculation of maximum which can be borrowed with leverage
     """
     # max_borrowable = collateral / (1 / (k_effective * max_p_base) - 1 / p_avg)
     amm: IAMM = staticcall _controller.amm()
-    borrowed_token: IERC20 = IERC20(staticcall amm.coins(0))
     collateral_token: IERC20 = IERC20(staticcall amm.coins(1))
     collateral_precision: uint256 = pow_mod256(10, convert(18 - staticcall collateral_token.decimals(), uint256))
 

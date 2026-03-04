@@ -42,8 +42,8 @@ def __init__(
     HEALTH_THRESHOLD = _health_threshold
 
 
-@view
 @external
+@view
 def FACTORY() -> address:
     return _LEND_FACTORY.address
 

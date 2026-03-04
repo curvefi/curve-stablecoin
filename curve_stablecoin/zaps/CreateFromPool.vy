@@ -9,16 +9,16 @@
 @custom:security security@curve.fi
 """
 from curve_std.interfaces import IERC20
-from curve_stablecoin.interfaces import ILendingFactory
+from curve_stablecoin.interfaces import ILendFactory
 from curve_stablecoin.interfaces import IMonetaryPolicy
 from curve_stablecoin.interfaces import IPriceOracle
 
-FACTORY: immutable(ILendingFactory)
+FACTORY: immutable(ILendFactory)
 POOL_PRICE_ORACLE_BLUEPRINT: public(immutable(address))
 
 
 @deploy
-def __init__(_factory: ILendingFactory, _pool_price_oracle_blueprint: address):
+def __init__(_factory: ILendFactory, _pool_price_oracle_blueprint: address):
     FACTORY = _factory
     POOL_PRICE_ORACLE_BLUEPRINT = _pool_price_oracle_blueprint
 

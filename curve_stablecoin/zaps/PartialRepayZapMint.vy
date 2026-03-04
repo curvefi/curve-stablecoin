@@ -37,8 +37,8 @@ def __init__(
     core.__init__(_factory, _frac, _health_threshold)
 
 
-@view
 @external
+@view
 def FACTORY() -> address:
     return _MINT_FACTORY.address
 
