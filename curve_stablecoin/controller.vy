@@ -85,6 +85,7 @@ _monetary_policy: IMonetaryPolicy
 # https://github.com/vyperlang/vyper/issues/4721
 @external
 @view
+@reentrant
 def monetary_policy() -> IMonetaryPolicy:
     """
     @notice Address of the monetary policy
