@@ -213,6 +213,15 @@ DUMMY_CALLBACK_DEPLOYER = boa.load_partial(
 BLOCK_COUNTER_DEPLOYER = boa.load_partial(
     TESTING_CONTRACT_PATH / "BlockCounter.vy", compiler_args=compiler_args_default
 )
+LEVERAGE_ZAP_DEPLOYER = boa.load_partial(
+    ZAPS_CONTRACT_PATH / "LeverageZap.vy",
+    compiler_args=compiler_args_codesize,
+)
+
+DUMMY_ROUTER_DEPLOYER = boa.load_partial(
+    TESTING_CONTRACT_PATH / "DummyRouter.vy",
+)
+
 DUMMY_FLASH_BORROWER_DEPLOYER = boa.load_partial(
     TESTING_CONTRACT_PATH / "DummyFlashBorrower.vy", compiler_args=compiler_args_default
 )
