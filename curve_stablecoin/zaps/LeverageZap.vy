@@ -84,7 +84,9 @@ def max_borrowable(
     """
     # max_borrowable = collateral / (1 / (k_effective * max_p_base) - 1 / p_avg)
     amm: IAMM = staticcall _controller.amm()
+    borrowed_token: IERC20 = IERC20(staticcall amm.coins(0))
     collateral_token: IERC20 = IERC20(staticcall amm.coins(1))
+    borrowed_precision: uint256 = pow_mod256(10, convert(18 - staticcall borrowed_token.decimals(), uint256))
     collateral_precision: uint256 = pow_mod256(10, convert(18 - staticcall collateral_token.decimals(), uint256))
 
     user_collateral: uint256 = _user_collateral * collateral_precision
@@ -94,8 +96,9 @@ def max_borrowable(
     A: uint256 = staticcall amm.A()
     max_p_base: uint256 = ControllerView._max_p_base(amm, math._wad_ln(convert(A * WAD // (A - 1), int256)))
     max_borrowable: uint256 = user_collateral * WAD // (10**36 // k_effective * WAD // max_p_base - 10**36 // _p_avg)
+    max_borrowable = max_borrowable // borrowed_precision
 
-    return min(max_borrowable * 999 // 1000, staticcall _controller.available_balance()) # Cannot borrow beyond the amount of coins Controller has
+    return min(max_borrowable, staticcall _controller.available_balance()) # Cannot borrow beyond the amount of coins Controller has
 
 
 @external
