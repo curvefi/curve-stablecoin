@@ -20,8 +20,14 @@ N = 10
 
 
 def test_repay_state_collateral(
-    open_position, controller, collateral_token, borrowed_token,
-    leverage_zap, dummy_router, controller_id, price_oracle,
+    open_position,
+    controller,
+    collateral_token,
+    borrowed_token,
+    leverage_zap,
+    dummy_router,
+    controller_id,
+    price_oracle,
 ):
     """
     State collateral only: user provides no extras.
@@ -40,9 +46,15 @@ def test_repay_state_collateral(
     borrowed_out = borrowed_from_collateral(collateral_to_swap, price, bd, cd)
 
     calldata = make_repay_calldata(
-        controller_id, 0, 0, borrowed_out * 999 // 1000,
-        dummy_router, collateral_token, borrowed_token,
-        collateral_to_swap, borrowed_out,
+        controller_id,
+        0,
+        0,
+        borrowed_out * 999 // 1000,
+        dummy_router,
+        collateral_token,
+        borrowed_token,
+        collateral_to_swap,
+        borrowed_out,
     )
 
     with boa.env.prank(borrower):
@@ -69,8 +81,14 @@ def test_repay_state_collateral(
 
 
 def test_repay_state_collateral_and_user_collateral(
-    open_position, controller, collateral_token, borrowed_token,
-    leverage_zap, dummy_router, controller_id, price_oracle,
+    open_position,
+    controller,
+    collateral_token,
+    borrowed_token,
+    leverage_zap,
+    dummy_router,
+    controller_id,
+    price_oracle,
 ):
     """
     State collateral + user_collateral: user adds extra collateral from wallet.
@@ -89,9 +107,15 @@ def test_repay_state_collateral_and_user_collateral(
     borrowed_out = borrowed_from_collateral(total_collateral_in, price, bd, cd)
 
     calldata = make_repay_calldata(
-        controller_id, extra_collateral, 0, borrowed_out * 999 // 1000,
-        dummy_router, collateral_token, borrowed_token,
-        total_collateral_in, borrowed_out,
+        controller_id,
+        extra_collateral,
+        0,
+        borrowed_out * 999 // 1000,
+        dummy_router,
+        collateral_token,
+        borrowed_token,
+        total_collateral_in,
+        borrowed_out,
     )
 
     with boa.env.prank(borrower):
@@ -119,8 +143,14 @@ def test_repay_state_collateral_and_user_collateral(
 
 
 def test_repay_state_collateral_and_user_borrowed(
-    open_position, controller, collateral_token, borrowed_token,
-    leverage_zap, dummy_router, controller_id, price_oracle,
+    open_position,
+    controller,
+    collateral_token,
+    borrowed_token,
+    leverage_zap,
+    dummy_router,
+    controller_id,
+    price_oracle,
 ):
     """
     State collateral + user_borrowed: user swaps state collateral and also
@@ -138,9 +168,15 @@ def test_repay_state_collateral_and_user_borrowed(
     user_borrowed = 200 * 10**bd
 
     calldata = make_repay_calldata(
-        controller_id, 0, user_borrowed, borrowed_out * 999 // 1000,
-        dummy_router, collateral_token, borrowed_token,
-        collateral_to_swap, borrowed_out,
+        controller_id,
+        0,
+        user_borrowed,
+        borrowed_out * 999 // 1000,
+        dummy_router,
+        collateral_token,
+        borrowed_token,
+        collateral_to_swap,
+        borrowed_out,
     )
 
     with boa.env.prank(borrower):
@@ -167,8 +203,14 @@ def test_repay_state_collateral_and_user_borrowed(
 
 
 def test_repay_user_collateral_and_user_borrowed(
-    open_position, controller, collateral_token, borrowed_token,
-    leverage_zap, dummy_router, controller_id, price_oracle,
+    open_position,
+    controller,
+    collateral_token,
+    borrowed_token,
+    leverage_zap,
+    dummy_router,
+    controller_id,
+    price_oracle,
 ):
     """
     user_collateral + user_borrowed: user provides more collateral than the swap needs,
@@ -188,9 +230,15 @@ def test_repay_user_collateral_and_user_borrowed(
     user_borrowed = 200 * 10**bd
 
     calldata = make_repay_calldata(
-        controller_id, extra_collateral, user_borrowed, borrowed_out * 999 // 1000,
-        dummy_router, collateral_token, borrowed_token,
-        collateral_to_swap, borrowed_out,
+        controller_id,
+        extra_collateral,
+        user_borrowed,
+        borrowed_out * 999 // 1000,
+        dummy_router,
+        collateral_token,
+        borrowed_token,
+        collateral_to_swap,
+        borrowed_out,
     )
 
     with boa.env.prank(borrower):
@@ -218,8 +266,14 @@ def test_repay_user_collateral_and_user_borrowed(
 
 
 def test_repay_leverage(
-    open_position, controller, collateral_token, borrowed_token,
-    leverage_zap, dummy_router, controller_id, price_oracle,
+    open_position,
+    controller,
+    collateral_token,
+    borrowed_token,
+    leverage_zap,
+    dummy_router,
+    controller_id,
+    price_oracle,
 ):
     """
     Full path: state_collateral + user_collateral + user_borrowed.
@@ -239,9 +293,15 @@ def test_repay_leverage(
     user_borrowed = 200 * 10**bd
 
     calldata = make_repay_calldata(
-        controller_id, extra_collateral, user_borrowed, borrowed_out * 999 // 1000,
-        dummy_router, collateral_token, borrowed_token,
-        total_collateral_in, borrowed_out,
+        controller_id,
+        extra_collateral,
+        user_borrowed,
+        borrowed_out * 999 // 1000,
+        dummy_router,
+        collateral_token,
+        borrowed_token,
+        total_collateral_in,
+        borrowed_out,
     )
 
     with boa.env.prank(borrower):
@@ -269,8 +329,14 @@ def test_repay_leverage(
 
 
 def test_repay_slippage_reverts(
-    open_position, controller, collateral_token, borrowed_token,
-    leverage_zap, dummy_router, controller_id, price_oracle,
+    open_position,
+    controller,
+    collateral_token,
+    borrowed_token,
+    leverage_zap,
+    dummy_router,
+    controller_id,
+    price_oracle,
 ):
     """min_recv set 1 above actual → reverts with 'Slippage'."""
     borrower = open_position()
@@ -283,9 +349,15 @@ def test_repay_slippage_reverts(
     borrowed_out = borrowed_from_collateral(collateral_to_swap, price, bd, cd)
 
     calldata = make_repay_calldata(
-        controller_id, 0, 0, borrowed_out + 1,  # min_recv 1 above actual
-        dummy_router, collateral_token, borrowed_token,
-        collateral_to_swap, borrowed_out,
+        controller_id,
+        0,
+        0,
+        borrowed_out + 1,  # min_recv 1 above actual
+        dummy_router,
+        collateral_token,
+        borrowed_token,
+        collateral_to_swap,
+        borrowed_out,
     )
 
     with boa.env.prank(borrower):
@@ -294,7 +366,11 @@ def test_repay_slippage_reverts(
 
 
 def test_callback_repay_wrong_controller_reverts(
-    leverage_zap, controller_id, dummy_router, collateral_token, borrowed_token,
+    leverage_zap,
+    controller_id,
+    dummy_router,
+    collateral_token,
+    borrowed_token,
 ):
     """Calling callback_repay directly (not from controller) must revert."""
     attacker = boa.env.generate_address()

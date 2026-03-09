@@ -20,8 +20,13 @@ N = 10
 # Pure view tests
 # ---------------------------------------------------------------------------
 
+
 def test_max_borrowable_capped_by_available_balance(
-    leverage_zap, controller, collateral_token, borrowed_token, price_oracle,
+    leverage_zap,
+    controller,
+    collateral_token,
+    borrowed_token,
+    price_oracle,
 ):
     """
     With very large collateral the health limit is not binding;
@@ -40,7 +45,11 @@ def test_max_borrowable_capped_by_available_balance(
 
 
 def test_max_borrowable_increases_with_collateral(
-    leverage_zap, controller, collateral_token, borrowed_token, price_oracle,
+    leverage_zap,
+    controller,
+    collateral_token,
+    borrowed_token,
+    price_oracle,
 ):
     """More user_collateral → higher max_borrowable."""
     cd = collateral_token.decimals()
@@ -53,7 +62,11 @@ def test_max_borrowable_increases_with_collateral(
 
 
 def test_max_borrowable_decreases_with_more_ticks(
-    leverage_zap, controller, collateral_token, borrowed_token, price_oracle,
+    leverage_zap,
+    controller,
+    collateral_token,
+    borrowed_token,
+    price_oracle,
 ):
     """More bands (N) → lower max_borrowable due to larger effective discount."""
     cd = collateral_token.decimals()
@@ -71,9 +84,15 @@ def test_max_borrowable_decreases_with_more_ticks(
 # Integration: create_loan respects max_borrowable
 # ---------------------------------------------------------------------------
 
+
 def test_create_loan_within_max_borrowable(
-    controller, collateral_token, borrowed_token, leverage_zap, dummy_router,
-    controller_id, price_oracle,
+    controller,
+    collateral_token,
+    borrowed_token,
+    leverage_zap,
+    dummy_router,
+    controller_id,
+    price_oracle,
 ):
     """
     d_debt must be <= max_borrowable; loan must succeed.
@@ -87,7 +106,9 @@ def test_create_loan_within_max_borrowable(
     max_b = leverage_zap.max_borrowable(controller, user_collateral, 0, N, price)
     max_leverage_collateral = collateral_from_borrowed(max_b, price, bd, cd)
 
-    controller_max = controller.max_borrowable(user_collateral + max_leverage_collateral, N)
+    controller_max = controller.max_borrowable(
+        user_collateral + max_leverage_collateral, N
+    )
     assert max_b == pytest.approx(controller_max, rel=1e-3)
 
     # Use controller_max if zap slightly overshoots, adjusting collateral to match
@@ -97,9 +118,14 @@ def test_create_loan_within_max_borrowable(
         max_b = borrowed_from_collateral(max_leverage_collateral, price, bd, cd)
 
     calldata = make_deposit_calldata(
-        controller_id, 0, max_leverage_collateral,
-        dummy_router, borrowed_token, collateral_token,
-        max_b, max_leverage_collateral,
+        controller_id,
+        0,
+        max_leverage_collateral,
+        dummy_router,
+        borrowed_token,
+        collateral_token,
+        max_b,
+        max_leverage_collateral,
     )
 
     boa.deal(collateral_token, borrower, user_collateral)
@@ -114,8 +140,13 @@ def test_create_loan_within_max_borrowable(
 
 
 def test_create_loan_debt_too_high_reverts(
-    controller, collateral_token, borrowed_token, leverage_zap, dummy_router,
-    controller_id, price_oracle,
+    controller,
+    collateral_token,
+    borrowed_token,
+    leverage_zap,
+    dummy_router,
+    controller_id,
+    price_oracle,
 ):
     """d_debt one unit above max_borrowable must revert."""
     borrower = boa.env.generate_address()
@@ -128,13 +159,20 @@ def test_create_loan_debt_too_high_reverts(
     exceed_debt = int(max_b * 1.0021)
     exceed_leverage_collateral = collateral_from_borrowed(exceed_debt, price, bd, cd)
 
-    assert exceed_debt > controller.max_borrowable(user_collateral + exceed_leverage_collateral, N)
+    assert exceed_debt > controller.max_borrowable(
+        user_collateral + exceed_leverage_collateral, N
+    )
 
     # keep leverage_collateral fixed — more debt with same swap output → unhealthy
     calldata = make_deposit_calldata(
-        controller_id, 0, exceed_leverage_collateral,
-        dummy_router, borrowed_token, collateral_token,
-        exceed_debt, exceed_leverage_collateral,
+        controller_id,
+        0,
+        exceed_leverage_collateral,
+        dummy_router,
+        borrowed_token,
+        collateral_token,
+        exceed_debt,
+        exceed_leverage_collateral,
     )
 
     boa.deal(collateral_token, borrower, user_collateral)
@@ -142,13 +180,23 @@ def test_create_loan_debt_too_high_reverts(
         collateral_token.approve(controller.address, MAX_UINT256)
         with boa.reverts("Debt too high"):
             controller.create_loan(
-                user_collateral, exceed_debt, N, borrower, leverage_zap.address, calldata
+                user_collateral,
+                exceed_debt,
+                N,
+                borrower,
+                leverage_zap.address,
+                calldata,
             )
 
 
 def test_create_loan_exceeds_available_balance_reverts(
-    controller, collateral_token, borrowed_token, leverage_zap, dummy_router,
-    controller_id, price_oracle,
+    controller,
+    collateral_token,
+    borrowed_token,
+    leverage_zap,
+    dummy_router,
+    controller_id,
+    price_oracle,
 ):
     """
     Trying to borrow above available_balance (the binding constraint for large collateral)
@@ -169,9 +217,14 @@ def test_create_loan_exceeds_available_balance_reverts(
     exceed_collateral = collateral_from_borrowed(exceed_debt, p_avg, bd, cd)
 
     calldata = make_deposit_calldata(
-        controller_id, 0, exceed_collateral,
-        dummy_router, borrowed_token, collateral_token,
-        exceed_debt, exceed_collateral,
+        controller_id,
+        0,
+        exceed_collateral,
+        dummy_router,
+        borrowed_token,
+        collateral_token,
+        exceed_debt,
+        exceed_collateral,
     )
 
     boa.deal(collateral_token, borrower, large_collateral)
@@ -179,7 +232,12 @@ def test_create_loan_exceeds_available_balance_reverts(
         collateral_token.approve(controller.address, MAX_UINT256)
         with boa.reverts():
             controller.create_loan(
-                large_collateral, exceed_debt, N, borrower, leverage_zap.address, calldata
+                large_collateral,
+                exceed_debt,
+                N,
+                borrower,
+                leverage_zap.address,
+                calldata,
             )
 
 
@@ -187,9 +245,16 @@ def test_create_loan_exceeds_available_balance_reverts(
 # Integration: borrow_more respects max_borrowable
 # ---------------------------------------------------------------------------
 
+
 def test_borrow_more_within_max_borrowable(
-    open_position, controller, collateral_token, borrowed_token,
-    leverage_zap, dummy_router, controller_id, price_oracle,
+    open_position,
+    controller,
+    collateral_token,
+    borrowed_token,
+    leverage_zap,
+    dummy_router,
+    controller_id,
+    price_oracle,
 ):
     """
     Additional d_debt must be <= max_borrowable; borrow_more must succeed.
@@ -203,9 +268,16 @@ def test_borrow_more_within_max_borrowable(
     state_debt = state0[2]
     price = price_oracle.price()
 
-    d_debt = leverage_zap.max_borrowable(
-        controller, state_collateral - collateral_from_borrowed(state_debt, price, bd, cd), 0, N, price
-    ) - state_debt
+    d_debt = (
+        leverage_zap.max_borrowable(
+            controller,
+            state_collateral - collateral_from_borrowed(state_debt, price, bd, cd),
+            0,
+            N,
+            price,
+        )
+        - state_debt
+    )
     d_leverage_coll = collateral_from_borrowed(d_debt, price, bd, cd) + 1
 
     controller_max = controller.max_borrowable(d_leverage_coll, N, borrower)
@@ -216,9 +288,14 @@ def test_borrow_more_within_max_borrowable(
         d_leverage_coll = collateral_from_borrowed(controller_max, price, bd, cd) + 1
 
     calldata = make_deposit_calldata(
-        controller_id, 0, d_leverage_coll,
-        dummy_router, borrowed_token, collateral_token,
-        d_debt, d_leverage_coll,
+        controller_id,
+        0,
+        d_leverage_coll,
+        dummy_router,
+        borrowed_token,
+        collateral_token,
+        d_debt,
+        d_leverage_coll,
     )
 
     with boa.env.prank(borrower):
@@ -230,8 +307,13 @@ def test_borrow_more_within_max_borrowable(
 
 
 def test_borrow_more_up_to_create_loan_max(
-    controller, collateral_token, borrowed_token,
-    leverage_zap, dummy_router, controller_id, price_oracle,
+    controller,
+    collateral_token,
+    borrowed_token,
+    leverage_zap,
+    dummy_router,
+    controller_id,
+    price_oracle,
 ):
     """
     create_loan with partial debt + borrow_more to fill remaining room must produce
@@ -256,16 +338,26 @@ def test_borrow_more_up_to_create_loan_max(
     initial_leverage_coll = collateral_from_borrowed(initial_debt, price, bd, cd)
 
     create_calldata = make_deposit_calldata(
-        controller_id, 0, initial_leverage_coll,
-        dummy_router, borrowed_token, collateral_token,
-        initial_debt, initial_leverage_coll,
+        controller_id,
+        0,
+        initial_leverage_coll,
+        dummy_router,
+        borrowed_token,
+        collateral_token,
+        initial_debt,
+        initial_leverage_coll,
     )
 
     boa.deal(collateral_token, borrower, user_collateral)
     with boa.env.prank(borrower):
         collateral_token.approve(controller.address, MAX_UINT256)
         controller.create_loan(
-            user_collateral, initial_debt, N, borrower, leverage_zap.address, create_calldata
+            user_collateral,
+            initial_debt,
+            N,
+            borrower,
+            leverage_zap.address,
+            create_calldata,
         )
 
     state0 = controller.user_state(borrower)
@@ -274,9 +366,16 @@ def test_borrow_more_up_to_create_loan_max(
 
     # Step 2: borrow_more — zap's max_borrowable on the full state collateral gives max total debt;
     # subtracting current debt gives the remaining room
-    d_debt = leverage_zap.max_borrowable(
-        controller, state_collateral - collateral_from_borrowed(state_debt, price, bd, cd), 0, N, price
-    ) - state_debt
+    d_debt = (
+        leverage_zap.max_borrowable(
+            controller,
+            state_collateral - collateral_from_borrowed(state_debt, price, bd, cd),
+            0,
+            N,
+            price,
+        )
+        - state_debt
+    )
     assert d_debt == max_b - initial_debt
 
     d_leverage_coll = collateral_from_borrowed(d_debt, price, bd, cd) + 1
@@ -289,23 +388,38 @@ def test_borrow_more_up_to_create_loan_max(
         d_leverage_coll = collateral_from_borrowed(controller_max, price, bd, cd) + 1
 
     borrow_calldata = make_deposit_calldata(
-        controller_id, 0, d_leverage_coll,
-        dummy_router, borrowed_token, collateral_token,
-        d_debt, d_leverage_coll,
+        controller_id,
+        0,
+        d_leverage_coll,
+        dummy_router,
+        borrowed_token,
+        collateral_token,
+        d_debt,
+        d_leverage_coll,
     )
 
     with boa.env.prank(borrower):
-        controller.borrow_more(0, d_debt, borrower, leverage_zap.address, borrow_calldata)
+        controller.borrow_more(
+            0, d_debt, borrower, leverage_zap.address, borrow_calldata
+        )
 
     state1 = controller.user_state(borrower)
     # Final position equals what create_loan(user_collateral, max_b) would have produced
-    assert state1[0] == pytest.approx(user_collateral + max_leverage_collateral, rel=1e-4)
+    assert state1[0] == pytest.approx(
+        user_collateral + max_leverage_collateral, rel=1e-4
+    )
     assert state1[2] == pytest.approx(max_b, rel=1e-3)
 
 
 def test_borrow_more_debt_too_high_reverts(
-    open_position, controller, collateral_token, borrowed_token,
-    leverage_zap, dummy_router, controller_id, price_oracle,
+    open_position,
+    controller,
+    collateral_token,
+    borrowed_token,
+    leverage_zap,
+    dummy_router,
+    controller_id,
+    price_oracle,
 ):
     """d_debt one unit above max_borrowable on borrow_more must revert."""
     borrower = open_position()
@@ -317,28 +431,50 @@ def test_borrow_more_debt_too_high_reverts(
     state_debt = user_state[2]
 
     price = price_oracle.price()
-    max_b = leverage_zap.max_borrowable(
-        controller, state_collateral - collateral_from_borrowed(state_debt, price, bd, cd), 0, N, price
-    ) - state_debt
+    max_b = (
+        leverage_zap.max_borrowable(
+            controller,
+            state_collateral - collateral_from_borrowed(state_debt, price, bd, cd),
+            0,
+            N,
+            price,
+        )
+        - state_debt
+    )
     exceed_debt = int(max_b * 1.0021)
     exceed_leverage_collateral = collateral_from_borrowed(exceed_debt, price, bd, cd)
 
-    assert exceed_debt > controller.max_borrowable(exceed_leverage_collateral, N, borrower)
+    assert exceed_debt > controller.max_borrowable(
+        exceed_leverage_collateral, N, borrower
+    )
 
     calldata = make_deposit_calldata(
-        controller_id, 0, 0,
-        dummy_router, borrowed_token, collateral_token,
-        exceed_debt, exceed_leverage_collateral,
+        controller_id,
+        0,
+        0,
+        dummy_router,
+        borrowed_token,
+        collateral_token,
+        exceed_debt,
+        exceed_leverage_collateral,
     )
 
     with boa.env.prank(borrower):
         with boa.reverts("Debt too high"):
-            controller.borrow_more(0, exceed_debt, borrower, leverage_zap.address, calldata)
+            controller.borrow_more(
+                0, exceed_debt, borrower, leverage_zap.address, calldata
+            )
 
 
 def test_borrow_more_exceeds_available_balance_reverts(
-    open_position, controller, collateral_token, borrowed_token,
-    leverage_zap, dummy_router, controller_id, price_oracle,
+    open_position,
+    controller,
+    collateral_token,
+    borrowed_token,
+    leverage_zap,
+    dummy_router,
+    controller_id,
+    price_oracle,
 ):
     """
     Borrowing above available_balance on borrow_more must revert.
@@ -357,11 +493,18 @@ def test_borrow_more_exceeds_available_balance_reverts(
     exceed_collateral = collateral_from_borrowed(exceed_debt, p_avg, bd, cd)
 
     calldata = make_deposit_calldata(
-        controller_id, 0, 0,
-        dummy_router, borrowed_token, collateral_token,
-        exceed_debt, exceed_collateral,
+        controller_id,
+        0,
+        0,
+        dummy_router,
+        borrowed_token,
+        collateral_token,
+        exceed_debt,
+        exceed_collateral,
     )
 
     with boa.env.prank(borrower):
         with boa.reverts():
-            controller.borrow_more(0, exceed_debt, borrower, leverage_zap.address, calldata)
+            controller.borrow_more(
+                0, exceed_debt, borrower, leverage_zap.address, calldata
+            )

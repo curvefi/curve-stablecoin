@@ -10,6 +10,7 @@ from tests.utils.deployers import LEVERAGE_ZAP_DEPLOYER, DUMMY_ROUTER_DEPLOYER
 # Pure helper functions (no fixtures)
 # ---------------------------------------------------------------------------
 
+
 def collateral_from_borrowed(amount_in, price, borrowed_decimals, collateral_decimals):
     """Compute raw collateral out for raw borrowed_in at price (WAD-scaled borrowed-per-collateral)."""
     borrowed_precision = 10 ** (18 - borrowed_decimals)
@@ -28,17 +29,30 @@ def calc_p_avg(in_borrowed, out_collateral, borrowed_decimals, collateral_decima
     """Compute _p_avg (WAD-scaled borrowed-per-collateral) from raw swap amounts."""
     borrowed_precision = 10 ** (18 - borrowed_decimals)
     collateral_precision = 10 ** (18 - collateral_decimals)
-    return in_borrowed * borrowed_precision * WAD // (out_collateral * collateral_precision)
+    return (
+        in_borrowed
+        * borrowed_precision
+        * WAD
+        // (out_collateral * collateral_precision)
+    )
 
 
 def make_deposit_calldata(
-    controller_id, user_borrowed, min_recv,
-    router, borrowed_token, collateral_token,
-    total_borrowed_in, collateral_out,
+    controller_id,
+    user_borrowed,
+    min_recv,
+    router,
+    borrowed_token,
+    collateral_token,
+    total_borrowed_in,
+    collateral_out,
 ):
     """Encode calldata for callback_deposit: (controller_id, user_borrowed, min_recv, exchange_address, exchange_calldata)."""
     exchange_data = router.exchange.prepare_calldata(
-        borrowed_token.address, collateral_token.address, total_borrowed_in, collateral_out
+        borrowed_token.address,
+        collateral_token.address,
+        total_borrowed_in,
+        collateral_out,
     )
     return encode(
         ["uint256", "uint256", "uint256", "address", "bytes"],
@@ -47,23 +61,40 @@ def make_deposit_calldata(
 
 
 def make_repay_calldata(
-    controller_id, user_collateral_amount, user_borrowed, min_recv,
-    router, collateral_token, borrowed_token,
-    total_collateral_in, borrowed_out,
+    controller_id,
+    user_collateral_amount,
+    user_borrowed,
+    min_recv,
+    router,
+    collateral_token,
+    borrowed_token,
+    total_collateral_in,
+    borrowed_out,
 ):
     """Encode calldata for callback_repay: (controller_id, user_collateral, user_borrowed, min_recv, exchange_address, exchange_calldata)."""
     exchange_data = router.exchange.prepare_calldata(
-        collateral_token.address, borrowed_token.address, total_collateral_in, borrowed_out
+        collateral_token.address,
+        borrowed_token.address,
+        total_collateral_in,
+        borrowed_out,
     )
     return encode(
         ["uint256", "uint256", "uint256", "uint256", "address", "bytes"],
-        [controller_id, user_collateral_amount, user_borrowed, min_recv, router.address, exchange_data],
+        [
+            controller_id,
+            user_collateral_amount,
+            user_borrowed,
+            min_recv,
+            router.address,
+            exchange_data,
+        ],
     )
 
 
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------
+
 
 @pytest.fixture(scope="module")
 def market_type():
@@ -89,7 +120,9 @@ def leverage_zap(factory):
 def dummy_router(borrowed_token, collateral_token):
     router = DUMMY_ROUTER_DEPLOYER.deploy()
     boa.deal(borrowed_token, router.address, 10**9 * 10 ** borrowed_token.decimals())
-    boa.deal(collateral_token, router.address, 10**9 * 10 ** collateral_token.decimals())
+    boa.deal(
+        collateral_token, router.address, 10**9 * 10 ** collateral_token.decimals()
+    )
     return router
 
 
@@ -105,8 +138,17 @@ def controller_id(factory, controller):
 
 
 @pytest.fixture
-def open_position(controller, collateral_token, borrowed_token, leverage_zap, dummy_router, controller_id, price_oracle):
+def open_position(
+    controller,
+    collateral_token,
+    borrowed_token,
+    leverage_zap,
+    dummy_router,
+    controller_id,
+    price_oracle,
+):
     """Create a leveraged position via zap and return a factory that generates borrower addresses."""
+
     def _open():
         borrower = boa.env.generate_address()
         bd = borrowed_token.decimals()
@@ -117,9 +159,14 @@ def open_position(controller, collateral_token, borrowed_token, leverage_zap, du
         price = price_oracle.price()
         collateral_out = collateral_from_borrowed(d_debt, price, bd, cd)
         calldata = make_deposit_calldata(
-            controller_id, 0, collateral_out,
-            dummy_router, borrowed_token, collateral_token,
-            d_debt, collateral_out,
+            controller_id,
+            0,
+            collateral_out,
+            dummy_router,
+            borrowed_token,
+            collateral_token,
+            d_debt,
+            collateral_out,
         )
 
         boa.deal(collateral_token, borrower, 10**6 * 10**cd)

@@ -19,8 +19,14 @@ N = 10
 
 
 def test_repay_full_state_collateral(
-    open_position, controller, collateral_token, borrowed_token,
-    leverage_zap, dummy_router, controller_id, price_oracle,
+    open_position,
+    controller,
+    collateral_token,
+    borrowed_token,
+    leverage_zap,
+    dummy_router,
+    controller_id,
+    price_oracle,
 ):
     """
     Swap all state collateral (worth ~3x the debt) to fully close the position.
@@ -36,9 +42,15 @@ def test_repay_full_state_collateral(
     borrowed_out = borrowed_from_collateral(collateral_to_swap, price, bd, cd)
 
     calldata = make_repay_calldata(
-        controller_id, 0, 0, borrowed_out * 999 // 1000,
-        dummy_router, collateral_token, borrowed_token,
-        collateral_to_swap, borrowed_out,
+        controller_id,
+        0,
+        0,
+        borrowed_out * 999 // 1000,
+        dummy_router,
+        collateral_token,
+        borrowed_token,
+        collateral_to_swap,
+        borrowed_out,
     )
 
     with boa.env.prank(borrower):
@@ -62,8 +74,14 @@ def test_repay_full_state_collateral(
 
 
 def test_repay_full_state_collateral_and_user_collateral(
-    open_position, controller, collateral_token, borrowed_token,
-    leverage_zap, dummy_router, controller_id, price_oracle,
+    open_position,
+    controller,
+    collateral_token,
+    borrowed_token,
+    leverage_zap,
+    dummy_router,
+    controller_id,
+    price_oracle,
 ):
     """
     Swap state collateral + user_collateral from wallet to fully close the position.
@@ -80,9 +98,15 @@ def test_repay_full_state_collateral_and_user_collateral(
     borrowed_out = borrowed_from_collateral(total_collateral_in, price, bd, cd)
 
     calldata = make_repay_calldata(
-        controller_id, extra_collateral, 0, borrowed_out * 999 // 1000,
-        dummy_router, collateral_token, borrowed_token,
-        total_collateral_in, borrowed_out,
+        controller_id,
+        extra_collateral,
+        0,
+        borrowed_out * 999 // 1000,
+        dummy_router,
+        collateral_token,
+        borrowed_token,
+        total_collateral_in,
+        borrowed_out,
     )
 
     with boa.env.prank(borrower):
@@ -107,8 +131,14 @@ def test_repay_full_state_collateral_and_user_collateral(
 
 
 def test_repay_full_state_collateral_and_user_borrowed(
-    open_position, controller, collateral_token, borrowed_token,
-    leverage_zap, dummy_router, controller_id, price_oracle,
+    open_position,
+    controller,
+    collateral_token,
+    borrowed_token,
+    leverage_zap,
+    dummy_router,
+    controller_id,
+    price_oracle,
 ):
     """
     Swap state collateral + user_borrowed from wallet to fully close the position.
@@ -125,9 +155,15 @@ def test_repay_full_state_collateral_and_user_borrowed(
     user_borrowed = 200 * 10**bd
 
     calldata = make_repay_calldata(
-        controller_id, 0, user_borrowed, borrowed_out * 999 // 1000,
-        dummy_router, collateral_token, borrowed_token,
-        collateral_to_swap, borrowed_out,
+        controller_id,
+        0,
+        user_borrowed,
+        borrowed_out * 999 // 1000,
+        dummy_router,
+        collateral_token,
+        borrowed_token,
+        collateral_to_swap,
+        borrowed_out,
     )
 
     with boa.env.prank(borrower):
@@ -151,8 +187,14 @@ def test_repay_full_state_collateral_and_user_borrowed(
 
 
 def test_repay_full_user_collateral_and_user_borrowed(
-    open_position, controller, collateral_token, borrowed_token,
-    leverage_zap, dummy_router, controller_id, price_oracle,
+    open_position,
+    controller,
+    collateral_token,
+    borrowed_token,
+    leverage_zap,
+    dummy_router,
+    controller_id,
+    price_oracle,
 ):
     """
     user_collateral (enough to cover the debt) + user_borrowed, no state collateral used.
@@ -166,15 +208,23 @@ def test_repay_full_user_collateral_and_user_borrowed(
     state0 = controller.user_state(borrower)
     # Provide enough user_collateral to swap for more than the full debt
     extra_collateral = state0[0] * 2
-    collateral_to_swap = state0[0]  # swap exactly state_collateral worth → closes position
+    collateral_to_swap = state0[
+        0
+    ]  # swap exactly state_collateral worth → closes position
     price = price_oracle.price()
     borrowed_out = borrowed_from_collateral(collateral_to_swap, price, bd, cd)
     user_borrowed = 200 * 10**bd
 
     calldata = make_repay_calldata(
-        controller_id, extra_collateral, user_borrowed, borrowed_out * 999 // 1000,
-        dummy_router, collateral_token, borrowed_token,
-        collateral_to_swap, borrowed_out,
+        controller_id,
+        extra_collateral,
+        user_borrowed,
+        borrowed_out * 999 // 1000,
+        dummy_router,
+        collateral_token,
+        borrowed_token,
+        collateral_to_swap,
+        borrowed_out,
     )
 
     with boa.env.prank(borrower):
@@ -198,8 +248,14 @@ def test_repay_full_user_collateral_and_user_borrowed(
 
 
 def test_repay_full_leverage(
-    open_position, controller, collateral_token, borrowed_token,
-    leverage_zap, dummy_router, controller_id, price_oracle,
+    open_position,
+    controller,
+    collateral_token,
+    borrowed_token,
+    leverage_zap,
+    dummy_router,
+    controller_id,
+    price_oracle,
 ):
     """
     Full path with full repayment: state_collateral + user_collateral + user_borrowed.
@@ -217,9 +273,15 @@ def test_repay_full_leverage(
     user_borrowed = 200 * 10**bd
 
     calldata = make_repay_calldata(
-        controller_id, extra_collateral, user_borrowed, borrowed_out * 999 // 1000,
-        dummy_router, collateral_token, borrowed_token,
-        total_collateral_in, borrowed_out,
+        controller_id,
+        extra_collateral,
+        user_borrowed,
+        borrowed_out * 999 // 1000,
+        dummy_router,
+        collateral_token,
+        borrowed_token,
+        total_collateral_in,
+        borrowed_out,
     )
 
     with boa.env.prank(borrower):
