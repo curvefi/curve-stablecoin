@@ -3,7 +3,11 @@ import pytest
 from eth_abi import encode
 
 from tests.utils.constants import WAD, MAX_UINT256
-from tests.utils.deployers import LEVERAGE_ZAP_DEPLOYER, LEVERAGE_ZAP_MINT_DEPLOYER, DUMMY_ROUTER_DEPLOYER
+from tests.utils.deployers import (
+    LEVERAGE_ZAP_LENDING_DEPLOYER,
+    LEVERAGE_ZAP_MINT_DEPLOYER,
+    DUMMY_ROUTER_DEPLOYER,
+)
 
 
 # ---------------------------------------------------------------------------
@@ -109,7 +113,7 @@ def borrow_cap(seed_liquidity):
 @pytest.fixture(scope="module")
 def leverage_zap(market_type, factory, mint_factory):
     if market_type == "lending":
-        return LEVERAGE_ZAP_DEPLOYER.deploy(factory.address)
+        return LEVERAGE_ZAP_LENDING_DEPLOYER.deploy(factory.address)
     else:
         return LEVERAGE_ZAP_MINT_DEPLOYER.deploy(mint_factory.address)
 
