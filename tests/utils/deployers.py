@@ -217,6 +217,10 @@ LEVERAGE_ZAP_DEPLOYER = boa.load_partial(
     ZAPS_CONTRACT_PATH / "LeverageZap.vy",
     compiler_args=compiler_args_codesize,
 )
+LEVERAGE_ZAP_MINT_DEPLOYER = boa.load_partial(
+    ZAPS_CONTRACT_PATH / "LeverageZapMint.vy",
+    compiler_args=compiler_args_codesize,
+)
 
 DUMMY_ROUTER_DEPLOYER = boa.load_partial(
     TESTING_CONTRACT_PATH / "DummyRouter.vy",

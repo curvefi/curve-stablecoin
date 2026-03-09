@@ -3,7 +3,7 @@ import pytest
 from eth_abi import encode
 
 from tests.utils.constants import WAD, MAX_UINT256
-from tests.utils.deployers import LEVERAGE_ZAP_DEPLOYER, DUMMY_ROUTER_DEPLOYER
+from tests.utils.deployers import LEVERAGE_ZAP_DEPLOYER, LEVERAGE_ZAP_MINT_DEPLOYER, DUMMY_ROUTER_DEPLOYER
 
 
 # ---------------------------------------------------------------------------
@@ -97,11 +97,6 @@ def make_repay_calldata(
 
 
 @pytest.fixture(scope="module")
-def market_type():
-    return "lending"
-
-
-@pytest.fixture(scope="module")
 def seed_liquidity(borrowed_token):
     return 10**6 * 10 ** borrowed_token.decimals()
 
@@ -112,8 +107,11 @@ def borrow_cap(seed_liquidity):
 
 
 @pytest.fixture(scope="module")
-def leverage_zap(factory):
-    return LEVERAGE_ZAP_DEPLOYER.deploy(factory.address)
+def leverage_zap(market_type, factory, mint_factory):
+    if market_type == "lending":
+        return LEVERAGE_ZAP_DEPLOYER.deploy(factory.address)
+    else:
+        return LEVERAGE_ZAP_MINT_DEPLOYER.deploy(mint_factory.address)
 
 
 @pytest.fixture(scope="module")
@@ -127,13 +125,18 @@ def dummy_router(borrowed_token, collateral_token):
 
 
 @pytest.fixture(scope="module")
-def controller_id(factory, controller):
-    for i in range(factory.market_count()):
-        mkt = factory.markets(i)
-        ctrl = mkt.controller if hasattr(mkt, "controller") else mkt[1]
-        ctrl_addr = ctrl.address if hasattr(ctrl, "address") else ctrl
-        if ctrl_addr == controller.address:
-            return i
+def controller_id(market_type, factory, mint_factory, controller):
+    if market_type == "lending":
+        for i in range(factory.market_count()):
+            mkt = factory.markets(i)
+            ctrl = mkt.controller if hasattr(mkt, "controller") else mkt[1]
+            ctrl_addr = ctrl.address if hasattr(ctrl, "address") else ctrl
+            if ctrl_addr == controller.address:
+                return i
+    else:
+        for i in range(mint_factory.n_collaterals()):
+            if mint_factory.controllers(i) == controller.address:
+                return i
     raise ValueError("Controller not found in factory")
 
 
