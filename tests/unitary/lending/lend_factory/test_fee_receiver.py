@@ -3,7 +3,7 @@ from tests.utils.constants import ZERO_ADDRESS
 
 
 def test_default_behavior_default_receiver(factory, controller):
-    default_receiver = factory.default_fee_receiver()
+    default_receiver = factory.fee_receiver(controller.address)
     assert default_receiver != ZERO_ADDRESS
 
     # Check via explicit argument
@@ -15,12 +15,13 @@ def test_default_behavior_default_receiver(factory, controller):
 
 
 def test_default_behavior_custom_receiver(factory, admin, controller):
-    default_receiver = factory.default_fee_receiver()
+    default_receiver = factory.fee_receiver(controller.address)
     custom_receiver = boa.env.generate_address("custom_receiver")
     assert default_receiver != custom_receiver
 
     with boa.env.prank(admin):
-        factory.set_custom_fee_receiver(controller.address, custom_receiver)
+        group_id = factory.add_fee_receiver_group(custom_receiver)
+        factory.set_fee_receiver_group(controller.address, group_id)
 
     # Check custom receiver is returned for specific controller
     assert factory.fee_receiver(controller.address) == custom_receiver
