@@ -51,8 +51,8 @@ MIN_FEE: constant(uint256) = 10**6  # 1e-12, still needs to be above 0
 MAX_FEE: constant(uint256) = 10**17  # 10%
 WAD: constant(uint256) = c.WAD
 
-ADMIN_ROLE: constant(uint256) = 0
-FEE_RECEIVER_ROLE: constant(uint256) = 1
+ADMIN_ROLE: constant(uint256) = 0  # Generally used in Vault, LendController
+FEE_RECEIVER_ROLE: constant(uint256) = 1  # Generally used in LendController
 
 _vaults: IVault[10**18]
 _vaults_index: HashMap[IVault, uint256]
@@ -96,8 +96,6 @@ def __init__(
     ownable._transfer_ownership(_admin)
     role_bindings._init_role(ADMIN_ROLE, _admin)
     role_bindings._init_role(FEE_RECEIVER_ROLE, _fee_receiver)
-
-#    self._set_default_fee_receiver(_fee_receiver)  TODO
 
 
 @external
@@ -279,18 +277,18 @@ def controller_view_blueprint() -> address:
 
 
 @external
-def set_admin_group(_market: address, _group_id: uint256):
+def set_admin_group(_contract: address, _group_id: uint256):
     """
-    @notice Assign a _market to an admin group.
-    @param _market Market address.
+    @notice Assign a contract to an admin group.
+    @param _contract Contract address.
     @param _group_id Custom admin group.
     """
     ownable._check_owner()
-    role_bindings._bind_subject_to_group(ADMIN_ROLE, _market, _group_id)
+    role_bindings._bind_subject_to_group(ADMIN_ROLE, _contract, _group_id)
 
 
 @external
-def add_new_admin_group(_admin: address) -> uint256:
+def add_admin_group(_admin: address) -> uint256:
     """
     @notice Create a new admin group.
     @param _admin Address for the new group admin.
@@ -301,14 +299,14 @@ def add_new_admin_group(_admin: address) -> uint256:
 
 
 @external
-def replace_group_admin(_group_id: uint256, _new_admin: address):
+def set_admin_group_assignee(_group_id: uint256, _admin: address):
     """
     @notice Replace the admin address for a group.
     @param _group_id Admin group id.
-    @param _new_admin New admin address.
+    @param _admin New admin address.
     """
     ownable._check_owner()
-    role_bindings._set_group_assignee(ADMIN_ROLE, _group_id, _new_admin)
+    role_bindings._set_group_assignee(ADMIN_ROLE, _group_id, _admin)
 
 @external
 def transfer_ownership(_new_owner: address):
@@ -323,7 +321,6 @@ def transfer_ownership(_new_owner: address):
     ownable._check_owner()
     assert _new_owner != empty(address), "ownable: new owner is the zero address"
     ownable._transfer_ownership(_new_owner)
-    role_bindings._set_group_assignee(ADMIN_ROLE, 0, _new_owner)
 
 
 @external
@@ -352,18 +349,18 @@ def unpause():
 
 
 @external
-def set_fee_receiver(_controller: address, _group_id: uint256):
+def set_fee_receiver_group(_controller: address, _group_id: uint256):
     """
     @notice Assign a _controller to fee_receiver group.
     @param _controller Controller address.
-    @param _group_id Custom admin group.
+    @param _group_id Custom fee receiver group.
     """
     ownable._check_owner()
     role_bindings._bind_subject_to_group(FEE_RECEIVER_ROLE, _controller, _group_id)
 
 
 @external
-def add_new_fee_receiver_group(_fee_receiver: address) -> uint256:
+def add_fee_receiver_group(_fee_receiver: address) -> uint256:
     """
     @notice Create a new fee receiver group.
     @param _fee_receiver Address for the new group fee receiver.
@@ -374,19 +371,14 @@ def add_new_fee_receiver_group(_fee_receiver: address) -> uint256:
 
 
 @external
-def replace_group_fee_receiver(_group_id: uint256, _new_fee_receiver: address):
+def set_fee_receiver_group_assignee(_group_id: uint256, _fee_receiver: address):
     """
     @notice Replace the fee receiver address for a group.
     @param _group_id Fee receiver group id.
-    @param _new_fee_receiver New fee receiver.
+    @param _fee_receiver New fee receiver.
     """
     ownable._check_owner()
-    role_bindings._set_group_assignee(FEE_RECEIVER_ROLE, _group_id, _new_fee_receiver)
-
-@external
-@view
-def default_fee_receiver() -> address:
-    return role_bindings._default_assignee(FEE_RECEIVER_ROLE)
+    role_bindings._set_group_assignee(FEE_RECEIVER_ROLE, _group_id, _fee_receiver)
 
 
 @external
@@ -399,40 +391,6 @@ def fee_receiver(_controller: address = msg.sender) -> address:
     @param _controller Address of the controller
     """
     return role_bindings._resolve_assignee_of(FEE_RECEIVER_ROLE, _controller)
-
-
-#@external
-#@reentrant
-#def set_custom_fee_receiver(_controller: address, _fee_receiver: address):
-#    """
-#    @notice Set fee receiver who earns admin fees for a specific controller
-#    @dev Setting to zero address resets to default fee receiver
-#    @param _controller Address of the controller
-#    @param _fee_receiver Address of the receiver
-#    """
-#    ownable._check_owner()
-#    contract_info: ILendFactory.ContractInfo = self.check_contract[_controller]
-#    assert contract_info.contract_type == ILendFactory.ContractType.CONTROLLER, "not a controller"
-#    self.fee_receivers[_controller] = _fee_receiver
-#    log ILendFactory.CustomSetFeeReceiver(controller=_controller, fee_receiver=_fee_receiver)
-
-
-@internal
-def _set_default_fee_receiver(_fee_receiver: address):
-    role_bindings._set_group_assignee(FEE_RECEIVER_ROLE, 0, _fee_receiver)
-    log ILendFactory.SetFeeReceiver(fee_receiver=_fee_receiver)  # Left for consistency
-
-
-@external
-@reentrant
-def set_default_fee_receiver(_fee_receiver: address):
-    """
-    @notice Set default fee receiver who earns admin fees on
-    all controllers without a custom fee receiver
-    @param _fee_receiver Address of the receiver
-    """
-    ownable._check_owner()
-    self._set_default_fee_receiver(_fee_receiver)
 
 
 @external
