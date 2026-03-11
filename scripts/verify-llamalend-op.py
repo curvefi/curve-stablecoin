@@ -234,7 +234,15 @@ def _debug_contract(
             print(f"      local[{first_diff}:{first_diff+8}]:   {local_runtime[first_diff:first_diff+8].hex()}")
             print(f"      onchain[{first_diff}:{first_diff+8}]: {onchain[first_diff:first_diff+8].hex()}")
             if len(local_runtime) != len(onchain):
-                print(f"      length mismatch: local={len(local_runtime)}, onchain={len(onchain)}")
+                extra = len(onchain) - len(local_runtime)
+                print(f"      length mismatch: local={len(local_runtime)}, onchain={len(onchain)} (+{extra} bytes)")
+                if extra > 0 and extra % 32 == 0:
+                    n_immutables = extra // 32
+                    print(f"      on-chain has {n_immutables} extra 32-byte slots (immutable data section):")
+                    tail = onchain[len(local_runtime):]
+                    for i in range(n_immutables):
+                        slot = tail[i*32:(i+1)*32]
+                        print(f"        [{i:2d}] {slot.hex()}")
 
     except Exception as e:
         print(f"    local compile ERROR: {type(e).__name__}: {e}")
