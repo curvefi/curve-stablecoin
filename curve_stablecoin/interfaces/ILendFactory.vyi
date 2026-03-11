@@ -94,7 +94,7 @@ def vaults_index(_vault: IVault) -> uint256:
 
 @view
 @external
-def admin(_who: address=msg.sender) -> address:
+def admin(_contract: address=msg.sender) -> address:
     ...
 
 
@@ -116,18 +116,38 @@ def paused() -> bool:
 
 @view
 @external
-def default_fee_receiver() -> address:
+def fee_receiver(_controller: address = msg.sender) -> address:
     ...
 
 
 @external
-def set_default_fee_receiver(_fee_receiver: address):
+def set_admin_group(_contract: address, _group_id: uint256):
     ...
 
 
-# @external
-# def set_custom_fee_receiver(_controller: address, _fee_receiver: address):
-#     ...
+@external
+def add_admin_group(_admin: address) -> uint256:
+    ...
+
+
+@external
+def set_admin_group_assignee(_group_id: uint256, _admin: address):
+    ...
+
+
+@external
+def set_fee_receiver_group(_controller: address, _group_id: uint256):
+    ...
+
+
+@external
+def add_fee_receiver_group(_fee_receiver: address) -> uint256:
+    ...
+
+
+@external
+def set_fee_receiver_group_assignee(_group_id: uint256, _fee_receiver: address):
+    ...
 
 
 @view
@@ -157,12 +177,6 @@ def vault_blueprint() -> address:
 @view
 @external
 def controller_view_blueprint() -> address:
-    ...
-
-
-@view
-@external
-def fee_receiver(_controller: address = msg.sender) -> address:
     ...
 
 

@@ -25,7 +25,7 @@ def test_ctor(admin, amm_impl, controller_impl, proto):
     assert factory.vault_blueprint() == vault_blueprint.address
     assert factory.controller_view_blueprint() == controller_view_blueprint.address
     assert factory.admin() == admin
-    assert factory.default_fee_receiver() == fee_receiver
+    assert factory.fee_receiver() == fee_receiver
     assert not factory.paused()
 
 
