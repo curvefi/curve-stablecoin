@@ -1,23 +1,43 @@
 #!/usr/bin/env python3
 import argparse
 import csv
+from dataclasses import dataclass
 from pathlib import Path
 
 
-def parse_base_size(md_path: Path) -> int | None:
+@dataclass
+class ReportData:
+    status: str
+    base_size: int | None
+    funcs: dict[str, int]
+    error: str | None
+
+
+def parse_report_metadata(md_path: Path) -> tuple[str, int | None, str | None]:
     if not md_path.exists():
-        return None
+        return ("missing", None, None)
+
+    status = "success"
+    base_size = None
+    error = None
     for line in md_path.read_text().splitlines():
         if line.startswith("- Base size:"):
             parts = line.split(":", 1)[1].strip().split()
             if parts:
-                return int(parts[0])
-    return None
+                base_size = int(parts[0])
+        elif line.startswith("- Status:"):
+            status = line.split(":", 1)[1].strip()
+        elif line.startswith("- Error:"):
+            error = line.split(":", 1)[1].strip()
+
+    return status, base_size, error
 
 
-def load_report(csv_path: Path) -> tuple[int, dict[str, int]]:
+def load_report(csv_path: Path) -> ReportData:
     sizes: dict[str, int] = {}
-    base_size: int | None = None
+    md_path = csv_path.with_suffix(".md")
+    status, base_size, error = parse_report_metadata(md_path)
+
     if csv_path.exists():
         with csv_path.open() as handle:
             reader = csv.DictReader(handle)
@@ -27,22 +47,42 @@ def load_report(csv_path: Path) -> tuple[int, dict[str, int]]:
                 if row.get("function") and row.get("savings"):
                     sizes[row["function"]] = int(row["savings"])
 
-    if base_size is None:
-        base_size = parse_base_size(csv_path.with_suffix(".md"))
+    if csv_path.exists() and status == "missing":
+        status = "success"
 
-    return base_size or 0, sizes
+    return ReportData(status=status, base_size=base_size, funcs=sizes, error=error)
 
 
 def format_delta(value: int) -> str:
     return f"{value:+d}"
 
 
+def summarize_error(error: str | None) -> str:
+    if not error:
+        return "Unknown compile error"
+    lines = [line.strip() for line in error.splitlines() if line.strip()]
+    return lines[0] if lines else "Unknown compile error"
+
+
 def build_report(
     contract: str,
-    base_size: int,
-    head_size: int,
+    base_report: ReportData,
+    head_report: ReportData,
     deltas: list[tuple[str, int, int, int]],
 ) -> str:
+    if base_report.status == "failed":
+        lines = [
+            f"### {contract}",
+            "",
+            "- Base compilation failed; skipping runtime bytespace comparison.",
+        ]
+        if head_report.base_size is not None:
+            lines.append(f"- Head runtime size: {head_report.base_size} bytes")
+        lines.append(f"- Base error: `{summarize_error(base_report.error)}`")
+        return "\n".join(lines)
+
+    base_size = base_report.base_size or 0
+    head_size = head_report.base_size or 0
     total_delta = head_size - base_size
     if not deltas and total_delta == 0:
         return ""
@@ -81,20 +121,20 @@ def main() -> int:
     parser.add_argument("--output", help="Write report to file instead of stdout.")
     args = parser.parse_args()
 
-    base_size, base_funcs = load_report(Path(args.base))
-    head_size, head_funcs = load_report(Path(args.head))
+    base_report = load_report(Path(args.base))
+    head_report = load_report(Path(args.head))
 
-    all_funcs = sorted(set(base_funcs) | set(head_funcs))
+    all_funcs = sorted(set(base_report.funcs) | set(head_report.funcs))
     deltas: list[tuple[str, int, int, int]] = []
     for name in all_funcs:
-        base = base_funcs.get(name, 0)
-        head = head_funcs.get(name, 0)
+        base = base_report.funcs.get(name, 0)
+        head = head_report.funcs.get(name, 0)
         delta = head - base
         if delta != 0:
             deltas.append((name, base, head, delta))
 
     deltas.sort(key=lambda row: abs(row[3]), reverse=True)
-    report = build_report(args.contract, base_size, head_size, deltas)
+    report = build_report(args.contract, base_report, head_report, deltas)
 
     if args.output:
         Path(args.output).write_text(report)

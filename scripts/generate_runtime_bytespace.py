@@ -4,6 +4,7 @@ import csv
 import os
 import re
 import subprocess
+import sys
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 
@@ -112,6 +113,29 @@ def dummy_return(ret_type: str | None) -> str:
     return f"return empty({ret_type})"
 
 
+def compile_runtime(source_path: Path) -> str:
+    result = subprocess.run(
+        ["vyper", "-f", "bytecode_runtime", str(source_path)],
+        text=True,
+        capture_output=True,
+    )
+    if result.returncode != 0:
+        if result.stderr:
+            print(result.stderr, file=sys.stderr, end="" if result.stderr.endswith("\n") else "\n")
+        raise subprocess.CalledProcessError(
+            result.returncode,
+            result.args,
+            output=result.stdout,
+            stderr=result.stderr,
+        )
+    return result.stdout
+
+
+def format_compile_error(exc: subprocess.CalledProcessError) -> str:
+    message = (exc.stderr or exc.output or str(exc)).strip()
+    return message or str(exc)
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(
         description="Estimate runtime bytespace per function using dummy bodies."
@@ -148,10 +172,11 @@ def main() -> None:
     source_lines = source_path.read_text().splitlines()
     funcs = parse_functions(source_lines)
 
-    base_out = subprocess.check_output(
-        ["vyper", "-f", "bytecode_runtime", str(source_path)], text=True
-    )
+    base_out = compile_runtime(source_path)
     base_size = len(base_out.encode())
+
+    report_md = runtime_root / "bytespace-report-runtime.md"
+    report_csv = runtime_root / "bytespace-report-runtime.csv"
 
     def compile_function(func: dict) -> tuple[str, int | None, int | None]:
         name = func["name"]
@@ -169,9 +194,7 @@ def main() -> None:
 
         result_path = results_dir / f"{name}.md"
         try:
-            out = subprocess.check_output(
-                ["vyper", "-f", "bytecode_runtime", str(tmp_path)], text=True
-            )
+            out = compile_runtime(tmp_path)
             size = len(out.encode())
             savings = base_size - size
             result_path.write_text(
@@ -183,11 +206,12 @@ def main() -> None:
             )
             return (name, size, savings)
         except subprocess.CalledProcessError as exc:
+            error = format_compile_error(exc)
             result_path.write_text(
                 f"# {name} runtime bytespace\n\n"
                 f"- Base size: {base_size} bytes\n"
                 f"- Status: failed\n"
-                f"- Error: {exc}\n"
+                f"- Error: {error}\n"
             )
             return (name, None, None)
 
@@ -203,9 +227,6 @@ def main() -> None:
             futures = [executor.submit(compile_function, func) for func in funcs]
             for future in as_completed(futures):
                 results.append(future.result())
-
-    report_md = runtime_root / "bytespace-report-runtime.md"
-    report_csv = runtime_root / "bytespace-report-runtime.csv"
 
     rows = []
     for name, size, savings in results:

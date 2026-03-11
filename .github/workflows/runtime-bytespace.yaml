@@ -73,7 +73,12 @@ jobs:
               python scripts/generate_runtime_bytespace.py --source "$contract" --output-dir "$head_output"
             fi
             if [ -f "$base_source" ]; then
-              (cd .tmp/bytespace/base && python scripts/generate_runtime_bytespace.py --source "$contract" --output-dir "$base_output")
+              mkdir -p "$base_output"
+              base_log="$base_output/compile.log"
+              if ! (cd .tmp/bytespace/base && python "$workspace/scripts/generate_runtime_bytespace.py" --source "$contract" --output-dir "$base_output") > "$base_log" 2>&1; then
+                cat "$base_log"
+                python -c 'from pathlib import Path; import sys; report_path = Path(sys.argv[1]); log_path = Path(sys.argv[2]); error = next((line.strip() for line in log_path.read_text().splitlines() if line.strip()), "Unknown compile error"); report_path.write_text("# Runtime bytespace report\n\n- Status: failed\n- Error: " + error + "\n")' "$base_output/bytespace-report-runtime.md" "$base_log"
+              fi
             fi
             section=".tmp/bytespace/section.md"
             python scripts/compare_runtime_bytespace.py \
