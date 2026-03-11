@@ -121,7 +121,11 @@ def compile_runtime(source_path: Path) -> str:
     )
     if result.returncode != 0:
         if result.stderr:
-            print(result.stderr, file=sys.stderr, end="" if result.stderr.endswith("\n") else "\n")
+            print(
+                result.stderr,
+                file=sys.stderr,
+                end="" if result.stderr.endswith("\n") else "\n",
+            )
         raise subprocess.CalledProcessError(
             result.returncode,
             result.args,
