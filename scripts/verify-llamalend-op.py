@@ -277,6 +277,26 @@ ETHERSCAN_API = "https://api.etherscan.io/v2/api"
 CHAIN_ID = "10"
 
 
+def _get_creation_txhash(api_key: str, address: str) -> str | None:
+    """Fetch the deployment transaction hash for a contract from Etherscan."""
+    resp = requests.get(
+        ETHERSCAN_API,
+        params={
+            "chainid": CHAIN_ID,
+            "apikey": api_key,
+            "module": "contract",
+            "action": "getcontractcreation",
+            "contractaddresses": address,
+        },
+        timeout=30,
+    )
+    resp.raise_for_status()
+    data = resp.json()
+    if data.get("status") == "1" and data.get("result"):
+        return data["result"][0].get("txHash")
+    return None
+
+
 def _submit(
     api_key: str,
     address: str,
@@ -286,22 +306,26 @@ def _submit(
     compiler_version: str,
     codeformat: str,
     optimization_used: str = "1",
+    txhash: str | None = None,
 ) -> str:
+    payload = {
+        "apikey": api_key,
+        "module": "contract",
+        "action": "verifysourcecode",
+        "contractaddress": address,
+        "sourceCode": json.dumps(std_json),
+        "codeformat": codeformat,
+        "contractname": contract_name,
+        "compilerversion": compiler_version,
+        "optimizationUsed": optimization_used,
+        "constructorArguements": constructor_args,
+    }
+    if txhash:
+        payload["txhash"] = txhash
     resp = requests.post(
         ETHERSCAN_API,
         params={"chainid": CHAIN_ID},
-        data={
-            "apikey": api_key,
-            "module": "contract",
-            "action": "verifysourcecode",
-            "contractaddress": address,
-            "sourceCode": json.dumps(std_json),
-            "codeformat": codeformat,
-            "contractname": contract_name,
-            "compilerversion": compiler_version,
-            "optimizationUsed": optimization_used,
-            "constructorArguements": constructor_args,
-        },
+        data=payload,
         timeout=60,
     )
     resp.raise_for_status()
@@ -512,10 +536,14 @@ def main() -> None:
     for (address, label, contract_name, std_json, compiler, codeformat, ctor_hex, opt_used) in contracts:
         print(f"\nVerifying {label} at {address}...")
         _debug_contract(label, address, std_json, compiler, codeformat, ctor_hex, rpc_url)
+        txhash = _get_creation_txhash(api_key, address)
+        if txhash:
+            print(f"  creation tx: {txhash}")
         try:
             guid = _submit(
                 api_key, address, contract_name, std_json,
                 ctor_hex, compiler, codeformat, opt_used,
+                txhash=txhash,
             )
             if guid == "already_verified":
                 print("  Already verified")
