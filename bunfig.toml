@@ -1,0 +1,8 @@
+preload = ["./workflows/unitary-matrix/preload.ts"]
+
+[install]
+cache = true
+
+[run]
+# Ensure TypeScript/TSX files can be run directly
+prefer = "bun"

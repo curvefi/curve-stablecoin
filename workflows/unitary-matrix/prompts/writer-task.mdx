@@ -1,0 +1,79 @@
+{props.previousChunkExamples && props.previousChunkExamples.length > 0
+  ? [
+      "Approved examples from previous chunks (style reference):",
+      "```json",
+      JSON.stringify(props.previousChunkExamples, null, 2),
+      "```",
+      "",
+    ].join("\n")
+  : ""}
+
+{props.previousOutput
+  ? [
+      "Previous writer output (for revision context):",
+      "```json",
+      JSON.stringify(props.previousOutput, null, 2),
+      "```",
+      "",
+    ].join("\n")
+  : ""}
+
+{props.reviewFeedback
+  ? [
+      "Previous attempt was rejected. Fix every issue below.",
+      "",
+      "Case issues:",
+      ...props.reviewFeedback.caseIssues.map(
+        (issue) => `- [${issue.branchId}] ${issue.testCaseName}: ${issue.issue}`,
+      ),
+      "",
+    ].join("\n")
+  : ""}
+
+Analyze this precomputed function target chunk.
+
+Chunk: {props.chunkIndex}/{props.totalChunks}
+
+Precomputed target (authoritative):
+
+{["```json", JSON.stringify(props.target, null, 2), "```"].join("\n")}
+
+Chunk branch targets (authoritative for this task):
+
+{[
+  "```json",
+  JSON.stringify(props.chunkBranchTargets, null, 2),
+  "```",
+].join("\n")}
+
+Chunk scaffold cases (authoritative base for this task):
+
+{[
+  "```json",
+  JSON.stringify(props.chunkScaffoldCases, null, 2),
+  "```",
+].join("\n")}
+
+1. Read the function in the contract source.
+2. Use `target.expectedFilePath` exactly for `entry.filePath`.
+3. Use `chunkScaffoldCases` as a base and refine names and descriptions while keeping naming conventions.
+4. If a test file exists, read it and classify each existing test case:
+   - `compliant` if it follows all conventions from the spec.
+   - `non_compliant` if it violates any convention. Fill `issues` with what is wrong and how to fix it.
+   - `redundant` if another test already covers the same branch. Fill `issues` with which test covers it.
+5. If no test file exists, plan test cases as `absent`.
+
+Every test case must have:
+- `branchId`: from the provided precomputed metadata.
+- `branchName`: a human-readable branch description for that ID.
+
+Do not keep generic names like `...branch_1`, `...branch_2`. Replace scaffold placeholders with meaningful test names based on branch behavior.
+
+For absent entries, plan only concrete, real test cases:
+- Happy path (`test_default_behavior_*`)
+- Reverts (`test_revert_*`) only if the function has actual assert/revert paths. Read the source. If there are none, do not include any revert cases.
+- Events only if the function emits events.
+- Never create placeholder or "not applicable" cases. If a category does not apply, omit it.
+- Do not include generic freshness/reset steps; pytest fixture isolation is already assumed unless explicitly documented otherwise.
+
+Return structured JSON only.

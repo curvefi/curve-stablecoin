@@ -1,0 +1,29 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "lib": ["ES2022", "DOM"],
+    "jsx": "react-jsx",
+    "jsxImportSource": "smithers-orchestrator",
+    "moduleResolution": "bundler",
+    "allowImportingTsExtensions": true,
+    "resolveJsonModule": true,
+    "allowJs": true,
+    "noEmit": true,
+    "isolatedModules": true,
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    "strict": true,
+    "skipLibCheck": true,
+    "types": ["@types/node"]
+  },
+  "include": [
+    "workflows/**/*.d.ts",
+    "workflows/**/*.ts",
+    "workflows/**/*.tsx"
+  ],
+  "exclude": [
+    "node_modules",
+    "smithers/node_modules"
+  ]
+}

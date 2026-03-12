@@ -1,0 +1,47 @@
+Review this test matrix chunk entry.
+
+Chunk: {props.chunkIndex}/{props.totalChunks}
+
+Precomputed target (authoritative):
+
+{["```json", JSON.stringify(props.target, null, 2), "```"].join("\n")}
+
+Chunk branch targets (authoritative for this review):
+
+{[
+  "```json",
+  JSON.stringify(props.chunkBranchTargets, null, 2),
+  "```",
+].join("\n")}
+
+Writer output:
+
+{[
+  "```json",
+  props.writerOutput
+    ? JSON.stringify(props.writerOutput, null, 2)
+    : "(no writer output available)",
+  "```",
+].join("\n")}
+
+Read the contract source to verify. Check:
+- Cases are high quality and implementation-ready for the chunk branch targets.
+- Generic test names like `...branch_1` are replaced by meaningful names.
+- Each test case has the correct per-test status (`absent`, `compliant`, `non_compliant`, `redundant`).
+- Every case maps to a real, distinct code path in the function.
+- Test names follow `test_default_behavior_*` / `test_revert_*` conventions.
+- Step lists are concrete and not placeholders.
+- Revert strings match the contract source exactly.
+- Event coverage uses `filter_logs` where applicable.
+- No `alice` or `accounts` patterns in step descriptions.
+- Steps do not include redundant fresh-instance/reset boilerplate unless strictly required by fixture scope.
+- Do not reject solely on constant import/source style at matrix stage; only require that necessary constants are identified in the plan.
+- For `non_compliant`: `issues` are specific and actionable (what is wrong and how to fix).
+- For `redundant`: `issues` explain which other test already covers that branch.
+
+Return JSON with:
+- `approved`: boolean
+- `caseIssues`: list of `{ testCaseName, branchId, issue }`
+- `summaryIssues`: list of high-level issues (strings)
+
+If fully compliant, return `approved=true` with empty `caseIssues` and `summaryIssues`.
