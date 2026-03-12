@@ -39,8 +39,9 @@ from curve_stablecoin import constants as c
 
 
 exports: (
-    # `owner` is not exported as we refer to it as `admin` for backwards compatibility
     # `renounce_ownership` is intentionally not exported
+    ownable.owner,
+    ownable.transfer_ownership,
     pausable.paused,
 )
 
@@ -307,20 +308,6 @@ def set_admin_group_assignee(_group_id: uint256, _admin: address):
     """
     ownable._check_owner()
     role_bindings._set_group_assignee(ADMIN_ROLE, _group_id, _admin)
-
-@external
-def transfer_ownership(_new_owner: address):
-    """
-    @dev Transfers the ownership of the contract
-         to a new account `new_owner`.
-    @notice Note that this function can only be
-            called by the current `owner`. Also,
-            the `new_owner` cannot be the zero address.
-    @param _new_owner The 20-byte address of the new owner.
-    """
-    ownable._check_owner()
-    assert _new_owner != empty(address), "ownable: new owner is the zero address"
-    ownable._transfer_ownership(_new_owner)
 
 
 @external
