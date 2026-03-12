@@ -100,6 +100,10 @@ def _deploy(deployer: str, dry_run: bool, report_path: Path) -> None:
         sender=deployer,
     )
 
+    leverage_zap = boa.load_partial(
+        "curve_stablecoin/zaps/LeverageZapLending.vy"
+    ).deploy(factory.address)
+
     chain_id = CHAIN_ID
     if hasattr(boa.env, "get_chain_id"):
         chain_id = boa.env.get_chain_id()
@@ -112,6 +116,7 @@ def _deploy(deployer: str, dry_run: bool, report_path: Path) -> None:
         "factory": factory.address,
         "monetary_policy": monetary_policy.address,
         "price_oracle": oracle.address,
+        "leverage_zap": leverage_zap.address,
         "vault": deployed[0],
         "controller": deployed[1],
         "amm": deployed[2],
@@ -140,6 +145,7 @@ def _deploy(deployer: str, dry_run: bool, report_path: Path) -> None:
     print("Vault:", deployed[0])
     print("Controller:", deployed[1])
     print("AMM:", deployed[2])
+    print("LeverageZap:", leverage_zap.address)
     print("Report:", report_path)
 
 

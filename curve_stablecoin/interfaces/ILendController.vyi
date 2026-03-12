@@ -25,12 +25,6 @@ def set_admin_percentage(_admin_percentage: uint256):
 
 
 @external
-@view
-def available_balance() -> uint256:
-    ...
-
-
-@external
 def on_borrowed_token_transfer_in(_amount: uint256):
     ...
 

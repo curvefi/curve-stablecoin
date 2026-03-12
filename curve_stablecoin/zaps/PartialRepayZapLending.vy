@@ -9,7 +9,6 @@
 """
 
 from curve_std.interfaces import IERC20
-from curve_stablecoin.interfaces import IAMM
 from curve_stablecoin.interfaces import IController
 from curve_stablecoin.interfaces import ILendFactory
 from curve_stablecoin import controller as ctrl
@@ -43,8 +42,8 @@ def __init__(
     HEALTH_THRESHOLD = _health_threshold
 
 
-@view
 @external
+@view
 def FACTORY() -> address:
     return _LEND_FACTORY.address
 

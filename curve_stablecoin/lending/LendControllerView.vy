@@ -80,10 +80,7 @@ def _borrow_cap() -> uint256:
 @internal
 @view
 def _available_balance() -> uint256:
-    ll_core: ILendController = ILendController(
-        core.CONTROLLER.address
-    )
-    return staticcall ll_core.available_balance()
+    return staticcall core.CONTROLLER.available_balance()
 
 
 @internal

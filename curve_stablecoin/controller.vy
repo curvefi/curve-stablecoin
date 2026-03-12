@@ -85,6 +85,7 @@ _monetary_policy: IMonetaryPolicy
 # https://github.com/vyperlang/vyper/issues/4721
 @external
 @view
+@reentrant
 def monetary_policy() -> IMonetaryPolicy:
     """
     @notice Address of the monetary policy
@@ -218,6 +219,12 @@ def minted() -> uint256:
 @view
 def redeemed() -> uint256:
     return self.repaid
+
+
+@external
+@view
+def available_balance() -> uint256:
+    return staticcall BORROWED_TOKEN.balanceOf(self)
 
 
 @internal
