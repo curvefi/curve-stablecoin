@@ -278,7 +278,13 @@ CHAIN_ID = "10"
 
 
 def _get_creation_txhash(api_key: str, address: str) -> str | None:
-    """Fetch the deployment transaction hash for a contract from Etherscan."""
+    """Fetch the deployment transaction hash for a contract from Etherscan.
+
+    Tries getcontractcreation first (works for directly deployed contracts),
+    then falls back to txlistinternal (works for contracts created by other contracts,
+    e.g. via create_from_blueprint).
+    """
+    # Method 1: getcontractcreation
     resp = requests.get(
         ETHERSCAN_API,
         params={
@@ -293,7 +299,35 @@ def _get_creation_txhash(api_key: str, address: str) -> str | None:
     resp.raise_for_status()
     data = resp.json()
     if data.get("status") == "1" and data.get("result"):
-        return data["result"][0].get("txHash")
+        txhash = data["result"][0].get("txHash")
+        if txhash:
+            return txhash
+
+    # Method 2: txlistinternal — finds the external tx that triggered the internal CREATE
+    resp = requests.get(
+        ETHERSCAN_API,
+        params={
+            "chainid": CHAIN_ID,
+            "apikey": api_key,
+            "module": "account",
+            "action": "txlistinternal",
+            "address": address,
+            "startblock": "0",
+            "endblock": "99999999",
+            "sort": "asc",
+            "page": "1",
+            "offset": "10",
+        },
+        timeout=30,
+    )
+    resp.raise_for_status()
+    data = resp.json()
+    if data.get("status") == "1" and data.get("result"):
+        for tx in data["result"]:
+            if tx.get("type") == "create" or tx.get("to", "").lower() == address.lower():
+                txhash = tx.get("hash")
+                if txhash:
+                    return txhash
     return None
 
 
