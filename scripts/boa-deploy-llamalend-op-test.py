@@ -57,32 +57,18 @@ class RetryRPC(EthereumRPC):
                 delay *= 1.5
 
 
-def _deploy(deployer: str, dry_run: bool, report_path: Path) -> None:
+def _deploy(deployer: str, dry_run: bool, report_path: Path, existing_path: Path) -> None:
     if dry_run:
         boa.env.eoa = deployer
         boa.env.set_balance(deployer, 10**30)
     else:
         boa.env.suppress_debug_tt()
 
-    amm_blueprint = boa.load_partial("curve_stablecoin/AMM.vy").deploy_as_blueprint()
-    controller_blueprint = boa.load_partial(
-        "curve_stablecoin/lending/LendController.vy"
-    ).deploy_as_blueprint()
-    vault_blueprint = boa.load_partial(
-        "curve_stablecoin/lending/Vault.vy"
-    ).deploy_as_blueprint()
-    controller_view_blueprint = boa.load_partial(
-        "curve_stablecoin/lending/LendControllerView.vy"
-    ).deploy_as_blueprint()
-
-    factory = boa.load_partial("curve_stablecoin/lending/LendFactory.vy").deploy(
-        amm_blueprint.address,
-        controller_blueprint.address,
-        vault_blueprint.address,
-        controller_view_blueprint.address,
-        deployer,
-        deployer,
+    existing = json.loads(existing_path.read_text())
+    factory = boa.load_partial("curve_stablecoin/lending/LendFactory.vy").at(
+        existing["factory"]
     )
+    print("Factory (existing):", factory.address)
 
     monetary_policy = boa.load_partial(
         "curve_stablecoin/mpolicies/SemilogMonetaryPolicy.vy"
@@ -144,7 +130,6 @@ def _deploy(deployer: str, dry_run: bool, report_path: Path) -> None:
     report_path.parent.mkdir(parents=True, exist_ok=True)
     report_path.write_text(json.dumps(report, indent=2) + "\n")
 
-    print("Factory:", factory.address)
     print("Monetary Policy:", monetary_policy.address)
     print("Price Oracle:", oracle.address)
     print("Vault:", deployed[0])
@@ -167,26 +152,32 @@ def main() -> None:
         default="deployments/llamalend-op-testing.jsonc",
         help="Where to write the deployment report",
     )
+    parser.add_argument(
+        "--existing-deployment",
+        default="deployments/llamalend-op-testing.jsonc",
+        help="Existing deployment JSON to read factory address from",
+    )
     args = parser.parse_args()
 
     if not args.rpc_url:
         raise SystemExit("Missing --rpc-url or OP_RPC_URL")
 
     report_path = Path(args.report_path)
+    existing_path = Path(args.existing_deployment)
 
     if args.dry_run:
         if not args.account:
             raise SystemExit("Missing --account or DEPLOYER_ACCOUNT for dry-run address")
         deployer = _load_account(args.account).address
         with boa.fork(args.rpc_url):
-            _deploy(deployer, dry_run=True, report_path=report_path)
+            _deploy(deployer, dry_run=True, report_path=report_path, existing_path=existing_path)
     else:
         if not args.account:
             raise SystemExit("Missing --account or DEPLOYER_ACCOUNT")
         acct = _load_account(args.account)
         with boa.set_env(NetworkEnv(RetryRPC(args.rpc_url))):
             boa.env.add_account(acct, force_eoa=True)
-            _deploy(acct.address, dry_run=False, report_path=report_path)
+            _deploy(acct.address, dry_run=False, report_path=report_path, existing_path=existing_path)
 
 
 if __name__ == "__main__":
