@@ -27,6 +27,19 @@ def expect_same(before, after, *fields):
         assert after[field] == before[field]
 
 
+def test_does_not_change_after_donation(controller, vault, borrowed_token, amounts):
+    boa.deal(borrowed_token, boa.env.eoa, 1)
+
+    before = snapshot(controller, vault)
+    borrowed_token.transfer(controller, 1)
+    after = snapshot(controller, vault)
+
+    assert after["available_balance"] == before["available_balance"]
+    assert borrowed_token.balanceOf(controller) == after["available_balance"] + 1
+
+    expect_same(before, after, "lent", "repaid", "collected")
+
+
 def test_increases_after_deposit(controller, vault, borrowed_token, amounts):
     boa.deal(borrowed_token, boa.env.eoa, amounts["deposit"])
     max_approve(borrowed_token, vault.address)

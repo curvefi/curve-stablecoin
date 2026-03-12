@@ -175,7 +175,7 @@ def asset() -> IERC20:
 @view
 def _total_assets() -> uint256:
     return (
-        staticcall ILendController(self._controller.address).available_balance()
+        staticcall self._controller.available_balance()
         + staticcall self._controller.total_debt()
         - staticcall self._controller.admin_fees()
     )
@@ -373,7 +373,8 @@ def maxWithdraw(_owner: address) -> uint256:
     """
     return min(
         self._convert_to_assets(self.balanceOf[_owner]),
-        staticcall ILendController(self._controller.address).available_balance())
+        staticcall self._controller.available_balance(),
+    )
 
 
 @external
@@ -422,8 +423,9 @@ def maxRedeem(_owner: address) -> uint256:
     @notice Calculate maximum amount of shares which a given user can redeem
     """
     return min(
-        self._convert_to_shares(staticcall ILendController(self._controller.address).available_balance(), False),
-        self.balanceOf[_owner])
+        self._convert_to_shares(staticcall self._controller.available_balance(), False),
+        self.balanceOf[_owner],
+    )
 
 
 @external

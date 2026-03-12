@@ -104,6 +104,12 @@ def monetary_policy() -> IMonetaryPolicy:
     ...
 
 
+@external
+@view
+def available_balance() -> uint256:
+    ...
+
+
 @view
 @external
 def max_borrowable(_d_collateral: uint256, _N: uint256, _user: address) -> uint256:
