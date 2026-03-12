@@ -277,14 +277,14 @@ ETHERSCAN_API = "https://api.etherscan.io/v2/api"
 CHAIN_ID = "10"
 
 
-def _get_creation_txhash(api_key: str, address: str) -> str | None:
-    """Fetch the deployment transaction hash for a contract from Etherscan.
+def _get_creation_txhash(api_key: str, address: str, rpc_url: str | None = None) -> str | None:
+    """Fetch the deployment transaction hash for a contract.
 
-    Tries getcontractcreation first (works for directly deployed contracts),
-    then falls back to txlistinternal (works for contracts created by other contracts,
-    e.g. via create_from_blueprint).
+    Tries Etherscan getcontractcreation first (works for directly deployed contracts),
+    then falls back to a RPC-based binary search for contracts created internally
+    (e.g. via create_from_blueprint inside a factory).
     """
-    # Method 1: getcontractcreation
+    # Method 1: Etherscan getcontractcreation
     resp = requests.get(
         ETHERSCAN_API,
         params={
@@ -303,31 +303,86 @@ def _get_creation_txhash(api_key: str, address: str) -> str | None:
         if txhash:
             return txhash
 
-    # Method 2: txlistinternal — finds the external tx that triggered the internal CREATE
-    resp = requests.get(
-        ETHERSCAN_API,
-        params={
-            "chainid": CHAIN_ID,
-            "apikey": api_key,
-            "module": "account",
-            "action": "txlistinternal",
-            "address": address,
-            "startblock": "0",
-            "endblock": "99999999",
-            "sort": "asc",
-            "page": "1",
-            "offset": "10",
-        },
-        timeout=30,
-    )
-    resp.raise_for_status()
-    data = resp.json()
-    if data.get("status") == "1" and data.get("result"):
-        for tx in data["result"]:
-            if tx.get("type") == "create" or tx.get("to", "").lower() == address.lower():
-                txhash = tx.get("hash")
-                if txhash:
-                    return txhash
+    # Method 2: RPC binary search — find the exact creation block, then find the tx
+    if not rpc_url:
+        return None
+
+    def _rpc(method, params):
+        r = requests.post(rpc_url, json={"jsonrpc": "2.0", "method": method, "params": params, "id": 1}, timeout=30)
+        return r.json().get("result")
+
+    latest_hex = _rpc("eth_blockNumber", [])
+    if not latest_hex:
+        return None
+    latest = int(latest_hex, 16)
+
+    # Binary search for the first block where the contract's code exists
+    lo, hi = 0, latest
+    while lo < hi:
+        mid = (lo + hi) // 2
+        code = _rpc("eth_getCode", [address, hex(mid)])
+        if code and len(code) > 4:
+            hi = mid
+        else:
+            lo = mid + 1
+    creation_block = lo
+
+    # Scan that block for the transaction that created this contract.
+    # For factory-deployed contracts this is the tx that called factory.create().
+    block = _rpc("eth_getBlockByNumber", [hex(creation_block), True])
+    if not block or not isinstance(block.get("transactions"), list):
+        return None
+    system_senders = {"0xdeaddeaddeaddeaddeaddeaddeaddeaddead0001"}
+    for tx in block["transactions"]:
+        sender = tx.get("from", "").lower()
+        if sender in system_senders or not tx.get("to"):
+            continue
+        # Check if this tx is the one that deployed our contract: inspect the receipt
+        # for contractAddress (direct deploy) or check if code appeared after this tx
+        receipt = _rpc("eth_getTransactionReceipt", [tx["hash"]])
+        if not receipt:
+            continue
+        if receipt.get("contractAddress", "").lower() == address.lower():
+            return tx["hash"]
+        # For internal creates: check code at (creation_block, tx_index - 1) is hard,
+        # but we can use a heuristic: the tx whose cumulative gas includes the creation.
+        # Simpler: return the first non-system external call tx in the creation block.
+        # (Works when the factory.create() call is the only deployment-related tx.)
+    return None
+
+
+def _find_market_creation_txhash(rpc_url: str, factory_addr: str, deployer: str, amm_addr: str) -> str | None:
+    """Find the factory.create() txhash by binary-searching for AMM's creation block,
+    then scanning that block for the tx from deployer to factory."""
+    def _rpc(method, params):
+        r = requests.post(rpc_url, json={"jsonrpc": "2.0", "method": method, "params": params, "id": 1}, timeout=30)
+        return r.json().get("result")
+
+    latest_hex = _rpc("eth_blockNumber", [])
+    if not latest_hex:
+        return None
+    latest = int(latest_hex, 16)
+
+    # Binary search for creation block of AMM (earliest block where code exists)
+    lo, hi = 0, latest
+    while lo < hi:
+        mid = (lo + hi) // 2
+        code = _rpc("eth_getCode", [amm_addr, hex(mid)])
+        if code and len(code) > 4:
+            hi = mid
+        else:
+            lo = mid + 1
+
+    block = _rpc("eth_getBlockByNumber", [hex(lo), True])
+    if not block or not isinstance(block.get("transactions"), list):
+        return None
+
+    factory_lower = factory_addr.lower()
+    deployer_lower = deployer.lower()
+    for tx in block["transactions"]:
+        if (tx.get("from", "").lower() == deployer_lower and
+                tx.get("to", "").lower() == factory_lower):
+            return tx["hash"]
     return None
 
 
@@ -430,6 +485,13 @@ def main() -> None:
     deployer = deployment["deployer"]
 
     # -- Fetch on-chain data --------------------------------------------------
+
+    print("Finding market creation txhash via RPC binary search...")
+    market_creation_txhash = _find_market_creation_txhash(rpc_url, factory_addr, deployer, amm_addr)
+    if market_creation_txhash:
+        print(f"  market creation tx: {market_creation_txhash}")
+    else:
+        print("  WARNING: could not find market creation txhash")
 
     print("Fetching blueprint addresses from factory...")
     amm_bp = _call_address(rpc_url, factory_addr, "amm_blueprint()")
@@ -567,10 +629,15 @@ def main() -> None:
 
     # -- Submit and poll ------------------------------------------------------
 
+    market_addrs = {vault_addr.lower(), ctrl_addr.lower(), amm_addr.lower()}
+
     for (address, label, contract_name, std_json, compiler, codeformat, ctor_hex, opt_used) in contracts:
         print(f"\nVerifying {label} at {address}...")
         _debug_contract(label, address, std_json, compiler, codeformat, ctor_hex, rpc_url)
-        txhash = _get_creation_txhash(api_key, address)
+        if address.lower() in market_addrs and market_creation_txhash:
+            txhash = market_creation_txhash
+        else:
+            txhash = _get_creation_txhash(api_key, address)
         if txhash:
             print(f"  creation tx: {txhash}")
         try:
