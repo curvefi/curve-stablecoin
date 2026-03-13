@@ -149,7 +149,7 @@ def main() -> None:
     )
     parser.add_argument(
         "--report-path",
-        default="deployments/llamalend-op-testing.jsonc",
+        default="deployments/llamalend-op-testing-fake-token.jsonc",
         help="Where to write the deployment report",
     )
     parser.add_argument(

@@ -62,7 +62,9 @@ def _module_to_path(pkg: str, name: str) -> Path | None:
 def _source_key(path: Path) -> str:
     # Sort by descending depth so more-specific roots (snekmate, curve_std) are
     # checked before the broad PROJECT_ROOT, which is an ancestor of all paths.
-    for root in sorted(PACKAGE_ROOTS.values(), key=lambda p: len(p.parts), reverse=True):
+    for root in sorted(
+        PACKAGE_ROOTS.values(), key=lambda p: len(p.parts), reverse=True
+    ):
         try:
             return str(path.relative_to(root))
         except ValueError:
@@ -120,7 +122,7 @@ def _patch_amm_init(content: str) -> str:
     )
 
 
-def _patch_controller_init(content: str) -> str:
+def _patch_controller_init(content: str, factory_addr: str) -> str:
     """Patch controller.vy __init__ to eliminate all external calls.
 
     Immutable values are hardcoded to their on-chain values so that Etherscan's
@@ -132,7 +134,7 @@ def _patch_controller_init(content: str) -> str:
     #    hardcode the known on-chain factory address directly.
     content = content.replace(
         "    FACTORY = IFactory(msg.sender)",
-        "    FACTORY = IFactory(0x6Bd732123271e762f094aff7b202f3E7f083FBBd)  # patched: hardcoded on-chain value",
+        f"    FACTORY = IFactory({factory_addr})  # patched: hardcoded on-chain value",
     )
     # 1. A = staticcall AMM.A()  →  A = 70  (on-chain confirmed)
     content = content.replace(
@@ -207,7 +209,9 @@ def _build_solidity_json(sol_path: Path) -> dict:
         "sources": {sol_path.name: {"content": sol_path.read_text()}},
         "settings": {
             "optimizer": {"enabled": False},
-            "outputSelection": {"*": {"*": ["abi", "evm.bytecode", "evm.deployedBytecode"]}},
+            "outputSelection": {
+                "*": {"*": ["abi", "evm.bytecode", "evm.deployedBytecode"]}
+            },
         },
     }
 
@@ -280,7 +284,9 @@ def _debug_contract(
     print(f"    settings: {std_json['settings']}")
     print(f"    compiler: {compiler_version}")
     print(f"    codeformat: {codeformat}")
-    print(f"    constructor_args ({len(constructor_args_hex)//2} bytes): {constructor_args_hex[:80]}{'...' if len(constructor_args_hex) > 80 else ''}")
+    print(
+        f"    constructor_args ({len(constructor_args_hex) // 2} bytes): {constructor_args_hex[:80]}{'...' if len(constructor_args_hex) > 80 else ''}"
+    )
 
     onchain = _eth_get_code(rpc_url, address)
     print(f"    on-chain bytecode length: {len(onchain)} bytes")
@@ -297,7 +303,9 @@ def _debug_contract(
     evm_ver = settings.get("evmVersion")
     optimize = settings.get("optimize")
 
-    main_key = next(k for k in std_json["sources"] if k.endswith(".vy") and not k.endswith(".vyi"))
+    main_key = next(
+        k for k in std_json["sources"] if k.endswith(".vy") and not k.endswith(".vyi")
+    )
 
     # FilesystemInputBundle searches all package roots for imports
     input_bundle = FilesystemInputBundle(list(PACKAGE_ROOTS.values()))
@@ -313,7 +321,9 @@ def _debug_contract(
         print(f"    local compiled runtime length: {len(local_runtime)} bytes")
 
         if local_runtime == onchain:
-            print("    ✓ BYTECODES MATCH — issue is constructor args or Etherscan settings")
+            print(
+                "    ✓ BYTECODES MATCH — issue is constructor args or Etherscan settings"
+            )
         else:
             # Find first differing byte
             min_len = min(len(local_runtime), len(onchain))
@@ -321,17 +331,25 @@ def _debug_contract(
                 (i for i in range(min_len) if local_runtime[i] != onchain[i]), min_len
             )
             print(f"    ✗ BYTECODES DIFFER at byte {first_diff} / {min_len}")
-            print(f"      local[{first_diff}:{first_diff+8}]:   {local_runtime[first_diff:first_diff+8].hex()}")
-            print(f"      onchain[{first_diff}:{first_diff+8}]: {onchain[first_diff:first_diff+8].hex()}")
+            print(
+                f"      local[{first_diff}:{first_diff + 8}]:   {local_runtime[first_diff : first_diff + 8].hex()}"
+            )
+            print(
+                f"      onchain[{first_diff}:{first_diff + 8}]: {onchain[first_diff : first_diff + 8].hex()}"
+            )
             if len(local_runtime) != len(onchain):
                 extra = len(onchain) - len(local_runtime)
-                print(f"      length mismatch: local={len(local_runtime)}, onchain={len(onchain)} (+{extra} bytes)")
+                print(
+                    f"      length mismatch: local={len(local_runtime)}, onchain={len(onchain)} (+{extra} bytes)"
+                )
                 if extra > 0 and extra % 32 == 0:
                     n_immutables = extra // 32
-                    print(f"      on-chain has {n_immutables} extra 32-byte slots (immutable data section):")
-                    tail = onchain[len(local_runtime):]
+                    print(
+                        f"      on-chain has {n_immutables} extra 32-byte slots (immutable data section):"
+                    )
+                    tail = onchain[len(local_runtime) :]
                     for i in range(n_immutables):
-                        slot = tail[i*32:(i+1)*32]
+                        slot = tail[i * 32 : (i + 1) * 32]
                         print(f"        [{i:2d}] {slot.hex()}")
 
     except Exception as e:
@@ -368,7 +386,9 @@ SOURCIFY_SERVER = "https://sourcify.dev/server"
 CHAIN_ID = "10"
 
 
-def _get_creation_txhash(api_key: str, address: str, rpc_url: str | None = None) -> str | None:
+def _get_creation_txhash(
+    api_key: str, address: str, rpc_url: str | None = None
+) -> str | None:
     """Fetch the deployment transaction hash for a contract.
 
     Tries Etherscan getcontractcreation first (works for directly deployed contracts),
@@ -399,7 +419,11 @@ def _get_creation_txhash(api_key: str, address: str, rpc_url: str | None = None)
         return None
 
     def _rpc(method, params):
-        r = requests.post(rpc_url, json={"jsonrpc": "2.0", "method": method, "params": params, "id": 1}, timeout=30)
+        r = requests.post(
+            rpc_url,
+            json={"jsonrpc": "2.0", "method": method, "params": params, "id": 1},
+            timeout=30,
+        )
         return r.json().get("result")
 
     latest_hex = _rpc("eth_blockNumber", [])
@@ -442,11 +466,18 @@ def _get_creation_txhash(api_key: str, address: str, rpc_url: str | None = None)
     return None
 
 
-def _find_market_creation_txhash(rpc_url: str, factory_addr: str, deployer: str, amm_addr: str) -> str | None:
+def _find_market_creation_txhash(
+    rpc_url: str, factory_addr: str, deployer: str, amm_addr: str
+) -> str | None:
     """Find the factory.create() txhash by binary-searching for AMM's creation block,
     then scanning that block for the tx from deployer to factory."""
+
     def _rpc(method, params):
-        r = requests.post(rpc_url, json={"jsonrpc": "2.0", "method": method, "params": params, "id": 1}, timeout=30)
+        r = requests.post(
+            rpc_url,
+            json={"jsonrpc": "2.0", "method": method, "params": params, "id": 1},
+            timeout=30,
+        )
         return r.json().get("result")
 
     latest_hex = _rpc("eth_blockNumber", [])
@@ -471,8 +502,10 @@ def _find_market_creation_txhash(rpc_url: str, factory_addr: str, deployer: str,
     factory_lower = factory_addr.lower()
     deployer_lower = deployer.lower()
     for tx in block["transactions"]:
-        if (tx.get("from", "").lower() == deployer_lower and
-                tx.get("to", "").lower() == factory_lower):
+        if (
+            tx.get("from", "").lower() == deployer_lower
+            and tx.get("to", "").lower() == factory_lower
+        ):
             return tx["hash"]
     return None
 
@@ -645,7 +678,9 @@ def main() -> None:
     # -- Fetch on-chain data --------------------------------------------------
 
     print("Finding market creation txhash via RPC binary search...")
-    market_creation_txhash = _find_market_creation_txhash(rpc_url, factory_addr, deployer, amm_addr)
+    market_creation_txhash = _find_market_creation_txhash(
+        rpc_url, factory_addr, deployer, amm_addr
+    )
     if market_creation_txhash:
         print(f"  market creation tx: {market_creation_txhash}")
     else:
@@ -676,7 +711,9 @@ def main() -> None:
 
     print("Fetching token decimals...")
     borrowed_decimals = _call_uint256(rpc_url, params["borrowed_token"], "decimals()")
-    collateral_decimals = _call_uint256(rpc_url, params["collateral_token"], "decimals()")
+    collateral_decimals = _call_uint256(
+        rpc_url, params["collateral_token"], "decimals()"
+    )
     borrowed_precision = 10 ** (18 - borrowed_decimals)
     collateral_precision = 10 ** (18 - collateral_decimals)
 
@@ -698,13 +735,45 @@ def main() -> None:
     # Patches for LendController: hardcode external-call values in controller.vy
     # __init__ and remove max_approve calls in LendController.vy __init__
     ctrl_patches = {
-        "curve_stablecoin/controller.vy": _patch_controller_init,
+        "curve_stablecoin/controller.vy": lambda c: _patch_controller_init(
+            c, factory_addr
+        ),
         "curve_stablecoin/lending/LendController.vy": _patch_lendcontroller_init,
     }
 
     contracts = [
         # (address, label, contract_name, std_json, compiler, codeformat, ctor_hex, opt_used)
         # LendFactory first for faster iteration while debugging
+        (
+            amm_bp,
+            "AMM Blueprint (Vyper 0.4.3)",
+            "curve_stablecoin/AMM.vy:AMM",
+            vy_json("curve_stablecoin/AMM.vy", patches=amm_patches),
+            "vyper:0.4.3",
+            "vyper-json",
+            "",
+            "1",
+        ),
+        (
+            ctrl_bp,
+            "LendController Blueprint (Vyper 0.4.3)",
+            "curve_stablecoin/lending/LendController.vy:LendController",
+            vy_json("curve_stablecoin/lending/LendController.vy", patches=ctrl_patches),
+            "vyper:0.4.3",
+            "vyper-json",
+            "",
+            "1",
+        ),
+        (
+            vault_bp,
+            "Vault Blueprint (Vyper 0.4.3)",
+            "curve_stablecoin/lending/Vault.vy:Vault",
+            vy_json("curve_stablecoin/lending/Vault.vy"),
+            "vyper:0.4.3",
+            "vyper-json",
+            "",
+            "1",
+        ),
         (
             factory_addr,
             "LendFactory (Vyper 0.4.3)",
@@ -736,12 +805,24 @@ def main() -> None:
             "vyper:0.4.3",
             "vyper-json",
             encode(
-                ["address", "address", "address", "address", "address", "uint256", "uint256", "address"],
                 [
-                    vault_addr, amm_addr,
-                    params["borrowed_token"], params["collateral_token"],
+                    "address",
+                    "address",
+                    "address",
+                    "address",
+                    "address",
+                    "uint256",
+                    "uint256",
+                    "address",
+                ],
+                [
+                    vault_addr,
+                    amm_addr,
+                    params["borrowed_token"],
+                    params["collateral_token"],
                     mp_addr,
-                    params["loan_discount"], params["liquidation_discount"],
+                    params["loan_discount"],
+                    params["liquidation_discount"],
                     ctrl_view_bp,
                 ],
             ).hex(),
@@ -756,15 +837,30 @@ def main() -> None:
             "vyper-json",
             encode(
                 [
-                    "address", "uint256", "address", "uint256",
-                    "uint256", "uint256", "int256",
-                    "uint256", "uint256", "uint256", "address",
+                    "address",
+                    "uint256",
+                    "address",
+                    "uint256",
+                    "uint256",
+                    "uint256",
+                    "int256",
+                    "uint256",
+                    "uint256",
+                    "uint256",
+                    "address",
                 ],
                 [
-                    params["borrowed_token"], borrowed_precision,
-                    params["collateral_token"], collateral_precision,
-                    params["A"], sqrt_band_ratio, log_A_ratio,
-                    base_price, params["fee"], 0, oracle_addr,
+                    params["borrowed_token"],
+                    borrowed_precision,
+                    params["collateral_token"],
+                    collateral_precision,
+                    params["A"],
+                    sqrt_band_ratio,
+                    log_A_ratio,
+                    base_price,
+                    params["fee"],
+                    0,
+                    oracle_addr,
                 ],
             ).hex(),
             "1",
@@ -773,7 +869,9 @@ def main() -> None:
             oracle_addr,
             "ChainlinkEMA (Solidity 0.8.25)",
             "ChainlinkEMA.sol:ChainlinkEMA",
-            _build_solidity_json(PROJECT_ROOT / "scripts" / "solidity" / "ChainlinkEMA.sol"),
+            _build_solidity_json(
+                PROJECT_ROOT / "scripts" / "solidity" / "ChainlinkEMA.sol"
+            ),
             "v0.8.25+commit.b61c2a91",
             "solidity-standard-json-input",
             encode(
@@ -791,7 +889,12 @@ def main() -> None:
             "vyper-json",
             encode(
                 ["address", "uint256", "uint256", "address"],
-                [params["borrowed_token"], params["min_rate"], params["max_rate"], factory_addr],
+                [
+                    params["borrowed_token"],
+                    params["min_rate"],
+                    params["max_rate"],
+                    factory_addr,
+                ],
             ).hex(),
             "1",
         ),
@@ -804,20 +907,33 @@ def main() -> None:
     # against the actual blueprint's init code — which would differ because we
     # patched the __init__ body.  Omitting txhash lets Etherscan compile and
     # simulate our init code without that blueprint comparison.
-    no_txhash_addrs = {ctrl_addr.lower(), amm_addr.lower()}
+    no_txhash_addrs = set()
 
     # Unpatched sources for Sourcify fallback — Sourcify partial matching only
     # compares runtime bytecode (evm.deployedBytecode) so the __init__ body is
     # irrelevant; use the real source so Sourcify shows the actual code.
     sourcify_sources: dict[str, dict[str, str]] = {
         amm_addr.lower(): collect_sources(PROJECT_ROOT / "curve_stablecoin/AMM.vy"),
-        ctrl_addr.lower(): collect_sources(PROJECT_ROOT / "curve_stablecoin/lending/LendController.vy"),
+        ctrl_addr.lower(): collect_sources(
+            PROJECT_ROOT / "curve_stablecoin/lending/LendController.vy"
+        ),
     }
 
-    for (address, label, contract_name, std_json, compiler, codeformat, ctor_hex, opt_used) in contracts:
+    for (
+        address,
+        label,
+        contract_name,
+        std_json,
+        compiler,
+        codeformat,
+        ctor_hex,
+        opt_used,
+    ) in contracts:
         print(f"\nVerifying {label} at {address}...")
-        _debug_contract(label, address, std_json, compiler, codeformat, ctor_hex, rpc_url)
-        if address.lower() in no_txhash_addrs:
+        _debug_contract(
+            label, address, std_json, compiler, codeformat, ctor_hex, rpc_url
+        )
+        if address.lower() in {ctrl_addr.lower(), amm_addr.lower()}:
             txhash = None  # don't compare init code against blueprint
         elif address.lower() == vault_addr.lower() and market_creation_txhash:
             txhash = market_creation_txhash
@@ -828,8 +944,14 @@ def main() -> None:
         verified = False
         try:
             guid = _submit(
-                api_key, address, contract_name, std_json,
-                ctor_hex, compiler, codeformat, opt_used,
+                api_key,
+                address,
+                contract_name,
+                std_json,
+                ctor_hex,
+                compiler,
+                codeformat,
+                opt_used,
                 txhash=txhash,
             )
             if guid == "already_verified":
@@ -864,7 +986,9 @@ def main() -> None:
                     main_key,
                 )
                 print(f"  Sourcify: {status} match!")
-                print(f"  https://repo.sourcify.dev/contracts/{status.capitalize()}Match/{CHAIN_ID}/{address}/")
+                print(
+                    f"  https://repo.sourcify.dev/contracts/{status.capitalize()}Match/{CHAIN_ID}/{address}/"
+                )
                 verified = True
             except RuntimeError as e2:
                 print(f"  Sourcify FAILED: {e2}")
