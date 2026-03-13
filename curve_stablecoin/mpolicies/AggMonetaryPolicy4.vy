@@ -87,6 +87,7 @@ struct DebtCandle:
     timestamp: uint256
 
 DEBT_CANDLE_TIME: constant(uint256) = 86400 // 2
+TOTAL_DEBT_KEY: constant(address) = empty(address)
 min_debt_candles: public(HashMap[address, DebtCandle])
 
 
@@ -250,7 +251,7 @@ def save_candle(_for: address, _value: uint256):
 @internal
 @view
 def read_debt(_for: address, ro: bool) -> (uint256, uint256):
-    debt_total: uint256 = self.read_candle(empty(address))
+    debt_total: uint256 = self.read_candle(TOTAL_DEBT_KEY)
     debt_for: uint256 = self.read_candle(_for)
     fresh_total: uint256 = 0
     fresh_for: uint256 = 0
@@ -338,6 +339,8 @@ def rate(_for: address = msg.sender) -> uint256:
 
 @external
 def rate_write(_for: address = msg.sender) -> uint256:
+    assert _for != TOTAL_DEBT_KEY  # dev: invalid controller
+
     # Update controller list
     n_controllers: uint256 = self.n_controllers
     n_factory_controllers: uint256 = staticcall CONTROLLER_FACTORY.n_collaterals()
@@ -353,7 +356,7 @@ def rate_write(_for: address = msg.sender) -> uint256:
     total_debt: uint256 = 0
     debt_for: uint256 = 0
     total_debt, debt_for = self.get_total_debt(_for)
-    self.save_candle(empty(address), total_debt)
+    self.save_candle(TOTAL_DEBT_KEY, total_debt)
     self.save_candle(_for, debt_for)
 
     rate: uint256 = 0
