@@ -691,9 +691,9 @@ def _update_user_liquidation_discount(_for: address, _approval: bool, _new_debt:
     else:
         liquidation_discount = self.liquidation_discounts[_for]
 
-    # Doesn't allow non-approved callers to end with unhealthy state, except unhealthy user liquidation case (new_debt == 0)
+    # Doesn't allow to end up with unhealthy state, except unhealthy user liquidation case (new_debt == 0)
     # full = False to make this condition non-manipulatable (and also cheaper on gas)
-    if not _approval and _new_debt > 0:
+    if _new_debt > 0:
         assert self._health(_for, _new_debt, False, liquidation_discount) > 0, "The action ends with unhealthy state"
 
     return liquidation_discount
