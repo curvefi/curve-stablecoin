@@ -2,7 +2,7 @@
 Test that NO_ARGUMENT detection works with old Vyper (<0.3.3) 2-coin pools.
 
 Old Vyper pools execute STOP (not REVERT) for unknown function selectors,
-returning success=True with empty returndata. Without the len(res) < 32 check,
+returning success=True with empty returndata. Without the len(res) == 0 check,
 these pools get misclassified as supporting price_oracle(uint256).
 
 Pool used: WETH/CVX (0xB576491F...), compiled with Vyper 0.3.1.
