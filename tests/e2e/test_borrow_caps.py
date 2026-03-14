@@ -37,7 +37,7 @@ def test_borrow_cap(controller, admin, collateral_token, borrowed_token, amounts
 
     # Borrow cap is zero at deployment; any loan should revert
     assert controller.borrow_cap() == 0
-    debt = 10**borrowed_token.decimals()
+    debt = 10 ** borrowed_token.decimals()
     with boa.reverts("Borrow cap exceeded"):
         controller.create_loan(amounts["collateral"], debt, N_BANDS)
 
