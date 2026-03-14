@@ -578,6 +578,24 @@ def execute_callback(
     return data
 
 
+@internal
+def _update_user_liquidation_discount(_for: address, _approval: bool, _new_debt: uint256) -> uint256:
+    # Update liquidation discount only if it's the same or approved user. No rugs
+    liquidation_discount: uint256 = 0
+    if _approval:
+        liquidation_discount = self.liquidation_discount
+        self.liquidation_discounts[_for] = liquidation_discount
+    else:
+        liquidation_discount = self.liquidation_discounts[_for]
+
+    # Doesn't allow to end up with unhealthy state, except unhealthy user liquidation case (new_debt == 0)
+    # full = False to make this condition non-manipulatable (and also cheaper on gas)
+    if _new_debt > 0:
+        assert self._health(_for, _new_debt, False, liquidation_discount) > 0, "The action ends with unhealthy state"
+
+    return liquidation_discount
+
+
 @external
 @view
 def create_loan_health_preview(
@@ -648,8 +666,6 @@ def create_loan(
 
     rate_mul: uint256 = staticcall AMM.get_rate_mul()
     self.loan[_for] = IController.Loan(initial_debt=_debt, rate_mul=rate_mul)
-    liquidation_discount: uint256 = self.liquidation_discount
-    self.liquidation_discounts[_for] = liquidation_discount
 
     n_loans: uint256 = self.n_loans
     self.loans[n_loans] = _for
@@ -667,6 +683,8 @@ def create_loan(
     self.lent += _debt
     self._save_rate()
 
+    liquidation_discount: uint256 = self._update_user_liquidation_discount(_for, True, _debt)
+
     log IController.UserState(
         user=_for,
         collateral=total_collateral,
@@ -679,24 +697,6 @@ def create_loan(
     log IController.Borrow(
         user=_for, collateral_increase=total_collateral, loan_increase=_debt
     )
-
-
-@internal
-def _update_user_liquidation_discount(_for: address, _approval: bool, _new_debt: uint256) -> uint256:
-    # Update liquidation discount only if it's the same or approved user. No rugs
-    liquidation_discount: uint256 = 0
-    if _approval:
-        liquidation_discount = self.liquidation_discount
-        self.liquidation_discounts[_for] = liquidation_discount
-    else:
-        liquidation_discount = self.liquidation_discounts[_for]
-
-    # Doesn't allow to end up with unhealthy state, except unhealthy user liquidation case (new_debt == 0)
-    # full = False to make this condition non-manipulatable (and also cheaper on gas)
-    if _new_debt > 0:
-        assert self._health(_for, _new_debt, False, liquidation_discount) > 0, "The action ends with unhealthy state"
-
-    return liquidation_discount
 
 
 @internal
