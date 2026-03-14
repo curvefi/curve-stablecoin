@@ -73,7 +73,9 @@ def test_set_admin_percentage_totalassets_discontinuity(
 
     # Confirm there are unsettled admin fees — this is the precondition for the bug
     pending_fees = controller.admin_fees()
-    assert pending_fees > 0, "Expected non-zero pending admin fees before percentage change"
+    assert pending_fees > 0, (
+        "Expected non-zero pending admin fees before percentage change"
+    )
 
     total_assets_before = vault.totalAssets()
 
