@@ -730,6 +730,8 @@ def withdraw(user: address, frac: uint256) -> uint256[2]:
         y: uint256 = self.bands_y[n]
         ds: uint256 = unsafe_div(frac * user_shares[i], 10**18)
         user_shares[i] = unsafe_sub(user_shares[i], ds)  # Can ONLY zero out when frac == 10**18
+        assert user_shares[i] >= MIN_SHARES_ALLOWED, "Amount left too low"
+
         s: uint256 = self.total_shares[n]
         new_shares: uint256 = s - ds
         self.total_shares[n] = new_shares

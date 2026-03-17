@@ -3,6 +3,19 @@ import boa
 from tests.utils.constants import DEAD_SHARES, MIN_SHARES_ALLOWED, MAX_UINT256
 
 
+def _ceil_div(x, y):
+    return (x + y - 1) // y
+
+
+def _find_frac_for_remaining(shares, remaining):
+    ds = shares - remaining
+    lower = _ceil_div(ds * 10**18, shares)
+    upper = ((ds + 1) * 10**18 - 1) // shares
+    if lower <= upper:
+        return lower
+    return None
+
+
 def test_min_shares(amm, collateral_token, admin, accounts):
     user = accounts[0]
     collateral_precision = 10 ** (18 - collateral_token.decimals())
@@ -40,6 +53,62 @@ def test_min_shares_fails(amm, collateral_token, admin, accounts):
                 amm.deposit_range(
                     user, collateral_per_band * 4, active_band - 4, active_band - 1
                 )
+
+
+def test_min_shares_withdraw(amm, collateral_token, admin, accounts):
+    user = accounts[0]
+    collateral_precision = 10 ** (18 - collateral_token.decimals())
+    collateral_amount = _ceil_div(
+        2 * MIN_SHARES_ALLOWED, collateral_precision * DEAD_SHARES
+    )
+    boa.deal(collateral_token, user, collateral_amount)
+
+    active_band = amm.active_band()
+    with boa.env.prank(admin):
+        amm.deposit_range(user, collateral_amount, active_band - 1, active_band - 1)
+
+        shares = amm.eval(f"self.user_shares[{user}].ticks[0]")
+        frac = None
+        for remaining in range(
+            MIN_SHARES_ALLOWED,
+            MIN_SHARES_ALLOWED + shares // 10**18 + 3,
+        ):
+            frac = _find_frac_for_remaining(shares, remaining)
+            if frac is not None:
+                break
+
+        assert frac is not None
+        amm.withdraw(user, frac)
+
+        assert amm.eval(f"self.user_shares[{user}].ticks[0]") >= MIN_SHARES_ALLOWED
+
+
+def test_min_shares_withdraw_fails(amm, collateral_token, admin, accounts):
+    user = accounts[0]
+    collateral_precision = 10 ** (18 - collateral_token.decimals())
+    collateral_amount = _ceil_div(
+        2 * MIN_SHARES_ALLOWED, collateral_precision * DEAD_SHARES
+    )
+    boa.deal(collateral_token, user, collateral_amount)
+
+    active_band = amm.active_band()
+    with boa.env.prank(admin):
+        amm.deposit_range(user, collateral_amount, active_band - 1, active_band - 1)
+
+        shares = amm.eval(f"self.user_shares[{user}].ticks[0]")
+        frac = None
+        for remaining in range(
+            MIN_SHARES_ALLOWED - 1,
+            MIN_SHARES_ALLOWED - (shares // 10**18 + 3),
+            -1,
+        ):
+            frac = _find_frac_for_remaining(shares, remaining)
+            if frac is not None:
+                break
+
+        assert frac is not None
+        with boa.reverts("Amount left too low"):
+            amm.withdraw(user, frac)
 
 
 def test_share_price(
