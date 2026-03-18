@@ -1,11 +1,47 @@
 import pytest
 import boa
-from boa import BoaError
 from hypothesis import given, settings
 from hypothesis import strategies as st
+from tests.utils.constants import MIN_SHARES_ALLOWED
 
 
 N = 5
+
+
+def _amount_left_too_low(amm, user, frac):
+    ns = amm.read_user_tick_numbers(user)
+    packed_shares = amm.user_shares(user).ticks
+    n_bands = ns[1] - ns[0] + 1
+    user_shares = []
+    for packed in packed_shares:
+        if len(user_shares) == n_bands:
+            break
+        user_shares.append(packed & (2**128 - 1))
+        if len(user_shares) == n_bands:
+            break
+        user_shares.append(packed >> 128)
+
+    for share in user_shares:
+        remaining = share - (frac * share) // 10**18
+        if remaining != 0 and remaining < MIN_SHARES_ALLOWED:
+            return True
+    return False
+
+
+def _liquidation_f_remove(controller, user, caller, frac):
+    debt = controller.debt(user)
+    debt = (debt * frac + 10**18 - 1) // 10**18
+    if debt == 0:
+        return 0
+
+    if controller.debt(user) == debt:
+        return 10**18
+
+    health_limit = 0
+    if user != caller and not controller.approval(user, caller):
+        health_limit = controller.liquidation_discounts(user)
+
+    return controller.eval(f"core._get_f_remove({frac}, {health_limit})")
 
 
 @pytest.fixture(scope="module")
@@ -147,12 +183,18 @@ def test_liquidate_callback(
         b = stablecoin.balanceOf(fee_receiver)
         stablecoin.transfer(fake_leverage.address, b)
         health_before = controller.health(user)
-
-        try:
+        min_x = int(0.999 * f * x / 1e18)
+        debt_frac = (controller.debt(user) * frac + 10**18 - 1) // 10**18
+        f_remove = _liquidation_f_remove(controller, user, fee_receiver, frac)
+        if debt_frac == 0:
+            with boa.reverts():
+                controller.liquidate(user, min_x, frac, fake_leverage.address, b"")
+        elif _amount_left_too_low(market_amm, user, f_remove):
+            with boa.reverts("Amount left too low"):
+                controller.liquidate(user, min_x, frac, fake_leverage.address, b"")
+        else:
             dy = collateral_token.balanceOf(fee_receiver)
-            controller.liquidate(
-                user, int(0.999 * f * x / 1e18), frac, fake_leverage.address, b""
-            )
+            controller.liquidate(user, min_x, frac, fake_leverage.address, b"")
             dy = collateral_token.balanceOf(fee_receiver) - dy
             dx = stablecoin.balanceOf(fee_receiver) - b
             if f > 0:
@@ -166,13 +208,6 @@ def test_liquidate_callback(
                 ), "Liquidator didn't make money"
             if f != 10**18 and f > 0:
                 assert controller.health(user) > health_before
-        except BoaError as e:
-            if frac == 0 and "Loan doesn't exist" in str(e):
-                pass
-            elif frac * controller.debt(user) // 10**18 == 0:
-                pass
-            else:
-                raise
 
 
 def test_self_liquidate(
@@ -220,6 +255,16 @@ def test_tokens_to_liquidate(
         initial_balance = stablecoin.balanceOf(fee_receiver)
 
         with boa.env.prank(fee_receiver):
+            debt_frac = (controller.debt(user) * frac + 10**18 - 1) // 10**18
+            f_remove = _liquidation_f_remove(controller, user, fee_receiver, frac)
+            if debt_frac == 0:
+                with boa.reverts():
+                    controller.liquidate(user, 0, frac)
+                return
+            if _amount_left_too_low(market_amm, user, f_remove):
+                with boa.reverts("Amount left too low"):
+                    controller.liquidate(user, 0, frac)
+                return
             controller.liquidate(user, 0, frac)
 
         balance = stablecoin.balanceOf(fee_receiver)
