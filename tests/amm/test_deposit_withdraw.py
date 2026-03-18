@@ -23,6 +23,7 @@ def test_deposit_withdraw(
         map(lambda x: x // 10 ** (18 - collateral_token.decimals()), amounts)
     )
     deposits = {}
+    deposit_shares = {}
     precisions = {}
     with boa.env.prank(admin):
         for user, amount, n1, dn in zip(accounts, amounts, ns, dns):
@@ -34,6 +35,7 @@ def test_deposit_withdraw(
 
             y_per_band = amount * 10 ** (18 - collateral_token.decimals()) // (dn + 1)
             amount_too_low = y_per_band <= 100
+            user_shares = []
             for n in range(n1, n2 + 1):
                 if amount_too_low:
                     break
@@ -41,6 +43,7 @@ def test_deposit_withdraw(
                 # Total / user share
                 s = amm.eval(f"self.total_shares[{n}]")
                 ds = ((s + DEAD_SHARES) * y_per_band) // (total_y + 1)
+                user_shares.append(ds)
                 amount_too_low = amount_too_low or ds < MIN_SHARES_ALLOWED
 
             if amount_too_low:
@@ -50,6 +53,7 @@ def test_deposit_withdraw(
                 amm.deposit_range(user, amount, n1, n2)
                 mint_for_testing(collateral_token, amm.address, amount)
                 deposits[user] = amount
+                deposit_shares[user] = user_shares
                 assert collateral_token.balanceOf(user) == 0
 
         for user, n1 in zip(accounts, ns):
@@ -67,14 +71,25 @@ def test_deposit_withdraw(
 
         for user, frac, amount in zip(accounts, fracs, amounts):
             if user in deposits:
-                before = amm.get_sum_xy(user)
-                amm.withdraw(user, frac)
-                after = amm.get_sum_xy(user)
-                assert before[1] - after[1] == pytest.approx(
-                    deposits[user] * frac / 1e18,
-                    rel=precisions[user],
-                    abs=25 + deposits[user] * precisions[user],
+                amount_left_too_low = any(
+                    (
+                        share - (frac * share) // 10**18 != 0
+                        and share - (frac * share) // 10**18 < MIN_SHARES_ALLOWED
+                    )
+                    for share in deposit_shares[user]
                 )
+                if amount_left_too_low:
+                    with boa.reverts("Amount left too low"):
+                        amm.withdraw(user, frac)
+                else:
+                    before = amm.get_sum_xy(user)
+                    amm.withdraw(user, frac)
+                    after = amm.get_sum_xy(user)
+                    assert before[1] - after[1] == pytest.approx(
+                        deposits[user] * frac / 1e18,
+                        rel=precisions[user],
+                        abs=25 + deposits[user] * precisions[user],
+                    )
             else:
                 with boa.reverts("No deposits"):
                     amm.withdraw(user, frac)
