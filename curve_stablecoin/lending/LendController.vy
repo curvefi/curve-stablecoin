@@ -183,6 +183,11 @@ def set_admin_percentage(_admin_percentage: uint256):
     """
     core._check_admin()
     assert _admin_percentage <= core.WAD # dev: admin percentage higher than 100%
+
+    # Settle admin fees before the new percentage is applied
+    rate_mul: uint256 = staticcall core.AMM.get_rate_mul()
+    core._update_total_debt(0, rate_mul, False)
+
     core.admin_percentage = _admin_percentage
     log ILendController.SetAdminPercentage(admin_percentage=_admin_percentage)
 
