@@ -4,7 +4,7 @@
 @license MIT
 @author Curve.Fi
 @notice Peg Keeper
-@dev Version 2
+@dev Version 2.1
 """
 
 interface Regulator:
@@ -14,7 +14,8 @@ interface Regulator:
     def fee_receiver() -> address: view
 
 interface CurvePool:
-    def balances(i_coin: uint256) -> uint256: view
+    def get_balances() -> DynArray[uint256, 8]: view
+    def stored_rates() -> DynArray[uint256, 8]: view
     def coins(i: uint256) -> address: view
     def get_virtual_price() -> uint256: view
     def balanceOf(arg0: address) -> uint256: view
@@ -60,6 +61,10 @@ event SetNewCallerShare:
 event SetNewRegulator:
     regulator: address
 
+struct BalanceDiff:
+    amount: uint256
+    deficit: bool
+
 
 # Time between providing/withdrawing coins
 action_delay: public(uint256)
@@ -72,7 +77,6 @@ I: immutable(uint256)  # index of pegged in pool
 PEGGED: immutable(ERC20)
 IS_INVERSE: public(immutable(bool))
 IS_NG: public(immutable(bool))  # Interface for CurveStableSwapNG
-PEG_MUL: immutable(uint256)
 
 regulator: public(Regulator)
 
@@ -116,8 +120,6 @@ def __init__(
         if coins[i] == pegged:
             I = i
             IS_INVERSE = (i == 0)
-        else:
-            PEG_MUL = 10 ** (18 - coins[i].decimals())
 
     IS_NG = raw_call(
         _pool.address, _abi_encode(convert(0, uint256), method_id=method_id("price_oracle(uint256)")),
@@ -125,7 +127,7 @@ def __init__(
     )
 
     self.admin = _admin
-    log ApplyNewAdmin(msg.sender)
+    log ApplyNewAdmin(_admin)
 
     self.regulator = _regulator
     log SetNewRegulator(_regulator.address)
@@ -288,6 +290,18 @@ def calc_profit() -> uint256:
     return self._calc_profit()
 
 
+@internal
+@view
+def _balance_diff() -> BalanceDiff:
+    balances: DynArray[uint256, 8] = POOL.get_balances()
+    rates: DynArray[uint256, 8] = POOL.stored_rates()
+    balances[1 - I] = unsafe_div(rates[1 - I] * balances[1 - I], PRECISION)
+    if balances[I] >= balances[1 - I]:
+        return BalanceDiff({amount: unsafe_sub(balances[I], balances[1 - I]), deficit: False})
+    else:
+        return BalanceDiff({amount: unsafe_sub(balances[1 - I], balances[I]) * PRECISION / rates[1 - I], deficit: True})
+
+
 @external
 @view
 def estimate_caller_profit() -> uint256:
@@ -299,17 +313,16 @@ def estimate_caller_profit() -> uint256:
     if self.last_change + self.action_delay > block.timestamp:
         return 0
 
-    balance_pegged: uint256 = POOL.balances(I)
-    balance_peg: uint256 = POOL.balances(1 - I) * PEG_MUL
+    diff: BalanceDiff = self._balance_diff()
 
     call_profit: uint256 = 0
-    if balance_peg > balance_pegged:
+    if diff.deficit:
         allowed: uint256 = self.regulator.provide_allowed()
-        call_profit = self._calc_call_profit(min((balance_peg - balance_pegged) / 5, allowed), True)  # this dumps stablecoin
+        call_profit = self._calc_call_profit(min(diff.amount / 5, allowed), True)  # this dumps stablecoin
 
     else:
         allowed: uint256 = self.regulator.withdraw_allowed()
-        call_profit = self._calc_call_profit(min((balance_pegged - balance_peg) / 5, allowed), False)  # this pumps stablecoin
+        call_profit = self._calc_call_profit(min(diff.amount / 5, allowed), False)  # this pumps stablecoin
 
     return call_profit * self.caller_share / SHARE_PRECISION
 
@@ -325,20 +338,19 @@ def update(_beneficiary: address = msg.sender) -> uint256:
     if self.last_change + self.action_delay > block.timestamp:
         return 0
 
-    balance_pegged: uint256 = POOL.balances(I)
-    balance_peg: uint256 = POOL.balances(1 - I) * PEG_MUL
+    diff: BalanceDiff = self._balance_diff()
 
     initial_profit: uint256 = self._calc_profit()
 
-    if balance_peg > balance_pegged:
+    if diff.deficit:
         allowed: uint256 = self.regulator.provide_allowed()
         assert allowed > 0, "Regulator ban"
-        self._provide(min(unsafe_sub(balance_peg, balance_pegged) / 5, allowed))  # this dumps stablecoin
+        self._provide(min(diff.amount / 5, allowed))  # this dumps stablecoin
 
     else:
         allowed: uint256 = self.regulator.withdraw_allowed()
         assert allowed > 0, "Regulator ban"
-        self._withdraw(min(unsafe_sub(balance_pegged, balance_peg) / 5, allowed))  # this pumps stablecoin
+        self._withdraw(min(diff.amount / 5, allowed))  # this pumps stablecoin
 
     # Send generated profit
     new_profit: uint256 = self._calc_profit()
