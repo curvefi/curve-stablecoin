@@ -391,13 +391,7 @@ def _debt(_user: address) -> (uint256, uint256):
     else:
         # Let user repay 1 smallest decimal more so that the system doesn't lose on precision
         # Use ceil div
-        debt: uint256 = loan.initial_debt * rate_mul
-        if debt % loan.rate_mul > 0:  # if only one loan -> don't have to do it
-            if self.n_loans > 1:
-                debt += unsafe_sub(loan.rate_mul, 1)
-        debt = unsafe_div(
-            debt, loan.rate_mul
-        )  # loan.rate_mul is nonzero because we just had % successful
+        debt: uint256 = crv_math.div_up(loan.initial_debt * rate_mul, loan.rate_mul)
         return (debt, rate_mul)
 
 
