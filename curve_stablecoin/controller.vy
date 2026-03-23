@@ -705,7 +705,6 @@ def _add_collateral_borrow(
     _d_debt: uint256,
     _for: address,
     _remove_collateral: bool,
-    _check_rounding: bool,
 ) -> uint256:
     """
     @notice Internal method to borrow and add or remove collateral
@@ -713,7 +712,6 @@ def _add_collateral_borrow(
     @param _d_debt Amount of debt increase
     @param _for Address to transfer tokens to
     @param _remove_collateral Remove collateral instead of adding
-    @param check_rounding Check that amount added is no less than the rounding error on the loan
     """
     debt: uint256 = 0
     rate_mul: uint256 = 0
@@ -727,15 +725,7 @@ def _add_collateral_borrow(
         xy[1] -= _d_collateral
     else:
         xy[1] += _d_collateral
-        if _check_rounding:
-            # We need d(x + p*y) > 1 wei. For that, we do an equivalent check (but with x2 for safety)
-            # This check is only needed when we add collateral for someone else, so gas is not an issue
-            # 2 * 10**(18 - borrow_decimals + collateral_decimals) =
-            # = 2 * 10**18 * 10**(18 - borrow_decimals) / 10**(18 - collateral_decimals)
-            assert (
-                _d_collateral * staticcall AMM.price_oracle()
-                > 2 * WAD * BORROWED_PRECISION // COLLATERAL_PRECISION
-            )
+
     ns: int256[2] = staticcall AMM.read_user_tick_numbers(_for)
     size: uint256 = convert(unsafe_add(unsafe_sub(ns[1], ns[0]), 1), uint256)
     n1: int256 = staticcall self._view.calculate_debt_n1(xy[1], debt, size, _for)
@@ -799,7 +789,8 @@ def add_collateral(_collateral: uint256, _for: address = msg.sender):
     """
     if _collateral == 0:
         return
-    self._add_collateral_borrow(_collateral, 0, _for, False, not self._check_approval(_for))
+    assert self._check_approval(_for)
+    self._add_collateral_borrow(_collateral, 0, _for, False)
     tkn.transfer_from(COLLATERAL_TOKEN, msg.sender, AMM.address, _collateral)
     self._save_rate()
 
@@ -833,7 +824,7 @@ def remove_collateral(_collateral: uint256, _for: address = msg.sender):
     if _collateral == 0:
         return
     assert self._check_approval(_for)
-    self._add_collateral_borrow(_collateral, 0, _for, True, False)
+    self._add_collateral_borrow(_collateral, 0, _for, True)
     tkn.transfer_from(COLLATERAL_TOKEN, AMM.address, _for, _collateral)
     self._save_rate()
 
@@ -895,7 +886,7 @@ def borrow_more(
         ).collateral
 
     rate_mul: uint256 = self._add_collateral_borrow(
-        _collateral + more_collateral, _debt, _for, False, False
+        _collateral + more_collateral, _debt, _for, False
     )
 
     tkn.transfer_from(COLLATERAL_TOKEN, msg.sender, AMM.address, _collateral)
