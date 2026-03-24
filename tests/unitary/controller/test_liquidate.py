@@ -1010,7 +1010,9 @@ def test_liquidate_full_from_xy0_underwater_exact(
     assert user_state_after[1] == 0  # no borrowed tokens in AMM
     assert user_state_after[2] == 0  # debt fully repaid
     assert user_state_after[3] == 0  # N == 0
-    assert controller.total_debt() == total_debt - debt
+    assert controller.total_debt() == pytest.approx(
+        total_debt - debt, abs=1
+    )  # debt(user) rounds up
     assert controller.eval("core.repaid") == repaid + debt
     assert controller.n_loans() == 0  # loan removed after full liquidation
 
