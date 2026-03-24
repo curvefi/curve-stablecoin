@@ -355,7 +355,9 @@ def test_default_behavior_full_supply_when_conversion_equals_total_assets(
     logs = filter_logs(vault, "Withdraw")
 
     assert assets_redeemed == total_assets
-    assert borrowed_token.balanceOf(admin) == initial_admin_token_balance + assets_redeemed
+    assert (
+        borrowed_token.balanceOf(admin) == initial_admin_token_balance + assets_redeemed
+    )
     assert vault.totalSupply() == 0
     assert vault.totalAssets() == 0
 
