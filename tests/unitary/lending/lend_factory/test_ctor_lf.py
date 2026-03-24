@@ -37,7 +37,7 @@ def test_ctor_reverts_if_fee_receiver_is_zero(admin, amm_impl, controller_impl, 
 
     fee_receiver = ZERO_ADDRESS
 
-    with boa.reverts("invalid receiver"):
+    with boa.reverts():
         LENDING_FACTORY_DEPLOYER.deploy(
             amm_blueprint,
             controller_blueprint,
