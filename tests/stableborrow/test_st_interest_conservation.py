@@ -86,6 +86,14 @@ class StatefulLendBorrow(RuleBasedStateMachine):
                     self.controller.create_loan(c_amount, amount, n)
                 return
 
+            try:
+                self.controller.create_loan(c_amount, amount, n, user)
+            except Exception as e:
+                if "Too deep" in str(e):
+                    with boa.reverts("Too deep"):
+                        self.controller.create_loan(c_amount, amount, n)
+                    return
+
             if (
                 c_amount * 10 ** (18 - self.collateral.decimals()) // n * DEAD_SHARES
                 < MIN_SHARES_ALLOWED
