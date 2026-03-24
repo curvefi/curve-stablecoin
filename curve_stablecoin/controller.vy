@@ -912,7 +912,6 @@ def _remove_from_list(_for: address):
 def _repay_full(
     _for: address,
     _debt: uint256,  # same as _d_debt in this case
-    _approval: bool,
     _xy: uint256[2],
     _cb: IController.CallbackData,
     _callbacker: address,
@@ -924,7 +923,6 @@ def _repay_full(
     non_wallet_d_debt: uint256 = _xy[0] + _cb.borrowed
     wallet_d_debt: uint256 = crv_math.sub_or_zero(_debt, non_wallet_d_debt)
     if _xy[0] > 0:  #  pull borrowed tokens from AMM (already soft liquidated)
-        assert _approval  # dev: need approval to spend borrower's xy[0]
         tkn.transfer_from(BORROWED_TOKEN, AMM.address, self, _xy[0])
     tkn.transfer_from(BORROWED_TOKEN, _callbacker, self, _cb.borrowed)
     tkn.transfer_from(BORROWED_TOKEN, msg.sender, self, wallet_d_debt)
@@ -952,14 +950,12 @@ def _repay_partial(
     _for: address,
     _debt: uint256,
     _wallet_d_debt: uint256,
-    _approval: bool,
     _xy: uint256[2],
     _cb: IController.CallbackData,
     _callbacker: address,
     _max_active_band: int256,
     _shrink: bool,
 ) -> uint256:
-    assert _approval or not _shrink, "Need approval to shrink"
     # slippage-like check to prevent dos on repay (grief attack)
     active_band: int256 = staticcall AMM.active_band_with_skip()
     new_collateral: uint256 = _xy[1]
@@ -1001,7 +997,7 @@ def _repay_partial(
         # But can avoid a bad liquidation just reducing debt amount.
         assert _callbacker == empty(address)
 
-    liquidation_discount: uint256 = self._update_user_liquidation_discount(_for, _approval, new_debt)
+    liquidation_discount: uint256 = self._update_user_liquidation_discount(_for, True, new_debt)
 
     # ================= Recover borrowed tokens (xy[0]) =================
     if _shrink:
@@ -1079,16 +1075,15 @@ def repay(
     @param _calldata Any data for callbacker
     @param _shrink Whether shrink soft-liquidated part of the position or not
     """
+    assert self._check_approval(_for)
     debt: uint256 = 0
     rate_mul: uint256 = 0
     debt, rate_mul = self._debt(_for)
     self._check_loan_exists(debt)
-    approval: bool = self._check_approval(_for)
     xy: uint256[2] = staticcall AMM.get_sum_xy(_for)
 
     cb: IController.CallbackData = empty(IController.CallbackData)
     if _callbacker != empty(address):
-        assert approval # dev: need approval for callback
         xy = extcall AMM.withdraw(_for, WAD)
         tkn.transfer_from(COLLATERAL_TOKEN, AMM.address, _callbacker, xy[1])
         cb = self.execute_callback(
@@ -1099,13 +1094,12 @@ def repay(
     assert d_debt > 0  # dev: no coins to repay
 
     if d_debt == debt:
-        self._repay_full(_for, d_debt, approval, xy, cb, _callbacker)
+        self._repay_full(_for, d_debt, xy, cb, _callbacker)
     else:
         d_debt = self._repay_partial(
             _for,
             debt,
             _wallet_d_debt,
-            approval,
             xy,
             cb,
             _callbacker,
