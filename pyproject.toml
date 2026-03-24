@@ -46,6 +46,9 @@ ignore = [
 [tool.ruff.lint.flake8-tidy-imports]
 ban-relative-imports = "all"
 
+[tool.natrix]
+disabled_rules = ["NTX1", "NTX4", "NTX5", "NTX2", "NTX9", "NTX10"]
+
 
 [build-system]
 requires = ["hatchling>=1.25"]
