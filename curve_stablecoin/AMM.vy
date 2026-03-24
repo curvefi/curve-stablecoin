@@ -43,7 +43,7 @@ from curve_stablecoin.interfaces import IPriceOracle
 from curve_stablecoin.interfaces import ILMGauge
 from curve_std.interfaces import IERC20
 
-from curve_std import math as crv_math
+from curve_std import math2 as crv_math
 
 from snekmate.utils import math
 

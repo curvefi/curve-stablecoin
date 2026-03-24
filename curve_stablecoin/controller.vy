@@ -15,7 +15,7 @@ implements: IController
 implements: IView
 
 from curve_std import token as tkn
-from curve_std import math as crv_math
+from curve_std import math2 as crv_math
 
 
 from snekmate.utils import math

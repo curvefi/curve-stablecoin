@@ -19,7 +19,7 @@ from curve_stablecoin.interfaces import IVault
 
 from curve_stablecoin import constants as c
 from curve_std import token as tkn
-from curve_std import math as crv_math
+from curve_std import math2 as crv_math
 
 implements: IERC20
 implements: IERC4626

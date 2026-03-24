@@ -15,7 +15,7 @@ from curve_stablecoin.interfaces import IController
 from curve_stablecoin.interfaces import ILendController
 from curve_stablecoin.interfaces import IAMM
 from curve_stablecoin.interfaces import IControllerView
-from curve_std import math as crv_math
+from curve_std import math2 as crv_math
 
 implements: IControllerView
 
