@@ -54,13 +54,19 @@ def test_low_decimals_do_not_accrue_interest(
     #    every 2 minutes in case it's the only borrower in the market.
     with boa.env.anchor():
         with boa.env.prank(user):
+            extra_debt = 0
+            boa.deal(borrowed_token, user, initial_debt + n_blocks // 100)
             max_approve(borrowed_token, controller.address)
             for i in range(n_blocks // 100):
                 boa.env.time_travel(12 * 100)
-                controller.repay(initial_debt)
+                assert controller.debt(user) == initial_debt + 1
+                controller.repay(initial_debt + 1)
+                extra_debt += 1
                 controller.create_loan(collateral_amount, initial_debt, 30)
 
         assert controller.debt(user) == initial_debt
+        assert extra_debt == n_blocks // 100
+        assert initial_debt + extra_debt > default_debt
 
     # 3. Debt is rounded up in case there are 2 borrowers in the market.
     #    Repay-and-Create trick only increases the debt.

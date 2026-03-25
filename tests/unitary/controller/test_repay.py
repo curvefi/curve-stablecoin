@@ -103,6 +103,11 @@ def test_full_repay_from_wallet(
 
     # ================= Execute full repayment =================
 
+    if different_payer:
+        # Repay reverts without approval
+        with boa.reverts():
+            controller.repay(MAX_UINT256, borrower, sender=payer)
+        controller.approve(payer, True, sender=borrower)
     controller.repay(MAX_UINT256, borrower, sender=payer)
 
     # ================= Capture final balances =================
@@ -842,7 +847,6 @@ def test_full_repay_from_xy0_and_wallet_and_callback(
 
 
 @pytest.mark.parametrize("different_payer", [True, False])
-@pytest.mark.parametrize("approval", [True, False])
 def test_partial_repay_from_wallet(
     controller,
     borrowed_token,
@@ -851,7 +855,6 @@ def test_partial_repay_from_wallet(
     snapshot,
     admin,
     different_payer,
-    approval,
 ):
     """
     Test partial repayment using wallet tokens.
@@ -889,17 +892,15 @@ def test_partial_repay_from_wallet(
 
     # ================= Calculate future health =================
 
-    # Approved caller triggers borrower's liquidation discount update which affects health
-    if different_payer and approval:
-        controller.approve(payer, True, sender=borrower)
-
     d_collateral = 0
     d_debt = wallet_borrowed
+    # Approval is required to use callback,
+    # so we do calculation assuming that approval is going to be given.
     preview_health = controller.repay_health_preview(
-        d_collateral, d_debt, borrower, payer, False, False
+        d_collateral, d_debt, borrower, borrower, False, False
     )
     preview_health_full = controller.repay_health_preview(
-        d_collateral, d_debt, borrower, payer, False, True
+        d_collateral, d_debt, borrower, borrower, False, True
     )
 
     # ================= Capture initial balances =================
@@ -909,6 +910,11 @@ def test_partial_repay_from_wallet(
 
     # ================= Execute partial repayment =================
 
+    if different_payer:
+        # Repay reverts without approval
+        with boa.reverts():
+            controller.repay(wallet_borrowed, borrower, sender=payer)
+        controller.approve(payer, True, sender=borrower)
     controller.repay(wallet_borrowed, borrower, sender=payer)
 
     # ================= Capture final balances =================
@@ -1222,7 +1228,6 @@ def test_partial_repay_from_wallet_and_callback(
 
 
 @pytest.mark.parametrize("different_payer", [True, False])
-@pytest.mark.parametrize("approval", [True, False])
 def test_partial_repay_from_wallet_underwater(
     controller,
     amm,
@@ -1232,7 +1237,6 @@ def test_partial_repay_from_wallet_underwater(
     snapshot,
     admin,
     different_payer,
-    approval,
 ):
     """
     Test partial repayment from wallet when position is underwater (soft-liquidated).
@@ -1282,17 +1286,15 @@ def test_partial_repay_from_wallet_underwater(
 
     # ================= Calculate future health =================
 
-    # Approved caller triggers borrower's liquidation discount update which affects health
-    if different_payer and approval:
-        controller.approve(payer, True, sender=borrower)
-
     d_collateral = 0
     d_debt = wallet_borrowed
+    # Approval is required to use callback,
+    # so we do calculation assuming that approval is going to be given.
     preview_health = controller.repay_health_preview(
-        d_collateral, d_debt, borrower, payer, False, False
+        d_collateral, d_debt, borrower, borrower, False, False
     )
     preview_health_full = controller.repay_health_preview(
-        d_collateral, d_debt, borrower, payer, False, True
+        d_collateral, d_debt, borrower, borrower, False, True
     )
 
     # ================= Capture initial balances =================
@@ -1302,6 +1304,11 @@ def test_partial_repay_from_wallet_underwater(
 
     # ================= Execute partial repayment =================
 
+    if different_payer:
+        # Repay reverts without approval
+        with boa.reverts():
+            controller.repay(wallet_borrowed, borrower, amm.active_band(), sender=payer)
+        controller.approve(payer, True, sender=borrower)
     controller.repay(wallet_borrowed, borrower, amm.active_band(), sender=payer)
 
     # ================= Capture final balances =================

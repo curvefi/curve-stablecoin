@@ -22,14 +22,13 @@ def expose_internal(controller):
             _for: address,
             _debt: uint256,
             _wallet_d_debt: uint256,
-            _approval: bool,
             _xy: uint256[2],
             _cb: core.IController.CallbackData,
             _callbacker: address,
             _max_active_band: int256,
             _shrink: bool
         ) -> uint256:
-            return core._repay_partial(_for, _debt, _wallet_d_debt, _approval, _xy, _cb, _callbacker, _max_active_band, _shrink)
+            return core._repay_partial(_for, _debt, _wallet_d_debt, _xy, _cb, _callbacker, _max_active_band, _shrink)
         """
         )
     )
@@ -106,27 +105,10 @@ def test_repay_partial_from_wallet(
 
     with boa.env.prank(payer):
         max_approve(borrowed_token, controller)
-        # _shrink == False, works both with and without approval
-        with boa.env.anchor():
-            controller.inject.repay_partial(
-                borrower,
-                debt,
-                wallet_borrowed,
-                False,
-                xy_before,
-                (0, 0, 0),
-                ZERO_ADDRESS,
-                2**255 - 1,
-                False,
-            )
-            assert (
-                controller.liquidation_discounts(borrower) == old_liquidation_discount
-            )
         controller.inject.repay_partial(
             borrower,
             debt,
             wallet_borrowed,
-            True,
             xy_before,
             (0, 0, 0),
             ZERO_ADDRESS,
@@ -263,27 +245,10 @@ def test_repay_partial_from_callback(
 
     with boa.env.prank(payer):
         max_approve(borrowed_token, controller)
-        # _shrink == False, works both with and without approval
-        with boa.env.anchor():
-            controller.inject.repay_partial(
-                borrower,
-                debt,
-                0,
-                False,
-                xy_before,
-                cb,
-                fake_leverage.address,
-                2**255 - 1,
-                False,
-            )
-            assert (
-                controller.liquidation_discounts(borrower) == old_liquidation_discount
-            )
         controller.inject.repay_partial(
             borrower,
             debt,
             0,
-            True,
             xy_before,
             cb,
             fake_leverage.address,
@@ -432,27 +397,10 @@ def test_repay_partial_from_wallet_and_callback(
 
     with boa.env.prank(payer):
         max_approve(borrowed_token, controller)
-        # _shrink == False, works both with and without approval
-        with boa.env.anchor():
-            controller.inject.repay_partial(
-                borrower,
-                debt,
-                wallet_borrowed,
-                False,
-                xy_before,
-                cb,
-                fake_leverage.address,
-                2**255 - 1,
-                False,
-            )
-            assert (
-                controller.liquidation_discounts(borrower) == old_liquidation_discount
-            )
         controller.inject.repay_partial(
             borrower,
             debt,
             wallet_borrowed,
-            True,
             xy_before,
             cb,
             fake_leverage.address,
@@ -610,34 +558,16 @@ def test_repay_partial_from_wallet_underwater(
                 borrower,
                 debt,
                 wallet_borrowed,
-                False,
                 xy_before,
                 (0, 0, 0),
                 fake_leverage,
                 2**255 - 1,
                 False,
             )
-        # _shrink == False, works both with and without approval
-        with boa.env.anchor():
-            controller.inject.repay_partial(
-                borrower,
-                debt,
-                wallet_borrowed,
-                False,
-                xy_before,
-                (0, 0, 0),
-                ZERO_ADDRESS,
-                2**255 - 1,
-                False,
-            )
-            assert (
-                controller.liquidation_discounts(borrower) == old_liquidation_discount
-            )
         controller.inject.repay_partial(
             borrower,
             debt,
             wallet_borrowed,
-            True,
             xy_before,
             (0, 0, 0),
             ZERO_ADDRESS,
@@ -788,27 +718,10 @@ def test_repay_partial_from_xy0_underwater_shrink(
     # ================= Execute partial repayment =================
 
     with boa.env.prank(payer):
-        # _shrink == True, reverts without approval
-        with boa.reverts():
-            controller.inject.repay_partial(
-                borrower,
-                debt,
-                0,
-                False,
-                xy_before,
-                (0, 0, 0),
-                ZERO_ADDRESS,
-                2**255 - 1,
-                True,
-            )
-            assert (
-                controller.liquidation_discounts(borrower) == old_liquidation_discount
-            )
         controller.inject.repay_partial(
             borrower,
             debt,
             0,
-            True,
             xy_before,
             (0, 0, 0),
             ZERO_ADDRESS,
@@ -974,27 +887,10 @@ def test_repay_partial_from_xy0_and_wallet_underwater_shrink(
 
     with boa.env.prank(payer):
         max_approve(borrowed_token, controller)
-        # _shrink == True, reverts without approval
-        with boa.reverts():
-            controller.inject.repay_partial(
-                borrower,
-                debt,
-                tokens_to_shrink,
-                False,
-                xy_before,
-                (0, 0, 0),
-                ZERO_ADDRESS,
-                2**255 - 1,
-                True,
-            )
-            assert (
-                controller.liquidation_discounts(borrower) == old_liquidation_discount
-            )
         controller.inject.repay_partial(
             borrower,
             debt,
             tokens_to_shrink,
-            True,
             xy_before,
             (0, 0, 0),
             ZERO_ADDRESS,
@@ -1168,27 +1064,10 @@ def test_repay_partial_from_xy0_and_callback_underwater_shrink(
     # ================= Execute partial repayment =================
 
     with boa.env.prank(payer):
-        # _shrink == True, reverts without approval
-        with boa.reverts():
-            controller.inject.repay_partial(
-                borrower,
-                debt,
-                0,
-                False,
-                xy_before,
-                cb,
-                fake_leverage.address,
-                2**255 - 1,
-                True,
-            )
-            assert (
-                controller.liquidation_discounts(borrower) == old_liquidation_discount
-            )
         controller.inject.repay_partial(
             borrower,
             debt,
             0,
-            True,
             xy_before,
             cb,
             fake_leverage.address,
@@ -1373,27 +1252,10 @@ def test_repay_partial_from_xy0_and_wallet_and_callback_underwater_shrink(
 
     with boa.env.prank(payer):
         max_approve(borrowed_token, controller)
-        # _shrink == True, reverts without approval
-        with boa.reverts():
-            controller.inject.repay_partial(
-                borrower,
-                debt,
-                wallet_borrowed,
-                False,
-                xy_before,
-                cb,
-                fake_leverage.address,
-                2**255 - 1,
-                True,
-            )
-            assert (
-                controller.liquidation_discounts(borrower) == old_liquidation_discount
-            )
         controller.inject.repay_partial(
             borrower,
             debt,
             wallet_borrowed,
-            True,
             xy_before,
             cb,
             fake_leverage.address,
@@ -1556,7 +1418,6 @@ def test_repay_partial_cannot_shrink(
                 borrower,
                 debt,
                 0,
-                True,
                 xy_before,
                 (0, 0, 0),
                 ZERO_ADDRESS,
