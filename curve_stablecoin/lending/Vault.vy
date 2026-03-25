@@ -19,7 +19,7 @@ from curve_stablecoin.interfaces import IVault
 
 from curve_stablecoin import constants as c
 from curve_std import token as tkn
-from curve_std import math as crv_math
+from snekmate.utils import math
 
 implements: IERC20
 implements: IERC4626
@@ -87,10 +87,6 @@ totalSupply: public(uint256)
 
 precision: uint256
 
-# Only needed for initialize
-interface IERC20Symbol:
-    def symbol() -> String[32]: view
-
 @external
 def initialize(
         _amm: IAMM,
@@ -117,7 +113,7 @@ def initialize(
 
     # ERC20 set up
     self.precision = borrowed_precision
-    borrowed_symbol: String[32] = staticcall IERC20Symbol(_borrowed_token.address).symbol()
+    borrowed_symbol: String[32] = staticcall _borrowed_token.symbol()
     self.name = concat(NAME_PREFIX, borrowed_symbol)
     # Symbol must be String[32], but we do String[34]. It doesn't affect contracts which read it (they will truncate)
     # However this will be changed as soon as Vyper can *properly* manipulate strings
@@ -204,7 +200,7 @@ def _convert_to_shares(_assets: uint256, _is_floor: bool = True,
     if _is_floor:
         return numerator // denominator
     else:
-        return crv_math.div_up(numerator, denominator)
+        return math._ceil_div(numerator, denominator)
 
 
 @internal
@@ -220,7 +216,7 @@ def _convert_to_assets(_shares: uint256, _is_floor: bool = True,
     if _is_floor:
         return numerator // denominator
     else:
-        return crv_math.div_up(numerator, denominator)
+        return math._ceil_div(numerator, denominator)
 
 
 @external
@@ -243,7 +239,7 @@ def pricePerShare(_is_floor: bool = True) -> uint256:
         if _is_floor:
             pps = numerator // denominator
         else:
-            pps = crv_math.div_up(numerator, denominator)
+            pps = math._ceil_div(numerator, denominator)
         assert pps > 0
         return pps
 

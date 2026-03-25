@@ -15,7 +15,7 @@ implements: IController
 implements: IView
 
 from curve_std import token as tkn
-from curve_std import math as crv_math
+from curve_std import crv_math
 
 
 from snekmate.utils import math
@@ -391,7 +391,7 @@ def _debt(_user: address) -> (uint256, uint256):
     else:
         # Let user repay 1 smallest decimal more so that the system doesn't lose on precision
         # Use ceil div
-        debt: uint256 = crv_math.div_up(loan.initial_debt * rate_mul, loan.rate_mul)
+        debt: uint256 = math._ceil_div(loan.initial_debt * rate_mul, loan.rate_mul)
         return (debt, rate_mul)
 
 
