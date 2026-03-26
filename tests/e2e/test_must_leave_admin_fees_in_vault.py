@@ -117,7 +117,10 @@ def test_min_total_assets_large_uncollected_fees_pump_pps(
     max_redeem = vault.maxRedeem(lender)
     max_withdraw = vault.maxWithdraw(lender)
     max_borrowable = controller.max_borrowable(collateral, MIN_TICKS, borrower)
-    assert vault.convertToAssets(max_redeem) == controller.available_balance() - controller.admin_fees()
+    assert (
+        vault.convertToAssets(max_redeem)
+        == controller.available_balance() - controller.admin_fees()
+    )
     assert max_withdraw == controller.available_balance() - controller.admin_fees()
     # Lender redeems max_redeem → available_balance shrinks to admin_fees().
     # stored_admin_fees are untouched; collect_fees() now succeeds.
