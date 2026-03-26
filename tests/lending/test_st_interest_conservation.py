@@ -137,6 +137,8 @@ class StatefulLendBorrow(RuleBasedStateMachine):
                     < 1e-3
                 ):
                     pass
+                elif ("The action ends with unhealthy state" in str(e)):
+                    assert self.controller.create_loan_health_preview(c_amount, amount, n, user, False) < 0
                 else:
                     if (
                         c_amount * self.collateral_precision // n
@@ -329,4 +331,41 @@ def test_borrow_not_reverting(
     state.debt_payable()
     state.sum_of_debts()
     state.borrow_more(amount=1, c_amount=11229318108390940992, user_id=0)
+    state.teardown()
+
+
+def test_borrow_temp(
+    vault,
+    amm,
+    controller,
+    monetary_policy,
+    collateral_token,
+    borrowed_token,
+    accounts,
+    admin,
+):
+    for k, v in locals().items():
+        setattr(StatefulLendBorrow, k, v)
+    state = StatefulLendBorrow()
+    state.debt_payable()
+    state.sum_of_debts()
+    state.add_collateral(c_amount=62, user_id=8)
+    state.debt_payable()
+    state.sum_of_debts()
+    state.add_collateral(c_amount=845_098_865_669_182_773, user_id=3)
+    state.debt_payable()
+    state.sum_of_debts()
+    state.add_collateral(c_amount=13919, user_id=1)
+    state.debt_payable()
+    state.sum_of_debts()
+    state.create_loan(amount=4, c_amount=0, n=5, user_id=0)
+    state.debt_payable()
+    state.sum_of_debts()
+    state.add_collateral(c_amount=2, user_id=0)
+    state.debt_payable()
+    state.sum_of_debts()
+    state.add_collateral(c_amount=9, user_id=0)
+    state.debt_payable()
+    state.sum_of_debts()
+    state.create_loan(amount=5, c_amount=5, n=5, user_id=0)
     state.teardown()
