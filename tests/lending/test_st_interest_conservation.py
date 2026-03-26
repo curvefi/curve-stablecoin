@@ -137,8 +137,13 @@ class StatefulLendBorrow(RuleBasedStateMachine):
                     < 1e-3
                 ):
                     pass
-                elif ("The action ends with unhealthy state" in str(e)):
-                    assert self.controller.create_loan_health_preview(c_amount, amount, n, user, False) < 0
+                elif "The action ends with unhealthy state" in str(e):
+                    assert (
+                        self.controller.create_loan_health_preview(
+                            c_amount, amount, n, user, False
+                        )
+                        < 0
+                    )
                 else:
                     if (
                         c_amount * self.collateral_precision // n
