@@ -454,8 +454,7 @@ def redeem(_shares: uint256, _receiver: address = msg.sender, _owner: address = 
 
     total_assets: uint256 = self._total_assets()
     assets_to_redeem: uint256 = self._convert_to_assets(_shares, True, total_assets)
-    assert assets_to_redeem <= total_assets, "Redeem exceeds total assets"
-    assert assets_to_redeem == total_assets or total_assets - assets_to_redeem >= MIN_ASSETS, "Need more assets"
+    assert total_assets - assets_to_redeem >= MIN_ASSETS or total_assets == assets_to_redeem, "Need more assets"
     self._burn(_owner, _shares)
     controller: IController = self._controller
 
