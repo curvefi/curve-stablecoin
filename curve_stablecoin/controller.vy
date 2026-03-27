@@ -960,7 +960,7 @@ def _repay_partial(
     active_band: int256 = staticcall AMM.active_band_with_skip()
     new_collateral: uint256 = _xy[1]
     if _callbacker != empty(address):
-        assert _cb.collateral <= _xy[1]
+        assert _cb.collateral <= _xy[1], "Collateral can't increase during repay"
         active_band = _cb.active_band
         new_collateral = _cb.collateral
     assert active_band <= _max_active_band
