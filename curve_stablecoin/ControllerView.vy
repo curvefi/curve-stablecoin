@@ -404,18 +404,17 @@ def liquidate_health_preview(
     debt = debt * (WAD - _frac) // WAD
     health: int256 = self._calc_health(x_eff, debt, ld)
 
-    if health > 0 and ns[0] > active_band:
+    if _full and ns[0] > active_band:
         xy: uint256[2] = staticcall AMM.get_sum_xy(_user)
         collateral: uint256 = xy[1] * (WAD - f_remove) // WAD
         p0: uint256 = staticcall AMM.p_oracle_up(ns[0])
+        p_diff: uint256 = crv_math.sub_or_zero(staticcall AMM.price_oracle(), p0)
 
-        if _full:
-            p_diff: uint256 = crv_math.sub_or_zero(staticcall AMM.price_oracle(), p0)
-            if p_diff > 0:
-                health += unsafe_div(
-                    convert(p_diff, int256) * convert(collateral * COLLATERAL_PRECISION, int256),
-                    convert(debt * BORROWED_PRECISION, int256)
-                )
+        if p_diff > 0:
+            health += unsafe_div(
+                convert(p_diff, int256) * convert(collateral * COLLATERAL_PRECISION, int256),
+                convert(debt * BORROWED_PRECISION, int256)
+            )
 
     return health
 
