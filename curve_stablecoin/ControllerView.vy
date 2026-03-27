@@ -341,6 +341,7 @@ def repay_health_preview(
     active_band: int256 = staticcall AMM.active_band_with_skip()
 
     assert debt > 0, "debt == 0"
+    assert _d_debt > 0, "_d_debt == 0"
     assert debt > _d_debt, "Repay amount is too high"
     debt = unsafe_sub(debt, _d_debt)
 
