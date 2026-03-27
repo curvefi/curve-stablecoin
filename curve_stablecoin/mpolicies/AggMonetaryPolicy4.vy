@@ -308,9 +308,10 @@ def calculate_rate(_for: address, _price: uint256, ro: bool) -> (uint256, uint25
 
     # Account for individual debt ceiling to dynamically tune rate depending on filling the market
     ceiling: uint256 = staticcall CONTROLLER_FACTORY.debt_ceiling(_for)
+    f: uint256 = 10**18 - TARGET_REMAINDER // 1000
     if ceiling > 0:
-        f: uint256 = min(debt_for * 10**18 // ceiling, 10**18 - TARGET_REMAINDER // 1000)
-        rate = min(rate * ((10**18 - TARGET_REMAINDER) + TARGET_REMAINDER * 10**18 // (10**18 - f)) // 10**18, MAX_RATE)
+        f = min(f, debt_for * 10**18 // ceiling)
+    rate = min(rate * ((10**18 - TARGET_REMAINDER) + TARGET_REMAINDER * 10**18 // (10**18 - f)) // 10**18, MAX_RATE)
 
     # Rate multiplication at different ceilings (target = 0.1):
     # debt = 0:
