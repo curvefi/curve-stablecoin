@@ -330,15 +330,13 @@ def repay_health_preview(
     active_band: int256 = staticcall AMM.active_band_with_skip()
 
     assert debt > 0, "Loan doesn't exist"
-    assert _d_debt > 0, "No coins to repay"
-    assert debt > _d_debt, "Repay amount is too high"
-    debt = unsafe_sub(debt, _d_debt)
-
-    xy: uint256[2] = staticcall AMM.get_sum_xy(_for)
-    assert debt > xy[0], "Repay amount is too high"
 
     if ns[0] > active_band or _shrink:  # re-deposit
-        debt = unsafe_sub(debt, xy[0])
+        xy: uint256[2] = staticcall AMM.get_sum_xy(_for)
+        d_debt: uint256 = _d_debt + xy[0]
+        assert d_debt > 0, "No coins to repay"
+        assert debt > d_debt, "Repay amount is too high"
+        debt = unsafe_sub(debt, d_debt)
 
         collateral: uint256 = xy[1]
         assert collateral > _d_collateral, "Can't remove more collateral than user has"
@@ -352,6 +350,9 @@ def repay_health_preview(
 
         return self._calc_full_health(collateral, debt, N, n1, self._liquidation_discount(), _full)
     else:
+        assert _d_debt > 0, "No coins to repay"
+        assert debt > _d_debt, "Repay amount is too high"
+        debt = unsafe_sub(debt, _d_debt)
         x_eff: uint256 = staticcall AMM.get_x_down(_for)
 
         return self._calc_health(x_eff, debt, self._liquidation_discount())
