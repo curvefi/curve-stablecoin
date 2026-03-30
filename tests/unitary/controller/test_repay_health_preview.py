@@ -5,9 +5,7 @@ from tests.utils import max_approve
 N_BANDS = 6
 
 
-def test_repay_health_preview_zero_d_debt(
-    controller, collateral_token, borrowed_token
-):
+def test_repay_health_preview_zero_d_debt(controller, collateral_token, borrowed_token):
     """
     Test that repay_health_preview reverts when _d_debt is 0.
     """
