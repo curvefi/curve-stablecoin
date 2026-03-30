@@ -380,6 +380,7 @@ def liquidate_health_preview(
     if approval:
         ld = self._liquidation_discount()
     else:
+        assert staticcall CONTROLLER.health(_user, True) < 0, "Not enough rekt"
         ld = self._liquidation_discounts(_user)
         health_limit = ld
     f_remove: uint256 = core._get_f_remove(_frac, health_limit)
