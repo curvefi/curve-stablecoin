@@ -243,7 +243,6 @@ def _add_collateral_borrow_health_preview(
         _debt: uint256,
         _for: address,
         _full: bool,
-        _update_ld: bool,
         _remove: bool,
 ) -> int256:
     """
@@ -267,13 +266,7 @@ def _add_collateral_borrow_health_preview(
 
     n1: int256 = self._calculate_debt_n1(collateral, debt, N, _for)
 
-    ld: uint256 = 0
-    if _update_ld:
-        ld = self._liquidation_discount()
-    else:
-        ld = self._liquidation_discounts(_for)
-
-    return self._calc_full_health(collateral, debt, N, n1, ld, _full)
+    return self._calc_full_health(collateral, debt, N, n1, self._liquidation_discount(), _full)
 
 
 @external
@@ -281,15 +274,12 @@ def _add_collateral_borrow_health_preview(
 def add_collateral_health_preview(
     _collateral: uint256,
     _for: address,
-    _caller: address,
     _full: bool,
 ) -> int256:
     """
     @notice Natspec for this function is available in its controller contract
     """
-    return self._add_collateral_borrow_health_preview(
-        _collateral, 0, _for, _full, self._check_approval(_for, _caller), False
-    )
+    return self._add_collateral_borrow_health_preview(_collateral, 0, _for, _full, False)
 
 
 @external
@@ -303,7 +293,7 @@ def remove_collateral_health_preview(
     @notice Natspec for this function is available in its controller contract
     """
     return self._add_collateral_borrow_health_preview(
-        _collateral, 0, _for, _full, True, True
+        _collateral, 0, _for, _full, True
     )
 
 
@@ -319,7 +309,7 @@ def borrow_more_health_preview(
     @notice Natspec for this function is available in its controller contract
     """
     return self._add_collateral_borrow_health_preview(
-        _collateral, _debt, _for, _full, True, False
+        _collateral, _debt, _for, _full, False
     )
 
 
@@ -329,7 +319,6 @@ def repay_health_preview(
     _d_collateral: uint256,
     _d_debt: uint256,
     _for: address,
-    _caller: address,
     _shrink: bool,
     _full: bool,
 ) -> int256:
@@ -344,12 +333,6 @@ def repay_health_preview(
     assert _d_debt > 0, "No coins to repay"
     assert debt > _d_debt, "Repay amount is too high"
     debt = unsafe_sub(debt, _d_debt)
-
-    ld: uint256 = 0
-    if self._check_approval(_for, _caller):
-        ld = self._liquidation_discount()
-    else:
-        ld = self._liquidation_discounts(_for)
 
     xy: uint256[2] = staticcall AMM.get_sum_xy(_for)
     assert debt > xy[0], "Repay amount is too high"
@@ -367,11 +350,11 @@ def repay_health_preview(
         N: uint256 = convert(unsafe_add(unsafe_sub(ns[1], max(ns[0], active_band + 1)), 1), uint256)
         n1: int256 = self._calculate_debt_n1(collateral, debt, N, _for)
 
-        return self._calc_full_health(collateral, debt, N, n1, ld, _full)
+        return self._calc_full_health(collateral, debt, N, n1, self._liquidation_discount(), _full)
     else:
         x_eff: uint256 = staticcall AMM.get_x_down(_for)
 
-        return self._calc_health(x_eff, debt, ld)
+        return self._calc_health(x_eff, debt, self._liquidation_discount())
 
 
 @external

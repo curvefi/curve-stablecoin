@@ -274,7 +274,7 @@ def create_loan_health_preview(collateral: uint256, debt: uint256, N: uint256, _
 
 @view
 @external
-def add_collateral_health_preview(collateral: uint256, _for: address, _caller: address, full: bool) -> int256:
+def add_collateral_health_preview(collateral: uint256, _for: address, full: bool) -> int256:
     ...
 
 
@@ -292,7 +292,7 @@ def borrow_more_health_preview(collateral: uint256, debt: uint256, _for: address
 
 @view
 @external
-def repay_health_preview(d_collateral: uint256, d_debt: uint256, _for: address, _caller: address, shrink: bool, full: bool) -> int256:
+def repay_health_preview(d_collateral: uint256, d_debt: uint256, _for: address, shrink: bool, full: bool) -> int256:
     ...
 
 

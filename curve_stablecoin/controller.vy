@@ -757,21 +757,16 @@ def _add_collateral_borrow(
 def add_collateral_health_preview(
     _collateral: uint256,
     _for: address,
-    _caller: address,
     _full: bool,
 ) -> int256:
     """
     @notice Calculates health after calling add_collateral with the same args
     @param _collateral Amount of collateral to add
-    @param _for Address to add collateral for
-    @param _caller Address from which add_collateral tx is going to be sent.
-           Depending on this address liquidation_discount will be changed or not.
+    @param _for The user to add collateral for
     @param _full Whether it's a 'full' health or not
     @return Signed health value
     """
-    return staticcall self._view.add_collateral_health_preview(
-        _collateral, _for, _caller, _full
-    )
+    return staticcall self._view.add_collateral_health_preview(_collateral, _for, _full)
 
 
 @external
@@ -1034,7 +1029,6 @@ def repay_health_preview(
     _d_collateral: uint256,
     _d_debt: uint256,
     _for: address,
-    _caller: address,
     _shrink: bool,
     _full: bool,
 ) -> int256:
@@ -1044,15 +1038,13 @@ def repay_health_preview(
     @param _d_collateral Amount of collateral to remove (goes to callback)
     @param _d_debt The amount of debt to repay (from wallet + callback).
            Note: the borrowed amount coming from the callback should be included.
-    @param _for Address to borrow for
-    @param _caller Address from which repay tx is going to be sent.
-           Depending on this address liquidation_discount will be changed or not.
+    @param _for The user to repay the debt for
     @param _shrink Whether shrink soft-liquidated part of the position or not
     @param _full Whether it's a 'full' health or not
     @return Signed health value
     """
     return staticcall self._view.repay_health_preview(
-        _d_collateral, _d_debt, _for, _caller, _shrink, _full
+        _d_collateral, _d_debt, _for, _shrink, _full
     )
 
 
