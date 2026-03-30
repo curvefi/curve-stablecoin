@@ -17,4 +17,4 @@ def test_repay_health_preview_zero_d_debt(controller, collateral_token, borrowed
     controller.create_loan(collateral_amount, 10 ** borrowed_token.decimals(), N_BANDS)
 
     with boa.reverts("No coins to repay"):
-        controller.repay_health_preview(0, 0, borrower, borrower, False, False)
+        controller.repay_health_preview(0, 0, borrower, False, False)
