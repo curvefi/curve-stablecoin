@@ -728,7 +728,7 @@ def _add_collateral_borrow(
     extcall AMM.deposit_range(_for, xy[1], n1, n2)
     self.loan[_for] = IController.Loan(initial_debt=debt, rate_mul=rate_mul)
 
-    liquidation_discount: uint256 = self._update_user_liquidation_discount(_for, self._check_approval(_for), debt)
+    liquidation_discount: uint256 = self._update_user_liquidation_discount(_for, True, debt)
 
     if _remove_collateral:
         log IController.RemoveCollateral(
