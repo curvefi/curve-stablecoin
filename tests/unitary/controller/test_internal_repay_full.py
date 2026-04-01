@@ -21,12 +21,11 @@ def expose_internal(controller):
         def repay_full(
             _for: address,
             _d_debt: uint256,
-            _approval: bool,
             _xy: uint256[2],
             _cb: core.IController.CallbackData,
             _callbacker: address
         ):
-            core._repay_full(_for, _d_debt, _approval, _xy, _cb, _callbacker)
+            core._repay_full(_for, _d_debt, _xy, _cb, _callbacker)
         """
         )
     )
@@ -93,14 +92,7 @@ def test_repay_full_from_wallet(
 
     with boa.env.prank(payer):
         max_approve(borrowed_token, controller)
-        # xy[0] == 0, works both with and without approval
-        with boa.env.anchor():
-            controller.inject.repay_full(
-                borrower, debt, False, xy_before, (0, 0, 0), ZERO_ADDRESS
-            )
-        controller.inject.repay_full(
-            borrower, debt, True, xy_before, (0, 0, 0), ZERO_ADDRESS
-        )
+        controller.inject.repay_full(borrower, debt, xy_before, (0, 0, 0), ZERO_ADDRESS)
 
     # ================= Capture logs =================
 
@@ -216,14 +208,8 @@ def test_repay_full_from_callback(
     # ================= Execute full repayment =================
 
     with boa.env.prank(payer):
-        # xy[0] == 0, works both with and without approval.
-        # In practice, it can't be called without approval since repay with callback requires it.
-        with boa.env.anchor():
-            controller.inject.repay_full(
-                borrower, debt, False, xy_before, cb, fake_leverage.address
-            )
         controller.inject.repay_full(
-            borrower, debt, True, xy_before, cb, fake_leverage.address
+            borrower, debt, xy_before, cb, fake_leverage.address
         )
 
     # ================= Capture logs =================
@@ -348,13 +334,7 @@ def test_repay_full_from_xy0(
     # ================= Execute full repayment =================
 
     with boa.env.prank(payer):
-        with boa.reverts():
-            controller.inject.repay_full(
-                borrower, debt, False, xy_before, (0, 0, 0), ZERO_ADDRESS
-            )
-        controller.inject.repay_full(
-            borrower, debt, True, xy_before, (0, 0, 0), ZERO_ADDRESS
-        )
+        controller.inject.repay_full(borrower, debt, xy_before, (0, 0, 0), ZERO_ADDRESS)
 
     # ================= Capture logs =================
 
@@ -478,14 +458,8 @@ def test_repay_full_from_wallet_and_callback(
 
     with boa.env.prank(payer):
         max_approve(borrowed_token, controller)
-        # xy[0] == 0, works both with and without approval.
-        # In practice, it can't be called without approval since repay with callback requires it.
-        with boa.env.anchor():
-            controller.inject.repay_full(
-                borrower, debt, False, xy_before, cb, fake_leverage.address
-            )
         controller.inject.repay_full(
-            borrower, debt, True, xy_before, cb, fake_leverage.address
+            borrower, debt, xy_before, cb, fake_leverage.address
         )
 
     # ================= Capture logs =================
@@ -613,13 +587,7 @@ def test_repay_full_from_xy0_and_wallet(
 
     with boa.env.prank(payer):
         max_approve(borrowed_token, controller)
-        with boa.reverts():
-            controller.inject.repay_full(
-                borrower, debt, False, xy_before, (0, 0, 0), ZERO_ADDRESS
-            )
-        controller.inject.repay_full(
-            borrower, debt, True, xy_before, (0, 0, 0), ZERO_ADDRESS
-        )
+        controller.inject.repay_full(borrower, debt, xy_before, (0, 0, 0), ZERO_ADDRESS)
 
     # ================= Capture logs =================
 
@@ -746,12 +714,8 @@ def test_repay_full_from_xy0_and_callback(
     # ================= Execute full repayment =================
 
     with boa.env.prank(payer):
-        with boa.reverts():
-            controller.inject.repay_full(
-                borrower, debt, False, xy_before, cb, fake_leverage.address
-            )
         controller.inject.repay_full(
-            borrower, debt, True, xy_before, cb, fake_leverage.address
+            borrower, debt, xy_before, cb, fake_leverage.address
         )
 
     # ================= Capture logs =================
@@ -891,12 +855,8 @@ def test_repay_full_from_wallet_and_xy0_and_callback(
 
     with boa.env.prank(payer):
         max_approve(borrowed_token, controller)
-        with boa.reverts():
-            controller.inject.repay_full(
-                borrower, debt, False, xy_before, cb, fake_leverage.address
-            )
         controller.inject.repay_full(
-            borrower, debt, True, xy_before, cb, fake_leverage.address
+            borrower, debt, xy_before, cb, fake_leverage.address
         )
 
     # ================= Capture logs =================

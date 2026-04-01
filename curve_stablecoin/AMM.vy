@@ -567,8 +567,8 @@ def can_skip_bands(n_end: int256) -> bool:
                 return False
             n = unsafe_sub(n, 1)
         if n == n_end:  # not including n_end
-            break
-    return True
+            return True
+    raise "Too deep"
     # Actually skipping bands:
     # * change self.active_band to the new n
     # * change self.p_base_mul

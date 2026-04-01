@@ -213,9 +213,8 @@ def test_repay_user_collateral_and_user_borrowed(
     price_oracle,
 ):
     """
-    user_collateral + user_borrowed: user provides more collateral than the swap needs,
+    user_collateral + user_borrowed: user provides collateral for the swap,
     so state collateral is untouched. User also provides borrowed tokens for direct repayment.
-    Excess user collateral is returned to the position.
     Checks state, Repay event fields, and zero zap balances after.
     """
     borrower = open_position()
@@ -224,9 +223,8 @@ def test_repay_user_collateral_and_user_borrowed(
 
     state0 = controller.user_state(borrower)
     extra_collateral = 10**cd // 2
-    collateral_to_swap = extra_collateral // 2  # only half used in swap
     price = price_oracle.price()
-    borrowed_out = borrowed_from_collateral(collateral_to_swap, price, bd, cd)
+    borrowed_out = borrowed_from_collateral(extra_collateral, price, bd, cd)
     user_borrowed = 200 * 10**bd
 
     calldata = make_repay_calldata(
@@ -237,7 +235,7 @@ def test_repay_user_collateral_and_user_borrowed(
         dummy_router,
         collateral_token,
         borrowed_token,
-        collateral_to_swap,
+        extra_collateral,
         borrowed_out,
     )
 
@@ -248,7 +246,7 @@ def test_repay_user_collateral_and_user_borrowed(
     assert controller.loan_exists(borrower)
     state1 = controller.user_state(borrower)
     # excess user collateral (extra_collateral - collateral_to_swap) flows back into position
-    assert state1[0] == state0[0] + extra_collateral - collateral_to_swap
+    assert state1[0] == state0[0]
     assert state1[2] == state0[2] - borrowed_out - user_borrowed
 
     assert len(logs) == 1
@@ -257,7 +255,7 @@ def test_repay_user_collateral_and_user_borrowed(
     assert log.state_collateral_used == 0
     assert log.borrowed_from_state_collateral == 0
     assert log.user_collateral == extra_collateral
-    assert log.user_collateral_used == collateral_to_swap
+    assert log.user_collateral_used == extra_collateral
     assert log.borrowed_from_user_collateral == borrowed_out
     assert log.user_borrowed == user_borrowed
 

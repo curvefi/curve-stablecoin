@@ -391,13 +391,7 @@ def _debt(_user: address) -> (uint256, uint256):
     else:
         # Let user repay 1 smallest decimal more so that the system doesn't lose on precision
         # Use ceil div
-        debt: uint256 = loan.initial_debt * rate_mul
-        if debt % loan.rate_mul > 0:  # if only one loan -> don't have to do it
-            if self.n_loans > 1:
-                debt += unsafe_sub(loan.rate_mul, 1)
-        debt = unsafe_div(
-            debt, loan.rate_mul
-        )  # loan.rate_mul is nonzero because we just had % successful
+        debt: uint256 = crv_math.div_up(loan.initial_debt * rate_mul, loan.rate_mul)
         return (debt, rate_mul)
 
 
@@ -578,6 +572,24 @@ def execute_callback(
     return data
 
 
+@internal
+def _update_user_liquidation_discount(_for: address, _approval: bool, _new_debt: uint256) -> uint256:
+    # Update liquidation discount only if it's the same or approved user. No rugs
+    liquidation_discount: uint256 = 0
+    if _approval:
+        liquidation_discount = self.liquidation_discount
+        self.liquidation_discounts[_for] = liquidation_discount
+    else:
+        liquidation_discount = self.liquidation_discounts[_for]
+
+    # Doesn't allow to end up with unhealthy state, except unhealthy user liquidation case (new_debt == 0)
+    # full = False to make this condition non-manipulatable (and also cheaper on gas)
+    if _new_debt > 0:
+        assert self._health(_for, _new_debt, False, liquidation_discount) >= 0, "The action ends with unhealthy state"
+
+    return liquidation_discount
+
+
 @external
 @view
 def create_loan_health_preview(
@@ -648,8 +660,6 @@ def create_loan(
 
     rate_mul: uint256 = staticcall AMM.get_rate_mul()
     self.loan[_for] = IController.Loan(initial_debt=_debt, rate_mul=rate_mul)
-    liquidation_discount: uint256 = self.liquidation_discount
-    self.liquidation_discounts[_for] = liquidation_discount
 
     n_loans: uint256 = self.n_loans
     self.loans[n_loans] = _for
@@ -667,6 +677,8 @@ def create_loan(
     self.lent += _debt
     self._save_rate()
 
+    liquidation_discount: uint256 = self._update_user_liquidation_discount(_for, True, _debt)
+
     log IController.UserState(
         user=_for,
         collateral=total_collateral,
@@ -682,30 +694,11 @@ def create_loan(
 
 
 @internal
-def _update_user_liquidation_discount(_for: address, _approval: bool, _new_debt: uint256) -> uint256:
-    # Update liquidation discount only if it's the same or approved user. No rugs
-    liquidation_discount: uint256 = 0
-    if _approval:
-        liquidation_discount = self.liquidation_discount
-        self.liquidation_discounts[_for] = liquidation_discount
-    else:
-        liquidation_discount = self.liquidation_discounts[_for]
-
-    # Doesn't allow non-approved callers to end with unhealthy state, except unhealthy user liquidation case (new_debt == 0)
-    # full = False to make this condition non-manipulatable (and also cheaper on gas)
-    if not _approval and _new_debt > 0:
-        assert self._health(_for, _new_debt, False, liquidation_discount) > 0, "The action ends with unhealthy state"
-
-    return liquidation_discount
-
-
-@internal
 def _add_collateral_borrow(
     _d_collateral: uint256,
     _d_debt: uint256,
     _for: address,
     _remove_collateral: bool,
-    _check_rounding: bool,
 ) -> uint256:
     """
     @notice Internal method to borrow and add or remove collateral
@@ -713,7 +706,6 @@ def _add_collateral_borrow(
     @param _d_debt Amount of debt increase
     @param _for Address to transfer tokens to
     @param _remove_collateral Remove collateral instead of adding
-    @param check_rounding Check that amount added is no less than the rounding error on the loan
     """
     debt: uint256 = 0
     rate_mul: uint256 = 0
@@ -727,15 +719,7 @@ def _add_collateral_borrow(
         xy[1] -= _d_collateral
     else:
         xy[1] += _d_collateral
-        if _check_rounding:
-            # We need d(x + p*y) > 1 wei. For that, we do an equivalent check (but with x2 for safety)
-            # This check is only needed when we add collateral for someone else, so gas is not an issue
-            # 2 * 10**(18 - borrow_decimals + collateral_decimals) =
-            # = 2 * 10**18 * 10**(18 - borrow_decimals) / 10**(18 - collateral_decimals)
-            assert (
-                _d_collateral * staticcall AMM.price_oracle()
-                > 2 * WAD * BORROWED_PRECISION // COLLATERAL_PRECISION
-            )
+
     ns: int256[2] = staticcall AMM.read_user_tick_numbers(_for)
     size: uint256 = convert(unsafe_add(unsafe_sub(ns[1], ns[0]), 1), uint256)
     n1: int256 = staticcall self._view.calculate_debt_n1(xy[1], debt, size, _for)
@@ -799,7 +783,8 @@ def add_collateral(_collateral: uint256, _for: address = msg.sender):
     """
     if _collateral == 0:
         return
-    self._add_collateral_borrow(_collateral, 0, _for, False, not self._check_approval(_for))
+    assert self._check_approval(_for)
+    self._add_collateral_borrow(_collateral, 0, _for, False)
     tkn.transfer_from(COLLATERAL_TOKEN, msg.sender, AMM.address, _collateral)
     self._save_rate()
 
@@ -833,7 +818,7 @@ def remove_collateral(_collateral: uint256, _for: address = msg.sender):
     if _collateral == 0:
         return
     assert self._check_approval(_for)
-    self._add_collateral_borrow(_collateral, 0, _for, True, False)
+    self._add_collateral_borrow(_collateral, 0, _for, True)
     tkn.transfer_from(COLLATERAL_TOKEN, AMM.address, _for, _collateral)
     self._save_rate()
 
@@ -895,7 +880,7 @@ def borrow_more(
         ).collateral
 
     rate_mul: uint256 = self._add_collateral_borrow(
-        _collateral + more_collateral, _debt, _for, False, False
+        _collateral + more_collateral, _debt, _for, False
     )
 
     tkn.transfer_from(COLLATERAL_TOKEN, msg.sender, AMM.address, _collateral)
@@ -927,7 +912,6 @@ def _remove_from_list(_for: address):
 def _repay_full(
     _for: address,
     _debt: uint256,  # same as _d_debt in this case
-    _approval: bool,
     _xy: uint256[2],
     _cb: IController.CallbackData,
     _callbacker: address,
@@ -939,7 +923,6 @@ def _repay_full(
     non_wallet_d_debt: uint256 = _xy[0] + _cb.borrowed
     wallet_d_debt: uint256 = crv_math.sub_or_zero(_debt, non_wallet_d_debt)
     if _xy[0] > 0:  #  pull borrowed tokens from AMM (already soft liquidated)
-        assert _approval  # dev: need approval to spend borrower's xy[0]
         tkn.transfer_from(BORROWED_TOKEN, AMM.address, self, _xy[0])
     tkn.transfer_from(BORROWED_TOKEN, _callbacker, self, _cb.borrowed)
     tkn.transfer_from(BORROWED_TOKEN, msg.sender, self, wallet_d_debt)
@@ -967,18 +950,17 @@ def _repay_partial(
     _for: address,
     _debt: uint256,
     _wallet_d_debt: uint256,
-    _approval: bool,
     _xy: uint256[2],
     _cb: IController.CallbackData,
     _callbacker: address,
     _max_active_band: int256,
     _shrink: bool,
 ) -> uint256:
-    assert _approval or not _shrink, "Need approval to shrink"
     # slippage-like check to prevent dos on repay (grief attack)
     active_band: int256 = staticcall AMM.active_band_with_skip()
     new_collateral: uint256 = _xy[1]
     if _callbacker != empty(address):
+        assert _cb.collateral <= _xy[1], "Collateral can't increase during repay"
         active_band = _cb.active_band
         new_collateral = _cb.collateral
     assert active_band <= _max_active_band
@@ -997,7 +979,10 @@ def _repay_partial(
         if _callbacker == empty(address):
             _xy = extcall AMM.withdraw(_for, WAD)
             new_collateral = _xy[1]
-        new_debt -= _xy[0]
+        if _shrink:
+            new_debt -= _xy[0]
+        else:
+            assert _xy[0] == 0
         new_borrowed = 0
 
         ns[0] = staticcall self._view.calculate_debt_n1(
@@ -1013,7 +998,7 @@ def _repay_partial(
         # But can avoid a bad liquidation just reducing debt amount.
         assert _callbacker == empty(address)
 
-    liquidation_discount: uint256 = self._update_user_liquidation_discount(_for, _approval, new_debt)
+    liquidation_discount: uint256 = self._update_user_liquidation_discount(_for, True, new_debt)
 
     # ================= Recover borrowed tokens (xy[0]) =================
     if _shrink:
@@ -1091,16 +1076,15 @@ def repay(
     @param _calldata Any data for callbacker
     @param _shrink Whether shrink soft-liquidated part of the position or not
     """
+    assert self._check_approval(_for)
     debt: uint256 = 0
     rate_mul: uint256 = 0
     debt, rate_mul = self._debt(_for)
     self._check_loan_exists(debt)
-    approval: bool = self._check_approval(_for)
     xy: uint256[2] = staticcall AMM.get_sum_xy(_for)
 
     cb: IController.CallbackData = empty(IController.CallbackData)
     if _callbacker != empty(address):
-        assert approval # dev: need approval for callback
         xy = extcall AMM.withdraw(_for, WAD)
         tkn.transfer_from(COLLATERAL_TOKEN, AMM.address, _callbacker, xy[1])
         cb = self.execute_callback(
@@ -1111,13 +1095,12 @@ def repay(
     assert d_debt > 0  # dev: no coins to repay
 
     if d_debt == debt:
-        self._repay_full(_for, d_debt, approval, xy, cb, _callbacker)
+        self._repay_full(_for, d_debt, xy, cb, _callbacker)
     else:
         d_debt = self._repay_partial(
             _for,
             debt,
             _wallet_d_debt,
-            approval,
             xy,
             cb,
             _callbacker,
@@ -1335,7 +1318,7 @@ def liquidate(
         )
         self._remove_from_list(_user)
     else:
-        if health_before > 0:
+        if health_before >= 0:
             liquidation_discount = self._update_user_liquidation_discount(_user, approval, final_debt)
         else:
             # Passing new_debt == 0 means the action can end with unhealthy state

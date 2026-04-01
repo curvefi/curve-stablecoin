@@ -1,5 +1,6 @@
 import boa
-from tests.utils import filter_logs
+from tests.utils import filter_logs, max_approve
+from tests.utils.constants import MIN_ASSETS, MIN_TICKS
 
 
 def test_redeem_basic(
@@ -298,6 +299,74 @@ def test_redeem_need_more_assets_revert(
     # Should revert with "Need more assets"
     with boa.reverts("Need more assets"):
         vault.redeem(shares_to_redeem)
+
+
+def test_revert_full_supply_when_virtual_share_dust_is_below_min_assets(
+    vault, controller, monetary_policy, collateral_token, admin
+):
+    full_balance = vault.balanceOf(admin)
+    assert full_balance == vault.totalSupply()
+
+    borrower = boa.env.generate_address("borrower")
+    collateral_amount = 10_000 * 10 ** collateral_token.decimals()
+    boa.deal(collateral_token, borrower, collateral_amount)
+
+    with boa.env.prank(borrower):
+        max_approve(collateral_token, controller.address)
+        debt = controller.max_borrowable(collateral_amount, MIN_TICKS)
+        controller.create_loan(collateral_amount, debt, MIN_TICKS)
+
+    initial_total_assets = vault.totalAssets()
+    annual_rate = 10**18 // (365 * 86400)
+
+    with boa.env.prank(admin):
+        monetary_policy.set_rate(annual_rate)
+
+    boa.env.time_travel(365 * 86400)
+    controller.save_rate()
+
+    assert vault.totalAssets() > initial_total_assets
+
+    assets_to_redeem = vault.previewRedeem(full_balance)
+    dust = vault.totalAssets() - assets_to_redeem
+
+    assert assets_to_redeem < vault.totalAssets()
+    assert 0 < dust < MIN_ASSETS
+
+    with boa.env.prank(admin):
+        with boa.reverts("Need more assets"):
+            vault.redeem(full_balance)
+
+
+def test_default_behavior_full_supply_when_conversion_equals_total_assets(
+    vault, controller, borrowed_token, admin
+):
+    full_balance = vault.balanceOf(admin)
+    assert full_balance == vault.totalSupply()
+
+    preview_assets = vault.previewRedeem(full_balance)
+    total_assets = vault.totalAssets()
+    initial_admin_token_balance = borrowed_token.balanceOf(admin)
+
+    assert preview_assets == total_assets
+
+    with boa.env.prank(admin):
+        assets_redeemed = vault.redeem(full_balance, admin, admin)
+    logs = filter_logs(vault, "Withdraw")
+
+    assert assets_redeemed == total_assets
+    assert (
+        borrowed_token.balanceOf(admin) == initial_admin_token_balance + assets_redeemed
+    )
+    assert vault.totalSupply() == 0
+    assert vault.totalAssets() == 0
+
+    assert len(logs) == 1
+    assert logs[0].sender == admin
+    assert logs[0].receiver == admin
+    assert logs[0].owner == admin
+    assert logs[0].assets == assets_redeemed
+    assert logs[0].shares == full_balance
 
 
 def test_redeem_insufficient_allowance_revert(
