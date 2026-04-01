@@ -8,7 +8,6 @@ def test_empty_user_state(controller, amm, collateral_token, borrowed_token):
     N = 10
     collateral_amount = int(0.1 * 10 ** collateral_token.decimals())
     debt_amount = controller.max_borrowable(collateral_amount, N)
-    print(debt_amount)
 
     boa.deal(collateral_token, boa.env.eoa, collateral_amount)
 
@@ -17,16 +16,16 @@ def test_empty_user_state(controller, amm, collateral_token, borrowed_token):
     controller.create_loan(collateral_amount, debt_amount, N)
 
     with boa.reverts("Repay amount is too high"):
-        controller.repay_health_preview(0, debt_amount, user, user, True, True)
+        controller.repay_health_preview(0, debt_amount, user, True, True)
 
     with boa.reverts("Repay amount is too high"):
-        controller.repay_health_preview(0, debt_amount, user, user, True, False)
+        controller.repay_health_preview(0, debt_amount, user, True, False)
 
     with boa.reverts("Repay amount is too high"):
-        controller.repay_health_preview(0, debt_amount, user, user, False, True)
+        controller.repay_health_preview(0, debt_amount, user, False, True)
 
     with boa.reverts("Repay amount is too high"):
-        controller.repay_health_preview(0, debt_amount, user, user, False, False)
+        controller.repay_health_preview(0, debt_amount, user, False, False)
 
     # Exchange
     borrowed_token.approve(amm, debt_amount)
@@ -36,13 +35,13 @@ def test_empty_user_state(controller, amm, collateral_token, borrowed_token):
     assert x > 0
 
     with boa.reverts("Repay amount is too high"):
-        controller.repay_health_preview(0, debt_amount - x, user, user, True, True)
+        controller.repay_health_preview(0, debt_amount - x, user, True, True)
 
     with boa.reverts("Repay amount is too high"):
-        controller.repay_health_preview(0, debt_amount - x, user, user, True, False)
+        controller.repay_health_preview(0, debt_amount - x, user, True, False)
 
     with boa.reverts("Repay amount is too high"):
-        controller.repay_health_preview(0, debt_amount - x, user, user, False, True)
+        controller.repay_health_preview(0, debt_amount, user, False, True)
 
     with boa.reverts("Repay amount is too high"):
-        controller.repay_health_preview(0, debt_amount - x, user, user, False, False)
+        controller.repay_health_preview(0, debt_amount, user, False, False)

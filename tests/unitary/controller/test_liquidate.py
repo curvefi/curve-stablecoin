@@ -1145,6 +1145,9 @@ def test_liquidate_partial_from_wallet(
 
     caller = liquidator
     if is_healthy:
+        if different_liquidator:
+            with boa.reverts("Not enough rekt"):
+                controller.liquidate_health_preview(borrower, caller, frac, False)
         # Approval is required to liquidate healthy users,
         # so we do calculation assuming that approval is going to be given.
         caller = borrower
@@ -1357,6 +1360,9 @@ def test_liquidate_partial_from_wallet_underwater(
 
     caller = liquidator
     if is_healthy:
+        if different_liquidator:
+            with boa.reverts("Not enough rekt"):
+                controller.liquidate_health_preview(borrower, caller, frac, False)
         # Approval is required to liquidate healthy users,
         # so we do calculation assuming that approval is going to be given.
         caller = borrower
@@ -1560,6 +1566,9 @@ def test_liquidate_partial_from_callback(
 
     caller = liquidator
     if is_healthy:
+        if different_liquidator:
+            with boa.reverts("Not enough rekt"):
+                controller.liquidate_health_preview(borrower, caller, frac, False)
         # Approval is required to liquidate healthy users,
         # so we do calculation assuming that approval is going to be given.
         caller = borrower
@@ -1787,6 +1796,9 @@ def test_liquidate_partial_from_callback_underwater(
 
     caller = liquidator
     if is_healthy:
+        if different_liquidator:
+            with boa.reverts("Not enough rekt"):
+                controller.liquidate_health_preview(borrower, caller, frac, False)
         # Approval is required to liquidate healthy users,
         # so we do calculation assuming that approval is going to be given.
         caller = borrower

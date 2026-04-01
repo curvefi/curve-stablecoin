@@ -100,10 +100,10 @@ def _test_add_collateral_default_behavior(
     # ================= Calculate future health =================
 
     preview_health = controller.add_collateral_health_preview(
-        amounts["additional_collateral"], borrower, caller, False
+        amounts["additional_collateral"], borrower, False
     )
     preview_health_full = controller.add_collateral_health_preview(
-        amounts["additional_collateral"], borrower, caller, True
+        amounts["additional_collateral"], borrower, True
     )
     # health improves
     assert preview_health_full > controller.health(borrower, True)
