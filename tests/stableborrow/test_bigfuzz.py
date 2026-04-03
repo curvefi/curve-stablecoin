@@ -114,7 +114,6 @@ class BigFuzz(RuleBasedStateMachine):
             if (
                 debt > max_debt
                 or y * self.collateral_mul // n <= 100
-                or y * self.collateral_mul // n <= 100
                 or debt == 0
                 or self.market_controller.loan_exists(user)
             ):

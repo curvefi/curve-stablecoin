@@ -29,12 +29,7 @@ def test_amount_for_price(
     init_trade_frac,
     p_frac,
 ):
-    collateral_precision = 10 ** (18 - collateral_token.decimals())
-    deposit_amount = max(
-        deposit_amount,
-        (101 * (dn + 1) + collateral_precision - 1) // collateral_precision,
-    )
-    deposit_amount = deposit_amount // collateral_precision
+    deposit_amount = deposit_amount // 10 ** (18 - collateral_token.decimals())
     deposit_amount = max(deposit_amount, dn + 1)
     user = accounts[0]
     with boa.env.prank(admin):

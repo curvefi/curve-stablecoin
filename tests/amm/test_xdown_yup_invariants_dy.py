@@ -42,12 +42,8 @@ def test_immediate(
 ):
     collateral_decimals = collateral_token.decimals()
     borrowed_decimals = borrowed_token.decimals()
-    collateral_precision = 10 ** (18 - collateral_token.decimals())
-    deposit_amount = max(
-        int(deposit_amount * 10**18),
-        (101 * (dn + 1) + collateral_precision - 1) // collateral_precision,
-    )
-    deposit_amount = deposit_amount // collateral_precision
+    deposit_amount = int(deposit_amount * 10**18)
+    deposit_amount = deposit_amount // 10 ** (18 - collateral_token.decimals())
     deposit_amount = max(deposit_amount, dn + 1)
     user = accounts[0]
     prices = []
