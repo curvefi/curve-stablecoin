@@ -2,6 +2,7 @@ import boa
 import pytest
 from hypothesis import given, reproduce_failure
 from hypothesis import strategies as st
+from tests.amm.utils import deposit_amount_too_low
 from tests.utils import mint_for_testing
 from tests.utils.deployers import ERC20_MOCK_DEPLOYER
 
@@ -28,12 +29,17 @@ def test_dydx_limits(
     collateral_decimals = collateral_token.decimals()
     borrowed_decimals = borrowed_token.decimals()
     amounts = list(map(lambda x: int(x * 10**collateral_decimals), amounts))
+    collateral_precision = 10 ** (18 - collateral_decimals)
 
     with boa.env.prank(admin):
         for user, amount, n1, dn in zip(accounts[1:6], amounts, ns, dns):
             n2 = n1 + dn
-            amm.deposit_range(user, amount, n1, n2)
-            mint_for_testing(collateral_token, amm.address, amount)
+            if deposit_amount_too_low(amm, amount, n1, n2, collateral_precision):
+                with boa.reverts("Amount too low"):
+                    amm.deposit_range(user, amount, n1, n2)
+            else:
+                amm.deposit_range(user, amount, n1, n2)
+                mint_for_testing(collateral_token, amm.address, amount)
 
     # Swap 0
     dx, dy = amm.get_dydx(0, 1, 0)
@@ -80,6 +86,7 @@ def test_dydx_compare_to_dxdy(
     collateral_decimals = collateral_token.decimals()
     borrowed_decimals = borrowed_token.decimals()
     amounts = list(map(lambda x: int(x * 10**collateral_decimals), amounts))
+    collateral_precision = 10 ** (18 - collateral_decimals)
 
     # 18 - 10_000, 17 - 1000, 16 - 100, 15 - 10, <= 14 - 1
     borrowed_precision = 10 ** (max(borrowed_decimals - 14, 0))
@@ -90,8 +97,12 @@ def test_dydx_compare_to_dxdy(
     with boa.env.prank(admin):
         for user, amount, n1, dn in zip(accounts[1:6], amounts, ns, dns):
             n2 = n1 + dn
-            amm.deposit_range(user, amount, n1, n2)
-            mint_for_testing(collateral_token, amm.address, amount)
+            if deposit_amount_too_low(amm, amount, n1, n2, collateral_precision):
+                with boa.reverts("Amount too low"):
+                    amm.deposit_range(user, amount, n1, n2)
+            else:
+                amm.deposit_range(user, amount, n1, n2)
+                mint_for_testing(collateral_token, amm.address, amount)
 
     # Swap 0
     dy, dx = amm.get_dydx(0, 1, 0)
@@ -159,13 +170,14 @@ def test_exchange_dy_down_up(
     collateral_decimals = collateral_token.decimals()
     borrowed_decimals = borrowed_token.decimals()
     amounts = list(map(lambda x: int(x * 10**collateral_decimals), amounts))
+    collateral_precision = 10 ** (18 - collateral_decimals)
     amount = int(amount * 10**borrowed_decimals)
     u = accounts[6]
 
     with boa.env.prank(admin):
         for user, amt, n1, dn in zip(accounts[1:6], amounts, ns, dns):
             n2 = n1 + dn
-            if amt * 10 ** (18 - collateral_decimals) // (dn + 1) <= 100:
+            if deposit_amount_too_low(amm, amt, n1, n2, collateral_precision):
                 with boa.reverts("Amount too low"):
                     amm.deposit_range(user, amt, n1, n2)
             else:

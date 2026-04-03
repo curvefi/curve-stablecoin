@@ -2,6 +2,7 @@ import boa
 import pytest
 from hypothesis import given
 from hypothesis import strategies as st
+from tests.amm.utils import deposit_amount_too_low
 from tests.utils import mint_for_testing
 
 
@@ -20,12 +21,17 @@ def test_dxdy_limits(
     collateral_amounts = list(
         map(lambda x: int(x * 10**collateral_decimals), collateral_amounts)
     )
+    collateral_precision = 10 ** (18 - collateral_decimals)
 
     with boa.env.prank(admin):
         for user, amount, n1, dn in zip(accounts[1:6], collateral_amounts, ns, dns):
             n2 = n1 + dn
-            amm.deposit_range(user, amount, n1, n2)
-            mint_for_testing(collateral_token, amm.address, amount)
+            if deposit_amount_too_low(amm, amount, n1, n2, collateral_precision):
+                with boa.reverts("Amount too low"):
+                    amm.deposit_range(user, amount, n1, n2)
+            else:
+                amm.deposit_range(user, amount, n1, n2)
+                mint_for_testing(collateral_token, amm.address, amount)
 
     # Swap 0
     dx, dy = amm.get_dxdy(0, 1, 0)
@@ -91,6 +97,7 @@ def test_exchange_down_up(
     collateral_amounts = list(
         map(lambda x: int(x * 10**collateral_decimals), collateral_amounts)
     )
+    collateral_precision = 10 ** (18 - collateral_decimals)
     borrowed_amount = int(borrowed_amount * 10**borrowed_decimals)
     borrowed_amount = max(
         borrowed_amount,
@@ -101,7 +108,7 @@ def test_exchange_down_up(
     with boa.env.prank(admin):
         for user, amt, n1, dn in zip(accounts[1:6], collateral_amounts, ns, dns):
             n2 = n1 + dn
-            if amt * 10 ** (18 - collateral_token.decimals()) // (dn + 1) <= 100:
+            if deposit_amount_too_low(amm, amt, n1, n2, collateral_precision):
                 with boa.reverts("Amount too low"):
                     amm.deposit_range(user, amt, n1, n2)
             else:
