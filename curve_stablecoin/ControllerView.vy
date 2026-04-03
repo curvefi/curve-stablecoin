@@ -17,7 +17,7 @@ from curve_std.interfaces import IERC20
 from curve_stablecoin import controller as core
 from curve_stablecoin import constants as c
 from snekmate.utils import math
-from curve_std import math as crv_math
+from curve_std import crv_math
 
 
 # https://github.com/vyperlang/vyper/issues/4723
