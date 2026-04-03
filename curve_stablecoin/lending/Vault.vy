@@ -361,6 +361,15 @@ def mint(_shares: uint256, _receiver: address = msg.sender) -> uint256:
     return assets
 
 
+@internal
+@view
+def _available_balance() -> uint256:
+    return crv_math.sub_or_zero(
+        staticcall self._controller.available_balance(),
+        staticcall self._controller.admin_fees(),
+    )
+
+
 @external
 @view
 def maxWithdraw(_owner: address) -> uint256:
@@ -369,7 +378,7 @@ def maxWithdraw(_owner: address) -> uint256:
     """
     return min(
         self._convert_to_assets(self.balanceOf[_owner]),
-        staticcall self._controller.available_balance(),
+        self._available_balance(),
     )
 
 
@@ -416,7 +425,7 @@ def maxRedeem(_owner: address) -> uint256:
     @notice Calculate maximum amount of shares which a given user can redeem
     """
     return min(
-        self._convert_to_shares(staticcall self._controller.available_balance(), False),
+        self._convert_to_shares(self._available_balance(), False),
         self.balanceOf[_owner],
     )
 

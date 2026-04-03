@@ -85,13 +85,20 @@ def _available_balance() -> uint256:
 
 @internal
 @view
+def _admin_fees() -> uint256:
+    return staticcall core.CONTROLLER.admin_fees()
+
+
+@internal
+@view
 def _get_cap() -> uint256:
     """
     @notice Cannot borrow beyond the amount of coins Controller has or beyond borrow_cap
     """
     total_debt: uint256 = self._total_debt()
     cap: uint256 = crv_math.sub_or_zero(self._borrow_cap(), total_debt)
-    return min(self._available_balance(), cap)
+    available_balance: uint256 = crv_math.sub_or_zero(self._available_balance(), self._admin_fees())
+    return min(available_balance, cap)
 
 
 @external

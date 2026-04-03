@@ -1474,13 +1474,19 @@ def set_callback(_cb: ILMGauge):
     log IController.SetLMCallback(callback=_cb)
 
 
+@internal
+@view
+def _admin_fees() -> uint256:
+    return self._stored_admin_fees + self._preview_total_debt(staticcall AMM.get_rate_mul(), self._total_debt)[1]
+
+
 @external
 @view
 def admin_fees() -> uint256:
     """
     @notice Pending admin fees which can be claimed if the controller has enough balance
     """
-    return self._stored_admin_fees + self._preview_total_debt(staticcall AMM.get_rate_mul(), self._total_debt)[1]
+    return self._admin_fees()
 
 
 @external
