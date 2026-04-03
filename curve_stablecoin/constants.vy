@@ -7,7 +7,6 @@ MAX_SKIP_TICKS: constant(int256) = 1024
 MAX_SKIP_TICKS_UINT: constant(uint256) = 1024
 
 DEAD_SHARES: constant(uint256) = 1000
-MIN_SHARES_ALLOWED: constant(uint256) = 10**14
 WAD: constant(uint256) = 10**18
 SWAD: constant(int256) = 10**18
 

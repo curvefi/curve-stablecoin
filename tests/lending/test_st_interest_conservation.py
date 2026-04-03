@@ -10,7 +10,7 @@ from hypothesis.stateful import (
 )
 
 
-from tests.utils.constants import DEAD_SHARES, MIN_SHARES_ALLOWED
+from tests.utils.constants import DEAD_SHARES
 
 
 @pytest.fixture(scope="module")
@@ -102,10 +102,7 @@ class StatefulLendBorrow(RuleBasedStateMachine):
                         self.controller.create_loan(c_amount, amount, n)
                     return
 
-            if (
-                c_amount * self.collateral_precision // n * DEAD_SHARES
-                < MIN_SHARES_ALLOWED
-            ):
+            if c_amount * self.collateral_precision // n <= 100:
                 with boa.reverts("Amount too low"):
                     self.controller.create_loan(c_amount, amount, n)
                 return
@@ -122,7 +119,7 @@ class StatefulLendBorrow(RuleBasedStateMachine):
                         * 3000
                         / (amount * self.borrowed_precision)
                         < 1e-3
-                    ) or "Amount too low" in str(e):
+                    ):
                         return
                     else:
                         raise

@@ -9,7 +9,7 @@ from hypothesis.stateful import (
 )
 
 
-from tests.utils.constants import DEAD_SHARES, MIN_SHARES_ALLOWED
+from tests.utils.constants import DEAD_SHARES
 
 
 class StatefulLendBorrow(RuleBasedStateMachine):
@@ -94,10 +94,7 @@ class StatefulLendBorrow(RuleBasedStateMachine):
                         self.controller.create_loan(c_amount, amount, n)
                     return
 
-            if (
-                c_amount * 10 ** (18 - self.collateral.decimals()) // n * DEAD_SHARES
-                < MIN_SHARES_ALLOWED
-            ):
+            if c_amount * 10 ** (18 - self.collateral.decimals()) // n <= 100:
                 with boa.reverts("Amount too low"):
                     self.controller.create_loan(c_amount, amount, n)
                 return
@@ -107,9 +104,7 @@ class StatefulLendBorrow(RuleBasedStateMachine):
                     self.controller.create_loan(c_amount, amount, n)
                     return
                 except Exception as e:
-                    if (
-                        "Too deep" in str(e) and c_amount * 3000 / amount < 1e-3
-                    ) or "Amount too low" in str(e):
+                    if "Too deep" in str(e) and c_amount * 3000 / amount < 1e-3:
                         return
                     else:
                         raise

@@ -57,7 +57,6 @@ WAD: constant(uint256) = c.WAD
 MAX_TICKS: constant(int256) = c.MAX_TICKS
 MAX_TICKS_UINT: constant(uint256) = c.MAX_TICKS_UINT
 DEAD_SHARES: constant(uint256) = c.DEAD_SHARES
-MIN_SHARES_ALLOWED: constant(uint256) = c.MIN_SHARES_ALLOWED
 MAX_SKIP_TICKS: constant(int256) = c.MAX_SKIP_TICKS
 MAX_SKIP_TICKS_UINT: constant(uint256) = c.MAX_SKIP_TICKS_UINT
 
@@ -673,7 +672,7 @@ def deposit_range(user: address, amount: uint256, n1: int256, n2: int256):
         # Total / user share
         s: uint256 = self.total_shares[band]
         ds: uint256 = unsafe_div((s + DEAD_SHARES) * y, total_y + 1)
-        assert ds >= MIN_SHARES_ALLOWED, "Amount too low"
+        assert ds > 0, "Amount too low"
         user_shares.append(ds)
         s += ds
         assert s <= 2**128 - 1
