@@ -21,11 +21,18 @@ repos:
         args: [--fix]
       - id: ruff-format
 
-  - repo: https://github.com/AlbertoCentonze/natrix
-    rev: v0.1.9
+  - repo: local
     hooks:
+      # Use a local hook so pre-commit can apply files/exclude before invoking natrix.
       - id: natrix
-        args: [lint, curve_stablecoin/lending/, curve_stablecoin/zaps/, curve_stablecoin/controller.vy, curve_stablecoin/constants.vy, curve_stablecoin/ControllerView.vy, curve_stablecoin/MintController.vy, -d, NTX1, NTX4, NTX5, NTX2, NTX9, NTX10]
+        name: lint vyper
+        entry: natrix
+        language: python
+        additional_dependencies: [git+https://github.com/AlbertoCentonze/natrix@v0.1.9]
+        pass_filenames: true
+        files: ^(curve_stablecoin/lending/.*\.vy|curve_stablecoin/zaps/.*\.vy|curve_stablecoin/controller\.vy|curve_stablecoin/constants\.vy|curve_stablecoin/ControllerView\.vy|curve_stablecoin/MintController\.vy)$
+        exclude: ^curve_stablecoin/lending/utils/(admin|fee_receiver)\.vy$
+        args: [lint]
 
   - repo: https://github.com/benber86/mamushi
     rev: v0.0.9
