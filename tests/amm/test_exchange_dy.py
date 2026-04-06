@@ -2,7 +2,6 @@ import boa
 import pytest
 from hypothesis import given, reproduce_failure
 from hypothesis import strategies as st
-from tests.amm.utils import deposit_amount_too_low
 from tests.utils import mint_for_testing
 from tests.utils.deployers import ERC20_MOCK_DEPLOYER
 
@@ -29,18 +28,12 @@ def test_dydx_limits(
     collateral_decimals = collateral_token.decimals()
     borrowed_decimals = borrowed_token.decimals()
     amounts = list(map(lambda x: int(x * 10**collateral_decimals), amounts))
-    collateral_precision = 10 ** (18 - collateral_decimals)
 
     with boa.env.prank(admin):
         for user, amount, n1, dn in zip(accounts[1:6], amounts, ns, dns):
             n2 = n1 + dn
-            if deposit_amount_too_low(amm, amount, n1, n2, collateral_precision):
-                with boa.reverts("Amount too low"):
-                    amm.deposit_range(user, amount, n1, n2)
-            else:
-                amm.deposit_range(user, amount, n1, n2)
-                mint_for_testing(collateral_token, amm.address, amount)
-    seeded_collateral = sum(amm.bands_y(i) for i in range(50)) // collateral_precision
+            amm.deposit_range(user, amount, n1, n2)
+            mint_for_testing(collateral_token, amm.address, amount)
 
     # Swap 0
     dx, dy = amm.get_dydx(0, 1, 0)
@@ -52,21 +45,17 @@ def test_dydx_limits(
     small_y_amount = 10 ** (collateral_decimals - 6)  # 0.000001 ETH
     small_y_amount = max(1, small_y_amount)
     dy, dx = amm.get_dydx(0, 1, small_y_amount)
-    assert dy <= small_y_amount
-    if dy > 0:
-        assert dy == small_y_amount
-        if min(ns) == 1:
-            rel_precision = 4e-2 + 2 * min(ns) / amm.A()
-            if dy == 1:
-                rel_precision *= 2
-            assert dx == pytest.approx(
-                dy * 3000 / 10 ** (collateral_decimals - borrowed_decimals),
-                rel=rel_precision,
-            )
-        else:
-            assert dx >= dy * 3000 / 10 ** (collateral_decimals - borrowed_decimals)
-    elif seeded_collateral == 0:
-        assert dx == 0
+    assert dy == small_y_amount
+    if min(ns) == 1:
+        rel_precision = 4e-2 + 2 * min(ns) / amm.A()
+        if dy == 1:
+            rel_precision *= 2
+        assert dx == pytest.approx(
+            dy * 3000 / 10 ** (collateral_decimals - borrowed_decimals),
+            rel=rel_precision,
+        )
+    else:
+        assert dx >= dy * 3000 / 10 ** (collateral_decimals - borrowed_decimals)
     dy, dx = amm.get_dydx(1, 0, 10 ** (borrowed_decimals - 4))  # No liquidity
     assert dx == 0
     assert dy == 0  # Rounded down
@@ -74,7 +63,7 @@ def test_dydx_limits(
     # Huge swap
     dy, dx = amm.get_dydx(0, 1, 10**12 * 10**collateral_decimals)
     assert dy < 10**12 * 10**collateral_decimals  # Less than desired amount
-    assert abs(dy - seeded_collateral) <= 1000  # but everything is bought
+    assert abs(dy - sum(amounts)) <= 1000  # but everything is bought
     dy, dx = amm.get_dydx(1, 0, 10**12 * 10**borrowed_decimals)
     assert dx == 0
     assert dy == 0  # Rounded down
@@ -91,30 +80,18 @@ def test_dydx_compare_to_dxdy(
     collateral_decimals = collateral_token.decimals()
     borrowed_decimals = borrowed_token.decimals()
     amounts = list(map(lambda x: int(x * 10**collateral_decimals), amounts))
-    deposit_collateral_precision = 10 ** (18 - collateral_decimals)
 
     # 18 - 10_000, 17 - 1000, 16 - 100, 15 - 10, <= 14 - 1
     borrowed_precision = 10 ** (max(borrowed_decimals - 14, 0))
     # >= 16 - 0; 15, 14 - 10; 13, 12 - 1000 ...
-    # comparison_precision = 10 ** (max(15 - (borrowed_decimals // 2) * 2, 0)) if borrowed_decimals < 16 else 0
-    comparison_precision = 10 ** (18 - borrowed_decimals)
+    # collateral_precision = 10 ** (max(15 - (borrowed_decimals // 2) * 2, 0)) if borrowed_decimals < 16 else 0
+    collateral_precision = 10 ** (18 - borrowed_decimals)
 
     with boa.env.prank(admin):
         for user, amount, n1, dn in zip(accounts[1:6], amounts, ns, dns):
             n2 = n1 + dn
-            if deposit_amount_too_low(
-                amm, amount, n1, n2, deposit_collateral_precision
-            ):
-                with boa.reverts("Amount too low"):
-                    amm.deposit_range(user, amount, n1, n2)
-            else:
-                amm.deposit_range(user, amount, n1, n2)
-                mint_for_testing(collateral_token, amm.address, amount)
-    seeded_collateral = (
-        sum(amm.bands_y(i) for i in range(50)) // deposit_collateral_precision
-    )
-    if seeded_collateral == 0:
-        return
+            amm.deposit_range(user, amount, n1, n2)
+            mint_for_testing(collateral_token, amm.address, amount)
 
     # Swap 0
     dy, dx = amm.get_dydx(0, 1, 0)
@@ -129,7 +106,7 @@ def test_dydx_compare_to_dxdy(
     if dy1 == 1 or dy2 == 1:
         assert abs(dy1 - dy2) <= 1
     else:
-        assert abs(dy1 - dy2) <= comparison_precision
+        assert abs(dy1 - dy2) <= collateral_precision
 
     # Small swap
     small_x_amount = amm.price_oracle() // 10 ** (
@@ -153,15 +130,15 @@ def test_dydx_compare_to_dxdy(
     dy1, dx1 = amm.get_dydx(0, 1, 10**12 * 10**collateral_decimals)
     dx2, dy2 = amm.get_dxdy(0, 1, dx1)
     assert dy1 < 10**12 * 10**collateral_decimals  # Less than all is desired
-    assert abs(dy1 - seeded_collateral) <= 1000  # but everything is bought
+    assert abs(dy1 - sum(amounts)) <= 1000  # but everything is bought
     assert dx1 == dx2
     assert dy2 <= dy1  # We might get less because AMM rounds in its favor
-    assert abs(dy1 - dy2) <= comparison_precision
+    assert abs(dy1 - dy2) <= collateral_precision
 
     dx1, dy1 = amm.get_dxdy(0, 1, 10**12 * 10**borrowed_decimals)
     dy2, dx2 = amm.get_dydx(0, 1, dy1)
     assert dx1 < 10**12 * 10**borrowed_decimals  # Less than all is spent
-    assert abs(dy1 - seeded_collateral) <= 1000  # but everything is bought
+    assert abs(dy1 - sum(amounts)) <= 1000  # but everything is bought
     assert dx1 == dx2
     assert dy1 == dy2
 
@@ -182,21 +159,18 @@ def test_exchange_dy_down_up(
     collateral_decimals = collateral_token.decimals()
     borrowed_decimals = borrowed_token.decimals()
     amounts = list(map(lambda x: int(x * 10**collateral_decimals), amounts))
-    collateral_precision = 10 ** (18 - collateral_decimals)
     amount = int(amount * 10**borrowed_decimals)
     u = accounts[6]
 
     with boa.env.prank(admin):
         for user, amt, n1, dn in zip(accounts[1:6], amounts, ns, dns):
             n2 = n1 + dn
-            if deposit_amount_too_low(amm, amt, n1, n2, collateral_precision):
+            if amt * 10 ** (18 - collateral_decimals) // (dn + 1) <= 100:
                 with boa.reverts("Amount too low"):
                     amm.deposit_range(user, amt, n1, n2)
             else:
                 amm.deposit_range(user, amt, n1, n2)
                 mint_for_testing(collateral_token, amm.address, amt)
-    if sum(amm.bands_y(i) for i in range(50)) == 0:
-        return
 
     p_before = amm.get_p()
 
