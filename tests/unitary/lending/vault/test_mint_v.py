@@ -126,8 +126,14 @@ def test_mint_need_more_assets_revert(vault, controller, amm, borrowed_token):
     """Test mint reverts with 'Need more assets' when total assets too low."""
     assert vault.totalAssets() == 0
 
-    # Small mint that would make total assets < MIN_ASSETS
-    assets = vault.eval("MIN_ASSETS") - 1
+    # Smallest positive asset amount that still leaves scaled assets below MIN_SCALED_ASSETS
+    min_scaled_assets = vault.eval("MIN_SCALED_ASSETS")
+    precision = vault.eval("self.precision")
+    assets = (min_scaled_assets - 1) // precision
+    if assets == 0:
+        pytest.skip(
+            "No positive mint amount exists below the scaled-asset threshold for this precision"
+        )
     shares = vault.convertToShares(assets)  # Very small amount
     boa.deal(borrowed_token, boa.env.eoa, assets)
     borrowed_token.approve(vault, assets)

@@ -287,21 +287,23 @@ def test_withdraw_with_owner_and_receiver(
 
 
 def test_withdraw_need_more_assets_revert(
-    vault, controller, amm, borrowed_token, deposit_into_vault
+    vault, controller, amm, borrowed_token, admin
 ):
     """Test withdraw reverts with 'Need more assets' when total assets too low."""
-    assets = 100 * 10 ** borrowed_token.decimals()
-    deposit_into_vault(assets=assets)
-
-    # Try to withdraw more than available (would leave vault with < MIN_ASSETS)
     total_assets = vault.totalAssets()
-    withdraw_amount = (
-        total_assets - vault.eval("MIN_ASSETS") + 1
-    )  # Would leave < MIN_ASSETS
+    precision = vault.eval("self.precision")
+    min_assets = (vault.eval("MIN_SCALED_ASSETS") + precision - 1) // precision
+    if min_assets > 1:
+        withdraw_amount = total_assets - (min_assets - 1)
 
-    # Should revert with "Need more assets"
-    with boa.reverts("Need more assets"):
-        vault.withdraw(withdraw_amount)
+        with boa.env.prank(admin):
+            with boa.reverts("Need more assets"):
+                vault.withdraw(withdraw_amount)
+    else:
+        withdraw_amount = total_assets - min_assets
+        with boa.env.prank(admin):
+            vault.withdraw(withdraw_amount)
+        assert vault.totalAssets() == min_assets
 
 
 def test_withdraw_insufficient_allowance_revert(

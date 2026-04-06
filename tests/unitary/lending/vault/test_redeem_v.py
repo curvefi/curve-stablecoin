@@ -1,6 +1,6 @@
 import boa
 from tests.utils import filter_logs, max_approve
-from tests.utils.constants import MIN_ASSETS, MIN_TICKS
+from tests.utils.constants import MIN_SCALED_ASSETS, MIN_TICKS
 
 
 def test_redeem_basic(
@@ -283,22 +283,22 @@ def test_redeem_with_owner_and_receiver(
     assert logs[0].shares == shares_to_redeem
 
 
-def test_redeem_need_more_assets_revert(
-    vault, controller, amm, borrowed_token, deposit_into_vault
-):
+def test_redeem_need_more_assets_revert(vault, controller, amm, borrowed_token, admin):
     """Test redeem reverts with 'Need more assets' when total assets too low."""
-    assets = 100 * 10 ** borrowed_token.decimals()
-    deposit_into_vault(assets=assets)
-
-    # Try to redeem more than available (would leave vault with < MIN_ASSETS)
     total_assets = vault.totalAssets()
-    shares_to_redeem = vault.convertToShares(
-        total_assets - vault.eval("MIN_ASSETS") + 1
-    )
+    precision = vault.eval("self.precision")
+    min_assets = (vault.eval("MIN_SCALED_ASSETS") + precision - 1) // precision
+    if min_assets > 1:
+        shares_to_redeem = vault.previewWithdraw(total_assets - (min_assets - 1))
 
-    # Should revert with "Need more assets"
-    with boa.reverts("Need more assets"):
-        vault.redeem(shares_to_redeem)
+        with boa.env.prank(admin):
+            with boa.reverts("Need more assets"):
+                vault.redeem(shares_to_redeem)
+    else:
+        shares_to_redeem = vault.previewWithdraw(total_assets - min_assets)
+        with boa.env.prank(admin):
+            vault.redeem(shares_to_redeem)
+        assert vault.totalAssets() >= min_assets
 
 
 def test_revert_full_supply_when_virtual_share_dust_is_below_min_assets(
@@ -329,13 +329,18 @@ def test_revert_full_supply_when_virtual_share_dust_is_below_min_assets(
 
     assets_to_redeem = vault.previewRedeem(full_balance)
     dust = vault.totalAssets() - assets_to_redeem
+    precision = vault.eval("self.precision")
 
     assert assets_to_redeem < vault.totalAssets()
-    assert 0 < dust < MIN_ASSETS
+    assert dust > 0
 
     with boa.env.prank(admin):
-        with boa.reverts("Need more assets"):
-            vault.redeem(full_balance)
+        if dust * precision < MIN_SCALED_ASSETS:
+            with boa.reverts("Need more assets"):
+                vault.redeem(full_balance)
+        else:
+            with boa.reverts("Available balance exceeded"):
+                vault.redeem(full_balance)
 
 
 def test_default_behavior_full_supply_when_conversion_equals_total_assets(

@@ -126,8 +126,10 @@ def test_deposit_need_more_assets_revert(vault, controller, amm, borrowed_token)
     """Test deposit reverts with 'Need more assets' when total assets too low."""
     assert vault.totalAssets() == 0
 
-    # Small deposit that would make total assets < MIN_ASSETS
-    assets = vault.eval("MIN_ASSETS") - 1
+    # Largest deposit that still leaves scaled assets below MIN_SCALED_ASSETS
+    min_scaled_assets = vault.eval("MIN_SCALED_ASSETS")
+    precision = vault.eval("self.precision")
+    assets = (min_scaled_assets - 1) // precision
     boa.deal(borrowed_token, boa.env.eoa, assets)
     borrowed_token.approve(vault, assets)
 

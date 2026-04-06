@@ -7,7 +7,7 @@ from hypothesis.strategies import data, integers, sampled_from
 from hypothesis.stateful import rule, initialize, precondition
 
 from tests.utils.deployers import ERC20_MOCK_DEPLOYER
-from tests.utils.constants import MIN_ASSETS
+from tests.utils.constants import MIN_SCALED_ASSETS
 from tests.utils import max_approve
 
 
@@ -33,8 +33,10 @@ class LendControllerStateful(ControllerStateful):
         assume(max_deposit > 0)
 
         current_assets = int(vault.totalAssets())
+        precision = int(vault.eval("self.precision"))
+        min_assets = MIN_SCALED_ASSETS // precision
         min_required = (
-            1 if current_assets >= MIN_ASSETS else MIN_ASSETS - current_assets
+            1 if current_assets >= min_assets else min_assets - current_assets
         )
 
         borrowed_token = ERC20_MOCK_DEPLOYER.at(vault.borrowed_token())  # type: ignore[attr-defined]
@@ -76,9 +78,15 @@ class LendControllerStateful(ControllerStateful):
 
         note(f"withdrawing: user={user}, amount={amount}, shares={user_shares}")
 
-        vault.withdraw(amount, user, sender=user)
-        if amount == user_shares:
-            self.vault_users.remove(user)
+        precision = int(vault.eval("self.precision"))
+        remaining_assets = int(vault.totalAssets()) - amount
+        if remaining_assets != 0 and remaining_assets * precision < MIN_SCALED_ASSETS:
+            with boa.reverts("Need more assets"):
+                vault.withdraw(amount, user, sender=user)
+        else:
+            vault.withdraw(amount, user, sender=user)
+            if amount == user_shares:
+                self.vault_users.remove(user)
 
 
 TestLendControllerStateful = LendControllerStateful.TestCase

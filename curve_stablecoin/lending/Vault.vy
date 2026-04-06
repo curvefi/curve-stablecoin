@@ -19,6 +19,7 @@ from curve_stablecoin.interfaces import IFactory
 from curve_stablecoin.interfaces import IVault
 
 from curve_stablecoin import constants as c
+from curve_std import crv_math
 from curve_std import token as tkn
 from snekmate.utils import math
 
@@ -33,7 +34,7 @@ implements: IVault
 # https://github.com/OpenZeppelin/openzeppelin-curve_stablecoin/blob/master/curve_stablecoin/token/ERC20/extensions/ERC4626.sol
 # redeclaration here is because: https://github.com/vyperlang/vyper/issues/4723
 DEAD_SHARES: constant(uint256) = c.DEAD_SHARES
-MIN_ASSETS: constant(uint256) = 10000
+MIN_SCALED_ASSETS: constant(uint256) = 10**10
 
 _borrowed_token: IERC20
 # https://github.com/vyperlang/vyper/issues/4721
@@ -182,6 +183,12 @@ def _total_assets() -> uint256:
     )
 
 
+@internal
+@view
+def _scaled_assets(_assets: uint256) -> uint256:
+    return _assets * self.precision
+
+
 @external
 @view
 def totalAssets() -> uint256:
@@ -297,7 +304,7 @@ def deposit(_assets: uint256, _receiver: address = msg.sender) -> uint256:
     """
     controller: IController = self._controller
     total_assets: uint256 = self._total_assets()
-    assert total_assets + _assets >= MIN_ASSETS, "Need more assets"
+    assert self._scaled_assets(total_assets + _assets) >= MIN_SCALED_ASSETS, "Need more assets"
     assert total_assets + _assets <= self.maxSupply, "Supply limit"
     to_mint: uint256 = self._convert_to_shares(_assets, True, total_assets)
     assert to_mint > 0, "Can't mint 0 shares"
@@ -345,7 +352,7 @@ def mint(_shares: uint256, _receiver: address = msg.sender) -> uint256:
     controller: IController = self._controller
     total_assets: uint256 = self._total_assets()
     assets: uint256 = self._convert_to_assets(_shares, False, total_assets)
-    assert total_assets + assets >= MIN_ASSETS, "Need more assets"
+    assert self._scaled_assets(total_assets + assets) >= MIN_SCALED_ASSETS, "Need more assets"
     assert total_assets + assets <= self.maxSupply, "Supply limit"
 
     extcall ILendController(controller.address).on_borrowed_token_transfer_in(assets)
@@ -396,7 +403,7 @@ def withdraw(_assets: uint256, _receiver: address = msg.sender, _owner: address 
     @param _owner Owner who's shares the caller takes. Only can take those if owner gave the approval to the sender. Optional
     """
     total_assets: uint256 = self._total_assets()
-    assert total_assets - _assets >= MIN_ASSETS or total_assets == _assets, "Need more assets"
+    assert self._scaled_assets(total_assets - _assets) >= MIN_SCALED_ASSETS or total_assets == _assets, "Need more assets"
     shares: uint256 = self._convert_to_shares(_assets, False, total_assets)
     if _owner != msg.sender:
         allowance: uint256 = self.allowance[_owner][msg.sender]
@@ -450,7 +457,7 @@ def redeem(_shares: uint256, _receiver: address = msg.sender, _owner: address = 
 
     total_assets: uint256 = self._total_assets()
     assets_to_redeem: uint256 = self._convert_to_assets(_shares, True, total_assets)
-    assert total_assets - assets_to_redeem >= MIN_ASSETS or total_assets == assets_to_redeem, "Need more assets"
+    assert self._scaled_assets(total_assets - assets_to_redeem) >= MIN_SCALED_ASSETS or total_assets == assets_to_redeem, "Need more assets"
     self._burn(_owner, _shares)
     controller: IController = self._controller
 

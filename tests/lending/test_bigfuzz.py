@@ -11,7 +11,7 @@ from hypothesis.stateful import (
     invariant,
 )
 
-from tests.utils.constants import ZERO_ADDRESS
+from tests.utils.constants import MIN_SCALED_ASSETS, ZERO_ADDRESS
 
 
 pytestmark = pytest.mark.xfail(strict=True, reason="stateful fuzz currently unstable")
@@ -81,7 +81,9 @@ class BigFuzz(RuleBasedStateMachine):
         if balance < asset_amount:
             boa.deal(self.borrowed_token, user, asset_amount - balance)
         with boa.env.prank(user):
-            if self.vault.totalAssets() + asset_amount < 10000:
+            if (
+                self.vault.totalAssets() + asset_amount
+            ) * self.borrowed_mul < MIN_SCALED_ASSETS:
                 with boa.reverts():
                     self.vault.deposit(asset_amount)
             else:
@@ -95,7 +97,10 @@ class BigFuzz(RuleBasedStateMachine):
                 expected_assets = self.vault.totalAssets() - self.vault.previewRedeem(
                     shares_amount
                 )
-                if expected_assets < 10000 and expected_assets != 0:
+                if (
+                    expected_assets * self.borrowed_mul < MIN_SCALED_ASSETS
+                    and expected_assets != 0
+                ):
                     with boa.reverts():
                         self.vault.redeem(shares_amount)
                 else:
