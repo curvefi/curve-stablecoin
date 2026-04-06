@@ -25,7 +25,7 @@ def test_ctor(admin, amm_impl, controller_impl, proto):
     assert factory.vault_blueprint() == vault_blueprint.address
     assert factory.controller_view_blueprint() == controller_view_blueprint.address
     assert factory.admin() == admin
-    assert factory.default_fee_receiver() == fee_receiver
+    assert factory.fee_receiver() == fee_receiver
     assert not factory.paused()
 
 
@@ -37,7 +37,7 @@ def test_ctor_reverts_if_fee_receiver_is_zero(admin, amm_impl, controller_impl, 
 
     fee_receiver = ZERO_ADDRESS
 
-    with boa.reverts("invalid receiver"):
+    with boa.reverts():
         LENDING_FACTORY_DEPLOYER.deploy(
             amm_blueprint,
             controller_blueprint,

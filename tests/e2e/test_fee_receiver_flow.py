@@ -1,6 +1,6 @@
 import boa
 import pytest
-from tests.utils.constants import ZERO_ADDRESS, WAD
+from tests.utils.constants import WAD
 
 
 @pytest.fixture(scope="module")
@@ -47,7 +47,7 @@ def test_fee_receiver_flow(
     boa.env.time_travel(seconds=365 * 86400)
 
     # 1. Check default fee receiver
-    default_receiver = factory.default_fee_receiver()
+    default_receiver = factory.fee_receiver(controller.address)
     initial_balance = borrowed_token.balanceOf(default_receiver)
 
     # Collect fees
@@ -59,7 +59,8 @@ def test_fee_receiver_flow(
     # 2. Set custom fee receiver
     custom_receiver = boa.env.generate_address("custom_receiver")
     with boa.env.prank(admin):
-        factory.set_custom_fee_receiver(controller.address, custom_receiver)
+        group_id = factory.add_fee_receiver_group(custom_receiver)
+        factory.set_fee_receiver_group(controller.address, group_id)
 
     assert factory.fee_receiver(controller.address) == custom_receiver
 
@@ -82,7 +83,7 @@ def test_fee_receiver_flow(
 
     # 4. Restore default fee receiver
     with boa.env.prank(admin):
-        factory.set_custom_fee_receiver(controller.address, ZERO_ADDRESS)
+        factory.set_fee_receiver_group(controller.address, 0)
 
     assert factory.fee_receiver(controller.address) == default_receiver
 

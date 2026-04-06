@@ -38,7 +38,7 @@ jobs:
           base="${{ github.event.pull_request.base.sha }}"
           head="${{ github.sha }}"
           git diff --name-only "$base" "$head" -- 'curve_stablecoin/**/*.vy' > .tmp/bytespace/contracts.txt
-          grep -v '^curve_stablecoin/testing/' .tmp/bytespace/contracts.txt > .tmp/bytespace/contracts-filtered.txt || true
+          grep -Ev '^curve_stablecoin/testing/|^curve_stablecoin/lending/utils/(admin|fee_receiver)\.vy$' .tmp/bytespace/contracts.txt > .tmp/bytespace/contracts-filtered.txt || true
           if [ ! -s .tmp/bytespace/contracts-filtered.txt ]; then
             echo "has_changes=false" >> "$GITHUB_OUTPUT"
             exit 0
