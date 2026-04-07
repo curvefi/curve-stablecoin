@@ -46,6 +46,7 @@ class Blueprints:
 
     amm: VyperBlueprint
     mint_controller: VyperBlueprint
+    mint_controller_view: VyperBlueprint
     lend_controller: VyperBlueprint
     lend_controller_view: VyperBlueprint
     price_oracle: VyperBlueprint
@@ -94,6 +95,7 @@ class Llamalend:
         self.blueprints = Blueprints(
             amm=AMM_DEPLOYER,
             mint_controller=self._mint_controller_deployer,
+            mint_controller_view=CONTROLLER_VIEW_DEPLOYER,
             lend_controller=LEND_CONTROLLER_DEPLOYER,
             lend_controller_view=LEND_CONTROLLER_VIEW_DEPLOYER,
             price_oracle=CRYPTO_FROM_POOL_DEPLOYER,
