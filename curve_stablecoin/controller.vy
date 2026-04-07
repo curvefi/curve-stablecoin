@@ -689,7 +689,7 @@ def create_loan(
         liquidation_discount=liquidation_discount,
     )
     log IController.Borrow(
-        user=_for, collateral_increase=total_collateral, loan_increase=_debt
+        caller=msg.sender, user=_for, collateral_increase=total_collateral, loan_increase=_debt
     )
 
 
@@ -732,11 +732,11 @@ def _add_collateral_borrow(
 
     if _remove_collateral:
         log IController.RemoveCollateral(
-            user=_for, collateral_decrease=_d_collateral
+            caller=msg.sender, user=_for, collateral_decrease=_d_collateral
         )
     else:
         log IController.Borrow(
-            user=_for, collateral_increase=_d_collateral, loan_increase=_d_debt
+            caller=msg.sender, user=_for, collateral_increase=_d_collateral, loan_increase=_d_debt
         )
 
     log IController.UserState(
@@ -936,7 +936,7 @@ def _repay_full(
         user=_for, collateral=0, borrowed=0, debt=0, n1=0, n2=0, liquidation_discount=0
     )
     log IController.Repay(
-        user=_for, collateral_decrease=_xy[1], loan_decrease=_debt
+        caller=msg.sender, user=_for, collateral_decrease=_xy[1], loan_decrease=_debt
     )
 
 
@@ -1016,6 +1016,7 @@ def _repay_partial(
         liquidation_discount=liquidation_discount,
     )
     log IController.Repay(
+        caller=msg.sender,
         user=_for,
         collateral_decrease=crv_math.sub_or_zero(_xy[1], new_collateral),
         loan_decrease=d_debt,
@@ -1295,7 +1296,7 @@ def liquidate(
     self._save_rate()
 
     log IController.Repay(
-        user=_user, collateral_decrease=xy[1], loan_decrease=debt
+        caller=msg.sender, user=_user, collateral_decrease=xy[1], loan_decrease=debt
     )
     log IController.Liquidate(
         liquidator=msg.sender,
