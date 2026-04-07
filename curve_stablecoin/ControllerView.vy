@@ -600,7 +600,10 @@ def max_borrowable(
     if user_state[3] > 0:  # User has a position
         N = user_state[3]
 
-    return self._max_borrowable(user_state[0] + _d_collateral, N, self._get_cap() + user_state[2], _user) - user_state[2]
+    return crv_math.sub_or_zero(
+        self._max_borrowable(user_state[0] + _d_collateral, N, self._get_cap() + user_state[2], _user),
+        user_state[2],
+    )
 
 
 @external
