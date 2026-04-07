@@ -53,6 +53,10 @@ event SetPriceOracle:
     price_oracle: IPriceOracle
 
 
+event SetCallback:
+    callback: ILMGauge
+
+
 # Functions
 
 @external

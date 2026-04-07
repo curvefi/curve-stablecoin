@@ -44,10 +44,6 @@ event Borrow:
     loan_increase: uint256
 
 
-event SetLMCallback:
-    callback: ILMGauge
-
-
 event SetBorrowingDiscounts:
     loan_discount: uint256
     liquidation_discount: uint256
