@@ -21,6 +21,7 @@ from curve_stablecoin.interfaces import IVault
 from curve_stablecoin import constants as c
 from curve_std import crv_math
 from curve_std import token as tkn
+from curve_std import crv_math
 from snekmate.utils import math
 
 implements: IERC20
