@@ -16,6 +16,7 @@ from curve_stablecoin.interfaces import IAMM
 from curve_stablecoin.interfaces import IMonetaryPolicy
 from curve_stablecoin.interfaces import IVault
 from curve_stablecoin.interfaces import IController
+from curve_std import crv_math
 
 implements: IController
 
@@ -213,7 +214,8 @@ def on_borrowed_token_transfer_out(_amount: uint256):
             2. The vault on withdraw/redeem
     """
     assert msg.sender == VAULT.address or msg.sender == self # dev: vault or controller only
-    assert _amount <= self._available_balance, "Available balance exceeded"
+    # core._admin_fees() == 0 in case of collect_fees()
+    assert _amount <= crv_math.sub_or_zero(self._available_balance, core._admin_fees()), "Available balance exceeded"
     self._available_balance -= _amount
 
 

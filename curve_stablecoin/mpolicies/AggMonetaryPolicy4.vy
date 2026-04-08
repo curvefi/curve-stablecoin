@@ -11,6 +11,7 @@
 # Should be used for Controllers which update borrow rate too early (not at the end of every call)
 
 from curve_std import ema
+from snekmate.utils import math
 
 initializes: ema
 
@@ -86,6 +87,7 @@ struct DebtCandle:
     timestamp: uint256
 
 DEBT_CANDLE_TIME: constant(uint256) = 86400 // 2
+TOTAL_DEBT_KEY: constant(address) = empty(address)
 min_debt_candles: public(HashMap[address, DebtCandle])
 
 
@@ -172,6 +174,8 @@ def remove_peg_keeper(pk: PegKeeper):
 @internal
 @pure
 def exp(power: int256) -> uint256:
+    # Wrap snekmate's WAD exp to preserve the previous zero/overflow semantics,
+    # though this may not be strictly required.
     if power <= -41446531673892821376:
         return 0
 
@@ -179,31 +183,7 @@ def exp(power: int256) -> uint256:
         # Return MAX_EXP when we are in overflow mode
         return MAX_EXP
 
-    x: int256 = unsafe_div(unsafe_mul(power, 2**96), 10**18)
-
-    k: int256 = unsafe_div(
-        unsafe_add(
-            unsafe_div(unsafe_mul(x, 2**96), 54916777467707473351141471128),
-            2**95),
-        2**96)
-    x = unsafe_sub(x, unsafe_mul(k, 54916777467707473351141471128))
-
-    y: int256 = unsafe_add(x, 1346386616545796478920950773328)
-    y = unsafe_add(unsafe_div(unsafe_mul(y, x), 2**96), 57155421227552351082224309758442)
-    p: int256 = unsafe_sub(unsafe_add(y, x), 94201549194550492254356042504812)
-    p = unsafe_add(unsafe_div(unsafe_mul(p, y), 2**96), 28719021644029726153956944680412240)
-    p = unsafe_add(unsafe_mul(p, x), (4385272521454847904659076985693276 * 2**96))
-
-    q: int256 = x - 2855989394907223263936484059900
-    q = unsafe_add(unsafe_div(unsafe_mul(q, x), 2**96), 50020603652535783019961831881945)
-    q = unsafe_sub(unsafe_div(unsafe_mul(q, x), 2**96), 533845033583426703283633433725380)
-    q = unsafe_add(unsafe_div(unsafe_mul(q, x), 2**96), 3604857256930695427073651918091429)
-    q = unsafe_sub(unsafe_div(unsafe_mul(q, x), 2**96), 14423608567350463180887372962807573)
-    q = unsafe_add(unsafe_div(unsafe_mul(q, x), 2**96), 26449188498355588339934803723976023)
-
-    return shift(
-        unsafe_mul(convert(unsafe_div(p, q), uint256), 3822833074963236453042738258902158003155416615667),
-        unsafe_sub(k, 195))
+    return convert(math._wad_exp(power), uint256)
 
 
 @internal
@@ -271,7 +251,7 @@ def save_candle(_for: address, _value: uint256):
 @internal
 @view
 def read_debt(_for: address, ro: bool) -> (uint256, uint256):
-    debt_total: uint256 = self.read_candle(empty(address))
+    debt_total: uint256 = self.read_candle(TOTAL_DEBT_KEY)
     debt_for: uint256 = self.read_candle(_for)
     fresh_total: uint256 = 0
     fresh_for: uint256 = 0
@@ -317,21 +297,22 @@ def calculate_rate(_for: address, _price: uint256, ro: bool) -> (uint256, uint25
 
     power: int256 = (10**18 - p) * 10**18 // sigma  # high price -> negative pow -> low rate
     ratio: uint256 = 0
-    if pk_debt > 0:
-        if total_debt == 0:
-            return 0, 0
-        else:
-            ratio = pk_debt * 10**18 // total_debt
-            power -= convert(ema.read(DEBT_RATIO_EMA_ID) * 10**18 // target_debt_fraction, int256)
+    # It is unlikely that all controllers report zero debt at once; if they do,
+    # leave ratio at 0 and let the EMA slowly remove the PegKeeper discount.
+    if total_debt > 0:
+        ratio = pk_debt * 10**18 // total_debt
+
+    power -= convert(ema.read(DEBT_RATIO_EMA_ID) * 10**18 // target_debt_fraction, int256)
 
     # Rate accounting for crvUSD price and PegKeeper debt
     rate: uint256 = self.rate0 * min(self.exp(power), MAX_EXP) // 10**18 + self.extra_const
 
     # Account for individual debt ceiling to dynamically tune rate depending on filling the market
     ceiling: uint256 = staticcall CONTROLLER_FACTORY.debt_ceiling(_for)
+    f: uint256 = 10**18 - TARGET_REMAINDER // 1000
     if ceiling > 0:
-        f: uint256 = min(debt_for * 10**18 // ceiling, 10**18 - TARGET_REMAINDER // 1000)
-        rate = min(rate * ((10**18 - TARGET_REMAINDER) + TARGET_REMAINDER * 10**18 // (10**18 - f)) // 10**18, MAX_RATE)
+        f = min(f, debt_for * 10**18 // ceiling)
+    rate = min(rate * ((10**18 - TARGET_REMAINDER) + TARGET_REMAINDER * 10**18 // (10**18 - f)) // 10**18, MAX_RATE)
 
     # Rate multiplication at different ceilings (target = 0.1):
     # debt = 0:
@@ -359,6 +340,8 @@ def rate(_for: address = msg.sender) -> uint256:
 
 @external
 def rate_write(_for: address = msg.sender) -> uint256:
+    assert _for != TOTAL_DEBT_KEY  # dev: invalid controller
+
     # Update controller list
     n_controllers: uint256 = self.n_controllers
     n_factory_controllers: uint256 = staticcall CONTROLLER_FACTORY.n_collaterals()
@@ -374,7 +357,7 @@ def rate_write(_for: address = msg.sender) -> uint256:
     total_debt: uint256 = 0
     debt_for: uint256 = 0
     total_debt, debt_for = self.get_total_debt(_for)
-    self.save_candle(empty(address), total_debt)
+    self.save_candle(TOTAL_DEBT_KEY, total_debt)
     self.save_candle(_for, debt_for)
 
     rate: uint256 = 0

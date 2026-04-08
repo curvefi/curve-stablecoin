@@ -1,5 +1,6 @@
 # pragma version 0.4.3
 # pragma optimize codesize
+# pragma nonreentrancy on
 """
 @title LlamaLend Vault
 @notice ERC4626+ Vault for lending using LLAMMA algorithm
@@ -19,7 +20,8 @@ from curve_stablecoin.interfaces import IVault
 
 from curve_stablecoin import constants as c
 from curve_std import token as tkn
-from curve_std import math2 as crv_math
+from curve_std import crv_math
+from snekmate.utils import math
 
 implements: IERC20
 implements: IERC4626
@@ -38,6 +40,7 @@ _borrowed_token: IERC20
 # https://github.com/vyperlang/vyper/issues/4721
 @external
 @view
+@reentrant
 def borrowed_token() -> IERC20:
     return self._borrowed_token
 
@@ -45,6 +48,7 @@ _collateral_token: IERC20
 # https://github.com/vyperlang/vyper/issues/4721
 @external
 @view
+@reentrant
 def collateral_token() -> IERC20:
     return self._collateral_token
 
@@ -52,6 +56,7 @@ _amm: IAMM
 # https://github.com/vyperlang/vyper/issues/4721
 @external
 @view
+@reentrant
 def amm() -> IAMM:
     return self._amm
 
@@ -59,6 +64,7 @@ _controller: IController
 # https://github.com/vyperlang/vyper/issues/4721
 @external
 @view
+@reentrant
 def controller() -> IController:
     return self._controller
 
@@ -66,6 +72,7 @@ _factory: IFactory
 # https://github.com/vyperlang/vyper/issues/4721
 @external
 @view
+@reentrant
 def factory() -> IFactory:
     return self._factory
 
@@ -87,11 +94,8 @@ totalSupply: public(uint256)
 
 precision: uint256
 
-# Only needed for initialize
-interface IERC20Symbol:
-    def symbol() -> String[32]: view
-
 @external
+@reentrant
 def initialize(
         _amm: IAMM,
         _controller: IController,
@@ -117,7 +121,7 @@ def initialize(
 
     # ERC20 set up
     self.precision = borrowed_precision
-    borrowed_symbol: String[32] = staticcall IERC20Symbol(_borrowed_token.address).symbol()
+    borrowed_symbol: String[32] = staticcall _borrowed_token.symbol()
     self.name = concat(NAME_PREFIX, borrowed_symbol)
     # Symbol must be String[32], but we do String[34]. It doesn't affect contracts which read it (they will truncate)
     # However this will be changed as soon as Vyper can *properly* manipulate strings
@@ -138,7 +142,6 @@ def set_max_supply(_max_supply: uint256):
 
 @external
 @view
-@nonreentrant
 def borrow_apr() -> uint256:
     """
     @notice Borrow APR (annualized and 1e18-based)
@@ -148,7 +151,6 @@ def borrow_apr() -> uint256:
 
 @external
 @view
-@nonreentrant
 def lend_apr() -> uint256:
     """
     @notice Lending APR (annualized and 1e18-based), net of admin fees
@@ -183,7 +185,6 @@ def _total_assets() -> uint256:
 
 @external
 @view
-@nonreentrant
 def totalAssets() -> uint256:
     """
     @notice Total assets which can be lent out or be in reserve
@@ -204,7 +205,7 @@ def _convert_to_shares(_assets: uint256, _is_floor: bool = True,
     if _is_floor:
         return numerator // denominator
     else:
-        return crv_math.div_up(numerator, denominator)
+        return math._ceil_div(numerator, denominator)
 
 
 @internal
@@ -220,12 +221,11 @@ def _convert_to_assets(_shares: uint256, _is_floor: bool = True,
     if _is_floor:
         return numerator // denominator
     else:
-        return crv_math.div_up(numerator, denominator)
+        return math._ceil_div(numerator, denominator)
 
 
 @external
 @view
-@nonreentrant
 def pricePerShare(_is_floor: bool = True) -> uint256:
     """
     @notice Method which shows how much one pool share costs in asset tokens if they are normalized to 18 decimals
@@ -243,14 +243,13 @@ def pricePerShare(_is_floor: bool = True) -> uint256:
         if _is_floor:
             pps = numerator // denominator
         else:
-            pps = crv_math.div_up(numerator, denominator)
+            pps = math._ceil_div(numerator, denominator)
         assert pps > 0
         return pps
 
 
 @external
 @view
-@nonreentrant
 def convertToShares(_assets: uint256) -> uint256:
     """
     @notice Returns the amount of shares which the Vault would exchange for the given amount of shares provided
@@ -260,7 +259,6 @@ def convertToShares(_assets: uint256) -> uint256:
 
 @external
 @view
-@nonreentrant
 def convertToAssets(_shares: uint256) -> uint256:
     """
     @notice Returns the amount of assets that the Vault would exchange for the amount of shares provided
@@ -284,7 +282,6 @@ def maxDeposit(_receiver: address) -> uint256:
 
 @external
 @view
-@nonreentrant
 def previewDeposit(_assets: uint256) -> uint256:
     """
     @notice Returns the amount of shares which can be obtained upon depositing assets
@@ -293,7 +290,6 @@ def previewDeposit(_assets: uint256) -> uint256:
 
 
 @external
-@nonreentrant
 def deposit(_assets: uint256, _receiver: address = msg.sender) -> uint256:
     """
     @notice Deposit assets in return for whatever number of shares corresponds to the current conditions
@@ -332,7 +328,6 @@ def maxMint(_receiver: address) -> uint256:
 
 @external
 @view
-@nonreentrant
 def previewMint(_shares: uint256) -> uint256:
     """
     @notice Calculate the amount of assets which is needed to exactly mint the given amount of shares
@@ -341,7 +336,6 @@ def previewMint(_shares: uint256) -> uint256:
 
 
 @external
-@nonreentrant
 def mint(_shares: uint256, _receiver: address = msg.sender) -> uint256:
     """
     @notice Mint given amount of shares taking whatever number of assets it requires
@@ -364,22 +358,29 @@ def mint(_shares: uint256, _receiver: address = msg.sender) -> uint256:
     return assets
 
 
+@internal
+@view
+def _available_balance() -> uint256:
+    return crv_math.sub_or_zero(
+        staticcall self._controller.available_balance(),
+        staticcall self._controller.admin_fees(),
+    )
+
+
 @external
 @view
-@nonreentrant
 def maxWithdraw(_owner: address) -> uint256:
     """
     @notice Maximum amount of assets which a given user can withdraw. Aware of both user's balance and available liquidity
     """
     return min(
         self._convert_to_assets(self.balanceOf[_owner]),
-        staticcall self._controller.available_balance(),
+        self._available_balance(),
     )
 
 
 @external
 @view
-@nonreentrant
 def previewWithdraw(_assets: uint256) -> uint256:
     """
     @notice Calculate number of shares which gets burned when withdrawing given amount of asset
@@ -388,7 +389,6 @@ def previewWithdraw(_assets: uint256) -> uint256:
 
 
 @external
-@nonreentrant
 def withdraw(_assets: uint256, _receiver: address = msg.sender, _owner: address = msg.sender) -> uint256:
     """
     @notice Withdraw given amount of asset and burn the corresponding amount of vault shares
@@ -417,20 +417,18 @@ def withdraw(_assets: uint256, _receiver: address = msg.sender, _owner: address 
 
 @external
 @view
-@nonreentrant
 def maxRedeem(_owner: address) -> uint256:
     """
     @notice Calculate maximum amount of shares which a given user can redeem
     """
     return min(
-        self._convert_to_shares(staticcall self._controller.available_balance(), False),
+        self._convert_to_shares(self._available_balance(), False),
         self.balanceOf[_owner],
     )
 
 
 @external
 @view
-@nonreentrant
 def previewRedeem(_shares: uint256) -> uint256:
     """
     @notice Calculate the amount of assets which can be obtained by redeeming the given amount of shares
@@ -439,7 +437,6 @@ def previewRedeem(_shares: uint256) -> uint256:
 
 
 @external
-@nonreentrant
 def redeem(_shares: uint256, _receiver: address = msg.sender, _owner: address = msg.sender) -> uint256:
     """
     @notice Burn given amount of shares and give corresponding assets to the user
@@ -454,12 +451,7 @@ def redeem(_shares: uint256, _receiver: address = msg.sender, _owner: address = 
 
     total_assets: uint256 = self._total_assets()
     assets_to_redeem: uint256 = self._convert_to_assets(_shares, True, total_assets)
-    if total_assets - assets_to_redeem < MIN_ASSETS:
-        if _shares == self.totalSupply:
-            # This is the last withdrawal, so we can take everything
-            assets_to_redeem = total_assets
-        else:
-            raise "Need more assets"
+    assert total_assets - assets_to_redeem >= MIN_ASSETS or total_assets == assets_to_redeem, "Need more assets"
     self._burn(_owner, _shares)
     controller: IController = self._controller
 

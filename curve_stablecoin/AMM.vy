@@ -43,7 +43,7 @@ from curve_stablecoin.interfaces import IPriceOracle
 from curve_stablecoin.interfaces import ILMGauge
 from curve_std.interfaces import IERC20
 
-from curve_std import math2 as crv_math
+from curve_std import crv_math
 
 from snekmate.utils import math
 
@@ -567,8 +567,8 @@ def can_skip_bands(n_end: int256) -> bool:
                 return False
             n = unsafe_sub(n, 1)
         if n == n_end:  # not including n_end
-            break
-    return True
+            return True
+    raise "Too deep"
     # Actually skipping bands:
     # * change self.active_band to the new n
     # * change self.p_base_mul

@@ -103,6 +103,11 @@ def test_full_repay_from_wallet(
 
     # ================= Execute full repayment =================
 
+    if different_payer:
+        # Repay reverts without approval
+        with boa.reverts():
+            controller.repay(MAX_UINT256, borrower, sender=payer)
+        controller.approve(payer, True, sender=borrower)
     controller.repay(MAX_UINT256, borrower, sender=payer)
 
     # ================= Capture final balances =================
@@ -842,7 +847,6 @@ def test_full_repay_from_xy0_and_wallet_and_callback(
 
 
 @pytest.mark.parametrize("different_payer", [True, False])
-@pytest.mark.parametrize("approval", [True, False])
 def test_partial_repay_from_wallet(
     controller,
     borrowed_token,
@@ -851,7 +855,6 @@ def test_partial_repay_from_wallet(
     snapshot,
     admin,
     different_payer,
-    approval,
 ):
     """
     Test partial repayment using wallet tokens.
@@ -889,17 +892,13 @@ def test_partial_repay_from_wallet(
 
     # ================= Calculate future health =================
 
-    # Approved caller triggers borrower's liquidation discount update which affects health
-    if different_payer and approval:
-        controller.approve(payer, True, sender=borrower)
-
     d_collateral = 0
     d_debt = wallet_borrowed
     preview_health = controller.repay_health_preview(
-        d_collateral, d_debt, borrower, payer, False, False
+        d_collateral, d_debt, borrower, False, False
     )
     preview_health_full = controller.repay_health_preview(
-        d_collateral, d_debt, borrower, payer, False, True
+        d_collateral, d_debt, borrower, False, True
     )
 
     # ================= Capture initial balances =================
@@ -909,6 +908,11 @@ def test_partial_repay_from_wallet(
 
     # ================= Execute partial repayment =================
 
+    if different_payer:
+        # Repay reverts without approval
+        with boa.reverts():
+            controller.repay(wallet_borrowed, borrower, sender=payer)
+        controller.approve(payer, True, sender=borrower)
     controller.repay(wallet_borrowed, borrower, sender=payer)
 
     # ================= Capture final balances =================
@@ -999,13 +1003,11 @@ def test_partial_repay_from_callback(
 
     d_collateral = collateral_amount - callback_collateral
     d_debt = callback_borrowed
-    # Approval is required to use callback,
-    # so we do calculation assuming that approval is going to be given.
     preview_health = controller.repay_health_preview(
-        d_collateral, d_debt, borrower, borrower, False, False
+        d_collateral, d_debt, borrower, False, False
     )
     preview_health_full = controller.repay_health_preview(
-        d_collateral, d_debt, borrower, borrower, False, True
+        d_collateral, d_debt, borrower, False, True
     )
 
     # ================= Capture initial balances =================
@@ -1130,13 +1132,11 @@ def test_partial_repay_from_wallet_and_callback(
 
     d_collateral = user_state_before[0] - callback_collateral
     d_debt = wallet_borrowed + callback_borrowed
-    # Approval is required to use callback,
-    # so we do calculation assuming that approval is going to be given.
     preview_health = controller.repay_health_preview(
-        d_collateral, d_debt, borrower, borrower, False, False
+        d_collateral, d_debt, borrower, False, False
     )
     preview_health_full = controller.repay_health_preview(
-        d_collateral, d_debt, borrower, borrower, False, True
+        d_collateral, d_debt, borrower, False, True
     )
 
     # ================= Capture initial balances =================
@@ -1221,8 +1221,41 @@ def test_partial_repay_from_wallet_and_callback(
         assert collateral_token_after["payer"] == collateral_token_before["payer"]
 
 
+def test_partial_repay_callback_collateral_cannot_increase(
+    controller,
+    amm,
+    borrowed_token,
+    collateral_token,
+    create_loan,
+    dummy_callback,
+    get_calldata,
+    collateral_amount,
+):
+    """
+    Test that a callback cannot claim to return more collateral than what was in the position.
+
+    The assertion `assert _cb.collateral <= _xy[1]` in _repay_partial must revert
+    when the callback returns a collateral value exceeding the actual AMM collateral.
+    """
+    borrower = create_loan()
+
+    user_state = controller.user_state(borrower)
+    debt = user_state[2]
+    callback_borrowed = debt // 3  # partial repay only
+
+    # Callback claims to return one more unit of collateral than was in the position.
+    # Pre-fund with 1 extra collateral so DummyCallback passes its own balance check
+    # (it receives collateral_amount from the AMM + 1 pre-funded = collateral_amount + 1).
+    callback_collateral = collateral_amount + 1
+    boa.deal(collateral_token, dummy_callback, 1)
+    boa.deal(borrowed_token, dummy_callback, callback_borrowed)
+    calldata = get_calldata(callback_borrowed, callback_collateral)
+
+    with boa.reverts("Collateral can't increase during repay"):
+        controller.repay(0, borrower, amm.active_band(), dummy_callback, calldata)
+
+
 @pytest.mark.parametrize("different_payer", [True, False])
-@pytest.mark.parametrize("approval", [True, False])
 def test_partial_repay_from_wallet_underwater(
     controller,
     amm,
@@ -1232,7 +1265,6 @@ def test_partial_repay_from_wallet_underwater(
     snapshot,
     admin,
     different_payer,
-    approval,
 ):
     """
     Test partial repayment from wallet when position is underwater (soft-liquidated).
@@ -1282,17 +1314,13 @@ def test_partial_repay_from_wallet_underwater(
 
     # ================= Calculate future health =================
 
-    # Approved caller triggers borrower's liquidation discount update which affects health
-    if different_payer and approval:
-        controller.approve(payer, True, sender=borrower)
-
     d_collateral = 0
     d_debt = wallet_borrowed
     preview_health = controller.repay_health_preview(
-        d_collateral, d_debt, borrower, payer, False, False
+        d_collateral, d_debt, borrower, False, False
     )
     preview_health_full = controller.repay_health_preview(
-        d_collateral, d_debt, borrower, payer, False, True
+        d_collateral, d_debt, borrower, False, True
     )
 
     # ================= Capture initial balances =================
@@ -1302,6 +1330,11 @@ def test_partial_repay_from_wallet_underwater(
 
     # ================= Execute partial repayment =================
 
+    if different_payer:
+        # Repay reverts without approval
+        with boa.reverts():
+            controller.repay(wallet_borrowed, borrower, amm.active_band(), sender=payer)
+        controller.approve(payer, True, sender=borrower)
     controller.repay(wallet_borrowed, borrower, amm.active_band(), sender=payer)
 
     # ================= Capture final balances =================
@@ -1401,13 +1434,11 @@ def test_partial_repay_from_xy0_underwater_shrink(
 
     d_collateral = 0
     d_debt = 0
-    # Approval is required to shrink,
-    # so we do calculation assuming that approval is going to be given.
     preview_health = controller.repay_health_preview(
-        d_collateral, d_debt, borrower, borrower, True, False
+        d_collateral, d_debt, borrower, True, False
     )
     preview_health_full = controller.repay_health_preview(
-        d_collateral, d_debt, borrower, borrower, True, True
+        d_collateral, d_debt, borrower, True, True
     )
 
     # ================= Capture initial balances =================
@@ -1535,13 +1566,11 @@ def test_partial_repay_from_xy0_and_wallet_underwater_shrink(
 
     d_collateral = 0
     d_debt = wallet_borrowed
-    # Approval is required to shrink,
-    # so we do calculation assuming that approval is going to be given.
     preview_health = controller.repay_health_preview(
-        d_collateral, d_debt, borrower, borrower, True, False
+        d_collateral, d_debt, borrower, True, False
     )
     preview_health_full = controller.repay_health_preview(
-        d_collateral, d_debt, borrower, borrower, True, True
+        d_collateral, d_debt, borrower, True, True
     )
 
     # ================= Capture initial balances =================
@@ -1695,13 +1724,11 @@ def test_partial_repay_from_xy0_and_callback_underwater_shrink(
 
     d_collateral = user_state_before[0] - callback_collateral
     d_debt = callback_borrowed
-    # Approval is required to use callback and shrink,
-    # so we do calculation assuming that approval is going to be given.
     preview_health = controller.repay_health_preview(
-        d_collateral, d_debt, borrower, borrower, True, False
+        d_collateral, d_debt, borrower, True, False
     )
     preview_health_full = controller.repay_health_preview(
-        d_collateral, d_debt, borrower, borrower, True, True
+        d_collateral, d_debt, borrower, True, True
     )
 
     # ================= Capture initial balances =================
@@ -1866,13 +1893,11 @@ def test_partial_repay_from_xy0_and_wallet_and_callback_underwater_shrink(
 
     d_collateral = user_state_before[0] - callback_collateral
     d_debt = wallet_borrowed + callback_borrowed
-    # Approval is required to use callback and shrink,
-    # so we do calculation assuming that approval is going to be given.
     preview_health = controller.repay_health_preview(
-        d_collateral, d_debt, borrower, borrower, True, False
+        d_collateral, d_debt, borrower, True, False
     )
     preview_health_full = controller.repay_health_preview(
-        d_collateral, d_debt, borrower, borrower, True, True
+        d_collateral, d_debt, borrower, True, True
     )
     # ================= Capture initial balances =================
 
@@ -2024,14 +2049,10 @@ def test_partial_repay_cannot_shrink(
         controller.tokens_to_shrink(borrower)
 
     with boa.reverts("Can't shrink"):
-        controller.repay_health_preview(
-            0, user_state_before[1], borrower, borrower, True, False
-        )
+        controller.repay_health_preview(0, user_state_before[1], borrower, True, False)
 
     with boa.reverts("Can't shrink"):
-        controller.repay_health_preview(
-            0, user_state_before[1], borrower, borrower, True, True
-        )
+        controller.repay_health_preview(0, user_state_before[1], borrower, True, True)
 
     with boa.reverts("Can't shrink"):
         controller.approve(payer, True, sender=borrower)

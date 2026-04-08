@@ -1010,7 +1010,9 @@ def test_liquidate_full_from_xy0_underwater_exact(
     assert user_state_after[1] == 0  # no borrowed tokens in AMM
     assert user_state_after[2] == 0  # debt fully repaid
     assert user_state_after[3] == 0  # N == 0
-    assert controller.total_debt() == total_debt - debt
+    assert controller.total_debt() == pytest.approx(
+        total_debt - debt, abs=1
+    )  # debt(user) rounds up
     assert controller.eval("core.repaid") == repaid + debt
     assert controller.n_loans() == 0  # loan removed after full liquidation
 
@@ -1143,6 +1145,9 @@ def test_liquidate_partial_from_wallet(
 
     caller = liquidator
     if is_healthy:
+        if different_liquidator:
+            with boa.reverts("Not enough rekt"):
+                controller.liquidate_health_preview(borrower, caller, frac, False)
         # Approval is required to liquidate healthy users,
         # so we do calculation assuming that approval is going to be given.
         caller = borrower
@@ -1355,6 +1360,9 @@ def test_liquidate_partial_from_wallet_underwater(
 
     caller = liquidator
     if is_healthy:
+        if different_liquidator:
+            with boa.reverts("Not enough rekt"):
+                controller.liquidate_health_preview(borrower, caller, frac, False)
         # Approval is required to liquidate healthy users,
         # so we do calculation assuming that approval is going to be given.
         caller = borrower
@@ -1558,6 +1566,9 @@ def test_liquidate_partial_from_callback(
 
     caller = liquidator
     if is_healthy:
+        if different_liquidator:
+            with boa.reverts("Not enough rekt"):
+                controller.liquidate_health_preview(borrower, caller, frac, False)
         # Approval is required to liquidate healthy users,
         # so we do calculation assuming that approval is going to be given.
         caller = borrower
@@ -1785,6 +1796,9 @@ def test_liquidate_partial_from_callback_underwater(
 
     caller = liquidator
     if is_healthy:
+        if different_liquidator:
+            with boa.reverts("Not enough rekt"):
+                controller.liquidate_health_preview(borrower, caller, frac, False)
         # Approval is required to liquidate healthy users,
         # so we do calculation assuming that approval is going to be given.
         caller = borrower

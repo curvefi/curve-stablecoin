@@ -10,21 +10,21 @@ CALLDATA_MAX_SIZE: constant(uint256) = c.CALLDATA_MAX_SIZE
 # Events
 
 event Repay:
-    user: address
+    user: indexed(address)
     collateral_decrease: uint256
     loan_decrease: uint256
 
 
 event Liquidate:
-    liquidator: address
-    user: address
+    liquidator: indexed(address)
+    user: indexed(address)
     collateral_received: uint256
     borrowed_received: uint256
     debt: uint256
 
 
 event UserState:
-    user: address
+    user: indexed(address)
     collateral: uint256
     borrowed: uint256
     debt: uint256
@@ -34,12 +34,12 @@ event UserState:
 
 
 event RemoveCollateral:
-    user: address
+    user: indexed(address)
     collateral_decrease: uint256
 
 
 event Borrow:
-    user: address
+    user: indexed(address)
     collateral_increase: uint256
     loan_increase: uint256
 
@@ -58,13 +58,13 @@ event SetMonetaryPolicy:
 
 
 event Approval:
-    owner: address
-    spender: address
+    owner: indexed(address)
+    spender: indexed(address)
     allow: bool
 
 
 event SetExtraHealth:
-    user: address
+    user: indexed(address)
     health: uint256
 
 
@@ -274,7 +274,7 @@ def create_loan_health_preview(collateral: uint256, debt: uint256, N: uint256, _
 
 @view
 @external
-def add_collateral_health_preview(collateral: uint256, _for: address, _caller: address, full: bool) -> int256:
+def add_collateral_health_preview(collateral: uint256, _for: address, full: bool) -> int256:
     ...
 
 
@@ -292,7 +292,7 @@ def borrow_more_health_preview(collateral: uint256, debt: uint256, _for: address
 
 @view
 @external
-def repay_health_preview(d_collateral: uint256, d_debt: uint256, _for: address, _caller: address, shrink: bool, full: bool) -> int256:
+def repay_health_preview(d_collateral: uint256, d_debt: uint256, _for: address, shrink: bool, full: bool) -> int256:
     ...
 
 
