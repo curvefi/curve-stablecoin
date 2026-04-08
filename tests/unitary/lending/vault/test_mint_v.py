@@ -130,17 +130,16 @@ def test_mint_need_more_assets_revert(vault, controller, amm, borrowed_token):
     min_scaled_assets = vault.eval("MIN_SCALED_ASSETS")
     precision = vault.eval("self.precision")
     assets = (min_scaled_assets - 1) // precision
-    if assets == 0:
-        pytest.skip(
-            "No positive mint amount exists below the scaled-asset threshold for this precision"
-        )
     shares = vault.convertToShares(assets)  # Very small amount
     boa.deal(borrowed_token, boa.env.eoa, assets)
     borrowed_token.approve(vault, assets)
 
-    # Should revert with "Need more assets"
-    with boa.reverts("Need more assets"):
-        vault.mint(shares)
+    if shares == 0:
+        with boa.reverts("Can't mint 0 shares"):
+            vault.mint(shares)
+    else:
+        with boa.reverts("Need more assets"):
+            vault.mint(shares)
 
 
 def test_mint_supply_limit_revert(vault, controller, amm, borrowed_token):

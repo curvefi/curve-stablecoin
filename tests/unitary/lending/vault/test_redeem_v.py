@@ -301,6 +301,7 @@ def test_redeem_need_more_assets_revert(vault, controller, amm, borrowed_token, 
         assert vault.totalAssets() >= min_assets
 
 
+# TODO: remove admin as initial depositor
 def test_revert_full_supply_when_virtual_share_dust_is_below_min_assets(
     vault, controller, monetary_policy, collateral_token, admin
 ):

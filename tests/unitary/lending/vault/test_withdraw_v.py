@@ -286,6 +286,7 @@ def test_withdraw_with_owner_and_receiver(
     assert logs[0].shares == shares
 
 
+# TODO: remove admin as initial depositor
 def test_withdraw_need_more_assets_revert(
     vault, controller, amm, borrowed_token, admin
 ):

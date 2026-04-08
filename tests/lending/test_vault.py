@@ -127,15 +127,17 @@ class StatefulVault(RuleBasedStateMachine):
     def inv_pps(self):
         pps = self.vault.pricePerShare()
         assert pps >= 1e18 // 1000  # Most likely we'll be around here
-        if self.precision <= 10**12:
-            assert (
-                pps <= 1e18 // 1000 * 1.1
-            )  # Cannot pump much due to min scaled assets limits at 18-decimal precision
-        if self.precision <= 10**12 and self.total_assets > 100000:
-            if self.pps:
-                assert pps == pytest.approx(self.pps, rel=1e-2)
-            else:
-                self.pps = pps
+
+        # pps = 1e18 * (total_assets * precision + 1) / (totalSupply + DEAD_SHARES)
+        if self.precision == 1:
+            assert pps <= 1e18 // DEAD_SHARES * 1.1  # Cannot pump much
+            if self.total_assets > 100000:
+                if self.pps:
+                    assert pps == pytest.approx(self.pps, rel=1e-2)
+                else:
+                    self.pps = pps
+        else:
+            assert pps <= 1e18 * self.precision // DEAD_SHARES * 10
 
     @rule(user_id=user_id, assets=amount)
     def deposit(self, user_id, assets):
