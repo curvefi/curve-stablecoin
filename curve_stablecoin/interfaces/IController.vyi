@@ -12,7 +12,6 @@ CALLDATA_MAX_SIZE: constant(uint256) = c.CALLDATA_MAX_SIZE
 event Repay:
     caller: indexed(address)
     user: indexed(address)
-    user: indexed(address)
     collateral_decrease: uint256
     loan_decrease: uint256
 
