@@ -104,7 +104,7 @@ def _get_y_effective(
 
 @internal
 @view
-def _check_approval(_for: address, _caller: address) -> bool:
+def _has_approval(_for: address, _caller: address) -> bool:
     return _for == _caller or staticcall CONTROLLER.approval(_for, _caller)
 
 
@@ -374,7 +374,7 @@ def liquidate_health_preview(
     ns: int256[2] = staticcall AMM.read_user_tick_numbers(_user)
     active_band: int256 = staticcall AMM.active_band_with_skip()
 
-    approval: bool = self._check_approval(_user, _caller)
+    approval: bool = self._has_approval(_user, _caller)
     health_limit: uint256 = 0
     ld: uint256 = 0
     if approval:

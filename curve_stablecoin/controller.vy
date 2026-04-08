@@ -633,7 +633,7 @@ def create_loan(
     @param _callbacker Address of the callback contract
     @param _calldata Any data for callbacker
     """
-    assert self._check_approval(_for)
+    assert self._has_approval(_for)
 
     more_collateral: uint256 = 0
     if _callbacker != empty(address):
@@ -778,7 +778,7 @@ def add_collateral(_collateral: uint256, _for: address = msg.sender):
     """
     if _collateral == 0:
         return
-    assert self._check_approval(_for)
+    assert self._has_approval(_for)
     self._add_collateral_borrow(_collateral, 0, _for, False)
     tkn.transfer_from(COLLATERAL_TOKEN, msg.sender, AMM.address, _collateral)
     self._save_rate()
@@ -812,7 +812,7 @@ def remove_collateral(_collateral: uint256, _for: address = msg.sender):
     """
     if _collateral == 0:
         return
-    assert self._check_approval(_for)
+    assert self._has_approval(_for)
     self._add_collateral_borrow(_collateral, 0, _for, True)
     tkn.transfer_from(COLLATERAL_TOKEN, AMM.address, _for, _collateral)
     self._save_rate()
@@ -858,7 +858,7 @@ def borrow_more(
     """
     if _debt == 0:
         return
-    assert self._check_approval(_for)
+    assert self._has_approval(_for)
 
     more_collateral: uint256 = 0
     if _callbacker != empty(address):
@@ -1068,7 +1068,7 @@ def repay(
     @param _calldata Any data for callbacker
     @param _shrink Whether shrink soft-liquidated part of the position or not
     """
-    assert self._check_approval(_for)
+    assert self._has_approval(_for)
     debt: uint256 = 0
     rate_mul: uint256 = 0
     debt, rate_mul = self._debt(_for)
@@ -1218,7 +1218,7 @@ def liquidate(
     @param _callbacker Address of the callback contract
     @param _calldata Any data for callbacker
     """
-    approval: bool = self._check_approval(_user)
+    approval: bool = self._has_approval(_user)
     liquidation_discount: uint256 = self.liquidation_discounts[_user]
     debt: uint256 = 0
     rate_mul: uint256 = 0
@@ -1340,7 +1340,7 @@ def tokens_to_liquidate(_user: address, _frac: uint256 = WAD) -> uint256:
     """
     assert _frac <= WAD, "frac>100%"
     health_limit: uint256 = 0
-    if not self._check_approval(_user):
+    if not self._has_approval(_user):
         health_limit = self.liquidation_discounts[_user]
     borrowed: uint256 = unsafe_div(
         (staticcall AMM.get_sum_xy(_user))[0]
@@ -1542,7 +1542,7 @@ def approve(_spender: address, _allow: bool):
 
 @internal
 @view
-def _check_approval(_for: address) -> bool:
+def _has_approval(_for: address) -> bool:
     return msg.sender == _for or self.approval[_for][msg.sender]
 
 
