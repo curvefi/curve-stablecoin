@@ -12,7 +12,6 @@ from pathlib import Path
 
 import boa
 import requests
-from dotenv import load_dotenv
 from eth_abi import encode
 from eth_utils.crypto import keccak
 
@@ -298,6 +297,15 @@ def _debug_contract(
     from vyper.compiler import CompilerData
     from vyper.compiler.input_bundle import FilesystemInputBundle
     from vyper.compiler.settings import Settings
+    import vyper
+
+    installed_ver = vyper.__version__
+    requested_ver = compiler_version.removeprefix("vyper:")
+    if installed_ver != requested_ver:
+        print(
+            f"    (skipping local compile — installed vyper {installed_ver} != {requested_ver})"
+        )
+        return
 
     settings = std_json.get("settings", {})
     evm_ver = settings.get("evmVersion")
@@ -647,7 +655,6 @@ def _sourcify_verify(
 
 
 def main() -> None:
-    load_dotenv()
     api_key = os.environ.get("ETHERSCAN_API_KEY")
     if not api_key:
         raise SystemExit("Missing ETHERSCAN_API_KEY")
