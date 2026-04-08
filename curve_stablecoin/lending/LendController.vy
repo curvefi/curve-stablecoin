@@ -78,6 +78,7 @@ exports: (
     core.factory,
     core.admin_fees,
     core.admin_percentage,
+    core.view_impl,
     # Setters
     core.set_view,
     core.set_amm_fee,

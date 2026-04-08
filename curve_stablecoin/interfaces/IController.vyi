@@ -386,6 +386,12 @@ def version() -> String[1]:
     ...
 
 
+@view
+@external
+def view_impl() -> address:
+    ...
+
+
 @external
 def set_view(view_impl: address):
     ...
