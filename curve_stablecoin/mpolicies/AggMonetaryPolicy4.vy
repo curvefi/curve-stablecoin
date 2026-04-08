@@ -113,8 +113,8 @@ def __init__(admin: address,
              extra_const: uint256,
              _debt_ratio_ema_time: uint256):
     assert admin != empty(address)
-    assert price_oracle != empty(address)
-    assert controller_factory != empty(address)
+    assert price_oracle.address != empty(address)
+    assert controller_factory.address != empty(address)
     self.admin = admin
     PRICE_ORACLE = price_oracle
     CONTROLLER_FACTORY = controller_factory
