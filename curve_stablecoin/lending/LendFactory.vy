@@ -94,10 +94,10 @@ def __init__(
 
     ownable.__init__()
     pausable.__init__()
-    assert _admin != empty(address)
+    # Checks zero _admin
     ownable._transfer_ownership(_admin)
 
-    assert _fee_receiver != empty(address)
+    # Checks zero _fee_receiver
     self._set_default_fee_receiver(_fee_receiver)
 
 
