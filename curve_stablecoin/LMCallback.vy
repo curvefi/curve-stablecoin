@@ -198,9 +198,7 @@ def _checkpoint_collateral_shares(n_start: int256, collateral_per_share: DynArra
         I_rpc.rpc += delta_rpc
         self.I_rpc = I_rpc
 
-    for i: int256 in range(MAX_TICKS_INT):
-        if i == size:
-            break
+    for i: int256 in range(size, bound=MAX_TICKS_INT):
         _n: int256 = n_start + i
 
         old_cps: uint256 = self.collateral_per_share[_n]
@@ -224,9 +222,7 @@ def _checkpoint_user_shares(user: address, n_start: int256, old_user_shares: Dyn
     @param size The number of bands to checkpoint starting from `n_start`
     """
     rpu: uint256 = self.integrate_fraction[user]
-    for i: int256 in range(MAX_TICKS_INT):
-        if i == size:
-            break
+    for i: int256 in range(size, bound=MAX_TICKS_INT):
         _n: int256 = n_start + i
 
         old_user_shares_i: uint256 = 0

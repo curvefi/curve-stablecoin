@@ -466,9 +466,7 @@ def _get_y_effective(
         unsafe_mul(_SQRT_BAND_RATIO, _N),
     )
     y_effective: uint256 = d_y_effective
-    for i: uint256 in range(1, MAX_TICKS_UINT):
-        if i == _N:
-            break
+    for _: uint256 in range(1, _N, bound=MAX_TICKS_UINT):
         d_y_effective = unsafe_div(d_y_effective * unsafe_sub(_A, 1), _A)
         y_effective = unsafe_add(y_effective, d_y_effective)
     return y_effective
