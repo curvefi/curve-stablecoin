@@ -87,10 +87,6 @@ def _open_position(deployer: str, dry_run: bool, report_path: Path) -> None:
         deployment["params"]["collateral_token"],
     )
 
-    # raise borrow cap with deployer key
-
-    # contracts["controller"].set_borrow_cap(200000*DIGITS, sender=deployer)
-
     # 1) seed the vault with USD liquidity (borrowed_token = LLv2 USD) so borrowing is possible
     tokens["borrowed_token"].approve(
         contracts["vault"].address, SEED_USD, sender=deployer

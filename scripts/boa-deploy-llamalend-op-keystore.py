@@ -116,6 +116,10 @@ def _deploy(deployer: str, dry_run: bool, report_path: Path) -> None:
     if hasattr(boa.env, "get_chain_id"):
         chain_id = boa.env.get_chain_id()
 
+    # set borrow cap to 5 WETH
+    controller = boa.load_partial("curve_stablecoin/lending/LendController.vy").at(deployed[1])
+    controller.set_borrow_cap(5 * 10**18, sender=deployer)
+
     report = {
         "chain_id": chain_id,
         "deployer": deployer,
