@@ -167,6 +167,7 @@ def test_create_loan(
     # ================= Verify logs =================
 
     assert len(borrow_logs) == 1
+    assert borrow_logs[0].caller == creator
     assert borrow_logs[0].user == borrower
     assert borrow_logs[0].collateral_increase == amounts["collateral"]
     assert borrow_logs[0].loan_increase == amounts["debt"]
@@ -345,6 +346,7 @@ def test_create_loan_with_callback(
     # ================= Verify logs =================
 
     assert len(borrow_logs) == 1
+    assert borrow_logs[0].caller == creator
     assert borrow_logs[0].user == borrower
     assert borrow_logs[0].collateral_increase == total_collateral
     assert borrow_logs[0].loan_increase == amounts["debt"]

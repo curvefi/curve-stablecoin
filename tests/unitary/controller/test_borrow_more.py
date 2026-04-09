@@ -193,6 +193,7 @@ def test_borrow_more_from_wallet(
     # ================= Verify logs =================
 
     assert len(borrow_logs) == 1
+    assert borrow_logs[0].caller == caller
     assert borrow_logs[0].user == borrower
     assert borrow_logs[0].collateral_increase == amounts["additional_collateral"]
     assert borrow_logs[0].loan_increase == amounts["additional_debt"]
@@ -366,6 +367,7 @@ def test_borrow_more_from_callback(
     # ================= Verify logs =================
 
     assert len(borrow_logs) == 1
+    assert borrow_logs[0].caller == caller
     assert borrow_logs[0].user == borrower
     assert borrow_logs[0].collateral_increase == total_collateral
     assert borrow_logs[0].loan_increase == amounts["additional_debt"]
@@ -546,6 +548,7 @@ def test_borrow_more_from_wallet_and_callback(
     # ================= Verify logs =================
 
     assert len(borrow_logs) == 1
+    assert borrow_logs[0].caller == caller
     assert borrow_logs[0].user == borrower
     assert borrow_logs[0].collateral_increase == total_collateral
     assert borrow_logs[0].loan_increase == amounts["additional_debt"]
