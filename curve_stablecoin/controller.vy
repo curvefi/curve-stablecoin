@@ -58,14 +58,14 @@ CALLDATA_MAX_SIZE: constant(uint256) = c.CALLDATA_MAX_SIZE
 CALLBACK_DEPOSIT: constant(bytes4) = method_id(
     "callback_deposit(address,uint256,uint256,uint256,bytes)",
     output_type=bytes4,
-)
+)  # active_band=0, borrowed=0
 CALLBACK_REPAY: constant(bytes4) = method_id(
     "callback_repay(address,uint256,uint256,uint256,bytes)", output_type=bytes4
 )
 CALLBACK_LIQUIDATE: constant(bytes4) = method_id(
     "callback_liquidate(address,uint256,uint256,uint256,bytes)",
     output_type=bytes4,
-)
+)  # active_band=0
 
 MIN_AMM_FEE: constant(uint256) = 10**6  # 1e-12, still needs to be above 0
 MAX_RATE: constant(uint256) = 43959106799  # 300% APY
@@ -639,7 +639,7 @@ def create_loan(
     if _callbacker != empty(address):
         tkn.transfer(BORROWED_TOKEN, _callbacker, _debt)
         # If there is any unused debt, callbacker can send it to the user
-        more_collateral = self.execute_callback(
+        cb: IController.CallbackData = self.execute_callback(
             _callbacker,
             CALLBACK_DEPOSIT,
             _for,
@@ -647,7 +647,10 @@ def create_loan(
             _collateral,
             _debt,
             _calldata,
-        ).collateral
+        )
+        assert cb.active_band == 0, "Not available"
+        assert cb.borrowed == 0, "Not available"
+        more_collateral = cb.collateral
 
     total_collateral: uint256 = _collateral + more_collateral
 
@@ -864,7 +867,7 @@ def borrow_more(
     if _callbacker != empty(address):
         tkn.transfer(BORROWED_TOKEN, _callbacker, _debt)
         # If there is any unused debt, callbacker can send it to the user
-        more_collateral = self.execute_callback(
+        cb: IController.CallbackData = self.execute_callback(
             _callbacker,
             CALLBACK_DEPOSIT,
             _for,
@@ -872,7 +875,10 @@ def borrow_more(
             _collateral,
             _debt,
             _calldata,
-        ).collateral
+        )
+        assert cb.active_band == 0, "Not available"
+        assert cb.borrowed == 0, "Not available"
+        more_collateral = cb.collateral
 
     rate_mul: uint256 = self._add_collateral_borrow(
         _collateral + more_collateral, _debt, _for, False
@@ -911,6 +917,9 @@ def _repay_full(
     _cb: IController.CallbackData,
     _callbacker: address,
 ):
+    """
+    @notice Allows any value for cb.active_band to be indistinguishable with partial repay.
+    """
     if _callbacker == empty(address):
         _xy = extcall AMM.withdraw(_for, WAD)
 
@@ -1278,6 +1287,7 @@ def liquidate(
                 debt,
                 _calldata,
             )
+            assert cb.active_band == 0, "Not available"
             assert cb.borrowed >= to_repay, "no enough proceeds"
 
             tkn.transfer_from(BORROWED_TOKEN, _callbacker, self, to_repay)
