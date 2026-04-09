@@ -62,9 +62,7 @@ def _get_k_effective(_controller: IController, _collateral: uint256, _N: uint256
         WAD, min(discount + (DEAD_SHARES * WAD) // max(_collateral // _N, DEAD_SHARES), WAD)
     ) // (SQRT_BAND_RATIO * _N)
     k_effective: uint256 = d_k_effective
-    for i: uint256 in range(1, MAX_TICKS_UINT):
-        if i == _N:
-            break
+    for _: uint256 in range(1, _N, bound=MAX_TICKS_UINT):
         d_k_effective = unsafe_div(d_k_effective * (A - 1), A)
         k_effective = unsafe_add(k_effective, d_k_effective)
     return k_effective

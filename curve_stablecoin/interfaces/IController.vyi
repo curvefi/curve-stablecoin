@@ -10,6 +10,7 @@ CALLDATA_MAX_SIZE: constant(uint256) = c.CALLDATA_MAX_SIZE
 # Events
 
 event Repay:
+    caller: indexed(address)
     user: indexed(address)
     collateral_decrease: uint256
     loan_decrease: uint256
@@ -34,11 +35,13 @@ event UserState:
 
 
 event RemoveCollateral:
+    caller: indexed(address)
     user: indexed(address)
     collateral_decrease: uint256
 
 
 event Borrow:
+    caller: indexed(address)
     user: indexed(address)
     collateral_increase: uint256
     loan_increase: uint256
@@ -383,6 +386,12 @@ def n_loans() -> uint256:
 @view
 @external
 def version() -> String[1]:
+    ...
+
+
+@view
+@external
+def view_impl() -> address:
     ...
 
 
