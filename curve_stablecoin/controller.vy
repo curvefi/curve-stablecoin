@@ -1470,7 +1470,6 @@ def set_callback(_cb: ILMGauge):
     """
     self._check_admin()
     extcall AMM.set_callback(_cb)
-    log IController.SetLMCallback(callback=_cb)
 
 
 @internal
