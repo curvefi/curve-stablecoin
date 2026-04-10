@@ -16,7 +16,7 @@ from curve_stablecoin.interfaces import IAMM
 from curve_stablecoin.interfaces import IMonetaryPolicy
 from curve_stablecoin.interfaces import IVault
 from curve_stablecoin.interfaces import IController
-from curve_std import math as crv_math
+from curve_std import crv_math
 
 implements: IController
 
@@ -78,6 +78,7 @@ exports: (
     core.factory,
     core.admin_fees,
     core.admin_percentage,
+    core.view_impl,
     # Setters
     core.set_view,
     core.set_amm_fee,

@@ -28,9 +28,7 @@ def set_debt(controller: address, debt: uint256):
 @view
 def total_debt() -> uint256:
     total: uint256 = 0
-    for i: uint256 in range(10000):
-        if i == self.n_collaterals:
-            break
+    for i: uint256 in range(self.n_collaterals, bound=10000):
         total += staticcall Controller(self.controllers[i]).total_debt()
     return total
 

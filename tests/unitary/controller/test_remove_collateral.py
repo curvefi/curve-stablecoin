@@ -155,6 +155,7 @@ def test_remove_collateral(
     # ================= Verify logs =================
 
     assert len(remove_collateral_logs) == 1
+    assert remove_collateral_logs[0].caller == caller
     assert remove_collateral_logs[0].user == borrower
     assert remove_collateral_logs[0].collateral_decrease == amounts["remove_collateral"]
 

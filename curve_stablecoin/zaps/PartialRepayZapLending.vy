@@ -89,9 +89,7 @@ def _users_to_liquidate(
         _controller, _from, _limit, HEALTH_THRESHOLD, True, self, False
     )
     out: DynArray[IZap.Position, 1000] = []
-    for i: uint256 in range(1000):
-        if i == len(base_positions):
-            break
+    for i: uint256 in range(len(base_positions), bound=1000):
         pos: IController.Position = base_positions[i]
         to_repay: uint256 = staticcall _controller.tokens_to_liquidate(pos.user, FRAC)
         x_down: uint256 = self._x_down(_controller, pos.user)

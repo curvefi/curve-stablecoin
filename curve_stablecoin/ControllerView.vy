@@ -17,7 +17,7 @@ from curve_std.interfaces import IERC20
 from curve_stablecoin import controller as core
 from curve_stablecoin import constants as c
 from snekmate.utils import math
-from curve_std import math as crv_math
+from curve_std import crv_math
 
 
 # https://github.com/vyperlang/vyper/issues/4723
@@ -104,7 +104,7 @@ def _get_y_effective(
 
 @internal
 @view
-def _check_approval(_for: address, _caller: address) -> bool:
+def _has_approval(_for: address, _caller: address) -> bool:
     return _for == _caller or staticcall CONTROLLER.approval(_for, _caller)
 
 
@@ -374,7 +374,7 @@ def liquidate_health_preview(
     ns: int256[2] = staticcall AMM.read_user_tick_numbers(_user)
     active_band: int256 = staticcall AMM.active_band_with_skip()
 
-    approval: bool = self._check_approval(_user, _caller)
+    approval: bool = self._has_approval(_user, _caller)
     health_limit: uint256 = 0
     ld: uint256 = 0
     if approval:
@@ -600,7 +600,10 @@ def max_borrowable(
     if user_state[3] > 0:  # User has a position
         N = user_state[3]
 
-    return self._max_borrowable(user_state[0] + _d_collateral, N, self._get_cap() + user_state[2], _user) - user_state[2]
+    return crv_math.sub_or_zero(
+        self._max_borrowable(user_state[0] + _d_collateral, N, self._get_cap() + user_state[2], _user),
+        user_state[2],
+    )
 
 
 @external
