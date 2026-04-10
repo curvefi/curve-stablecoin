@@ -9,7 +9,6 @@ from hypothesis.stateful import (
     invariant,
     initialize,
 )
-from tests.utils.constants import DEAD_SHARES, MIN_SHARES_ALLOWED
 
 
 class AdiabaticTrader(RuleBasedStateMachine):
@@ -50,7 +49,6 @@ class AdiabaticTrader(RuleBasedStateMachine):
             max(
                 collateral_amount / self.collateral_mul,
                 n * 10 * ceil(3000 * max(self.borrowed_mul / self.collateral_mul, 1)),
-                n * MIN_SHARES_ALLOWED // DEAD_SHARES // self.collateral_mul,
                 n,
             )
         )

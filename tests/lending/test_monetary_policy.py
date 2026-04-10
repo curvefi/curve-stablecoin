@@ -2,7 +2,6 @@ import boa
 import pytest
 from hypothesis import given
 from hypothesis import strategies as st
-from tests.utils.constants import DEAD_SHARES, MIN_SHARES_ALLOWED
 
 
 @given(fill=st.floats(min_value=0.0, max_value=2.0))
@@ -23,14 +22,7 @@ def test_monetary_policy(
         with boa.env.prank(admin):
             collateral_token.approve(controller.address, 2**256 - 1)
             boa.deal(collateral_token, admin, c_amount)
-            if (
-                to_borrow > available
-                or c_amount
-                * 10 ** (18 - collateral_token.decimals())
-                // 5
-                * DEAD_SHARES
-                < MIN_SHARES_ALLOWED
-            ):
+            if to_borrow > available:
                 with boa.reverts():
                     controller.create_loan(c_amount, to_borrow, 5)
                 return
