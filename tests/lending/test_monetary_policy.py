@@ -22,10 +22,7 @@ def test_monetary_policy(
         with boa.env.prank(admin):
             collateral_token.approve(controller.address, 2**256 - 1)
             boa.deal(collateral_token, admin, c_amount)
-            if (
-                to_borrow > available
-                or c_amount * 10 ** (18 - collateral_token.decimals()) // 5 <= 100
-            ):
+            if to_borrow > available:
                 with boa.reverts():
                     controller.create_loan(c_amount, to_borrow, 5)
                 return

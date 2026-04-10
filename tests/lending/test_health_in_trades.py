@@ -49,7 +49,6 @@ class AdiabaticTrader(RuleBasedStateMachine):
             max(
                 collateral_amount / self.collateral_mul,
                 n * 10 * ceil(3000 * max(self.borrowed_mul / self.collateral_mul, 1)),
-                (101 * n + self.collateral_mul - 1) // self.collateral_mul,
                 n,
             )
         )

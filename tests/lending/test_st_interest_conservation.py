@@ -10,7 +10,6 @@ from hypothesis.stateful import (
 )
 
 
-from tests.amm.utils import deposit_amount_too_low
 from tests.utils.constants import DEAD_SHARES
 
 
@@ -65,18 +64,12 @@ class StatefulLendBorrow(RuleBasedStateMachine):
                 return
 
             too_high = False
-            amount_too_low = False
             try:
                 self.controller.calculate_debt_n1(c_amount, amount, n)
             except Exception as e:
                 too_high = "Debt too high" in str(e)
-                amount_too_low = "Amount too low" in str(e)
             if too_high:
                 with boa.reverts("Debt too high"):
-                    self.controller.create_loan(c_amount, amount, n)
-                return
-            if amount_too_low:
-                with boa.reverts("Amount too low"):
                     self.controller.create_loan(c_amount, amount, n)
                 return
 
@@ -101,29 +94,13 @@ class StatefulLendBorrow(RuleBasedStateMachine):
                     self.controller.create_loan(c_amount, amount, n)
                 return
 
-            new_n1 = None
             try:
-                new_n1 = self.controller.calculate_debt_n1(c_amount, amount, n, user)
+                self.controller.calculate_debt_n1(c_amount, amount, n, user)
             except Exception as e:
                 if "Too deep" in str(e):
                     with boa.reverts("Too deep"):
                         self.controller.create_loan(c_amount, amount, n)
                     return
-                if "Amount too low" in str(e):
-                    with boa.reverts("Amount too low"):
-                        self.controller.create_loan(c_amount, amount, n)
-                    return
-
-            if new_n1 is not None and deposit_amount_too_low(
-                self.amm,
-                c_amount,
-                new_n1,
-                new_n1 + n - 1,
-                self.collateral_precision,
-            ):
-                with boa.reverts("Amount too low"):
-                    self.controller.create_loan(c_amount, amount, n)
-                return
 
             if c_amount * self.collateral_precision // n <= 2 * DEAD_SHARES:
                 try:
@@ -137,7 +114,7 @@ class StatefulLendBorrow(RuleBasedStateMachine):
                         * 3000
                         / (amount * self.borrowed_precision)
                         < 1e-3
-                    ):
+                    ) or "Amount too low" in str(e):
                         return
                     else:
                         raise
@@ -207,40 +184,12 @@ class StatefulLendBorrow(RuleBasedStateMachine):
                     self.controller.add_collateral(c_amount, user)
                 return
 
-            x, y = self.amm.get_sum_xy(user)
-
             if (
-                c_amount + y
+                c_amount + self.amm.get_sum_xy(user)[1]
             ) * self.collateral_precision * self.amm.get_p() > 2**256 - 1:
                 with boa.reverts():
                     self.controller.add_collateral(c_amount, user)
                 return
-
-            if x == 0:
-                debt = self.controller.debt(user)
-                n1, n2 = self.amm.read_user_tick_numbers(user)
-                size = n2 - n1 + 1
-                final_collateral = y + c_amount
-                try:
-                    new_n1 = self.controller.calculate_debt_n1(
-                        final_collateral, debt, size, user
-                    )
-                except Exception as e:
-                    if "Amount too low" in str(e):
-                        with boa.reverts("Amount too low"):
-                            self.controller.add_collateral(c_amount, user)
-                        return
-                    raise
-                if deposit_amount_too_low(
-                    self.amm,
-                    final_collateral,
-                    new_n1,
-                    new_n1 + size - 1,
-                    self.collateral_precision,
-                ):
-                    with boa.reverts("Amount too low"):
-                        self.controller.add_collateral(c_amount, user)
-                    return
 
             try:
                 self.controller.add_collateral(c_amount, user)
@@ -277,21 +226,12 @@ class StatefulLendBorrow(RuleBasedStateMachine):
             n = n2 - n1 + 1
 
             too_high = False
-            amount_too_low = False
-            new_n1 = None
             try:
-                new_n1 = self.controller.calculate_debt_n1(
-                    final_collateral, final_debt, n, user
-                )
+                self.controller.calculate_debt_n1(final_collateral, final_debt, n)
             except Exception as e:
                 too_high = "Debt too high" in str(e)
-                amount_too_low = "Amount too low" in str(e)
             if too_high:
                 with boa.reverts("Debt too high"):
-                    self.controller.borrow_more(c_amount, amount)
-                return
-            if amount_too_low:
-                with boa.reverts("Amount too low"):
                     self.controller.borrow_more(c_amount, amount)
                 return
 
@@ -305,17 +245,6 @@ class StatefulLendBorrow(RuleBasedStateMachine):
                 > (2**128 - 1) // DEAD_SHARES
             ):
                 with boa.reverts():
-                    self.controller.borrow_more(c_amount, amount)
-                return
-
-            if new_n1 is not None and deposit_amount_too_low(
-                self.amm,
-                final_collateral,
-                new_n1,
-                new_n1 + n - 1,
-                self.collateral_precision,
-            ):
-                with boa.reverts("Amount too low"):
                     self.controller.borrow_more(c_amount, amount)
                 return
 

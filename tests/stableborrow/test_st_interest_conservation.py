@@ -123,7 +123,9 @@ class StatefulLendBorrow(RuleBasedStateMachine):
                     self.controller.create_loan(c_amount, amount, n)
                     return
                 except Exception as e:
-                    if "Too deep" in str(e) and c_amount * 3000 / amount < 1e-3:
+                    if (
+                        "Too deep" in str(e) or "Amount too low" in str(e)
+                    ) and c_amount * 3000 / amount < 1e-3:
                         return
                     else:
                         raise
@@ -249,8 +251,8 @@ class StatefulLendBorrow(RuleBasedStateMachine):
             n = n2 - n1 + 1
 
             too_high = False
-            new_n1 = None
             amount_too_low = False
+            new_n1 = None
             try:
                 new_n1 = self.controller.calculate_debt_n1(
                     final_collateral, final_debt, n, user
@@ -319,8 +321,7 @@ class StatefulLendBorrow(RuleBasedStateMachine):
             supply = self.stablecoin.totalSupply()
             b = self.stablecoin.balanceOf(self.controller)
             debt = self.controller.total_debt()
-            diff = debt - (supply - b)
-            assert 0 <= diff <= 10
+            assert debt == supply - b
 
 
 def test_stateful_lendborrow(

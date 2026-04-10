@@ -12,7 +12,6 @@ from hypothesis.stateful import (
 )
 
 from tests.utils.deployers import AMM_DEPLOYER, MINT_CONTROLLER_DEPLOYER
-from tests.utils.constants import DEAD_SHARES
 
 # Variables and methods to check
 # * A
