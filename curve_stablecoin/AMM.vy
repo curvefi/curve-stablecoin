@@ -163,8 +163,9 @@ def __init__(
 
     # sqrt(A / (A - 1)) - needs to be pre-calculated externally
     SQRT_BAND_RATIO = _sqrt_band_ratio
-    # log(A / (A - 1)) - needs to be pre-calculated externally
-    LOG_A_RATIO = _log_A_ratio
+    # Recompute log(A / (A - 1)) with snekmate for consistency with Controller.
+    # The constructor arg is kept for blueprint ABI compatibility but ignored.
+    LOG_A_RATIO = math._wad_ln(convert(A * WAD // Aminus1, int256))
 
     # (A / (A - 1)) ** 50
     # This is not gas-optimal but good with bytecode size and does not overflow

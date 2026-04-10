@@ -46,7 +46,7 @@ CONSTANTS_DEPLOYER = boa.load_partial(
 
 # Core contracts
 AMM_DEPLOYER = boa.load_partial(
-    BASE_CONTRACT_PATH / "AMM.vy", compiler_args=compiler_args_default
+    BASE_CONTRACT_PATH / "AMM.vy", compiler_args=compiler_args_codesize
 )
 CONTROLLER_DEPLOYER = boa.load_partial(
     BASE_CONTRACT_PATH / "controller.vy", compiler_args=compiler_args_codesize
