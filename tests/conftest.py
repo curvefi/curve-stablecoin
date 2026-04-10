@@ -209,7 +209,6 @@ def market(
             loan_discount=loan_discount,
             liquidation_discount=liquidation_discount,
             price_oracle=price_oracle,
-            name="Test Vault",
             min_borrow_rate=min_borrow_rate,
             max_borrow_rate=max_borrow_rate,
             seed_amount=seed_liquidity,

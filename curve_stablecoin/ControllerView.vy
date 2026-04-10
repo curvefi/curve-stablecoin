@@ -563,8 +563,8 @@ def _max_borrowable(
         self._loan_discount() + self._extra_health(_user),
     )
 
-    x: uint256 = unsafe_sub(
-        max(unsafe_div(y_effective * self._max_p_base(AMM, LOGN_A_RATIO), WAD), 1), 1
+    x: uint256 = crv_math.sub_or_zero(
+        unsafe_div(y_effective * self._max_p_base(AMM, LOGN_A_RATIO), WAD), 1
     )
     x = unsafe_div(
         x * (WAD - 10**14), unsafe_mul(WAD, BORROWED_PRECISION)

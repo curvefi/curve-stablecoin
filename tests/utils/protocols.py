@@ -205,7 +205,6 @@ class Llamalend:
         loan_discount: int,
         liquidation_discount: int,
         price_oracle: VyperContract,
-        name: str,
         min_borrow_rate: int,
         max_borrow_rate: int,
         seed_amount: int = 1000 * 10**18,
@@ -223,7 +222,6 @@ class Llamalend:
             loan_discount: Loan discount (e.g., 9 * 10**16 for 9%)
             liquidation_discount: Liquidation discount (e.g., 6 * 10**16 for 6%)
             price_oracle: Price oracle contract
-            name: Name for the vault
             min_borrow_rate: Minimum borrow rate (e.g., 0.5 * 10**16 for 0.5%)
             max_borrow_rate: Maximum borrow rate (e.g., 50 * 10**16 for 50%)
             seed_amount: Borrowed token amount to seed into the vault post-deployment
@@ -254,7 +252,6 @@ class Llamalend:
             liquidation_discount,
             price_oracle.address,
             monetary_policy.address,
-            name,
             supply_limit,
             sender=self.admin,
         )
@@ -305,7 +302,6 @@ if __name__ == "__main__":
         loan_discount=9 * 10**16,  # 9%
         liquidation_discount=6 * 10**16,  # 6%
         price_oracle=proto.price_oracle,
-        name="Test Vault",
         min_borrow_rate=5 * 10**15 // (365 * 86400),  # 0.5% APR
         max_borrow_rate=50 * 10**16 // (365 * 86400),  # 50% APR
     )
