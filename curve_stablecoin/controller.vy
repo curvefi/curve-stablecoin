@@ -49,6 +49,8 @@ version: public(constant(String[5])) = c.__version__
 WAD: constant(uint256) = c.WAD
 SWAD: constant(int256) = c.SWAD
 DEAD_SHARES: constant(uint256) = c.DEAD_SHARES
+AMM_VIRTUAL_ASSETS: constant(uint256) = c.AMM_VIRTUAL_ASSETS
+AMM_VIRTUAL_SHARES: constant(uint256) = c.AMM_VIRTUAL_SHARES
 MIN_TICKS_UINT: constant(uint256) = c.MIN_TICKS_UINT
 MAX_TICKS_UINT: constant(uint256) = c.MAX_TICKS_UINT
 MIN_TICKS: constant(int256) = c.MIN_TICKS
@@ -428,6 +430,27 @@ def total_debt() -> uint256:
 
 @internal
 @pure
+def _amm_virtual_collateral_per_share() -> uint256:
+    return unsafe_div(
+        unsafe_add(AMM_VIRTUAL_ASSETS, unsafe_sub(AMM_VIRTUAL_SHARES, 1)),
+        AMM_VIRTUAL_SHARES,
+    )
+
+
+@internal
+@pure
+def _min_collateral_precision_padding(_N: uint256, _collateral_precision: uint256) -> uint256:
+    """
+    N * (N + 2 * ceil(AMM_VIRTUAL_ASSETS / AMM_VIRTUAL_SHARES)) + (collateral_precision - 1)
+    """
+    return unsafe_add(
+        unsafe_mul(_N, unsafe_add(_N, 2 * self._amm_virtual_collateral_per_share())),
+        unsafe_sub(_collateral_precision, 1),
+    )
+
+
+@internal
+@pure
 def _get_y_effective(
     _collateral: uint256,
     _N: uint256,
@@ -449,7 +472,8 @@ def _get_y_effective(
     # === d_y_effective * p_oracle_up(n1) * sum(...) === y_effective * p_oracle_up(n1)
     # d_y_effective = y / N / sqrt(A / (A - 1))
     # d_y_effective: uint256 = collateral * unsafe_sub(10**18, discount) / (SQRT_BAND_RATIO * N)
-    # Make some extra discount to always deposit lower when we have DEAD_SHARES rounding
+    # Make some extra discount to always deposit lower when we have AMM virtual collateral/share rounding
+    amm_virtual_collateral_per_share: uint256 = self._amm_virtual_collateral_per_share()
     d_y_effective: uint256 = unsafe_div(
         _collateral
         * unsafe_sub(
@@ -457,8 +481,8 @@ def _get_y_effective(
             min(
                 _discount
                 + unsafe_div(
-                    (DEAD_SHARES * WAD),
-                    max(unsafe_div(_collateral, _N), DEAD_SHARES),
+                    (amm_virtual_collateral_per_share * WAD),
+                    max(unsafe_div(_collateral, _N), amm_virtual_collateral_per_share),
                 ),
                 WAD,
             ),

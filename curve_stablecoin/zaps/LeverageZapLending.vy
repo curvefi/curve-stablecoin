@@ -26,7 +26,8 @@ implements: ILeverageZap
 from curve_stablecoin import constants as c
 
 WAD: constant(uint256) = c.WAD
-DEAD_SHARES: constant(uint256) = c.DEAD_SHARES
+AMM_VIRTUAL_ASSETS: constant(uint256) = c.AMM_VIRTUAL_ASSETS
+AMM_VIRTUAL_SHARES: constant(uint256) = c.AMM_VIRTUAL_SHARES
 MAX_TICKS_UINT: constant(uint256) = c.MAX_TICKS_UINT
 CALLDATA_MAX_SIZE: constant(uint256) = c.CALLDATA_MAX_SIZE
 
@@ -36,6 +37,15 @@ _LEND_FACTORY: immutable(ILendFactory)
 @deploy
 def __init__(_factory: address):
     _LEND_FACTORY = ILendFactory(_factory)
+
+
+@internal
+@pure
+def _amm_virtual_collateral_per_share() -> uint256:
+    return unsafe_div(
+        unsafe_add(AMM_VIRTUAL_ASSETS, unsafe_sub(AMM_VIRTUAL_SHARES, 1)),
+        AMM_VIRTUAL_SHARES,
+    )
 
 
 @internal
@@ -53,13 +63,20 @@ def _get_k_effective(_controller: IController, _collateral: uint256, _N: uint256
     # === d_y_effective * p_oracle_up(n1) * sum(...) === y * k_effective * p_oracle_up(n1)
     # d_k_effective = 1 / N / sqrt(A / (A - 1))
     # d_k_effective: uint256 = 10**18 * unsafe_sub(10**18, discount) / (SQRT_BAND_RATIO * N)
-    # Make some extra discount to always deposit lower when we have DEAD_SHARES rounding
+    # Make some extra discount to always deposit lower when we have AMM virtual collateral/share rounding
     A: uint256 = staticcall (staticcall _controller.amm()).A()
     SQRT_BAND_RATIO: uint256 = isqrt(unsafe_div(10 ** 36 * A, unsafe_sub(A, 1)))
 
     discount: uint256 = staticcall _controller.loan_discount()
+    amm_virtual_collateral_per_share: uint256 = self._amm_virtual_collateral_per_share()
     d_k_effective: uint256 = WAD * unsafe_sub(
-        WAD, min(discount + (DEAD_SHARES * WAD) // max(_collateral // _N, DEAD_SHARES), WAD)
+        WAD,
+        min(
+            discount
+            + (amm_virtual_collateral_per_share * WAD)
+            // max(_collateral // _N, amm_virtual_collateral_per_share),
+            WAD,
+        ),
     ) // (SQRT_BAND_RATIO * _N)
     k_effective: uint256 = d_k_effective
     for _: uint256 in range(1, _N, bound=MAX_TICKS_UINT):
