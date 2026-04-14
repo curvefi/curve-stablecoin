@@ -1,0 +1,13 @@
+id: no-accounts-fixture
+language: Python
+ignores:
+  - tests/conftest.py
+rule:
+  all:
+    - regex: ^accounts$
+    - kind: identifier
+    - inside:
+        kind: parameters
+        stopBy: end
+message: Do not use the deprecated `accounts` fixture. Prefer inline role-named addresses.
+severity: error
