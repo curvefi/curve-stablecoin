@@ -52,8 +52,8 @@ def test_exact_in_round_trip_across_amm_bands(
     initial_y = sum(amm.bands_y(n) for n in range(N1, N2 + 1))
     initial_active_band = amm.active_band()
 
-        # Walk the oracle down until the AMM price is below it, which creates a
-        # real upward trade path rather than assuming one exists after one step.
+    # Walk the oracle down until the AMM price is below it, which creates a
+    # real upward trade path rather than assuming one exists after one step.
     lowered_oracle_price = initial_oracle_price
     for _ in range(MAX_STEPS):
         if amm.get_p() < lowered_oracle_price:
@@ -103,8 +103,8 @@ def test_exact_in_round_trip_across_amm_bands(
     y_after_up = sum(amm.bands_y(n) for n in range(N1, N2 + 1))
     assert x_after_up > 0
 
-        # Walk the oracle back up until the AMM price is above it, then sell
-        # collateral back through the same band range.
+    # Walk the oracle back up until the AMM price is above it, then sell
+    # collateral back through the same band range.
     raised_oracle_price = lowered_oracle_price
     for _ in range(MAX_STEPS):
         if amm.get_p() > raised_oracle_price:
@@ -197,7 +197,9 @@ def test_exact_out_quotes_match_execution_while_flipping_bands(
     band_before = amm.active_band()
     price_before = amm.get_p()
     with boa.env.prank(trader):
-        spent, received = amm.exchange_dy(0, 1, desired_collateral_out, quoted_borrowed_in)
+        spent, received = amm.exchange_dy(
+            0, 1, desired_collateral_out, quoted_borrowed_in
+        )
 
     assert spent == quoted_borrowed_in
     assert received == desired_collateral_out
@@ -234,7 +236,9 @@ def test_exact_out_quotes_match_execution_while_flipping_bands(
     band_before = amm.active_band()
     price_before = amm.get_p()
     with boa.env.prank(trader):
-        spent, received = amm.exchange_dy(1, 0, desired_borrowed_out, quoted_collateral_in)
+        spent, received = amm.exchange_dy(
+            1, 0, desired_borrowed_out, quoted_collateral_in
+        )
 
     assert spent == quoted_collateral_in
     assert received == desired_borrowed_out
