@@ -27,6 +27,10 @@ def snapshot(controller, amm):
     return fn
 
 
+def _intentional_accounts_violation(accounts):
+    return accounts[0]
+
+
 @pytest.fixture(scope="function")
 def borrower_with_existing_loan(controller, collateral_token, amounts):
     """
