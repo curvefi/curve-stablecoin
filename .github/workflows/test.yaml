@@ -24,7 +24,7 @@ jobs:
         id: changed-files
         shell: bash
         run: |
-          files="$(git diff --name-only --diff-filter=ACMR \"origin/${{ github.base_ref }}...HEAD\" -- 'tests/**/*.py' | tr '\n' ' ')"
+          files="$(git diff --name-only --diff-filter=ACMR "origin/${{ github.base_ref }}...HEAD" -- 'tests/**/*.py' | tr '\n' ' ')"
           echo "files=$files" >> "$GITHUB_OUTPUT"
 
       - name: Run ast-grep
