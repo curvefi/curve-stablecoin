@@ -44,6 +44,7 @@ from tests.e2e.vault_callback_reentrancy.conftest import (
 # wallet + callback: caller provides wallet collateral
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.parametrize("different_caller", [True, False])
 @pytest.mark.parametrize("action", VAULT_OPS)
 def test_vault_operation_reverts_in_borrow_more_wallet_and_callback(
@@ -119,7 +120,9 @@ def test_pps_stable_during_borrow_more_wallet_and_callback(
 
     with boa.env.prank(caller):
         max_approve(collateral_token, controller)
-        controller.borrow_more(extra_collateral, extra_debt * 2, borrower, cb.address, b"")
+        controller.borrow_more(
+            extra_collateral, extra_debt * 2, borrower, cb.address, b""
+        )
 
     after = snapshot(vault)
 
@@ -129,6 +132,7 @@ def test_pps_stable_during_borrow_more_wallet_and_callback(
 # ---------------------------------------------------------------------------
 # callback_only: callback provides all collateral via collateral_to_deposit
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.parametrize("different_caller", [True, False])
 @pytest.mark.parametrize("action", VAULT_OPS)

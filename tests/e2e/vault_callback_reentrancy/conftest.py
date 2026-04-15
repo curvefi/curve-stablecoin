@@ -11,17 +11,18 @@ N = 10
 # ---------------------------------------------------------------------------
 # Action constants – mirror VaultReentrancyCallback.vy
 # ---------------------------------------------------------------------------
-ACTION_DEPOSIT  = 0
-ACTION_MINT     = 1
+ACTION_DEPOSIT = 0
+ACTION_MINT = 1
 ACTION_WITHDRAW = 2
-ACTION_REDEEM   = 3
-ACTION_RECORD   = 4
+ACTION_REDEEM = 3
+ACTION_RECORD = 4
 
 VAULT_OPS = [ACTION_DEPOSIT, ACTION_MINT, ACTION_WITHDRAW, ACTION_REDEEM]
 
 # ---------------------------------------------------------------------------
 # Market fixtures – lending only (mint markets have no vault)
 # ---------------------------------------------------------------------------
+
 
 @pytest.fixture(scope="module")
 def market_type():
@@ -47,6 +48,7 @@ def borrow_cap():
 # Shared callback contract
 # ---------------------------------------------------------------------------
 
+
 @pytest.fixture(scope="module")
 def cb(vault, borrowed_token, collateral_token):
     return VAULT_REENTRANCY_CALLBACK_DEPLOYER.deploy(
@@ -58,18 +60,27 @@ def cb(vault, borrowed_token, collateral_token):
 # Helpers (plain functions, not fixtures)
 # ---------------------------------------------------------------------------
 
+
 def snapshot(vault):
     return {
-        "pps":               vault.pricePerShare(),
+        "pps": vault.pricePerShare(),
         "convert_to_assets": vault.convertToAssets(10**18),
         "convert_to_shares": vault.convertToShares(10**18),
     }
 
 
 def assert_stable(before, cb_contract, after):
-    assert before["pps"]               == cb_contract.pps_during()               == after["pps"]
-    assert before["convert_to_assets"] == cb_contract.convert_to_assets_during() == after["convert_to_assets"]
-    assert before["convert_to_shares"] == cb_contract.convert_to_shares_during() == after["convert_to_shares"]
+    assert before["pps"] == cb_contract.pps_during() == after["pps"]
+    assert (
+        before["convert_to_assets"]
+        == cb_contract.convert_to_assets_during()
+        == after["convert_to_assets"]
+    )
+    assert (
+        before["convert_to_shares"]
+        == cb_contract.convert_to_shares_during()
+        == after["convert_to_shares"]
+    )
 
 
 def open_max_loan(controller, collateral_token, debt, n_ticks):

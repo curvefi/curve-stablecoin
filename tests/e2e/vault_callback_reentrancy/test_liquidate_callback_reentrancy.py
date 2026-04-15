@@ -53,6 +53,7 @@ _FRAC_HALF = WAD // 2
 # Helpers
 # ---------------------------------------------------------------------------
 
+
 def _setup_liquidator(controller, borrower, different_caller, is_healthy):
     if is_healthy:
         # Gives an approval to different caller
@@ -81,12 +82,16 @@ def _push_underwater(borrower, controller, amm, borrowed_token):
         max_approve(borrowed_token, amm)
         amm.exchange(0, 1, debt // 2, 0)
 
-    assert controller.user_state(borrower)[0] > 0 and controller.user_state(borrower)[1] > 0
+    assert (
+        controller.user_state(borrower)[0] > 0
+        and controller.user_state(borrower)[1] > 0
+    )
 
 
 # ---------------------------------------------------------------------------
 # Full liquidation from callback (not underwater)
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.parametrize("is_healthy", [True, False])
 @pytest.mark.parametrize("different_caller", [True, False])
@@ -180,6 +185,7 @@ def test_pps_stable_during_liquidate_full_from_callback(
 # ---------------------------------------------------------------------------
 # Full liquidation from callback (underwater / soft-liquidated)
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.parametrize("is_healthy", [True, False])
 @pytest.mark.parametrize("different_caller", [True, False])
@@ -275,6 +281,7 @@ def test_pps_stable_during_liquidate_full_from_callback_underwater(
 # Partial liquidation from callback (not underwater)
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.parametrize("is_healthy", [True, False])
 @pytest.mark.parametrize("different_caller", [True, False])
 @pytest.mark.parametrize("action", VAULT_OPS)
@@ -364,6 +371,7 @@ def test_pps_stable_during_liquidate_partial_from_callback(
 # ---------------------------------------------------------------------------
 # Partial liquidation from callback (underwater / soft-liquidated)
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.parametrize("is_healthy", [True, False])
 @pytest.mark.parametrize("different_caller", [True, False])

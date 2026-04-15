@@ -39,6 +39,7 @@ from tests.e2e.vault_callback_reentrancy.conftest import (
 # Reentrancy tests
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.parametrize("different_caller", [True, False])
 @pytest.mark.parametrize("action", VAULT_OPS)
 def test_vault_operation_reverts_in_callback(
@@ -84,6 +85,7 @@ def test_vault_operation_reverts_in_callback(
 # ---------------------------------------------------------------------------
 # PPS stability tests
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.parametrize("different_caller", [True, False])
 def test_pps_stable_during_create_loan_callback(

@@ -61,7 +61,10 @@ def _push_underwater(borrower, controller, amm, borrowed_token):
         max_approve(borrowed_token, amm)
         amm.exchange(0, 1, debt // 2, 0)
 
-    assert controller.user_state(borrower)[0] > 0 and controller.user_state(borrower)[1] > 0
+    assert (
+        controller.user_state(borrower)[0] > 0
+        and controller.user_state(borrower)[1] > 0
+    )
 
 
 def _open_shrinkable_loan(controller, collateral_token, amm, borrowed_token, debt):
@@ -77,7 +80,10 @@ def _open_shrinkable_loan(controller, collateral_token, amm, borrowed_token, deb
         max_approve(borrowed_token, amm)
         amm.exchange_dy(0, 1, amount_out, dx + 1)
 
-    assert controller.user_state(borrower)[0] > 0 and controller.user_state(borrower)[1] > 0
+    assert (
+        controller.user_state(borrower)[0] > 0
+        and controller.user_state(borrower)[1] > 0
+    )
 
     return borrower
 
@@ -85,6 +91,7 @@ def _open_shrinkable_loan(controller, collateral_token, amm, borrowed_token, deb
 # ---------------------------------------------------------------------------
 # Full repay – callback (cb covers full debt; wallet = 0)
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.parametrize("different_payer", [True, False])
 @pytest.mark.parametrize("action", VAULT_OPS)
@@ -156,6 +163,7 @@ def test_pps_stable_during_full_repay_from_callback(
 # ---------------------------------------------------------------------------
 # Full repay – wallet + callback (both contribute to full debt)
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.parametrize("different_payer", [True, False])
 @pytest.mark.parametrize("action", VAULT_OPS)
@@ -234,6 +242,7 @@ def test_pps_stable_during_full_repay_from_wallet_and_callback(
 # ---------------------------------------------------------------------------
 # Full repay – xy[0] + callback (underwater position)
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.parametrize("different_payer", [True, False])
 @pytest.mark.parametrize("action", VAULT_OPS)
@@ -314,6 +323,7 @@ def test_pps_stable_during_full_repay_from_xy0_and_callback(
 # ---------------------------------------------------------------------------
 # Full repay – xy[0] + wallet + callback (underwater position)
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.parametrize("different_payer", [True, False])
 @pytest.mark.parametrize("action", VAULT_OPS)
@@ -399,6 +409,7 @@ def test_pps_stable_during_full_repay_from_xy0_wallet_and_callback(
 # Partial repay – callback (cb covers partial debt; position stays open)
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.parametrize("different_payer", [True, False])
 @pytest.mark.parametrize("action", VAULT_OPS)
 def test_vault_operation_reverts_in_partial_repay_from_callback(
@@ -470,6 +481,7 @@ def test_pps_stable_during_partial_repay_from_callback(
 # ---------------------------------------------------------------------------
 # Partial repay – wallet + callback (both cover partial debt)
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.parametrize("different_payer", [True, False])
 @pytest.mark.parametrize("action", VAULT_OPS)
@@ -551,6 +563,7 @@ def test_pps_stable_during_partial_repay_from_wallet_and_callback(
 # Partial repay – xy[0] + callback (underwater, shrink)
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.parametrize("different_payer", [True, False])
 @pytest.mark.parametrize("action", VAULT_OPS)
 def test_vault_operation_reverts_in_partial_repay_from_xy0_and_callback_underwater_shrink(
@@ -570,7 +583,9 @@ def test_vault_operation_reverts_in_partial_repay_from_xy0_and_callback_underwat
     cb.set_action(action)
 
     debt = seed_liquidity // 10
-    borrower = _open_shrinkable_loan(controller, collateral_token, amm, borrowed_token, debt)
+    borrower = _open_shrinkable_loan(
+        controller, collateral_token, amm, borrowed_token, debt
+    )
 
     if action in (ACTION_WITHDRAW, ACTION_REDEEM):
         seed_shares(cb, borrowed_token, WAD + 1)
@@ -602,7 +617,9 @@ def test_pps_stable_during_partial_repay_from_xy0_and_callback_underwater_shrink
     cb.set_action(ACTION_RECORD)
 
     debt = seed_liquidity // 10
-    borrower = _open_shrinkable_loan(controller, collateral_token, amm, borrowed_token, debt)
+    borrower = _open_shrinkable_loan(
+        controller, collateral_token, amm, borrowed_token, debt
+    )
 
     payer = setup_caller(controller, borrower, different_payer)
 
@@ -621,6 +638,7 @@ def test_pps_stable_during_partial_repay_from_xy0_and_callback_underwater_shrink
 # ---------------------------------------------------------------------------
 # Partial repay – xy[0] + wallet + callback (underwater, shrink)
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.parametrize("different_payer", [True, False])
 @pytest.mark.parametrize("action", VAULT_OPS)
@@ -641,7 +659,9 @@ def test_vault_operation_reverts_in_partial_repay_from_xy0_wallet_and_callback_u
     cb.set_action(action)
 
     debt = seed_liquidity // 10
-    borrower = _open_shrinkable_loan(controller, collateral_token, amm, borrowed_token, debt)
+    borrower = _open_shrinkable_loan(
+        controller, collateral_token, amm, borrowed_token, debt
+    )
 
     if action in (ACTION_WITHDRAW, ACTION_REDEEM):
         seed_shares(cb, borrowed_token, WAD + 1)
@@ -655,7 +675,9 @@ def test_vault_operation_reverts_in_partial_repay_from_xy0_wallet_and_callback_u
     with boa.env.prank(payer):
         max_approve(borrowed_token, controller)
         with boa.reverts("reentrant"):
-            controller.repay(wallet_portion, borrower, amm.active_band(), cb.address, b"", True)
+            controller.repay(
+                wallet_portion, borrower, amm.active_band(), cb.address, b"", True
+            )
 
 
 @pytest.mark.parametrize("different_payer", [True, False])
@@ -676,7 +698,9 @@ def test_pps_stable_during_partial_repay_from_xy0_wallet_and_callback_underwater
     cb.set_action(ACTION_RECORD)
 
     debt = seed_liquidity // 10
-    borrower = _open_shrinkable_loan(controller, collateral_token, amm, borrowed_token, debt)
+    borrower = _open_shrinkable_loan(
+        controller, collateral_token, amm, borrowed_token, debt
+    )
 
     payer = setup_caller(controller, borrower, different_payer)
     wallet_portion = controller.debt(borrower) // 8
@@ -686,7 +710,9 @@ def test_pps_stable_during_partial_repay_from_xy0_wallet_and_callback_underwater
 
     with boa.env.prank(payer):
         max_approve(borrowed_token, controller)
-        controller.repay(wallet_portion, borrower, amm.active_band(), cb.address, b"", True)
+        controller.repay(
+            wallet_portion, borrower, amm.active_band(), cb.address, b"", True
+        )
         assert controller.loan_exists(borrower)  # position still open after shrink
 
     after = snapshot(vault)
