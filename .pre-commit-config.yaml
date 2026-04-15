@@ -21,12 +21,6 @@ repos:
         args: [--fix]
       - id: ruff-format
 
-  - repo: https://github.com/AlbertoCentonze/natrix
-    rev: v0.1.9
-    hooks:
-      - id: natrix
-        args: [lint, curve_stablecoin/lending/, curve_stablecoin/zaps/, curve_stablecoin/controller.vy, curve_stablecoin/constants.vy, curve_stablecoin/ControllerView.vy, curve_stablecoin/MintController.vy, -d, NTX1, NTX4, NTX5, NTX2, NTX9, NTX10]
-
   - repo: https://github.com/benber86/mamushi
     rev: v0.0.9
     hooks:
@@ -36,9 +30,15 @@ repos:
 
   - repo: local
     hooks:
+      - id: natrix
+        name: lint vyper
+        entry: uv run --with natrix natrix lint curve_stablecoin/lending/ curve_stablecoin/zaps/ curve_stablecoin/controller.vy curve_stablecoin/constants.vy curve_stablecoin/ControllerView.vy curve_stablecoin/MintController.vy -d NTX1 NTX4 NTX5 NTX2 NTX9 NTX10
+        language: system
+        files: \.vy$
+        require_serial: true
       - id: check-kill-docs
         name: Check @custom:kill in Vyper devdoc
-        entry: python scripts/check_kill_docs.py
+        entry: uv run python scripts/check_kill_docs.py
         language: system
         files: \.vy$
         exclude: ^curve_stablecoin/(testing|price_oracles|zaps)/|^curve_stablecoin/Stableswap\.vy$
