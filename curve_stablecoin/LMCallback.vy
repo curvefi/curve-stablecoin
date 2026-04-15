@@ -9,6 +9,7 @@
 """
 
 from curve_std.interfaces import IERC20
+from curve_stablecoin import constants as c
 
 interface ILLAMMA:
     def coins(i: uint256) -> address: view
@@ -40,8 +41,8 @@ struct UserTicks:
     ticks: uint256[MAX_TICKS_INT // 2]  # Share fractions packed 2 per slot
 
 
-MAX_TICKS_UINT: constant(uint256) = 50
-MAX_TICKS_INT: constant(int256) = 50
+MAX_TICKS_UINT: constant(uint256) = c.MAX_TICKS_UINT
+MAX_TICKS_INT: constant(int256) = c.MAX_TICKS
 WEEK: constant(uint256) = 604800
 
 
