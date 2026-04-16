@@ -156,7 +156,7 @@ def __init__(
     self.fee = _fee
     self._price_oracle = _price_oracle
     self.prev_p_o_time = block.timestamp
-    self.old_p_o = staticcall self._price_oracle.price()
+    self.old_p_o = staticcall _price_oracle.price()
 
     self.rate_mul = 10**18
 
