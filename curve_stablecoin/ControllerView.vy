@@ -484,13 +484,15 @@ def _user_state(_user: address) -> uint256[4]:
     """
     @notice Natspec for this function is available in its controller contract
     """
-    xy: uint256[2] = staticcall AMM.get_sum_xy(_user)
+    xy: uint256[2] = empty(uint256[2])
     N: uint256 = 0
-    if xy[0] > 0 or xy[1] > 0:
+    debt: uint256 = self._debt(_user)
+    if debt > 0:
+        xy = staticcall AMM.get_sum_xy(_user)
         ns: int256[2] = staticcall AMM.read_user_tick_numbers(_user)  # ns[1] > ns[0]
         N = convert(unsafe_add(unsafe_sub(ns[1], ns[0]), 1), uint256)
 
-    return [xy[1], xy[0], self._debt(_user), N]
+    return [xy[1], xy[0], debt, N]
 
 
 @external
