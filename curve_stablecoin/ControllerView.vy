@@ -24,7 +24,6 @@ from curve_std import crv_math
 MIN_TICKS_UINT: constant(uint256) = c.MIN_TICKS_UINT
 MAX_TICKS_UINT: constant(uint256) = c.MAX_TICKS_UINT
 MIN_TICKS: constant(int256) = c.MIN_TICKS
-DEAD_SHARES: constant(uint256) = c.DEAD_SHARES
 WAD: constant(uint256) = c.WAD
 SWAD: constant(int256) = c.SWAD
 MAX_P_BASE_BANDS: constant(int256) = 5
@@ -625,10 +624,7 @@ def min_collateral(
             * WAD // self._get_y_effective(
                 WAD, _N, self._loan_discount() + self._extra_health(_user)
             )
-            + unsafe_add(
-                unsafe_mul(_N, unsafe_add(_N, 2 * DEAD_SHARES)),
-                unsafe_sub(COLLATERAL_PRECISION, 1),
-            ),
+            + core._min_collateral_precision_padding(_N, COLLATERAL_PRECISION),
             COLLATERAL_PRECISION,
         )
         * WAD,

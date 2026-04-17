@@ -57,6 +57,8 @@ WAD: constant(uint256) = c.WAD
 MAX_TICKS: constant(int256) = c.MAX_TICKS
 MAX_TICKS_UINT: constant(uint256) = c.MAX_TICKS_UINT
 DEAD_SHARES: constant(uint256) = c.DEAD_SHARES
+AMM_VIRTUAL_ASSETS: constant(uint256) = c.AMM_VIRTUAL_ASSETS
+AMM_VIRTUAL_SHARES: constant(uint256) = c.AMM_VIRTUAL_SHARES
 MAX_SKIP_TICKS: constant(int256) = c.MAX_SKIP_TICKS
 MAX_SKIP_TICKS_UINT: constant(uint256) = c.MAX_SKIP_TICKS_UINT
 
@@ -617,6 +619,30 @@ def save_user_shares(user: address, user_shares: DynArray[uint256, MAX_TICKS_UIN
         self.user_shares[user].ticks[j] = tick
 
 
+@internal
+@pure
+def _convert_to_x_shares(assets: uint256, total_assets: uint256, total_shares: uint256) -> uint256:
+    return unsafe_div((total_shares + DEAD_SHARES) * assets, total_assets + 1)
+
+
+@internal
+@pure
+def _convert_to_y_shares(assets: uint256, total_assets: uint256, total_shares: uint256) -> uint256:
+    return unsafe_div((total_shares + AMM_VIRTUAL_SHARES) * assets, total_assets + AMM_VIRTUAL_ASSETS)
+
+
+@internal
+@pure
+def _convert_to_x_assets(shares: uint256, total_assets: uint256, total_shares: uint256) -> uint256:
+    return unsafe_div((total_assets + 1) * shares, total_shares + DEAD_SHARES)
+
+
+@internal
+@pure
+def _convert_to_y_assets(shares: uint256, total_assets: uint256, total_shares: uint256) -> uint256:
+    return unsafe_div((total_assets + AMM_VIRTUAL_ASSETS) * shares, total_shares + AMM_VIRTUAL_SHARES)
+
+
 @external
 @nonreentrant
 def deposit_range(user: address, amount: uint256, n1: int256, n2: int256):
@@ -672,7 +698,7 @@ def deposit_range(user: address, amount: uint256, n1: int256, n2: int256):
 
         # Total / user share
         s: uint256 = self.total_shares[band]
-        ds: uint256 = unsafe_div((s + DEAD_SHARES) * y, total_y + 1)
+        ds: uint256 = self._convert_to_y_shares(y, total_y, s)
         assert ds > 0, "Amount too low"
         user_shares.append(ds)
         s += ds
@@ -733,9 +759,8 @@ def withdraw(user: address, frac: uint256) -> uint256[2]:
         s: uint256 = self.total_shares[n]
         new_shares: uint256 = s - ds
         self.total_shares[n] = new_shares
-        s += DEAD_SHARES  # after this s is guaranteed to be bigger than 0
-        dx: uint256 = unsafe_div((x + 1) * ds, s)
-        dy: uint256 = unsafe_div((y + 1) * ds, s)
+        dx: uint256 = self._convert_to_x_assets(ds, x, s)
+        dy: uint256 = self._convert_to_y_assets(ds, y, s)
 
         x -= dx
         y -= dy
@@ -1327,10 +1352,8 @@ def get_xy_up(user: address, use_y: bool) -> uint256:
             continue
         if user_share == 0:
             continue
-        total_share += DEAD_SHARES
         # Also ideally we'd want to add +1 to all quantities when calculating with shares
-        # but we choose to save bytespace and slightly under-estimate the result of this call
-        # which is also more conservative
+        # on the x side, but on the y side we now use AMM_VIRTUAL_ASSETS / AMM_VIRTUAL_SHARES
 
         # Also this will revert if p_o_down is 0, and p_o_down is 0 if p_o_up is 0
         p_current_mid: uint256 = unsafe_div(p_o**2 // p_o_down * p_o, p_o_up)
@@ -1349,9 +1372,13 @@ def get_xy_up(user: address, use_y: bool) -> uint256:
                 if y == 0:
                     y_equiv = x * 10**18 // p_current_mid
                 if use_y:
-                    XY += unsafe_div(y_equiv * user_share, total_share)
+                    XY += self._convert_to_y_assets(user_share, y_equiv, total_share)
                 else:
-                    XY += unsafe_div(unsafe_div(y_equiv * p_o_up, SQRT_BAND_RATIO) * user_share, total_share)
+                    XY += self._convert_to_x_assets(
+                        user_share,
+                        unsafe_div(y_equiv * p_o_up, SQRT_BAND_RATIO),
+                        total_share,
+                    )
                 continue
 
             elif p_o < p_o_down:  # p_o > p_current_up
@@ -1360,9 +1387,13 @@ def get_xy_up(user: address, use_y: bool) -> uint256:
                 if x == 0:
                     x_equiv = unsafe_div(y * p_current_mid, 10**18)
                 if use_y:
-                    XY += unsafe_div(unsafe_div(x_equiv * SQRT_BAND_RATIO, p_o_up) * user_share, total_share)
+                    XY += self._convert_to_y_assets(
+                        user_share,
+                        unsafe_div(x_equiv * SQRT_BAND_RATIO, p_o_up),
+                        total_share,
+                    )
                 else:
-                    XY += unsafe_div(x_equiv * user_share, total_share)
+                    XY += self._convert_to_x_assets(user_share, x_equiv, total_share)
                 continue
 
         # If we are here - we need to "trade" to somewhere mid-band
@@ -1383,17 +1414,25 @@ def get_xy_up(user: address, use_y: bool) -> uint256:
             # x_o = 0
             y_o = crv_math.sub_or_zero(Inv // f, g)
             if use_y:
-                XY += unsafe_div(y_o * user_share, total_share)
+                XY += self._convert_to_y_assets(user_share, y_o, total_share)
             else:
-                XY += unsafe_div(unsafe_div(y_o * p_o_up, SQRT_BAND_RATIO) * user_share, total_share)
+                XY += self._convert_to_x_assets(
+                    user_share,
+                    unsafe_div(y_o * p_o_up, SQRT_BAND_RATIO),
+                    total_share,
+                )
 
         elif p_o < p_o_down:  # p_o > p_current_up, all to x
             # y_o = 0
             x_o = crv_math.sub_or_zero(Inv // g, f)
             if use_y:
-                XY += unsafe_div(unsafe_div(x_o * SQRT_BAND_RATIO, p_o_up) * user_share, total_share)
+                XY += self._convert_to_y_assets(
+                    user_share,
+                    unsafe_div(x_o * SQRT_BAND_RATIO, p_o_up),
+                    total_share,
+                )
             else:
-                XY += unsafe_div(x_o * user_share, total_share)
+                XY += self._convert_to_x_assets(user_share, x_o, total_share)
 
         else:
             # Equivalent from Chainsecurity (which also has less numerical errors):
@@ -1405,10 +1444,18 @@ def get_xy_up(user: address, use_y: bool) -> uint256:
 
             # Now adiabatic conversion from definitely in-band
             if use_y:
-                XY += unsafe_div((y_o + x_o * 10**18 // self.sqrt_int(p_o_up * p_o)) * user_share, total_share)
+                XY += self._convert_to_y_assets(
+                    user_share,
+                    y_o + x_o * 10**18 // self.sqrt_int(p_o_up * p_o),
+                    total_share,
+                )
 
             else:
-                XY += unsafe_div((x_o + unsafe_div(y_o * self.sqrt_int(p_o_down * p_o), 10**18)) * user_share, total_share)
+                XY += self._convert_to_x_assets(
+                    user_share,
+                    x_o + unsafe_div(y_o * self.sqrt_int(p_o_down * p_o), 10**18),
+                    total_share,
+                )
 
     if use_y:
         return unsafe_div(XY, COLLATERAL_PRECISION)
@@ -1457,10 +1504,10 @@ def _get_xy(user: address, is_sum: bool) -> DynArray[uint256, MAX_TICKS_UINT][2]
     ticks: DynArray[uint256, MAX_TICKS_UINT] = self._read_user_ticks(user, ns)
     if ticks[0] != 0:
         for i: uint256 in range(MAX_TICKS_UINT):
-            total_shares: uint256 = self.total_shares[ns[0]] + DEAD_SHARES
+            total_shares: uint256 = self.total_shares[ns[0]]
             ds: uint256 = ticks[i]
-            dx: uint256 = unsafe_div((self.bands_x[ns[0]] + 1) * ds, total_shares)
-            dy: uint256 = unsafe_div((self.bands_y[ns[0]] + 1) * ds, total_shares)
+            dx: uint256 = self._convert_to_x_assets(ds, self.bands_x[ns[0]], total_shares)
+            dy: uint256 = self._convert_to_y_assets(ds, self.bands_y[ns[0]], total_shares)
             if is_sum:
                 xs[0] += dx
                 ys[0] += dy
