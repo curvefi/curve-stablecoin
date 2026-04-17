@@ -319,8 +319,8 @@ def callback_user_shares(user: address, n_start: int256, old_user_shares: DynArr
     self._checkpoint_user_shares(user, n_start, old_user_shares, convert(size, int256))
 
 
-@external
-def user_checkpoint(addr: address) -> bool:
+@internal
+def _user_checkpoint(addr: address):
     """
     @notice Record a checkpoint for `addr`
     @param addr User address
@@ -331,6 +331,16 @@ def user_checkpoint(addr: address) -> bool:
     self._checkpoint_collateral_shares(ns[0], [], ns[1] - ns[0] + 1)
     if len(user_shares) > 0 and user_shares[0] > 0:
         self._checkpoint_user_shares(addr, ns[0], user_shares, ns[1] - ns[0] + 1)
+
+
+@external
+def user_checkpoint(addr: address) -> bool:
+    """
+    @notice Record a checkpoint for `addr`
+    @param addr User address
+    @return bool success
+    """
+    self._user_checkpoint(addr)
 
     return True
 
@@ -343,11 +353,7 @@ def claimable_tokens(addr: address) -> uint256:
     @param addr User address
     @return uint256 number of claimable tokens per user
     """
-    ns: int256[2] = staticcall AMM.read_user_tick_numbers(addr)
-    user_shares: DynArray[uint256, MAX_TICKS_UINT] = self._read_user_shares(staticcall AMM.user_shares(addr))
-    self._checkpoint_collateral_shares(ns[0], [], ns[1] - ns[0] + 1)
-    if len(user_shares) > 0 and user_shares[0] > 0:
-        self._checkpoint_user_shares(addr, ns[0], user_shares, ns[1] - ns[0] + 1)
+    self._user_checkpoint(addr)
 
     return self.integrate_fraction[addr] - staticcall MINTER.minted(addr, self)
 
