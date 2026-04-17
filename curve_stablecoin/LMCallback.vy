@@ -32,11 +32,6 @@ event SetKilled:
     is_killed: bool
 
 
-struct UserTicks:
-    ns: int256  # packs n1 and n2, each is int128
-    ticks: uint256[MAX_TICKS_INT // 2]  # Share fractions packed 2 per slot
-
-
 MAX_TICKS_UINT: constant(uint256) = c.MAX_TICKS_UINT
 MAX_TICKS_INT: constant(int256) = c.MAX_TICKS
 WEEK: constant(uint256) = 604800
@@ -237,35 +232,6 @@ def _checkpoint_user_shares(user: address, n_start: int256, old_user_shares: Dyn
     self.integrate_fraction[user] = rpu
 
 
-@internal
-@view
-def _read_user_shares(user_shares_packed: UserTicks) -> DynArray[uint256, MAX_TICKS_UINT]:
-    """
-    @notice Unpacks and reads user ticks (shares) for all the ticks user deposited into
-    @param user_shares_packed Packed user shares from AMM
-    @return Array of shares the user has
-    """
-    ns: int256 = user_shares_packed.ns
-    n2: int256 = unsafe_div(ns, 2 ** 128)
-    n1: int256 = ns % 2 ** 128
-    if n1 >= 2 ** 127:
-        n1 = unsafe_sub(n1, 2 ** 128)
-        n2 = unsafe_add(n2, 1)
-
-    user_shares: DynArray[uint256, MAX_TICKS_UINT] = []
-    size: uint256 = convert(n2 - n1 + 1, uint256)
-    for i: int256 in range(MAX_TICKS_INT // 2):
-        if len(user_shares) == size:
-            break
-        tick: uint256 = user_shares_packed.ticks[i]
-        user_shares.append(tick & (2**128 - 1))
-        if len(user_shares) == size:
-            break
-        user_shares.append(tick >> 128)
-
-    return user_shares
-
-
 @external
 @view
 def total_collateral() -> uint256:
@@ -323,7 +289,7 @@ def _user_checkpoint(addr: address):
     @return bool success
     """
     ns: int256[2] = staticcall AMM.read_user_tick_numbers(addr)
-    user_shares: DynArray[uint256, MAX_TICKS_UINT] = self._read_user_shares(staticcall AMM.user_shares(addr))
+    user_shares: DynArray[uint256, MAX_TICKS_UINT] = staticcall AMM.read_user_ticks(addr)
     self._checkpoint_collateral_shares(ns[0], [], ns[1] - ns[0] + 1)
     if len(user_shares) > 0 and user_shares[0] > 0:
         self._checkpoint_user_shares(addr, ns[0], user_shares, ns[1] - ns[0] + 1)
