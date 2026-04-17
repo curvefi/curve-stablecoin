@@ -10,12 +10,8 @@
 
 from curve_std.interfaces import IERC20
 from curve_stablecoin import constants as c
+from curve_stablecoin.interfaces import IAMM
 
-interface ILLAMMA:
-    def coins(i: uint256) -> address: view
-    def get_sum_xy(user: address) -> uint256[2]: view
-    def read_user_tick_numbers(user: address) -> int256[2]: view
-    def user_shares(user: address) -> UserTicks: view
 
 interface CRV20:
     def future_epoch_time_write() -> uint256: nonpayable
@@ -46,7 +42,7 @@ MAX_TICKS_INT: constant(int256) = c.MAX_TICKS
 WEEK: constant(uint256) = 604800
 
 
-AMM: public(immutable(ILLAMMA))
+AMM: public(immutable(IAMM))
 CRV: public(immutable(CRV20))
 GAUGE_CONTROLLER: public(immutable(GaugeController))
 MINTER: public(immutable(Minter))
@@ -108,7 +104,7 @@ integrate_fraction: public(HashMap[address, uint256])
 
 @deploy
 def __init__(
-        amm: ILLAMMA,
+        amm: IAMM,
         crv: CRV20,
         gauge_controller: GaugeController,
         minter: Minter,
