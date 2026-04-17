@@ -363,6 +363,10 @@ def borrowed_token() -> IERC20:
 def _save_rate():
     """
     @notice Save current rate
+    @dev If the monetary policy is stateful it MUST be permissioned so that only
+        the controller can call it. Otherwise one can circumvent the reentrancy
+        lock present in all the external methods in this contract that call
+        `self._save_rate` by calling `rate_write` directly.
     """
     rate: uint256 = min(extcall self._monetary_policy.rate_write(), MAX_RATE)
     extcall AMM.set_rate(rate)
