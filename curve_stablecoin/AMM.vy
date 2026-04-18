@@ -1647,6 +1647,7 @@ def set_callback(liquidity_mining_callback: ILMGauge):
     """
     assert msg.sender == self.admin
     self._liquidity_mining_callback = liquidity_mining_callback
+    log IAMM.SetCallback(callback=liquidity_mining_callback)
 
 
 @external
