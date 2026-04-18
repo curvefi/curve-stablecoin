@@ -111,7 +111,6 @@ def create(
     _liquidation_discount: uint256,
     _price_oracle: IPriceOracle,
     _monetary_policy: IMonetaryPolicy,
-    _name: String[64],
     _supply_limit: uint256,
 ) -> address[3]:
     """
@@ -123,7 +122,6 @@ def create(
     @param _loan_discount Maximum discount. LTV = sqrt(((A - 1) // A) ** 4) - loan_discount
     @param _liquidation_discount Liquidation discount. LT = sqrt(((A - 1) // A) ** 4) - liquidation_discount
     @param _price_oracle Custom price oracle contract
-    @param _name Human-readable market name
     @param _supply_limit Supply cap
     """
     pausable._require_not_paused()

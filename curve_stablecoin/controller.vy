@@ -533,7 +533,7 @@ def _check_loan_exists(_debt: uint256):
 
 
 @internal
-def execute_callback(
+def _execute_callback(
     _callbacker: address,
     _callback_sig: bytes4,
     _user: address,
@@ -637,7 +637,7 @@ def create_loan(
     if _callbacker != empty(address):
         tkn.transfer(BORROWED_TOKEN, _callbacker, _debt)
         # If there is any unused debt, callbacker can send it to the user
-        more_collateral = self.execute_callback(
+        more_collateral = self._execute_callback(
             _callbacker,
             CALLBACK_DEPOSIT,
             _for,
@@ -862,7 +862,7 @@ def borrow_more(
     if _callbacker != empty(address):
         tkn.transfer(BORROWED_TOKEN, _callbacker, _debt)
         # If there is any unused debt, callbacker can send it to the user
-        more_collateral = self.execute_callback(
+        more_collateral = self._execute_callback(
             _callbacker,
             CALLBACK_DEPOSIT,
             _for,
@@ -1078,7 +1078,7 @@ def repay(
     if _callbacker != empty(address):
         xy = extcall AMM.withdraw(_for, WAD)
         tkn.transfer_from(COLLATERAL_TOKEN, AMM.address, _callbacker, xy[1])
-        cb = self.execute_callback(
+        cb = self._execute_callback(
             _callbacker, CALLBACK_REPAY, _for, xy[0], xy[1], debt, _calldata
         )
 
@@ -1268,7 +1268,7 @@ def liquidate(
             # Move collateral to callbacker, call it and remove everything from it back in
             tkn.transfer_from(COLLATERAL_TOKEN, AMM.address, _callbacker, xy[1])
             # Callback
-            cb: IController.CallbackData = self.execute_callback(
+            cb: IController.CallbackData = self._execute_callback(
                 _callbacker,
                 CALLBACK_LIQUIDATE,
                 _user,
