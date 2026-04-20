@@ -32,7 +32,7 @@ import pytest
 from tests.utils import max_approve
 from tests.utils.constants import WAD
 
-from tests.e2e.vault_callback_reentrancy.conftest import (
+from tests.integration.vault_callback_reentrancy.conftest import (
     N,
     ACTION_WITHDRAW,
     ACTION_REDEEM,
@@ -42,7 +42,6 @@ from tests.e2e.vault_callback_reentrancy.conftest import (
     assert_stable,
     open_max_loan,
     seed_shares,
-    seed_borrowed,
     setup_caller,
 )
 

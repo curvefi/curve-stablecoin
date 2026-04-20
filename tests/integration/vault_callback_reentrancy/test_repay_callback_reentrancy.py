@@ -32,9 +32,9 @@ import boa
 import pytest
 
 from tests.utils import max_approve
-from tests.utils.constants import MAX_UINT256, WAD
+from tests.utils.constants import WAD
 
-from tests.e2e.vault_callback_reentrancy.conftest import (
+from tests.integration.vault_callback_reentrancy.conftest import (
     N,
     ACTION_WITHDRAW,
     ACTION_REDEEM,
