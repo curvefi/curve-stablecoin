@@ -6,7 +6,6 @@ from tests.utils.deployers import (
     GAUGE_CONTROLLER_DEPLOYER,
     MINTER_DEPLOYER,
     LM_CALLBACK_DEPLOYER,
-    BLOCK_COUNTER_DEPLOYER,
 )
 from tests.utils.constants import MAX_UINT256
 
@@ -123,9 +122,3 @@ def lm_callback(admin, amm, crv, gauge_controller, minter, controller, lm_factor
         controller.set_callback(cb)
         gauge_controller.add_gauge(cb.address, 0, 10**18)
         return cb
-
-
-@pytest.fixture(scope="module")
-def block_counter(admin):
-    with boa.env.prank(admin):
-        return BLOCK_COUNTER_DEPLOYER.deploy()
