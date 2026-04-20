@@ -69,12 +69,12 @@ class StateMachine(RuleBasedStateMachine):
             value = min(balance, value)
 
             if value > 0:
-                if self.market_controller.loan_exists(user):
-                    self.market_controller.borrow_more(
+                if self.controller.loan_exists(user):
+                    self.controller.borrow_more(
                         value, int(value * random() * 2000)
                     )
                 else:
-                    self.market_controller.create_loan(
+                    self.controller.create_loan(
                         value, int(value * random() * 2000), 10
                     )
                 self.update_integrals(user, value)
@@ -95,24 +95,24 @@ class StateMachine(RuleBasedStateMachine):
         """
         user = self.accounts[uid]
         with boa.env.prank(user):
-            collateral_in_amm, _, debt, __ = self.market_controller.user_state(user)
+            collateral_in_amm, _, debt, __ = self.controller.user_state(user)
             balance = self.collateral_token.balanceOf(user)
             if collateral_in_amm == 0:
                 return
 
             if value >= collateral_in_amm:
-                self.market_controller.repay(debt)
+                self.controller.repay(debt)
                 remove_amount = collateral_in_amm
             else:
                 repay_amount = int(debt * random() * 0.99)
-                self.market_controller.repay(repay_amount)
-                min_collateral_required = self.market_controller.min_collateral(
+                self.controller.repay(repay_amount)
+                min_collateral_required = self.controller.min_collateral(
                     debt - repay_amount, 10
                 )
                 remove_amount = min(collateral_in_amm - min_collateral_required, value)
                 remove_amount = max(remove_amount, 0)
                 if remove_amount > 0:
-                    self.market_controller.remove_collateral(remove_amount)
+                    self.controller.remove_collateral(remove_amount)
             self.update_integrals(user, -remove_amount)
 
             assert self.collateral_token.balanceOf(user) == balance + remove_amount
@@ -179,12 +179,12 @@ class StateMachine(RuleBasedStateMachine):
             with boa.env.prank(account):
                 initial_collateral = self.collateral_token.balanceOf(account)
                 collateral_in_amm = integral["collateral"]
-                debt = self.market_controller.user_state(account)[2]
+                debt = self.controller.user_state(account)[2]
                 if debt > 0:
-                    self.market_controller.repay(debt)
+                    self.controller.repay(debt)
                 self.update_integrals(account)
 
-                assert not self.market_controller.loan_exists(account)
+                assert not self.controller.loan_exists(account)
                 assert (
                     self.collateral_token.balanceOf(account)
                     == initial_collateral + collateral_in_amm
@@ -209,7 +209,7 @@ def test_state_machine(
     collateral_token,
     crv,
     lm_callback,
-    market_controller,
+    controller,
     minter,
 ):
     for acct in accounts[:5]:
@@ -218,7 +218,7 @@ def test_state_machine(
             crv.transfer(acct, 10**20)
 
         with boa.env.prank(acct):
-            collateral_token.approve(market_controller, 2**256 - 1)
+            collateral_token.approve(controller, 2**256 - 1)
 
     boa.env.time_travel(seconds=7 * 86400)
 

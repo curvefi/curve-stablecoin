@@ -13,8 +13,8 @@ def test_simple_exchange(
     chad,
     collateral_token,
     crv,
-    market_controller,
-    market_amm,
+    controller,
+    amm,
     lm_callback,
     minter,
 ):
@@ -27,8 +27,8 @@ def test_simple_exchange(
         boa.deal(collateral_token, bob, 1000 * 10**18)
 
     # Alice and Bob create loan
-    market_controller.create_loan(10**21, 10**21 * 2600, 10, sender=alice)
-    market_controller.create_loan(10**21, 10**21 * 1000, 10, sender=bob)
+    controller.create_loan(10**21, 10**21 * 2600, 10, sender=alice)
+    controller.create_loan(10**21, 10**21 * 1000, 10, sender=bob)
 
     # Time travel and checkpoint
     boa.env.time_travel(4 * WEEK)
@@ -40,7 +40,7 @@ def test_simple_exchange(
     assert rewards_alice == rewards_bob
 
     # Now Chad makes a trade crvUSD --> collateral and gets a half of Alice's deposit
-    market_amm.exchange_dy(0, 1, 10**21 // 2, 2**255, sender=chad)
+    amm.exchange_dy(0, 1, 10**21 // 2, 2**255, sender=chad)
 
     # Time travel and checkpoint
     boa.env.time_travel(4 * WEEK)
@@ -70,8 +70,8 @@ def test_gauge_integral_with_exchanges(
     collateral_token,
     crv,
     lm_callback,
-    market_controller,
-    market_amm,
+    controller,
+    amm,
     price_oracle,
     minter,
 ):
@@ -112,8 +112,8 @@ def test_gauge_integral_with_exchanges(
                 integral += rate_x_time * checkpoint_balance // checkpoint_supply
             checkpoint_rate = rate1
             checkpoint = t1
-            checkpoint_supply = collateral_token.balanceOf(market_amm)
-            checkpoint_balance = market_amm.get_sum_xy(alice)[1]
+            checkpoint_supply = collateral_token.balanceOf(amm)
+            checkpoint_balance = amm.get_sum_xy(alice)[1]
 
         # Now let's have a loop where Bob always deposit or withdraws,
         # and Alice does so more rarely
@@ -126,7 +126,7 @@ def test_gauge_integral_with_exchanges(
             # For Bob
             with boa.env.prank(bob):
                 collateral_in_amm_bob, stablecoin_in_amm_bob, debt_bob, __ = (
-                    market_controller.user_state(bob)
+                    controller.user_state(bob)
                 )
                 is_withdraw_bob = (collateral_in_amm_bob > 0) * (random() < 0.5)
                 is_underwater_bob = stablecoin_in_amm_bob > 0
@@ -136,19 +136,19 @@ def test_gauge_integral_with_exchanges(
                     if amount_bob == collateral_in_amm_bob:
                         print("Bob repays (full):", debt_bob)
                         print("Bob withdraws (full):", amount_bob)
-                        market_controller.repay(debt_bob)
-                        assert market_amm.get_sum_xy(bob)[1] == pytest.approx(
+                        controller.repay(debt_bob)
+                        assert amm.get_sum_xy(bob)[1] == pytest.approx(
                             lm_callback.user_collateral(bob), rel=1e-13
                         )
-                    elif market_controller.health(bob) > 0:
+                    elif controller.health(bob) > 0:
                         repay_amount_bob = int(
                             debt_bob // 10 + (debt_bob * 9 // 10) * random() * 0.99
                         )
                         print("Bob repays:", repay_amount_bob)
-                        market_controller.repay(repay_amount_bob)
+                        controller.repay(repay_amount_bob)
                         if not is_underwater_bob:
                             min_collateral_required_bob = (
-                                market_controller.min_collateral(
+                                controller.min_collateral(
                                     debt_bob - repay_amount_bob, 10
                                 )
                             )
@@ -159,15 +159,15 @@ def test_gauge_integral_with_exchanges(
                             remove_amount_bob = max(remove_amount_bob, 0)
                             if remove_amount_bob > 0:
                                 print("Bob withdraws:", remove_amount_bob)
-                                market_controller.remove_collateral(remove_amount_bob)
-                            assert market_amm.get_sum_xy(bob)[1] == pytest.approx(
+                                controller.remove_collateral(remove_amount_bob)
+                            assert amm.get_sum_xy(bob)[1] == pytest.approx(
                                 lm_callback.user_collateral(bob), rel=1e-13
                             )
                     update_integral()
                 elif not is_underwater_bob:
                     amount_bob = randrange(1, collateral_token.balanceOf(bob) // 10 + 1)
-                    collateral_token.approve(market_controller.address, amount_bob)
-                    max_borrowable_bob = market_controller.max_borrowable(
+                    collateral_token.approve(controller.address, amount_bob)
+                    max_borrowable_bob = controller.max_borrowable(
                         amount_bob, 10, bob
                     )
                     borrow_amount_bob = min(
@@ -175,14 +175,14 @@ def test_gauge_integral_with_exchanges(
                     )
                     if borrow_amount_bob > 0:
                         print("Bob deposits:", amount_bob, borrow_amount_bob)
-                        if market_controller.loan_exists(bob):
-                            market_controller.borrow_more(amount_bob, borrow_amount_bob)
+                        if controller.loan_exists(bob):
+                            controller.borrow_more(amount_bob, borrow_amount_bob)
                         else:
-                            market_controller.create_loan(
+                            controller.create_loan(
                                 amount_bob, borrow_amount_bob, 10
                             )
                         update_integral()
-                    assert market_amm.get_sum_xy(bob)[1] == pytest.approx(
+                    assert amm.get_sum_xy(bob)[1] == pytest.approx(
                         lm_callback.user_collateral(bob), rel=1e-13
                     )
 
@@ -190,7 +190,7 @@ def test_gauge_integral_with_exchanges(
             if is_alice:
                 with boa.env.prank(alice):
                     collateral_in_amm_alice, stablecoin_in_amm_alice, debt_alice, __ = (
-                        market_controller.user_state(alice)
+                        controller.user_state(alice)
                     )
                     is_withdraw_alice = (collateral_in_amm_alice > 0) * (random() < 0.5)
                     is_underwater_alice = stablecoin_in_amm_alice > 0
@@ -200,20 +200,20 @@ def test_gauge_integral_with_exchanges(
                         if amount_alice == collateral_in_amm_alice:
                             print("Alice repays (full):", debt_alice)
                             print("Alice withdraws (full):", amount_alice)
-                            market_controller.repay(debt_alice)
-                            assert market_amm.get_sum_xy(alice)[1] == pytest.approx(
+                            controller.repay(debt_alice)
+                            assert amm.get_sum_xy(alice)[1] == pytest.approx(
                                 lm_callback.user_collateral(alice), rel=1e-13
                             )
-                        elif market_controller.health(alice) > 0:
+                        elif controller.health(alice) > 0:
                             repay_amount_alice = int(
                                 debt_alice // 10
                                 + (debt_alice * 9 // 10) * random() * 0.99
                             )
                             print("Alice repays:", repay_amount_alice)
-                            market_controller.repay(repay_amount_alice)
+                            controller.repay(repay_amount_alice)
                             if not is_underwater_alice:
                                 min_collateral_required_alice = (
-                                    market_controller.min_collateral(
+                                    controller.min_collateral(
                                         debt_alice - repay_amount_alice, 10
                                     )
                                 )
@@ -225,10 +225,10 @@ def test_gauge_integral_with_exchanges(
                                 remove_amount_alice = max(remove_amount_alice, 0)
                                 if remove_amount_alice > 0:
                                     print("Alice withdraws:", remove_amount_alice)
-                                    market_controller.remove_collateral(
+                                    controller.remove_collateral(
                                         remove_amount_alice
                                     )
-                            assert market_amm.get_sum_xy(alice)[1] == pytest.approx(
+                            assert amm.get_sum_xy(alice)[1] == pytest.approx(
                                 lm_callback.user_collateral(alice), rel=1e-13
                             )
                         update_integral()
@@ -237,9 +237,9 @@ def test_gauge_integral_with_exchanges(
                             1, collateral_token.balanceOf(alice) // 10 + 1
                         )
                         collateral_token.approve(
-                            market_controller.address, amount_alice
+                            controller.address, amount_alice
                         )
-                        max_borrowable_alice = market_controller.max_borrowable(
+                        max_borrowable_alice = controller.max_borrowable(
                             amount_alice, 10, alice
                         )
                         borrow_amount_alice = min(
@@ -247,27 +247,27 @@ def test_gauge_integral_with_exchanges(
                         )
                         if borrow_amount_alice > 0:
                             print("Alice deposits:", amount_alice, borrow_amount_alice)
-                            if market_controller.loan_exists(alice):
-                                market_controller.borrow_more(
+                            if controller.loan_exists(alice):
+                                controller.borrow_more(
                                     amount_alice, borrow_amount_alice
                                 )
                             else:
-                                market_controller.create_loan(
+                                controller.create_loan(
                                     amount_alice, borrow_amount_alice, 10
                                 )
                             update_integral()
-                        assert market_amm.get_sum_xy(alice)[1] == pytest.approx(
+                        assert amm.get_sum_xy(alice)[1] == pytest.approx(
                             lm_callback.user_collateral(alice), rel=1e-13
                         )
 
             # Chad trading
-            alice_bands = market_amm.read_user_tick_numbers(alice)
+            alice_bands = amm.read_user_tick_numbers(alice)
             alice_bands = (
                 []
                 if alice_bands[0] == alice_bands[1]
                 else list(range(alice_bands[0], alice_bands[1] + 1))
             )
-            bob_bands = market_amm.read_user_tick_numbers(bob)
+            bob_bands = amm.read_user_tick_numbers(bob)
             bob_bands = (
                 []
                 if bob_bands[0] == bob_bands[1]
@@ -276,12 +276,12 @@ def test_gauge_integral_with_exchanges(
             available_bands = alice_bands + bob_bands
             print("Bob bands:", bob_bands)
             print("Alice bands:", alice_bands)
-            print("Active band:", market_amm.active_band())
-            p_o = market_amm.price_oracle()
+            print("Active band:", amm.active_band())
+            p_o = amm.price_oracle()
             upper_bands = sorted(
                 list(
                     filter(
-                        lambda band: market_amm.p_oracle_down(band) > p_o,
+                        lambda band: amm.p_oracle_down(band) > p_o,
                         available_bands,
                     )
                 )
@@ -289,26 +289,26 @@ def test_gauge_integral_with_exchanges(
             lower_bands = sorted(
                 list(
                     filter(
-                        lambda band: market_amm.p_oracle_up(band) < p_o, available_bands
+                        lambda band: amm.p_oracle_up(band) < p_o, available_bands
                     )
                 )
             )[:5]
             available_bands = upper_bands + lower_bands
             if len(available_bands) > 0:
                 target_band = choice(available_bands)
-                p_up = market_amm.p_oracle_up(target_band)
-                p_down = market_amm.p_oracle_down(target_band)
+                p_up = amm.p_oracle_up(target_band)
+                p_down = amm.p_oracle_down(target_band)
                 p_target = int(p_down + random() * (p_up - p_down))
                 price_oracle.set_price(p_target, sender=admin)
                 print("Price set to:", p_target)
-                amount, pump = market_amm.get_amount_for_price(p_target)
+                amount, pump = amm.get_amount_for_price(p_target)
                 with boa.env.prank(chad):
                     if pump:
-                        market_amm.exchange(0, 1, amount, 0)
+                        amm.exchange(0, 1, amount, 0)
                     else:
-                        market_amm.exchange(1, 0, amount, 0)
+                        amm.exchange(1, 0, amount, 0)
                 print("Swap:", amount, pump)
-                print("Active band:", market_amm.active_band())
+                print("Active band:", amm.active_band())
                 update_integral()
 
             # Checking that updating the checkpoint in the same second does nothing
@@ -322,7 +322,7 @@ def test_gauge_integral_with_exchanges(
             boa.env.time_travel(seconds=dt)
             print("Time travel", dt)
 
-            total_collateral_from_amm = collateral_token.balanceOf(market_amm)
+            total_collateral_from_amm = collateral_token.balanceOf(amm)
             total_collateral_from_lm_cb = lm_callback.total_collateral()
             print(
                 "Total collateral:",
@@ -362,8 +362,8 @@ def test_full_repay_underwater(
     collateral_token,
     crv,
     lm_callback,
-    market_controller,
-    market_amm,
+    controller,
+    amm,
     price_oracle,
     minter,
 ):
@@ -381,49 +381,49 @@ def test_full_repay_underwater(
         # Bob creates loan
         with boa.env.prank(bob):
             amount_bob = 10**20
-            collateral_token.approve(market_controller.address, amount_bob)
-            market_controller.create_loan(amount_bob, int(amount_bob * 2000), 10)
+            collateral_token.approve(controller.address, amount_bob)
+            controller.create_loan(amount_bob, int(amount_bob * 2000), 10)
             print("Bob deposits:", amount_bob)
 
         # Alice creates loan
         with boa.env.prank(alice):
             amount_alice = 10**20
-            collateral_token.approve(market_controller.address, amount_alice)
-            market_controller.create_loan(amount_alice, int(amount_alice * 500), 10)
+            collateral_token.approve(controller.address, amount_alice)
+            controller.create_loan(amount_alice, int(amount_alice * 500), 10)
             print("Alice deposits:", amount_alice)
 
-        print(collateral_token.balanceOf(market_amm), lm_callback.total_collateral())
+        print(collateral_token.balanceOf(amm), lm_callback.total_collateral())
 
         dt = randrange(1, YEAR // 5)
         boa.env.time_travel(seconds=dt)
 
         # Chad trading. As a result Bob will be underwater
-        bob_bands = market_amm.read_user_tick_numbers(bob)
+        bob_bands = amm.read_user_tick_numbers(bob)
         bob_bands = list(range(bob_bands[0], bob_bands[1] + 1))
         print("Bob bands:", bob_bands)
-        print("Active band:", market_amm.active_band())
+        print("Active band:", amm.active_band())
         target_band = bob_bands[7]
-        p_up = market_amm.p_oracle_up(target_band)
-        p_down = market_amm.p_oracle_down(target_band)
+        p_up = amm.p_oracle_up(target_band)
+        p_down = amm.p_oracle_down(target_band)
         p_target = int((p_down + p_up) / 2)
         price_oracle.set_price(p_target, sender=admin)
         print("Price set to:", p_target)
-        amount, pump = market_amm.get_amount_for_price(p_target)
+        amount, pump = amm.get_amount_for_price(p_target)
         with boa.env.prank(chad):
             if pump:
-                market_amm.exchange(0, 1, amount, 0)
+                amm.exchange(0, 1, amount, 0)
             else:
-                market_amm.exchange(1, 0, amount, 0)
+                amm.exchange(1, 0, amount, 0)
         print("Swap:", amount, pump, "\n")
-        print("Active band:", market_amm.active_band())
+        print("Active band:", amm.active_band())
 
         # Bob fully repays being underwater
-        debt_bob = market_controller.user_state(bob)[2]
-        market_controller.repay(debt_bob, sender=bob)
+        debt_bob = controller.user_state(bob)[2]
+        controller.repay(debt_bob, sender=bob)
         print("Bob repays (full):", debt_bob)
         print("Bob withdraws (full):", amount_bob)
 
-        total_collateral_from_amm = collateral_token.balanceOf(market_amm)
+        total_collateral_from_amm = collateral_token.balanceOf(amm)
         total_collateral_from_lm_cb = lm_callback.total_collateral()
         print(
             "Total collateral:", total_collateral_from_amm, total_collateral_from_lm_cb

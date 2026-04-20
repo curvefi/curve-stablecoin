@@ -9,8 +9,8 @@ def test_rewards_kill(
     chad,
     collateral_token,
     crv,
-    market_controller,
-    market_amm,
+    controller,
+    amm,
     lm_callback,
     minter,
 ):
@@ -22,7 +22,7 @@ def test_rewards_kill(
     with boa.env.prank(admin):
         boa.deal(collateral_token, alice, 1000 * 10**18)
 
-    market_controller.create_loan(10**21, 10**21 * 2600, 10, sender=alice)
+    controller.create_loan(10**21, 10**21 * 2600, 10, sender=alice)
 
     boa.env.time_travel(WEEK)
     lm_callback.user_checkpoint(alice, sender=alice)
@@ -58,8 +58,8 @@ def test_rewards_kill_unkill(
     chad,
     collateral_token,
     crv,
-    market_controller,
-    market_amm,
+    controller,
+    amm,
     lm_callback,
     minter,
 ):
@@ -71,7 +71,7 @@ def test_rewards_kill_unkill(
     with boa.env.prank(admin):
         boa.deal(collateral_token, alice, 1000 * 10**18)
 
-    market_controller.create_loan(10**21, 10**21 * 2600, 10, sender=alice)
+    controller.create_loan(10**21, 10**21 * 2600, 10, sender=alice)
 
     boa.env.time_travel(WEEK)
     lm_callback.user_checkpoint(alice, sender=alice)
