@@ -128,6 +128,12 @@ def read_user_tick_numbers(user: address) -> int256[2]:
 
 @view
 @external
+def read_user_ticks(user: address) -> DynArray[uint256, 50]:
+    ...
+
+
+@view
+@external
 def can_skip_bands(n_end: int256) -> bool:
     ...
 
@@ -297,11 +303,6 @@ def bands_x(arg0: int256) -> uint256:
 def bands_y(arg0: int256) -> uint256:
     ...
 
-
-@view
-@external
-def user_shares(arg0: address) -> UserTicks:
-    ...
 
 
 @view

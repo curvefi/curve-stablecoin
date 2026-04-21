@@ -101,6 +101,7 @@ _available_balance: uint256
 
 @external
 @view
+@reentrant
 def available_balance() -> uint256:
     return self._available_balance
 
