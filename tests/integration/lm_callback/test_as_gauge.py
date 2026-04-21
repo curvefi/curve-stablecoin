@@ -1,26 +1,28 @@
 import boa
 from random import random, randrange
 import pytest
-
-MAX_UINT256 = 2**256 - 1
+from tests.utils.constants import MAX_UINT256
 YEAR = 365 * 86400
 WEEK = 7 * 86400
 
 
 def test_gauge_integral_one_user(
-    accounts, admin, collateral_token, crv, lm_callback, controller, minter
+    admin, collateral_token, borrowed_token, crv, lm_callback, controller, minter
 ):
     with boa.env.anchor():
-        alice = accounts[0]
+        borrower = boa.env.generate_address("borrower")
+        boa.deal(collateral_token, borrower, 1000 * 10**18)
+        collateral_token.approve(controller, MAX_UINT256, sender=borrower)
+        borrowed_token.approve(controller, MAX_UINT256, sender=borrower)
+
         boa.env.time_travel(seconds=WEEK)
-        alice_staked = 0
+
+        borrower_staked = 0
         integral = 0  # ∫(balance * rate(t) / totalSupply(t) dt)
         checkpoint = boa.env.timestamp
         checkpoint_rate = crv.rate()
         checkpoint_supply = 0
         checkpoint_balance = 0
-
-        boa.deal(collateral_token, alice, 1000 * 10**18)
 
         def update_integral():
             nonlocal \
@@ -44,18 +46,18 @@ def test_gauge_integral_one_user(
             checkpoint_rate = rate1
             checkpoint = t1
             checkpoint_supply = lm_callback.total_collateral()
-            checkpoint_balance = lm_callback.user_collateral(alice)
+            checkpoint_balance = lm_callback.user_collateral(borrower)
 
         for i in range(40):
             dt = 3 * (i + 1) * 86400
             boa.env.time_travel(seconds=dt)
 
             is_withdraw = (i > 0) * (random() < 0.5)
-            with boa.env.prank(alice):
-                collateral_in_amm, _, debt, __ = controller.user_state(alice)
-                collateral_alice = lm_callback.user_collateral(alice)
-                assert collateral_in_amm == collateral_alice
-                print("Alice", "withdraws" if is_withdraw else "deposits")
+            with boa.env.prank(borrower):
+                collateral_in_amm, _, debt, __ = controller.user_state(borrower)
+                collateral_borrower = lm_callback.user_collateral(borrower)
+                assert collateral_in_amm == collateral_borrower
+                print("borrower", "withdraws" if is_withdraw else "deposits")
 
                 if is_withdraw:
                     amount = randrange(1, collateral_in_amm + 1)
@@ -74,53 +76,52 @@ def test_gauge_integral_one_user(
                         if remove_amount > 0:
                             controller.remove_collateral(remove_amount)
                     update_integral()
-                    alice_staked -= remove_amount
+                    borrower_staked -= remove_amount
                 else:
-                    amount = collateral_token.balanceOf(alice) // 5
-                    collateral_token.approve(controller.address, amount)
-                    if controller.loan_exists(alice):
+                    amount = collateral_token.balanceOf(borrower) // 5
+                    if controller.loan_exists(borrower):
                         controller.borrow_more(amount, int(amount * random() * 2000))
                     else:
                         controller.create_loan(
                             amount, int(amount * random() * 2000), 10
                         )
                     update_integral()
-                    alice_staked += amount
+                    borrower_staked += amount
 
-            assert lm_callback.user_collateral(alice) == alice_staked
-            assert lm_callback.total_collateral() == alice_staked
+            assert lm_callback.user_collateral(borrower) == borrower_staked
+            assert lm_callback.total_collateral() == borrower_staked
 
             dt = (i + 1) * 10 * 86400
             boa.env.time_travel(seconds=dt)
 
-            lm_callback.user_checkpoint(alice, sender=alice)
+            lm_callback.user_checkpoint(borrower, sender=borrower)
             update_integral()
-            print(i, dt / 86400, integral, lm_callback.integrate_fraction(alice))
-            crv_reward = lm_callback.integrate_fraction(alice)
+            print(i, dt / 86400, integral, lm_callback.integrate_fraction(borrower))
+            crv_reward = lm_callback.integrate_fraction(borrower)
             assert crv_reward == pytest.approx(integral, rel=1e-14)
-            minter.mint(lm_callback.address, sender=alice)
-            assert crv.balanceOf(alice) == crv_reward
+            minter.mint(lm_callback.address, sender=borrower)
+            assert crv.balanceOf(borrower) == crv_reward
 
 
 def test_gauge_integral(
-    accounts, admin, collateral_token, crv, lm_callback, controller, minter
+    admin, collateral_token, borrowed_token, crv, lm_callback, controller, minter
 ):
     with boa.env.anchor():
-        alice, bob = accounts[:2]
+        borrower1 = boa.env.generate_address("borrower1")
+        borrower2 = boa.env.generate_address("borrower2")
+        for b in (borrower1, borrower2):
+            boa.deal(collateral_token, b, 1000 * 10 ** 18)
+            collateral_token.approve(controller, MAX_UINT256, sender=b)
+            borrowed_token.approve(controller, MAX_UINT256, sender=b)
 
-        alice_staked = 0
-        bob_staked = 0
+        borrower1_staked = 0
+        borrower2_staked = 0
         integral = 0  # ∫(balance * rate(t) / totalSupply(t) dt)
         checkpoint = boa.env.timestamp
         boa.env.time_travel(blocks=1)
         checkpoint_rate = crv.rate()
         checkpoint_supply = 0
         checkpoint_balance = 0
-
-        # Let Alice and Bob have about the same collateral token amount
-        with boa.env.prank(admin):
-            boa.deal(collateral_token, alice, 1000 * 10**18)
-            boa.deal(collateral_token, bob, 1000 * 10**18)
 
         def update_integral():
             nonlocal \
@@ -144,140 +145,134 @@ def test_gauge_integral(
             checkpoint_rate = rate1
             checkpoint = t1
             checkpoint_supply = lm_callback.total_collateral()
-            checkpoint_balance = lm_callback.user_collateral(alice)
+            checkpoint_balance = lm_callback.user_collateral(borrower1)
 
-        # Now let's have a loop where Bob always deposit or withdraws,
-        # and Alice does so more rarely
+        # borrower2 always deposits or withdraws; borrower1 does so more rarely
         for i in range(40):
-            is_alice = random() < 0.2
+            is_borrower1 = random() < 0.2
             dt = randrange(1, YEAR // 5)
             boa.env.time_travel(seconds=dt)
 
-            # For Bob
-            with boa.env.prank(bob):
-                is_withdraw_bob = (i > 0) * (random() < 0.5)
-                print("Bob", "withdraws" if is_withdraw_bob else "deposits")
-                if is_withdraw_bob:
-                    collateral_in_amm_bob, _, debt_bob, __ = controller.user_state(bob)
-                    collateral_bob = lm_callback.user_collateral(bob)
-                    assert collateral_in_amm_bob == collateral_bob
-                    amount_bob = randrange(1, collateral_in_amm_bob + 1)
-                    remove_amount_bob = amount_bob
-                    if amount_bob == collateral_in_amm_bob:
-                        controller.repay(debt_bob)
+            with boa.env.prank(borrower2):
+                is_withdraw_borrower2 = (i > 0) * (random() < 0.5)
+                print("borrower2", "withdraws" if is_withdraw_borrower2 else "deposits")
+                if is_withdraw_borrower2:
+                    collateral_in_amm_borrower2, _, debt_borrower2, __ = controller.user_state(borrower2)
+                    collateral_borrower2 = lm_callback.user_collateral(borrower2)
+                    assert collateral_in_amm_borrower2 == collateral_borrower2
+                    amount_borrower2 = randrange(1, collateral_in_amm_borrower2 + 1)
+                    remove_amount_borrower2 = amount_borrower2
+                    if amount_borrower2 == collateral_in_amm_borrower2:
+                        controller.repay(debt_borrower2)
                     else:
-                        repay_amount_bob = int(debt_bob * random() * 0.99)
-                        controller.repay(repay_amount_bob)
-                        min_collateral_required_bob = controller.min_collateral(
-                            debt_bob - repay_amount_bob, 10
+                        repay_amount_borrower2 = int(debt_borrower2 * random() * 0.99)
+                        controller.repay(repay_amount_borrower2)
+                        min_collateral_required_borrower2 = controller.min_collateral(
+                            debt_borrower2 - repay_amount_borrower2, 10
                         )
-                        remove_amount_bob = min(
-                            collateral_in_amm_bob - min_collateral_required_bob,
-                            amount_bob,
+                        remove_amount_borrower2 = min(
+                            collateral_in_amm_borrower2 - min_collateral_required_borrower2,
+                            amount_borrower2,
                         )
-                        remove_amount_bob = max(remove_amount_bob, 0)
-                        if remove_amount_bob > 0:
-                            controller.remove_collateral(remove_amount_bob)
+                        remove_amount_borrower2 = max(remove_amount_borrower2, 0)
+                        if remove_amount_borrower2 > 0:
+                            controller.remove_collateral(remove_amount_borrower2)
                     update_integral()
-                    bob_staked -= remove_amount_bob
+                    borrower2_staked -= remove_amount_borrower2
                 else:
-                    amount_bob = randrange(1, collateral_token.balanceOf(bob) // 10 + 1)
-                    collateral_token.approve(controller.address, amount_bob)
-                    if controller.loan_exists(bob):
+                    amount_borrower2 = randrange(1, collateral_token.balanceOf(borrower2) // 10 + 1)
+                    if controller.loan_exists(borrower2):
                         controller.borrow_more(
-                            amount_bob, int(amount_bob * random() * 2000)
+                            amount_borrower2, int(amount_borrower2 * random() * 2000)
                         )
                     else:
                         controller.create_loan(
-                            amount_bob, int(amount_bob * random() * 2000), 10
+                            amount_borrower2, int(amount_borrower2 * random() * 2000), 10
                         )
                     update_integral()
-                    bob_staked += amount_bob
+                    borrower2_staked += amount_borrower2
 
-            if is_alice:
-                # For Alice
-                with boa.env.prank(alice):
-                    collateral_in_amm_alice, _, debt_alice, __ = controller.user_state(
-                        alice
+            if is_borrower1:
+                with boa.env.prank(borrower1):
+                    collateral_in_amm_borrower1, _, debt_borrower1, __ = controller.user_state(
+                        borrower1
                     )
-                    collateral_alice = lm_callback.user_collateral(alice)
-                    assert collateral_in_amm_alice == collateral_alice
-                    is_withdraw_alice = (collateral_in_amm_alice > 0) * (random() < 0.5)
-                    print("Alice", "withdraws" if is_withdraw_alice else "deposits")
+                    collateral_borrower1 = lm_callback.user_collateral(borrower1)
+                    assert collateral_in_amm_borrower1 == collateral_borrower1
+                    is_withdraw_borrower1 = (collateral_in_amm_borrower1 > 0) * (random() < 0.5)
+                    print("borrower1", "withdraws" if is_withdraw_borrower1 else "deposits")
 
-                    if is_withdraw_alice:
-                        amount_alice = randrange(1, collateral_in_amm_alice + 1)
-                        remove_amount_alice = amount_alice
-                        if amount_alice == collateral_in_amm_alice:
-                            controller.repay(debt_alice)
+                    if is_withdraw_borrower1:
+                        amount_borrower1 = randrange(1, collateral_in_amm_borrower1 + 1)
+                        remove_amount_borrower1 = amount_borrower1
+                        if amount_borrower1 == collateral_in_amm_borrower1:
+                            controller.repay(debt_borrower1)
                         else:
-                            repay_amount_alice = int(debt_alice * random() * 0.99)
-                            controller.repay(repay_amount_alice)
-                            min_collateral_required_alice = controller.min_collateral(
-                                debt_alice - repay_amount_alice, 10
+                            repay_amount_borrower1 = int(debt_borrower1 * random() * 0.99)
+                            controller.repay(repay_amount_borrower1)
+                            min_collateral_required_borrower1 = controller.min_collateral(
+                                debt_borrower1 - repay_amount_borrower1, 10
                             )
-                            remove_amount_alice = min(
-                                collateral_in_amm_alice - min_collateral_required_alice,
-                                amount_alice,
+                            remove_amount_borrower1 = min(
+                                collateral_in_amm_borrower1 - min_collateral_required_borrower1,
+                                amount_borrower1,
                             )
-                            remove_amount_alice = max(remove_amount_alice, 0)
-                            if remove_amount_alice > 0:
-                                controller.remove_collateral(remove_amount_alice)
+                            remove_amount_borrower1 = max(remove_amount_borrower1, 0)
+                            if remove_amount_borrower1 > 0:
+                                controller.remove_collateral(remove_amount_borrower1)
                         update_integral()
-                        alice_staked -= remove_amount_alice
+                        borrower1_staked -= remove_amount_borrower1
                     else:
-                        amount_alice = randrange(
-                            1, collateral_token.balanceOf(alice) // 10 + 1
+                        amount_borrower1 = randrange(
+                            1, collateral_token.balanceOf(borrower1) // 10 + 1
                         )
-                        collateral_token.approve(controller.address, amount_alice)
-                        if controller.loan_exists(alice):
+                        if controller.loan_exists(borrower1):
                             controller.borrow_more(
-                                amount_alice, int(amount_alice * random() * 2000)
+                                amount_borrower1, int(amount_borrower1 * random() * 2000)
                             )
                         else:
                             controller.create_loan(
-                                amount_alice, int(amount_alice * random() * 2000), 10
+                                amount_borrower1, int(amount_borrower1 * random() * 2000), 10
                             )
                         update_integral()
-                        alice_staked += amount_alice
+                        borrower1_staked += amount_borrower1
 
             # Checking that updating the checkpoint in the same second does nothing
             # Also everyone can update: that should make no difference, too
             if random() < 0.5:
-                lm_callback.user_checkpoint(alice, sender=alice)
+                lm_callback.user_checkpoint(borrower1, sender=borrower1)
             if random() < 0.5:
-                lm_callback.user_checkpoint(bob, sender=bob)
+                lm_callback.user_checkpoint(borrower2, sender=borrower2)
 
-            assert lm_callback.user_collateral(alice) == alice_staked
-            assert lm_callback.user_collateral(bob) == bob_staked
-            assert lm_callback.total_collateral() == alice_staked + bob_staked
+            assert lm_callback.user_collateral(borrower1) == borrower1_staked
+            assert lm_callback.user_collateral(borrower2) == borrower2_staked
+            assert lm_callback.total_collateral() == borrower1_staked + borrower2_staked
 
             dt = randrange(1, YEAR // 20)
             boa.env.time_travel(seconds=dt)
 
-            with boa.env.prank(alice):
-                crv_balance = crv.balanceOf(alice)
+            with boa.env.prank(borrower1):
+                crv_balance = crv.balanceOf(borrower1)
                 with boa.env.anchor():
-                    crv_reward = lm_callback.claimable_tokens(alice)
+                    crv_reward = lm_callback.claimable_tokens(borrower1)
                 minter.mint(lm_callback.address)
-                assert crv.balanceOf(alice) - crv_balance == crv_reward
+                assert crv.balanceOf(borrower1) - crv_balance == crv_reward
 
                 update_integral()
-                print(i, dt / 86400, integral, lm_callback.integrate_fraction(alice))
-                assert lm_callback.integrate_fraction(alice) == pytest.approx(
+                print(i, dt / 86400, integral, lm_callback.integrate_fraction(borrower1))
+                assert lm_callback.integrate_fraction(borrower1) == pytest.approx(
                     integral, rel=1e-14
                 )
 
-            with boa.env.prank(bob):
-                crv_balance = crv.balanceOf(bob)
+            with boa.env.prank(borrower2):
+                crv_balance = crv.balanceOf(borrower2)
                 with boa.env.anchor():
-                    crv_reward = lm_callback.claimable_tokens(bob)
+                    crv_reward = lm_callback.claimable_tokens(borrower2)
                 minter.mint(lm_callback.address)
-                assert crv.balanceOf(bob) - crv_balance == crv_reward
+                assert crv.balanceOf(borrower2) - crv_balance == crv_reward
 
 
 def test_set_killed(
-    accounts,
     admin,
     collateral_token,
     crv,
@@ -285,54 +280,49 @@ def test_set_killed(
     lm_callback,
     minter,
 ):
-    alice = accounts[0]
+    borrower = boa.env.generate_address("borrower")
+    boa.deal(collateral_token, borrower, 1000 * 10**18)
+    collateral_token.approve(controller, MAX_UINT256, sender=borrower)
+
     boa.env.time_travel(seconds=2 * WEEK + 5)
 
-    with boa.env.prank(admin):
-        boa.deal(collateral_token, alice, 1000 * 10**18)
+    controller.create_loan(10**21, 10**21 * 2600, 10, sender=borrower)
 
-    # Alice creates loan
-    controller.create_loan(10**21, 10**21 * 2600, 10, sender=alice)
-
-    # Time travel and checkpoint
     boa.env.time_travel(4 * WEEK)
 
-    # Alice got some rewards
     with boa.env.anchor():
-        rewards_alice = lm_callback.claimable_tokens(alice)
-    assert rewards_alice > 0
-    crv_balance = crv.balanceOf(alice)
-    minter.mint(lm_callback.address, sender=alice)
-    assert crv.balanceOf(alice) - crv_balance == rewards_alice
+        rewards_borrower = lm_callback.claimable_tokens(borrower)
+    assert rewards_borrower > 0
+    crv_balance = crv.balanceOf(borrower)
+    minter.mint(lm_callback.address, sender=borrower)
+    assert crv.balanceOf(borrower) - crv_balance == rewards_borrower
 
     # Kill lm callback
     with boa.reverts("only owner"):
-        lm_callback.set_killed(True, sender=alice)
+        lm_callback.set_killed(True, sender=borrower)
     lm_callback.set_killed(True, sender=admin)
 
-    # Time travel and checkpoint
     boa.env.time_travel(4 * WEEK)
 
-    # Alice didn't get any rewards since lm callback is killed
+    # No rewards while killed
     with boa.env.anchor():
-        rewards_alice = lm_callback.claimable_tokens(alice)
-    assert rewards_alice == 0
-    crv_balance = crv.balanceOf(alice)
-    minter.mint(lm_callback.address, sender=alice)
-    assert crv.balanceOf(alice) == crv_balance
+        rewards_borrower = lm_callback.claimable_tokens(borrower)
+    assert rewards_borrower == 0
+    crv_balance = crv.balanceOf(borrower)
+    minter.mint(lm_callback.address, sender=borrower)
+    assert crv.balanceOf(borrower) == crv_balance
 
     # Unkill lm callback
     with boa.reverts("only owner"):
-        lm_callback.set_killed(False, sender=alice)
+        lm_callback.set_killed(False, sender=borrower)
     lm_callback.set_killed(False, sender=admin)
 
-    # Time travel and checkpoint
     boa.env.time_travel(4 * WEEK)
 
-    # Alice got some rewards again since lm callback is unkilled
+    # Rewards resume after unkill
     with boa.env.anchor():
-        rewards_alice = lm_callback.claimable_tokens(alice)
-    assert rewards_alice > 0
-    crv_balance = crv.balanceOf(alice)
-    minter.mint(lm_callback.address, sender=alice)
-    assert crv.balanceOf(alice) - crv_balance == rewards_alice
+        rewards_borrower = lm_callback.claimable_tokens(borrower)
+    assert rewards_borrower > 0
+    crv_balance = crv.balanceOf(borrower)
+    minter.mint(lm_callback.address, sender=borrower)
+    assert crv.balanceOf(borrower) - crv_balance == rewards_borrower

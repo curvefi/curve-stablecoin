@@ -8,6 +8,7 @@ from hypothesis.stateful import (
     invariant,
 )
 import pytest
+from tests.utils.constants import MAX_UINT256
 
 
 class StateMachine(RuleBasedStateMachine):
@@ -23,15 +24,21 @@ class StateMachine(RuleBasedStateMachine):
 
     def __init__(self):
         super().__init__()
+        self.borrowers = [boa.env.generate_address(f"borrower_{i}") for i in range(5)]
+        for b in self.borrowers:
+            boa.deal(self.collateral_token, b, 1000 * 10**18)
+            self.crv.transfer(b, 10**20, sender=self.admin)
+            self.collateral_token.approve(self.controller, MAX_UINT256, sender=b)
+            self.borrowed_token.approve(self.controller, MAX_UINT256, sender=b)
         self.checkpoint_total_collateral = 0
         self.checkpoint_rate = self.crv.rate()
         self.integrals = {
-            addr: {
+            b: {
                 "checkpoint": boa.env.timestamp,
                 "integral": 0,
                 "collateral": 0,
             }
-            for addr in self.accounts[:5]
+            for b in self.borrowers
         }
 
     def update_integrals(self):
@@ -39,8 +46,8 @@ class StateMachine(RuleBasedStateMachine):
         t1 = boa.env.timestamp
         t_epoch = self.crv.start_epoch_time_write(sender=self.admin)
         rate1 = self.crv.rate()
-        for acct in self.accounts[:5]:
-            integral = self.integrals[acct]
+        for b in self.borrowers:
+            integral = self.integrals[b]
             if integral["checkpoint"] >= t_epoch:
                 rate_x_time = (t1 - integral["checkpoint"]) * rate1
             else:
@@ -54,7 +61,7 @@ class StateMachine(RuleBasedStateMachine):
                     // self.checkpoint_total_collateral
                 )
             integral["checkpoint"] = t1
-            integral["collateral"] = self.amm.get_sum_xy(acct)[1]
+            integral["collateral"] = self.amm.get_sum_xy(b)[1]
         self.checkpoint_total_collateral = self.collateral_token.balanceOf(self.amm)
         self.checkpoint_rate = rate1
 
@@ -66,7 +73,7 @@ class StateMachine(RuleBasedStateMachine):
         Because of the upper bound of `st_value` relative to the initial account
         balances, this rule should never fail.
         """
-        user = self.accounts[uid]
+        user = self.borrowers[uid]
         with boa.env.prank(user):
             balance = self.collateral_token.balanceOf(user)
             deposit_amount = min(int(balance * deposit_pct), balance)
@@ -109,7 +116,7 @@ class StateMachine(RuleBasedStateMachine):
         """
         Attempt to withdraw from the `LiquidityGauge` contract.
         """
-        user = self.accounts[uid]
+        user = self.borrowers[uid]
         with boa.env.prank(user):
             balance = self.collateral_token.balanceOf(user)
             collateral_in_amm, borrowed_token_in_amm, debt, _ = (
@@ -164,10 +171,10 @@ class StateMachine(RuleBasedStateMachine):
         """
         Makes a trade in LLAMMA.
         """
-        with boa.env.prank(self.chad):
+        with boa.env.prank(self.trader):
             available_bands = []
-            for acct in self.accounts[:5]:
-                border_bands = self.amm.read_user_tick_numbers(acct)
+            for b in self.borrowers:
+                border_bands = self.amm.read_user_tick_numbers(b)
                 available_bands += (
                     []
                     if border_bands[0] == border_bands[1]
@@ -201,9 +208,9 @@ class StateMachine(RuleBasedStateMachine):
                 self.price_oracle.set_price(p_target, sender=self.admin)
                 amount, pump = self.amm.get_amount_for_price(p_target)
                 balance = (
-                    self.borrowed_token.balanceOf(self.chad)
+                    self.borrowed_token.balanceOf(self.trader)
                     if pump
-                    else self.collateral_token.balanceOf(self.chad)
+                    else self.collateral_token.balanceOf(self.trader)
                 )
                 amount = min(amount, balance)
                 if amount > 0:
@@ -225,7 +232,7 @@ class StateMachine(RuleBasedStateMachine):
         """
         Create a new user checkpoint.
         """
-        user = self.accounts[uid]
+        user = self.borrowers[uid]
         with boa.env.prank(user):
             self.lm_callback.user_checkpoint(user)
             self.update_integrals()
@@ -240,7 +247,7 @@ class StateMachine(RuleBasedStateMachine):
         """
         Claim user's CRV rewards.
         """
-        user = self.accounts[uid]
+        user = self.borrowers[uid]
         with boa.env.prank(user):
             crv_balance = self.crv.balanceOf(user)
             with boa.env.anchor():
@@ -254,8 +261,8 @@ class StateMachine(RuleBasedStateMachine):
         Validate expected balances against actual balances and
         expected total supply against actual total supply.
         """
-        for account, integral in self.integrals.items():
-            y1 = self.lm_callback.user_collateral(account)
+        for b, integral in self.integrals.items():
+            y1 = self.lm_callback.user_collateral(b)
             y2 = integral["collateral"]
             assert (
                 y1 == pytest.approx(y2, rel=1e-14) or abs(y1 - y2) < 100000
@@ -271,38 +278,37 @@ class StateMachine(RuleBasedStateMachine):
         """
         Final check to ensure that all balances may be withdrawn.
         """
-        for account, integral in ((k, v) for k, v in self.integrals.items() if v):
-            with boa.env.prank(account):
-                initial_collateral = self.collateral_token.balanceOf(account)
+        for b, integral in ((k, v) for k, v in self.integrals.items() if v):
+            with boa.env.prank(b):
+                initial_collateral = self.collateral_token.balanceOf(b)
                 collateral_in_amm = integral["collateral"]
-                debt = self.controller.user_state(account)[2]
+                debt = self.controller.user_state(b)[2]
                 if debt > 0:
                     self.controller.repay(debt)
                 self.update_integrals()
 
-                assert not self.controller.loan_exists(account)
+                assert not self.controller.loan_exists(b)
                 assert (
-                    self.collateral_token.balanceOf(account)
+                    self.collateral_token.balanceOf(b)
                     == initial_collateral + collateral_in_amm
                 )
 
-                r1 = self.lm_callback.integrate_fraction(account)
+                r1 = self.lm_callback.integrate_fraction(b)
                 r2 = integral["integral"]
                 assert (r1 > 0) == (r2 > 0)
                 if r1 > 0:
                     assert r1 == pytest.approx(r2, rel=1e-13) or abs(r1 - r2) < 100
 
-                crv_balance = self.crv.balanceOf(account)
+                crv_balance = self.crv.balanceOf(b)
                 with boa.env.anchor():
-                    crv_reward = self.lm_callback.claimable_tokens(account)
+                    crv_reward = self.lm_callback.claimable_tokens(b)
                 self.minter.mint(self.lm_callback.address)
-                assert self.crv.balanceOf(account) - crv_balance == crv_reward
+                assert self.crv.balanceOf(b) - crv_balance == crv_reward
 
 
 def test_state_machine(
-    accounts,
     admin,
-    chad,
+    trader,
     borrowed_token,
     collateral_token,
     crv,
@@ -312,14 +318,6 @@ def test_state_machine(
     price_oracle,
     minter,
 ):
-    for acct in accounts[:5]:
-        with boa.env.prank(admin):
-            boa.deal(collateral_token, acct, 1000 * 10**18)
-            crv.transfer(acct, 10**20)
-
-        with boa.env.prank(acct):
-            collateral_token.approve(controller, 2**256 - 1)
-
     boa.env.time_travel(seconds=7 * 86400)
 
     StateMachine.TestCase.settings = settings(max_examples=400, stateful_step_count=50)

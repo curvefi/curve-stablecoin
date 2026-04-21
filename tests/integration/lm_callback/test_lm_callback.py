@@ -1,16 +1,14 @@
 import boa
 import pytest
 from random import random, randrange, choice
-
-MAX_UINT256 = 2**256 - 1
+from tests.utils.constants import MAX_UINT256
 YEAR = 365 * 86400
 WEEK = 7 * 86400
 
 
 def test_simple_exchange(
-    accounts,
     admin,
-    chad,
+    trader,
     collateral_token,
     crv,
     controller,
@@ -18,56 +16,55 @@ def test_simple_exchange(
     lm_callback,
     minter,
 ):
-    alice, bob = accounts[:2]
+    borrower1 = boa.env.generate_address("borrower1")
+    borrower2 = boa.env.generate_address("borrower2")
+    for b in (borrower1, borrower2):
+        boa.deal(collateral_token, b, 1000 * 10 ** 18)
+        collateral_token.approve(controller, MAX_UINT256, sender=b)
+
     boa.env.time_travel(seconds=2 * WEEK + 5)
 
-    # Let Alice and Bob have about the same collateral token amount
-    with boa.env.prank(admin):
-        boa.deal(collateral_token, alice, 1000 * 10**18)
-        boa.deal(collateral_token, bob, 1000 * 10**18)
-
-    # Alice and Bob create loan
-    controller.create_loan(10**21, 10**21 * 2600, 10, sender=alice)
-    controller.create_loan(10**21, 10**21 * 1000, 10, sender=bob)
+    controller.create_loan(10**21, 10**21 * 2600, 10, sender=borrower1)
+    controller.create_loan(10**21, 10**21 * 1000, 10, sender=borrower2)
 
     # Time travel and checkpoint
     boa.env.time_travel(4 * WEEK)
-    lm_callback.user_checkpoint(alice, sender=alice)
-    lm_callback.user_checkpoint(bob, sender=bob)
+    lm_callback.user_checkpoint(borrower1, sender=borrower1)
+    lm_callback.user_checkpoint(borrower2, sender=borrower2)
 
-    rewards_alice = lm_callback.integrate_fraction(alice)
-    rewards_bob = lm_callback.integrate_fraction(bob)
-    assert rewards_alice == rewards_bob
+    rewards_borrower1 = lm_callback.integrate_fraction(borrower1)
+    rewards_borrower2 = lm_callback.integrate_fraction(borrower2)
+    assert rewards_borrower1 == rewards_borrower2
 
-    # Now Chad makes a trade crvUSD --> collateral and gets a half of Alice's deposit
-    amm.exchange_dy(0, 1, 10**21 // 2, 2**255, sender=chad)
+    # Trader buys crvUSD --> collateral and takes a half of borrower1's deposit
+    amm.exchange_dy(0, 1, 10**21 // 2, 2**255, sender=trader)
 
     # Time travel and checkpoint
     boa.env.time_travel(4 * WEEK)
-    lm_callback.user_checkpoint(alice, sender=alice)
-    lm_callback.user_checkpoint(bob, sender=bob)
-    old_rewards_alice = rewards_alice
-    old_rewards_bob = rewards_bob
+    lm_callback.user_checkpoint(borrower1, sender=borrower1)
+    lm_callback.user_checkpoint(borrower2, sender=borrower2)
+    old_rewards_borrower1 = rewards_borrower1
+    old_rewards_borrower2 = rewards_borrower2
 
-    # Bob earned 2 times more CRV
-    rewards_alice = lm_callback.integrate_fraction(alice)
-    rewards_bob = lm_callback.integrate_fraction(bob)
-    d_alice = rewards_alice - old_rewards_alice
-    d_bob = rewards_bob - old_rewards_bob
-    assert d_bob / d_alice == pytest.approx(2, rel=1e-15)
+    # borrower2 earned 2 times more CRV
+    rewards_borrower1 = lm_callback.integrate_fraction(borrower1)
+    rewards_borrower2 = lm_callback.integrate_fraction(borrower2)
+    d_borrower1 = rewards_borrower1 - old_rewards_borrower1
+    d_borrower2 = rewards_borrower2 - old_rewards_borrower2
+    assert d_borrower2 / d_borrower1 == pytest.approx(2, rel=1e-15)
 
-    minter.mint(lm_callback.address, sender=alice)
-    assert crv.balanceOf(alice) == rewards_alice
+    minter.mint(lm_callback.address, sender=borrower1)
+    assert crv.balanceOf(borrower1) == rewards_borrower1
 
-    minter.mint(lm_callback.address, sender=bob)
-    assert crv.balanceOf(bob) == rewards_bob
+    minter.mint(lm_callback.address, sender=borrower2)
+    assert crv.balanceOf(borrower2) == rewards_borrower2
 
 
 def test_gauge_integral_with_exchanges(
-    accounts,
     admin,
-    chad,
+    trader,
     collateral_token,
+    borrowed_token,
     crv,
     lm_callback,
     controller,
@@ -76,7 +73,12 @@ def test_gauge_integral_with_exchanges(
     minter,
 ):
     with boa.env.anchor():
-        alice, bob = accounts[:2]
+        borrower1 = boa.env.generate_address("borrower1")
+        borrower2 = boa.env.generate_address("borrower2")
+        for b in (borrower1, borrower2):
+            boa.deal(collateral_token, b, 1000 * 10 ** 18)
+            collateral_token.approve(controller, MAX_UINT256, sender=b)
+            borrowed_token.approve(controller, MAX_UINT256, sender=b)
 
         integral = 0  # ∫(balance * rate(t) / totalSupply(t) dt)
         checkpoint = boa.env.timestamp
@@ -85,11 +87,6 @@ def test_gauge_integral_with_exchanges(
         checkpoint_balance = 0
 
         boa.env.time_travel(seconds=WEEK)
-
-        # Let Alice and Bob have about the same collateral token amount
-        with boa.env.prank(admin):
-            boa.deal(collateral_token, alice, 1000 * 10**18)
-            boa.deal(collateral_token, bob, 1000 * 10**18)
 
         def update_integral():
             nonlocal \
@@ -113,159 +110,154 @@ def test_gauge_integral_with_exchanges(
             checkpoint_rate = rate1
             checkpoint = t1
             checkpoint_supply = collateral_token.balanceOf(amm)
-            checkpoint_balance = amm.get_sum_xy(alice)[1]
+            checkpoint_balance = amm.get_sum_xy(borrower1)[1]
 
-        # Now let's have a loop where Bob always deposit or withdraws,
-        # and Alice does so more rarely
+        # borrower2 always deposits or withdraws; borrower1 does so more rarely
         for i in range(40):
-            is_alice = random() < 0.2
+            is_borrower1 = random() < 0.2
             dt = randrange(1, YEAR // 5)
             boa.env.time_travel(seconds=dt)
             print("Time travel", dt)
 
-            # For Bob
-            with boa.env.prank(bob):
-                collateral_in_amm_bob, stablecoin_in_amm_bob, debt_bob, __ = (
-                    controller.user_state(bob)
+            with boa.env.prank(borrower2):
+                collateral_in_amm_borrower2, stablecoin_in_amm_borrower2, debt_borrower2, __ = (
+                    controller.user_state(borrower2)
                 )
-                is_withdraw_bob = (collateral_in_amm_bob > 0) * (random() < 0.5)
-                is_underwater_bob = stablecoin_in_amm_bob > 0
+                is_withdraw_borrower2 = (collateral_in_amm_borrower2 > 0) * (random() < 0.5)
+                is_underwater_borrower2 = stablecoin_in_amm_borrower2 > 0
 
-                if is_withdraw_bob:
-                    amount_bob = randrange(1, collateral_in_amm_bob + 1)
-                    if amount_bob == collateral_in_amm_bob:
-                        print("Bob repays (full):", debt_bob)
-                        print("Bob withdraws (full):", amount_bob)
-                        controller.repay(debt_bob)
-                        assert amm.get_sum_xy(bob)[1] == pytest.approx(
-                            lm_callback.user_collateral(bob), rel=1e-13
+                if is_withdraw_borrower2:
+                    amount_borrower2 = randrange(1, collateral_in_amm_borrower2 + 1)
+                    if amount_borrower2 == collateral_in_amm_borrower2:
+                        print("borrower2 repays (full):", debt_borrower2)
+                        print("borrower2 withdraws (full):", amount_borrower2)
+                        controller.repay(debt_borrower2)
+                        assert amm.get_sum_xy(borrower2)[1] == pytest.approx(
+                            lm_callback.user_collateral(borrower2), rel=1e-13
                         )
-                    elif controller.health(bob) > 0:
-                        repay_amount_bob = int(
-                            debt_bob // 10 + (debt_bob * 9 // 10) * random() * 0.99
+                    elif controller.health(borrower2) > 0:
+                        repay_amount_borrower2 = int(
+                            debt_borrower2 // 10 + (debt_borrower2 * 9 // 10) * random() * 0.99
                         )
-                        print("Bob repays:", repay_amount_bob)
-                        controller.repay(repay_amount_bob)
-                        if not is_underwater_bob:
-                            min_collateral_required_bob = controller.min_collateral(
-                                debt_bob - repay_amount_bob, 10
+                        print("borrower2 repays:", repay_amount_borrower2)
+                        controller.repay(repay_amount_borrower2)
+                        if not is_underwater_borrower2:
+                            min_collateral_required_borrower2 = controller.min_collateral(
+                                debt_borrower2 - repay_amount_borrower2, 10
                             )
-                            remove_amount_bob = min(
-                                collateral_in_amm_bob - min_collateral_required_bob,
-                                amount_bob,
+                            remove_amount_borrower2 = min(
+                                collateral_in_amm_borrower2 - min_collateral_required_borrower2,
+                                amount_borrower2,
                             )
-                            remove_amount_bob = max(remove_amount_bob, 0)
-                            if remove_amount_bob > 0:
-                                print("Bob withdraws:", remove_amount_bob)
-                                controller.remove_collateral(remove_amount_bob)
-                            assert amm.get_sum_xy(bob)[1] == pytest.approx(
-                                lm_callback.user_collateral(bob), rel=1e-13
+                            remove_amount_borrower2 = max(remove_amount_borrower2, 0)
+                            if remove_amount_borrower2 > 0:
+                                print("borrower2 withdraws:", remove_amount_borrower2)
+                                controller.remove_collateral(remove_amount_borrower2)
+                            assert amm.get_sum_xy(borrower2)[1] == pytest.approx(
+                                lm_callback.user_collateral(borrower2), rel=1e-13
                             )
                     update_integral()
-                elif not is_underwater_bob:
-                    amount_bob = randrange(1, collateral_token.balanceOf(bob) // 10 + 1)
-                    collateral_token.approve(controller.address, amount_bob)
-                    max_borrowable_bob = controller.max_borrowable(amount_bob, 10, bob)
-                    borrow_amount_bob = min(
-                        int(random() * max_borrowable_bob), max_borrowable_bob
+                elif not is_underwater_borrower2:
+                    amount_borrower2 = randrange(1, collateral_token.balanceOf(borrower2) // 10 + 1)
+                    max_borrowable_borrower2 = controller.max_borrowable(amount_borrower2, 10, borrower2)
+                    borrow_amount_borrower2 = min(
+                        int(random() * max_borrowable_borrower2), max_borrowable_borrower2
                     )
-                    if borrow_amount_bob > 0:
-                        print("Bob deposits:", amount_bob, borrow_amount_bob)
-                        if controller.loan_exists(bob):
-                            controller.borrow_more(amount_bob, borrow_amount_bob)
+                    if borrow_amount_borrower2 > 0:
+                        print("borrower2 deposits:", amount_borrower2, borrow_amount_borrower2)
+                        if controller.loan_exists(borrower2):
+                            controller.borrow_more(amount_borrower2, borrow_amount_borrower2)
                         else:
-                            controller.create_loan(amount_bob, borrow_amount_bob, 10)
+                            controller.create_loan(amount_borrower2, borrow_amount_borrower2, 10)
                         update_integral()
-                    assert amm.get_sum_xy(bob)[1] == pytest.approx(
-                        lm_callback.user_collateral(bob), rel=1e-13
+                    assert amm.get_sum_xy(borrower2)[1] == pytest.approx(
+                        lm_callback.user_collateral(borrower2), rel=1e-13
                     )
 
-            # For Alice
-            if is_alice:
-                with boa.env.prank(alice):
-                    collateral_in_amm_alice, stablecoin_in_amm_alice, debt_alice, __ = (
-                        controller.user_state(alice)
+            if is_borrower1:
+                with boa.env.prank(borrower1):
+                    collateral_in_amm_borrower1, stablecoin_in_amm_borrower1, debt_borrower1, __ = (
+                        controller.user_state(borrower1)
                     )
-                    is_withdraw_alice = (collateral_in_amm_alice > 0) * (random() < 0.5)
-                    is_underwater_alice = stablecoin_in_amm_alice > 0
+                    is_withdraw_borrower1 = (collateral_in_amm_borrower1 > 0) * (random() < 0.5)
+                    is_underwater_borrower1 = stablecoin_in_amm_borrower1 > 0
 
-                    if is_withdraw_alice:
-                        amount_alice = randrange(1, collateral_in_amm_alice + 1)
-                        if amount_alice == collateral_in_amm_alice:
-                            print("Alice repays (full):", debt_alice)
-                            print("Alice withdraws (full):", amount_alice)
-                            controller.repay(debt_alice)
-                            assert amm.get_sum_xy(alice)[1] == pytest.approx(
-                                lm_callback.user_collateral(alice), rel=1e-13
+                    if is_withdraw_borrower1:
+                        amount_borrower1 = randrange(1, collateral_in_amm_borrower1 + 1)
+                        if amount_borrower1 == collateral_in_amm_borrower1:
+                            print("borrower1 repays (full):", debt_borrower1)
+                            print("borrower1 withdraws (full):", amount_borrower1)
+                            controller.repay(debt_borrower1)
+                            assert amm.get_sum_xy(borrower1)[1] == pytest.approx(
+                                lm_callback.user_collateral(borrower1), rel=1e-13
                             )
-                        elif controller.health(alice) > 0:
-                            repay_amount_alice = int(
-                                debt_alice // 10
-                                + (debt_alice * 9 // 10) * random() * 0.99
+                        elif controller.health(borrower1) > 0:
+                            repay_amount_borrower1 = int(
+                                debt_borrower1 // 10
+                                + (debt_borrower1 * 9 // 10) * random() * 0.99
                             )
-                            print("Alice repays:", repay_amount_alice)
-                            controller.repay(repay_amount_alice)
-                            if not is_underwater_alice:
-                                min_collateral_required_alice = (
+                            print("borrower1 repays:", repay_amount_borrower1)
+                            controller.repay(repay_amount_borrower1)
+                            if not is_underwater_borrower1:
+                                min_collateral_required_borrower1 = (
                                     controller.min_collateral(
-                                        debt_alice - repay_amount_alice, 10
+                                        debt_borrower1 - repay_amount_borrower1, 10
                                     )
                                 )
-                                remove_amount_alice = min(
-                                    collateral_in_amm_alice
-                                    - min_collateral_required_alice,
-                                    amount_alice,
+                                remove_amount_borrower1 = min(
+                                    collateral_in_amm_borrower1
+                                    - min_collateral_required_borrower1,
+                                    amount_borrower1,
                                 )
-                                remove_amount_alice = max(remove_amount_alice, 0)
-                                if remove_amount_alice > 0:
-                                    print("Alice withdraws:", remove_amount_alice)
-                                    controller.remove_collateral(remove_amount_alice)
-                            assert amm.get_sum_xy(alice)[1] == pytest.approx(
-                                lm_callback.user_collateral(alice), rel=1e-13
+                                remove_amount_borrower1 = max(remove_amount_borrower1, 0)
+                                if remove_amount_borrower1 > 0:
+                                    print("borrower1 withdraws:", remove_amount_borrower1)
+                                    controller.remove_collateral(remove_amount_borrower1)
+                            assert amm.get_sum_xy(borrower1)[1] == pytest.approx(
+                                lm_callback.user_collateral(borrower1), rel=1e-13
                             )
                         update_integral()
-                    elif not is_underwater_alice:
-                        amount_alice = randrange(
-                            1, collateral_token.balanceOf(alice) // 10 + 1
+                    elif not is_underwater_borrower1:
+                        amount_borrower1 = randrange(
+                            1, collateral_token.balanceOf(borrower1) // 10 + 1
                         )
-                        collateral_token.approve(controller.address, amount_alice)
-                        max_borrowable_alice = controller.max_borrowable(
-                            amount_alice, 10, alice
+                        max_borrowable_borrower1 = controller.max_borrowable(
+                            amount_borrower1, 10, borrower1
                         )
-                        borrow_amount_alice = min(
-                            int(random() * max_borrowable_alice), max_borrowable_alice
+                        borrow_amount_borrower1 = min(
+                            int(random() * max_borrowable_borrower1), max_borrowable_borrower1
                         )
-                        if borrow_amount_alice > 0:
-                            print("Alice deposits:", amount_alice, borrow_amount_alice)
-                            if controller.loan_exists(alice):
+                        if borrow_amount_borrower1 > 0:
+                            print("borrower1 deposits:", amount_borrower1, borrow_amount_borrower1)
+                            if controller.loan_exists(borrower1):
                                 controller.borrow_more(
-                                    amount_alice, borrow_amount_alice
+                                    amount_borrower1, borrow_amount_borrower1
                                 )
                             else:
                                 controller.create_loan(
-                                    amount_alice, borrow_amount_alice, 10
+                                    amount_borrower1, borrow_amount_borrower1, 10
                                 )
                             update_integral()
-                        assert amm.get_sum_xy(alice)[1] == pytest.approx(
-                            lm_callback.user_collateral(alice), rel=1e-13
+                        assert amm.get_sum_xy(borrower1)[1] == pytest.approx(
+                            lm_callback.user_collateral(borrower1), rel=1e-13
                         )
 
-            # Chad trading
-            alice_bands = amm.read_user_tick_numbers(alice)
-            alice_bands = (
+            # Trader swaps
+            borrower1_bands = amm.read_user_tick_numbers(borrower1)
+            borrower1_bands = (
                 []
-                if alice_bands[0] == alice_bands[1]
-                else list(range(alice_bands[0], alice_bands[1] + 1))
+                if borrower1_bands[0] == borrower1_bands[1]
+                else list(range(borrower1_bands[0], borrower1_bands[1] + 1))
             )
-            bob_bands = amm.read_user_tick_numbers(bob)
-            bob_bands = (
+            borrower2_bands = amm.read_user_tick_numbers(borrower2)
+            borrower2_bands = (
                 []
-                if bob_bands[0] == bob_bands[1]
-                else list(range(bob_bands[0], bob_bands[1] + 1))
+                if borrower2_bands[0] == borrower2_bands[1]
+                else list(range(borrower2_bands[0], borrower2_bands[1] + 1))
             )
-            available_bands = alice_bands + bob_bands
-            print("Bob bands:", bob_bands)
-            print("Alice bands:", alice_bands)
+            available_bands = borrower1_bands + borrower2_bands
+            print("borrower2 bands:", borrower2_bands)
+            print("borrower1 bands:", borrower1_bands)
             print("Active band:", amm.active_band())
             p_o = amm.price_oracle()
             upper_bands = sorted(
@@ -288,7 +280,7 @@ def test_gauge_integral_with_exchanges(
                 price_oracle.set_price(p_target, sender=admin)
                 print("Price set to:", p_target)
                 amount, pump = amm.get_amount_for_price(p_target)
-                with boa.env.prank(chad):
+                with boa.env.prank(trader):
                     if pump:
                         amm.exchange(0, 1, amount, 0)
                     else:
@@ -300,9 +292,9 @@ def test_gauge_integral_with_exchanges(
             # Checking that updating the checkpoint in the same second does nothing
             # Also everyone can update: that should make no difference, too
             if random() < 0.5:
-                lm_callback.user_checkpoint(alice, sender=alice)
+                lm_callback.user_checkpoint(borrower1, sender=borrower1)
             if random() < 0.5:
-                lm_callback.user_checkpoint(bob, sender=bob)
+                lm_callback.user_checkpoint(borrower2, sender=borrower2)
 
             dt = randrange(1, YEAR // 20)
             boa.env.time_travel(seconds=dt)
@@ -320,32 +312,32 @@ def test_gauge_integral_with_exchanges(
                     total_collateral_from_lm_cb, rel=1e-13
                 )
 
-            with boa.env.prank(alice):
-                crv_balance = crv.balanceOf(alice)
+            with boa.env.prank(borrower1):
+                crv_balance = crv.balanceOf(borrower1)
                 with boa.env.anchor():
-                    crv_reward = lm_callback.claimable_tokens(alice)
+                    crv_reward = lm_callback.claimable_tokens(borrower1)
                 minter.mint(lm_callback.address)
-                assert crv.balanceOf(alice) - crv_balance == crv_reward
+                assert crv.balanceOf(borrower1) - crv_balance == crv_reward
 
                 update_integral()
-                print(i, dt / 86400, integral, lm_callback.integrate_fraction(alice))
-                assert lm_callback.integrate_fraction(alice) == pytest.approx(
+                print(i, dt / 86400, integral, lm_callback.integrate_fraction(borrower1))
+                assert lm_callback.integrate_fraction(borrower1) == pytest.approx(
                     integral, rel=1e-14
                 )
 
-            with boa.env.prank(bob):
-                crv_balance = crv.balanceOf(bob)
+            with boa.env.prank(borrower2):
+                crv_balance = crv.balanceOf(borrower2)
                 with boa.env.anchor():
-                    crv_reward = lm_callback.claimable_tokens(bob)
+                    crv_reward = lm_callback.claimable_tokens(borrower2)
                 minter.mint(lm_callback.address)
-                assert crv.balanceOf(bob) - crv_balance == crv_reward
+                assert crv.balanceOf(borrower2) - crv_balance == crv_reward
 
 
 def test_full_repay_underwater(
-    accounts,
     admin,
-    chad,
+    trader,
     collateral_token,
+    borrowed_token,
     crv,
     lm_callback,
     controller,
@@ -354,48 +346,46 @@ def test_full_repay_underwater(
     minter,
 ):
     with boa.env.anchor():
-        alice, bob = accounts[:2]
-
-        # Let Alice and Bob have about the same collateral token amount
-        with boa.env.prank(admin):
-            boa.deal(collateral_token, alice, 1000 * 10**18)
-            boa.deal(collateral_token, bob, 1000 * 10**18)
+        borrower1 = boa.env.generate_address("borrower1")
+        borrower2 = boa.env.generate_address("borrower2")
+        for b in (borrower1, borrower2):
+            boa.deal(collateral_token, b, 1000 * 10 ** 18)
+            collateral_token.approve(controller, MAX_UINT256, sender=b)
+            borrowed_token.approve(controller, MAX_UINT256, sender=b)
 
         dt = randrange(1, YEAR // 5)
         boa.env.time_travel(seconds=dt)
 
-        # Bob creates loan
-        with boa.env.prank(bob):
-            amount_bob = 10**20
-            collateral_token.approve(controller.address, amount_bob)
-            controller.create_loan(amount_bob, int(amount_bob * 2000), 10)
-            print("Bob deposits:", amount_bob)
+        # borrower2 creates a high-LTV loan (will go underwater after trade)
+        with boa.env.prank(borrower2):
+            amount_borrower2 = 10**20
+            controller.create_loan(amount_borrower2, int(amount_borrower2 * 2000), 10)
+            print("borrower2 deposits:", amount_borrower2)
 
-        # Alice creates loan
-        with boa.env.prank(alice):
-            amount_alice = 10**20
-            collateral_token.approve(controller.address, amount_alice)
-            controller.create_loan(amount_alice, int(amount_alice * 500), 10)
-            print("Alice deposits:", amount_alice)
+        # borrower1 creates a conservative loan (stays above water)
+        with boa.env.prank(borrower1):
+            amount_borrower1 = 10**20
+            controller.create_loan(amount_borrower1, int(amount_borrower1 * 500), 10)
+            print("borrower1 deposits:", amount_borrower1)
 
         print(collateral_token.balanceOf(amm), lm_callback.total_collateral())
 
         dt = randrange(1, YEAR // 5)
         boa.env.time_travel(seconds=dt)
 
-        # Chad trading. As a result Bob will be underwater
-        bob_bands = amm.read_user_tick_numbers(bob)
-        bob_bands = list(range(bob_bands[0], bob_bands[1] + 1))
-        print("Bob bands:", bob_bands)
+        # Trader pushes price so borrower2 goes underwater
+        borrower2_bands = amm.read_user_tick_numbers(borrower2)
+        borrower2_bands = list(range(borrower2_bands[0], borrower2_bands[1] + 1))
+        print("borrower2 bands:", borrower2_bands)
         print("Active band:", amm.active_band())
-        target_band = bob_bands[7]
+        target_band = borrower2_bands[7]
         p_up = amm.p_oracle_up(target_band)
         p_down = amm.p_oracle_down(target_band)
         p_target = int((p_down + p_up) / 2)
         price_oracle.set_price(p_target, sender=admin)
         print("Price set to:", p_target)
         amount, pump = amm.get_amount_for_price(p_target)
-        with boa.env.prank(chad):
+        with boa.env.prank(trader):
             if pump:
                 amm.exchange(0, 1, amount, 0)
             else:
@@ -403,11 +393,11 @@ def test_full_repay_underwater(
         print("Swap:", amount, pump, "\n")
         print("Active band:", amm.active_band())
 
-        # Bob fully repays being underwater
-        debt_bob = controller.user_state(bob)[2]
-        controller.repay(debt_bob, sender=bob)
-        print("Bob repays (full):", debt_bob)
-        print("Bob withdraws (full):", amount_bob)
+        # borrower2 fully repays while underwater
+        debt_borrower2 = controller.user_state(borrower2)[2]
+        controller.repay(debt_borrower2, sender=borrower2)
+        print("borrower2 repays (full):", debt_borrower2)
+        print("borrower2 withdraws (full):", amount_borrower2)
 
         total_collateral_from_amm = collateral_token.balanceOf(amm)
         total_collateral_from_lm_cb = lm_callback.total_collateral()
@@ -418,10 +408,10 @@ def test_full_repay_underwater(
             total_collateral_from_lm_cb, rel=1e-15
         )
 
-        for user in accounts[:2]:
+        for user in (borrower1, borrower2):
             with boa.env.prank(user):
                 crv_balance = crv.balanceOf(user)
                 with boa.env.anchor():
-                    crv_reward = lm_callback.claimable_tokens(bob)
+                    crv_reward = lm_callback.claimable_tokens(borrower2)
                 minter.mint(lm_callback.address)
                 assert crv.balanceOf(user) - crv_balance == crv_reward

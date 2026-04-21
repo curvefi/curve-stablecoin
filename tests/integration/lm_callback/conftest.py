@@ -98,25 +98,14 @@ def lm_factory(controller):
 
 
 @pytest.fixture(scope="module")
-def chad(admin, borrowed_token, collateral_token, amm):
-    _chad = boa.env.generate_address()
-    boa.deal(borrowed_token, _chad, 10**25)
-    boa.deal(collateral_token, _chad, 10**25)
-    with boa.env.prank(_chad):
+def trader(borrowed_token, collateral_token, amm):
+    _trader = boa.env.generate_address("trader")
+    boa.deal(borrowed_token, _trader, 10**25)
+    boa.deal(collateral_token, _trader, 10**25)
+    with boa.env.prank(_trader):
         borrowed_token.approve(amm, MAX_UINT256)
         collateral_token.approve(amm, MAX_UINT256)
-    return _chad
-
-
-@pytest.fixture(scope="module", autouse=True)
-def setup_approvals(accounts, controller, amm, collateral_token, borrowed_token):
-    """Pre-approve tokens for all test accounts so tests don't need inline approvals."""
-    for acc in accounts:
-        with boa.env.prank(acc):
-            collateral_token.approve(amm, MAX_UINT256)
-            borrowed_token.approve(amm, MAX_UINT256)
-            collateral_token.approve(controller, MAX_UINT256)
-            borrowed_token.approve(controller, MAX_UINT256)
+    return _trader
 
 
 # ── LM Callback ───────────────────────────────────────────────────────────────
