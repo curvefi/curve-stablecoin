@@ -79,9 +79,7 @@ def test_gauge_integral_one_user(
                     amount = collateral_token.balanceOf(alice) // 5
                     collateral_token.approve(controller.address, amount)
                     if controller.loan_exists(alice):
-                        controller.borrow_more(
-                            amount, int(amount * random() * 2000)
-                        )
+                        controller.borrow_more(amount, int(amount * random() * 2000))
                     else:
                         controller.create_loan(
                             amount, int(amount * random() * 2000), 10
@@ -160,9 +158,7 @@ def test_gauge_integral(
                 is_withdraw_bob = (i > 0) * (random() < 0.5)
                 print("Bob", "withdraws" if is_withdraw_bob else "deposits")
                 if is_withdraw_bob:
-                    collateral_in_amm_bob, _, debt_bob, __ = (
-                        controller.user_state(bob)
-                    )
+                    collateral_in_amm_bob, _, debt_bob, __ = controller.user_state(bob)
                     collateral_bob = lm_callback.user_collateral(bob)
                     assert collateral_in_amm_bob == collateral_bob
                     amount_bob = randrange(1, collateral_in_amm_bob + 1)
@@ -201,8 +197,8 @@ def test_gauge_integral(
             if is_alice:
                 # For Alice
                 with boa.env.prank(alice):
-                    collateral_in_amm_alice, _, debt_alice, __ = (
-                        controller.user_state(alice)
+                    collateral_in_amm_alice, _, debt_alice, __ = controller.user_state(
+                        alice
                     )
                     collateral_alice = lm_callback.user_collateral(alice)
                     assert collateral_in_amm_alice == collateral_alice
@@ -217,10 +213,8 @@ def test_gauge_integral(
                         else:
                             repay_amount_alice = int(debt_alice * random() * 0.99)
                             controller.repay(repay_amount_alice)
-                            min_collateral_required_alice = (
-                                controller.min_collateral(
-                                    debt_alice - repay_amount_alice, 10
-                                )
+                            min_collateral_required_alice = controller.min_collateral(
+                                debt_alice - repay_amount_alice, 10
                             )
                             remove_amount_alice = min(
                                 collateral_in_amm_alice - min_collateral_required_alice,
@@ -235,9 +229,7 @@ def test_gauge_integral(
                         amount_alice = randrange(
                             1, collateral_token.balanceOf(alice) // 10 + 1
                         )
-                        collateral_token.approve(
-                            controller.address, amount_alice
-                        )
+                        collateral_token.approve(controller.address, amount_alice)
                         if controller.loan_exists(alice):
                             controller.borrow_more(
                                 amount_alice, int(amount_alice * random() * 2000)

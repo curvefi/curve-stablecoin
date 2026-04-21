@@ -70,13 +70,9 @@ class StateMachine(RuleBasedStateMachine):
 
             if value > 0:
                 if self.controller.loan_exists(user):
-                    self.controller.borrow_more(
-                        value, int(value * random() * 2000)
-                    )
+                    self.controller.borrow_more(value, int(value * random() * 2000))
                 else:
-                    self.controller.create_loan(
-                        value, int(value * random() * 2000), 10
-                    )
+                    self.controller.create_loan(value, int(value * random() * 2000), 10)
                 self.update_integrals(user, value)
 
                 assert self.collateral_token.balanceOf(user) == balance - value

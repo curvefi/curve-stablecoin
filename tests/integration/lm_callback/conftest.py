@@ -12,6 +12,7 @@ from tests.utils.constants import MAX_UINT256
 
 # ── Market-parameter overrides ─────────────────────────────────────────────────
 
+
 # We are going to use only Curve LPs with LMCallback
 @pytest.fixture(scope="module")
 def collateral_decimals():
@@ -52,6 +53,7 @@ def seed_liquidity(borrowed_token):
 
 # ── CRV ecosystem ──────────────────────────────────────────────────────────────
 
+
 @pytest.fixture(scope="module")
 def crv(admin):
     with boa.env.prank(admin):
@@ -61,7 +63,9 @@ def crv(admin):
 @pytest.fixture(scope="module")
 def voting_escrow(admin, crv):
     with boa.env.prank(admin):
-        return VOTING_ESCROW_DEPLOYER.deploy(crv, "Voting-escrowed CRV", "veCRV", "veCRV_0.99")
+        return VOTING_ESCROW_DEPLOYER.deploy(
+            crv, "Voting-escrowed CRV", "veCRV", "veCRV_0.99"
+        )
 
 
 @pytest.fixture(scope="module")
@@ -83,6 +87,7 @@ def minter(admin, crv, gauge_controller):
 
 # ── Market aliases ─────────────────────────────────────────────────────────────
 
+
 @pytest.fixture(scope="module")
 def lm_factory(controller):
     """Returns the factory whose admin() is used for LMCallback access control."""
@@ -90,6 +95,7 @@ def lm_factory(controller):
 
 
 # ── Actors ────────────────────────────────────────────────────────────────────
+
 
 @pytest.fixture(scope="module")
 def chad(admin, borrowed_token, collateral_token, amm):
@@ -114,6 +120,7 @@ def setup_approvals(accounts, controller, amm, collateral_token, borrowed_token)
 
 
 # ── LM Callback ───────────────────────────────────────────────────────────────
+
 
 @pytest.fixture(scope="module")
 def lm_callback(admin, amm, crv, gauge_controller, minter, controller, lm_factory):

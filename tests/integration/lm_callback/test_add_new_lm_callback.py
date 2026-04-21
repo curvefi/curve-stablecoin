@@ -31,7 +31,9 @@ def test_add_new_lm_callback(
 
     # Wire up the new LM Callback to the gauge controller to have proper rates and stuff
     with boa.env.prank(admin):
-        new_cb = LM_CALLBACK_DEPLOYER.deploy(amm, crv, gauge_controller, minter, lm_factory)
+        new_cb = LM_CALLBACK_DEPLOYER.deploy(
+            amm, crv, gauge_controller, minter, lm_factory
+        )
         controller.set_callback(new_cb)
         gauge_controller.add_gauge(new_cb.address, 0, 10**18)
 

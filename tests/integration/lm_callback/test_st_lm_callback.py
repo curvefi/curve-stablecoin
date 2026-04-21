@@ -55,9 +55,7 @@ class StateMachine(RuleBasedStateMachine):
                 )
             integral["checkpoint"] = t1
             integral["collateral"] = self.amm.get_sum_xy(acct)[1]
-        self.checkpoint_total_collateral = self.collateral_token.balanceOf(
-            self.amm
-        )
+        self.checkpoint_total_collateral = self.collateral_token.balanceOf(self.amm)
         self.checkpoint_rate = rate1
 
     @rule(uid=user_id, deposit_pct=deposit_pct, borrow_pct=borrow_pct)
@@ -75,9 +73,7 @@ class StateMachine(RuleBasedStateMachine):
             collateral_in_amm, borrowed_token_in_amm, debt, __ = (
                 self.controller.user_state(user)
             )
-            max_borrowable = self.controller.max_borrowable(
-                deposit_amount, 10, user
-            )
+            max_borrowable = self.controller.max_borrowable(deposit_amount, 10, user)
             borrow_amount = min(int(max_borrowable * borrow_pct), max_borrowable)
             i = 1
             while True:

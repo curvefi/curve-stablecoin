@@ -23,14 +23,20 @@ def test_add_new_lm_callback(
     boa.env.time_travel(seconds=2 * WEEK + 5)
     boa.deal(collateral_token, alice, 10**22)
 
-    alice_balances0 = [borrowed_token.balanceOf(alice), collateral_token.balanceOf(alice)]
+    alice_balances0 = [
+        borrowed_token.balanceOf(alice),
+        collateral_token.balanceOf(alice),
+    ]
     chad_balances0 = [borrowed_token.balanceOf(chad), collateral_token.balanceOf(chad)]
 
     # Market interactions
     controller.create_loan(10**21, 10**21 * 2600, 10, sender=alice)
     amm.exchange(0, 1, 10**20, 0, sender=chad)
 
-    alice_balances1 = [borrowed_token.balanceOf(alice), collateral_token.balanceOf(alice)]
+    alice_balances1 = [
+        borrowed_token.balanceOf(alice),
+        collateral_token.balanceOf(alice),
+    ]
     chad_balances1 = [borrowed_token.balanceOf(chad), collateral_token.balanceOf(chad)]
 
     assert alice_balances1[0] - alice_balances0[0] == 10**21 * 2600
@@ -52,7 +58,10 @@ def test_add_new_lm_callback(
     with boa.reverts():
         controller.borrow_more(10**17, 10**20, sender=alice)
 
-    alice_balances2 = [borrowed_token.balanceOf(alice), collateral_token.balanceOf(alice)]
+    alice_balances2 = [
+        borrowed_token.balanceOf(alice),
+        collateral_token.balanceOf(alice),
+    ]
     chad_balances2 = [borrowed_token.balanceOf(chad), collateral_token.balanceOf(chad)]
 
     assert alice_balances2[0] == alice_balances1[0]

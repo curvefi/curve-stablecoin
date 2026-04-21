@@ -147,10 +147,8 @@ def test_gauge_integral_with_exchanges(
                         print("Bob repays:", repay_amount_bob)
                         controller.repay(repay_amount_bob)
                         if not is_underwater_bob:
-                            min_collateral_required_bob = (
-                                controller.min_collateral(
-                                    debt_bob - repay_amount_bob, 10
-                                )
+                            min_collateral_required_bob = controller.min_collateral(
+                                debt_bob - repay_amount_bob, 10
                             )
                             remove_amount_bob = min(
                                 collateral_in_amm_bob - min_collateral_required_bob,
@@ -167,9 +165,7 @@ def test_gauge_integral_with_exchanges(
                 elif not is_underwater_bob:
                     amount_bob = randrange(1, collateral_token.balanceOf(bob) // 10 + 1)
                     collateral_token.approve(controller.address, amount_bob)
-                    max_borrowable_bob = controller.max_borrowable(
-                        amount_bob, 10, bob
-                    )
+                    max_borrowable_bob = controller.max_borrowable(amount_bob, 10, bob)
                     borrow_amount_bob = min(
                         int(random() * max_borrowable_bob), max_borrowable_bob
                     )
@@ -178,9 +174,7 @@ def test_gauge_integral_with_exchanges(
                         if controller.loan_exists(bob):
                             controller.borrow_more(amount_bob, borrow_amount_bob)
                         else:
-                            controller.create_loan(
-                                amount_bob, borrow_amount_bob, 10
-                            )
+                            controller.create_loan(amount_bob, borrow_amount_bob, 10)
                         update_integral()
                     assert amm.get_sum_xy(bob)[1] == pytest.approx(
                         lm_callback.user_collateral(bob), rel=1e-13
@@ -225,9 +219,7 @@ def test_gauge_integral_with_exchanges(
                                 remove_amount_alice = max(remove_amount_alice, 0)
                                 if remove_amount_alice > 0:
                                     print("Alice withdraws:", remove_amount_alice)
-                                    controller.remove_collateral(
-                                        remove_amount_alice
-                                    )
+                                    controller.remove_collateral(remove_amount_alice)
                             assert amm.get_sum_xy(alice)[1] == pytest.approx(
                                 lm_callback.user_collateral(alice), rel=1e-13
                             )
@@ -236,9 +228,7 @@ def test_gauge_integral_with_exchanges(
                         amount_alice = randrange(
                             1, collateral_token.balanceOf(alice) // 10 + 1
                         )
-                        collateral_token.approve(
-                            controller.address, amount_alice
-                        )
+                        collateral_token.approve(controller.address, amount_alice)
                         max_borrowable_alice = controller.max_borrowable(
                             amount_alice, 10, alice
                         )
@@ -287,11 +277,7 @@ def test_gauge_integral_with_exchanges(
                 )
             )[-5:]
             lower_bands = sorted(
-                list(
-                    filter(
-                        lambda band: amm.p_oracle_up(band) < p_o, available_bands
-                    )
-                )
+                list(filter(lambda band: amm.p_oracle_up(band) < p_o, available_bands))
             )[:5]
             available_bands = upper_bands + lower_bands
             if len(available_bands) > 0:
