@@ -20,24 +20,29 @@ This naming convention determines whether a file is treated as a compilation tar
 
 ## Test Fixtures
 
-The shared `accounts` pytest fixture is deprecated and should not be used in new tests.
+Deprecated pytest address fixtures like `accounts`, `alice`, `bob`, and `charlie` should not be used in new tests. The same names should also not be used for inline addresses or `boa.env.generate_address(...)` labels.
 
-`accounts` is a pattern borrowed from other testing frameworks. It is not idiomatic `titanoboa`, and we do not want to carry that style forward here.
+`accounts` is a pattern borrowed from other testing frameworks, and single-name actor fixtures like `alice` and `bob` have the same readability problem in practice. They are not idiomatic `titanoboa`, and we do not want to carry that style forward here.
 
 Why:
 
 - It hides actor intent behind positional indexing like `accounts[0]` and `accounts[1]`.
+- It uses generic actor names like `alice` or `bob`, whether via fixtures or inline addresses, that still force readers to translate names into roles.
 - It severs the semantic link between the address and the permission or role being tested.
 - It forces readers to infer meaning from surrounding setup instead of getting it directly from the variable name.
 - It makes tests harder to read, review, and maintain because roles are implicit instead of named.
 
-Prefer inline role-named addresses such as `non_owner`, `liquidator`, `fee_receiver`, `borrower`, `keeper`, or other test-specific actor names that make permissions and intent obvious.
+Prefer inline role-named addresses such as `depositor`, `admin`, `victim`, `attacker`, `non_owner`, `liquidator`, `fee_receiver`, `borrower`, `keeper`, or other test-specific actor names that make permissions and intent obvious.
 
 Example:
 
 ```python
 non_owner = boa.env.generate_address("non_owner")
 liquidator = boa.env.generate_address("liquidator")
+
+# Avoid generic names like these:
+# alice = boa.env.generate_address("alice")
+# bob = boa.env.generate_address("bob")
 ```
 
 ## Contract Documentation
