@@ -102,7 +102,7 @@ bands_x: public(HashMap[int256, uint256])
 bands_y: public(HashMap[int256, uint256])
 
 total_shares: HashMap[int256, uint256]
-user_shares: public(HashMap[address, IAMM.UserTicks])
+_user_shares: HashMap[address, IAMM.UserTicks]
 
 
 _liquidity_mining_callback: ILMGauge
@@ -506,7 +506,7 @@ def _read_user_tick_numbers(user: address) -> int256[2]:
     @param user User address
     @return Lowest and highest band the user deposited into
     """
-    ns: int256 = self.user_shares[user].ns
+    ns: int256 = self._user_shares[user].ns
     n2: int256 = unsafe_div(ns, 2**128)
     n1: int256 = ns % 2**128
     if n1 >= 2**127:
@@ -541,12 +541,25 @@ def _read_user_ticks(user: address, ns: int256[2]) -> DynArray[uint256, MAX_TICK
     for i: uint256 in range(MAX_TICKS_UINT // 2):
         if len(ticks) == size:
             break
-        tick: uint256 = self.user_shares[user].ticks[i]
+        tick: uint256 = self._user_shares[user].ticks[i]
         ticks.append(tick & (2**128 - 1))
         if len(ticks) == size:
             break
         ticks.append(tick >> 128)
     return ticks
+
+
+@external
+@view
+@nonreentrant
+def read_user_ticks(user: address) -> DynArray[uint256, MAX_TICKS_UINT]:
+    """
+    @notice Unpacks and reads user ticks (shares) for all bands the user deposited into
+    @param user User address
+    @return Array of shares the user has
+    """
+    ns: int256[2] = self._read_user_tick_numbers(user)
+    return self._read_user_ticks(user, ns)
 
 
 @external
@@ -600,7 +613,7 @@ def has_liquidity(user: address) -> bool:
     """
     @notice Check if `user` has any liquidity in the AMM
     """
-    return self.user_shares[user].ticks[0] != 0
+    return self._user_shares[user].ticks[0] != 0
 
 
 @internal
@@ -614,7 +627,7 @@ def save_user_shares(user: address, user_shares: DynArray[uint256, MAX_TICKS_UIN
         if len(user_shares) != ptr:
             tick = tick | (user_shares[ptr] << 128)
         ptr = unsafe_add(ptr, 1)
-        self.user_shares[user].ticks[j] = tick
+        self._user_shares[user].ticks[j] = tick
 
 
 @external
@@ -644,8 +657,8 @@ def deposit_range(user: address, amount: uint256, n1: int256, n2: int256):
     y_per_band: uint256 = unsafe_div(amount * COLLATERAL_PRECISION, n_bands)
     assert y_per_band > 100, "Amount too low"
 
-    assert self.user_shares[user].ticks[0] == 0  # dev: User must have no liquidity
-    self.user_shares[user].ns = unsafe_add(n1, unsafe_mul(n2, 2**128))
+    assert self._user_shares[user].ticks[0] == 0  # dev: User must have no liquidity
+    self._user_shares[user].ns = unsafe_add(n1, unsafe_mul(n2, 2**128))
 
     lm: ILMGauge = self._liquidity_mining_callback
 
@@ -655,7 +668,7 @@ def deposit_range(user: address, amount: uint256, n1: int256, n2: int256):
             if i != 0:
                 self.active_band = n0
             break
-        assert self.bands_x[n0] == 0 and i < MAX_SKIP_TICKS_UINT, "Deposit below current band"
+        assert self.bands_x[n0] == 0 and i < MAX_SKIP_TICKS_UINT  # dev: Deposit below current band
         n0 -= 1
 
     for i: int256 in range(MAX_TICKS):
@@ -763,7 +776,7 @@ def withdraw(user: address, frac: uint256) -> uint256[2]:
 
     # Empty the ticks
     if frac == 10**18:
-        self.user_shares[user].ticks[0] = 0
+        self._user_shares[user].ticks[0] = 0
     else:
         self.save_user_shares(user, user_shares)
 
