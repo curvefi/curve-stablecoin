@@ -27,7 +27,10 @@ def test_add_new_lm_callback(
         borrowed_token.balanceOf(borrower),
         collateral_token.balanceOf(borrower),
     ]
-    trader_balances0 = [borrowed_token.balanceOf(trader), collateral_token.balanceOf(trader)]
+    trader_balances0 = [
+        borrowed_token.balanceOf(trader),
+        collateral_token.balanceOf(trader),
+    ]
 
     # Market interactions
     controller.create_loan(10**21, 10**21 * 2600, 10, sender=borrower)
@@ -37,7 +40,10 @@ def test_add_new_lm_callback(
         borrowed_token.balanceOf(borrower),
         collateral_token.balanceOf(borrower),
     ]
-    trader_balances1 = [borrowed_token.balanceOf(trader), collateral_token.balanceOf(trader)]
+    trader_balances1 = [
+        borrowed_token.balanceOf(trader),
+        collateral_token.balanceOf(trader),
+    ]
 
     assert borrower_balances1[0] - borrower_balances0[0] == 10**21 * 2600
     assert borrower_balances0[1] - borrower_balances1[1] == 10**21
@@ -62,7 +68,10 @@ def test_add_new_lm_callback(
         borrowed_token.balanceOf(borrower),
         collateral_token.balanceOf(borrower),
     ]
-    trader_balances2 = [borrowed_token.balanceOf(trader), collateral_token.balanceOf(trader)]
+    trader_balances2 = [
+        borrowed_token.balanceOf(trader),
+        collateral_token.balanceOf(trader),
+    ]
 
     assert borrower_balances2[0] == borrower_balances1[0]
     assert borrower_balances1[1] == borrower_balances2[1]

@@ -2,6 +2,7 @@ import boa
 from random import random, randrange
 import pytest
 from tests.utils.constants import MAX_UINT256
+
 YEAR = 365 * 86400
 WEEK = 7 * 86400
 
@@ -110,7 +111,7 @@ def test_gauge_integral(
         borrower1 = boa.env.generate_address("borrower1")
         borrower2 = boa.env.generate_address("borrower2")
         for b in (borrower1, borrower2):
-            boa.deal(collateral_token, b, 1000 * 10 ** 18)
+            boa.deal(collateral_token, b, 1000 * 10**18)
             collateral_token.approve(controller, MAX_UINT256, sender=b)
             borrowed_token.approve(controller, MAX_UINT256, sender=b)
 
@@ -157,7 +158,9 @@ def test_gauge_integral(
                 is_withdraw_borrower2 = (i > 0) * (random() < 0.5)
                 print("borrower2", "withdraws" if is_withdraw_borrower2 else "deposits")
                 if is_withdraw_borrower2:
-                    collateral_in_amm_borrower2, _, debt_borrower2, __ = controller.user_state(borrower2)
+                    collateral_in_amm_borrower2, _, debt_borrower2, __ = (
+                        controller.user_state(borrower2)
+                    )
                     collateral_borrower2 = lm_callback.user_collateral(borrower2)
                     assert collateral_in_amm_borrower2 == collateral_borrower2
                     amount_borrower2 = randrange(1, collateral_in_amm_borrower2 + 1)
@@ -171,7 +174,8 @@ def test_gauge_integral(
                             debt_borrower2 - repay_amount_borrower2, 10
                         )
                         remove_amount_borrower2 = min(
-                            collateral_in_amm_borrower2 - min_collateral_required_borrower2,
+                            collateral_in_amm_borrower2
+                            - min_collateral_required_borrower2,
                             amount_borrower2,
                         )
                         remove_amount_borrower2 = max(remove_amount_borrower2, 0)
@@ -180,27 +184,36 @@ def test_gauge_integral(
                     update_integral()
                     borrower2_staked -= remove_amount_borrower2
                 else:
-                    amount_borrower2 = randrange(1, collateral_token.balanceOf(borrower2) // 10 + 1)
+                    amount_borrower2 = randrange(
+                        1, collateral_token.balanceOf(borrower2) // 10 + 1
+                    )
                     if controller.loan_exists(borrower2):
                         controller.borrow_more(
                             amount_borrower2, int(amount_borrower2 * random() * 2000)
                         )
                     else:
                         controller.create_loan(
-                            amount_borrower2, int(amount_borrower2 * random() * 2000), 10
+                            amount_borrower2,
+                            int(amount_borrower2 * random() * 2000),
+                            10,
                         )
                     update_integral()
                     borrower2_staked += amount_borrower2
 
             if is_borrower1:
                 with boa.env.prank(borrower1):
-                    collateral_in_amm_borrower1, _, debt_borrower1, __ = controller.user_state(
-                        borrower1
+                    collateral_in_amm_borrower1, _, debt_borrower1, __ = (
+                        controller.user_state(borrower1)
                     )
                     collateral_borrower1 = lm_callback.user_collateral(borrower1)
                     assert collateral_in_amm_borrower1 == collateral_borrower1
-                    is_withdraw_borrower1 = (collateral_in_amm_borrower1 > 0) * (random() < 0.5)
-                    print("borrower1", "withdraws" if is_withdraw_borrower1 else "deposits")
+                    is_withdraw_borrower1 = (collateral_in_amm_borrower1 > 0) * (
+                        random() < 0.5
+                    )
+                    print(
+                        "borrower1",
+                        "withdraws" if is_withdraw_borrower1 else "deposits",
+                    )
 
                     if is_withdraw_borrower1:
                         amount_borrower1 = randrange(1, collateral_in_amm_borrower1 + 1)
@@ -208,13 +221,18 @@ def test_gauge_integral(
                         if amount_borrower1 == collateral_in_amm_borrower1:
                             controller.repay(debt_borrower1)
                         else:
-                            repay_amount_borrower1 = int(debt_borrower1 * random() * 0.99)
+                            repay_amount_borrower1 = int(
+                                debt_borrower1 * random() * 0.99
+                            )
                             controller.repay(repay_amount_borrower1)
-                            min_collateral_required_borrower1 = controller.min_collateral(
-                                debt_borrower1 - repay_amount_borrower1, 10
+                            min_collateral_required_borrower1 = (
+                                controller.min_collateral(
+                                    debt_borrower1 - repay_amount_borrower1, 10
+                                )
                             )
                             remove_amount_borrower1 = min(
-                                collateral_in_amm_borrower1 - min_collateral_required_borrower1,
+                                collateral_in_amm_borrower1
+                                - min_collateral_required_borrower1,
                                 amount_borrower1,
                             )
                             remove_amount_borrower1 = max(remove_amount_borrower1, 0)
@@ -228,11 +246,14 @@ def test_gauge_integral(
                         )
                         if controller.loan_exists(borrower1):
                             controller.borrow_more(
-                                amount_borrower1, int(amount_borrower1 * random() * 2000)
+                                amount_borrower1,
+                                int(amount_borrower1 * random() * 2000),
                             )
                         else:
                             controller.create_loan(
-                                amount_borrower1, int(amount_borrower1 * random() * 2000), 10
+                                amount_borrower1,
+                                int(amount_borrower1 * random() * 2000),
+                                10,
                             )
                         update_integral()
                         borrower1_staked += amount_borrower1
@@ -259,7 +280,9 @@ def test_gauge_integral(
                 assert crv.balanceOf(borrower1) - crv_balance == crv_reward
 
                 update_integral()
-                print(i, dt / 86400, integral, lm_callback.integrate_fraction(borrower1))
+                print(
+                    i, dt / 86400, integral, lm_callback.integrate_fraction(borrower1)
+                )
                 assert lm_callback.integrate_fraction(borrower1) == pytest.approx(
                     integral, rel=1e-14
                 )

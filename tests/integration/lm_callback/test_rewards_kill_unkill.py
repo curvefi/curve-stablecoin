@@ -14,7 +14,7 @@ def test_rewards_kill(
 ):
     print("")
     borrower = boa.env.generate_address("borrower")
-    boa.deal(collateral_token, borrower, 1000 * 10 ** 18)
+    boa.deal(collateral_token, borrower, 1000 * 10**18)
     collateral_token.approve(controller, MAX_UINT256, sender=borrower)
 
     boa.env.time_travel(seconds=2 * WEEK + 5)
