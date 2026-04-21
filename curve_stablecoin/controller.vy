@@ -223,6 +223,7 @@ def redeemed() -> uint256:
 
 @external
 @view
+@reentrant
 def available_balance() -> uint256:
     return staticcall BORROWED_TOKEN.balanceOf(self)
 
@@ -1481,6 +1482,7 @@ def _admin_fees() -> uint256:
 
 @external
 @view
+@reentrant
 def admin_fees() -> uint256:
     """
     @notice Pending admin fees which can be claimed if the controller has enough balance
