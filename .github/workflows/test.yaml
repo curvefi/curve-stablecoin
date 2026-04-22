@@ -1,7 +1,6 @@
 name: tests-boa
 
 on:
-  push:
   pull_request:
 
 env:
