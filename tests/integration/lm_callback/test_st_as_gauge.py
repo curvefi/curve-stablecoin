@@ -209,6 +209,7 @@ class StateMachine(RuleBasedStateMachine):
 def test_state_machine(
     admin,
     collateral_token,
+    borrowed_token,
     crv,
     lm_callback,
     controller,
