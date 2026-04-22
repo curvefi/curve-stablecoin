@@ -19,7 +19,7 @@ struct DetailedTrade:
 # Events
 
 event TokenExchange:
-    buyer: address
+    buyer: indexed(address)
     sold_id: uint256
     tokens_sold: uint256
     bought_id: uint256
@@ -27,14 +27,14 @@ event TokenExchange:
 
 
 event Deposit:
-    provider: address
+    provider: indexed(address)
     amount: uint256
     n1: int256
     n2: int256
 
 
 event Withdraw:
-    provider: address
+    provider: indexed(address)
     amount_borrowed: uint256
     amount_collateral: uint256
 
@@ -127,6 +127,12 @@ def get_p() -> uint256:
 @view
 @external
 def read_user_tick_numbers(user: address) -> int256[2]:
+    ...
+
+
+@view
+@external
+def read_user_ticks(user: address) -> DynArray[uint256, 50]:
     ...
 
 
@@ -301,11 +307,6 @@ def bands_x(arg0: int256) -> uint256:
 def bands_y(arg0: int256) -> uint256:
     ...
 
-
-@view
-@external
-def user_shares(arg0: address) -> UserTicks:
-    ...
 
 
 @view

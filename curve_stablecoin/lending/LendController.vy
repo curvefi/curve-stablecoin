@@ -78,6 +78,7 @@ exports: (
     core.factory,
     core.admin_fees,
     core.admin_percentage,
+    core.view_impl,
     # Setters
     core.set_view,
     core.set_amm_fee,
@@ -100,6 +101,7 @@ _available_balance: uint256
 
 @external
 @view
+@reentrant
 def available_balance() -> uint256:
     return self._available_balance
 

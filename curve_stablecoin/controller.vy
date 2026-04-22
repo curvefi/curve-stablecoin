@@ -223,6 +223,7 @@ def redeemed() -> uint256:
 
 @external
 @view
+@reentrant
 def available_balance() -> uint256:
     return staticcall BORROWED_TOKEN.balanceOf(self)
 
@@ -466,9 +467,7 @@ def _get_y_effective(
         unsafe_mul(_SQRT_BAND_RATIO, _N),
     )
     y_effective: uint256 = d_y_effective
-    for i: uint256 in range(1, MAX_TICKS_UINT):
-        if i == _N:
-            break
+    for _: uint256 in range(1, _N, bound=MAX_TICKS_UINT):
         d_y_effective = unsafe_div(d_y_effective * unsafe_sub(_A, 1), _A)
         y_effective = unsafe_add(y_effective, d_y_effective)
     return y_effective
@@ -633,7 +632,7 @@ def create_loan(
     @param _callbacker Address of the callback contract
     @param _calldata Any data for callbacker
     """
-    assert self._check_approval(_for)
+    assert self._has_approval(_for)
 
     more_collateral: uint256 = 0
     if _callbacker != empty(address):
@@ -689,7 +688,7 @@ def create_loan(
         liquidation_discount=liquidation_discount,
     )
     log IController.Borrow(
-        user=_for, collateral_increase=total_collateral, loan_increase=_debt
+        caller=msg.sender, user=_for, collateral_increase=total_collateral, loan_increase=_debt
     )
 
 
@@ -732,11 +731,11 @@ def _add_collateral_borrow(
 
     if _remove_collateral:
         log IController.RemoveCollateral(
-            user=_for, collateral_decrease=_d_collateral
+            caller=msg.sender, user=_for, collateral_decrease=_d_collateral
         )
     else:
         log IController.Borrow(
-            user=_for, collateral_increase=_d_collateral, loan_increase=_d_debt
+            caller=msg.sender, user=_for, collateral_increase=_d_collateral, loan_increase=_d_debt
         )
 
     log IController.UserState(
@@ -778,7 +777,7 @@ def add_collateral(_collateral: uint256, _for: address = msg.sender):
     """
     if _collateral == 0:
         return
-    assert self._check_approval(_for)
+    assert self._has_approval(_for)
     self._add_collateral_borrow(_collateral, 0, _for, False)
     tkn.transfer_from(COLLATERAL_TOKEN, msg.sender, AMM.address, _collateral)
     self._save_rate()
@@ -812,7 +811,7 @@ def remove_collateral(_collateral: uint256, _for: address = msg.sender):
     """
     if _collateral == 0:
         return
-    assert self._check_approval(_for)
+    assert self._has_approval(_for)
     self._add_collateral_borrow(_collateral, 0, _for, True)
     tkn.transfer_from(COLLATERAL_TOKEN, AMM.address, _for, _collateral)
     self._save_rate()
@@ -858,7 +857,7 @@ def borrow_more(
     """
     if _debt == 0:
         return
-    assert self._check_approval(_for)
+    assert self._has_approval(_for)
 
     more_collateral: uint256 = 0
     if _callbacker != empty(address):
@@ -936,7 +935,7 @@ def _repay_full(
         user=_for, collateral=0, borrowed=0, debt=0, n1=0, n2=0, liquidation_discount=0
     )
     log IController.Repay(
-        user=_for, collateral_decrease=_xy[1], loan_decrease=_debt
+        caller=msg.sender, user=_for, collateral_decrease=_xy[1], loan_decrease=_debt
     )
 
 
@@ -1016,6 +1015,7 @@ def _repay_partial(
         liquidation_discount=liquidation_discount,
     )
     log IController.Repay(
+        caller=msg.sender,
         user=_for,
         collateral_decrease=crv_math.sub_or_zero(_xy[1], new_collateral),
         loan_decrease=d_debt,
@@ -1068,7 +1068,7 @@ def repay(
     @param _calldata Any data for callbacker
     @param _shrink Whether shrink soft-liquidated part of the position or not
     """
-    assert self._check_approval(_for)
+    assert self._has_approval(_for)
     debt: uint256 = 0
     rate_mul: uint256 = 0
     debt, rate_mul = self._debt(_for)
@@ -1218,7 +1218,7 @@ def liquidate(
     @param _callbacker Address of the callback contract
     @param _calldata Any data for callbacker
     """
-    approval: bool = self._check_approval(_user)
+    approval: bool = self._has_approval(_user)
     liquidation_discount: uint256 = self.liquidation_discounts[_user]
     debt: uint256 = 0
     rate_mul: uint256 = 0
@@ -1295,7 +1295,7 @@ def liquidate(
     self._save_rate()
 
     log IController.Repay(
-        user=_user, collateral_decrease=xy[1], loan_decrease=debt
+        caller=msg.sender, user=_user, collateral_decrease=xy[1], loan_decrease=debt
     )
     log IController.Liquidate(
         liquidator=msg.sender,
@@ -1340,7 +1340,7 @@ def tokens_to_liquidate(_user: address, _frac: uint256 = WAD) -> uint256:
     """
     assert _frac <= WAD, "frac>100%"
     health_limit: uint256 = 0
-    if not self._check_approval(_user):
+    if not self._has_approval(_user):
         health_limit = self.liquidation_discounts[_user]
     borrowed: uint256 = unsafe_div(
         (staticcall AMM.get_sum_xy(_user))[0]
@@ -1481,6 +1481,7 @@ def _admin_fees() -> uint256:
 
 @external
 @view
+@reentrant
 def admin_fees() -> uint256:
     """
     @notice Pending admin fees which can be claimed if the controller has enough balance
@@ -1541,7 +1542,7 @@ def approve(_spender: address, _allow: bool):
 
 @internal
 @view
-def _check_approval(_for: address) -> bool:
+def _has_approval(_for: address) -> bool:
     return msg.sender == _for or self.approval[_for][msg.sender]
 
 

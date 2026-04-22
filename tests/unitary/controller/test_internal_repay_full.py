@@ -119,7 +119,7 @@ def test_repay_full_from_wallet(
 
     # Withdrawn from AMM
     xy = amm.get_sum_xy(borrower)
-    assert amm.user_shares(borrower)[1][0] == 0
+    assert amm.read_user_ticks(borrower)[0] == 0
     assert xy[0] == 0
     assert xy[1] == 0
     assert controller.n_loans() == 0  # loan removed after full repayment
@@ -136,6 +136,7 @@ def test_repay_full_from_wallet(
     assert state_logs[0].liquidation_discount == 0
 
     assert len(repay_logs) == 1
+    assert repay_logs[0].caller == payer
     assert repay_logs[0].user == borrower
     assert repay_logs[0].loan_decrease == borrowed_to_controller
     assert repay_logs[0].collateral_decrease == collateral_to_borrower
@@ -244,7 +245,7 @@ def test_repay_full_from_callback(
 
     # Withdrawn from AMM
     xy = amm.get_sum_xy(borrower)
-    assert amm.user_shares(borrower)[1][0] == 0
+    assert amm.read_user_ticks(borrower)[0] == 0
     assert xy[0] == 0
     assert xy[1] == 0
     assert controller.n_loans() == 0  # loan removed after full repayment
@@ -261,6 +262,7 @@ def test_repay_full_from_callback(
     assert state_logs[0].liquidation_discount == 0
 
     assert len(repay_logs) == 1
+    assert repay_logs[0].caller == payer
     assert repay_logs[0].user == borrower
     assert repay_logs[0].loan_decrease == borrowed_to_controller
     assert repay_logs[0].collateral_decrease == collateral_amount
@@ -364,7 +366,7 @@ def test_repay_full_from_xy0(
 
     # Withdrawn from AMM
     xy_after = amm.get_sum_xy(borrower)
-    assert amm.user_shares(borrower)[1][0] == 0
+    assert amm.read_user_ticks(borrower)[0] == 0
     assert xy_after[0] == 0
     assert xy_after[1] == 0
     assert controller.n_loans() == 0  # loan removed after full repayment
@@ -381,6 +383,7 @@ def test_repay_full_from_xy0(
     assert state_logs[0].liquidation_discount == 0
 
     assert len(repay_logs) == 1
+    assert repay_logs[0].caller == payer
     assert repay_logs[0].user == borrower
     assert repay_logs[0].loan_decrease == debt
     assert repay_logs[0].collateral_decrease == xy_before[1]
@@ -492,7 +495,7 @@ def test_repay_full_from_wallet_and_callback(
 
     # Withdrawn from AMM
     xy = amm.get_sum_xy(borrower)
-    assert amm.user_shares(borrower)[1][0] == 0
+    assert amm.read_user_ticks(borrower)[0] == 0
     assert xy[0] == 0
     assert xy[1] == 0
     assert controller.n_loans() == 0  # loan removed after full repayment
@@ -509,6 +512,7 @@ def test_repay_full_from_wallet_and_callback(
     assert state_logs[0].liquidation_discount == 0
 
     assert len(repay_logs) == 1
+    assert repay_logs[0].caller == payer
     assert repay_logs[0].user == borrower
     assert repay_logs[0].loan_decrease == borrowed_to_controller
     assert repay_logs[0].collateral_decrease == collateral_amount
@@ -615,7 +619,7 @@ def test_repay_full_from_xy0_and_wallet(
 
     # Withdrawn from AMM
     xy_after = amm.get_sum_xy(borrower)
-    assert amm.user_shares(borrower)[1][0] == 0
+    assert amm.read_user_ticks(borrower)[0] == 0
     assert xy_after[0] == 0
     assert xy_after[1] == 0
     assert controller.n_loans() == 0  # loan removed after full repayment
@@ -632,6 +636,7 @@ def test_repay_full_from_xy0_and_wallet(
     assert state_logs[0].liquidation_discount == 0
 
     assert len(repay_logs) == 1
+    assert repay_logs[0].caller == payer
     assert repay_logs[0].user == borrower
     assert repay_logs[0].loan_decrease == debt
     assert repay_logs[0].collateral_decrease == xy_before[1]
@@ -751,7 +756,7 @@ def test_repay_full_from_xy0_and_callback(
 
     # Withdrawn from AMM
     xy = amm.get_sum_xy(borrower)
-    assert amm.user_shares(borrower)[1][0] == 0
+    assert amm.read_user_ticks(borrower)[0] == 0
     assert xy[0] == 0
     assert xy[1] == 0
     assert controller.n_loans() == 0  # loan removed after full repayment
@@ -768,6 +773,7 @@ def test_repay_full_from_xy0_and_callback(
     assert state_logs[0].liquidation_discount == 0
 
     assert len(repay_logs) == 1
+    assert repay_logs[0].caller == payer
     assert repay_logs[0].user == borrower
     assert repay_logs[0].loan_decrease == borrowed_to_controller
     assert repay_logs[0].collateral_decrease == xy_before[1]
@@ -890,7 +896,7 @@ def test_repay_full_from_wallet_and_xy0_and_callback(
 
     # Withdrawn from AMM
     xy = amm.get_sum_xy(borrower)
-    assert amm.user_shares(borrower)[1][0] == 0
+    assert amm.read_user_ticks(borrower)[0] == 0
     assert xy[0] == 0
     assert xy[1] == 0
     assert controller.n_loans() == 0  # loan removed after full repayment
@@ -907,6 +913,7 @@ def test_repay_full_from_wallet_and_xy0_and_callback(
     assert state_logs[0].liquidation_discount == 0
 
     assert len(repay_logs) == 1
+    assert repay_logs[0].caller == payer
     assert repay_logs[0].user == borrower
     assert repay_logs[0].loan_decrease == borrowed_to_controller
     assert repay_logs[0].collateral_decrease == xy_before[1]

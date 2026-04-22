@@ -8,6 +8,7 @@ from hypothesis.stateful import (
     invariant,
 )
 import pytest
+from tests.utils.constants import MAX_UINT256
 
 
 class StateMachine(RuleBasedStateMachine):
@@ -23,15 +24,21 @@ class StateMachine(RuleBasedStateMachine):
 
     def __init__(self):
         super().__init__()
+        self.borrowers = [boa.env.generate_address(f"borrower_{i}") for i in range(5)]
+        for b in self.borrowers:
+            boa.deal(self.collateral_token, b, 1000 * 10**18)
+            self.crv.transfer(b, 10**20, sender=self.admin)
+            self.collateral_token.approve(self.controller, MAX_UINT256, sender=b)
+            self.borrowed_token.approve(self.controller, MAX_UINT256, sender=b)
         self.checkpoint_total_collateral = 0
         self.checkpoint_rate = self.crv.rate()
         self.integrals = {
-            addr: {
+            b: {
                 "checkpoint": boa.env.timestamp,
                 "integral": 0,
                 "collateral": 0,
             }
-            for addr in self.accounts[:5]
+            for b in self.borrowers
         }
 
     def update_integrals(self):
@@ -39,8 +46,8 @@ class StateMachine(RuleBasedStateMachine):
         t1 = boa.env.timestamp
         t_epoch = self.crv.start_epoch_time_write(sender=self.admin)
         rate1 = self.crv.rate()
-        for acct in self.accounts[:5]:
-            integral = self.integrals[acct]
+        for b in self.borrowers:
+            integral = self.integrals[b]
             if integral["checkpoint"] >= t_epoch:
                 rate_x_time = (t1 - integral["checkpoint"]) * rate1
             else:
@@ -54,10 +61,8 @@ class StateMachine(RuleBasedStateMachine):
                     // self.checkpoint_total_collateral
                 )
             integral["checkpoint"] = t1
-            integral["collateral"] = self.market_amm.get_sum_xy(acct)[1]
-        self.checkpoint_total_collateral = self.collateral_token.balanceOf(
-            self.market_amm
-        )
+            integral["collateral"] = self.amm.get_sum_xy(b)[1]
+        self.checkpoint_total_collateral = self.collateral_token.balanceOf(self.amm)
         self.checkpoint_rate = rate1
 
     @rule(uid=user_id, deposit_pct=deposit_pct, borrow_pct=borrow_pct)
@@ -68,21 +73,19 @@ class StateMachine(RuleBasedStateMachine):
         Because of the upper bound of `st_value` relative to the initial account
         balances, this rule should never fail.
         """
-        user = self.accounts[uid]
+        user = self.borrowers[uid]
         with boa.env.prank(user):
             balance = self.collateral_token.balanceOf(user)
             deposit_amount = min(int(balance * deposit_pct), balance)
-            collateral_in_amm, stablecoin_in_amm, debt, __ = (
-                self.market_controller.user_state(user)
+            collateral_in_amm, borrowed_token_in_amm, debt, __ = (
+                self.controller.user_state(user)
             )
-            max_borrowable = self.market_controller.max_borrowable(
-                deposit_amount, 10, user
-            )
+            max_borrowable = self.controller.max_borrowable(deposit_amount, 10, user)
             borrow_amount = min(int(max_borrowable * borrow_pct), max_borrowable)
             i = 1
             while True:
                 try:
-                    self.market_controller.calculate_debt_n1(
+                    self.controller.calculate_debt_n1(
                         collateral_in_amm + deposit_amount, debt + borrow_amount, 10
                     )
                     break
@@ -91,14 +94,14 @@ class StateMachine(RuleBasedStateMachine):
                         break
                     i += 1
                     borrow_amount = borrow_amount * (100 - i) // 100
-            is_underwater = stablecoin_in_amm > 0
+            is_underwater = borrowed_token_in_amm > 0
             if borrow_amount <= 0 or is_underwater:
                 return
 
-            if self.market_controller.loan_exists(user):
-                self.market_controller.borrow_more(deposit_amount, borrow_amount)
+            if self.controller.loan_exists(user):
+                self.controller.borrow_more(deposit_amount, borrow_amount)
             else:
-                self.market_controller.create_loan(deposit_amount, borrow_amount, 10)
+                self.controller.create_loan(deposit_amount, borrow_amount, 10)
             assert self.collateral_token.balanceOf(user) == balance - deposit_amount
 
             self.update_integrals()
@@ -113,34 +116,34 @@ class StateMachine(RuleBasedStateMachine):
         """
         Attempt to withdraw from the `LiquidityGauge` contract.
         """
-        user = self.accounts[uid]
+        user = self.borrowers[uid]
         with boa.env.prank(user):
             balance = self.collateral_token.balanceOf(user)
-            collateral_in_amm, stablecoin_in_amm, debt, _ = (
-                self.market_controller.user_state(user)
+            collateral_in_amm, borrowed_token_in_amm, debt, _ = (
+                self.controller.user_state(user)
             )
-            is_underwater = stablecoin_in_amm > 0
+            is_underwater = borrowed_token_in_amm > 0
             if collateral_in_amm == 0:
                 return
 
             withdraw_amount = 0
-            if repay_pct == 1:
-                self.market_controller.repay(debt)
+            repay_amount = int(debt * repay_pct)
+            if repay_amount + borrowed_token_in_amm >= debt:
+                self.controller.repay(debt)
                 withdraw_amount = collateral_in_amm
-            elif self.market_controller.health(user) > 0:
-                repay_amount = int(debt * repay_pct)
+            elif self.controller.health(user) > 0:
                 if repay_amount == 0:
                     return
 
-                self.market_controller.repay(repay_amount)
+                self.controller.repay(repay_amount)
                 if is_underwater:
                     # Underwater repay does not trigger callback, so we call checkpoint manually to pass checks below
                     self.lm_callback.user_checkpoint(user)
                 else:
-                    A = self.market_amm.A()
+                    A = self.amm.A()
                     withdraw_amount = int(collateral_in_amm * withdraw_pct)
                     min_collateral_required = (
-                        self.market_controller.min_collateral(debt - repay_amount, 10)
+                        self.controller.min_collateral(debt - repay_amount, 10)
                         * A
                         // (A - 1)
                     )
@@ -149,7 +152,7 @@ class StateMachine(RuleBasedStateMachine):
                     )
                     withdraw_amount = max(withdraw_amount, 0)
                     if withdraw_amount > 0:
-                        self.market_controller.remove_collateral(withdraw_amount)
+                        self.controller.remove_collateral(withdraw_amount)
             else:
                 # We call checkpoint manually to pass checks below
                 self.lm_callback.user_checkpoint(user)
@@ -168,20 +171,20 @@ class StateMachine(RuleBasedStateMachine):
         """
         Makes a trade in LLAMMA.
         """
-        with boa.env.prank(self.chad):
+        with boa.env.prank(self.trader):
             available_bands = []
-            for acct in self.accounts[:5]:
-                border_bands = self.market_amm.read_user_tick_numbers(acct)
+            for b in self.borrowers:
+                border_bands = self.amm.read_user_tick_numbers(b)
                 available_bands += (
                     []
                     if border_bands[0] == border_bands[1]
                     else list(range(border_bands[0], border_bands[1] + 1))
                 )
-            p_o = self.market_amm.price_oracle()
+            p_o = self.amm.price_oracle()
             upper_bands = sorted(
                 list(
                     filter(
-                        lambda band: self.market_amm.p_oracle_down(band) > p_o,
+                        lambda band: self.amm.p_oracle_down(band) > p_o,
                         available_bands,
                     )
                 )
@@ -189,7 +192,7 @@ class StateMachine(RuleBasedStateMachine):
             lower_bands = sorted(
                 list(
                     filter(
-                        lambda band: self.market_amm.p_oracle_up(band) < p_o,
+                        lambda band: self.amm.p_oracle_up(band) < p_o,
                         available_bands,
                     )
                 )
@@ -199,22 +202,22 @@ class StateMachine(RuleBasedStateMachine):
                 target_band = available_bands[
                     int(target_band_pct * (len(available_bands) - 1))
                 ]
-                p_up = self.market_amm.p_oracle_up(target_band)
-                p_down = self.market_amm.p_oracle_down(target_band)
+                p_up = self.amm.p_oracle_up(target_band)
+                p_down = self.amm.p_oracle_down(target_band)
                 p_target = int(p_down + target_price_pct * (p_up - p_down))
                 self.price_oracle.set_price(p_target, sender=self.admin)
-                amount, pump = self.market_amm.get_amount_for_price(p_target)
+                amount, pump = self.amm.get_amount_for_price(p_target)
                 balance = (
-                    self.stablecoin.balanceOf(self.chad)
+                    self.borrowed_token.balanceOf(self.trader)
                     if pump
-                    else self.collateral_token.balanceOf(self.chad)
+                    else self.collateral_token.balanceOf(self.trader)
                 )
                 amount = min(amount, balance)
                 if amount > 0:
                     if pump:
-                        self.market_amm.exchange(0, 1, amount, 0)
+                        self.amm.exchange(0, 1, amount, 0)
                     else:
-                        self.market_amm.exchange(1, 0, amount, 0)
+                        self.amm.exchange(1, 0, amount, 0)
                     self.update_integrals()
 
     @rule(dt=time)
@@ -229,7 +232,7 @@ class StateMachine(RuleBasedStateMachine):
         """
         Create a new user checkpoint.
         """
-        user = self.accounts[uid]
+        user = self.borrowers[uid]
         with boa.env.prank(user):
             self.lm_callback.user_checkpoint(user)
             self.update_integrals()
@@ -244,7 +247,7 @@ class StateMachine(RuleBasedStateMachine):
         """
         Claim user's CRV rewards.
         """
-        user = self.accounts[uid]
+        user = self.borrowers[uid]
         with boa.env.prank(user):
             crv_balance = self.crv.balanceOf(user)
             with boa.env.anchor():
@@ -258,8 +261,8 @@ class StateMachine(RuleBasedStateMachine):
         Validate expected balances against actual balances and
         expected total supply against actual total supply.
         """
-        for account, integral in self.integrals.items():
-            y1 = self.lm_callback.user_collateral(account)
+        for b, integral in self.integrals.items():
+            y1 = self.lm_callback.user_collateral(b)
             y2 = integral["collateral"]
             assert (
                 y1 == pytest.approx(y2, rel=1e-14) or abs(y1 - y2) < 100000
@@ -275,55 +278,46 @@ class StateMachine(RuleBasedStateMachine):
         """
         Final check to ensure that all balances may be withdrawn.
         """
-        for account, integral in ((k, v) for k, v in self.integrals.items() if v):
-            with boa.env.prank(account):
-                initial_collateral = self.collateral_token.balanceOf(account)
+        for b, integral in ((k, v) for k, v in self.integrals.items() if v):
+            with boa.env.prank(b):
+                initial_collateral = self.collateral_token.balanceOf(b)
                 collateral_in_amm = integral["collateral"]
-                debt = self.market_controller.user_state(account)[2]
+                debt = self.controller.user_state(b)[2]
                 if debt > 0:
-                    self.market_controller.repay(debt)
+                    self.controller.repay(debt)
                 self.update_integrals()
 
-                assert not self.market_controller.loan_exists(account)
+                assert not self.controller.loan_exists(b)
                 assert (
-                    self.collateral_token.balanceOf(account)
+                    self.collateral_token.balanceOf(b)
                     == initial_collateral + collateral_in_amm
                 )
 
-                r1 = self.lm_callback.integrate_fraction(account)
+                r1 = self.lm_callback.integrate_fraction(b)
                 r2 = integral["integral"]
                 assert (r1 > 0) == (r2 > 0)
                 if r1 > 0:
                     assert r1 == pytest.approx(r2, rel=1e-13) or abs(r1 - r2) < 100
 
-                crv_balance = self.crv.balanceOf(account)
+                crv_balance = self.crv.balanceOf(b)
                 with boa.env.anchor():
-                    crv_reward = self.lm_callback.claimable_tokens(account)
+                    crv_reward = self.lm_callback.claimable_tokens(b)
                 self.minter.mint(self.lm_callback.address)
-                assert self.crv.balanceOf(account) - crv_balance == crv_reward
+                assert self.crv.balanceOf(b) - crv_balance == crv_reward
 
 
 def test_state_machine(
-    accounts,
     admin,
-    chad,
-    stablecoin,
+    trader,
+    borrowed_token,
     collateral_token,
     crv,
     lm_callback,
-    market_controller,
-    market_amm,
+    controller,
+    amm,
     price_oracle,
     minter,
 ):
-    for acct in accounts[:5]:
-        with boa.env.prank(admin):
-            boa.deal(collateral_token, acct, 1000 * 10**18)
-            crv.transfer(acct, 10**20)
-
-        with boa.env.prank(acct):
-            collateral_token.approve(market_controller, 2**256 - 1)
-
     boa.env.time_travel(seconds=7 * 86400)
 
     StateMachine.TestCase.settings = settings(max_examples=400, stateful_step_count=50)

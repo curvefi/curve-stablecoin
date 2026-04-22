@@ -9,12 +9,9 @@
 """
 
 from curve_std.interfaces import IERC20
+from curve_stablecoin import constants as c
+from curve_stablecoin.interfaces import IAMM
 
-interface ILLAMMA:
-    def coins(i: uint256) -> address: view
-    def get_sum_xy(user: address) -> uint256[2]: view
-    def read_user_tick_numbers(user: address) -> int256[2]: view
-    def user_shares(user: address) -> UserTicks: view
 
 interface CRV20:
     def future_epoch_time_write() -> uint256: nonpayable
@@ -35,17 +32,12 @@ event SetKilled:
     is_killed: bool
 
 
-struct UserTicks:
-    ns: int256  # packs n1 and n2, each is int128
-    ticks: uint256[MAX_TICKS_INT // 2]  # Share fractions packed 2 per slot
-
-
-MAX_TICKS_UINT: constant(uint256) = 50
-MAX_TICKS_INT: constant(int256) = 50
+MAX_TICKS_UINT: constant(uint256) = c.MAX_TICKS_UINT
+MAX_TICKS_INT: constant(int256) = c.MAX_TICKS
 WEEK: constant(uint256) = 604800
 
 
-AMM: public(immutable(ILLAMMA))
+AMM: public(immutable(IAMM))
 CRV: public(immutable(CRV20))
 GAUGE_CONTROLLER: public(immutable(GaugeController))
 MINTER: public(immutable(Minter))
@@ -107,7 +99,7 @@ integrate_fraction: public(HashMap[address, uint256])
 
 @deploy
 def __init__(
-        amm: ILLAMMA,
+        amm: IAMM,
         crv: CRV20,
         gauge_controller: GaugeController,
         minter: Minter,
@@ -126,6 +118,7 @@ def __init__(
     MINTER = minter
     LENDING_FACTORY = factory
     COLLATERAL_TOKEN = IERC20(staticcall amm.coins(1))
+    assert staticcall COLLATERAL_TOKEN.decimals() == 18, "collateral decimals must be 18"
 
     self.future_epoch_time = extcall crv.future_epoch_time_write()
     self.inflation_rate = staticcall crv.rate()
@@ -198,9 +191,7 @@ def _checkpoint_collateral_shares(n_start: int256, collateral_per_share: DynArra
         I_rpc.rpc += delta_rpc
         self.I_rpc = I_rpc
 
-    for i: int256 in range(MAX_TICKS_INT):
-        if i == size:
-            break
+    for i: int256 in range(size, bound=MAX_TICKS_INT):
         _n: int256 = n_start + i
 
         old_cps: uint256 = self.collateral_per_share[_n]
@@ -224,9 +215,7 @@ def _checkpoint_user_shares(user: address, n_start: int256, old_user_shares: Dyn
     @param size The number of bands to checkpoint starting from `n_start`
     """
     rpu: uint256 = self.integrate_fraction[user]
-    for i: int256 in range(MAX_TICKS_INT):
-        if i == size:
-            break
+    for i: int256 in range(size, bound=MAX_TICKS_INT):
         _n: int256 = n_start + i
 
         old_user_shares_i: uint256 = 0
@@ -242,35 +231,6 @@ def _checkpoint_user_shares(user: address, n_start: int256, old_user_shares: Dyn
         rpu += d_rpu
 
     self.integrate_fraction[user] = rpu
-
-
-@internal
-@view
-def _read_user_shares(user_shares_packed: UserTicks) -> DynArray[uint256, MAX_TICKS_UINT]:
-    """
-    @notice Unpacks and reads user ticks (shares) for all the ticks user deposited into
-    @param user_shares_packed Packed user shares from AMM
-    @return Array of shares the user has
-    """
-    ns: int256 = user_shares_packed.ns
-    n2: int256 = unsafe_div(ns, 2 ** 128)
-    n1: int256 = ns % 2 ** 128
-    if n1 >= 2 ** 127:
-        n1 = unsafe_sub(n1, 2 ** 128)
-        n2 = unsafe_add(n2, 1)
-
-    user_shares: DynArray[uint256, MAX_TICKS_UINT] = []
-    size: uint256 = convert(n2 - n1 + 1, uint256)
-    for i: int256 in range(MAX_TICKS_INT // 2):
-        if len(user_shares) == size:
-            break
-        tick: uint256 = user_shares_packed.ticks[i]
-        user_shares.append(tick & (2**128 - 1))
-        if len(user_shares) == size:
-            break
-        user_shares.append(tick >> 128)
-
-    return user_shares
 
 
 @external
@@ -322,6 +282,20 @@ def callback_user_shares(user: address, n_start: int256, old_user_shares: DynArr
     self._checkpoint_user_shares(user, n_start, old_user_shares, convert(size, int256))
 
 
+@internal
+def _user_checkpoint(addr: address):
+    """
+    @notice Record a checkpoint for `addr`
+    @param addr User address
+    @return bool success
+    """
+    ns: int256[2] = staticcall AMM.read_user_tick_numbers(addr)
+    user_shares: DynArray[uint256, MAX_TICKS_UINT] = staticcall AMM.read_user_ticks(addr)
+    self._checkpoint_collateral_shares(ns[0], [], ns[1] - ns[0] + 1)
+    if len(user_shares) > 0 and user_shares[0] > 0:
+        self._checkpoint_user_shares(addr, ns[0], user_shares, ns[1] - ns[0] + 1)
+
+
 @external
 def user_checkpoint(addr: address) -> bool:
     """
@@ -329,11 +303,7 @@ def user_checkpoint(addr: address) -> bool:
     @param addr User address
     @return bool success
     """
-    ns: int256[2] = staticcall AMM.read_user_tick_numbers(addr)
-    user_shares: DynArray[uint256, MAX_TICKS_UINT] = self._read_user_shares(staticcall AMM.user_shares(addr))
-    self._checkpoint_collateral_shares(ns[0], [], ns[1] - ns[0] + 1)
-    if len(user_shares) > 0 and user_shares[0] > 0:
-        self._checkpoint_user_shares(addr, ns[0], user_shares, ns[1] - ns[0] + 1)
+    self._user_checkpoint(addr)
 
     return True
 
@@ -346,11 +316,7 @@ def claimable_tokens(addr: address) -> uint256:
     @param addr User address
     @return uint256 number of claimable tokens per user
     """
-    ns: int256[2] = staticcall AMM.read_user_tick_numbers(addr)
-    user_shares: DynArray[uint256, MAX_TICKS_UINT] = self._read_user_shares(staticcall AMM.user_shares(addr))
-    self._checkpoint_collateral_shares(ns[0], [], ns[1] - ns[0] + 1)
-    if len(user_shares) > 0 and user_shares[0] > 0:
-        self._checkpoint_user_shares(addr, ns[0], user_shares, ns[1] - ns[0] + 1)
+    self._user_checkpoint(addr)
 
     return self.integrate_fraction[addr] - staticcall MINTER.minted(addr, self)
 

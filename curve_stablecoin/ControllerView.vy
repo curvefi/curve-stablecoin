@@ -104,7 +104,7 @@ def _get_y_effective(
 
 @internal
 @view
-def _check_approval(_for: address, _caller: address) -> bool:
+def _has_approval(_for: address, _caller: address) -> bool:
     return _for == _caller or staticcall CONTROLLER.approval(_for, _caller)
 
 
@@ -374,7 +374,7 @@ def liquidate_health_preview(
     ns: int256[2] = staticcall AMM.read_user_tick_numbers(_user)
     active_band: int256 = staticcall AMM.active_band_with_skip()
 
-    approval: bool = self._check_approval(_user, _caller)
+    approval: bool = self._has_approval(_user, _caller)
     health_limit: uint256 = 0
     ld: uint256 = 0
     if approval:
@@ -484,13 +484,15 @@ def _user_state(_user: address) -> uint256[4]:
     """
     @notice Natspec for this function is available in its controller contract
     """
-    xy: uint256[2] = staticcall AMM.get_sum_xy(_user)
+    xy: uint256[2] = empty(uint256[2])
     N: uint256 = 0
-    if xy[0] > 0 or xy[1] > 0:
+    debt: uint256 = self._debt(_user)
+    if debt > 0:
+        xy = staticcall AMM.get_sum_xy(_user)
         ns: int256[2] = staticcall AMM.read_user_tick_numbers(_user)  # ns[1] > ns[0]
         N = convert(unsafe_add(unsafe_sub(ns[1], ns[0]), 1), uint256)
 
-    return [xy[1], xy[0], self._debt(_user), N]
+    return [xy[1], xy[0], debt, N]
 
 
 @external
@@ -600,7 +602,10 @@ def max_borrowable(
     if user_state[3] > 0:  # User has a position
         N = user_state[3]
 
-    return self._max_borrowable(user_state[0] + _d_collateral, N, self._get_cap() + user_state[2], _user) - user_state[2]
+    return crv_math.sub_or_zero(
+        self._max_borrowable(user_state[0] + _d_collateral, N, self._get_cap() + user_state[2], _user),
+        user_state[2],
+    )
 
 
 @external

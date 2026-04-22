@@ -1,6 +1,8 @@
 name: tests-boa
 
-on: [push]
+on:
+  push:
+  pull_request:
 
 env:
   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -8,6 +10,34 @@ env:
   HYPOTHESIS_PROFILE: no-shrink
 
 jobs:
+  ast-grep:
+    name: ast-grep
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Collect changed Python test files
+        id: changed-files
+        shell: bash
+        run: |
+          files="$(git diff --name-only --diff-filter=ACMR "origin/${{ github.base_ref }}...HEAD" -- 'tests/**/*.py' | tr '\n' ' ')"
+          echo "files=$files" >> "$GITHUB_OUTPUT"
+
+      - name: Run ast-grep
+        if: steps.changed-files.outputs.files != ''
+        uses: ast-grep/action@v1
+        with:
+          config: sgconfig.yml
+          paths: ${{ steps.changed-files.outputs.files }}
+
+      - name: No changed Python test files
+        if: steps.changed-files.outputs.files == ''
+        run: echo "No changed Python test files"
+
   pre-commit:
     name: pre-commit
     runs-on: ubuntu-latest
@@ -40,6 +70,8 @@ jobs:
           - folder: "tests/unitary"
             runs-on: "ubuntu-latest"
           - folder: "tests/e2e"
+            runs-on: "ubuntu-latest"
+          - folder: "tests/integration"
             runs-on: "ubuntu-latest"
           # - folder: "tests/stateful" not ready yet
           #   runs-on: "ubuntu-latest"
