@@ -118,6 +118,7 @@ def __init__(
     MINTER = minter
     LENDING_FACTORY = factory
     COLLATERAL_TOKEN = IERC20(staticcall amm.coins(1))
+    assert staticcall COLLATERAL_TOKEN.decimals() == 18, "collateral decimals must be 18"
 
     self.future_epoch_time = extcall crv.future_epoch_time_write()
     self.inflation_rate = staticcall crv.rate()
