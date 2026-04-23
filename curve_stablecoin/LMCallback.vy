@@ -69,30 +69,18 @@ future_epoch_time: public(uint256)
 # I_rpc = integral(rrpc * dt)
 # t_rpc - time of the last I_rpc value
 
-struct IntegralRPC:
-    rpc: uint256
-    t: uint256
-
-I_rpc: public(IntegralRPC)
+I_rpc: public(ILMGauge.IntegralRPC)
 
 # Rewards per share:
 # I_rps[i] = integral(cs[i] * rrpc * dt) = sum(cs[i] * delta(I_rpc))
 
-struct IntegralRPS:
-    rps: uint256
-    rpc: uint256
-
-I_rps: public(HashMap[int256, IntegralRPS])
+I_rps: public(HashMap[int256, ILMGauge.IntegralRPS])
 
 # Rewards per user:
 # I_rpu[u,i] = sum(s[u,i] * delta(I_rps[i]))
 # I_rpu[u] = sum_i(I_rpu[u,i])
 
-struct IntegralRPU:
-    rpu: uint256
-    rps: uint256
-
-I_rpu: public(HashMap[address, HashMap[int256, IntegralRPU]])
+I_rpu: public(HashMap[address, HashMap[int256, ILMGauge.IntegralRPU]])
 integrate_fraction: public(HashMap[address, uint256])
 
 
@@ -134,7 +122,7 @@ def _checkpoint_collateral_shares(n_start: int256, collateral_per_share: DynArra
     @param size The number of bands to checkpoint starting from `n_start`
     """
     # Read current and new rate; update the new rate if needed
-    I_rpc: IntegralRPC = self.I_rpc
+    I_rpc: ILMGauge.IntegralRPC = self.I_rpc
     rate: uint256 = self.inflation_rate
     new_rate: uint256 = rate
     prev_future_epoch: uint256 = self.future_epoch_time
@@ -199,7 +187,7 @@ def _checkpoint_collateral_shares(n_start: int256, collateral_per_share: DynArra
         if len(collateral_per_share) > 0:
             self.collateral_per_share[_n] = collateral_per_share[i]
 
-        I_rps: IntegralRPS = self.I_rps[_n]
+        I_rps: ILMGauge.IntegralRPS = self.I_rps[_n]
         I_rps.rps += unsafe_div(old_cps * unsafe_sub(I_rpc.rpc, I_rps.rpc), 10**18)
         I_rps.rpc = I_rpc.rpc
         self.I_rps[_n] = I_rps
@@ -224,7 +212,7 @@ def _checkpoint_user_shares(user: address, n_start: int256, old_user_shares: Dyn
         if len(old_user_shares) > 0:
             old_user_shares_i = old_user_shares[i]
 
-        I_rpu: IntegralRPU = self.I_rpu[user][_n]
+        I_rpu: ILMGauge.IntegralRPU = self.I_rpu[user][_n]
         I_rps: uint256 = self.I_rps[_n].rps
         d_rpu: uint256 = unsafe_div(old_user_shares_i * unsafe_sub(I_rps, I_rpu.rps), 10**18)
         I_rpu.rpu += d_rpu
