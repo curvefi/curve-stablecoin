@@ -40,7 +40,7 @@ from curve_stablecoin.interfaces import IAMM
 implements: IAMM
 
 from curve_stablecoin.interfaces import IPriceOracle
-from curve_stablecoin.interfaces import ILMGauge
+from curve_stablecoin.interfaces import ILMCallback
 from curve_std.interfaces import IERC20
 
 from curve_std import crv_math
@@ -105,12 +105,12 @@ total_shares: HashMap[int256, uint256]
 _user_shares: HashMap[address, IAMM.UserTicks]
 
 
-_liquidity_mining_callback: ILMGauge
+_liquidity_mining_callback: ILMCallback
 
 # https://github.com/vyperlang/vyper/issues/4721
 @view
 @external
-def liquidity_mining_callback() -> ILMGauge:
+def liquidity_mining_callback() -> ILMCallback:
     return self._liquidity_mining_callback
 
 
@@ -660,7 +660,7 @@ def deposit_range(user: address, amount: uint256, n1: int256, n2: int256):
     assert self._user_shares[user].ticks[0] == 0  # dev: User must have no liquidity
     self._user_shares[user].ns = unsafe_add(n1, unsafe_mul(n2, 2**128))
 
-    lm: ILMGauge = self._liquidity_mining_callback
+    lm: ILMCallback = self._liquidity_mining_callback
 
     # Autoskip bands if we can
     for i: uint256 in range(MAX_SKIP_TICKS_UINT + 1):
@@ -723,7 +723,7 @@ def withdraw(user: address, frac: uint256) -> uint256[2]:
     assert msg.sender == self.admin
     assert frac <= 10**18
 
-    lm: ILMGauge = self._liquidity_mining_callback
+    lm: ILMCallback = self._liquidity_mining_callback
 
     ns: int256[2] = self._read_user_tick_numbers(user)
     n: int256 = ns[0]
@@ -1019,7 +1019,7 @@ def _exchange(i: uint256, j: uint256, amount: uint256, minmax_amount: uint256, _
     if amount == 0:
         return [0, 0]
 
-    lm: ILMGauge = self._liquidity_mining_callback
+    lm: ILMCallback = self._liquidity_mining_callback
     collateral_shares: DynArray[uint256, MAX_TICKS_UINT] = []
 
     in_coin: IERC20 = BORROWED_TOKEN
@@ -1653,7 +1653,7 @@ def set_fee(fee: uint256):
 
 # nonreentrant decorator is in Controller which is admin
 @external
-def set_callback(liquidity_mining_callback: ILMGauge):
+def set_callback(liquidity_mining_callback: ILMCallback):
     """
     @notice Set a gauge address with callbacks for liquidity mining for collateral
     @param liquidity_mining_callback Gauge address

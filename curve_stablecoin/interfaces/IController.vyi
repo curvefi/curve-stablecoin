@@ -1,5 +1,5 @@
 from curve_std.interfaces import IERC20
-from curve_stablecoin.interfaces import ILMGauge
+from curve_stablecoin.interfaces import ILMCallback
 from curve_stablecoin.interfaces import IAMM
 from curve_stablecoin.interfaces import IMonetaryPolicy
 from curve_stablecoin.interfaces import IFactory
@@ -126,7 +126,7 @@ def borrow_more(collateral: uint256, debt: uint256, _for: address, callbacker: a
 
 
 @external
-def set_callback(cb: ILMGauge):
+def set_callback(cb: ILMCallback):
     ...
 
 
