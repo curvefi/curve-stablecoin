@@ -1658,7 +1658,7 @@ def set_callback(liquidity_mining_callback: ILMCallback):
     @notice Set a gauge address with callbacks for liquidity mining for collateral
     @param liquidity_mining_callback Gauge address
     """
-    assert msg.sender == self.admin
+    assert msg.sender == self.admin  # dev: admin only
     self._liquidity_mining_callback = liquidity_mining_callback
     log IAMM.SetCallback(callback=liquidity_mining_callback)
 
