@@ -37,6 +37,8 @@ initializes: core
 from curve_std import token as tkn
 
 exports: (
+    # Constants
+    core.MAX_RATE,
     # Loan management
     core.create_loan,
     core.borrow_more,
