@@ -11,6 +11,7 @@
 from curve_std.interfaces import IERC20
 from curve_stablecoin import constants as c
 from curve_stablecoin.interfaces import IAMM
+from curve_stablecoin.interfaces import ILMGauge
 
 
 interface CRV20:
@@ -27,9 +28,6 @@ interface Minter:
 interface LendingFactory:
     def admin() -> address: view
 
-
-event SetKilled:
-    is_killed: bool
 
 
 MAX_TICKS_UINT: constant(uint256) = c.MAX_TICKS_UINT
@@ -143,6 +141,7 @@ def _checkpoint_collateral_shares(n_start: int256, collateral_per_share: DynArra
         self.future_epoch_time = extcall CRV.future_epoch_time_write()
         new_rate = staticcall CRV.rate()
         self.inflation_rate = new_rate
+        log ILMGauge.UpdateInflationRate(new_rate=new_rate, future_epoch_time=self.future_epoch_time)
 
     is_killed: bool = self.is_killed
     if is_killed:
@@ -190,6 +189,7 @@ def _checkpoint_collateral_shares(n_start: int256, collateral_per_share: DynArra
         I_rpc.t = block.timestamp
         I_rpc.rpc += delta_rpc
         self.I_rpc = I_rpc
+        log ILMGauge.CheckpointRPC(rpc=I_rpc.rpc, t=I_rpc.t)
 
     for i: int256 in range(size, bound=MAX_TICKS_INT):
         _n: int256 = n_start + i
@@ -202,6 +202,7 @@ def _checkpoint_collateral_shares(n_start: int256, collateral_per_share: DynArra
         I_rps.rps += unsafe_div(old_cps * unsafe_sub(I_rpc.rpc, I_rps.rpc), 10**18)
         I_rps.rpc = I_rpc.rpc
         self.I_rps[_n] = I_rps
+        log ILMGauge.CheckpointBand(n=_n, rps=I_rps.rps, collateral_per_share=old_cps)
 
 
 @internal
@@ -231,6 +232,7 @@ def _checkpoint_user_shares(user: address, n_start: int256, old_user_shares: Dyn
         rpu += d_rpu
 
     self.integrate_fraction[user] = rpu
+    log ILMGauge.CheckpointUser(user=user, integrate_fraction=rpu)
 
 
 @external
@@ -331,4 +333,4 @@ def set_killed(_is_killed: bool):
     assert msg.sender == staticcall LENDING_FACTORY.admin(), "only owner"
     self._checkpoint_collateral_shares(0, [], 0)
     self.is_killed = _is_killed
-    log SetKilled(is_killed=_is_killed)
+    log ILMGauge.SetKilled(is_killed=_is_killed)
