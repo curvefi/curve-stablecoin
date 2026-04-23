@@ -13,6 +13,7 @@ from curve_stablecoin import constants as c
 from curve_stablecoin.interfaces import IAMM
 from curve_stablecoin.interfaces import ILMGauge
 
+implements: ILMGauge
 
 interface CRV20:
     def future_epoch_time_write() -> uint256: nonpayable
