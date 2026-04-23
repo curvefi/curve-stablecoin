@@ -70,11 +70,12 @@ def __init__(
 ):
     """
     @notice Factory which creates one-way lending vaults (e.g. collateral is non-borrowable)
-    @param amm Address of AMM implementation
-    @param controller Address of Controller implementation
-    @param pool_price_oracle Address of implementation for price oracle factory (prices from pools)
-    @param admin Admin address (DAO)
-    @param fee_receiver Receiver of interest and admin fees
+    @param _amm_blueprint Address of AMM blueprint
+    @param _controller_blueprint Address of Controller blueprint
+    @param _vault_blueprint Address of Vault blueprint
+    @param _controller_view_blueprint Address of ControllerView blueprint
+    @param _admin Admin address (DAO)
+    @param _fee_receiver Receiver of interest and admin fees
     """
     blueprint_registry.__init__([
         "AMM",  # AMM Blueprint
@@ -123,6 +124,7 @@ def create(
     @param _loan_discount Maximum discount. LTV = sqrt(((A - 1) // A) ** 4) - loan_discount
     @param _liquidation_discount Liquidation discount. LT = sqrt(((A - 1) // A) ** 4) - liquidation_discount
     @param _price_oracle Custom price oracle contract
+    @param _monetary_policy Monetary policy contract to set the borrow rate
     @param _name Human-readable market name
     @param _supply_limit Supply cap
     """
@@ -214,6 +216,11 @@ def create(
 @view
 @reentrant
 def markets(_n: uint256) -> ILendFactory.Market:
+    """
+    @notice Get market data for market at index `_n`
+    @param _n Index of the market
+    @return Market struct containing vault, controller, amm, tokens, price oracle and monetary policy addresses
+    """
     vault: IVault = self._vaults[_n]
     controller: IController = staticcall vault.controller()
     amm: IAMM = staticcall vault.amm()
@@ -233,6 +240,11 @@ def markets(_n: uint256) -> ILendFactory.Market:
 @view
 @reentrant
 def vaults_index(_vault: IVault) -> uint256:
+    """
+    @notice Get the index of a vault in the markets array
+    @param _vault Address of the vault
+    @return Index of the vault
+    """
     return self._vaults_index[_vault] - 2**128
 
 
@@ -310,6 +322,7 @@ def fee_receiver(_controller: address = msg.sender) -> address:
     @dev This function is called by controllers without specifying the
     first argument to get their fee receiver.
     @param _controller Address of the controller
+    @return Address of the fee receiver
     """
     custom_fee_receiver: address = self.fee_receivers[_controller]
     return custom_fee_receiver if custom_fee_receiver != empty(address) else self.default_fee_receiver

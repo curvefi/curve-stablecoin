@@ -130,12 +130,15 @@ def __init__(
 ):
     """
     @notice Lend Controller constructor
-    @param collateral_token Token to use for collateral
-    @param monetary_policy Address of monetary policy
-    @param loan_discount Discount of the maximum loan size compare to get_x_down() value
-    @param liquidation_discount Discount of the maximum loan size compare to
+    @param _vault Address of the vault this controller belongs to
+    @param _amm AMM address (already deployed from blueprint)
+    @param _borrowed_token Token which is being borrowed
+    @param _collateral_token Token to use for collateral
+    @param _monetary_policy Address of monetary policy
+    @param _loan_discount Discount of the maximum loan size compare to get_x_down() value
+    @param _liquidation_discount Discount of the maximum loan size compare to
            get_x_down() for "bad liquidation" purposes
-    @param amm AMM address (Already deployed from blueprint)
+    @param _view_impl Address of the controller view implementation
     """
     VAULT = _vault
 
@@ -182,7 +185,8 @@ def set_borrow_cap(_borrow_cap: uint256):
 @external
 def set_admin_percentage(_admin_percentage: uint256):
     """
-    @param _admin_percentage The percentage of interest that goes to the admin, scaled by 1e18
+    @notice Set the percentage of interest that goes to the admin
+    @param _admin_percentage Percentage scaled by 1e18 (e.g. 1e18 == 100%)
     """
     core._check_admin()
     assert _admin_percentage <= core.WAD # dev: admin percentage higher than 100%

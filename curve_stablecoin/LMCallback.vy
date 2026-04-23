@@ -113,6 +113,7 @@ def __init__(
     @param crv The address of CRV token
     @param gauge_controller The address of the gauge controller
     @param minter the address of CRV minter
+    @param factory The address of the lending/mint factory
     """
     AMM = amm
     CRV = crv
@@ -213,7 +214,7 @@ def _checkpoint_user_shares(user: address, n_start: int256, old_user_shares: Dyn
     @dev Updates the CRV emissions a user is entitled to receive
     @param user The address of the user
     @param n_start Index of the first band to checkpoint
-    @param user_shares User's shares by bands
+    @param old_user_shares User's shares by bands taken BEFORE the action
     @param size The number of bands to checkpoint starting from `n_start`
     """
     rpu: uint256 = self.integrate_fraction[user]
@@ -279,6 +280,7 @@ def callback_user_shares(user: address, n_start: int256, old_user_shares: DynArr
     @param user The address of the user
     @param n_start Index of the first band to checkpoint
     @param old_user_shares User's shares by bands taken BEFORE the action
+    @param size The number of bands to checkpoint starting from `n_start`
     """
     assert msg.sender == AMM.address
     self._checkpoint_user_shares(user, n_start, old_user_shares, convert(size, int256))
@@ -289,7 +291,6 @@ def _user_checkpoint(addr: address):
     """
     @notice Record a checkpoint for `addr`
     @param addr User address
-    @return bool success
     """
     ns: int256[2] = staticcall AMM.read_user_tick_numbers(addr)
     user_shares: DynArray[uint256, MAX_TICKS_UINT] = staticcall AMM.read_user_ticks(addr)
@@ -303,7 +304,7 @@ def user_checkpoint(addr: address) -> bool:
     """
     @notice Record a checkpoint for `addr`
     @param addr User address
-    @return bool success
+    @return Always True
     """
     self._user_checkpoint(addr)
 
