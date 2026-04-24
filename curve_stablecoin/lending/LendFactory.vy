@@ -51,9 +51,8 @@ WAD: constant(uint256) = c.WAD
 default_fee_receiver: public(address)
 fee_receivers: HashMap[address, address]
 
-_vaults: IVault[10**18]
+_vaults: DynArray[IVault, 10**18]
 _vaults_index: HashMap[IVault, uint256]
-market_count: public(uint256)
 
 # Maps contract addresses to market index and type for reverse lookup
 check_contract: public(HashMap[address, ILendFactory.ContractInfo])
@@ -171,17 +170,17 @@ def create(
             blueprint_registry.get("CTRV"),
         )
     )
-    market_count: uint256 = self.market_count
+    market_id: uint256 = len(self._vaults)
     self.check_contract[vault.address] = ILendFactory.ContractInfo(
-        market_index=market_count,
+        market_index=market_id,
         contract_type=ILendFactory.ContractType.VAULT,
     )
     self.check_contract[controller.address] = ILendFactory.ContractInfo(
-        market_index=market_count,
+        market_index=market_id,
         contract_type=ILendFactory.ContractType.CONTROLLER,
     )
     self.check_contract[amm.address] = ILendFactory.ContractInfo(
-        market_index=market_count,
+        market_index=market_id,
         contract_type=ILendFactory.ContractType.AMM,
     )
 
@@ -192,7 +191,7 @@ def create(
     # Validate monetary policy using controller context
     extcall _monetary_policy.rate_write(controller.address)
     log ILendFactory.NewVault(
-        id=market_count,
+        id=market_id,
         collateral_token=_collateral_token,
         borrowed_token=_borrowed_token,
         vault=vault,
@@ -201,10 +200,9 @@ def create(
         price_oracle=_price_oracle,
         monetary_policy=_monetary_policy,
     )
-    self._vaults[market_count] = vault
+    self._vaults.append(vault)
     # Store index with 2**128 offset so missing vault lookups revert (e.g. nonexistent vault would otherwise read index 0)
-    self._vaults_index[vault] = market_count + 2**128
-    self.market_count = market_count + 1
+    self._vaults_index[vault] = market_id + 2**128
 
     if _supply_limit < max_value(uint256):
         extcall vault.set_max_supply(_supply_limit)
@@ -369,3 +367,9 @@ def set_default_fee_receiver(_fee_receiver: address):
 def coins(_vault_id: uint256) -> IERC20[2]:
     vault: IVault = self._vaults[_vault_id]
     return [staticcall vault.borrowed_token(), staticcall vault.collateral_token()]
+
+
+@external
+@view
+def market_count() -> uint256:
+    return len(self._vaults)
