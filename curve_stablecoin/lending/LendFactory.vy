@@ -42,8 +42,8 @@ exports: (
 )
 
 
-MIN_A: constant(uint256) = 2
-MAX_A: constant(uint256) = 10000
+MIN_A: public(constant(uint256)) = 2
+MAX_A: public(constant(uint256)) = 10000
 MIN_FEE: constant(uint256) = 10**6  # 1e-12, still needs to be above 0
 MAX_FEE: constant(uint256) = 10**17  # 10%
 WAD: constant(uint256) = c.WAD

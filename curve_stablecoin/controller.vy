@@ -68,7 +68,7 @@ CALLBACK_LIQUIDATE: constant(bytes4) = method_id(
 )
 
 MIN_AMM_FEE: constant(uint256) = 10**6  # 1e-12, still needs to be above 0
-MAX_RATE: constant(uint256) = 43959106799  # 300% APY
+MAX_RATE: public(constant(uint256)) = 43959106799  # 300% APY
 MAX_ORACLE_PRICE_DEVIATION: constant(uint256) = WAD // 2  # 50% deviation
 
 ################################################################
