@@ -4,7 +4,7 @@
 
 from curve_stablecoin.interfaces import IAMM
 from curve_stablecoin.interfaces import IMonetaryPolicy
-from curve_stablecoin.interfaces import ILMGauge
+from curve_stablecoin.interfaces import ILMCallback
 from curve_stablecoin.interfaces import IFactory
 from curve_stablecoin.interfaces import IPriceOracle
 from curve_stablecoin.interfaces import IController
@@ -1470,13 +1470,12 @@ def set_borrowing_discounts(
 
 
 @external
-def set_callback(_cb: ILMGauge):
+def set_callback(_cb: ILMCallback):
     """
     @notice Set liquidity mining callback
     """
     self._check_admin()
     extcall AMM.set_callback(_cb)
-    log IController.SetLMCallback(callback=_cb)
 
 
 @internal
