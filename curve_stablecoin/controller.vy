@@ -648,8 +648,8 @@ def create_loan(
             _debt,
             _calldata,
         )
-        # assert cb.active_band == 0, "Not available"
-        assert cb.borrowed == 0, "Not available"
+        # assert cb.active_band == 0  # dev: Not available
+        assert cb.borrowed == 0  # dev: Not available
         more_collateral = cb.collateral
 
     total_collateral: uint256 = _collateral + more_collateral
@@ -876,8 +876,8 @@ def borrow_more(
             _debt,
             _calldata,
         )
-        # assert cb.active_band == 0, "Not available"
-        assert cb.borrowed == 0, "Not available"
+        # assert cb.active_band == 0  # dev: Not available
+        assert cb.borrowed == 0  # dev: Not available
         more_collateral = cb.collateral
 
     rate_mul: uint256 = self._add_collateral_borrow(
