@@ -648,7 +648,7 @@ def create_loan(
             _debt,
             _calldata,
         )
-        assert cb.active_band == 0, "Not available"
+        # assert cb.active_band == 0, "Not available"
         assert cb.borrowed == 0, "Not available"
         more_collateral = cb.collateral
 
@@ -876,7 +876,7 @@ def borrow_more(
             _debt,
             _calldata,
         )
-        assert cb.active_band == 0, "Not available"
+        # assert cb.active_band == 0, "Not available"
         assert cb.borrowed == 0, "Not available"
         more_collateral = cb.collateral
 
@@ -1287,7 +1287,7 @@ def liquidate(
                 debt,
                 _calldata,
             )
-            assert cb.active_band == 0, "Not available"
+            # assert cb.active_band == 0, "Not available"
             assert cb.borrowed >= to_repay, "no enough proceeds"
 
             tkn.transfer_from(BORROWED_TOKEN, _callbacker, self, to_repay)
