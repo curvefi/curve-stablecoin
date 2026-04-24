@@ -292,15 +292,6 @@ def price_oracle() -> uint256:
     return self._price_oracle_ro()[0]
 
 
-@external
-@view
-def dynamic_fee() -> uint256:
-    """
-    @notice Dynamic fee which accounts for price_oracle shifts
-    """
-    return max(self.fee, self._price_oracle_ro()[1])
-
-
 @internal
 @view
 def _rate_mul() -> uint256:
