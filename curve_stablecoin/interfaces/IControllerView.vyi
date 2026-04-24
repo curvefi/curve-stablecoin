@@ -2,11 +2,6 @@ from curve_stablecoin.interfaces import IController
 
 # Functions
 
-@view
-@external
-def calculate_debt_n1(collateral: uint256, debt: uint256, N: uint256, user: address) -> int256:
-    ...
-
 
 @view
 @external

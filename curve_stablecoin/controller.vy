@@ -715,7 +715,7 @@ def create_loan(
     assert _N > MIN_TICKS_UINT - 1, "Need more ticks"
     assert _N < MAX_TICKS_UINT + 1, "Need less ticks"
 
-    n1: int256 = staticcall self._view.calculate_debt_n1(total_collateral, _debt, _N, _for)
+    n1: int256 = self._calculate_debt_n1(total_collateral, _debt, _N, _for)
     n2: int256 = n1 + convert(unsafe_sub(_N, 1), int256)
 
     rate_mul: uint256 = staticcall AMM.get_rate_mul()
@@ -782,7 +782,7 @@ def _add_collateral_borrow(
 
     ns: int256[2] = staticcall AMM.read_user_tick_numbers(_for)
     size: uint256 = convert(unsafe_add(unsafe_sub(ns[1], ns[0]), 1), uint256)
-    n1: int256 = staticcall self._view.calculate_debt_n1(xy[1], debt, size, _for)
+    n1: int256 = self._calculate_debt_n1(xy[1], debt, size, _for)
     n2: int256 = n1 + unsafe_sub(ns[1], ns[0])
 
     extcall AMM.deposit_range(_for, xy[1], n1, n2)
@@ -1040,7 +1040,7 @@ def _repay_partial(
             assert _xy[0] == 0
         new_borrowed = 0
 
-        ns[0] = staticcall self._view.calculate_debt_n1(
+        ns[0] = self._calculate_debt_n1(
             new_collateral,
             new_debt,
             convert(unsafe_add(size, 1), uint256),
