@@ -83,6 +83,10 @@ def __init__(
         "VLT",  # Vault Blueprint
         "CTRV", # Controller View Blueprint
     ])
+    assert _amm_blueprint != empty(address)
+    assert _controller_blueprint != empty(address)
+    assert _vault_blueprint != empty(address)
+    assert _controller_view_blueprint != empty(address)
     # This is the only place where we set these blueprints
     blueprint_registry.set("AMM", _amm_blueprint)
     blueprint_registry.set("CTR", _controller_blueprint)
@@ -91,8 +95,10 @@ def __init__(
 
     ownable.__init__()
     pausable.__init__()
+    # Checks zero _admin
     ownable._transfer_ownership(_admin)
 
+    # Checks zero _fee_receiver
     self._set_default_fee_receiver(_fee_receiver)
 
 
