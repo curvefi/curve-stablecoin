@@ -443,6 +443,8 @@ def _get_y_effective(
     @param _collateral Amount of collateral with 18 decimals to get the value for
     @param _N Number of bands the deposit is made into
     @param _discount Loan discount at 1e18 base (e.g. 1e18 == 100%)
+    @param _SQRT_BAND_RATIO Square root of the band ratio sqrt((A-1)/A) at 1e18 base
+    @param _A Band width factor
     @return y_effective
     """
     # x_effective = sum_{i=0..N-1}(y / N * p(n_{n1+i})) =
@@ -1358,6 +1360,9 @@ def health(_user: address, _full: bool = False) -> int256:
     """
     @notice Returns position health normalized to 1e18 for the user.
             Liquidation starts when < 0, however devaluation of collateral doesn't cause liquidation
+    @param _user Address of the user
+    @param _full If True, use the full health calculation including bad debt discounts
+    @return Health value normalized to 1e18
     """
     return self._health(
         _user, self._debt(_user)[0], _full, self.liquidation_discounts[_user]
