@@ -163,7 +163,6 @@ def add_peg_keeper(pk: PegKeeper):
 def remove_peg_keeper(pk: PegKeeper):
     assert msg.sender == self.admin  # dev: only admin
     assert pk.address != empty(address)  # dev: peg keeper is zero address
-    replaced_peg_keeper: uint256 = 10000
     for i: uint256 in range(1001):  # 1001th element is always 0x0
         _pk: PegKeeper = self.peg_keepers[i]
         if _pk == pk:
@@ -173,7 +172,8 @@ def remove_peg_keeper(pk: PegKeeper):
             self.peg_keepers[n - 1] = PegKeeper(empty(address))
             self.n_peg_keepers = n - 1
             log RemovePegKeeper(peg_keeper=pk.address)
-            break
+            return
+    raise  # dev: peg keeper not found
 
 
 @internal

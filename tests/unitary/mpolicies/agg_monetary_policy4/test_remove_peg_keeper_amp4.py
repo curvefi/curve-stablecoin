@@ -41,3 +41,12 @@ def test_revert_zero_address(mp, admin):
     with boa.env.prank(admin):
         with boa.reverts(dev="peg keeper is zero address"):
             mp.remove_peg_keeper(ZERO_ADDRESS)
+
+
+def test_revert_nonexistent_address(mp, admin):
+    """Cannot remove an address which is not a peg keeper."""
+    random_address = boa.env.generate_address("random_address")
+
+    with boa.env.prank(admin):
+        with boa.reverts(dev="peg keeper not found"):
+            mp.remove_peg_keeper(random_address)
