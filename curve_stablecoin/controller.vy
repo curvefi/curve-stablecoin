@@ -11,7 +11,8 @@ from curve_stablecoin.interfaces import IController
 from curve_stablecoin.interfaces import IControllerView as IView
 from curve_std.interfaces import IERC20
 
-implements: IController
+# TODO restore implement
+# implements: IController
 implements: IView
 
 from curve_std import token as tkn
@@ -53,6 +54,7 @@ MIN_TICKS_UINT: constant(uint256) = c.MIN_TICKS_UINT
 MAX_TICKS_UINT: constant(uint256) = c.MAX_TICKS_UINT
 MIN_TICKS: constant(int256) = c.MIN_TICKS
 CALLDATA_MAX_SIZE: constant(uint256) = c.CALLDATA_MAX_SIZE
+SKIP_CONFIG: constant(uint256) = c.SKIP_CONFIG
 
 
 CALLBACK_DEPOSIT: constant(bytes4) = method_id(
@@ -75,12 +77,12 @@ MAX_ORACLE_PRICE_DEVIATION: constant(uint256) = WAD // 2  # 50% deviation
 #                           STORAGE                            #
 ################################################################
 
-view_impl: public(address)
+view_blueprint: public(address)
 _view: IView
 
 liquidation_discount: public(uint256)
 loan_discount: public(reentrant(uint256))
-_monetary_policy: IMonetaryPolicy
+_monetary_policy: address
 
 # https://github.com/vyperlang/vyper/issues/4721
 @external
@@ -90,7 +92,7 @@ def monetary_policy() -> IMonetaryPolicy:
     """
     @notice Address of the monetary policy
     """
-    return self._monetary_policy
+    return IMonetaryPolicy(self._monetary_policy)
 
 
 approval: public(HashMap[address, HashMap[address, bool]])
@@ -166,47 +168,12 @@ def __init__(
     tkn.max_approve(BORROWED_TOKEN, FACTORY.address)
 
 
-    self._set_borrowing_discounts(_loan_discount, _liquidation_discount)
-    self._monetary_policy = _monetary_policy
+    # TODO setup from configurator
+    # self._set_borrowing_discounts(_loan_discount, _liquidation_discount)
+    # self._monetary_policy = _monetary_policy
     self._total_debt.rate_mul = WAD
     self.admin_percentage = WAD
-    self._set_view(_view_impl)
-
-
-@external
-def set_view(_view_impl: address):
-    """
-    @notice Change the contract used to store view functions.
-    @dev This function deploys a new view implementation from a blueprint.
-    @param _view_impl Address of the new view implementation
-    """
-    self._check_admin()
-    self._set_view(_view_impl)
-
-
-@internal
-def _set_view(_view_impl: address):
-    """
-    @notice Set the view implementation
-    @param _view_impl New view implementation
-    """
-    assert _view_impl != empty(address) # dev: view implementation is empty address
-    self.view_impl = _view_impl
-    view: address = create_from_blueprint(
-        _view_impl,
-        self,
-        SQRT_BAND_RATIO,
-        LOGN_A_RATIO,
-        AMM,
-        A,
-        COLLATERAL_TOKEN,
-        COLLATERAL_PRECISION,
-        BORROWED_TOKEN,
-        BORROWED_PRECISION,
-    )
-    self._view = IView(view)
-
-    log IController.SetView(view=view)
+    # self._set_view(_view_impl)
 
 
 @external
@@ -228,10 +195,6 @@ def available_balance() -> uint256:
     return staticcall BORROWED_TOKEN.balanceOf(self)
 
 
-@internal
-@view
-def _check_admin():
-    assert msg.sender == staticcall FACTORY.admin(), "only admin"
 
 
 @internal
@@ -285,41 +248,6 @@ def _update_total_debt(_d_debt: uint256, _rate_mul: uint256, _is_increase: bool)
         extcall VIRTUAL.on_borrowed_token_transfer_in(_d_debt)
 
     return loan
-
-
-@external
-def set_price_oracle(_price_oracle: IPriceOracle, _max_deviation: uint256):
-    """
-    @notice Set a new price oracle for the AMM
-    @dev For DAO calls, use 0xd3BFa85dc668Aab38121bE12D69dd180301dec25 for deadline handling
-        so a vote does not remain stuck.
-    @param _price_oracle New price oracle contract
-    @param _max_deviation Maximum allowed deviation for the new oracle
-        Can be set to max_value(uint256) to skip the check if oracle is broken.
-    """
-    self._check_admin()
-    assert (
-        _max_deviation <= MAX_ORACLE_PRICE_DEVIATION
-        or _max_deviation == max_value(uint256)
-    )  # dev: invalid max deviation
-
-    # Validate the new oracle has required methods
-    extcall _price_oracle.price_w()
-    new_price: uint256 = staticcall _price_oracle.price()
-
-    # Check price deviation isn't too high
-    current_oracle: IPriceOracle = staticcall AMM.price_oracle_contract()
-    old_price: uint256 = staticcall current_oracle.price()
-    if _max_deviation != max_value(uint256):
-        delta: uint256 = (
-            new_price - old_price
-            if old_price < new_price
-            else old_price - new_price
-        )
-        max_delta: uint256 = old_price * _max_deviation // WAD
-        assert delta <= max_delta, "delta>max"
-
-    extcall AMM.set_price_oracle(_price_oracle)
 
 
 @external
@@ -1386,6 +1314,7 @@ def users_to_liquidate(
     return staticcall self._view.users_to_liquidate(_from, _limit)
 
 
+# TODO why is this needed?
 @external
 @view
 @reentrant
@@ -1420,65 +1349,22 @@ def user_state(_user: address) -> uint256[4]:
 
 
 @external
-@reentrant
-def set_amm_fee(_fee: uint256):
-    """
-    @notice Set the AMM fee (factory admin only)
-    @dev Reentrant because AMM is nonreentrant
-    @param _fee The fee which should be no higher than MAX_AMM_FEE
-    """
-    self._check_admin()
-    assert _fee <= MAX_AMM_FEE and _fee >= MIN_AMM_FEE, "Fee"
-    extcall AMM.set_fee(_fee)
-
-
-@external
-def set_monetary_policy(_monetary_policy: IMonetaryPolicy):
-    """
-    @notice Set monetary policy contract
-    @param _monetary_policy Address of the monetary policy contract
-    """
-    self._check_admin()
-    self._monetary_policy = _monetary_policy
-    extcall _monetary_policy.rate_write()
-    log IController.SetMonetaryPolicy(monetary_policy=_monetary_policy)
-
-
-@internal
-def _set_borrowing_discounts(
-        _loan_discount: uint256, _liquidation_discount: uint256
+def configure(
+    _loan_discount: uint256,
+    _liquidation_discount: uint256,
+    _monetary_policy: address,
+    _view: address,
+    _view_blueprint: address,
 ):
-    assert _liquidation_discount > 0 # dev: liquidation discount = 0
-    assert _loan_discount < WAD # dev: loan discount >= 100%
-    assert _loan_discount > _liquidation_discount # dev: loan discount <= liquidation discount
-    self.liquidation_discount = _liquidation_discount
-    self.loan_discount = _loan_discount
-    log IController.SetBorrowingDiscounts(
-        loan_discount=_loan_discount, liquidation_discount=_liquidation_discount
-    )
-
-
-@external
-def set_borrowing_discounts(
-    _loan_discount: uint256, _liquidation_discount: uint256
-):
-    """
-    @notice Set discounts at which we can borrow (defines max LTV) and where bad liquidation starts
-    @param _loan_discount Discount which defines LTV
-    @param _liquidation_discount Discount where bad liquidation starts
-    """
-    self._check_admin()
-    self._set_borrowing_discounts(_loan_discount, _liquidation_discount)
-
-
-@external
-def set_callback(_cb: ILMGauge):
-    """
-    @notice Set liquidity mining callback
-    """
-    self._check_admin()
-    extcall AMM.set_callback(_cb)
-    log IController.SetLMCallback(callback=_cb)
+    # TODO add access control assert
+    # TODO add constant for unused addr flag instead of empty addy
+    if _loan_discount != SKIP_CONFIG and _loan_discount != SKIP_CONFIG:
+        self.loan_discount = _loan_discount
+        self.liquidation_discount = _liquidation_discount
+    if _monetary_policy != empty(address):
+        self._monetary_policy = _monetary_policy
+    if _view != empty(address) and _view_blueprint != empty(address):
+        self.view_blueprint = _view_blueprint
 
 
 @internal
