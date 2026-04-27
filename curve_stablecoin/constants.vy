@@ -11,3 +11,5 @@ WAD: constant(uint256) = 10**18
 SWAD: constant(int256) = 10**18
 
 CALLDATA_MAX_SIZE: constant(uint256) = 32 * 300
+# keccak("SKIP_CONFIG") in decimal, we just needed a arbitrary high value that is unlikely to be used as a real value
+SKIP_CONFIG: constant(uint256) = 34683848501677104821777960696933802007602333377339998839659032476042327981902
