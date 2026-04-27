@@ -291,6 +291,8 @@ def _update_total_debt(_d_debt: uint256, _rate_mul: uint256, _is_increase: bool)
 def set_price_oracle(_price_oracle: IPriceOracle, _max_deviation: uint256):
     """
     @notice Set a new price oracle for the AMM
+    @dev For DAO calls, use 0xd3BFa85dc668Aab38121bE12D69dd180301dec25 for deadline handling
+        so a vote does not remain stuck.
     @param _price_oracle New price oracle contract
     @param _max_deviation Maximum allowed deviation for the new oracle
         Can be set to max_value(uint256) to skip the check if oracle is broken.
