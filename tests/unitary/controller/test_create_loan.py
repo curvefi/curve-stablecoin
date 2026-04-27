@@ -402,6 +402,34 @@ def test_create_loan_already_exists(
         )
 
 
+def test_create_loan_with_callback_reverts_when_callback_returns_borrowed(
+    controller,
+    collateral_token,
+    dummy_callback,
+    get_calldata,
+    amounts,
+):
+    """Loan creation rejects callback data with non-zero borrowed amount."""
+    borrower = boa.env.eoa
+    wallet_collateral = amounts["collateral"]
+    callback_collateral = amounts["collateral"] // 3
+
+    boa.deal(collateral_token, borrower, wallet_collateral)
+    boa.deal(collateral_token, dummy_callback, callback_collateral)
+    max_approve(collateral_token, controller, sender=borrower)
+
+    with boa.reverts(dev="Not available"):
+        controller.create_loan(
+            wallet_collateral,
+            amounts["debt"],
+            N_BANDS,
+            borrower,
+            dummy_callback,
+            get_calldata(1, callback_collateral),
+            sender=borrower,
+        )
+
+
 def test_create_loan_invalid_ticks(
     controller,
     collateral_token,

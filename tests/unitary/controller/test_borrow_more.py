@@ -577,6 +577,31 @@ def test_borrow_more_from_wallet_and_callback(
         assert collateral_token_after["borrower"] == collateral_token_before["borrower"]
 
 
+def test_borrow_more_from_callback_reverts_when_callback_returns_borrowed(
+    controller,
+    collateral_token,
+    borrower_with_existing_loan,
+    dummy_callback,
+    get_calldata,
+    amounts,
+):
+    """Borrowing more rejects callback data with non-zero borrowed amount."""
+    borrower = borrower_with_existing_loan
+    callback_collateral = amounts["additional_collateral"]
+
+    boa.deal(collateral_token, dummy_callback, callback_collateral)
+
+    with boa.reverts(dev="Not available"):
+        controller.borrow_more(
+            0,
+            amounts["additional_debt"],
+            borrower,
+            dummy_callback,
+            get_calldata(1, callback_collateral),
+            sender=borrower,
+        )
+
+
 def test_borrow_more_no_loan_exists(
     controller,
     collateral_token,
