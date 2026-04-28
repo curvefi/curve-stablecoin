@@ -13,5 +13,5 @@ def test_set_callback(amm, controller):
 
 def test_set_callback_non_admin_reverts(amm):
     dummy_callback = boa.env.generate_address("dummy_callback")
-    with boa.reverts("admin only"):
+    with boa.reverts(dev="admin only"):
         amm.set_callback(dummy_callback)
