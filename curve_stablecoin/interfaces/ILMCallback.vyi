@@ -1,0 +1,43 @@
+from curve_stablecoin import constants as c
+MAX_TICKS_UINT: constant(uint256) = c.MAX_TICKS_UINT
+
+
+event SetKilled:
+    is_killed: bool
+
+event UpdateInflationRate:
+    new_rate: uint256
+    future_epoch_time: uint256
+
+event CheckpointRPC:
+    rpc: uint256
+    t: uint256
+
+event CheckpointUser:
+    user: indexed(address)
+    integrate_fraction: uint256
+
+event CheckpointBand:
+    n: indexed(int256)
+    rps: uint256
+    collateral_per_share: uint256
+
+
+struct IntegralRPC:
+    rpc: uint256
+    t: uint256
+
+struct IntegralRPS:
+    rps: uint256
+    rpc: uint256
+
+struct IntegralRPU:
+    rpu: uint256
+    rps: uint256
+
+
+def callback_collateral_shares(n: int256, collateral_per_share: DynArray[uint256, MAX_TICKS_UINT], size: uint256):
+    ...
+
+def callback_user_shares(user: address, n: int256, user_shares: DynArray[uint256, MAX_TICKS_UINT], size: uint256):
+    ...
