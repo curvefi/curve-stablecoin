@@ -39,6 +39,7 @@ def test_default_behavior(
 
 def test_default_behavior_with_peg_keepers(mp, peg_keepers):
     """Peg keepers array is populated correctly."""
+    assert mp.n_peg_keepers() == len(peg_keepers)
     for i, pk in enumerate(peg_keepers):
         assert mp.peg_keepers(i) == pk.address
     # Next slot should be empty
@@ -73,6 +74,7 @@ def test_default_behavior_partial_peg_keepers(
             default_ema_time,
         )
 
+    assert mp.n_peg_keepers() == 1
     assert mp.peg_keepers(0) == peg_keepers[0].address
     assert mp.peg_keepers(1) == ZERO_ADDRESS
 

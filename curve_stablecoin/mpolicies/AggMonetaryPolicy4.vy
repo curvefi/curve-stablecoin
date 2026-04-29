@@ -72,6 +72,7 @@ target_debt_fraction: public(uint256)
 extra_const: public(uint256)
 
 peg_keepers: public(PegKeeper[1001])
+n_peg_keepers: public(uint256)
 PRICE_ORACLE: public(immutable(PriceOracle))
 CONTROLLER_FACTORY: public(immutable(ControllerFactory))
 
@@ -118,10 +119,13 @@ def __init__(admin: address,
     self.admin = admin
     PRICE_ORACLE = price_oracle
     CONTROLLER_FACTORY = controller_factory
+    n_pks: uint256 = 0
     for i: uint256 in range(5):
         if peg_keepers[i].address == empty(address):
             break
         self.peg_keepers[i] = peg_keepers[i]
+        n_pks += 1
+    self.n_peg_keepers = n_pks
 
     assert sigma >= MIN_SIGMA  # dev: sigma too low
     assert sigma <= MAX_SIGMA  # dev: sigma too high
@@ -154,6 +158,7 @@ def add_peg_keeper(pk: PegKeeper):
         assert _pk != pk, "Already added"
         if _pk.address == empty(address):
             self.peg_keepers[i] = pk
+            self.n_peg_keepers = i + 1
             log AddPegKeeper(peg_keeper=pk.address)
             break
 
@@ -161,18 +166,18 @@ def add_peg_keeper(pk: PegKeeper):
 @external
 def remove_peg_keeper(pk: PegKeeper):
     assert msg.sender == self.admin  # dev: only admin
-    replaced_peg_keeper: uint256 = 10000
+    assert pk.address != empty(address)  # dev: peg keeper is zero address
     for i: uint256 in range(1001):  # 1001th element is always 0x0
         _pk: PegKeeper = self.peg_keepers[i]
         if _pk == pk:
-            replaced_peg_keeper = i
+            n: uint256 = self.n_peg_keepers
+            if i < n - 1:
+                self.peg_keepers[i] = self.peg_keepers[n - 1]
+            self.peg_keepers[n - 1] = PegKeeper(empty(address))
+            self.n_peg_keepers = n - 1
             log RemovePegKeeper(peg_keeper=pk.address)
-        if _pk.address == empty(address):
-            if replaced_peg_keeper < i:
-                if replaced_peg_keeper < i - 1:
-                    self.peg_keepers[replaced_peg_keeper] = self.peg_keepers[i - 1]
-                self.peg_keepers[i - 1] = PegKeeper(empty(address))
-            break
+            return
+    raise  # dev: peg keeper not found
 
 
 @internal
