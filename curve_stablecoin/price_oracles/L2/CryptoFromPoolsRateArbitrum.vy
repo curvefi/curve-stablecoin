@@ -91,7 +91,7 @@ def __init__(
                 pools[i].address,
                 _abi_encode(empty(uint256), method_id=method_id("price_oracle(uint256)")),
                 max_outsize=32, is_static_call=True, revert_on_failure=False)
-            if not success:
+            if not success or len(res) == 0:
                 no_arguments.append(True)
             else:
                 no_arguments.append(False)
