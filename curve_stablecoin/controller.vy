@@ -292,12 +292,6 @@ def borrowed_token() -> IERC20:
 
 
 @internal
-@view
-def _check_admin():
-    pass
-
-
-@internal
 def _save_rate():
     """
     @notice Save current rate

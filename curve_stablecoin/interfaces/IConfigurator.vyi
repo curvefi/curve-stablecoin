@@ -6,10 +6,28 @@ event SetBorrowingDiscounts:
     liquidation_discount: uint256
 
 
+event SetBorrowCap:
+    borrow_cap: uint256
+
+
+event SetAdminPercentage:
+    admin_percentage: uint256
+
+
 @external
 def set_borrowing_discounts(
     controller: IController,
     loan_discount: uint256,
     liquidation_discount: uint256,
 ):
+    ...
+
+
+@external
+def set_borrow_cap(controller: address, borrow_cap: uint256):
+    ...
+
+
+@external
+def set_admin_percentage(controller: address, admin_percentage: uint256):
     ...

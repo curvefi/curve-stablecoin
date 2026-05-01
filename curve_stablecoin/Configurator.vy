@@ -3,10 +3,12 @@
 
 from curve_stablecoin.interfaces import IController
 from curve_stablecoin.interfaces import IConfigurator
+from curve_stablecoin.interfaces import ILendController
 from curve_stablecoin.interfaces import IMonetaryPolicy
 from curve_stablecoin import constants as c
 
 WAD: constant(uint256) = c.WAD
+SKIP_CONFIG: constant(uint256) = c.SKIP_CONFIG
 SKIP_CONFIG_ADDRESS: constant(address) = c.SKIP_CONFIG_ADDRESS
 
 @internal
@@ -44,6 +46,33 @@ def set_borrowing_discounts(
     log IConfigurator.SetBorrowingDiscounts(
         loan_discount=_loan_discount, liquidation_discount=_liquidation_discount
     )
+
+
+################################################################
+#                       LEND CONTROLLER                        #
+################################################################
+
+@external
+def set_borrow_cap(_controller: ILendController, _borrow_cap: uint256):
+    """
+    @notice Set the borrow cap for a lending market
+    @param _borrow_cap New borrow cap in units of borrowed_token
+    """
+    self._check_admin()
+    extcall _controller.configure_lend(_borrow_cap, SKIP_CONFIG)
+    log IConfigurator.SetBorrowCap(borrow_cap=_borrow_cap)
+
+
+@external
+def set_admin_percentage(_controller: ILendController, _admin_percentage: uint256):
+    """
+    @notice Set the percentage of interest that goes to the admin
+    @param _admin_percentage Percentage scaled by 1e18 (e.g. 1e18 == 100%)
+    """
+    self._check_admin()
+    assert _admin_percentage <= WAD, "admin percentage higher than 100%"
+    extcall _controller.configure_lend(SKIP_CONFIG, _admin_percentage)
+    log IConfigurator.SetAdminPercentage(admin_percentage=_admin_percentage)
 
 # @external
 # def set_monetary_policy(

@@ -96,6 +96,7 @@ VAULT: immutable(IVault)
 
 _available_balance: uint256
 
+
 @external
 @view
 @reentrant
@@ -168,32 +169,13 @@ def version() -> String[10]:
 
 
 @external
-def set_borrow_cap(_borrow_cap: uint256):
-    """
-    @notice Set the borrow cap for this market
-    @dev Only callable by the factory admin
-    @param _borrow_cap New borrow cap in units of borrowed_token
-    """
-    core._check_admin()
-    self.borrow_cap = _borrow_cap
-    log ILendController.SetBorrowCap(borrow_cap=_borrow_cap)
-
-
-@external
-def set_admin_percentage(_admin_percentage: uint256):
-    """
-    @notice Set the percentage of interest that goes to the admin
-    @param _admin_percentage Percentage scaled by 1e18 (e.g. 1e18 == 100%)
-    """
-    core._check_admin()
-    assert _admin_percentage <= core.WAD # dev: admin percentage higher than 100%
-
-    # Settle admin fees before the new percentage is applied
-    rate_mul: uint256 = staticcall core.AMM.get_rate_mul()
-    core._update_total_debt(0, rate_mul, False)
-
-    core.admin_percentage = _admin_percentage
-    log ILendController.SetAdminPercentage(admin_percentage=_admin_percentage)
+def configure_lend(_borrow_cap: uint256, _admin_percentage: uint256):
+    if _borrow_cap != core.SKIP_CONFIG:
+        self.borrow_cap = _borrow_cap
+    if _admin_percentage != core.SKIP_CONFIG:
+        rate_mul: uint256 = staticcall core.AMM.get_rate_mul()
+        core._update_total_debt(0, rate_mul, False)
+        core.admin_percentage = _admin_percentage
 
 
 @external
