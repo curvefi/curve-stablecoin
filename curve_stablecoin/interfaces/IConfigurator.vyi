@@ -1,0 +1,15 @@
+from curve_stablecoin.interfaces import IController
+
+
+event SetBorrowingDiscounts:
+    loan_discount: uint256
+    liquidation_discount: uint256
+
+
+@external
+def set_borrowing_discounts(
+    controller: IController,
+    loan_discount: uint256,
+    liquidation_discount: uint256,
+):
+    ...

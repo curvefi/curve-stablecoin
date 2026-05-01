@@ -80,14 +80,9 @@ exports: (
     core.factory,
     core.admin_fees,
     core.admin_percentage,
-    core.view_impl,
+    core.view_blueprint,
     # Setters
-    core.set_view,
-    core.set_amm_fee,
-    core.set_borrowing_discounts,
-    core.set_callback,
-    core.set_monetary_policy,
-    core.set_price_oracle,
+    core.configure,
     # From view contract
     core.user_prices,
     core.user_state,

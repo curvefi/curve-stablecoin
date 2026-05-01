@@ -55,6 +55,7 @@ MAX_TICKS_UINT: constant(uint256) = c.MAX_TICKS_UINT
 MIN_TICKS: constant(int256) = c.MIN_TICKS
 CALLDATA_MAX_SIZE: constant(uint256) = c.CALLDATA_MAX_SIZE
 SKIP_CONFIG: constant(uint256) = c.SKIP_CONFIG
+SKIP_CONFIG_ADDRESS: constant(address) = c.SKIP_CONFIG_ADDRESS
 
 
 CALLBACK_DEPOSIT: constant(bytes4) = method_id(
@@ -82,7 +83,7 @@ _view: IView
 
 liquidation_discount: public(uint256)
 loan_discount: public(reentrant(uint256))
-_monetary_policy: address
+_monetary_policy: IMonetaryPolicy
 
 # https://github.com/vyperlang/vyper/issues/4721
 @external
@@ -92,7 +93,7 @@ def monetary_policy() -> IMonetaryPolicy:
     """
     @notice Address of the monetary policy
     """
-    return IMonetaryPolicy(self._monetary_policy)
+    return self._monetary_policy
 
 
 approval: public(HashMap[address, HashMap[address, bool]])
@@ -288,6 +289,12 @@ def borrowed_token() -> IERC20:
     @notice Address of the borrowed token
     """
     return BORROWED_TOKEN
+
+
+@internal
+@view
+def _check_admin():
+    pass
 
 
 @internal
@@ -1352,18 +1359,17 @@ def user_state(_user: address) -> uint256[4]:
 def configure(
     _loan_discount: uint256,
     _liquidation_discount: uint256,
-    _monetary_policy: address,
+    _monetary_policy: IMonetaryPolicy,
     _view: address,
     _view_blueprint: address,
 ):
     # TODO add access control assert
-    # TODO add constant for unused addr flag instead of empty addy
-    if _loan_discount != SKIP_CONFIG and _loan_discount != SKIP_CONFIG:
+    if _loan_discount != SKIP_CONFIG and _liquidation_discount != SKIP_CONFIG:
         self.loan_discount = _loan_discount
         self.liquidation_discount = _liquidation_discount
-    if _monetary_policy != empty(address):
+    if _monetary_policy.address != SKIP_CONFIG_ADDRESS:
         self._monetary_policy = _monetary_policy
-    if _view != empty(address) and _view_blueprint != empty(address):
+    if _view != SKIP_CONFIG_ADDRESS and _view_blueprint != SKIP_CONFIG_ADDRESS:
         self.view_blueprint = _view_blueprint
 
 
