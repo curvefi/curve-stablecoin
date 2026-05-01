@@ -3,6 +3,7 @@
 
 from curve_stablecoin.interfaces import IController
 from curve_stablecoin.interfaces import IConfigurator
+from curve_stablecoin.interfaces import ILendFactory
 from curve_stablecoin.interfaces import ILendController
 from curve_stablecoin.interfaces import IMonetaryPolicy
 from curve_stablecoin import constants as c
@@ -15,6 +16,15 @@ SKIP_CONFIG_ADDRESS: constant(address) = c.SKIP_CONFIG_ADDRESS
 def _check_admin():
     # TODO implement in a way where each market can have custom admins (possibly through factory?)
     pass
+
+
+@internal
+@view
+def _check_lend_controller(_controller: ILendController):
+    controller: IController = IController(_controller.address)
+    factory: ILendFactory = ILendFactory((staticcall controller.factory()).address)
+    contract_info: ILendFactory.ContractInfo = staticcall factory.check_contract(_controller.address)
+    assert contract_info.contract_type == ILendFactory.ContractType.CONTROLLER, "not a lend controller"
 
 ################################################################
 #                         CONTROLLER                           #
@@ -59,6 +69,7 @@ def set_borrow_cap(_controller: ILendController, _borrow_cap: uint256):
     @param _borrow_cap New borrow cap in units of borrowed_token
     """
     self._check_admin()
+    self._check_lend_controller(_controller)
     extcall _controller.configure_lend(_borrow_cap, SKIP_CONFIG)
     log IConfigurator.SetBorrowCap(borrow_cap=_borrow_cap)
 
@@ -70,6 +81,7 @@ def set_admin_percentage(_controller: ILendController, _admin_percentage: uint25
     @param _admin_percentage Percentage scaled by 1e18 (e.g. 1e18 == 100%)
     """
     self._check_admin()
+    self._check_lend_controller(_controller)
     assert _admin_percentage <= WAD, "admin percentage higher than 100%"
     extcall _controller.configure_lend(SKIP_CONFIG, _admin_percentage)
     log IConfigurator.SetAdminPercentage(admin_percentage=_admin_percentage)
