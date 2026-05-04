@@ -52,7 +52,6 @@ exports: (
     core.collect_fees,
     # Getters
     core.amm,
-    core.amm_price,
     core.approval,
     core.borrowed_token,
     core.calculate_debt_n1,

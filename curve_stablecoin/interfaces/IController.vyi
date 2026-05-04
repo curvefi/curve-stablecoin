@@ -240,12 +240,6 @@ def user_prices(user: address) -> uint256[2]:
 
 @view
 @external
-def amm_price() -> uint256:
-    ...
-
-
-@view
-@external
 def user_state(user: address) -> uint256[4]:
     ...
 

@@ -227,21 +227,6 @@ def set_rate(rate: uint256) -> uint256:
     ...
 
 
-@external
-def set_fee(fee: uint256):
-    ...
-
-
-@external
-def set_callback(liquidity_mining_callback: ILMCallback):
-    ...
-
-
-@external
-def set_price_oracle(_price_oracle: IPriceOracle):
-    ...
-
-
 @view
 @external
 def admin() -> address:
@@ -307,3 +292,5 @@ def bands_y(arg0: int256) -> uint256:
 @external
 def liquidity_mining_callback() -> ILMCallback:
     ...
+
+# TODO add configure here

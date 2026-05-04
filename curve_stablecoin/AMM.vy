@@ -60,6 +60,7 @@ DEAD_SHARES: constant(uint256) = c.DEAD_SHARES
 MAX_SKIP_TICKS: constant(int256) = c.MAX_SKIP_TICKS
 MAX_SKIP_TICKS_UINT: constant(uint256) = c.MAX_SKIP_TICKS_UINT
 SKIP_CONFIG: constant(uint256) = c.SKIP_CONFIG
+SKIP_CONFIG_ADDRESS: constant(address) = c.SKIP_CONFIG_ADDRESS
 
 BORROWED_TOKEN: immutable(IERC20)    # x
 BORROWED_PRECISION: immutable(uint256)
@@ -175,6 +176,7 @@ def __init__(
     MAX_ORACLE_DN_POW = pow
 
 
+# TODO rename to set
 @external
 def set_admin(_admin: address):
     """
@@ -1615,14 +1617,31 @@ def get_amount_for_price(p: uint256) -> (uint256, bool):
 
 
 @external
-def configure(_fee: uint256, _liquidity_mining_callback: ILMGauge, _price_oracle: IPriceOracle):
+@nonreentrant
+def set_rate(rate: uint256) -> uint256:
+    """
+    @notice Set interest rate. That affects the dependence of AMM base price over time
+    @param rate New rate in units of int(fraction * 1e18) per second
+    @return rate_mul multiplier (e.g. 1.0 + integral(rate, dt))
+    """
+    assert msg.sender == self.admin
+    rate_mul: uint256 = self._rate_mul()
+    self.rate_mul = rate_mul
+    self.rate_time = block.timestamp
+    self.rate = rate
+    log IAMM.SetRate(rate=rate, rate_mul=rate_mul, time=block.timestamp)
+    return rate_mul
+
+
+@external
+def configure(_fee: uint256, _liquidity_mining_callback: ILMCallback, _price_oracle: IPriceOracle):
     # TODO add access control assert
     if _fee != SKIP_CONFIG:
         self.fee = _fee
-    if _liquidity_mining_callback != empty(address):
-        self._liquidity_mining_callback = ILMGauge(_liquidity_mining_callback)
-    if _price_oracle != empty(address):
-        self._price_oracle = IPriceOracle(_price_oracle)
+    if _liquidity_mining_callback != ILMCallback(SKIP_CONFIG_ADDRESS):
+        self._liquidity_mining_callback = _liquidity_mining_callback
+    if _price_oracle != IPriceOracle(SKIP_CONFIG_ADDRESS):
+        self._price_oracle = _price_oracle
 
 # TODO use constnats for skip flags
 # TODO document skip flags for configure
