@@ -1262,6 +1262,7 @@ def liquidate(
         )
 
 
+# TODO perhaps move this to view contract?
 @external
 @view
 def tokens_to_liquidate(_user: address, _frac: uint256 = WAD) -> uint256:
@@ -1313,18 +1314,6 @@ def users_to_liquidate(
     @return Dynamic array with detailed info about positions of users
     """
     return staticcall self._view.users_to_liquidate(_from, _limit)
-
-
-# TODO why is this needed?
-@external
-@view
-@reentrant
-def amm_price() -> uint256:
-    """
-    @notice Current price from the AMM
-    @dev Marked as reentrant because AMM already has a nonreentrant decorator
-    """
-    return staticcall AMM.get_p()
 
 
 @external
