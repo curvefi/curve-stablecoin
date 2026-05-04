@@ -24,7 +24,7 @@ def _check_lend_controller(_controller: ILendController):
     controller: IController = IController(_controller.address)
     factory: ILendFactory = ILendFactory((staticcall controller.factory()).address)
     contract_info: ILendFactory.ContractInfo = staticcall factory.check_contract(_controller.address)
-    assert contract_info.contract_type == ILendFactory.ContractType.CONTROLLER, "not a lend controller"
+    assert contract_info.contract_type == ILendFactory.ContractType.CONTROLLER, "not a lend controller from factory"
 
 ################################################################
 #                         CONTROLLER                           #
