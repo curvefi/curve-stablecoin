@@ -6,6 +6,7 @@ on:
 env:
   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
   EXPLORER_TOKEN: ${{ secrets.EXPLORER_TOKEN }}
+  WEB3_PROVIDER_URL: ${{ secrets.WEB3_PROVIDER_URL }}
   HYPOTHESIS_PROFILE: no-shrink
 
 jobs:

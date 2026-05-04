@@ -39,6 +39,7 @@ def test_default_behavior(
 
 def test_default_behavior_with_peg_keepers(mp, peg_keepers):
     """Peg keepers array is populated correctly."""
+    assert mp.n_peg_keepers() == len(peg_keepers)
     for i, pk in enumerate(peg_keepers):
         assert mp.peg_keepers(i) == pk.address
     # Next slot should be empty
@@ -73,6 +74,7 @@ def test_default_behavior_partial_peg_keepers(
             default_ema_time,
         )
 
+    assert mp.n_peg_keepers() == 1
     assert mp.peg_keepers(0) == peg_keepers[0].address
     assert mp.peg_keepers(1) == ZERO_ADDRESS
 
@@ -235,5 +237,48 @@ def test_revert_extra_const_too_high(
                 default_sigma,
                 default_target_debt_fraction,
                 MAX_EXTRA_CONST + 1,  # Too high
+                default_ema_time,
+            )
+
+
+@pytest.mark.parametrize(
+    ("field", "zero_value"),
+    [
+        ("admin", ZERO_ADDRESS),
+        ("price_oracle", ZERO_ADDRESS),
+        ("mock_factory", ZERO_ADDRESS),
+    ],
+)
+def test_revert_zero_required_address(
+    field,
+    zero_value,
+    admin,
+    price_oracle,
+    mock_factory,
+    default_rate,
+    default_sigma,
+    default_target_debt_fraction,
+    default_extra_const,
+    default_ema_time,
+):
+    """Revert when a required constructor address is zero."""
+    args = {
+        "admin": admin,
+        "price_oracle": price_oracle.address,
+        "mock_factory": mock_factory.address,
+    }
+    args[field] = zero_value
+
+    with boa.env.prank(admin):
+        with boa.reverts():
+            AGG_MONETARY_POLICY4_DEPLOYER.deploy(
+                args["admin"],
+                args["price_oracle"],
+                args["mock_factory"],
+                [ZERO_ADDRESS] * 5,
+                default_rate,
+                default_sigma,
+                default_target_debt_fraction,
+                default_extra_const,
                 default_ema_time,
             )

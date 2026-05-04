@@ -3,6 +3,7 @@
 import boa
 
 from tests.utils import filter_logs
+from tests.utils.constants import ZERO_ADDRESS
 
 
 def test_default_behavior(mp, admin):
@@ -28,3 +29,10 @@ def test_revert_unauthorized(mp):
     with boa.env.prank(unauthorized):
         with boa.reverts(dev="only admin"):
             mp.set_admin(new_admin)
+
+
+def test_revert_zero_address(mp, admin):
+    """Admin cannot transfer admin rights to zero address."""
+    with boa.env.prank(admin):
+        with boa.reverts():
+            mp.set_admin(ZERO_ADDRESS)

@@ -4,7 +4,7 @@
 
 from curve_stablecoin.interfaces import IAMM
 from curve_stablecoin.interfaces import IMonetaryPolicy
-from curve_stablecoin.interfaces import ILMGauge
+from curve_stablecoin.interfaces import ILMCallback
 from curve_stablecoin.interfaces import IFactory
 from curve_stablecoin.interfaces import IPriceOracle
 from curve_stablecoin.interfaces import IController
@@ -61,14 +61,14 @@ SKIP_CONFIG_ADDRESS: constant(address) = c.SKIP_CONFIG_ADDRESS
 CALLBACK_DEPOSIT: constant(bytes4) = method_id(
     "callback_deposit(address,uint256,uint256,uint256,bytes)",
     output_type=bytes4,
-)
+)  # active_band=0, borrowed=0
 CALLBACK_REPAY: constant(bytes4) = method_id(
     "callback_repay(address,uint256,uint256,uint256,bytes)", output_type=bytes4
 )
 CALLBACK_LIQUIDATE: constant(bytes4) = method_id(
     "callback_liquidate(address,uint256,uint256,uint256,bytes)",
     output_type=bytes4,
-)
+)  # active_band=0
 
 MIN_AMM_FEE: constant(uint256) = 10**6  # 1e-12, still needs to be above 0
 MAX_RATE: public(constant(uint256)) = 43959106799  # 300% APY
@@ -295,6 +295,10 @@ def borrowed_token() -> IERC20:
 def _save_rate():
     """
     @notice Save current rate
+    @dev If the monetary policy is stateful `rate_write` MUST be permissioned
+    so that only the controller can call it. Otherwise one can circumvent the
+    reentrancy lock present in all the external methods that call `self._save_rate`
+    by calling `rate_write` directly.
     """
     rate: uint256 = min(extcall self._monetary_policy.rate_write(), MAX_RATE)
     extcall AMM.set_rate(rate)
@@ -571,7 +575,7 @@ def create_loan(
     if _callbacker != empty(address):
         tkn.transfer(BORROWED_TOKEN, _callbacker, _debt)
         # If there is any unused debt, callbacker can send it to the user
-        more_collateral = self.execute_callback(
+        cb: IController.CallbackData = self.execute_callback(
             _callbacker,
             CALLBACK_DEPOSIT,
             _for,
@@ -579,7 +583,10 @@ def create_loan(
             _collateral,
             _debt,
             _calldata,
-        ).collateral
+        )
+        # assert cb.active_band == 0  # dev: Not available
+        assert cb.borrowed == 0  # dev: Not available
+        more_collateral = cb.collateral
 
     total_collateral: uint256 = _collateral + more_collateral
 
@@ -796,7 +803,7 @@ def borrow_more(
     if _callbacker != empty(address):
         tkn.transfer(BORROWED_TOKEN, _callbacker, _debt)
         # If there is any unused debt, callbacker can send it to the user
-        more_collateral = self.execute_callback(
+        cb: IController.CallbackData = self.execute_callback(
             _callbacker,
             CALLBACK_DEPOSIT,
             _for,
@@ -804,7 +811,10 @@ def borrow_more(
             _collateral,
             _debt,
             _calldata,
-        ).collateral
+        )
+        # assert cb.active_band == 0  # dev: Not available
+        assert cb.borrowed == 0  # dev: Not available
+        more_collateral = cb.collateral
 
     rate_mul: uint256 = self._add_collateral_borrow(
         _collateral + more_collateral, _debt, _for, False
@@ -843,6 +853,9 @@ def _repay_full(
     _cb: IController.CallbackData,
     _callbacker: address,
 ):
+    """
+    @notice Allows any value for cb.active_band to be indistinguishable with partial repay.
+    """
     if _callbacker == empty(address):
         _xy = extcall AMM.withdraw(_for, WAD)
 
@@ -1211,6 +1224,7 @@ def liquidate(
                 debt,
                 _calldata,
             )
+            # assert cb.active_band == 0, "Not available"
             assert cb.borrowed >= to_repay, "no enough proceeds"
 
             tkn.transfer_from(BORROWED_TOKEN, _callbacker, self, to_repay)
@@ -1354,6 +1368,7 @@ def configure(
         self._monetary_policy = _monetary_policy
     if _view != SKIP_CONFIG_ADDRESS and _view_blueprint != SKIP_CONFIG_ADDRESS:
         self.view_blueprint = _view_blueprint
+
 
 
 @internal
