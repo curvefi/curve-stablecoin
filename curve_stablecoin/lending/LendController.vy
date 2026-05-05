@@ -50,8 +50,11 @@ exports: (
     core.liquidate,
     core.save_rate,
     core.collect_fees,
-    # Getters
+    # Related contracts getters
     core.amm,
+    core.view,
+    core.factory,
+    # Getters
     core.approval,
     core.borrowed_token,
     core.calculate_debt_n1,
@@ -76,10 +79,8 @@ exports: (
     core.tokens_to_liquidate,
     core.tokens_to_shrink,
     core.total_debt,
-    core.factory,
     core.admin_fees,
     core.admin_percentage,
-    core.view_blueprint,
     # Setters
     core.configure,
     # From view contract

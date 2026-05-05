@@ -43,11 +43,53 @@ def set_borrowing_discounts(
         _liquidation_discount,
         IMonetaryPolicy(SKIP_CONFIG_ADDRESS),
         SKIP_CONFIG_ADDRESS,
-        SKIP_CONFIG_ADDRESS,
     )
     log IConfigurator.SetBorrowingDiscounts(
         loan_discount=_loan_discount, liquidation_discount=_liquidation_discount
     )
+
+
+@external
+def set_monetary_policy(
+    _controller: IController,
+    _monetary_policy: IMonetaryPolicy
+):
+    """
+    @notice Set monetary policy contract
+    @param _monetary_policy Address of the monetary policy contract
+    """
+    self._check_admin()
+    extcall _controller.configure(
+        SKIP_CONFIG,
+        SKIP_CONFIG,
+        _monetary_policy,
+        SKIP_CONFIG_ADDRESS,
+    )
+    extcall _monetary_policy.rate_write()
+    log IConfigurator.SetMonetaryPolicy(monetary_policy=_monetary_policy)
+
+
+@external
+def set_view(
+    _controller: IController,
+    _view_blueprint: address
+):
+    """
+    @notice Change the contract used to store view functions.
+    @dev This function deploys a new view implementation from a blueprint.
+    @param _view_blueprint Address of the blueprint to deploy the new view implementation from.
+    """
+    self._check_admin()
+    assert _view_blueprint != empty(address), "view blueprint is empty address"
+
+    extcall _controller.configure(
+        SKIP_CONFIG,
+        SKIP_CONFIG,
+        IMonetaryPolicy(SKIP_CONFIG_ADDRESS),
+        _view_blueprint,
+    )
+
+    log IConfigurator.SetView(view=staticcall _controller.view())
 
 
 ################################################################
@@ -76,49 +118,7 @@ def set_admin_percentage(_controller: ILendController, _admin_percentage: uint25
     extcall _controller.configure_lend(SKIP_CONFIG, _admin_percentage)
     log IConfigurator.SetAdminPercentage(admin_percentage=_admin_percentage)
 
-# @external
-# def set_monetary_policy(
-#     _controller: IController,
-#     _monetary_policy: IMonetaryPolicy
-# ):
-#     """
-#     @notice Set monetary policy contract
-#     @param _monetary_policy Address of the monetary policy contract
-#     """
-#     self._check_admin()
-#     self._monetary_policy = _monetary_policy
-#     extcall _monetary_policy.rate_write()
-#     # log IController.SetMonetaryPolicy(monetary_policy=_monetary_policy)
 
-
-# @external
-# def set_view(
-#     _controller: IController,
-#     _view_impl: address
-# ):
-#     """
-#     @notice Change the contract used to store view functions.
-#     @dev This function deploys a new view implementation from a blueprint.
-#     @param _view_impl Address of the new view implementation
-#     """
-#     self._check_admin()
-#     assert _view_impl != empty(address) # dev: view implementation is empty address
-#     self.view_impl = _view_impl
-#     view: address = create_from_blueprint(
-#         _view_impl,
-#         self,
-#         SQRT_BAND_RATIO,
-#         LOGN_A_RATIO,
-#         AMM,
-#         A,
-#         COLLATERAL_TOKEN,
-#         COLLATERAL_PRECISION,
-#         BORROWED_TOKEN,
-#         BORROWED_PRECISION,
-#     )
-#     self._view = IView(view)
-
-#     log IController.SetView(view=view)
 
 
 
@@ -180,28 +180,10 @@ def set_admin_percentage(_controller: ILendController, _admin_percentage: uint25
 #     _amm: IAMM,
 #     _fee: uint256):
 #     """
-#     @notice Set the AMM fee 
+#     @notice Set the AMM fee
 #     @param _fee The fee which should be no higher than MAX_AMM_FEE
 #     """
 #     self._check_admin()
 #     assert _fee <= MAX_AMM_FEE and _fee >= MIN_AMM_FEE, "Fee"
 #     self.fee = _fee
 #     log IAMM.SetFee(fee=_fee)
-
-
-# @external
-# def set_rate(
-#     _amm: IAMM
-#     _rate: uint256) -> uint256:
-#     """
-#     @notice Set interest rate. That affects the dependence of AMM base price over time
-#     @param rate New rate in units of int(fraction * 1e18) per second
-#     @return rate_mul multiplier (e.g. 1.0 + integral(rate, dt))
-#     """
-#     assert msg.sender == self.admin
-#     rate_mul: uint256 = self._rate_mul()
-#     self.rate_mul = rate_mul
-#     self.rate_time = block.timestamp
-#     self.rate = rate
-#     log IAMM.SetRate(rate=rate, rate_mul=rate_mul, time=block.timestamp)
-#     return rate_mul

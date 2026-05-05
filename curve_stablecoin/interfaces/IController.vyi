@@ -47,10 +47,6 @@ event Borrow:
     loan_increase: uint256
 
 
-event SetMonetaryPolicy:
-    monetary_policy: IMonetaryPolicy
-
-
 event Approval:
     owner: indexed(address)
     spender: indexed(address)
@@ -66,8 +62,7 @@ event CollectFees:
     amount: uint256
 
 
-event SetView:
-    view: address
+
 
 
 # Structs
@@ -126,7 +121,6 @@ def configure(
     liquidation_discount: uint256,
     monetary_policy: IMonetaryPolicy,
     view: address,
-    view_blueprint: address,
 ):
     ...
 
@@ -367,5 +361,5 @@ def version() -> String[1]:
 
 @view
 @external
-def view_blueprint() -> address:
+def view() -> address:
     ...

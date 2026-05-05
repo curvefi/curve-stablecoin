@@ -1,4 +1,5 @@
 from curve_stablecoin.interfaces import IController
+from curve_stablecoin.interfaces import IMonetaryPolicy
 
 
 event SetBorrowingDiscounts:
@@ -13,6 +14,13 @@ event SetBorrowCap:
 event SetAdminPercentage:
     admin_percentage: uint256
 
+
+event SetMonetaryPolicy:
+    monetary_policy: IMonetaryPolicy
+
+
+event SetView:
+    view: address
 
 @external
 def set_borrowing_discounts(
