@@ -1624,6 +1624,7 @@ def set_rate(rate: uint256) -> uint256:
     @param rate New rate in units of int(fraction * 1e18) per second
     @return rate_mul multiplier (e.g. 1.0 + integral(rate, dt))
     """
+    # TODO access control to controller not admin (configurator)
     assert msg.sender == self.admin
     rate_mul: uint256 = self._rate_mul()
     self.rate_mul = rate_mul
@@ -1645,4 +1646,3 @@ def configure(_fee: uint256, _liquidity_mining_callback: ILMCallback, _price_ora
 
 # TODO use constnats for skip flags
 # TODO document skip flags for configure
-
