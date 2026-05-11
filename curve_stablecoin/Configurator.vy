@@ -1,5 +1,12 @@
 # pragma version 0.4.3
 # pragma nonreentrancy on
+"""
+@title LlamaLend Markets Configurator
+@author Curve.fi
+@license Copyright (c) Curve.Fi, 2020-2026 - all rights reserved
+@custom:security security@curve.fi
+@custom:kill If the underlying market is killed this contract will also be unable to operate.
+"""
 
 from curve_stablecoin.interfaces import IController
 from curve_stablecoin.interfaces import IConfigurator
@@ -12,10 +19,32 @@ WAD: constant(uint256) = c.WAD
 SKIP_CONFIG: constant(uint256) = c.SKIP_CONFIG
 SKIP_CONFIG_ADDRESS: constant(address) = c.SKIP_CONFIG_ADDRESS
 
+
+default_admin: public(address)
+admins: HashMap[IController, address]
+
+@external
+@reentrant
+def set_custom_fee_receiver(_controller: IController, _admin: address):
+    """
+    @notice Set fee receiver who earns admin fees for a specific controller
+    @dev Setting to zero address resets to default fee receiver
+    @param _controller Address of the controller
+    @param _admin Address of the admin
+    """
+    self._check_admin()
+    self.admins[_controller] = _admin
+    log IConfigurator.SetCustomAdmin(controller=_controller, admin=_admin)
+
+
 @internal
 def _check_admin():
-    # TODO implement in a way where each market can have custom admins (possibly through factory?)
-    pass
+    assert msg.sender == self.default_admin, "Not admin"
+
+
+@internal
+def _check_authorized(_controller: IController):
+    assert msg.sender == self.default_admin or msg.sender == self.admins[_controller], "Not authorized for this controller"
 
 
 ################################################################
@@ -34,7 +63,7 @@ def set_borrowing_discounts(
     @param _loan_discount Discount which defines LTV
     @param _liquidation_discount Discount where bad liquidation starts
     """
-    self._check_admin()
+    self._check_authorized(_controller)
     assert _liquidation_discount > 0, "liquidation discount = 0"
     assert _loan_discount < WAD, "loan discount >= 100%"
     assert _loan_discount > _liquidation_discount, "loan discount <= liquidation discount"
@@ -58,7 +87,7 @@ def set_monetary_policy(
     @notice Set monetary policy contract
     @param _monetary_policy Address of the monetary policy contract
     """
-    self._check_admin()
+    self._check_authorized(_controller)
     extcall _controller.configure(
         SKIP_CONFIG,
         SKIP_CONFIG,
@@ -79,7 +108,7 @@ def set_view(
     @dev This function deploys a new view implementation from a blueprint.
     @param _view_blueprint Address of the blueprint to deploy the new view implementation from.
     """
-    self._check_admin()
+    self._check_authorized(_controller)
     assert _view_blueprint != empty(address), "view blueprint is empty address"
 
     extcall _controller.configure(
@@ -102,7 +131,7 @@ def set_borrow_cap(_controller: ILendController, _borrow_cap: uint256):
     @notice Set the borrow cap for a lending market
     @param _borrow_cap New borrow cap in units of borrowed_token
     """
-    self._check_admin()
+    self._check_authorized(IController(_controller.address))
     extcall _controller.configure_lend(_borrow_cap, SKIP_CONFIG)
     log IConfigurator.SetBorrowCap(borrow_cap=_borrow_cap)
 
@@ -113,13 +142,10 @@ def set_admin_percentage(_controller: ILendController, _admin_percentage: uint25
     @notice Set the percentage of interest that goes to the admin
     @param _admin_percentage Percentage scaled by 1e18 (e.g. 1e18 == 100%)
     """
-    self._check_admin()
+    self._check_authorized(IController(_controller.address))
     assert _admin_percentage <= WAD, "admin percentage higher than 100%"
     extcall _controller.configure_lend(SKIP_CONFIG, _admin_percentage)
     log IConfigurator.SetAdminPercentage(admin_percentage=_admin_percentage)
-
-
-
 
 
 # ################################################################
@@ -137,7 +163,7 @@ def set_admin_percentage(_controller: ILendController, _admin_percentage: uint25
 #     @param _max_deviation Maximum allowed deviation for the new oracle
 #         Can be set to max_value(uint256) to skip the check if oracle is broken.
 #     """
-#     self._check_admin()
+#     self._check_authorized(_controller)
 #     assert (
 #         _max_deviation <= MAX_ORACLE_PRICE_DEVIATION
 #         or _max_deviation == max_value(uint256)
@@ -170,7 +196,7 @@ def set_admin_percentage(_controller: ILendController, _admin_percentage: uint25
 #     """
 #     @notice Set liquidity mining callback
 #     """
-#     self._check_admin()
+#     self._check_authorized(_controller)
 #     self._liquidity_mining_callback = liquidity_mining_callback
 #     log IController.SetLMCallback(callback=_cb)
 
@@ -183,7 +209,7 @@ def set_admin_percentage(_controller: ILendController, _admin_percentage: uint25
 #     @notice Set the AMM fee
 #     @param _fee The fee which should be no higher than MAX_AMM_FEE
 #     """
-#     self._check_admin()
+#     self._check_authorized(_controller)
 #     assert _fee <= MAX_AMM_FEE and _fee >= MIN_AMM_FEE, "Fee"
 #     self.fee = _fee
 #     log IAMM.SetFee(fee=_fee)

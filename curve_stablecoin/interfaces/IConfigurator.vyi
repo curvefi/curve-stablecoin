@@ -1,6 +1,10 @@
 from curve_stablecoin.interfaces import IController
 from curve_stablecoin.interfaces import IMonetaryPolicy
 
+event SetCustomAdmin:
+    controller: indexed(IController)
+    admin: address
+
 
 event SetBorrowingDiscounts:
     loan_discount: uint256
