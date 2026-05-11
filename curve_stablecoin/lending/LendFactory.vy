@@ -345,7 +345,7 @@ def set_custom_fee_receiver(_controller: address, _fee_receiver: address):
     contract_info: ILendFactory.ContractInfo = self.check_contract[_controller]
     assert contract_info.contract_type == ILendFactory.ContractType.CONTROLLER, "not a controller"
     self.fee_receivers[_controller] = _fee_receiver
-    log ILendFactory.CustomSetFeeReceiver(controller=_controller, fee_receiver=_fee_receiver)
+    log ILendFactory.SetCustomFeeReceiver(controller=_controller, fee_receiver=_fee_receiver)
 
 
 @internal
