@@ -170,9 +170,9 @@ def version() -> String[10]:
 
 @external
 def configure_lend(_borrow_cap: uint256, _admin_percentage: uint256):
-    if _borrow_cap != core.SKIP_CONFIG:
+    if _borrow_cap != core.SKIP_CONFIG_UINT256:
         self.borrow_cap = _borrow_cap
-    if _admin_percentage != core.SKIP_CONFIG:
+    if _admin_percentage != core.SKIP_CONFIG_UINT256:
         rate_mul: uint256 = staticcall core.AMM.get_rate_mul()
         core._update_total_debt(0, rate_mul, False)
         core.admin_percentage = _admin_percentage

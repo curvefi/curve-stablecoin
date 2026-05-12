@@ -59,7 +59,7 @@ MAX_TICKS_UINT: constant(uint256) = c.MAX_TICKS_UINT
 DEAD_SHARES: constant(uint256) = c.DEAD_SHARES
 MAX_SKIP_TICKS: constant(int256) = c.MAX_SKIP_TICKS
 MAX_SKIP_TICKS_UINT: constant(uint256) = c.MAX_SKIP_TICKS_UINT
-SKIP_CONFIG: constant(uint256) = c.SKIP_CONFIG
+SKIP_CONFIG_UINT256: constant(uint256) = c.SKIP_CONFIG_UINT256
 SKIP_CONFIG_ADDRESS: constant(address) = c.SKIP_CONFIG_ADDRESS
 
 BORROWED_TOKEN: immutable(IERC20)    # x
@@ -176,7 +176,7 @@ def __init__(
     MAX_ORACLE_DN_POW = pow
 
 
-# TODO rename to set
+# TODO rename to set configurator
 @external
 def set_admin(_admin: address):
     """
@@ -185,6 +185,7 @@ def set_admin(_admin: address):
     """
     assert self.admin == empty(address)
     self.admin = _admin
+    # TODO why max_approve needed?
     tkn.max_approve(BORROWED_TOKEN, _admin)
     tkn.max_approve(COLLATERAL_TOKEN, _admin)
 
@@ -1637,7 +1638,7 @@ def set_rate(rate: uint256) -> uint256:
 @external
 def configure(_fee: uint256, _liquidity_mining_callback: ILMCallback, _price_oracle: IPriceOracle):
     # TODO add access control assert
-    if _fee != SKIP_CONFIG:
+    if _fee != SKIP_CONFIG_UINT256:
         self.fee = _fee
     if _liquidity_mining_callback != ILMCallback(SKIP_CONFIG_ADDRESS):
         self._liquidity_mining_callback = _liquidity_mining_callback

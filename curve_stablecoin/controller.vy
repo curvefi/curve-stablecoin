@@ -53,7 +53,7 @@ MIN_TICKS_UINT: constant(uint256) = c.MIN_TICKS_UINT
 MAX_TICKS_UINT: constant(uint256) = c.MAX_TICKS_UINT
 MIN_TICKS: constant(int256) = c.MIN_TICKS
 CALLDATA_MAX_SIZE: constant(uint256) = c.CALLDATA_MAX_SIZE
-SKIP_CONFIG: constant(uint256) = c.SKIP_CONFIG
+SKIP_CONFIG_UINT256: constant(uint256) = c.SKIP_CONFIG_UINT256
 SKIP_CONFIG_ADDRESS: constant(address) = c.SKIP_CONFIG_ADDRESS
 
 
@@ -1365,7 +1365,7 @@ def configure(
     _view_blueprint: address,
 ):
     # TODO add access control assert
-    if _loan_discount != SKIP_CONFIG and _liquidation_discount != SKIP_CONFIG:
+    if _loan_discount != SKIP_CONFIG_UINT256 and _liquidation_discount != SKIP_CONFIG_UINT256:
         self.loan_discount = _loan_discount
         self.liquidation_discount = _liquidation_discount
     if _monetary_policy.address != SKIP_CONFIG_ADDRESS:
