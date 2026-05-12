@@ -11,8 +11,7 @@ from curve_stablecoin.interfaces import IController
 from curve_stablecoin.interfaces import IControllerView as IView
 from curve_std.interfaces import IERC20
 
-# TODO restore implement
-# implements: IController
+implements: IController
 implements: IView
 
 from curve_std import token as tkn
@@ -78,7 +77,14 @@ MAX_ORACLE_PRICE_DEVIATION: constant(uint256) = WAD // 2  # 50% deviation
 #                           STORAGE                            #
 ################################################################
 
-view: public(IView)
+_view: IView
+
+# avoiding circular imports by exposing the getter as address to make the compiler happy
+@external
+@view
+@reentrant
+def view() -> address:
+    return self._view.address
 
 liquidation_discount: public(uint256)
 loan_discount: public(reentrant(uint256))
@@ -424,7 +430,7 @@ def max_borrowable(
                  (can be zero address for create_loan if the user doesn't have extra_health)
     @return Maximum (additional) amount of borrowed asset to borrow
     """
-    return staticcall self.view.max_borrowable(_d_collateral, _N, _user)
+    return staticcall self._view.max_borrowable(_d_collateral, _N, _user)
 
 
 @external
@@ -439,7 +445,7 @@ def min_collateral(
     @param _user User to calculate the value for (only necessary for nonzero extra_health)
     @return Minimum amount of collateral asset to provide
     """
-    return staticcall self.view.min_collateral(_debt, _N, _user)
+    return staticcall self._view.min_collateral(_debt, _N, _user)
 
 
 @external
@@ -459,7 +465,7 @@ def calculate_debt_n1(
     @param _user User to calculate n1 for (only necessary for nonzero extra_health)
     @return Upper band n1 (n1 <= n2) to deposit into. Signed integer
     """
-    return staticcall self.view.calculate_debt_n1(_collateral, _debt, _N, _user)
+    return staticcall self._view.calculate_debt_n1(_collateral, _debt, _N, _user)
 
 
 @internal
@@ -544,7 +550,7 @@ def create_loan_health_preview(
     @param _full Whether it's a 'full' health or not
     @return Signed health value
     """
-    return staticcall self.view.create_loan_health_preview(
+    return staticcall self._view.create_loan_health_preview(
         _collateral, _debt, _N, _for, _full
     )
 
@@ -593,7 +599,7 @@ def create_loan(
     assert _N > MIN_TICKS_UINT - 1, "Need more ticks"
     assert _N < MAX_TICKS_UINT + 1, "Need less ticks"
 
-    n1: int256 = staticcall self.view.calculate_debt_n1(total_collateral, _debt, _N, _for)
+    n1: int256 = staticcall self._view.calculate_debt_n1(total_collateral, _debt, _N, _for)
     n2: int256 = n1 + convert(unsafe_sub(_N, 1), int256)
 
     rate_mul: uint256 = staticcall AMM.get_rate_mul()
@@ -660,7 +666,7 @@ def _add_collateral_borrow(
 
     ns: int256[2] = staticcall AMM.read_user_tick_numbers(_for)
     size: uint256 = convert(unsafe_add(unsafe_sub(ns[1], ns[0]), 1), uint256)
-    n1: int256 = staticcall self.view.calculate_debt_n1(xy[1], debt, size, _for)
+    n1: int256 = staticcall self._view.calculate_debt_n1(xy[1], debt, size, _for)
     n2: int256 = n1 + unsafe_sub(ns[1], ns[0])
 
     extcall AMM.deposit_range(_for, xy[1], n1, n2)
@@ -704,7 +710,7 @@ def add_collateral_health_preview(
     @param _full Whether it's a 'full' health or not
     @return Signed health value
     """
-    return staticcall self.view.add_collateral_health_preview(_collateral, _for, _full)
+    return staticcall self._view.add_collateral_health_preview(_collateral, _for, _full)
 
 
 @external
@@ -736,7 +742,7 @@ def remove_collateral_health_preview(
     @param _full Whether it's a 'full' health or not
     @return Signed health value
     """
-    return staticcall self.view.remove_collateral_health_preview(
+    return staticcall self._view.remove_collateral_health_preview(
         _collateral, _for, _full
     )
 
@@ -773,7 +779,7 @@ def borrow_more_health_preview(
     @param _full Whether it's a 'full' health or not
     @return Signed health value
     """
-    return staticcall self.view.borrow_more_health_preview(
+    return staticcall self._view.borrow_more_health_preview(
         _collateral, _debt, _for, _full
     )
 
@@ -924,7 +930,7 @@ def _repay_partial(
             assert _xy[0] == 0
         new_borrowed = 0
 
-        ns[0] = staticcall self.view.calculate_debt_n1(
+        ns[0] = staticcall self._view.calculate_debt_n1(
             new_collateral,
             new_debt,
             convert(unsafe_add(size, 1), uint256),
@@ -989,7 +995,7 @@ def repay_health_preview(
     @param _full Whether it's a 'full' health or not
     @return Signed health value
     """
-    return staticcall self.view.repay_health_preview(
+    return staticcall self._view.repay_health_preview(
         _d_collateral, _d_debt, _for, _shrink, _full
     )
 
@@ -1061,7 +1067,7 @@ def tokens_to_shrink(_user: address, _d_collateral: uint256 = 0) -> uint256:
     @param _d_collateral The amount of collateral from user's position which is going to be used by callback
     @return The amount of borrowed asset needed
     """
-    return staticcall self.view.tokens_to_shrink(_user, _d_collateral)
+    return staticcall self._view.tokens_to_shrink(_user, _d_collateral)
 
 
 @internal
@@ -1143,7 +1149,7 @@ def liquidate_health_preview(
     @param _full Whether it's a 'full' health or not
     @return Signed health value
     """
-    return staticcall self.view.liquidate_health_preview(
+    return staticcall self._view.liquidate_health_preview(
         _user, _caller, _frac, _full
     )
 
@@ -1326,7 +1332,7 @@ def users_to_liquidate(
     @param _limit Number of loans to look over
     @return Dynamic array with detailed info about positions of users
     """
-    return staticcall self.view.users_to_liquidate(_from, _limit)
+    return staticcall self._view.users_to_liquidate(_from, _limit)
 
 
 @external
@@ -1337,7 +1343,7 @@ def user_prices(_user: address) -> uint256[2]:  # Upper, lower
     @param _user User address
     @return (upper_price, lower_price)
     """
-    return staticcall self.view.user_prices(_user)
+    return staticcall self._view.user_prices(_user)
 
 
 @external
@@ -1348,7 +1354,7 @@ def user_state(_user: address) -> uint256[4]:
     @param _user User to return the state for
     @return (collateral, borrowed, debt, N)
     """
-    return staticcall self.view.user_state(_user)
+    return staticcall self._view.user_state(_user)
 
 
 @external
@@ -1377,7 +1383,7 @@ def configure(
             BORROWED_TOKEN,
             BORROWED_PRECISION,
         )
-        self.view = IView(view)
+        self._view = IView(view)
 
 
 
