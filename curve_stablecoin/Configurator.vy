@@ -13,6 +13,8 @@ from curve_stablecoin.interfaces import IConfigurator
 from curve_stablecoin.interfaces import ILendFactory
 from curve_stablecoin.interfaces import ILendController
 from curve_stablecoin.interfaces import IMonetaryPolicy
+from curve_stablecoin.interfaces import IPriceOracle
+from curve_stablecoin.interfaces import ILMCallback
 from curve_stablecoin import constants as c
 
 WAD: constant(uint256) = c.WAD
@@ -72,6 +74,9 @@ def set_borrowing_discounts(
         _liquidation_discount,
         IMonetaryPolicy(SKIP_CONFIG_ADDRESS),
         SKIP_CONFIG_ADDRESS,
+        SKIP_CONFIG_UINT256,
+        IPriceOracle(SKIP_CONFIG_ADDRESS),
+        ILMCallback(SKIP_CONFIG_ADDRESS),
     )
     log IConfigurator.SetBorrowingDiscounts(
         loan_discount=_loan_discount, liquidation_discount=_liquidation_discount
@@ -93,6 +98,9 @@ def set_monetary_policy(
         SKIP_CONFIG_UINT256,
         _monetary_policy,
         SKIP_CONFIG_ADDRESS,
+        SKIP_CONFIG_UINT256,
+        IPriceOracle(SKIP_CONFIG_ADDRESS),
+        ILMCallback(SKIP_CONFIG_ADDRESS),
     )
     extcall _monetary_policy.rate_write()
     log IConfigurator.SetMonetaryPolicy(monetary_policy=_monetary_policy)
@@ -116,6 +124,9 @@ def set_view(
         SKIP_CONFIG_UINT256,
         IMonetaryPolicy(SKIP_CONFIG_ADDRESS),
         _view_blueprint,
+        SKIP_CONFIG_UINT256,
+        IPriceOracle(SKIP_CONFIG_ADDRESS),
+        ILMCallback(SKIP_CONFIG_ADDRESS),
     )
 
     log IConfigurator.SetView(view=staticcall _controller.view())

@@ -59,8 +59,6 @@ MAX_TICKS_UINT: constant(uint256) = c.MAX_TICKS_UINT
 DEAD_SHARES: constant(uint256) = c.DEAD_SHARES
 MAX_SKIP_TICKS: constant(int256) = c.MAX_SKIP_TICKS
 MAX_SKIP_TICKS_UINT: constant(uint256) = c.MAX_SKIP_TICKS_UINT
-SKIP_CONFIG_UINT256: constant(uint256) = c.SKIP_CONFIG_UINT256
-SKIP_CONFIG_ADDRESS: constant(address) = c.SKIP_CONFIG_ADDRESS
 
 BORROWED_TOKEN: immutable(IERC20)    # x
 BORROWED_PRECISION: immutable(uint256)
@@ -176,7 +174,6 @@ def __init__(
     MAX_ORACLE_DN_POW = pow
 
 
-# TODO rename to set configurator
 @external
 def set_admin(_admin: address):
     """
@@ -185,7 +182,6 @@ def set_admin(_admin: address):
     """
     assert self.admin == empty(address)
     self.admin = _admin
-    # TODO why max_approve needed?
     tkn.max_approve(BORROWED_TOKEN, _admin)
     tkn.max_approve(COLLATERAL_TOKEN, _admin)
 
@@ -1625,7 +1621,6 @@ def set_rate(rate: uint256) -> uint256:
     @param rate New rate in units of int(fraction * 1e18) per second
     @return rate_mul multiplier (e.g. 1.0 + integral(rate, dt))
     """
-    # TODO access control to controller not admin (configurator)
     assert msg.sender == self.admin
     rate_mul: uint256 = self._rate_mul()
     self.rate_mul = rate_mul
@@ -1636,14 +1631,36 @@ def set_rate(rate: uint256) -> uint256:
 
 
 @external
-def configure(_fee: uint256, _liquidity_mining_callback: ILMCallback, _price_oracle: IPriceOracle):
-    # TODO add access control assert
-    if _fee != SKIP_CONFIG_UINT256:
-        self.fee = _fee
-    if _liquidity_mining_callback != ILMCallback(SKIP_CONFIG_ADDRESS):
-        self._liquidity_mining_callback = _liquidity_mining_callback
-    if _price_oracle != IPriceOracle(SKIP_CONFIG_ADDRESS):
-        self._price_oracle = _price_oracle
+@nonreentrant
+def set_fee(fee: uint256):
+    """
+    @notice Set AMM fee
+    @param fee Fee where 1e18 == 100%
+    """
+    assert msg.sender == self.admin
+    self.fee = fee
+    log IAMM.SetFee(fee=fee)
 
-# TODO use constnats for skip flags
-# TODO document skip flags for configure
+
+# nonreentrant decorator is in Controller which is admin
+@external
+def set_callback(liquidity_mining_callback: ILMCallback):
+    """
+    @notice Set a gauge address with callbacks for liquidity mining for collateral
+    @param liquidity_mining_callback Gauge address
+    """
+    assert msg.sender == self.admin  # dev: admin only
+    self._liquidity_mining_callback = liquidity_mining_callback
+    log IAMM.SetCallback(callback=liquidity_mining_callback)
+
+
+@external
+@nonreentrant
+def set_price_oracle(_price_oracle: IPriceOracle):
+    """
+    @notice Set a new price oracle contract. Can only be called by admin (Controller)
+    @param _price_oracle New price oracle contract
+    """
+    assert msg.sender == self.admin
+    self._price_oracle = _price_oracle
+    log IAMM.SetPriceOracle(price_oracle=_price_oracle)

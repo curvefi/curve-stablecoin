@@ -2,6 +2,7 @@ from curve_std.interfaces import IERC20
 from curve_stablecoin.interfaces import ILMCallback
 from curve_stablecoin.interfaces import IAMM
 from curve_stablecoin.interfaces import IMonetaryPolicy
+from curve_stablecoin.interfaces import IPriceOracle
 from curve_stablecoin.interfaces import IFactory
 from curve_stablecoin import constants as c
 
@@ -121,6 +122,9 @@ def configure(
     liquidation_discount: uint256,
     monetary_policy: IMonetaryPolicy,
     view: address,
+    fee: uint256,
+    price_oracle: IPriceOracle,
+    liquidity_mining_callback: ILMCallback,
 ):
     ...
 

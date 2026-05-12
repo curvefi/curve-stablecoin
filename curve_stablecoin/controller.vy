@@ -1363,6 +1363,9 @@ def configure(
     _liquidation_discount: uint256,
     _monetary_policy: IMonetaryPolicy,
     _view_blueprint: address,
+    _fee: uint256,
+    _price_oracle: IPriceOracle,
+    _liquidity_mining_callback: ILMCallback,
 ):
     # TODO add access control assert
     if _loan_discount != SKIP_CONFIG_UINT256 and _liquidation_discount != SKIP_CONFIG_UINT256:
@@ -1384,6 +1387,12 @@ def configure(
             BORROWED_PRECISION,
         )
         self._view = IView(view)
+    if _fee != SKIP_CONFIG_UINT256:
+        extcall AMM.set_fee(_fee)
+    if _price_oracle.address != SKIP_CONFIG_ADDRESS:
+        extcall AMM.set_price_oracle(_price_oracle)
+    if _liquidity_mining_callback.address != SKIP_CONFIG_ADDRESS:
+        extcall AMM.set_callback(_liquidity_mining_callback)
 
 
 
