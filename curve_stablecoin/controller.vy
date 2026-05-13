@@ -71,7 +71,6 @@ CALLBACK_LIQUIDATE: constant(bytes4) = method_id(
 
 MIN_AMM_FEE: constant(uint256) = 10**6  # 1e-12, still needs to be above 0
 MAX_RATE: public(constant(uint256)) = 43959106799  # 300% APY
-MAX_ORACLE_PRICE_DEVIATION: constant(uint256) = WAD // 2  # 50% deviation
 
 ################################################################
 #                           STORAGE                            #
@@ -1388,6 +1387,7 @@ def configure(
         )
         self._view = IView(view)
     if _fee != SKIP_CONFIG_UINT256:
+        assert _fee <= MAX_AMM_FEE and _fee >= MIN_AMM_FEE, "Fee"
         extcall AMM.set_fee(_fee)
     if _price_oracle.address != SKIP_CONFIG_ADDRESS:
         extcall AMM.set_price_oracle(_price_oracle)

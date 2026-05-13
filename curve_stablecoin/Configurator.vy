@@ -15,11 +15,13 @@ from curve_stablecoin.interfaces import ILendController
 from curve_stablecoin.interfaces import IMonetaryPolicy
 from curve_stablecoin.interfaces import IPriceOracle
 from curve_stablecoin.interfaces import ILMCallback
+from curve_stablecoin.interfaces import IAMM
 from curve_stablecoin import constants as c
 
 WAD: constant(uint256) = c.WAD
 SKIP_CONFIG_UINT256: constant(uint256) = c.SKIP_CONFIG_UINT256
 SKIP_CONFIG_ADDRESS: constant(address) = c.SKIP_CONFIG_ADDRESS
+MAX_ORACLE_PRICE_DEVIATION: constant(uint256) = WAD // 2  # 50% deviation
 
 
 default_admin: public(address)
@@ -164,63 +166,87 @@ def set_admin_percentage(_controller: ILendController, _admin_percentage: uint25
 # ################################################################
 
 # # TODO add this to formatter
-# @external
-# def set_price_oracle(
-#     _amm: IAMM,
-#     _price_oracle: IPriceOracle, _max_deviation: uint256):
-#     """
-#     @notice Set a new price oracle for the AMM
-#     @param _price_oracle New price oracle contract
-#     @param _max_deviation Maximum allowed deviation for the new oracle
-#         Can be set to max_value(uint256) to skip the check if oracle is broken.
-#     """
-#     self._check_authorized(_controller)
-#     assert (
-#         _max_deviation <= MAX_ORACLE_PRICE_DEVIATION
-#         or _max_deviation == max_value(uint256)
-#     )  # dev: invalid max deviation
+@external
+def set_price_oracle(
+    _controller: IController,
+    _price_oracle: IPriceOracle,
+    _max_deviation: uint256):
+    """
+    @notice Set a new price oracle for the AMM
+    @param _price_oracle New price oracle contract
+    @param _max_deviation Maximum allowed deviation for the new oracle
+        Can be set to max_value(uint256) to skip the check if oracle is broken.
+    """
+    self._check_authorized(_controller)
+    assert (
+        _max_deviation <= MAX_ORACLE_PRICE_DEVIATION
+        or _max_deviation == max_value(uint256)
+    )  # dev: invalid max deviation
 
-#     # Validate the new oracle has required methods
-#     extcall _price_oracle.price_w()
-#     new_price: uint256 = staticcall _price_oracle.price()
+    # Validate the new oracle has required methods
+    extcall _price_oracle.price_w()
+    new_price: uint256 = staticcall _price_oracle.price()
 
-#     # Check price deviation isn't too high
-#     current_oracle: IPriceOracle = staticcall AMM.price_oracle_contract()
-#     old_price: uint256 = staticcall current_oracle.price()
-#     if _max_deviation != max_value(uint256):
-#         delta: uint256 = (
-#             new_price - old_price
-#             if old_price < new_price
-#             else old_price - new_price
-#         )
-#         max_delta: uint256 = old_price * _max_deviation // WAD
-#         assert delta <= max_delta, "delta>max"
+    # Check price deviation isn't too high
+    amm: IAMM = staticcall _controller.amm()
+    current_oracle: IPriceOracle = staticcall amm.price_oracle_contract()
+    old_price: uint256 = staticcall current_oracle.price()
+    if _max_deviation != max_value(uint256):
+        delta: uint256 = (
+            new_price - old_price
+            if old_price < new_price
+            else old_price - new_price
+        )
+        max_delta: uint256 = old_price * _max_deviation // WAD
+        assert delta <= max_delta, "delta>max"
 
-#     self._price_oracle = _price_oracle
-#     log IAMM.SetPriceOracle(price_oracle=_price_oracle)
-
-
-# @external
-# def set_callback(
-#     _amm: IAMM,
-#     _cb: ILMGauge):
-#     """
-#     @notice Set liquidity mining callback
-#     """
-#     self._check_authorized(_controller)
-#     self._liquidity_mining_callback = liquidity_mining_callback
-#     log IController.SetLMCallback(callback=_cb)
+    extcall _controller.configure(
+        SKIP_CONFIG_UINT256,
+        SKIP_CONFIG_UINT256,
+        IMonetaryPolicy(SKIP_CONFIG_ADDRESS),
+        SKIP_CONFIG_ADDRESS,
+        SKIP_CONFIG_UINT256,
+        _price_oracle,
+        ILMCallback(SKIP_CONFIG_ADDRESS),
+    )
 
 
-# @external
-# def set_amm_fee(
-#     _amm: IAMM,
-#     _fee: uint256):
-#     """
-#     @notice Set the AMM fee
-#     @param _fee The fee which should be no higher than MAX_AMM_FEE
-#     """
-#     self._check_authorized(_controller)
-#     assert _fee <= MAX_AMM_FEE and _fee >= MIN_AMM_FEE, "Fee"
-#     self.fee = _fee
-#     log IAMM.SetFee(fee=_fee)
+@external
+def set_callback(
+    _controller: IController,
+    _cb: ILMCallback
+):
+    """
+    @notice Set liquidity mining callback
+    """
+    self._check_authorized(_controller)
+    extcall _controller.configure(
+        SKIP_CONFIG_UINT256,
+        SKIP_CONFIG_UINT256,
+        IMonetaryPolicy(SKIP_CONFIG_ADDRESS),
+        SKIP_CONFIG_ADDRESS,
+        SKIP_CONFIG_UINT256,
+        IPriceOracle(SKIP_CONFIG_ADDRESS),
+        _cb,
+    )
+
+
+@external
+def set_amm_fee(
+    _controller: IController,
+    _fee: uint256
+):
+    """
+    @notice Set the AMM fee
+    @param _fee The fee which should be no higher than MAX_AMM_FEE
+    """
+    self._check_authorized(_controller)
+    extcall _controller.configure(
+        SKIP_CONFIG_UINT256,
+        SKIP_CONFIG_UINT256,
+        IMonetaryPolicy(SKIP_CONFIG_ADDRESS),
+        SKIP_CONFIG_ADDRESS,
+        _fee,
+        IPriceOracle(SKIP_CONFIG_ADDRESS),
+        ILMCallback(SKIP_CONFIG_ADDRESS),
+    )
