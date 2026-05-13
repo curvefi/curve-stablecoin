@@ -23,9 +23,9 @@ SKIP_CONFIG_UINT256: constant(uint256) = c.SKIP_CONFIG_UINT256
 SKIP_CONFIG_ADDRESS: constant(address) = c.SKIP_CONFIG_ADDRESS
 MAX_ORACLE_PRICE_DEVIATION: constant(uint256) = WAD // 2  # 50% deviation
 
-
 default_admin: public(address)
 admins: HashMap[IController, address]
+
 
 @external
 @reentrant
@@ -48,7 +48,9 @@ def _check_admin():
 
 @internal
 def _check_authorized(_controller: IController):
-    assert msg.sender == self.default_admin or msg.sender == self.admins[_controller], "Not authorized for this controller"
+    assert (
+        msg.sender == self.default_admin or msg.sender == self.admins[_controller]
+    ), "Not authorized for this controller"
 
 
 ################################################################
@@ -58,9 +60,7 @@ def _check_authorized(_controller: IController):
 
 @external
 def set_borrowing_discounts(
-    _controller: IController,
-    _loan_discount: uint256,
-    _liquidation_discount: uint256
+    _controller: IController, _loan_discount: uint256, _liquidation_discount: uint256
 ):
     """
     @notice Set discounts at which we can borrow (defines max LTV) and where bad liquidation starts
@@ -86,10 +86,7 @@ def set_borrowing_discounts(
 
 
 @external
-def set_monetary_policy(
-    _controller: IController,
-    _monetary_policy: IMonetaryPolicy
-):
+def set_monetary_policy(_controller: IController, _monetary_policy: IMonetaryPolicy):
     """
     @notice Set monetary policy contract
     @param _monetary_policy Address of the monetary policy contract
@@ -109,10 +106,7 @@ def set_monetary_policy(
 
 
 @external
-def set_view(
-    _controller: IController,
-    _view_blueprint: address
-):
+def set_view(_controller: IController, _view_blueprint: address):
     """
     @notice Change the contract used to store view functions.
     @dev This function deploys a new view implementation from a blueprint.
@@ -165,12 +159,10 @@ def set_admin_percentage(_controller: ILendController, _admin_percentage: uint25
 # #                             AMM                              #
 # ################################################################
 
-# # TODO add this to formatter
 @external
 def set_price_oracle(
-    _controller: IController,
-    _price_oracle: IPriceOracle,
-    _max_deviation: uint256):
+    _controller: IController, _price_oracle: IPriceOracle, _max_deviation: uint256
+):
     """
     @notice Set a new price oracle for the AMM
     @param _price_oracle New price oracle contract
@@ -179,8 +171,7 @@ def set_price_oracle(
     """
     self._check_authorized(_controller)
     assert (
-        _max_deviation <= MAX_ORACLE_PRICE_DEVIATION
-        or _max_deviation == max_value(uint256)
+        _max_deviation <= MAX_ORACLE_PRICE_DEVIATION or _max_deviation == max_value(uint256)
     )  # dev: invalid max deviation
 
     # Validate the new oracle has required methods
@@ -192,11 +183,7 @@ def set_price_oracle(
     current_oracle: IPriceOracle = staticcall amm.price_oracle_contract()
     old_price: uint256 = staticcall current_oracle.price()
     if _max_deviation != max_value(uint256):
-        delta: uint256 = (
-            new_price - old_price
-            if old_price < new_price
-            else old_price - new_price
-        )
+        delta: uint256 = (new_price - old_price if old_price < new_price else old_price - new_price)
         max_delta: uint256 = old_price * _max_deviation // WAD
         assert delta <= max_delta, "delta>max"
 
@@ -212,10 +199,7 @@ def set_price_oracle(
 
 
 @external
-def set_callback(
-    _controller: IController,
-    _cb: ILMCallback
-):
+def set_callback(_controller: IController, _cb: ILMCallback):
     """
     @notice Set liquidity mining callback
     """
@@ -232,10 +216,7 @@ def set_callback(
 
 
 @external
-def set_amm_fee(
-    _controller: IController,
-    _fee: uint256
-):
+def set_amm_fee(_controller: IController, _fee: uint256):
     """
     @notice Set the AMM fee
     @param _fee The fee which should be no higher than MAX_AMM_FEE
