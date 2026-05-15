@@ -17,6 +17,7 @@ from curve_stablecoin.interfaces import IAMM
 from curve_stablecoin.interfaces import IPriceOracle
 from curve_stablecoin.interfaces import ILendFactory
 from curve_stablecoin.interfaces import IMonetaryPolicy
+from curve_stablecoin.interfaces import IConfigurator
 
 implements: ILendFactory
 
@@ -56,6 +57,7 @@ _vaults_index: HashMap[IVault, uint256]
 
 # Maps contract addresses to market index and type for reverse lookup
 check_contract: public(HashMap[address, ILendFactory.ContractInfo])
+CONFIGURATOR: immutable(IConfigurator)
 
 
 @deploy
@@ -64,6 +66,7 @@ def __init__(
     _controller_blueprint: address,
     _vault_blueprint: address,
     _controller_view_blueprint: address,
+    _configurator: IConfigurator,
     _admin: address,
     _fee_receiver: address,
 ):
@@ -86,6 +89,8 @@ def __init__(
     assert _controller_blueprint != empty(address)
     assert _vault_blueprint != empty(address)
     assert _controller_view_blueprint != empty(address)
+    assert _configurator.address != empty(address)
+    CONFIGURATOR = _configurator
     # This is the only place where we set these blueprints
     blueprint_registry.set("AMM", _amm_blueprint)
     blueprint_registry.set("CTR", _controller_blueprint)
@@ -174,6 +179,7 @@ def create(
             _loan_discount,
             _liquidation_discount,
             blueprint_registry.get("CTRV"),
+            CONFIGURATOR,
         )
     )
     market_id: uint256 = len(self._vaults)

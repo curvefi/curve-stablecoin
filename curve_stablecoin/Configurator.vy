@@ -27,6 +27,11 @@ default_admin: public(address)
 admins: HashMap[IController, address]
 
 
+@deploy
+def __init__(_default_admin: address):
+    self.default_admin = _default_admin
+
+
 @external
 @reentrant
 def set_custom_fee_receiver(_controller: IController, _admin: address):

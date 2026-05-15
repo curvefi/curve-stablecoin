@@ -9,6 +9,7 @@ from curve_stablecoin.interfaces import IFactory
 from curve_stablecoin.interfaces import IPriceOracle
 from curve_stablecoin.interfaces import IController
 from curve_stablecoin.interfaces import IControllerView as IView
+from curve_stablecoin.interfaces import IConfigurator
 from curve_std.interfaces import IERC20
 
 implements: IController
@@ -36,6 +37,7 @@ COLLATERAL_PRECISION: immutable(uint256)
 BORROWED_TOKEN: immutable(IERC20)
 BORROWED_PRECISION: immutable(uint256)
 FACTORY: immutable(IFactory)
+CONFIGURATOR: immutable(IConfigurator)
 
 ################################################################
 #                          CONSTANTS                           #
@@ -146,7 +148,8 @@ def __init__(
     _loan_discount: uint256,
     _liquidation_discount: uint256,
     _amm: IAMM,
-    _view_impl: address,
+    _view_blueprint: address,
+    _configurator: IConfigurator,
 ):
     VIRTUAL = VirtualMethods(self)
 
@@ -173,12 +176,18 @@ def __init__(
     tkn.max_approve(BORROWED_TOKEN, FACTORY.address)
 
 
-    # TODO setup from configurator
-    # self._set_borrowing_discounts(_loan_discount, _liquidation_discount)
-    # self._monetary_policy = _monetary_policy
+    CONFIGURATOR = _configurator
     self._total_debt.rate_mul = WAD
     self.admin_percentage = WAD
-    # self._set_view(_view_impl)
+    self._configure(
+        _loan_discount,
+        _liquidation_discount,
+        _monetary_policy,
+        _view_blueprint,
+        SKIP_CONFIG_UINT256,
+        IPriceOracle(SKIP_CONFIG_ADDRESS),
+        ILMCallback(SKIP_CONFIG_ADDRESS),
+    )
 
 
 @external
@@ -1356,8 +1365,8 @@ def user_state(_user: address) -> uint256[4]:
     return staticcall self._view.user_state(_user)
 
 
-@external
-def configure(
+@internal
+def _configure(
     _loan_discount: uint256,
     _liquidation_discount: uint256,
     _monetary_policy: IMonetaryPolicy,
@@ -1393,6 +1402,28 @@ def configure(
         extcall AMM.set_price_oracle(_price_oracle)
     if _liquidity_mining_callback.address != SKIP_CONFIG_ADDRESS:
         extcall AMM.set_callback(_liquidity_mining_callback)
+
+
+@external
+def configure(
+    _loan_discount: uint256,
+    _liquidation_discount: uint256,
+    _monetary_policy: IMonetaryPolicy,
+    _view_blueprint: address,
+    _fee: uint256,
+    _price_oracle: IPriceOracle,
+    _liquidity_mining_callback: ILMCallback,
+):
+    assert msg.sender == CONFIGURATOR.address, "Only configurator"
+    self._configure(
+        _loan_discount,
+        _liquidation_discount,
+        _monetary_policy,
+        _view_blueprint,
+        _fee,
+        _price_oracle,
+        _liquidity_mining_callback,
+    )
 
 
 

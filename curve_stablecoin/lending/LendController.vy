@@ -124,7 +124,8 @@ def __init__(
     _monetary_policy: IMonetaryPolicy,
     _loan_discount: uint256,
     _liquidation_discount: uint256,
-    _view_impl: address,
+    _view_blueprint: address,
+    _configurator: core.IConfigurator,
 ):
     """
     @notice Lend Controller constructor
@@ -136,7 +137,7 @@ def __init__(
     @param _loan_discount Discount of the maximum loan size compare to get_x_down() value
     @param _liquidation_discount Discount of the maximum loan size compare to
            get_x_down() for "bad liquidation" purposes
-    @param _view_impl Address of the controller view implementation
+    @param _view_blueprint Address of the controller view blueprint
     """
     VAULT = _vault
 
@@ -147,7 +148,8 @@ def __init__(
         _loan_discount,
         _liquidation_discount,
         _amm,
-        _view_impl,
+        _view_blueprint,
+        _configurator,
     )
 
     # Borrow cap is zero by default in lend markets. The admin has to raise it
@@ -170,6 +172,7 @@ def version() -> String[10]:
 
 @external
 def configure_lend(_borrow_cap: uint256, _admin_percentage: uint256):
+    assert msg.sender == core.CONFIGURATOR.address, "Only configurator"
     if _borrow_cap != core.SKIP_CONFIG_UINT256:
         self.borrow_cap = _borrow_cap
     if _admin_percentage != core.SKIP_CONFIG_UINT256:
