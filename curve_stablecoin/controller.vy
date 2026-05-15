@@ -1375,7 +1375,6 @@ def _configure(
     _price_oracle: IPriceOracle,
     _liquidity_mining_callback: ILMCallback,
 ):
-    # TODO add access control assert
     if _loan_discount != SKIP_CONFIG_UINT256 and _liquidation_discount != SKIP_CONFIG_UINT256:
         self.loan_discount = _loan_discount
         self.liquidation_discount = _liquidation_discount

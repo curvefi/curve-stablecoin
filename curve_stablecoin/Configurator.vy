@@ -61,7 +61,6 @@ def _check_authorized(_controller: IController):
 ################################################################
 #                         CONTROLLER                           #
 ################################################################
-# TODO rename to LlamalendConfigurator
 
 @external
 def set_borrowing_discounts(
