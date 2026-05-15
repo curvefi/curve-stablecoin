@@ -19,6 +19,7 @@ def test_create_loan(
     stablecoin,
     collateral_token,
     market_controller,
+    configurator,
     market_amm,
     monetary_policy,
     accounts,
@@ -157,7 +158,7 @@ def controller_for_liquidation(
         collateral_amount = 10 ** collateral_token.decimals()
 
         with boa.env.prank(admin):
-            market_controller.set_amm_fee(10**6)
+            configurator.set_amm_fee(market_controller, 10**6)
             monetary_policy.set_rate(int(1e18 * 1.0 / 365 / 86400))  # 100% APY
 
         debt = market_controller.max_borrowable(collateral_amount, N)

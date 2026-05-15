@@ -13,6 +13,7 @@ def controller_for_liquidation(
     stablecoin,
     collateral_token,
     market_controller,
+    configurator,
     market_amm,
     price_oracle,
     monetary_policy,
@@ -25,7 +26,7 @@ def controller_for_liquidation(
         fee_receiver = accounts[0]  # same as liquidator
         collateral_amount = 10 ** collateral_token.decimals()
         with boa.env.prank(admin):
-            market_controller.set_amm_fee(10**6)
+            configurator.set_amm_fee(market_controller, 10**6)
             monetary_policy.set_rate(int(1e18 * 1.0 / 365 / 86400))  # 100% APY
             boa.deal(collateral_token, user, collateral_amount)
             boa.deal(collateral_token, user2, collateral_amount)
