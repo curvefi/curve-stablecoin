@@ -28,7 +28,7 @@ def borrow_cap():
     return 0
 
 
-def test_borrow_cap(controller, admin, collateral_token, borrowed_token, amounts):
+def test_borrow_cap(controller, configurator, admin, collateral_token, borrowed_token, amounts):
     # Pre-mint ample balances and approvals for the default EOA
     boa.deal(collateral_token, boa.env.eoa, amounts["premint_collateral"])
     boa.deal(borrowed_token, boa.env.eoa, amounts["premint_borrowed"])
@@ -42,7 +42,7 @@ def test_borrow_cap(controller, admin, collateral_token, borrowed_token, amounts
         controller.create_loan(amounts["collateral"], debt, N_BANDS)
 
     # Raise the cap modestly and open a loan that consumes the allowance
-    controller.set_borrow_cap(debt, sender=admin)
+    configurator.set_borrow_cap(controller, debt, sender=admin)
     assert controller.available_balance() > 0
     controller.create_loan(amounts["collateral"], debt, N_BANDS)
     assert controller.available_balance() > 0
@@ -54,18 +54,18 @@ def test_borrow_cap(controller, admin, collateral_token, borrowed_token, amounts
 
     # Increase collateral, temporarily lift the cap, and borrow more within the new limit
     controller.add_collateral(amounts["extra_collateral"])
-    controller.set_borrow_cap(MAX_UINT256, sender=admin)
+    configurator.set_borrow_cap(controller, MAX_UINT256, sender=admin)
     current_debt = controller.debt(boa.env.eoa)
     extra_debt = controller.max_borrowable(0, 0, boa.env.eoa)
     assert extra_debt > 0
-    controller.set_borrow_cap(current_debt + extra_debt, sender=admin)
+    configurator.set_borrow_cap(controller, current_debt + extra_debt, sender=admin)
     assert controller.available_balance() > 0
     controller.borrow_more(0, extra_debt)
     assert controller.available_balance() > 0
     assert controller.total_debt() == current_debt + extra_debt
 
     # Cutting the cap back to zero blocks further borrowing but allows repayments
-    controller.set_borrow_cap(0, sender=admin)
+    configurator.set_borrow_cap(controller, 0, sender=admin)
     with boa.reverts("Borrow cap exceeded"):
         controller.borrow_more(0, 1)
 
