@@ -849,6 +849,7 @@ def test_full_repay_from_xy0_and_wallet_and_callback(
 @pytest.mark.parametrize("different_payer", [True, False])
 def test_partial_repay_from_wallet(
     controller,
+    configurator,
     borrowed_token,
     collateral_token,
     create_loan,
@@ -872,8 +873,8 @@ def test_partial_repay_from_wallet(
 
     old_liquidation_discount = controller.liquidation_discount()
     new_liquidation_discount = old_liquidation_discount // 2
-    controller.set_borrowing_discounts(
-        controller.loan_discount(), new_liquidation_discount, sender=admin
+    configurator.set_borrowing_discounts(
+        controller, controller.loan_discount(), new_liquidation_discount, sender=admin
     )
 
     # ================= Capture initial state =================
@@ -1258,6 +1259,7 @@ def test_partial_repay_callback_collateral_cannot_increase(
 @pytest.mark.parametrize("different_payer", [True, False])
 def test_partial_repay_from_wallet_underwater(
     controller,
+    configurator,
     amm,
     borrowed_token,
     collateral_token,
@@ -1301,8 +1303,8 @@ def test_partial_repay_from_wallet_underwater(
 
     old_liquidation_discount = controller.liquidation_discount()
     new_liquidation_discount = old_liquidation_discount // 2
-    controller.set_borrowing_discounts(
-        controller.loan_discount(), new_liquidation_discount, sender=admin
+    configurator.set_borrowing_discounts(
+        controller, controller.loan_discount(), new_liquidation_discount, sender=admin
     )
 
     # ================= Setup payer tokens =================

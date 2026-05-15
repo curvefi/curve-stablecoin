@@ -51,6 +51,7 @@ def snapshot(controller, amm, fake_leverage):
 @pytest.mark.parametrize("different_payer", [True, False])
 def test_repay_partial_from_wallet(
     controller,
+    configurator,
     borrowed_token,
     collateral_token,
     amm,
@@ -78,8 +79,8 @@ def test_repay_partial_from_wallet(
 
     old_liquidation_discount = controller.liquidation_discount()
     new_liquidation_discount = old_liquidation_discount - 1
-    controller.set_borrowing_discounts(
-        controller.loan_discount(), new_liquidation_discount, sender=admin
+    configurator.set_borrowing_discounts(
+        controller, controller.loan_discount(), new_liquidation_discount, sender=admin
     )
 
     # ================= Capture initial state =================
@@ -188,6 +189,7 @@ def test_repay_partial_from_wallet(
 @pytest.mark.parametrize("different_payer", [True, False])
 def test_repay_partial_from_callback(
     controller,
+    configurator,
     borrowed_token,
     collateral_token,
     amm,
@@ -216,8 +218,8 @@ def test_repay_partial_from_callback(
 
     old_liquidation_discount = controller.liquidation_discount()
     new_liquidation_discount = old_liquidation_discount - 1
-    controller.set_borrowing_discounts(
-        controller.loan_discount(), new_liquidation_discount, sender=admin
+    configurator.set_borrowing_discounts(
+        controller, controller.loan_discount(), new_liquidation_discount, sender=admin
     )
 
     # ================= Capture initial state =================
@@ -335,6 +337,7 @@ def test_repay_partial_from_callback(
 @pytest.mark.parametrize("different_payer", [True, False])
 def test_repay_partial_from_wallet_and_callback(
     controller,
+    configurator,
     borrowed_token,
     collateral_token,
     amm,
@@ -363,8 +366,8 @@ def test_repay_partial_from_wallet_and_callback(
 
     old_liquidation_discount = controller.liquidation_discount()
     new_liquidation_discount = old_liquidation_discount - 1
-    controller.set_borrowing_discounts(
-        controller.loan_discount(), new_liquidation_discount, sender=admin
+    configurator.set_borrowing_discounts(
+        controller, controller.loan_discount(), new_liquidation_discount, sender=admin
     )
 
     # ================= Capture initial state =================
@@ -489,6 +492,7 @@ def test_repay_partial_from_wallet_and_callback(
 @pytest.mark.parametrize("different_payer", [True, False])
 def test_repay_partial_from_wallet_underwater(
     controller,
+    configurator,
     borrowed_token,
     collateral_token,
     amm,
@@ -528,8 +532,8 @@ def test_repay_partial_from_wallet_underwater(
 
     old_liquidation_discount = controller.liquidation_discount()
     new_liquidation_discount = old_liquidation_discount - 1
-    controller.set_borrowing_discounts(
-        controller.loan_discount(), new_liquidation_discount, sender=admin
+    configurator.set_borrowing_discounts(
+        controller, controller.loan_discount(), new_liquidation_discount, sender=admin
     )
 
     # ================= Capture initial state =================
@@ -653,6 +657,7 @@ def test_repay_partial_from_wallet_underwater(
 @pytest.mark.parametrize("different_payer", [True, False])
 def test_repay_partial_from_xy0_underwater_shrink(
     controller,
+    configurator,
     borrowed_token,
     collateral_token,
     amm,
@@ -701,8 +706,8 @@ def test_repay_partial_from_xy0_underwater_shrink(
 
     old_liquidation_discount = controller.liquidation_discount()
     new_liquidation_discount = old_liquidation_discount - 1
-    controller.set_borrowing_discounts(
-        controller.loan_discount(), new_liquidation_discount, sender=admin
+    configurator.set_borrowing_discounts(
+        controller, controller.loan_discount(), new_liquidation_discount, sender=admin
     )
 
     # ================= Capture initial state =================
@@ -814,6 +819,7 @@ def test_repay_partial_from_xy0_underwater_shrink(
 @pytest.mark.parametrize("different_payer", [True, False])
 def test_repay_partial_from_xy0_and_wallet_underwater_shrink(
     controller,
+    configurator,
     borrowed_token,
     collateral_token,
     amm,
@@ -865,8 +871,8 @@ def test_repay_partial_from_xy0_and_wallet_underwater_shrink(
 
     old_liquidation_discount = controller.liquidation_discount()
     new_liquidation_discount = old_liquidation_discount - 1
-    controller.set_borrowing_discounts(
-        controller.loan_discount(), new_liquidation_discount, sender=admin
+    configurator.set_borrowing_discounts(
+        controller, controller.loan_discount(), new_liquidation_discount, sender=admin
     )
 
     # ================= Capture initial state =================
@@ -985,6 +991,7 @@ def test_repay_partial_from_xy0_and_wallet_underwater_shrink(
 @pytest.mark.parametrize("different_payer", [True, False])
 def test_repay_partial_from_xy0_and_callback_underwater_shrink(
     controller,
+    configurator,
     borrowed_token,
     collateral_token,
     amm,
@@ -1040,8 +1047,8 @@ def test_repay_partial_from_xy0_and_callback_underwater_shrink(
 
     old_liquidation_discount = controller.liquidation_discount()
     new_liquidation_discount = old_liquidation_discount - 1
-    controller.set_borrowing_discounts(
-        controller.loan_discount(), new_liquidation_discount, sender=admin
+    configurator.set_borrowing_discounts(
+        controller, controller.loan_discount(), new_liquidation_discount, sender=admin
     )
 
     # ================= Capture initial state =================
@@ -1167,6 +1174,7 @@ def test_repay_partial_from_xy0_and_callback_underwater_shrink(
 @pytest.mark.parametrize("different_payer", [True, False])
 def test_repay_partial_from_xy0_and_wallet_and_callback_underwater_shrink(
     controller,
+    configurator,
     borrowed_token,
     collateral_token,
     amm,
@@ -1222,8 +1230,8 @@ def test_repay_partial_from_xy0_and_wallet_and_callback_underwater_shrink(
 
     old_liquidation_discount = controller.liquidation_discount()
     new_liquidation_discount = old_liquidation_discount - 1
-    controller.set_borrowing_discounts(
-        controller.loan_discount(), new_liquidation_discount, sender=admin
+    configurator.set_borrowing_discounts(
+        controller, controller.loan_discount(), new_liquidation_discount, sender=admin
     )
 
     # ================= Capture initial state =================
