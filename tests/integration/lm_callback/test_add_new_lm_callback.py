@@ -15,7 +15,7 @@ def test_add_new_lm_callback(
     minter,
     gauge_controller,
     lm_factory,
-    ):
+):
     borrower1 = boa.env.generate_address("borrower1")
     borrower2 = boa.env.generate_address("borrower2")
     for b in (borrower1, borrower2):
