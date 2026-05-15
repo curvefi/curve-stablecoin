@@ -57,9 +57,7 @@ def test_create_loan(
             market_controller.create_loan(c_amount, l_amount, 5, user)
 
 
-def test_repay_all(
-    stablecoin, collateral_token, market_controller, existing_loan
-):
+def test_repay_all(stablecoin, collateral_token, market_controller, existing_loan):
     user = existing_loan
     someone_else = boa.env.generate_address("repayer")
     c_amount = int(2 * 1e6 * 10 ** collateral_token.decimals() * 1.5 / 3000)

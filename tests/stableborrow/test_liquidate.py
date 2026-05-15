@@ -76,7 +76,9 @@ def controller_for_liquidation(
     return f
 
 
-def test_liquidate(admin, controller_for_liquidation, controller_factory, market_amm, stablecoin):
+def test_liquidate(
+    admin, controller_for_liquidation, controller_factory, market_amm, stablecoin
+):
     user = admin
     fee_receiver = controller_factory.fee_receiver()
 
@@ -176,7 +178,9 @@ def test_liquidate_callback(
                 raise
 
 
-def test_self_liquidate(admin, controller_for_liquidation, controller_factory, market_amm, stablecoin):
+def test_self_liquidate(
+    admin, controller_for_liquidation, controller_factory, market_amm, stablecoin
+):
     user = admin
     fee_receiver = controller_factory.fee_receiver()
     other_liquidator = boa.env.generate_address("other_liquidator")
@@ -204,7 +208,9 @@ def test_self_liquidate(admin, controller_for_liquidation, controller_factory, m
 
 
 @given(frac=st.integers(min_value=10**14, max_value=10**18 - 13))
-def test_tokens_to_liquidate(admin, controller_for_liquidation, controller_factory, market_amm, stablecoin, frac):
+def test_tokens_to_liquidate(
+    admin, controller_for_liquidation, controller_factory, market_amm, stablecoin, frac
+):
     user = admin
     fee_receiver = controller_factory.fee_receiver()
 
