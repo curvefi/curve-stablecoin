@@ -41,9 +41,7 @@ def test_admin_access_control(controller, configurator, new_oracle):
         configurator.set_price_oracle(controller, new_oracle, max_deviation)
 
 
-def test_max_deviation_validation_too_high(
-    controller, configurator, new_oracle, admin
-):
+def test_max_deviation_validation_too_high(controller, configurator, new_oracle, admin):
     """Test that max_deviation cannot exceed MAX_ORACLE_PRICE_DEVIATION."""
     # MAX_ORACLE_PRICE_DEVIATION is 50% (WAD // 2)
     invalid_deviation = MAX_ORACLE_PRICE_DEVIATION + 1
@@ -184,9 +182,7 @@ def test_price_deviation_at_exact_limit(controller, configurator, admin, amm):
     )
 
     # Should succeed with exactly 10% max deviation
-    configurator.set_price_oracle(
-        controller, exact_limit_oracle, 10**17, sender=admin
-    )
+    configurator.set_price_oracle(controller, exact_limit_oracle, 10**17, sender=admin)
     assert amm.price_oracle_contract() == exact_limit_oracle.address
 
 

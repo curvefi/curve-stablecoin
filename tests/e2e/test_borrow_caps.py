@@ -28,7 +28,9 @@ def borrow_cap():
     return 0
 
 
-def test_borrow_cap(controller, configurator, admin, collateral_token, borrowed_token, amounts):
+def test_borrow_cap(
+    controller, configurator, admin, collateral_token, borrowed_token, amounts
+):
     # Pre-mint ample balances and approvals for the default EOA
     boa.deal(collateral_token, boa.env.eoa, amounts["premint_collateral"])
     boa.deal(borrowed_token, boa.env.eoa, amounts["premint_borrowed"])
