@@ -1346,7 +1346,6 @@ def liquidate(
         )
 
 
-# TODO perhaps move this to view contract?
 @external
 @view
 def tokens_to_liquidate(_user: address, _frac: uint256 = WAD) -> uint256:
