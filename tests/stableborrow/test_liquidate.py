@@ -18,12 +18,11 @@ def controller_for_liquidation(
     price_oracle,
     monetary_policy,
     admin,
-    accounts,
 ):
     def f(sleep_time, discount):
         user = admin
-        user2 = accounts[2]
-        fee_receiver = accounts[0]  # same as liquidator
+        user2 = boa.env.generate_address("secondary_borrower")
+        fee_receiver = market_controller.factory().fee_receiver()
         collateral_amount = 10 ** collateral_token.decimals()
         with boa.env.prank(admin):
             configurator.set_amm_fee(market_controller, 10**6)
@@ -76,17 +75,19 @@ def controller_for_liquidation(
     return f
 
 
-def test_liquidate(accounts, admin, controller_for_liquidation, market_amm, stablecoin):
+def test_liquidate(admin, controller_for_liquidation, market_controller, market_amm, stablecoin):
     user = admin
-    fee_receiver = accounts[0]
+    fee_receiver = market_controller.factory().fee_receiver()
+    secondary_borrower = boa.env.generate_address("secondary_borrower")
 
     controller = controller_for_liquidation(sleep_time=80 * 86400, discount=0)
     x = market_amm.get_sum_xy(user)[0]
 
-    with boa.env.prank(accounts[2]):
+    with boa.env.prank(secondary_borrower):
         stablecoin.transfer(fee_receiver, 10**10)
 
     with boa.env.prank(fee_receiver):
+        stablecoin.approve(controller, 2**256 - 1)
         with boa.reverts("Slippage"):
             controller.liquidate(user, x + 1)
         controller.liquidate(user, int(x * 0.999999))
@@ -95,17 +96,18 @@ def test_liquidate(accounts, admin, controller_for_liquidation, market_amm, stab
 @given(frac=st.integers(min_value=0, max_value=10**18))
 @settings(max_examples=200)
 def test_liquidate_callback(
-    accounts,
     admin,
     stablecoin,
     collateral_token,
     controller_for_liquidation,
+    market_controller,
     market_amm,
     fake_leverage,
     frac,
 ):
     user = admin
-    fee_receiver = accounts[0]
+    fee_receiver = market_controller.factory().fee_receiver()
+    secondary_borrower = boa.env.generate_address("secondary_borrower")
     ld = int(0.02 * 1e18)
     if frac < 10**18:
         # f = ((1 + h/2) / (1 + h) * (1 - frac) + frac) * frac
@@ -127,10 +129,11 @@ def test_liquidate_callback(
     # Health here is not too bad, so we still can profitably liquidate
     x = market_amm.get_sum_xy(user)[0]
 
-    with boa.env.prank(accounts[2]):
+    with boa.env.prank(secondary_borrower):
         stablecoin.transfer(fee_receiver, 10**10)
 
     with boa.env.prank(fee_receiver):
+        stablecoin.approve(controller, 2**256 - 1)
         # Prepare stablecoins to use for liquidation
         # we do it by borrowing
         if f != 10**18:
@@ -176,25 +179,25 @@ def test_liquidate_callback(
                 raise
 
 
-def test_self_liquidate(
-    accounts, admin, controller_for_liquidation, market_amm, stablecoin
-):
+def test_self_liquidate(admin, controller_for_liquidation, market_controller, market_amm, stablecoin):
     user = admin
-    fee_receiver = accounts[0]
+    fee_receiver = market_controller.factory().fee_receiver()
+    secondary_borrower = boa.env.generate_address("secondary_borrower")
+    other_liquidator = boa.env.generate_address("other_liquidator")
 
     with boa.env.anchor():
         controller = controller_for_liquidation(
             sleep_time=40 * 86400, discount=2.5 * 10**16
         )
 
-        with boa.env.prank(accounts[2]):
+        with boa.env.prank(secondary_borrower):
             stablecoin.transfer(fee_receiver, 10**10)
 
         x = market_amm.get_sum_xy(user)[0]
         with boa.env.prank(fee_receiver):
             stablecoin.transfer(user, stablecoin.balanceOf(fee_receiver))
 
-        with boa.env.prank(accounts[1]):
+        with boa.env.prank(other_liquidator):
             with boa.reverts("Not enough rekt"):
                 controller.liquidate(user, 0)
 
@@ -206,21 +209,21 @@ def test_self_liquidate(
 
 
 @given(frac=st.integers(min_value=10**14, max_value=10**18 - 13))
-def test_tokens_to_liquidate(
-    accounts, admin, controller_for_liquidation, market_amm, stablecoin, frac
-):
+def test_tokens_to_liquidate(admin, controller_for_liquidation, market_controller, market_amm, stablecoin, frac):
     user = admin
-    fee_receiver = accounts[0]
+    fee_receiver = market_controller.factory().fee_receiver()
+    secondary_borrower = boa.env.generate_address("secondary_borrower")
 
     with boa.env.anchor():
         controller = controller_for_liquidation(sleep_time=80 * 86400, discount=0)
         tokens_to_liquidate = controller.tokens_to_liquidate(user, frac)
 
-        with boa.env.prank(accounts[2]):
+        with boa.env.prank(secondary_borrower):
             stablecoin.transfer(fee_receiver, 10**10)
         initial_balance = stablecoin.balanceOf(fee_receiver)
 
         with boa.env.prank(fee_receiver):
+            stablecoin.approve(controller, 2**256 - 1)
             controller.liquidate(user, 0, frac)
 
         balance = stablecoin.balanceOf(fee_receiver)
