@@ -88,7 +88,9 @@ class Llamalend:
             1,
         )
         assert f"{controller_view_blueprint.address}," in mint_controller_code
-        assert f"core.IConfigurator({self.configurator.address})," in mint_controller_code
+        assert (
+            f"core.IConfigurator({self.configurator.address})," in mint_controller_code
+        )
 
         # This is a bit of a special case that breaks our current conventions around
         # deployers. The only reason why this was done is because since we can't change
