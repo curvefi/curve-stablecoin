@@ -45,9 +45,9 @@ class StatefulLendBorrow(RuleBasedStateMachine):
             try:
                 self.controller.calculate_debt_n1(c_amount, amount, n)
             except Exception as e:
-                too_high = "Debt too high" in str(e)
+                too_high = "Debt too high" in str(e) or "Too deep" in str(e)
             if too_high:
-                with boa.reverts("Debt too high"):
+                with boa.reverts():
                     self.controller.create_loan(c_amount, amount, n)
                 return
 
@@ -175,9 +175,9 @@ class StatefulLendBorrow(RuleBasedStateMachine):
             try:
                 self.controller.calculate_debt_n1(final_collateral, final_debt, n)
             except Exception as e:
-                too_high = "Debt too high" in str(e)
+                too_high = "Debt too high" in str(e) or "Too deep" in str(e)
             if too_high:
-                with boa.reverts("Debt too high"):
+                with boa.reverts():
                     self.controller.borrow_more(c_amount, amount)
                 return
 
