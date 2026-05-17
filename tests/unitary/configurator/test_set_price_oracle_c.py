@@ -66,9 +66,7 @@ def test_set_price_oracle_skips_deviation_check_with_max_uint(
     configurator, controller, amm, admin, current_amm_price_oracle, deploy_price_oracle
 ):
     current_price = current_amm_price_oracle.price()
-    high_deviation_price = (
-        current_price * (WAD + MAX_ORACLE_PRICE_DEVIATION + 1) // WAD
-    )
+    high_deviation_price = current_price * (WAD + MAX_ORACLE_PRICE_DEVIATION + 1) // WAD
     high_deviation_oracle = deploy_price_oracle(high_deviation_price)
 
     delta = high_deviation_oracle.price() - current_price

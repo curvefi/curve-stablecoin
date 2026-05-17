@@ -115,9 +115,7 @@ def test_set_borrowing_discounts_reverts_loan_discount_lte_liquidation_discount(
     assert configure_tracking_controller.configure_calls() == 0
 
 
-def test_set_borrowing_discounts_reverts_unauthorized(
-    configurator, controller
-):
+def test_set_borrowing_discounts_reverts_unauthorized(configurator, controller):
     non_admin = boa.env.generate_address("non_admin")
 
     with boa.reverts("Not authorized for this controller"):
