@@ -34,10 +34,10 @@ def __init__(_default_admin: address):
 
 @external
 @reentrant
-def set_custom_fee_receiver(_controller: IController, _admin: address):
+def set_custom_admin(_controller: IController, _admin: address):
     """
-    @notice Set fee receiver who earns admin fees for a specific controller
-    @dev Setting to zero address resets to default fee receiver
+    @notice Set admin for a specific controller
+    @dev Setting to zero address resets to default admin
     @param _controller Address of the controller
     @param _admin Address of the admin
     """
