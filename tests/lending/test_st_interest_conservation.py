@@ -290,6 +290,13 @@ class StatefulLendBorrow(RuleBasedStateMachine):
             )  # Can have error of 1 (rounding) at most per step (and 10 stateful steps)
 
 
+def _set_stateful_attrs(values):
+    users = [boa.env.generate_address() for _ in range(10)]
+    for k, v in values.items():
+        setattr(StatefulLendBorrow, k, v)
+    setattr(StatefulLendBorrow, "accounts", users)
+
+
 def test_stateful_lendborrow(
     vault,
     amm,
@@ -297,15 +304,13 @@ def test_stateful_lendborrow(
     monetary_policy,
     collateral_token,
     borrowed_token,
-    accounts,
     admin,
     configurator,
 ):
     StatefulLendBorrow.TestCase.settings = settings(
         max_examples=200, stateful_step_count=10
     )
-    for k, v in locals().items():
-        setattr(StatefulLendBorrow, k, v)
+    _set_stateful_attrs(locals())
     run_state_machine_as_test(StatefulLendBorrow)
 
 
@@ -316,12 +321,10 @@ def test_borrow_not_reverting(
     monetary_policy,
     collateral_token,
     borrowed_token,
-    accounts,
     admin,
     configurator,
 ):
-    for k, v in locals().items():
-        setattr(StatefulLendBorrow, k, v)
+    _set_stateful_attrs(locals())
     state = StatefulLendBorrow()
     state.debt_payable()
     state.sum_of_debts()
@@ -342,12 +345,10 @@ def test_borrow_temp(
     monetary_policy,
     collateral_token,
     borrowed_token,
-    accounts,
     admin,
     configurator,
 ):
-    for k, v in locals().items():
-        setattr(StatefulLendBorrow, k, v)
+    _set_stateful_attrs(locals())
     state = StatefulLendBorrow()
     state.debt_payable()
     state.sum_of_debts()
