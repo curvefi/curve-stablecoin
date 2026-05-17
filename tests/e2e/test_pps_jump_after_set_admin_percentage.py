@@ -33,6 +33,7 @@ def test_set_admin_percentage_totalassets_discontinuity(
     admin,
     vault,
     controller,
+    configurator,
     amm,
     monetary_policy,
     borrowed_token,
@@ -57,7 +58,7 @@ def test_set_admin_percentage_totalassets_discontinuity(
     controller.save_rate(sender=admin)
 
     initial_pct = WAD // 2  # 50%
-    controller.set_admin_percentage(initial_pct, sender=admin)
+    configurator.set_admin_percentage(controller, initial_pct, sender=admin)
 
     # Open a loan to start accumulating interest (and therefore admin fees)
     borrower = boa.env.generate_address("borrower")
@@ -84,7 +85,7 @@ def test_set_admin_percentage_totalassets_discontinuity(
     # causes totalAssets() to increase discontinuously — a windfall for
     # lenders from interest that was accruing under the old rate.
     new_pct = WAD // 4  # 25%
-    controller.set_admin_percentage(new_pct, sender=admin)
+    configurator.set_admin_percentage(controller, new_pct, sender=admin)
 
     total_assets_after = vault.totalAssets()
 

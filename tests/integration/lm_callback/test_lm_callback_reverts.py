@@ -11,6 +11,7 @@ def test_add_new_lm_callback(
     collateral_token,
     borrowed_token,
     controller,
+    configurator,
     amm,
     gauge_controller,
 ):
@@ -19,7 +20,7 @@ def test_add_new_lm_callback(
     collateral_token.approve(controller, MAX_UINT256, sender=borrower)
 
     # Remove current LM Callback
-    controller.set_callback(ZERO_ADDRESS, sender=admin)
+    configurator.set_callback(controller, ZERO_ADDRESS, sender=admin)
 
     boa.env.time_travel(seconds=2 * WEEK + 5)
 
@@ -53,7 +54,7 @@ def test_add_new_lm_callback(
     # Wire up the new LM Callback reverting on any AMM interaction
     with boa.env.prank(admin):
         new_cb = LM_CALLBACK_WITH_REVERTS_DEPLOYER.deploy()
-        controller.set_callback(new_cb)
+        configurator.set_callback(controller, new_cb)
         gauge_controller.add_gauge(new_cb.address, 0, 10**18)
 
     # Market reverts

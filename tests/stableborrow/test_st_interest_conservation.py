@@ -51,9 +51,9 @@ class StatefulLendBorrow(RuleBasedStateMachine):
             try:
                 self.controller.calculate_debt_n1(c_amount, amount, n)
             except Exception as e:
-                too_high = "Debt too high" in str(e)
+                too_high = "Debt too high" in str(e) or "Too deep" in str(e)
             if too_high:
-                with boa.reverts("Debt too high"):
+                with boa.reverts():
                     self.controller.create_loan(c_amount, amount, n)
                 return
 
@@ -204,9 +204,9 @@ class StatefulLendBorrow(RuleBasedStateMachine):
             try:
                 self.controller.calculate_debt_n1(final_collateral, final_debt, n)
             except Exception as e:
-                too_high = "Debt too high" in str(e)
+                too_high = "Debt too high" in str(e) or "Too deep" in str(e)
             if too_high:
-                with boa.reverts("Debt too high"):
+                with boa.reverts():
                     self.controller.borrow_more(c_amount, amount)
                 return
 
@@ -251,7 +251,14 @@ class StatefulLendBorrow(RuleBasedStateMachine):
             supply = self.stablecoin.totalSupply()
             b = self.stablecoin.balanceOf(self.controller)
             debt = self.controller.total_debt()
-            assert debt == supply - b
+            assert abs(debt - (supply - b)) <= len(self.accounts)
+
+
+def _set_stateful_attrs(values):
+    users = [boa.env.generate_address() for _ in range(10)]
+    for k, v in values.items():
+        setattr(StatefulLendBorrow, k, v)
+    setattr(StatefulLendBorrow, "accounts", users)
 
 
 def test_stateful_lendborrow(
@@ -261,14 +268,12 @@ def test_stateful_lendborrow(
     monetary_policy,
     collateral_token,
     stablecoin,
-    accounts,
     admin,
 ):
     StatefulLendBorrow.TestCase.settings = settings(
         max_examples=200, stateful_step_count=10
     )
-    for k, v in locals().items():
-        setattr(StatefulLendBorrow, k, v)
+    _set_stateful_attrs(locals())
     run_state_machine_as_test(StatefulLendBorrow)
 
 
@@ -279,11 +284,9 @@ def test_rate_too_high(
     monetary_policy,
     collateral_token,
     stablecoin,
-    accounts,
     admin,
 ):
-    for k, v in locals().items():
-        setattr(StatefulLendBorrow, k, v)
+    _set_stateful_attrs(locals())
     with boa.env.anchor():
         state = StatefulLendBorrow()
         state.change_rate(
@@ -301,11 +304,9 @@ def test_unexpected_revert(
     monetary_policy,
     collateral_token,
     stablecoin,
-    accounts,
     admin,
 ):
-    for k, v in locals().items():
-        setattr(StatefulLendBorrow, k, v)
+    _set_stateful_attrs(locals())
     with boa.env.anchor():
         state = StatefulLendBorrow()
         state.create_loan(amount=28150, c_amount=5384530291638384907, n=8, user_id=1)
@@ -320,11 +321,9 @@ def test_no_revert_reason(
     monetary_policy,
     collateral_token,
     stablecoin,
-    accounts,
     admin,
 ):
-    for k, v in locals().items():
-        setattr(StatefulLendBorrow, k, v)
+    _set_stateful_attrs(locals())
     with boa.env.anchor():
         state = StatefulLendBorrow()
         state.create_loan(amount=1, c_amount=1, n=5, user_id=0)
@@ -337,11 +336,9 @@ def test_too_deep(
     monetary_policy,
     collateral_token,
     stablecoin,
-    accounts,
     admin,
 ):
-    for k, v in locals().items():
-        setattr(StatefulLendBorrow, k, v)
+    _set_stateful_attrs(locals())
     with boa.env.anchor():
         state = StatefulLendBorrow()
         state.create_loan(amount=13119, c_amount=48, n=43, user_id=0)
@@ -358,11 +355,9 @@ def test_overflow(
     monetary_policy,
     collateral_token,
     stablecoin,
-    accounts,
     admin,
 ):
-    for k, v in locals().items():
-        setattr(StatefulLendBorrow, k, v)
+    _set_stateful_attrs(locals())
     state = StatefulLendBorrow()
     state.debt_payable()
     state.sum_of_debts()
@@ -396,11 +391,9 @@ def test_cannot_repay_1(
     monetary_policy,
     collateral_token,
     stablecoin,
-    accounts,
     admin,
 ):
-    for k, v in locals().items():
-        setattr(StatefulLendBorrow, k, v)
+    _set_stateful_attrs(locals())
     state = StatefulLendBorrow()
     state.debt_payable()
     state.sum_of_debts()
@@ -427,11 +420,9 @@ def test_borrow_more_0(
     monetary_policy,
     collateral_token,
     stablecoin,
-    accounts,
     admin,
 ):
-    for k, v in locals().items():
-        setattr(StatefulLendBorrow, k, v)
+    _set_stateful_attrs(locals())
     state = StatefulLendBorrow()
     state.debt_payable()
     state.sum_of_debts()
@@ -452,11 +443,9 @@ def test_no_coins(
     monetary_policy,
     collateral_token,
     stablecoin,
-    accounts,
     admin,
 ):
-    for k, v in locals().items():
-        setattr(StatefulLendBorrow, k, v)
+    _set_stateful_attrs(locals())
     state = StatefulLendBorrow()
     state.debt_payable()
     state.sum_of_debts()

@@ -31,7 +31,7 @@ implements: IVault
 # These are virtual shares from method proposed by OpenZeppelin
 # see: https://blog.openzeppelin.com/a-novel-defense-against-erc4626-inflation-attacks
 # and
-# https://github.com/OpenZeppelin/openzeppelin-curve_stablecoin/blob/master/curve_stablecoin/token/ERC20/extensions/ERC4626.sol
+# https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/token/ERC20/extensions/ERC4626.sol
 # redeclaration here is because: https://github.com/vyperlang/vyper/issues/4723
 DEAD_SHARES: constant(uint256) = c.DEAD_SHARES
 MIN_ASSETS: constant(uint256) = 10000
@@ -264,7 +264,7 @@ def pricePerShare(_is_floor: bool = True) -> uint256:
 @view
 def convertToShares(_assets: uint256) -> uint256:
     """
-    @notice Returns the amount of shares which the Vault would exchange for the given amount of shares provided
+    @notice Returns the amount of shares which the Vault would exchange for the given amount of assets provided
     """
     return self._convert_to_shares(_assets)
 
@@ -282,7 +282,7 @@ def convertToAssets(_shares: uint256) -> uint256:
 @view
 def maxDeposit(_receiver: address) -> uint256:
     """
-    @notice Maximum amount of assets which a given user can deposit (inf)
+    @notice Maximum amount of assets which a given user can deposit
     """
     max_supply: uint256 = self.maxSupply
     if max_supply == max_value(uint256):
@@ -328,7 +328,7 @@ def deposit(_assets: uint256, _receiver: address = msg.sender) -> uint256:
 @view
 def maxMint(_receiver: address) -> uint256:
     """
-    @notice Return maximum amount of shares which a given user can mint (inf)
+    @notice Return maximum amount of shares which a given user can mint
     """
     max_supply: uint256 = self.maxSupply
     if max_supply == max_value(uint256):

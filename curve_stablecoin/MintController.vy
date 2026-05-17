@@ -40,4 +40,5 @@ def __init__(
         _liquidation_discount,
         _amm,
         empty(address),  # to replace at deployment with view blueprint
+        core.IConfigurator(empty(address)),  # to replace at deployment with configurator
     )

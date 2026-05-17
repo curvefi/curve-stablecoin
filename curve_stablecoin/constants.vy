@@ -11,3 +11,11 @@ WAD: constant(uint256) = 10**18
 SWAD: constant(int256) = 10**18
 
 CALLDATA_MAX_SIZE: constant(uint256) = 32 * 300
+
+# Sentinel values used in `configure` methods.
+# We use an arbitrary high value that is unlikely to be used as a real value (can't use zero address as it might be intentional)
+
+# keccak("SKIP_CONFIG") in decimal
+SKIP_CONFIG_UINT256: constant(uint256) = 34683848501677104821777960696933802007602333377339998839659032476042327981902
+# Last 20 bytes of keccak("SKIP_CONFIG_ADDRESS"), used as a nonzero sentinel for address config params
+SKIP_CONFIG_ADDRESS: constant(address) = 0x49D141CBcd6B4D409284668Ae6e935C90803713E

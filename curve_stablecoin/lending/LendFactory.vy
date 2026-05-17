@@ -17,6 +17,7 @@ from curve_stablecoin.interfaces import IAMM
 from curve_stablecoin.interfaces import IPriceOracle
 from curve_stablecoin.interfaces import ILendFactory
 from curve_stablecoin.interfaces import IMonetaryPolicy
+from curve_stablecoin.interfaces import IConfigurator
 
 implements: ILendFactory
 
@@ -47,6 +48,10 @@ MAX_A: public(constant(uint256)) = 10000
 MIN_FEE: constant(uint256) = 10**6  # 1e-12, still needs to be above 0
 MAX_FEE: constant(uint256) = 10**17  # 10%
 WAD: constant(uint256) = c.WAD
+AMM_BLUEPRINT_ID: constant(String[4]) = "AMM"
+CONTROLLER_BLUEPRINT_ID: constant(String[4]) = "CTR"
+VAULT_BLUEPRINT_ID: constant(String[4]) = "VLT"
+CONTROLLER_VIEW_BLUEPRINT_ID: constant(String[4]) = "CTRV"
 
 default_fee_receiver: public(address)
 fee_receivers: HashMap[address, address]
@@ -56,6 +61,7 @@ _vaults_index: HashMap[IVault, uint256]
 
 # Maps contract addresses to market index and type for reverse lookup
 check_contract: public(HashMap[address, ILendFactory.ContractInfo])
+CONFIGURATOR: immutable(IConfigurator)
 
 
 @deploy
@@ -64,6 +70,7 @@ def __init__(
     _controller_blueprint: address,
     _vault_blueprint: address,
     _controller_view_blueprint: address,
+    _configurator: IConfigurator,
     _admin: address,
     _fee_receiver: address,
 ):
@@ -77,20 +84,22 @@ def __init__(
     @param _fee_receiver Receiver of interest and admin fees
     """
     blueprint_registry.__init__([
-        "AMM",  # AMM Blueprint
-        "CTR",  # Controller Blueprint
-        "VLT",  # Vault Blueprint
-        "CTRV", # Controller View Blueprint
+        AMM_BLUEPRINT_ID,              # AMM Blueprint
+        CONTROLLER_BLUEPRINT_ID,       # Controller Blueprint
+        VAULT_BLUEPRINT_ID,            # Vault Blueprint
+        CONTROLLER_VIEW_BLUEPRINT_ID,  # Controller View Blueprint
     ])
     assert _amm_blueprint != empty(address)
     assert _controller_blueprint != empty(address)
     assert _vault_blueprint != empty(address)
     assert _controller_view_blueprint != empty(address)
+    assert _configurator.address != empty(address)
+    CONFIGURATOR = _configurator
     # This is the only place where we set these blueprints
-    blueprint_registry.set("AMM", _amm_blueprint)
-    blueprint_registry.set("CTR", _controller_blueprint)
-    blueprint_registry.set("VLT", _vault_blueprint)
-    blueprint_registry.set("CTRV", _controller_view_blueprint)
+    blueprint_registry.set(AMM_BLUEPRINT_ID, _amm_blueprint)
+    blueprint_registry.set(CONTROLLER_BLUEPRINT_ID, _controller_blueprint)
+    blueprint_registry.set(VAULT_BLUEPRINT_ID, _vault_blueprint)
+    blueprint_registry.set(CONTROLLER_VIEW_BLUEPRINT_ID, _controller_view_blueprint)
 
     ownable.__init__()
     pausable.__init__()
@@ -146,10 +155,10 @@ def create(
     assert p > 0  # dev: price oracle returned zero
     assert extcall _price_oracle.price_w() == p  # dev: price oracle price() and price_w() mismatch
 
-    vault: IVault = IVault(create_from_blueprint(blueprint_registry.get("VLT")))
+    vault: IVault = IVault(create_from_blueprint(blueprint_registry.get(VAULT_BLUEPRINT_ID)))
     amm: IAMM = IAMM(
         create_from_blueprint(
-            blueprint_registry.get("AMM"),
+            blueprint_registry.get(AMM_BLUEPRINT_ID),
             _borrowed_token,
             10**convert(18 - staticcall _borrowed_token.decimals(), uint256),
             _collateral_token,
@@ -165,7 +174,7 @@ def create(
     )
     controller: IController = IController(
         create_from_blueprint(
-            blueprint_registry.get("CTR"),
+            blueprint_registry.get(CONTROLLER_BLUEPRINT_ID),
             vault,
             amm,
             _borrowed_token,
@@ -173,7 +182,8 @@ def create(
             _monetary_policy,
             _loan_discount,
             _liquidation_discount,
-            blueprint_registry.get("CTRV"),
+            blueprint_registry.get(CONTROLLER_VIEW_BLUEPRINT_ID),
+            CONFIGURATOR,
         )
     )
     market_id: uint256 = len(self._vaults)
@@ -258,7 +268,7 @@ def amm_blueprint() -> address:
     """
     @notice Get the address of the AMM blueprint
     """
-    return blueprint_registry.get("AMM")
+    return blueprint_registry.get(AMM_BLUEPRINT_ID)
 
 
 @external
@@ -267,7 +277,7 @@ def controller_blueprint() -> address:
     """
     @notice Get the address of the controller blueprint
     """
-    return blueprint_registry.get("CTR")
+    return blueprint_registry.get(CONTROLLER_BLUEPRINT_ID)
 
 
 @external
@@ -276,7 +286,7 @@ def vault_blueprint() -> address:
     """
     @notice Get the address of the vault blueprint
     """
-    return blueprint_registry.get("VLT")
+    return blueprint_registry.get(VAULT_BLUEPRINT_ID)
 
 
 @external
@@ -285,7 +295,7 @@ def controller_view_blueprint() -> address:
     """
     @notice Get the address of the controller view blueprint
     """
-    return blueprint_registry.get("CTRV")
+    return blueprint_registry.get(CONTROLLER_VIEW_BLUEPRINT_ID)
 
 
 
@@ -345,7 +355,7 @@ def set_custom_fee_receiver(_controller: address, _fee_receiver: address):
     contract_info: ILendFactory.ContractInfo = self.check_contract[_controller]
     assert contract_info.contract_type == ILendFactory.ContractType.CONTROLLER, "not a controller"
     self.fee_receivers[_controller] = _fee_receiver
-    log ILendFactory.CustomSetFeeReceiver(controller=_controller, fee_receiver=_fee_receiver)
+    log ILendFactory.SetCustomFeeReceiver(controller=_controller, fee_receiver=_fee_receiver)
 
 
 @internal

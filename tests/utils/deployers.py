@@ -60,6 +60,9 @@ MINT_CONTROLLER_DEPLOYER = boa.load_partial(
 CONTROLLER_FACTORY_DEPLOYER = boa.load_partial(
     BASE_CONTRACT_PATH / "ControllerFactory.vy", compiler_args=compiler_args_default
 )
+CONFIGURATOR_DEPLOYER = boa.load_partial(
+    BASE_CONTRACT_PATH / "Configurator.vy", compiler_args=compiler_args_default
+)
 STABLECOIN_DEPLOYER = boa.load_partial(
     BASE_CONTRACT_PATH / "Stablecoin.vy", compiler_args=compiler_args_default
 )

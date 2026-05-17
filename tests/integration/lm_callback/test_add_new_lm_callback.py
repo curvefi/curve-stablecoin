@@ -10,6 +10,7 @@ def test_add_new_lm_callback(
     collateral_token,
     crv,
     controller,
+    configurator,
     amm,
     minter,
     gauge_controller,
@@ -21,7 +22,7 @@ def test_add_new_lm_callback(
         collateral_token.approve(controller, MAX_UINT256, sender=b)
 
     # Remove current LM Callback
-    controller.set_callback(ZERO_ADDRESS, sender=admin)
+    configurator.set_callback(controller, ZERO_ADDRESS, sender=admin)
 
     boa.env.time_travel(seconds=2 * WEEK + 5)
 
@@ -36,7 +37,7 @@ def test_add_new_lm_callback(
         new_cb = LM_CALLBACK_DEPLOYER.deploy(
             amm, crv, gauge_controller, minter, lm_factory
         )
-        controller.set_callback(new_cb)
+        configurator.set_callback(controller, new_cb)
         gauge_controller.add_gauge(new_cb.address, 0, 10**18)
 
     boa.env.time_travel(WEEK)

@@ -47,6 +47,7 @@ def borrower_with_existing_loan(controller, collateral_token, amounts):
 
 def _test_add_collateral_default_behavior(
     controller,
+    configurator,
     amm,
     borrowed_token,
     collateral_token,
@@ -78,8 +79,8 @@ def _test_add_collateral_default_behavior(
 
     old_liquidation_discount = controller.liquidation_discount()
     new_liquidation_discount = old_liquidation_discount // 2
-    controller.set_borrowing_discounts(
-        controller.loan_discount(), new_liquidation_discount, sender=admin
+    configurator.set_borrowing_discounts(
+        controller, controller.loan_discount(), new_liquidation_discount, sender=admin
     )
 
     # ================= Capture initial state =================
@@ -196,6 +197,7 @@ def _test_add_collateral_default_behavior(
 
 def test_default_behavior_self_caller(
     controller,
+    configurator,
     amm,
     borrowed_token,
     collateral_token,
@@ -216,6 +218,7 @@ def test_default_behavior_self_caller(
         new_liquidation_discount,
     ) = _test_add_collateral_default_behavior(
         controller,
+        configurator,
         amm,
         borrowed_token,
         collateral_token,
@@ -257,6 +260,7 @@ def test_default_behavior_different_caller(
 
 def test_default_behavior_approved_caller(
     controller,
+    configurator,
     amm,
     borrowed_token,
     collateral_token,
@@ -280,6 +284,7 @@ def test_default_behavior_approved_caller(
         new_liquidation_discount,
     ) = _test_add_collateral_default_behavior(
         controller,
+        configurator,
         amm,
         borrowed_token,
         collateral_token,
