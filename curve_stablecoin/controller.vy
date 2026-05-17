@@ -328,7 +328,7 @@ def save_rate():
 @view
 def _debt(_user: address) -> (uint256, uint256):
     """
-    @notice Get the value of debt and rate_mul and update the rate_mul counter
+    @notice Get the value of debt and rate_mul without changing the state
     @param _user User address
     @return (debt, rate_mul)
     """
@@ -781,7 +781,7 @@ def add_collateral_health_preview(
 @external
 def add_collateral(_collateral: uint256, _for: address = msg.sender):
     """
-    @notice Add extra collateral to avoid bad liqidations
+    @notice Add extra collateral to avoid bad liquidations
     @param _collateral Amount of collateral to add
     @param _for Address to add collateral for
     """
