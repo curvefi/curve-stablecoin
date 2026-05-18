@@ -31,7 +31,7 @@ implements: IVault
 # These are virtual shares from method proposed by OpenZeppelin
 # see: https://blog.openzeppelin.com/a-novel-defense-against-erc4626-inflation-attacks
 # and
-# https://github.com/OpenZeppelin/openzeppelin-curve_stablecoin/blob/master/curve_stablecoin/token/ERC20/extensions/ERC4626.sol
+# https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/token/ERC20/extensions/ERC4626.sol
 # redeclaration here is because: https://github.com/vyperlang/vyper/issues/4723
 DEAD_SHARES: constant(uint256) = c.DEAD_SHARES
 MIN_ASSETS: constant(uint256) = 10000
@@ -196,6 +196,12 @@ def totalAssets() -> uint256:
 @view
 def _convert_to_shares(_assets: uint256, _is_floor: bool = True,
                        _total_assets: uint256 = max_value(uint256)) -> uint256:
+    """
+    @param _assets Amount of assets to convert
+    @param _is_floor If True, round down; if False, round up
+    @param _total_assets Override for total assets; uses current value if max_value(uint256)
+    @return Amount of shares equivalent to `_assets`
+    """
     total_assets: uint256 = _total_assets
     if total_assets == max_value(uint256):
         total_assets = self._total_assets()
@@ -212,6 +218,12 @@ def _convert_to_shares(_assets: uint256, _is_floor: bool = True,
 @view
 def _convert_to_assets(_shares: uint256, _is_floor: bool = True,
                        _total_assets: uint256 = max_value(uint256)) -> uint256:
+    """
+    @param _shares Amount of shares to convert
+    @param _is_floor If True, round down; if False, round up
+    @param _total_assets Override for total assets; uses current value if max_value(uint256)
+    @return Amount of assets equivalent to `_shares`
+    """
     total_assets: uint256 = _total_assets
     if total_assets == max_value(uint256):
         total_assets = self._total_assets()
@@ -252,7 +264,7 @@ def pricePerShare(_is_floor: bool = True) -> uint256:
 @view
 def convertToShares(_assets: uint256) -> uint256:
     """
-    @notice Returns the amount of shares which the Vault would exchange for the given amount of shares provided
+    @notice Returns the amount of shares which the Vault would exchange for the given amount of assets provided
     """
     return self._convert_to_shares(_assets)
 
@@ -270,7 +282,7 @@ def convertToAssets(_shares: uint256) -> uint256:
 @view
 def maxDeposit(_receiver: address) -> uint256:
     """
-    @notice Maximum amount of assets which a given user can deposit (inf)
+    @notice Maximum amount of assets which a given user can deposit
     """
     max_supply: uint256 = self.maxSupply
     if max_supply == max_value(uint256):
@@ -316,7 +328,7 @@ def deposit(_assets: uint256, _receiver: address = msg.sender) -> uint256:
 @view
 def maxMint(_receiver: address) -> uint256:
     """
-    @notice Return maximum amount of shares which a given user can mint (inf)
+    @notice Return maximum amount of shares which a given user can mint
     """
     max_supply: uint256 = self.maxSupply
     if max_supply == max_value(uint256):
@@ -339,7 +351,7 @@ def previewMint(_shares: uint256) -> uint256:
 def mint(_shares: uint256, _receiver: address = msg.sender) -> uint256:
     """
     @notice Mint given amount of shares taking whatever number of assets it requires
-    @param _shares Number of sharess to mint
+    @param _shares Number of shares to mint
     @param _receiver Optional receiver for the shares. If not specified - it's the sender
     """
     assert _shares > 0, "Can't mint 0 shares"

@@ -33,13 +33,14 @@ def controller_for_liquidation(
     amm,
     monetary_policy,
     admin,
+    configurator,
 ):
     def f(sleep_time, user):
         N = 5
         collateral_amount = 10 ** collateral_token.decimals()
 
+        configurator.set_amm_fee(controller, 10**6, sender=admin)
         with boa.env.prank(admin):
-            controller.set_amm_fee(10**6)
             monetary_policy.set_rate(int(1e18 * 1.0 / 365 / 86400))  # 100% APY
 
         debt = controller.max_borrowable(collateral_amount, N)

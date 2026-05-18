@@ -137,68 +137,6 @@ def _calc_full_health(_collateral: uint256, _debt: uint256, _N: uint256, _n1: in
     return health
 
 
-@internal
-@view
-def _calculate_debt_n1(
-    _collateral: uint256,
-    _debt: uint256,
-    _N: uint256,
-    _user: address,
-) -> int256:
-    """
-    @notice Calculate the upper band number for the deposit to sit in to support
-            the given debt. Reverts if requested debt is too high.
-    @param _collateral Amount of collateral (at its native precision)
-    @param _debt Amount of requested debt
-    @param _N Number of bands to deposit into
-    @return Upper band n1 (n1 <= n2) to deposit into. Signed integer
-    """
-    assert _debt > 0, "No loan"
-    n0: int256 = staticcall AMM.active_band()
-    p_base: uint256 = staticcall AMM.p_oracle_up(n0)
-
-    # x_effective = y / N * p_oracle_up(n1) * sqrt((A - 1) / A) * sum_{0..N-1}(((A-1) / A)**k)
-    # === d_y_effective * p_oracle_up(n1) * sum(...) === y_effective * p_oracle_up(n1)
-    # d_y_effective = y / N / sqrt(A / (A - 1))
-    y_effective: uint256 = self._get_y_effective(
-        _collateral * COLLATERAL_PRECISION,
-        _N,
-        self._loan_discount() + self._extra_health(_user),
-    )
-    # p_oracle_up(n1) = base_price * ((A - 1) / A)**n1
-
-    # We borrow up until min band touches p_oracle,
-    # or it touches non-empty bands which cannot be skipped.
-    # We calculate required n1 for given (collateral, debt),
-    # and if n1 corresponds to price_oracle being too high, or unreachable band
-    # - we revert.
-
-    # n1 is band number based on adiabatic trading, e.g. when p_oracle ~ p
-    y_effective = unsafe_div(
-        y_effective * p_base, _debt * BORROWED_PRECISION + 1
-    )  # Now it's a ratio
-
-    # n1 = floor(log(y_effective) / self.logAratio)
-    # EVM semantics is not doing floor unlike Python, so we do this
-    assert y_effective > 0, "Amount too low"
-    n1: int256 = math._wad_ln(convert(y_effective, int256))
-    if n1 < 0:
-        n1 -= unsafe_sub(
-            LOGN_A_RATIO, 1
-        )  # This is to deal with vyper's rounding of negative numbers
-    n1 = unsafe_div(n1, LOGN_A_RATIO)
-
-    n1 = min(n1, 1024 - convert(_N, int256)) + n0
-    if n1 <= n0:
-        assert staticcall AMM.can_skip_bands(n1 - 1), "Debt too high"
-
-    assert (
-        staticcall AMM.p_oracle_up(n1) <= staticcall AMM.price_oracle()
-    ), "Debt too high"
-
-    return n1
-
-
 @external
 @view
 def calculate_debt_n1(
@@ -212,7 +150,7 @@ def calculate_debt_n1(
     """
     assert _N > MIN_TICKS_UINT - 1, "Need more ticks"
     assert _N < MAX_TICKS_UINT + 1, "Need less ticks"
-    return self._calculate_debt_n1(_collateral, _debt, _N, _user)
+    return staticcall CONTROLLER.calculate_debt_n1(_collateral, _debt, _N, _user)
 
 
 @external
@@ -230,7 +168,7 @@ def create_loan_health_preview(
     assert _debt > 0, "debt==0"
     assert _N > MIN_TICKS_UINT - 1, "Need more ticks"
     assert _N < MAX_TICKS_UINT + 1, "Need less ticks"
-    n1: int256 = self._calculate_debt_n1(_collateral, _debt, _N, _for)
+    n1: int256 = staticcall CONTROLLER.calculate_debt_n1(_collateral, _debt, _N, _for)
     ld: uint256 = self._liquidation_discount()
 
     return self._calc_full_health(_collateral, _debt, _N, n1, ld, _full)
@@ -264,7 +202,7 @@ def _add_collateral_borrow_health_preview(
         collateral += _collateral
     debt += _debt
 
-    n1: int256 = self._calculate_debt_n1(collateral, debt, N, _for)
+    n1: int256 = staticcall CONTROLLER.calculate_debt_n1(collateral, debt, N, _for)
 
     return self._calc_full_health(collateral, debt, N, n1, self._liquidation_discount(), _full)
 
@@ -346,7 +284,7 @@ def repay_health_preview(
             assert ns[1] >= active_band + MIN_TICKS, "Can't shrink"
 
         N: uint256 = convert(unsafe_add(unsafe_sub(ns[1], max(ns[0], active_band + 1)), 1), uint256)
-        n1: int256 = self._calculate_debt_n1(collateral, debt, N, _for)
+        n1: int256 = staticcall CONTROLLER.calculate_debt_n1(collateral, debt, N, _for)
 
         return self._calc_full_health(collateral, debt, N, n1, self._liquidation_discount(), _full)
     else:
@@ -484,13 +422,15 @@ def _user_state(_user: address) -> uint256[4]:
     """
     @notice Natspec for this function is available in its controller contract
     """
-    xy: uint256[2] = staticcall AMM.get_sum_xy(_user)
+    xy: uint256[2] = empty(uint256[2])
     N: uint256 = 0
-    if xy[0] > 0 or xy[1] > 0:
+    debt: uint256 = self._debt(_user)
+    if debt > 0:
+        xy = staticcall AMM.get_sum_xy(_user)
         ns: int256[2] = staticcall AMM.read_user_tick_numbers(_user)  # ns[1] > ns[0]
         N = convert(unsafe_add(unsafe_sub(ns[1], ns[0]), 1), uint256)
 
-    return [xy[1], xy[0], self._debt(_user), N]
+    return [xy[1], xy[0], debt, N]
 
 
 @external
@@ -600,7 +540,10 @@ def max_borrowable(
     if user_state[3] > 0:  # User has a position
         N = user_state[3]
 
-    return self._max_borrowable(user_state[0] + _d_collateral, N, self._get_cap() + user_state[2], _user) - user_state[2]
+    return crv_math.sub_or_zero(
+        self._max_borrowable(user_state[0] + _d_collateral, N, self._get_cap() + user_state[2], _user),
+        user_state[2],
+    )
 
 
 @external

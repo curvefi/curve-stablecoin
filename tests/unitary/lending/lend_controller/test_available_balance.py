@@ -122,6 +122,7 @@ def test_increases_after_repay(
 def test_collect_fees_reduces_balance(
     admin,
     controller,
+    configurator,
     amm,
     collateral_token,
     vault,
@@ -131,7 +132,7 @@ def test_collect_fees_reduces_balance(
     RATE = 10**11
     TIME_DELTA = 180 * 86400
 
-    controller.set_admin_percentage(ADMIN_FEE, sender=admin)
+    configurator.set_admin_percentage(controller, ADMIN_FEE, sender=admin)
 
     boa.deal(collateral_token, boa.env.eoa, amounts["collateral"])
     max_approve(collateral_token, controller.address)

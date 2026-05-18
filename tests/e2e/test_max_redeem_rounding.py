@@ -33,6 +33,7 @@ def test_max_redeem_ceiling_causes_revert(
     admin,
     vault,
     controller,
+    configurator,
     amm,
     monetary_policy,
     borrowed_token,
@@ -47,7 +48,7 @@ def test_max_redeem_ceiling_causes_revert(
 
     monetary_policy.set_rate(3 * 10**18 // seconds_per_year)  # 300% APY
     controller.save_rate()
-    controller.set_admin_percentage(0, sender=admin)
+    configurator.set_admin_percentage(controller, 0, sender=admin)
 
     deposit_amount = 10**18
     lp = boa.env.generate_address("lp")
@@ -85,6 +86,7 @@ def test_max_redeem_ceiling_does_not_underestimate(
     admin,
     vault,
     controller,
+    configurator,
     amm,
     monetary_policy,
     borrowed_token,
@@ -100,7 +102,7 @@ def test_max_redeem_ceiling_does_not_underestimate(
 
     monetary_policy.set_rate(10**18 // seconds_per_year)  # 100% APY
     controller.save_rate()
-    controller.set_admin_percentage(0, sender=admin)
+    configurator.set_admin_percentage(controller, 0, sender=admin)
 
     deposit_amount = 10**18
     lp = boa.env.generate_address("lp")

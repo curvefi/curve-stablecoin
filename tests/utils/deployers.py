@@ -46,7 +46,7 @@ CONSTANTS_DEPLOYER = boa.load_partial(
 
 # Core contracts
 AMM_DEPLOYER = boa.load_partial(
-    BASE_CONTRACT_PATH / "AMM.vy", compiler_args=compiler_args_default
+    BASE_CONTRACT_PATH / "AMM.vy", compiler_args=compiler_args_codesize
 )
 CONTROLLER_DEPLOYER = boa.load_partial(
     BASE_CONTRACT_PATH / "controller.vy", compiler_args=compiler_args_codesize
@@ -59,6 +59,9 @@ MINT_CONTROLLER_DEPLOYER = boa.load_partial(
 )
 CONTROLLER_FACTORY_DEPLOYER = boa.load_partial(
     BASE_CONTRACT_PATH / "ControllerFactory.vy", compiler_args=compiler_args_default
+)
+CONFIGURATOR_DEPLOYER = boa.load_partial(
+    BASE_CONTRACT_PATH / "Configurator.vy", compiler_args=compiler_args_default
 )
 STABLECOIN_DEPLOYER = boa.load_partial(
     BASE_CONTRACT_PATH / "Stablecoin.vy", compiler_args=compiler_args_default
@@ -210,8 +213,9 @@ FAKE_LEVERAGE_DEPLOYER = boa.load_partial(
 DUMMY_CALLBACK_DEPLOYER = boa.load_partial(
     TESTING_CONTRACT_PATH / "DummyCallback.vy", compiler_args=compiler_args_default
 )
-BLOCK_COUNTER_DEPLOYER = boa.load_partial(
-    TESTING_CONTRACT_PATH / "BlockCounter.vy", compiler_args=compiler_args_default
+VAULT_REENTRANCY_CALLBACK_DEPLOYER = boa.load_partial(
+    TESTING_CONTRACT_PATH / "VaultReentrancyCallback.vy",
+    compiler_args=compiler_args_default,
 )
 LEVERAGE_ZAP_LENDING_DEPLOYER = boa.load_partial(
     ZAPS_CONTRACT_PATH / "LeverageZapLending.vy",

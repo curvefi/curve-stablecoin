@@ -65,11 +65,10 @@ def vault(lending_market):
 
 
 @pytest.fixture(scope="module")
-def controller(lending_market, admin):
+def controller(lending_market, configurator, admin):
     ctrl = lending_market["controller"]
     # Set unlimited borrow cap
-    with boa.env.prank(admin):
-        ctrl.set_borrow_cap(MAX_UINT256)
+    configurator.set_borrow_cap(ctrl, MAX_UINT256, sender=admin)
     return ctrl
 
 

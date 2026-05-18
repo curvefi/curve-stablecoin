@@ -9,7 +9,7 @@ def market_type():
 
 
 def test_fee_receiver_flow(
-    controller, factory, admin, collateral_token, borrowed_token, amm
+    controller, configurator, factory, admin, collateral_token, borrowed_token, amm
 ):
     """
     Test flow for setting and updating custom fee receivers for Llamalend markets.
@@ -27,8 +27,7 @@ def test_fee_receiver_flow(
       (since controllers don't specify the first argument, they get the one corresponding to their mapping).
     """
     admin_fee = WAD // 10
-    with boa.env.prank(admin):
-        controller.set_admin_percentage(admin_fee)
+    configurator.set_admin_percentage(controller, admin_fee, sender=admin)
 
     # Setup
     collateral_amount = 10 ** collateral_token.decimals()

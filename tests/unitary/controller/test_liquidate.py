@@ -167,6 +167,7 @@ def test_liquidate_full_from_wallet(
     # ================= Verify logs =================
 
     assert len(repay_logs) == 1
+    assert repay_logs[0].caller == liquidator
     assert repay_logs[0].user == borrower
     assert repay_logs[0].collateral_decrease == user_state_before[0]
     assert repay_logs[0].loan_decrease == debt
@@ -328,6 +329,7 @@ def test_liquidate_full_from_wallet_underwater(
     # ================= Verify logs =================
 
     assert len(repay_logs) == 1
+    assert repay_logs[0].caller == liquidator
     assert repay_logs[0].user == borrower
     assert repay_logs[0].collateral_decrease == user_state_before[0]
     assert repay_logs[0].loan_decrease == debt
@@ -502,6 +504,7 @@ def test_liquidate_full_from_callback(
     # ================= Verify logs =================
 
     assert len(repay_logs) == 1
+    assert repay_logs[0].caller == liquidator
     assert repay_logs[0].user == borrower
     assert repay_logs[0].collateral_decrease == user_state_before[0]
     assert repay_logs[0].loan_decrease == debt
@@ -692,6 +695,7 @@ def test_liquidate_full_from_callback_underwater(
     # ================= Verify logs =================
 
     assert len(repay_logs) == 1
+    assert repay_logs[0].caller == liquidator
     assert repay_logs[0].user == borrower
     assert repay_logs[0].collateral_decrease == user_state_before[0]
     assert repay_logs[0].loan_decrease == debt
@@ -849,6 +853,7 @@ def test_liquidate_full_from_xy0_underwater(
     # ================= Verify logs =================
 
     assert len(repay_logs) == 1
+    assert repay_logs[0].caller == liquidator
     assert repay_logs[0].user == borrower
     assert repay_logs[0].collateral_decrease == user_state_before[0]
     assert repay_logs[0].loan_decrease == debt
@@ -1019,6 +1024,7 @@ def test_liquidate_full_from_xy0_underwater_exact(
     # ================= Verify logs =================
 
     assert len(repay_logs) == 1
+    assert repay_logs[0].caller == liquidator
     assert repay_logs[0].user == borrower
     assert repay_logs[0].collateral_decrease == user_state_before[0]
     assert repay_logs[0].loan_decrease == debt
@@ -1218,6 +1224,7 @@ def test_liquidate_partial_from_wallet(
     # ================= Verify logs =================
 
     assert len(repay_logs) == 1
+    assert repay_logs[0].caller == liquidator
     assert repay_logs[0].user == borrower
     assert repay_logs[0].collateral_decrease == pytest.approx(
         collateral_to_remove, abs=5 if collateral_to_remove > 100 else 1
@@ -1438,6 +1445,7 @@ def test_liquidate_partial_from_wallet_underwater(
     # ================= Verify logs =================
 
     assert len(repay_logs) == 1
+    assert repay_logs[0].caller == liquidator
     assert repay_logs[0].user == borrower
     assert repay_logs[0].collateral_decrease == pytest.approx(
         collateral_to_remove, abs=3 if collateral_to_remove > 100 else 1
@@ -1650,6 +1658,7 @@ def test_liquidate_partial_from_callback(
     # ================= Verify logs =================
 
     assert len(repay_logs) == 1
+    assert repay_logs[0].caller == liquidator
     assert repay_logs[0].user == borrower
     assert repay_logs[0].collateral_decrease == pytest.approx(
         collateral_to_remove, abs=3 if collateral_to_remove > 100 else 1
@@ -1902,6 +1911,7 @@ def test_liquidate_partial_from_callback_underwater(
     # ================= Verify logs =================
 
     assert len(repay_logs) == 1
+    assert repay_logs[0].caller == liquidator
     assert repay_logs[0].user == borrower
     assert repay_logs[0].collateral_decrease == pytest.approx(
         collateral_to_remove, abs=3 if collateral_to_remove > 100 else 1

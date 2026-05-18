@@ -22,6 +22,7 @@ def admin_percentage():
 def test_lender_yield_matches_apr(
     vault,
     controller,
+    configurator,
     admin,
     borrowed_token,
     collateral_token,
@@ -32,8 +33,7 @@ def test_lender_yield_matches_apr(
     Test that a lender's actual yield roughly matches the advertised lend_apr
     after a series of borrows, repays, and time passing.
     """
-    with boa.env.prank(admin):
-        controller.set_admin_percentage(admin_percentage)
+    configurator.set_admin_percentage(controller, admin_percentage, sender=admin)
 
     decimals = borrowed_token.decimals()
     collateral_decimals = collateral_token.decimals()
@@ -49,8 +49,7 @@ def test_lender_yield_matches_apr(
         vault.deposit(deposit_amount)
 
     # Increase borrow cap to allow loans
-    with boa.env.prank(admin):
-        controller.set_borrow_cap(deposit_amount)
+    configurator.set_borrow_cap(controller, deposit_amount, sender=admin)
 
     initial_shares = vault.balanceOf(lender)
     initial_assets = vault.convertToAssets(initial_shares)

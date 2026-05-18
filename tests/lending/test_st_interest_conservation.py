@@ -10,7 +10,7 @@ from hypothesis.stateful import (
 )
 
 
-from tests.utils.constants import DEAD_SHARES, MIN_SHARES_ALLOWED
+from tests.utils.constants import DEAD_SHARES
 
 
 @pytest.fixture(scope="module")
@@ -47,7 +47,9 @@ class StatefulLendBorrow(RuleBasedStateMachine):
                 self.collateral_token.approve(self.controller.address, 2**256 - 1)
                 self.borrowed_token.approve(self.controller.address, 2**256 - 1)
         self.debt_ceiling = 10**6 * 10 ** (self.borrowed_token.decimals())
-        self.controller.set_borrow_cap(self.debt_ceiling, sender=self.admin)
+        self.configurator.set_borrow_cap(
+            self.controller, self.debt_ceiling, sender=self.admin
+        )
         with boa.env.prank(self.accounts[0]):
             self.borrowed_token.approve(self.vault.address, 2**256 - 1)
             boa.deal(self.borrowed_token, self.accounts[0], self.debt_ceiling)
@@ -67,9 +69,9 @@ class StatefulLendBorrow(RuleBasedStateMachine):
             try:
                 self.controller.calculate_debt_n1(c_amount, amount, n)
             except Exception as e:
-                too_high = "Debt too high" in str(e)
+                too_high = "Debt too high" in str(e) or "Too deep" in str(e)
             if too_high:
-                with boa.reverts("Debt too high"):
+                with boa.reverts():
                     self.controller.create_loan(c_amount, amount, n)
                 return
 
@@ -101,14 +103,6 @@ class StatefulLendBorrow(RuleBasedStateMachine):
                     with boa.reverts("Too deep"):
                         self.controller.create_loan(c_amount, amount, n)
                     return
-
-            if (
-                c_amount * self.collateral_precision // n * DEAD_SHARES
-                < MIN_SHARES_ALLOWED
-            ):
-                with boa.reverts("Amount too low"):
-                    self.controller.create_loan(c_amount, amount, n)
-                return
 
             if c_amount * self.collateral_precision // n <= 2 * DEAD_SHARES:
                 try:
@@ -237,9 +231,9 @@ class StatefulLendBorrow(RuleBasedStateMachine):
             try:
                 self.controller.calculate_debt_n1(final_collateral, final_debt, n)
             except Exception as e:
-                too_high = "Debt too high" in str(e)
+                too_high = "Debt too high" in str(e) or "Too deep" in str(e)
             if too_high:
-                with boa.reverts("Debt too high"):
+                with boa.reverts():
                     self.controller.borrow_more(c_amount, amount)
                 return
 
@@ -296,6 +290,13 @@ class StatefulLendBorrow(RuleBasedStateMachine):
             )  # Can have error of 1 (rounding) at most per step (and 10 stateful steps)
 
 
+def _set_stateful_attrs(values):
+    users = [boa.env.generate_address() for _ in range(10)]
+    for k, v in values.items():
+        setattr(StatefulLendBorrow, k, v)
+    setattr(StatefulLendBorrow, "accounts", users)
+
+
 def test_stateful_lendborrow(
     vault,
     amm,
@@ -303,14 +304,13 @@ def test_stateful_lendborrow(
     monetary_policy,
     collateral_token,
     borrowed_token,
-    accounts,
     admin,
+    configurator,
 ):
     StatefulLendBorrow.TestCase.settings = settings(
         max_examples=200, stateful_step_count=10
     )
-    for k, v in locals().items():
-        setattr(StatefulLendBorrow, k, v)
+    _set_stateful_attrs(locals())
     run_state_machine_as_test(StatefulLendBorrow)
 
 
@@ -321,11 +321,10 @@ def test_borrow_not_reverting(
     monetary_policy,
     collateral_token,
     borrowed_token,
-    accounts,
     admin,
+    configurator,
 ):
-    for k, v in locals().items():
-        setattr(StatefulLendBorrow, k, v)
+    _set_stateful_attrs(locals())
     state = StatefulLendBorrow()
     state.debt_payable()
     state.sum_of_debts()
@@ -346,11 +345,10 @@ def test_borrow_temp(
     monetary_policy,
     collateral_token,
     borrowed_token,
-    accounts,
     admin,
+    configurator,
 ):
-    for k, v in locals().items():
-        setattr(StatefulLendBorrow, k, v)
+    _set_stateful_attrs(locals())
     state = StatefulLendBorrow()
     state.debt_payable()
     state.sum_of_debts()

@@ -40,7 +40,7 @@ from curve_stablecoin.interfaces import IAMM
 implements: IAMM
 
 from curve_stablecoin.interfaces import IPriceOracle
-from curve_stablecoin.interfaces import ILMGauge
+from curve_stablecoin.interfaces import ILMCallback
 from curve_std.interfaces import IERC20
 
 from curve_std import crv_math
@@ -57,7 +57,6 @@ WAD: constant(uint256) = c.WAD
 MAX_TICKS: constant(int256) = c.MAX_TICKS
 MAX_TICKS_UINT: constant(uint256) = c.MAX_TICKS_UINT
 DEAD_SHARES: constant(uint256) = c.DEAD_SHARES
-MIN_SHARES_ALLOWED: constant(uint256) = c.MIN_SHARES_ALLOWED
 MAX_SKIP_TICKS: constant(int256) = c.MAX_SKIP_TICKS
 MAX_SKIP_TICKS_UINT: constant(uint256) = c.MAX_SKIP_TICKS_UINT
 
@@ -103,15 +102,15 @@ bands_x: public(HashMap[int256, uint256])
 bands_y: public(HashMap[int256, uint256])
 
 total_shares: HashMap[int256, uint256]
-user_shares: public(HashMap[address, IAMM.UserTicks])
+_user_shares: HashMap[address, IAMM.UserTicks]
 
 
-_liquidity_mining_callback: ILMGauge
+_liquidity_mining_callback: ILMCallback
 
 # https://github.com/vyperlang/vyper/issues/4721
 @view
 @external
-def liquidity_mining_callback() -> ILMGauge:
+def liquidity_mining_callback() -> ILMCallback:
     return self._liquidity_mining_callback
 
 
@@ -157,14 +156,15 @@ def __init__(
     self.fee = _fee
     self._price_oracle = _price_oracle
     self.prev_p_o_time = block.timestamp
-    self.old_p_o = staticcall self._price_oracle.price()
+    self.old_p_o = staticcall _price_oracle.price()
 
     self.rate_mul = 10**18
 
     # sqrt(A / (A - 1)) - needs to be pre-calculated externally
     SQRT_BAND_RATIO = _sqrt_band_ratio
-    # log(A / (A - 1)) - needs to be pre-calculated externally
-    LOG_A_RATIO = _log_A_ratio
+    # Recompute log(A / (A - 1)) with snekmate for consistency with Controller.
+    # The constructor arg is kept for blueprint ABI compatibility but ignored.
+    LOG_A_RATIO = math._wad_ln(convert(A * WAD // Aminus1, int256))
 
     # (A / (A - 1)) ** 50
     # This is not gas-optimal but good with bytecode size and does not overflow
@@ -290,15 +290,6 @@ def price_oracle() -> uint256:
     @notice Value returned by the external price oracle contract
     """
     return self._price_oracle_ro()[0]
-
-
-@external
-@view
-def dynamic_fee() -> uint256:
-    """
-    @notice Dynamic fee which accounts for price_oracle shifts
-    """
-    return max(self.fee, self._price_oracle_ro()[1])
 
 
 @internal
@@ -506,7 +497,7 @@ def _read_user_tick_numbers(user: address) -> int256[2]:
     @param user User address
     @return Lowest and highest band the user deposited into
     """
-    ns: int256 = self.user_shares[user].ns
+    ns: int256 = self._user_shares[user].ns
     n2: int256 = unsafe_div(ns, 2**128)
     n1: int256 = ns % 2**128
     if n1 >= 2**127:
@@ -541,12 +532,25 @@ def _read_user_ticks(user: address, ns: int256[2]) -> DynArray[uint256, MAX_TICK
     for i: uint256 in range(MAX_TICKS_UINT // 2):
         if len(ticks) == size:
             break
-        tick: uint256 = self.user_shares[user].ticks[i]
+        tick: uint256 = self._user_shares[user].ticks[i]
         ticks.append(tick & (2**128 - 1))
         if len(ticks) == size:
             break
         ticks.append(tick >> 128)
     return ticks
+
+
+@external
+@view
+@nonreentrant
+def read_user_ticks(user: address) -> DynArray[uint256, MAX_TICKS_UINT]:
+    """
+    @notice Unpacks and reads user ticks (shares) for all bands the user deposited into
+    @param user User address
+    @return Array of shares the user has
+    """
+    ns: int256[2] = self._read_user_tick_numbers(user)
+    return self._read_user_ticks(user, ns)
 
 
 @external
@@ -600,7 +604,7 @@ def has_liquidity(user: address) -> bool:
     """
     @notice Check if `user` has any liquidity in the AMM
     """
-    return self.user_shares[user].ticks[0] != 0
+    return self._user_shares[user].ticks[0] != 0
 
 
 @internal
@@ -614,7 +618,7 @@ def save_user_shares(user: address, user_shares: DynArray[uint256, MAX_TICKS_UIN
         if len(user_shares) != ptr:
             tick = tick | (user_shares[ptr] << 128)
         ptr = unsafe_add(ptr, 1)
-        self.user_shares[user].ticks[j] = tick
+        self._user_shares[user].ticks[j] = tick
 
 
 @external
@@ -644,10 +648,10 @@ def deposit_range(user: address, amount: uint256, n1: int256, n2: int256):
     y_per_band: uint256 = unsafe_div(amount * COLLATERAL_PRECISION, n_bands)
     assert y_per_band > 100, "Amount too low"
 
-    assert self.user_shares[user].ticks[0] == 0  # dev: User must have no liquidity
-    self.user_shares[user].ns = unsafe_add(n1, unsafe_mul(n2, 2**128))
+    assert self._user_shares[user].ticks[0] == 0  # dev: User must have no liquidity
+    self._user_shares[user].ns = unsafe_add(n1, unsafe_mul(n2, 2**128))
 
-    lm: ILMGauge = self._liquidity_mining_callback
+    lm: ILMCallback = self._liquidity_mining_callback
 
     # Autoskip bands if we can
     for i: uint256 in range(MAX_SKIP_TICKS_UINT + 1):
@@ -655,7 +659,7 @@ def deposit_range(user: address, amount: uint256, n1: int256, n2: int256):
             if i != 0:
                 self.active_band = n0
             break
-        assert self.bands_x[n0] == 0 and i < MAX_SKIP_TICKS_UINT, "Deposit below current band"
+        assert self.bands_x[n0] == 0 and i < MAX_SKIP_TICKS_UINT  # dev: Deposit below current band
         n0 -= 1
 
     for i: int256 in range(MAX_TICKS):
@@ -673,7 +677,7 @@ def deposit_range(user: address, amount: uint256, n1: int256, n2: int256):
         # Total / user share
         s: uint256 = self.total_shares[band]
         ds: uint256 = unsafe_div((s + DEAD_SHARES) * y, total_y + 1)
-        assert ds >= MIN_SHARES_ALLOWED, "Amount too low"
+        assert ds > 0, "Amount too low"
         user_shares.append(ds)
         s += ds
         assert s <= 2**128 - 1
@@ -710,7 +714,7 @@ def withdraw(user: address, frac: uint256) -> uint256[2]:
     assert msg.sender == self.admin
     assert frac <= 10**18
 
-    lm: ILMGauge = self._liquidity_mining_callback
+    lm: ILMCallback = self._liquidity_mining_callback
 
     ns: int256[2] = self._read_user_tick_numbers(user)
     n: int256 = ns[0]
@@ -763,7 +767,7 @@ def withdraw(user: address, frac: uint256) -> uint256[2]:
 
     # Empty the ticks
     if frac == 10**18:
-        self.user_shares[user].ticks[0] = 0
+        self._user_shares[user].ticks[0] = 0
     else:
         self.save_user_shares(user, user_shares)
 
@@ -1006,7 +1010,7 @@ def _exchange(i: uint256, j: uint256, amount: uint256, minmax_amount: uint256, _
     if amount == 0:
         return [0, 0]
 
-    lm: ILMGauge = self._liquidity_mining_callback
+    lm: ILMCallback = self._liquidity_mining_callback
     collateral_shares: DynArray[uint256, MAX_TICKS_UINT] = []
 
     in_coin: IERC20 = BORROWED_TOKEN
@@ -1640,13 +1644,14 @@ def set_fee(fee: uint256):
 
 # nonreentrant decorator is in Controller which is admin
 @external
-def set_callback(liquidity_mining_callback: ILMGauge):
+def set_callback(liquidity_mining_callback: ILMCallback):
     """
     @notice Set a gauge address with callbacks for liquidity mining for collateral
     @param liquidity_mining_callback Gauge address
     """
-    assert msg.sender == self.admin
+    assert msg.sender == self.admin  # dev: admin only
     self._liquidity_mining_callback = liquidity_mining_callback
+    log IAMM.SetCallback(callback=liquidity_mining_callback)
 
 
 @external

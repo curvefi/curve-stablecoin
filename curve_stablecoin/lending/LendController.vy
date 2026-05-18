@@ -37,6 +37,8 @@ initializes: core
 from curve_std import token as tkn
 
 exports: (
+    # Constants
+    core.MAX_RATE,
     # Loan management
     core.create_loan,
     core.borrow_more,
@@ -48,9 +50,11 @@ exports: (
     core.liquidate,
     core.save_rate,
     core.collect_fees,
-    # Getters
+    # Related contracts getters
     core.amm,
-    core.amm_price,
+    core.view,
+    core.factory,
+    # Getters
     core.approval,
     core.borrowed_token,
     core.calculate_debt_n1,
@@ -75,16 +79,10 @@ exports: (
     core.tokens_to_liquidate,
     core.tokens_to_shrink,
     core.total_debt,
-    core.factory,
     core.admin_fees,
     core.admin_percentage,
     # Setters
-    core.set_view,
-    core.set_amm_fee,
-    core.set_borrowing_discounts,
-    core.set_callback,
-    core.set_monetary_policy,
-    core.set_price_oracle,
+    core.configure,
     # From view contract
     core.user_prices,
     core.user_state,
@@ -98,8 +96,10 @@ VAULT: immutable(IVault)
 
 _available_balance: uint256
 
+
 @external
 @view
+@reentrant
 def available_balance() -> uint256:
     return self._available_balance
 
@@ -124,16 +124,20 @@ def __init__(
     _monetary_policy: IMonetaryPolicy,
     _loan_discount: uint256,
     _liquidation_discount: uint256,
-    _view_impl: address,
+    _view_blueprint: address,
+    _configurator: core.IConfigurator,
 ):
     """
     @notice Lend Controller constructor
-    @param collateral_token Token to use for collateral
-    @param monetary_policy Address of monetary policy
-    @param loan_discount Discount of the maximum loan size compare to get_x_down() value
-    @param liquidation_discount Discount of the maximum loan size compare to
+    @param _vault Address of the vault this controller belongs to
+    @param _amm AMM address (already deployed from blueprint)
+    @param _borrowed_token Token which is being borrowed
+    @param _collateral_token Token to use for collateral
+    @param _monetary_policy Address of monetary policy
+    @param _loan_discount Discount of the maximum loan size compare to get_x_down() value
+    @param _liquidation_discount Discount of the maximum loan size compare to
            get_x_down() for "bad liquidation" purposes
-    @param amm AMM address (Already deployed from blueprint)
+    @param _view_blueprint Address of the controller view blueprint
     """
     VAULT = _vault
 
@@ -144,7 +148,8 @@ def __init__(
         _loan_discount,
         _liquidation_discount,
         _amm,
-        _view_impl,
+        _view_blueprint,
+        _configurator,
     )
 
     # Borrow cap is zero by default in lend markets. The admin has to raise it
@@ -166,31 +171,14 @@ def version() -> String[10]:
 
 
 @external
-def set_borrow_cap(_borrow_cap: uint256):
-    """
-    @notice Set the borrow cap for this market
-    @dev Only callable by the factory admin
-    @param _borrow_cap New borrow cap in units of borrowed_token
-    """
-    core._check_admin()
-    self.borrow_cap = _borrow_cap
-    log ILendController.SetBorrowCap(borrow_cap=_borrow_cap)
-
-
-@external
-def set_admin_percentage(_admin_percentage: uint256):
-    """
-    @param _admin_percentage The percentage of interest that goes to the admin, scaled by 1e18
-    """
-    core._check_admin()
-    assert _admin_percentage <= core.WAD # dev: admin percentage higher than 100%
-
-    # Settle admin fees before the new percentage is applied
-    rate_mul: uint256 = staticcall core.AMM.get_rate_mul()
-    core._update_total_debt(0, rate_mul, False)
-
-    core.admin_percentage = _admin_percentage
-    log ILendController.SetAdminPercentage(admin_percentage=_admin_percentage)
+def configure_lend(_borrow_cap: uint256, _admin_percentage: uint256):
+    assert msg.sender == core.CONFIGURATOR.address, "Only configurator"
+    if _borrow_cap != core.SKIP_CONFIG_UINT256:
+        self.borrow_cap = _borrow_cap
+    if _admin_percentage != core.SKIP_CONFIG_UINT256:
+        rate_mul: uint256 = staticcall core.AMM.get_rate_mul()
+        core._update_total_debt(0, rate_mul, False)
+        core.admin_percentage = _admin_percentage
 
 
 @external

@@ -51,6 +51,7 @@ def snapshot(controller, amm, fake_leverage):
 @pytest.mark.parametrize("different_payer", [True, False])
 def test_repay_partial_from_wallet(
     controller,
+    configurator,
     borrowed_token,
     collateral_token,
     amm,
@@ -78,8 +79,8 @@ def test_repay_partial_from_wallet(
 
     old_liquidation_discount = controller.liquidation_discount()
     new_liquidation_discount = old_liquidation_discount - 1
-    controller.set_borrowing_discounts(
-        controller.loan_discount(), new_liquidation_discount, sender=admin
+    configurator.set_borrowing_discounts(
+        controller, controller.loan_discount(), new_liquidation_discount, sender=admin
     )
 
     # ================= Capture initial state =================
@@ -161,6 +162,7 @@ def test_repay_partial_from_wallet(
     )
 
     assert len(repay_logs) == 1
+    assert repay_logs[0].caller == payer
     assert repay_logs[0].user == borrower
     assert repay_logs[0].loan_decrease == wallet_borrowed
     assert (
@@ -187,6 +189,7 @@ def test_repay_partial_from_wallet(
 @pytest.mark.parametrize("different_payer", [True, False])
 def test_repay_partial_from_callback(
     controller,
+    configurator,
     borrowed_token,
     collateral_token,
     amm,
@@ -215,8 +218,8 @@ def test_repay_partial_from_callback(
 
     old_liquidation_discount = controller.liquidation_discount()
     new_liquidation_discount = old_liquidation_discount - 1
-    controller.set_borrowing_discounts(
-        controller.loan_discount(), new_liquidation_discount, sender=admin
+    configurator.set_borrowing_discounts(
+        controller, controller.loan_discount(), new_liquidation_discount, sender=admin
     )
 
     # ================= Capture initial state =================
@@ -309,6 +312,7 @@ def test_repay_partial_from_callback(
     )
 
     assert len(repay_logs) == 1
+    assert repay_logs[0].caller == payer
     assert repay_logs[0].user == borrower
     assert repay_logs[0].loan_decrease == callback_borrowed
     assert repay_logs[0].collateral_decrease == xy_before[1] - callback_collateral
@@ -333,6 +337,7 @@ def test_repay_partial_from_callback(
 @pytest.mark.parametrize("different_payer", [True, False])
 def test_repay_partial_from_wallet_and_callback(
     controller,
+    configurator,
     borrowed_token,
     collateral_token,
     amm,
@@ -361,8 +366,8 @@ def test_repay_partial_from_wallet_and_callback(
 
     old_liquidation_discount = controller.liquidation_discount()
     new_liquidation_discount = old_liquidation_discount - 1
-    controller.set_borrowing_discounts(
-        controller.loan_discount(), new_liquidation_discount, sender=admin
+    configurator.set_borrowing_discounts(
+        controller, controller.loan_discount(), new_liquidation_discount, sender=admin
     )
 
     # ================= Capture initial state =================
@@ -462,6 +467,7 @@ def test_repay_partial_from_wallet_and_callback(
     )
 
     assert len(repay_logs) == 1
+    assert repay_logs[0].caller == payer
     assert repay_logs[0].user == borrower
     assert repay_logs[0].loan_decrease == wallet_borrowed + callback_borrowed
     assert repay_logs[0].collateral_decrease == xy_before[1] - callback_collateral
@@ -486,6 +492,7 @@ def test_repay_partial_from_wallet_and_callback(
 @pytest.mark.parametrize("different_payer", [True, False])
 def test_repay_partial_from_wallet_underwater(
     controller,
+    configurator,
     borrowed_token,
     collateral_token,
     amm,
@@ -525,8 +532,8 @@ def test_repay_partial_from_wallet_underwater(
 
     old_liquidation_discount = controller.liquidation_discount()
     new_liquidation_discount = old_liquidation_discount - 1
-    controller.set_borrowing_discounts(
-        controller.loan_discount(), new_liquidation_discount, sender=admin
+    configurator.set_borrowing_discounts(
+        controller, controller.loan_discount(), new_liquidation_discount, sender=admin
     )
 
     # ================= Capture initial state =================
@@ -623,6 +630,7 @@ def test_repay_partial_from_wallet_underwater(
     )
 
     assert len(repay_logs) == 1
+    assert repay_logs[0].caller == payer
     assert repay_logs[0].user == borrower
     assert repay_logs[0].loan_decrease == wallet_borrowed
     assert (
@@ -649,6 +657,7 @@ def test_repay_partial_from_wallet_underwater(
 @pytest.mark.parametrize("different_payer", [True, False])
 def test_repay_partial_from_xy0_underwater_shrink(
     controller,
+    configurator,
     borrowed_token,
     collateral_token,
     amm,
@@ -697,8 +706,8 @@ def test_repay_partial_from_xy0_underwater_shrink(
 
     old_liquidation_discount = controller.liquidation_discount()
     new_liquidation_discount = old_liquidation_discount - 1
-    controller.set_borrowing_discounts(
-        controller.loan_discount(), new_liquidation_discount, sender=admin
+    configurator.set_borrowing_discounts(
+        controller, controller.loan_discount(), new_liquidation_discount, sender=admin
     )
 
     # ================= Capture initial state =================
@@ -783,6 +792,7 @@ def test_repay_partial_from_xy0_underwater_shrink(
     )
 
     assert len(repay_logs) == 1
+    assert repay_logs[0].caller == payer
     assert repay_logs[0].user == borrower
     assert repay_logs[0].loan_decrease == xy_before[0]
     assert (
@@ -809,6 +819,7 @@ def test_repay_partial_from_xy0_underwater_shrink(
 @pytest.mark.parametrize("different_payer", [True, False])
 def test_repay_partial_from_xy0_and_wallet_underwater_shrink(
     controller,
+    configurator,
     borrowed_token,
     collateral_token,
     amm,
@@ -860,8 +871,8 @@ def test_repay_partial_from_xy0_and_wallet_underwater_shrink(
 
     old_liquidation_discount = controller.liquidation_discount()
     new_liquidation_discount = old_liquidation_discount - 1
-    controller.set_borrowing_discounts(
-        controller.loan_discount(), new_liquidation_discount, sender=admin
+    configurator.set_borrowing_discounts(
+        controller, controller.loan_discount(), new_liquidation_discount, sender=admin
     )
 
     # ================= Capture initial state =================
@@ -953,6 +964,7 @@ def test_repay_partial_from_xy0_and_wallet_underwater_shrink(
     )
 
     assert len(repay_logs) == 1
+    assert repay_logs[0].caller == payer
     assert repay_logs[0].user == borrower
     assert repay_logs[0].loan_decrease == xy_before[0] + tokens_to_shrink
     assert (
@@ -979,6 +991,7 @@ def test_repay_partial_from_xy0_and_wallet_underwater_shrink(
 @pytest.mark.parametrize("different_payer", [True, False])
 def test_repay_partial_from_xy0_and_callback_underwater_shrink(
     controller,
+    configurator,
     borrowed_token,
     collateral_token,
     amm,
@@ -1034,8 +1047,8 @@ def test_repay_partial_from_xy0_and_callback_underwater_shrink(
 
     old_liquidation_discount = controller.liquidation_discount()
     new_liquidation_discount = old_liquidation_discount - 1
-    controller.set_borrowing_discounts(
-        controller.loan_discount(), new_liquidation_discount, sender=admin
+    configurator.set_borrowing_discounts(
+        controller, controller.loan_discount(), new_liquidation_discount, sender=admin
     )
 
     # ================= Capture initial state =================
@@ -1136,6 +1149,7 @@ def test_repay_partial_from_xy0_and_callback_underwater_shrink(
     )
 
     assert len(repay_logs) == 1
+    assert repay_logs[0].caller == payer
     assert repay_logs[0].user == borrower
     assert repay_logs[0].loan_decrease == xy_before[0] + callback_borrowed
     assert repay_logs[0].collateral_decrease == xy_before[1] - callback_collateral
@@ -1160,6 +1174,7 @@ def test_repay_partial_from_xy0_and_callback_underwater_shrink(
 @pytest.mark.parametrize("different_payer", [True, False])
 def test_repay_partial_from_xy0_and_wallet_and_callback_underwater_shrink(
     controller,
+    configurator,
     borrowed_token,
     collateral_token,
     amm,
@@ -1215,8 +1230,8 @@ def test_repay_partial_from_xy0_and_wallet_and_callback_underwater_shrink(
 
     old_liquidation_discount = controller.liquidation_discount()
     new_liquidation_discount = old_liquidation_discount - 1
-    controller.set_borrowing_discounts(
-        controller.loan_discount(), new_liquidation_discount, sender=admin
+    configurator.set_borrowing_discounts(
+        controller, controller.loan_discount(), new_liquidation_discount, sender=admin
     )
 
     # ================= Capture initial state =================
@@ -1327,6 +1342,7 @@ def test_repay_partial_from_xy0_and_wallet_and_callback_underwater_shrink(
     )
 
     assert len(repay_logs) == 1
+    assert repay_logs[0].caller == payer
     assert repay_logs[0].user == borrower
     assert (
         repay_logs[0].loan_decrease

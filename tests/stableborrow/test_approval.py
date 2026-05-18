@@ -3,15 +3,18 @@ import pytest
 
 
 @pytest.fixture(scope="module")
-def existing_loan(collateral_token, stablecoin, market_controller, accounts):
-    user = accounts[0]
+def existing_loan(collateral_token, stablecoin, market_controller):
+    user = boa.env.generate_address("borrower")
     c_amount = int(2 * 1e6 * 10 ** collateral_token.decimals() * 1.5 / 3000)
     l_amount = 5 * 10**5 * 10 ** stablecoin.decimals()
     n = 5
 
     with boa.env.prank(user):
         boa.deal(collateral_token, user, c_amount)
+        collateral_token.approve(market_controller, 2**256 - 1)
         market_controller.create_loan(c_amount, l_amount, n)
+
+    return user
 
 
 def test_create_loan(
@@ -19,12 +22,12 @@ def test_create_loan(
     stablecoin,
     collateral_token,
     market_controller,
+    configurator,
     market_amm,
     monetary_policy,
-    accounts,
 ):
-    user = accounts[0]
-    someone_else = accounts[1]
+    user = boa.env.generate_address("borrower")
+    someone_else = boa.env.generate_address("delegate")
 
     initial_amount = 10**25
     c_amount = int(2 * 1e6 * 10 ** collateral_token.decimals() * 1.5 / 3000)
@@ -33,12 +36,14 @@ def test_create_loan(
     with boa.env.prank(user):
         with boa.env.anchor():
             boa.deal(collateral_token, user, initial_amount)
+            collateral_token.approve(market_controller, 2**256 - 1)
             market_controller.create_loan(c_amount, l_amount, 5)
 
     boa.deal(collateral_token, someone_else, initial_amount)
 
     with boa.env.anchor():
         with boa.env.prank(someone_else):
+            collateral_token.approve(market_controller, 2**256 - 1)
             with boa.reverts():
                 market_controller.create_loan(c_amount, l_amount, 5, user)
         with boa.env.prank(user):
@@ -52,11 +57,9 @@ def test_create_loan(
             market_controller.create_loan(c_amount, l_amount, 5, user)
 
 
-def test_repay_all(
-    stablecoin, collateral_token, market_controller, existing_loan, accounts
-):
-    user = accounts[0]
-    someone_else = accounts[1]
+def test_repay_all(stablecoin, collateral_token, market_controller, existing_loan):
+    user = existing_loan
+    someone_else = boa.env.generate_address("repayer")
     c_amount = int(2 * 1e6 * 10 ** collateral_token.decimals() * 1.5 / 3000)
     amm = market_controller.amm()
 
@@ -81,10 +84,10 @@ def test_repay_all(
 
 
 def test_borrow_more(
-    stablecoin, collateral_token, market_controller, existing_loan, market_amm, accounts
+    stablecoin, collateral_token, market_controller, existing_loan, market_amm
 ):
-    user = accounts[0]
-    someone_else = accounts[1]
+    user = existing_loan
+    someone_else = boa.env.generate_address("borrow_delegate")
 
     debt = market_controller.debt(user)
     more_debt = debt // 10
@@ -116,10 +119,10 @@ def test_borrow_more(
 
 
 def test_remove_collateral(
-    stablecoin, collateral_token, market_controller, existing_loan, market_amm, accounts
+    stablecoin, collateral_token, market_controller, existing_loan, market_amm
 ):
-    user = accounts[0]
-    someone_else = accounts[1]
+    user = existing_loan
+    someone_else = boa.env.generate_address("collateral_delegate")
 
     debt = market_controller.debt(user)
     c_amount = int(2 * 1e6 * 10 ** collateral_token.decimals() * 1.5 / 3000)
@@ -147,6 +150,7 @@ def controller_for_liquidation(
     stablecoin,
     collateral_token,
     market_controller,
+    configurator,
     market_amm,
     price_oracle,
     monetary_policy,
@@ -157,7 +161,7 @@ def controller_for_liquidation(
         collateral_amount = 10 ** collateral_token.decimals()
 
         with boa.env.prank(admin):
-            market_controller.set_amm_fee(10**6)
+            configurator.set_amm_fee(market_controller, 10**6)
             monetary_policy.set_rate(int(1e18 * 1.0 / 365 / 86400))  # 100% APY
 
         debt = market_controller.max_borrowable(collateral_amount, N)
@@ -189,6 +193,8 @@ def controller_for_liquidation(
 
         # Ensure approved account has enough to liquidate
         boa.deal(stablecoin, someone_else, debt)
+        with boa.env.prank(someone_else):
+            stablecoin.approve(market_controller, 2**256 - 1)
 
         return market_controller
 
@@ -196,10 +202,10 @@ def controller_for_liquidation(
 
 
 def test_self_liquidate(
-    stablecoin, collateral_token, controller_for_liquidation, market_amm, accounts
+    stablecoin, collateral_token, controller_for_liquidation, market_amm
 ):
-    user = accounts[1]
-    someone_else = accounts[2]
+    user = boa.env.generate_address("borrower")
+    someone_else = boa.env.generate_address("liquidator")
     controller = controller_for_liquidation(
         sleep_time=30 * 86400, user=user, someone_else=someone_else
     )

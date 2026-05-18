@@ -20,40 +20,46 @@ def new_oracle(admin):
     return DUMMY_PRICE_ORACLE_DEPLOYER.deploy(admin, 3000 * 10**18, sender=admin)
 
 
-def test_default_behavior(controller, amm, new_oracle, admin):
+def test_default_behavior(controller, configurator, amm, new_oracle, admin):
     """Test normal oracle update with valid parameters."""
     initial_oracle = amm.price_oracle_contract()
     assert initial_oracle != new_oracle
 
     # Set new oracle with reasonable max deviation
     max_deviation = 10**17  # 10%
-    controller.set_price_oracle(new_oracle, max_deviation, sender=admin)
+    configurator.set_price_oracle(controller, new_oracle, max_deviation, sender=admin)
 
     # Verify oracle was updated on AMM
     assert amm.price_oracle_contract() == new_oracle.address
 
 
-def test_admin_access_control(controller, new_oracle):
+def test_admin_access_control(controller, configurator, new_oracle):
     """Test that only admin can call set_price_oracle."""
     max_deviation = 10**17  # 10%
 
-    with boa.reverts("only admin"):
-        controller.set_price_oracle(new_oracle, max_deviation)
+    with boa.reverts("Not authorized for this controller"):
+        configurator.set_price_oracle(controller, new_oracle, max_deviation)
 
 
-def test_max_deviation_validation_too_high(controller, new_oracle, admin):
+def test_max_deviation_validation_too_high(controller, configurator, new_oracle, admin):
     """Test that max_deviation cannot exceed MAX_ORACLE_PRICE_DEVIATION."""
     # MAX_ORACLE_PRICE_DEVIATION is 50% (WAD // 2)
     invalid_deviation = MAX_ORACLE_PRICE_DEVIATION + 1
 
     with boa.reverts(dev="invalid max deviation"):
-        controller.set_price_oracle(new_oracle, invalid_deviation, sender=admin)
+        configurator.set_price_oracle(
+            controller, new_oracle, invalid_deviation, sender=admin
+        )
 
 
-def test_max_deviation_validation_boundary(controller, new_oracle, admin, amm):
+def test_max_deviation_validation_boundary(
+    controller, configurator, new_oracle, admin, amm
+):
     """Test that exactly MAX_ORACLE_PRICE_DEVIATION is accepted."""
     # Should succeed at boundary
-    controller.set_price_oracle(new_oracle, MAX_ORACLE_PRICE_DEVIATION, sender=admin)
+    configurator.set_price_oracle(
+        controller, new_oracle, MAX_ORACLE_PRICE_DEVIATION, sender=admin
+    )
     assert amm.price_oracle_contract() == new_oracle.address
 
 
@@ -64,7 +70,9 @@ def high_deviation_oracle(admin):
     return DUMMY_PRICE_ORACLE_DEPLOYER.deploy(admin, 4800 * 10**18, sender=admin)
 
 
-def test_max_deviation_skip_check(controller, high_deviation_oracle, admin, amm, proto):
+def test_max_deviation_skip_check(
+    controller, configurator, high_deviation_oracle, admin, amm, proto
+):
     """Test that max_value(uint256) skips deviation check."""
     # Verify high_deviation_oracle is ~60% higher than initial oracle
     initial_price = proto.price_oracle.price()
@@ -75,7 +83,9 @@ def test_max_deviation_skip_check(controller, high_deviation_oracle, admin, amm,
     )  # Within 1% tolerance
 
     # Even with high price deviation, should succeed when max_deviation is max_value
-    controller.set_price_oracle(high_deviation_oracle, MAX_UINT256, sender=admin)
+    configurator.set_price_oracle(
+        controller, high_deviation_oracle, MAX_UINT256, sender=admin
+    )
     assert amm.price_oracle_contract() == high_deviation_oracle.address
 
 
@@ -86,13 +96,17 @@ def broken_oracle():
     return ERC20_MOCK_DEPLOYER.deploy(18)
 
 
-def test_oracle_validation_missing_methods(controller, broken_oracle, admin):
+def test_oracle_validation_missing_methods(
+    controller, configurator, broken_oracle, admin
+):
     """Test that oracle without required methods reverts."""
     max_deviation = 10**17  # 10%
 
     # Should revert when trying to call price_w() on broken oracle
     with boa.reverts():
-        controller.set_price_oracle(broken_oracle, max_deviation, sender=admin)
+        configurator.set_price_oracle(
+            controller, broken_oracle, max_deviation, sender=admin
+        )
 
 
 @pytest.fixture(scope="module")
@@ -103,26 +117,34 @@ def different_price_oracle(admin):
 
 
 def test_price_deviation_check_within_limit(
-    controller, different_price_oracle, admin, amm
+    controller, configurator, different_price_oracle, admin, amm
 ):
     """Test successful update when price deviation is within limit."""
     # 10% price difference, 20% max deviation allowed
     max_deviation = 2 * 10**17  # 20%
 
-    controller.set_price_oracle(different_price_oracle, max_deviation, sender=admin)
+    configurator.set_price_oracle(
+        controller, different_price_oracle, max_deviation, sender=admin
+    )
     assert amm.price_oracle_contract() == different_price_oracle.address
 
 
-def test_price_deviation_check_exceeds_limit(controller, different_price_oracle, admin):
+def test_price_deviation_check_exceeds_limit(
+    controller, configurator, different_price_oracle, admin
+):
     """Test that update fails when price deviation exceeds limit."""
     # 10% price difference, but only 5% max deviation allowed
     max_deviation = 5 * 10**16  # 5%
 
     with boa.reverts("delta>max"):
-        controller.set_price_oracle(different_price_oracle, max_deviation, sender=admin)
+        configurator.set_price_oracle(
+            controller, different_price_oracle, max_deviation, sender=admin
+        )
 
 
-def test_price_deviation_calculation_higher_new_price(controller, admin, amm):
+def test_price_deviation_calculation_higher_new_price(
+    controller, configurator, admin, amm
+):
     """Test deviation calculation when new price is higher than old."""
     # Create oracle with 15% higher price
     higher_price_oracle = DUMMY_PRICE_ORACLE_DEPLOYER.deploy(
@@ -130,11 +152,15 @@ def test_price_deviation_calculation_higher_new_price(controller, admin, amm):
     )
 
     # Should succeed with 20% max deviation
-    controller.set_price_oracle(higher_price_oracle, 2 * 10**17, sender=admin)
+    configurator.set_price_oracle(
+        controller, higher_price_oracle, 2 * 10**17, sender=admin
+    )
     assert amm.price_oracle_contract() == higher_price_oracle.address
 
 
-def test_price_deviation_calculation_lower_new_price(controller, admin, amm):
+def test_price_deviation_calculation_lower_new_price(
+    controller, configurator, admin, amm
+):
     """Test deviation calculation when new price is lower than old."""
     # Create oracle with 15% lower price
     lower_price_oracle = DUMMY_PRICE_ORACLE_DEPLOYER.deploy(
@@ -142,11 +168,13 @@ def test_price_deviation_calculation_lower_new_price(controller, admin, amm):
     )
 
     # Should succeed with 20% max deviation
-    controller.set_price_oracle(lower_price_oracle, 2 * 10**17, sender=admin)
+    configurator.set_price_oracle(
+        controller, lower_price_oracle, 2 * 10**17, sender=admin
+    )
     assert amm.price_oracle_contract() == lower_price_oracle.address
 
 
-def test_price_deviation_at_exact_limit(controller, admin, amm):
+def test_price_deviation_at_exact_limit(controller, configurator, admin, amm):
     """Test oracle update at exact deviation limit."""
     # Create oracle with exactly 10% higher price
     exact_limit_oracle = DUMMY_PRICE_ORACLE_DEPLOYER.deploy(
@@ -154,11 +182,11 @@ def test_price_deviation_at_exact_limit(controller, admin, amm):
     )
 
     # Should succeed with exactly 10% max deviation
-    controller.set_price_oracle(exact_limit_oracle, 10**17, sender=admin)
+    configurator.set_price_oracle(controller, exact_limit_oracle, 10**17, sender=admin)
     assert amm.price_oracle_contract() == exact_limit_oracle.address
 
 
-def test_same_price_different_oracle(controller, admin, amm):
+def test_same_price_different_oracle(controller, configurator, admin, amm):
     """Test updating to a new oracle with the same price."""
     # Create oracle with same price as initial
     same_price_oracle = DUMMY_PRICE_ORACLE_DEPLOYER.deploy(
@@ -166,5 +194,5 @@ def test_same_price_different_oracle(controller, admin, amm):
     )
 
     # Should succeed even with 0 deviation allowed
-    controller.set_price_oracle(same_price_oracle, 0, sender=admin)
+    configurator.set_price_oracle(controller, same_price_oracle, 0, sender=admin)
     assert amm.price_oracle_contract() == same_price_oracle.address

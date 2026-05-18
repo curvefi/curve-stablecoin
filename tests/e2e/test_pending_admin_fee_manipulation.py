@@ -38,6 +38,7 @@ def test_checkout_collect_fees_changes_withdraw_terms(
     admin,
     vault,
     controller,
+    configurator,
     amm,
     monetary_policy,
     borrowed_token,
@@ -53,7 +54,7 @@ def test_checkout_collect_fees_changes_withdraw_terms(
 
     # 3) Set admin fees portion
     admin_pct = WAD // 2  # 50%
-    controller.set_admin_percentage(admin_pct, sender=admin)
+    configurator.set_admin_percentage(controller, admin_pct, sender=admin)
 
     # 4) Make first deposit in Vault to have liquidity in Controller
     lp = boa.env.generate_address("lp")

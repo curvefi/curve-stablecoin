@@ -54,6 +54,11 @@ def factory(proto):
 
 
 @pytest.fixture(scope="module")
+def configurator(proto):
+    return proto.configurator
+
+
+@pytest.fixture(scope="module")
 def stablecoin(proto):
     return proto.crvUSD
 
@@ -219,14 +224,13 @@ def market(
 
 
 @pytest.fixture(scope="module")
-def controller(market, market_type, admin, borrow_cap):
+def controller(market, market_type, admin, borrow_cap, configurator):
     """Controller for the current market (mint or lending).
     Sets borrow cap for lending markets to `borrow_cap`.
     """
     ctrl = market["controller"]
     if market_type == "lending" and borrow_cap is not None:
-        with boa.env.prank(admin):
-            ctrl.set_borrow_cap(borrow_cap)
+        configurator.set_borrow_cap(ctrl, borrow_cap, sender=admin)
     return ctrl
 
 

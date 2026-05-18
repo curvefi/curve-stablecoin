@@ -22,7 +22,7 @@ event SetFeeReceiver:
     fee_receiver: address
 
 
-event CustomSetFeeReceiver:
+event SetCustomFeeReceiver:
     controller: indexed(address)
     fee_receiver: address
 
