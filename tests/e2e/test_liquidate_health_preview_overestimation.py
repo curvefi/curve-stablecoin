@@ -28,7 +28,6 @@ def _deploy_lending_market(
         loan_discount=loan_discount,
         liquidation_discount=liquidation_discount,
         price_oracle=price_oracle,
-        name=f"{borrow_decimals}dec Vault",
         min_borrow_rate=min_borrow_rate,
         max_borrow_rate=max_borrow_rate,
         seed_amount=1_000_000 * 10**borrow_decimals,

@@ -45,7 +45,6 @@ def _create_market(
     liquidation_discount,
     price_oracle,
     monetary_policy,
-    name="Test Vault",
     supply_limit=MAX_UINT256,
 ):
     with boa.env.prank(admin):
@@ -58,7 +57,6 @@ def _create_market(
             liquidation_discount,
             price_oracle.address,
             monetary_policy.address,
-            name,
             supply_limit,
         )
 

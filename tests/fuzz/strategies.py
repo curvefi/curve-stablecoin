@@ -114,7 +114,6 @@ def lend_markets(
         loan_discount=_loan_discount,
         liquidation_discount=_liq_discount,
         price_oracle=proto.price_oracle,
-        name="Fuzz Vault",
         min_borrow_rate=0,
         max_borrow_rate=MAX_UINT256,
         seed_amount=0,

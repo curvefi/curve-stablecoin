@@ -29,15 +29,6 @@ interface ControllerFactory:
     def n_collaterals() -> uint256: view
     def controllers(i: uint256) -> address: view
 
-interface Controller:
-    def total_debt() -> uint256: view
-
-
-struct TotalDebts:
-    total_debt: uint256
-    controller_debt: uint256
-    ceiling: uint256
-
 
 event SetAdmin:
     admin: address

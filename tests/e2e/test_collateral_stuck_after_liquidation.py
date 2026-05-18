@@ -53,7 +53,6 @@ def lending_market(proto, borrowed_token, collateral_token, price_oracle):
         loan_discount=int(0.09 * 10**18),  # 9%
         liquidation_discount=int(0.06 * 10**18),  # 6%
         price_oracle=price_oracle,
-        name="Test Vault 6 Decimals",
         min_borrow_rate=10**15 // (365 * 86400),  # 0.1% APR
         max_borrow_rate=10**18 // (365 * 86400),  # 100% APR
         seed_amount=0,  # Don't seed yet, we'll do it manually
