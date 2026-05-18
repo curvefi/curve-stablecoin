@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Llamalend OP wstETH / WETH</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            line-height: 1.6;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+        }
+        .section {
+            background-color: #f9f9f9;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 5px;
+            border-left: 4px solid #007bff;
+        }
+        .section h2 {
+            margin-top: 0;
+            color: #007bff;
+        }
+        .field {
+            display: flex;
+            margin: 10px 0;
+        }
+        .label {
+            font-weight: bold;
+            width: 180px;
+        }
+        .value {
+            flex: 1;
+        }
+        .link {
+            color: #0066cc;
+            text-decoration: none;
+            word-break: break-all;
+        }
+        .link:hover {
+            text-decoration: underline;
+        }
+        .raw-value {
+            background-color: #eee;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: monospace;
+        }
+        .verified {
+            color: #2a7a2a;
+            font-weight: bold;
+        }
+        .unverified {
+            color: #b00;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Llamalend Op Wsteth Weth</h1>
+
+        <div class="section">
+            <h2>Deployment Info</h2>
+           <div class="field">
+                <div class="label">On Curve</div>
+                <div class="value"><a href="https://www.curve.finance/lend/optimism/markets/0x99DBD3adcAabAAd9B810B47706E1D3fA60B0815C" class="link" target="_blank">curve.finance</a></div>
+            </div>
+            <div class="field">
+                <div class="label">Chain ID:</div>
+                <div class="value">10</div>
+            </div>
+            <div class="field">
+                <div class="label">Deployer:</div>
+                <div class="value"><a href="https://optimistic.etherscan.io/address/0x2B6F69E9e51abFc72Bd1cC12733FBf98dF2d2EA3" class="link" target="_blank">0x2B6F69E9e51abFc72Bd1cC12733FBf98dF2d2EA3</a></div>
+            </div>
+            <div class="field">
+                <div class="label">Dry Run:</div>
+                <div class="value">false</div>
+            </div>
+            <div class="field">
+                <div class="label">Timestamp:</div>
+                <div class="value"><span class="raw-value">1779114417</span> (2026-05-18 14:26:57 UTC)</div>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>Contracts</h2>
+            <div class="field">
+                <div class="label">Factory:</div>
+                <div class="value"><a href="https://optimistic.etherscan.io/address/0x1973ED17c267245510a390e0dce4FBcD9D2685f0" class="link" target="_blank">0x1973ED17c267245510a390e0dce4FBcD9D2685f0</a> <span class="verified">✓ verified</span></div>
+            </div>
+            <div class="field">
+                <div class="label">Monetary Policy:</div>
+                <div class="value"><a href="https://optimistic.etherscan.io/address/0x5386c1E08E452a754a7163779f9D8b7d15eb6822" class="link" target="_blank">0x5386c1E08E452a754a7163779f9D8b7d15eb6822</a> <span class="unverified">✗ not verified</span></div>
+            </div>
+            <div class="field">
+                <div class="label">Price Oracle:</div>
+                <div class="value"><a href="https://optimistic.etherscan.io/address/0x91D37a8228C132a4F2479d2f84e2A4A44784065D" class="link" target="_blank">0x91D37a8228C132a4F2479d2f84e2A4A44784065D</a> <span class="verified">✓ verified</span></div>
+            </div>
+            <div class="field">
+                <div class="label">Vault:</div>
+                <div class="value"><a href="https://optimistic.etherscan.io/address/0x7030511e1084bb3D7782fE7B706B188a1Cdb3FF9" class="link" target="_blank">0x7030511e1084bb3D7782fE7B706B188a1Cdb3FF9</a> <span class="verified">✓ verified</span></div>
+            </div>
+            <div class="field">
+                <div class="label">Controller:</div>
+                <div class="value"><a href="https://optimistic.etherscan.io/address/0x99DBD3adcAabAAd9B810B47706E1D3fA60B0815C" class="link" target="_blank">0x99DBD3adcAabAAd9B810B47706E1D3fA60B0815C</a> <span class="verified">✓ verified</span></div>
+            </div>
+            <div class="field">
+                <div class="label">AMM:</div>
+                <div class="value"><a href="https://optimistic.etherscan.io/address/0x5B0A9FD418ed01BF7a27Ff0E151B8345Cb69F18b" class="link" target="_blank">0x5B0A9FD418ed01BF7a27Ff0E151B8345Cb69F18b</a> <span class="verified">✓ verified</span></div>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>Parameters</h2>
+            <div class="field">
+                <div class="label">Borrowed Token:</div>
+                <div class="value"><a href="https://optimistic.etherscan.io/address/0x4200000000000000000000000000000000000006" class="link" target="_blank">0x4200000000000000000000000000000000000006</a></div>
+            </div>
+            <div class="field">
+                <div class="label">Collateral Token:</div>
+                <div class="value"><a href="https://optimistic.etherscan.io/address/0x1F32b1c2345538c0c6f582fCB022739c4A194Ebb" class="link" target="_blank">0x1F32b1c2345538c0c6f582fCB022739c4A194Ebb</a></div>
+            </div>
+            <div class="field">
+                <div class="label">Chainlink Feed:</div>
+                <div class="value"><a href="https://optimistic.etherscan.io/address/0x524299Ab0987a7c4B3c8022a35669DdcdC715a10" class="link" target="_blank">0x524299Ab0987a7c4B3c8022a35669DdcdC715a10</a></div>
+            </div>
+            <div class="field">
+                <div class="label">Wsteth Rate Oracle:</div>
+                <div class="value"><a href="https://optimistic.etherscan.io/address/0x294ED1f214F4e0ecAE31C3Eae4F04EBB3b36C9d0" class="link" target="_blank">0x294ED1f214F4e0ecAE31C3Eae4F04EBB3b36C9d0</a></div>
+            </div>
+            <div class="field">
+                <div class="label">Ownership Agent:</div>
+                <div class="value"><a href="https://optimistic.etherscan.io/address/0x28c4A1Fa47EEE9226F8dE7D6AF0a41C62Ca98267" class="link" target="_blank">0x28c4A1Fa47EEE9226F8dE7D6AF0a41C62Ca98267</a></div>
+            </div>
+            <div class="field">
+                <div class="label">Avg Window:</div>
+                <div class="value"><span class="raw-value">86400</span></div>
+            </div>
+            <div class="field">
+                <div class="label">A:</div>
+                <div class="value"><span class="raw-value">186</span></div>
+            </div>
+            <div class="field">
+                <div class="label">Fee:</div>
+                <div class="value"><span class="raw-value">5000000000000000</span></div>
+            </div>
+            <div class="field">
+                <div class="label">Loan Discount:</div>
+                <div class="value"><span class="raw-value">34000000000000004</span></div>
+            </div>
+            <div class="field">
+                <div class="label">Liquidation Discount:</div>
+                <div class="value"><span class="raw-value">15000000000000000</span></div>
+            </div>
+            <div class="field">
+                <div class="label">Target Utilization:</div>
+                <div class="value"><span class="raw-value">850000000000000000</span></div>
+            </div>
+            <div class="field">
+                <div class="label">Low Ratio:</div>
+                <div class="value"><span class="raw-value">500000000000000000</span></div>
+            </div>
+            <div class="field">
+                <div class="label">High Ratio:</div>
+                <div class="value"><span class="raw-value">3000000000000000000</span></div>
+            </div>
+            <div class="field">
+                <div class="label">Rate Shift:</div>
+                <div class="value"><span class="raw-value">0</span></div>
+            </div>
+            <div class="field">
+                <div class="label">Supply Limit:</div>
+                <div class="value"><span class="raw-value">115792089237316195423570985008687907853269984665640564039457584007913129639935</span></div>
+            </div>
+            <div class="field">
+                <div class="label">Observations:</div>
+                <div class="value"><span class="raw-value">20</span></div>
+            </div>
+            <div class="field">
+                <div class="label">Interval:</div>
+                <div class="value"><span class="raw-value">30</span></div>
+            </div>
+            <div class="field">
+                <div class="label">Borrow Cap:</div>
+                <div class="value"><span class="raw-value">126000000000000000000</span></div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

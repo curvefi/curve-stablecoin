@@ -24,6 +24,13 @@ EXPLORERS = {
     42161: "https://arbiscan.io",
 }
 
+CURVE_NETWORKS = {
+    1:     "ethereum",
+    10:    "optimism",
+    137:   "polygon",
+    42161: "arbitrum",
+}
+
 ETHERSCAN_API_V2 = "https://api.etherscan.io/v2/api"
 
 
@@ -65,16 +72,17 @@ def field(label: str, value: str) -> str:
             </div>"""
 
 
-def render(data: dict, explorer: str, title: str, contracts_verified: dict) -> str:
+def render(data: dict, explorer: str, title: str, contracts_verified: dict, curve_network: str | None = None) -> str:
     ts = data.get("timestamp", 0)
     ts_str = datetime.fromtimestamp(ts, tz=timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
 
     p = data.get("params", {})
 
     # Contract rows — only include keys that exist in the JSON
-    contract_keys = ["factory", "monetary_policy", "price_oracle", "leverage_zap", "vault", "controller", "amm"]
+    contract_keys = ["factory", "rate_calculator", "monetary_policy", "price_oracle", "leverage_zap", "vault", "controller", "amm"]
     contract_labels = {
         "factory": "Factory",
+        "rate_calculator": "Rate Calculator",
         "monetary_policy": "Monetary Policy",
         "price_oracle": "Price Oracle",
         "leverage_zap": "Leverage Zap",
@@ -94,17 +102,25 @@ def render(data: dict, explorer: str, title: str, contracts_verified: dict) -> s
         "borrowed_token": "Borrowed Token",
         "collateral_token": "Collateral Token",
         "chainlink_feed": "Chainlink Feed",
+        "wsteth_rate_oracle": "Wsteth Rate Oracle",
+        "ownership_agent": "Ownership Agent",
+        "avg_window": "Avg Window",
         "A": "A",
         "fee": "Fee",
         "loan_discount": "Loan Discount",
         "liquidation_discount": "Liquidation Discount",
+        "target_utilization": "Target Utilization",
+        "low_ratio": "Low Ratio",
+        "high_ratio": "High Ratio",
+        "rate_shift": "Rate Shift",
         "min_rate": "Min Rate",
         "max_rate": "Max Rate",
         "supply_limit": "Supply Limit",
         "observations": "Observations",
         "interval": "Interval",
+        "borrow_cap": "Borrow Cap",
     }
-    addr_params = {"borrowed_token", "collateral_token", "chainlink_feed"}
+    addr_params = {"borrowed_token", "collateral_token", "chainlink_feed", "wsteth_rate_oracle", "ownership_agent"}
     param_rows = []
     for key, label in param_labels.items():
         if key not in p:
@@ -191,6 +207,7 @@ def render(data: dict, explorer: str, title: str, contracts_verified: dict) -> s
 
         <div class="section">
             <h2>Deployment Info</h2>
+{field("On Curve", f'<a href="https://www.curve.finance/lend/{curve_network}/markets/{data["controller"]}" class="link" target="_blank">curve.finance</a>') if curve_network and "controller" in data else ""}
 {field("Chain ID", str(data.get("chain_id", "")))}
 {field("Deployer", addr_link(explorer, data["deployer"]))}
 {field("Dry Run", str(data.get("dry_run", "")).lower())}
@@ -232,7 +249,7 @@ def main() -> None:
     explorer = EXPLORERS.get(chain_id, f"https://etherscan.io")
 
     # Collect all contract addresses to check
-    contract_keys = ["factory", "monetary_policy", "price_oracle", "leverage_zap", "vault", "controller", "amm"]
+    contract_keys = ["factory", "rate_calculator", "monetary_policy", "price_oracle", "leverage_zap", "vault", "controller", "amm"]
     contracts = {data[k] for k in contract_keys if k in data}
 
     api_key = os.environ.get("ETHERSCAN_API_KEY")
@@ -250,7 +267,8 @@ def main() -> None:
             status = "verified ✓" if v else "not verified ✗"
             print(f"  {addr}  {status}")
 
-    html = render(data, explorer, title, contracts_verified)
+    curve_network = CURVE_NETWORKS.get(chain_id)
+    html = render(data, explorer, title, contracts_verified, curve_network)
     output_path.write_text(html)
     print(f"Written: {output_path}")
 
