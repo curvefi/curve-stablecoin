@@ -125,9 +125,17 @@ def _deploy(deployer: str, dry_run: bool, report_path: Path, factory_deployment:
     if hasattr(boa.env, "get_chain_id"):
         chain_id = boa.env.get_chain_id()
 
-    # set borrow cap to 126 WETH (18 decimals)
-    controller = boa.load_partial("curve_stablecoin/lending/LendController.vy").at(deployed[1])
-    controller.set_borrow_cap(126 * 10**18, sender=deployer)
+    # this only works if the factory is owned by the address doing the tx here
+    # if the DAO owns the factory, a DAO vote is needed
+    # set borrow cap and admin fee only if deployer is admin
+    if factory.admin() == deployer:
+        # set borrow cap to 824 WETH (18 decimals)
+        controller = boa.load_partial("curve_stablecoin/lending/LendController.vy").at(deployed[1])
+        controller.set_borrow_cap(824 * 10**18, sender=deployer)
+        # set admin fee to 10%
+        controller.set_admin_percentage(10 * 10**8, sender=deployer)
+    else:
+        print(f"[SKIP] deployer {deployer} is not factory admin — skipping borrow cap and admin fee setup")
 
     report = {
         "chain_id": chain_id,
