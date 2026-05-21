@@ -28,6 +28,9 @@ LOAN_DISCOUNT = int(0.034 * 10**18) # 3.4%
 LIQUIDATION_DISCOUNT = int(0.015 * 10**18) # 1.5%
 SUPPLY_LIMIT = 2**256 - 1
 
+borrow_cap = 824
+admin_percentage = 10
+
 # RATE_CALCULATOR parameters
 
 WSTETH_RATE_ORACLE = "0x294ED1f214F4e0ecAE31C3Eae4F04EBB3b36C9d0" # Lido TokenRateOracle (wstETH/stETH)
@@ -131,10 +134,12 @@ def _deploy(deployer: str, dry_run: bool, report_path: Path, factory_deployment:
     if factory.admin() == deployer:
         # set borrow cap to 824 WETH (18 decimals)
         controller = boa.load_partial("curve_stablecoin/lending/LendController.vy").at(deployed[1])
-        controller.set_borrow_cap(824 * 10**18, sender=deployer)
+        controller.set_borrow_cap(borrow_cap * 10**18, sender=deployer)
         # set admin fee to 10%
-        controller.set_admin_percentage(10 * 10**8, sender=deployer)
+        controller.set_admin_percentage(admin_percentage * 10**18, sender=deployer)
     else:
+        borrow_cap = 0
+        admin_percentage = 0
         print(f"[SKIP] deployer {deployer} is not factory admin — skipping borrow cap and admin fee setup")
 
     report = {
@@ -167,7 +172,8 @@ def _deploy(deployer: str, dry_run: bool, report_path: Path, factory_deployment:
             "supply_limit": SUPPLY_LIMIT,
             "observations": OBSERVATIONS,
             "interval": INTERVAL,
-            "borrow_cap": 126 * 10**18
+            "borrow_cap": borrow_cap * 10**18,
+            "admin_percentage": admin_percentage * 10**18
         },
     }
 

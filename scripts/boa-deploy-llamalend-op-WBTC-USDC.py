@@ -30,6 +30,9 @@ MIN_RATE = 158548959 # 0.5% APR
 MAX_RATE = 15854895991 # 50% APR
 SUPPLY_LIMIT = 2**256 - 1
 
+borrow_cap = 4380000
+admin_percentage = 10
+
 OBSERVATIONS = 20
 INTERVAL = 30
 CHAIN_ID = 10
@@ -105,15 +108,13 @@ def _deploy(deployer: str, dry_run: bool, report_path: Path, factory_deployment:
     if factory.admin() == deployer:
         # set borrow cap to 4.38 Mil USDC (6 decimals)
         controller = boa.load_partial("curve_stablecoin/lending/LendController.vy").at(deployed[1])
-        controller.set_borrow_cap(4380000 * 10**6, sender=deployer)
+        controller.set_borrow_cap(borrow_cap * 10**6, sender=deployer)
         # set admin fee to 10%
-        controller.set_admin_percentage(10 * 10**8, sender=deployer)
+        controller.set_admin_percentage(admin_percentage * 10**18, sender=deployer)
     else:
+        borrow_cap = 0
+        admin_percentage = 0
         print(f"[SKIP] deployer {deployer} is not factory admin — skipping borrow cap and admin fee setup")
-
-    # set borrow cap to 1.5 Mil USDC (6 decimals)
-    controller = boa.load_partial("curve_stablecoin/lending/LendController.vy").at(deployed[1])
-    controller.set_borrow_cap(1500000 * 10**6, sender=deployer)
 
     report = {
         "chain_id": chain_id,
@@ -139,7 +140,8 @@ def _deploy(deployer: str, dry_run: bool, report_path: Path, factory_deployment:
             "supply_limit": SUPPLY_LIMIT,
             "observations": OBSERVATIONS,
             "interval": INTERVAL,
-            "borrow_cap": 1500000 * 10**6
+            "borrow_cap": borrow_cap * 10**6,
+            "admin_percentage": admin_percentage * 10**18
         },
     }
 
