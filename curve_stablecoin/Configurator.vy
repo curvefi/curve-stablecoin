@@ -182,11 +182,11 @@ def set_price_oracle(
     extcall _price_oracle.price_w()
     new_price: uint256 = staticcall _price_oracle.price()
 
-    # Check price deviation isn't too high
-    amm: IAMM = staticcall _controller.amm()
-    current_oracle: IPriceOracle = staticcall amm.price_oracle_contract()
-    old_price: uint256 = staticcall current_oracle.price()
+    # Check price deviation isn't too high (if not skipped)
     if _max_deviation != max_value(uint256):
+        amm: IAMM = staticcall _controller.amm()
+        current_oracle: IPriceOracle = staticcall amm.price_oracle_contract()
+        old_price: uint256 = staticcall current_oracle.price()
         delta: uint256 = (new_price - old_price if old_price < new_price else old_price - new_price)
         max_delta: uint256 = old_price * _max_deviation // WAD
         assert delta <= max_delta, "delta>max"
