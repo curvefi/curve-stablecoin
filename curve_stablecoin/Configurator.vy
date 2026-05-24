@@ -105,7 +105,7 @@ def set_monetary_policy(_controller: IController, _monetary_policy: IMonetaryPol
         IPriceOracle(SKIP_CONFIG_ADDRESS),
         ILMCallback(SKIP_CONFIG_ADDRESS),
     )
-    extcall _monetary_policy.rate_write()
+    extcall _monetary_policy.rate_write(_controller.address)
     log IConfigurator.SetMonetaryPolicy(monetary_policy=_monetary_policy)
 
 
