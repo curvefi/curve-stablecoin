@@ -29,21 +29,21 @@ def create_market(proto, price_oracle):
 
 
 def test_revert_liquidation_discount_zero(create_market):
-    with boa.reverts("liquidation discount == 0"):
+    with boa.reverts("liquidation discount = 0"):
         create_market(VALID_LOAN_DISCOUNT, 0)
 
 
 def test_revert_loan_discount_gte_wad(create_market):
-    with boa.reverts("loan discount == 100%"):
+    with boa.reverts("loan discount >= 100%"):
         create_market(WAD, VALID_LIQUIDATION_DISCOUNT)
 
-    with boa.reverts("loan discount > 100%"):
+    with boa.reverts("loan discount >= 100%"):
         create_market(WAD + 1, VALID_LIQUIDATION_DISCOUNT)
 
 
 def test_revert_loan_discount_lte_liquidation_discount(create_market):
-    with boa.reverts("loan discount < liquidation discount"):
+    with boa.reverts("loan discount <= liquidation discount"):
         create_market(VALID_LIQUIDATION_DISCOUNT, VALID_LOAN_DISCOUNT)
 
-    with boa.reverts("loan discount == liquidation discount"):
+    with boa.reverts("loan discount <= liquidation discount"):
         create_market(VALID_LIQUIDATION_DISCOUNT, VALID_LIQUIDATION_DISCOUNT)
