@@ -1,7 +1,10 @@
 import pytest
 
 from tests.utils.constants import MAX_ORACLE_PRICE_DEVIATION, MAX_UINT256, WAD
-from tests.utils.deployers import DUMMY_PRICE_ORACLE_DEPLOYER
+from tests.utils.deployers import (
+    BROKEN_PRICE_ORACLE_DEPLOYER,
+    DUMMY_PRICE_ORACLE_DEPLOYER,
+)
 
 
 @pytest.fixture
@@ -78,3 +81,15 @@ def test_set_price_oracle_skips_deviation_check_with_max_uint(
     )
 
     assert amm.price_oracle_contract() == high_deviation_oracle.address
+
+
+def test_set_price_oracle_replaces_broken_oracle(
+    configurator, controller, amm, admin, deploy_price_oracle
+):
+    broken_oracle = BROKEN_PRICE_ORACLE_DEPLOYER.deploy(sender=admin)
+    amm.set_price_oracle(broken_oracle, sender=controller.address)  # bypass checks
+
+    new_oracle = deploy_price_oracle(WAD)
+    configurator.set_price_oracle(controller, new_oracle, MAX_UINT256, sender=admin)
+
+    assert amm.price_oracle_contract() == new_oracle.address
