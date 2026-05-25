@@ -4,7 +4,10 @@
 @license MIT
 @author Curve.Fi
 @notice Peg Keeper
-@dev Version 2.1
+@dev Diff from PegKeeper V2: this version accounts for pool token rates when
+    measuring imbalance. It uses `stored_rates()` to compare pool balances in
+    normalized units.
+@custom:version 2.1.0
 """
 
 interface Regulator:
@@ -295,11 +298,21 @@ def calc_profit() -> uint256:
 def _balance_diff() -> BalanceDiff:
     balances: DynArray[uint256, 8] = POOL.get_balances()
     rates: DynArray[uint256, 8] = POOL.stored_rates()
-    balances[1 - I] = unsafe_div(rates[1 - I] * balances[1 - I], PRECISION)
-    if balances[I] >= balances[1 - I]:
-        return BalanceDiff({amount: unsafe_sub(balances[I], balances[1 - I]), deficit: False})
+    normalized_pegged: uint256 = unsafe_div(rates[I] * balances[I], PRECISION)
+    normalized_other: uint256 = unsafe_div(rates[1 - I] * balances[1 - I], PRECISION)
+
+    # Return the imbalance in raw units of the pegged coin because PK always moves coin I.
+    # Round down so we never try to move more normalized value than the observed imbalance.
+    if normalized_pegged >= normalized_other:
+        return BalanceDiff({
+            amount: unsafe_div(unsafe_sub(normalized_pegged, normalized_other) * PRECISION, rates[I]),
+            deficit: False,
+        })
     else:
-        return BalanceDiff({amount: unsafe_sub(balances[1 - I], balances[I]) * PRECISION / rates[1 - I], deficit: True})
+        return BalanceDiff({
+            amount: unsafe_div(unsafe_sub(normalized_other, normalized_pegged) * PRECISION, rates[I]),
+            deficit: True,
+        })
 
 
 @external
