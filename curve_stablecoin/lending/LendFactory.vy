@@ -145,6 +145,9 @@ def create(
     assert _A >= MIN_A and _A <= MAX_A, "Wrong A"
     assert _fee <= MAX_FEE, "Fee too high"
     assert _fee >= MIN_FEE, "Fee too low"
+    assert _liquidation_discount > 0, "liquidation discount = 0"
+    assert _loan_discount < WAD, "loan discount >= 100%"
+    assert _loan_discount > _liquidation_discount, "loan discount <= liquidation discount"
 
     A_ratio: uint256 = 10**18 * _A // (_A - 1)
 
