@@ -124,6 +124,9 @@ AGG_MONETARY_POLICY4_DEPLOYER = boa.load_partial(
 DUMMY_PRICE_ORACLE_DEPLOYER = boa.load_partial(
     TESTING_CONTRACT_PATH / "DummyPriceOracle.vy", compiler_args=compiler_args_default
 )
+BROKEN_PRICE_ORACLE_DEPLOYER = boa.load_partial(
+    TESTING_CONTRACT_PATH / "BrokenPriceOracle.vy", compiler_args=compiler_args_default
+)
 CRYPTO_FROM_POOL_DEPLOYER = boa.load_partial(
     PRICE_ORACLES_CONTRACT_PATH / "CryptoFromPool.vy",
     compiler_args=compiler_args_default,
