@@ -10,13 +10,14 @@
 
 from curve_stablecoin.interfaces import IController
 from curve_stablecoin.interfaces import IConfigurator
-from curve_stablecoin.interfaces import ILendFactory
 from curve_stablecoin.interfaces import ILendController
 from curve_stablecoin.interfaces import IMonetaryPolicy
 from curve_stablecoin.interfaces import IPriceOracle
 from curve_stablecoin.interfaces import ILMCallback
 from curve_stablecoin.interfaces import IAMM
 from curve_stablecoin import constants as c
+
+implements: IConfigurator
 
 WAD: constant(uint256) = c.WAD
 SKIP_CONFIG_UINT256: constant(uint256) = c.SKIP_CONFIG_UINT256
