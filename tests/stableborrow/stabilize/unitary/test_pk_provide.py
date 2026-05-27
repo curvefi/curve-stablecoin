@@ -31,7 +31,9 @@ def test_provide(
 
         new_balances = [swap.balances(0), swap.balances(1)]
         assert new_balances[0] == balances[0]
-        assert new_balances[1] == pytest.approx(balances[1] + amount // 5, rel=1e-12)  # Error from rates calculations
+        assert new_balances[1] == pytest.approx(
+            balances[1] + amount // 5, rel=1e-12
+        )  # Error from rates calculations
 
 
 def test_min_coin_amount(

@@ -76,9 +76,9 @@ def test_withdraw_dust_debt(
         with boa.env.prank(peg_keeper_updater):
             assert peg_keeper.update()
 
-        assert (
-            swap.balances(1) - (amount - amount // 5)
-        ) * rates[1] // rates[0] == swap.balances(0)
+        assert (swap.balances(1) - (amount - amount // 5)) * rates[1] // rates[
+            0
+        ] == swap.balances(0)
 
         remove_amount = swap.balances(1) - swap.balances(0) * rates[0] // rates[1]
         with boa.env.prank(alice):

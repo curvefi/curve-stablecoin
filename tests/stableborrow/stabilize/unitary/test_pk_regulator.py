@@ -135,7 +135,8 @@ def test_debt_limit_formula(
     sqrt_new_debt = sqrt(reg.provide_allowed(peg_keeper))
     assert sqrt_new_debt == pytest.approx(
         a + b * sum([sqrt(debt) for debt in debts] + [sqrt_new_debt]) // 10**18,
-        abs=10 * 10**9,  # >= (1 + n_peg_keepers) * 10**(18 / 2), n_peg_keepers is maxed by 8
+        abs=10
+        * 10**9,  # >= (1 + n_peg_keepers) * 10**(18 / 2), n_peg_keepers is maxed by 8
     )
 
 

@@ -97,7 +97,9 @@ def test_withdraw_profit(
                 assert profit == swap.balanceOf(receiver)
 
             debt = peg_keeper.debt()
-            amount = 5 * debt + swap.balances(0) * rates[0] // rates[1] - swap.balances(1)
+            amount = (
+                5 * debt + swap.balances(0) * rates[0] // rates[1] - swap.balances(1)
+            )
             with boa.env.prank(alice):
                 _mint(alice, [stablecoin], [amount])
                 stablecoin.approve(swap, amount)
