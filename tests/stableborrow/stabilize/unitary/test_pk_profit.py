@@ -88,7 +88,7 @@ def test_withdraw_profit(
     ):
         with boa.env.anchor():
             make_profit(donate_fee, i)
-            rtoken_mul = 10 ** (18 - rtoken.decimals())
+            rates = swap.stored_rates()
 
             profit = peg_keeper.calc_profit()
             with boa.env.prank(admin):
@@ -97,7 +97,7 @@ def test_withdraw_profit(
                 assert profit == swap.balanceOf(receiver)
 
             debt = peg_keeper.debt()
-            amount = 5 * debt + swap.balances(0) * rtoken_mul - swap.balances(1)
+            amount = 5 * debt + swap.balances(0) * rates[0] // rates[1] - swap.balances(1)
             with boa.env.prank(alice):
                 _mint(alice, [stablecoin], [amount])
                 stablecoin.approve(swap, amount)
@@ -112,8 +112,8 @@ def test_withdraw_profit(
             diff = 5 * debt
 
             assert (
-                swap.balances(0) + (diff - diff // 5) // rtoken_mul
-                == swap.balances(1) // rtoken_mul
+                swap.balances(0) + (diff - diff // 5) * rates[1] // rates[0]
+                == swap.balances(1) * rates[1] // rates[0]
             )
             # Not checking balances==balanceOf because admin fee is nonzero
 
@@ -158,13 +158,13 @@ def test_unprofitable_peg(
         with boa.env.anchor():
             # Leave a little of debt
             little = 10 * 10**18
-            rtoken_mul = 10 ** (18 - rtoken.decimals())
+            rates = swap.stored_rates()
             imbalance_pool(swap, 1, 5 * (peg_keeper.debt() - little))
             with boa.env.prank(alice):
                 peg_keeper.update()
 
             # Imbalance so it should give all
-            able_to_add = stablecoin.balanceOf(peg_keeper) // rtoken_mul
+            able_to_add = stablecoin.balanceOf(peg_keeper) * rates[1] // rates[0]
             imbalance_pool(swap, 0, 5 * able_to_add, add_diff=True)
 
             set_fee(swap, 5 * 10**9)

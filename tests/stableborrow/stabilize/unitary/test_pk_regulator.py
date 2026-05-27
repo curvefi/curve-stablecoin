@@ -135,7 +135,7 @@ def test_debt_limit_formula(
     sqrt_new_debt = sqrt(reg.provide_allowed(peg_keeper))
     assert sqrt_new_debt == pytest.approx(
         a + b * sum([sqrt(debt) for debt in debts] + [sqrt_new_debt]) // 10**18,
-        abs=10**9,
+        abs=10 * 10**9,  # >= (1 + n_peg_keepers) * 10**(18 / 2), n_peg_keepers is maxed by 8
     )
 
 
@@ -228,11 +228,13 @@ def test_admin(reg, admin, alice, agg, receiver):
 
 
 def get_peg_keepers(reg):
-    return [
-        # pk.get("peg_keeper") for pk in reg._storage.peg_keepers.get()  Available for titanoboa >= 0.1.8
-        reg.peg_keepers(i)[0]
-        for i in range(reg.eval("len(self.peg_keepers)", return_type="uint256"))
-    ]
+    peg_keepers = []
+    for i in range(8):
+        try:
+            peg_keepers.append(reg.peg_keepers(i)[0])
+        except boa.BoaError:
+            break
+    return peg_keepers
 
 
 @pytest.fixture(scope="module")
