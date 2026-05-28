@@ -44,7 +44,7 @@ def set_custom_admin(_controller: IController, _admin: address):
     """
     self._check_admin()
     self.admins[_controller] = _admin
-    log IConfigurator.SetCustomAdmin(controller=_controller, admin=_admin)
+    log IConfigurator.SetCustomAdmin(controller=_controller.address, admin=_admin)
 
 
 @internal
@@ -86,7 +86,9 @@ def set_borrowing_discounts(
         ILMCallback(SKIP_CONFIG_ADDRESS),
     )
     log IConfigurator.SetBorrowingDiscounts(
-        loan_discount=_loan_discount, liquidation_discount=_liquidation_discount
+        controller=_controller.address,
+        loan_discount=_loan_discount,
+        liquidation_discount=_liquidation_discount,
     )
 
 
@@ -107,7 +109,7 @@ def set_monetary_policy(_controller: IController, _monetary_policy: IMonetaryPol
         ILMCallback(SKIP_CONFIG_ADDRESS),
     )
     extcall _monetary_policy.rate_write(_controller.address)
-    log IConfigurator.SetMonetaryPolicy(monetary_policy=_monetary_policy)
+    log IConfigurator.SetMonetaryPolicy(controller=_controller.address, monetary_policy=_monetary_policy.address)
 
 
 @external
@@ -130,7 +132,7 @@ def set_view(_controller: IController, _view_blueprint: address):
         ILMCallback(SKIP_CONFIG_ADDRESS),
     )
 
-    log IConfigurator.SetView(view=staticcall _controller.view())
+    log IConfigurator.SetView(controller=_controller.address, view=staticcall _controller.view())
 
 
 ################################################################
@@ -145,7 +147,7 @@ def set_borrow_cap(_controller: ILendController, _borrow_cap: uint256):
     """
     self._check_authorized(IController(_controller.address))
     extcall _controller.configure_lend(_borrow_cap, SKIP_CONFIG_UINT256)
-    log IConfigurator.SetBorrowCap(borrow_cap=_borrow_cap)
+    log IConfigurator.SetBorrowCap(controller=_controller.address, borrow_cap=_borrow_cap)
 
 
 @external
@@ -157,7 +159,7 @@ def set_admin_percentage(_controller: ILendController, _admin_percentage: uint25
     self._check_authorized(IController(_controller.address))
     assert _admin_percentage <= WAD, "admin percentage higher than 100%"
     extcall _controller.configure_lend(SKIP_CONFIG_UINT256, _admin_percentage)
-    log IConfigurator.SetAdminPercentage(admin_percentage=_admin_percentage)
+    log IConfigurator.SetAdminPercentage(controller=_controller.address, admin_percentage=_admin_percentage)
 
 
 # ################################################################

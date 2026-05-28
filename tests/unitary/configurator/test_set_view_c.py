@@ -34,6 +34,7 @@ def test_set_view_emits_set_view(
 
     log = single_configurator_event(configurator, "SetView")
 
+    assert log.controller == controller.address
     assert log.view == controller.view()
 
 

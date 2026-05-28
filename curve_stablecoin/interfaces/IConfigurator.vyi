@@ -9,28 +9,33 @@ from curve_stablecoin.interfaces import ILMCallback
 
 
 event SetCustomAdmin:
-    controller: indexed(IController)
+    controller: indexed(address)
     admin: address
 
 
 event SetBorrowingDiscounts:
+    controller: indexed(address)
     loan_discount: uint256
     liquidation_discount: uint256
 
 
 event SetBorrowCap:
+    controller: indexed(address)
     borrow_cap: uint256
 
 
 event SetAdminPercentage:
+    controller: indexed(address)
     admin_percentage: uint256
 
 
 event SetMonetaryPolicy:
-    monetary_policy: IMonetaryPolicy
+    controller: indexed(address)
+    monetary_policy: address
 
 
 event SetView:
+    controller: indexed(address)
     view: address
 
 
@@ -84,5 +89,5 @@ def set_amm_fee(_controller: IController, _fee: uint256):
 
 @view
 @external
-def default_admin() -> address:
+def DEFAULT_ADMIN() -> address:
     ...
