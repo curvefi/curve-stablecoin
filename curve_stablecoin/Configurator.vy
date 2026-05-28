@@ -24,13 +24,13 @@ SKIP_CONFIG_UINT256: constant(uint256) = c.SKIP_CONFIG_UINT256
 SKIP_CONFIG_ADDRESS: constant(address) = c.SKIP_CONFIG_ADDRESS
 MAX_ORACLE_PRICE_DEVIATION: constant(uint256) = WAD // 2  # 50% deviation
 
-default_admin: public(address)
+DEFAULT_ADMIN: public(immutable(address))
 admins: HashMap[IController, address]
 
 
 @deploy
 def __init__(_default_admin: address):
-    self.default_admin = _default_admin
+    DEFAULT_ADMIN = _default_admin
 
 
 @external
@@ -49,13 +49,13 @@ def set_custom_admin(_controller: IController, _admin: address):
 
 @internal
 def _check_admin():
-    assert msg.sender == self.default_admin, "Not admin"
+    assert msg.sender == DEFAULT_ADMIN, "Not admin"
 
 
 @internal
 def _check_authorized(_controller: IController):
     assert (
-        msg.sender == self.default_admin or msg.sender == self.admins[_controller]
+        msg.sender == DEFAULT_ADMIN or msg.sender == self.admins[_controller]
     ), "Not authorized for this controller"
 
 
