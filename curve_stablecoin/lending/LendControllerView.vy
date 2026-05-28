@@ -33,7 +33,6 @@ exports: (
     core.borrow_more_health_preview,
     core.repay_health_preview,
     core.liquidate_health_preview,
-    core.calculate_debt_n1,
 )
 
 
