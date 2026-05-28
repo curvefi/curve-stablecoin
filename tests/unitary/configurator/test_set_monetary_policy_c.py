@@ -11,19 +11,26 @@ interface IController:
     def monetary_policy() -> address: view
 
 controller: immutable(address)
-rate: public(uint256)
+_rate: uint256
 rate_write_calls: public(uint256)
 
 @deploy
 def __init__(_controller: address, _rate: uint256):
     controller = _controller
-    self.rate = _rate
+    self._rate = _rate
+
 
 @external
-def rate_write() -> uint256:
+@view
+def rate(_for: address = msg.sender) -> uint256:
+    return self._rate
+
+
+@external
+def rate_write(_for: address = msg.sender) -> uint256:
     assert staticcall IController(controller).monetary_policy() == self
     self.rate_write_calls += 1
-    return self.rate
+    return self._rate
 """
 
 

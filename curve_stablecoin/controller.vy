@@ -208,8 +208,6 @@ def available_balance() -> uint256:
     return staticcall BORROWED_TOKEN.balanceOf(self)
 
 
-
-
 @internal
 @view
 def _get_total_debt() -> uint256:
