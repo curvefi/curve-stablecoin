@@ -97,6 +97,7 @@ _monetary_policy: IMonetaryPolicy
 def monetary_policy() -> IMonetaryPolicy:
     """
     @notice Address of the monetary policy
+    @return Address of the monetary policy contract
     """
     return self._monetary_policy
 
@@ -213,6 +214,7 @@ def available_balance() -> uint256:
 def _get_total_debt() -> uint256:
     """
     @notice Total debt of this controller
+    @return Total outstanding debt with accrued interest
     """
     rate_mul: uint256 = staticcall AMM.get_rate_mul()
     loan: IController.Loan = self._total_debt
@@ -233,9 +235,10 @@ def _update_total_debt(_d_debt: uint256, _rate_mul: uint256, _is_increase: bool)
     """
     @notice Update total debt of this controller
     @dev This method MUST be called strictly BEFORE lent, repaid or collected change
-    @param d_debt Change in debt amount (unsigned)
-    @param rate_mul New rate_mul
-    @param is_increase Whether debt increases or decreases
+    @param _d_debt Change in debt amount (unsigned)
+    @param _rate_mul New rate multiplier
+    @param _is_increase Whether debt increases or decreases
+    @return Updated loan struct with new initial_debt and rate_mul
     """
     loan: IController.Loan = self._total_debt
     loan_with_interest: uint256 = 0
@@ -267,6 +270,7 @@ def _update_total_debt(_d_debt: uint256, _rate_mul: uint256, _is_increase: bool)
 def factory() -> IFactory:
     """
     @notice Address of the factory
+    @return Address of the factory contract
     """
     return FACTORY
 
@@ -277,6 +281,7 @@ def factory() -> IFactory:
 def amm() -> IAMM:
     """
     @notice Address of the AMM
+    @return Address of the AMM contract
     """
     return AMM
 
@@ -287,6 +292,7 @@ def amm() -> IAMM:
 def collateral_token() -> IERC20:
     """
     @notice Address of the collateral token
+    @return Address of the collateral token contract
     """
     return COLLATERAL_TOKEN
 
@@ -297,6 +303,7 @@ def collateral_token() -> IERC20:
 def borrowed_token() -> IERC20:
     """
     @notice Address of the borrowed token
+    @return Address of the borrowed token contract
     """
     return BORROWED_TOKEN
 
@@ -357,6 +364,8 @@ def debt(_user: address) -> uint256:
 def loan_exists(_user: address) -> bool:
     """
     @notice Check whether there is a loan of `user` in existence
+    @param _user Address of the user to check
+    @return True if the user has an active loan, False otherwise
     """
     return self.loan[_user].initial_debt > 0
 
@@ -368,6 +377,7 @@ def total_debt() -> uint256:
     """
     @notice Total debt of this controller
     @dev Marked as reentrant because used by monetary policy
+    @return Total outstanding debt with accrued interest
     """
     return self._get_total_debt()
 
@@ -610,6 +620,7 @@ def create_loan_health_preview(
     @param _debt Borrowed asset debt to take
     @param _N Number of bands to deposit into (to do autoliquidation-deliquidation),
            can be from MIN_TICKS to MAX_TICKS
+    @param _for Address of the user the loan is being created for
     @param _full Whether it's a 'full' health or not
     @return Signed health value
     """
@@ -713,6 +724,7 @@ def _add_collateral_borrow(
     @param _d_debt Amount of debt increase
     @param _for Address to transfer tokens to
     @param _remove_collateral Remove collateral instead of adding
+    @return Current rate multiplier
     """
     debt: uint256 = 0
     rate_mul: uint256 = 0
@@ -922,7 +934,12 @@ def _repay_full(
     _callbacker: address,
 ):
     """
-    @notice Allows any value for cb.active_band to be indistinguishable with partial repay.
+    @notice Fully repay a loan and return all remaining collateral to the user
+    @param _for Address of the borrower whose loan is being repaid
+    @param _debt Total debt amount to repay
+    @param _xy Amounts of borrowed and collateral tokens withdrawn from the AMM
+    @param _cb Callback data (usually for selling collateral)
+    @param _callbacker Address of the callback contract, or empty if no callback
     """
     if _callbacker == empty(address):
         _xy = extcall AMM.withdraw(_for, WAD)
@@ -964,6 +981,18 @@ def _repay_partial(
     _max_active_band: int256,
     _shrink: bool,
 ) -> uint256:
+    """
+    @notice Partially repay a loan and reposition the user in the AMM
+    @param _for Address of the borrower whose loan is being partially repaid
+    @param _debt Current total debt of the user before repayment
+    @param _wallet_d_debt Amount of borrowed tokens being repaid from the caller's wallet
+    @param _xy Amounts of borrowed and collateral tokens withdrawn from the AMM
+    @param _cb Callback data (usually for selling collateral)
+    @param _callbacker Address of the callback contract, or empty if no callback
+    @param _max_active_band Maximum allowed active band (slippage guard against griefing)
+    @param _shrink Whether to shrink the position range toward the active band
+    @return Amount of debt actually repaid
+    """
     # slippage-like check to prevent dos on repay (grief attack)
     active_band: int256 = staticcall AMM.active_band_with_skip()
     new_collateral: uint256 = _xy[1]
@@ -1227,6 +1256,7 @@ def liquidate(
 ):
     """
     @notice Perform a bad liquidation (or self-liquidation) of user if health is not good
+    @param _user Address of the user to liquidate
     @param _min_x Minimal amount of borrowed asset to receive (to avoid liquidators being sandwiched)
     @param _frac Fraction to liquidate; 100% = 10**18
     @param _callbacker Address of the callback contract
@@ -1492,6 +1522,7 @@ def _admin_fees() -> uint256:
 def admin_fees() -> uint256:
     """
     @notice Pending admin fees which can be claimed if the controller has enough balance
+    @return Amount of pending admin fees in borrowed token units
     """
     return self._admin_fees()
 
@@ -1500,6 +1531,7 @@ def admin_fees() -> uint256:
 def collect_fees() -> uint256:
     """
     @notice Collect the fees charged as interest.
+    @return Amount of fees collected and transferred to the fee receiver
     """
     rate_mul: uint256 = staticcall AMM.get_rate_mul()
     self._update_total_debt(0, rate_mul, False)

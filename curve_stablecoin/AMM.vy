@@ -131,6 +131,7 @@ def __init__(
     """
     @notice LLAMMA constructor
     @param _borrowed_token Token which is being borrowed
+    @param _borrowed_precision Precision of borrowed token: we pass it because we want the blueprint to fit into bytecode
     @param _collateral_token Token used as collateral
     @param _collateral_precision Precision of collateral: we pass it because we want the blueprint to fit into bytecode
     @param _A "Amplification coefficient" which also defines density of liquidity and band size. Relative band size is 1/_A
@@ -192,6 +193,7 @@ def sqrt_int(_x: uint256) -> uint256:
     """
     @notice Wrapping isqrt builtin because otherwise it will be repeated every time instead of calling
     @param _x Square root's input in "normal" units, e.g. sqrt_int(1) == 1
+    @return Integer square root of _x
     """
     return isqrt(_x)
 
@@ -216,7 +218,7 @@ def limit_p_o(p: uint256) -> uint256[2]:
         However, over time fee should still go down (over PREV_P_O_DELAY), and also ratio should be limited
         because we don't want the fee to become too large (say, 50%) which is achieved by limiting the instantaneous
         change in oracle price.
-
+    @param p Current oracle price
     @return (limited_price_oracle, dynamic_fee)
     """
     p_new: uint256 = p
@@ -288,6 +290,7 @@ def _price_oracle_w() -> uint256[2]:
 def price_oracle() -> uint256:
     """
     @notice Value returned by the external price oracle contract
+    @return Current price of collateral in units of borrowed token, multiplied by 1e18
     """
     return self._price_oracle_ro()[0]
 
@@ -318,6 +321,7 @@ def _base_price() -> uint256:
     """
     @notice Price which corresponds to band 0.
             Base price grows with time to account for interest rate (which is 0 by default)
+    @return Base price in units of borrowed token per collateral, multiplied by 1e18
     """
     return unsafe_div(BASE_PRICE * self._rate_mul(), 10**18)
 
@@ -328,6 +332,7 @@ def get_base_price() -> uint256:
     """
     @notice Price which corresponds to band 0.
             Base price grows with time to account for interest rate (which is 0 by default)
+    @return Base price in units of borrowed token per collateral, multiplied by 1e18
     """
     return self._base_price()
 
@@ -524,7 +529,7 @@ def _read_user_ticks(user: address, ns: int256[2]) -> DynArray[uint256, MAX_TICK
     """
     @notice Unpacks and reads user ticks (shares) for all the ticks user deposited into
     @param user User address
-    @param size Number of ticks the user deposited into
+    @param ns Pair of band indices [n1, n2] defining the user's position range
     @return Array of shares the user has
     """
     ticks: DynArray[uint256, MAX_TICKS_UINT] = []
@@ -559,6 +564,8 @@ def read_user_ticks(user: address) -> DynArray[uint256, MAX_TICKS_UINT]:
 def can_skip_bands(n_end: int256) -> bool:
     """
     @notice Check that we have no liquidity between active_band and `n_end`
+    @param n_end Band index to check up to (not inclusive)
+    @return True if no liquidity exists between active_band and n_end, False otherwise
     """
     n: int256 = self.active_band
     for i: uint256 in range(MAX_SKIP_TICKS_UINT):
@@ -603,6 +610,8 @@ def active_band_with_skip() -> int256:
 def has_liquidity(user: address) -> bool:
     """
     @notice Check if `user` has any liquidity in the AMM
+    @param user Address of the user to check
+    @return True if the user has an active position, False otherwise
     """
     return self._user_shares[user].ticks[0] != 0
 
@@ -798,6 +807,8 @@ def calc_swap_out(pump: bool, in_amount: uint256, p_o: uint256[2], in_precision:
     @param pump Indicates whether the trade buys or sells collateral
     @param in_amount Amount of token going in
     @param p_o Current oracle price and ratio (p_o, dynamic_fee)
+    @param in_precision Precision of the input token (e.g. 1 for 18-decimal tokens)
+    @param out_precision Precision of the output token (e.g. 1 for 18-decimal tokens)
     @return Amounts spent and given out, initial and final bands of the AMM, new
             amounts of coins in bands in the AMM, as well as admin fee charged,
             all in one data structure
@@ -1089,6 +1100,8 @@ def calc_swap_in(pump: bool, out_amount: uint256, p_o: uint256[2], in_precision:
     @param pump Indicates whether the trade buys or sells collateral
     @param out_amount Desired amount of token going out
     @param p_o Current oracle price and antisandwich fee (p_o, dynamic_fee)
+    @param in_precision Precision of the input token (e.g. 1 for 18-decimal tokens)
+    @param out_precision Precision of the output token (e.g. 1 for 18-decimal tokens)
     @return Amounts required and given out, initial and final bands of the AMM, new
             amounts of coins in bands in the AMM, as well as admin fee charged,
             all in one data structure
@@ -1511,6 +1524,7 @@ def get_xy(user: address) -> DynArray[uint256, MAX_TICKS_UINT][2]:
 def get_amount_for_price(p: uint256) -> (uint256, bool):
     """
     @notice Amount necessary to be exchanged to have the AMM at the final price `p`
+    @param p Target price to reach, in units of borrowed token per collateral multiplied by 1e18
     @return (amount, is_pump)
     """
     min_band: int256 = self.min_band

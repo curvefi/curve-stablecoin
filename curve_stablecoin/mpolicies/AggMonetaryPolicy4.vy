@@ -134,6 +134,10 @@ def __init__(admin: address,
 
 @external
 def set_admin(admin: address):
+    """
+    @notice Set the admin of the monetary policy
+    @param admin New admin address
+    """
     assert msg.sender == self.admin  # dev: only admin
     assert admin != empty(address)
     self.admin = admin
@@ -142,6 +146,10 @@ def set_admin(admin: address):
 
 @external
 def add_peg_keeper(pk: PegKeeper):
+    """
+    @notice Add a peg keeper whose debt is tracked to adjust the borrow rate
+    @param pk Address of the peg keeper to add
+    """
     assert msg.sender == self.admin  # dev: only admin
     assert pk.address != empty(address)  # dev: peg keeper is zero address
     for i: uint256 in range(1000):
@@ -156,6 +164,10 @@ def add_peg_keeper(pk: PegKeeper):
 
 @external
 def remove_peg_keeper(pk: PegKeeper):
+    """
+    @notice Remove a peg keeper from the list tracked by this policy
+    @param pk Address of the peg keeper to remove
+    """
     assert msg.sender == self.admin  # dev: only admin
     assert pk.address != empty(address)  # dev: peg keeper is zero address
     for i: uint256 in range(1001):  # 1001th element is always 0x0
@@ -332,6 +344,11 @@ def calculate_rate(_for: address, _price: uint256, ro: bool) -> (uint256, uint25
 @view
 @external
 def rate(_for: address = msg.sender) -> uint256:
+    """
+    @notice Get the current borrow rate for a controller (read-only, does not update state)
+    @param _for Address of the controller to calculate the rate for
+    @return Current borrow rate per second scaled by 1e18
+    """
     rate: uint256 = 0
     _: uint256 = 0
     rate, _ = self.calculate_rate(_for, staticcall PRICE_ORACLE.price(), True)
@@ -340,6 +357,11 @@ def rate(_for: address = msg.sender) -> uint256:
 
 @external
 def rate_write(_for: address = msg.sender) -> uint256:
+    """
+    @notice Get the current borrow rate for a controller and update the debt candles and EMA
+    @param _for Address of the controller to calculate the rate for
+    @return Current borrow rate per second scaled by 1e18
+    """
     assert _for != TOTAL_DEBT_KEY  # dev: invalid controller
 
     # Update controller list
@@ -369,6 +391,10 @@ def rate_write(_for: address = msg.sender) -> uint256:
 
 @external
 def set_rate(rate: uint256):
+    """
+    @notice Set the base borrow rate
+    @param rate New base rate per second scaled by 1e18
+    """
     assert msg.sender == self.admin  # dev: only admin
     assert rate <= MAX_RATE  # dev: rate too high
     self.rate0 = rate
@@ -377,6 +403,10 @@ def set_rate(rate: uint256):
 
 @external
 def set_sigma(sigma: int256):
+    """
+    @notice Set the sigma parameter controlling rate sensitivity to price deviation
+    @param sigma New sigma value scaled by 1e18; larger values make the rate less sensitive
+    """
     assert msg.sender == self.admin  # dev: only admin
     assert sigma >= MIN_SIGMA  # dev: sigma too low
     assert sigma <= MAX_SIGMA  # dev: sigma too high
@@ -387,6 +417,10 @@ def set_sigma(sigma: int256):
 
 @external
 def set_target_debt_fraction(target_debt_fraction: uint256):
+    """
+    @notice Set the target fraction of total debt held by peg keepers
+    @param target_debt_fraction New target fraction scaled by 1e18 (e.g. 1e17 == 10%)
+    """
     assert msg.sender == self.admin  # dev: only admin
     assert target_debt_fraction <= MAX_TARGET_DEBT_FRACTION  # dev: target debt fraction too high
     assert target_debt_fraction > 0  # dev: target debt fraction is zero
@@ -397,6 +431,10 @@ def set_target_debt_fraction(target_debt_fraction: uint256):
 
 @external
 def set_extra_const(extra_const: uint256):
+    """
+    @notice Set the constant rate added on top of the variable component
+    @param extra_const Additional rate per second scaled by 1e18, providing a rate floor
+    """
     assert msg.sender == self.admin  # dev: only admin
     assert extra_const <= MAX_EXTRA_CONST  # dev: extra const too high
 
@@ -406,12 +444,21 @@ def set_extra_const(extra_const: uint256):
 
 @external
 def set_debt_ratio_ema_time(_debt_ratio_ema_time: uint256):
+    """
+    @notice Set the EMA window for smoothing the peg keeper debt ratio
+    @param _debt_ratio_ema_time New EMA window duration in seconds
+    """
     assert msg.sender == self.admin  # dev: only admin
 
     ema.set_ema_time(DEBT_RATIO_EMA_ID, _debt_ratio_ema_time)
     log SetDebtRatioEmaTime(debt_ratio_ema_time=_debt_ratio_ema_time)
 
+
 @external
 @view
 def debt_ratio_ema_time() -> uint256:
+    """
+    @notice EMA window used to smooth the peg keeper debt ratio
+    @return Current EMA window duration in seconds
+    """
     return ema._emas[DEBT_RATIO_EMA_ID].ema_time

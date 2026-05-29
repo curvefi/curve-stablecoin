@@ -69,6 +69,7 @@ def set_borrowing_discounts(
 ):
     """
     @notice Set discounts at which we can borrow (defines max LTV) and where bad liquidation starts
+    @param _controller Address of the controller to configure
     @param _loan_discount Discount which defines LTV
     @param _liquidation_discount Discount where bad liquidation starts
     """
@@ -96,6 +97,7 @@ def set_borrowing_discounts(
 def set_monetary_policy(_controller: IController, _monetary_policy: IMonetaryPolicy):
     """
     @notice Set monetary policy contract
+    @param _controller Address of the controller to configure
     @param _monetary_policy Address of the monetary policy contract
     """
     self._check_authorized(_controller)
@@ -109,7 +111,9 @@ def set_monetary_policy(_controller: IController, _monetary_policy: IMonetaryPol
         ILMCallback(SKIP_CONFIG_ADDRESS),
     )
     extcall _monetary_policy.rate_write(_controller.address)
-    log IConfigurator.SetMonetaryPolicy(controller=_controller.address, monetary_policy=_monetary_policy.address)
+    log IConfigurator.SetMonetaryPolicy(
+        controller=_controller.address, monetary_policy=_monetary_policy.address
+    )
 
 
 @external
@@ -117,6 +121,7 @@ def set_view(_controller: IController, _view_blueprint: address):
     """
     @notice Change the contract used to store view functions.
     @dev This function deploys a new view implementation from a blueprint.
+    @param _controller Address of the controller to configure
     @param _view_blueprint Address of the blueprint to deploy the new view implementation from.
     """
     self._check_authorized(_controller)
@@ -143,6 +148,7 @@ def set_view(_controller: IController, _view_blueprint: address):
 def set_borrow_cap(_controller: ILendController, _borrow_cap: uint256):
     """
     @notice Set the borrow cap for a lending market
+    @param _controller Address of the lending controller to configure
     @param _borrow_cap New borrow cap in units of borrowed_token
     """
     self._check_authorized(IController(_controller.address))
@@ -154,12 +160,15 @@ def set_borrow_cap(_controller: ILendController, _borrow_cap: uint256):
 def set_admin_percentage(_controller: ILendController, _admin_percentage: uint256):
     """
     @notice Set the percentage of interest that goes to the admin
+    @param _controller Address of the lending controller to configure
     @param _admin_percentage Percentage scaled by 1e18 (e.g. 1e18 == 100%)
     """
     self._check_authorized(IController(_controller.address))
     assert _admin_percentage <= WAD, "admin percentage higher than 100%"
     extcall _controller.configure_lend(SKIP_CONFIG_UINT256, _admin_percentage)
-    log IConfigurator.SetAdminPercentage(controller=_controller.address, admin_percentage=_admin_percentage)
+    log IConfigurator.SetAdminPercentage(
+        controller=_controller.address, admin_percentage=_admin_percentage
+    )
 
 
 # ################################################################
@@ -172,6 +181,7 @@ def set_price_oracle(
 ):
     """
     @notice Set a new price oracle for the AMM
+    @param _controller Address of the controller to configure
     @param _price_oracle New price oracle contract
     @param _max_deviation Maximum allowed deviation for the new oracle
         Can be set to max_value(uint256) to skip the check if oracle is broken.
@@ -203,13 +213,17 @@ def set_price_oracle(
         _price_oracle,
         ILMCallback(SKIP_CONFIG_ADDRESS),
     )
-    log IConfigurator.SetPriceOracle(controller=_controller.address, price_oracle=_price_oracle.address)
+    log IConfigurator.SetPriceOracle(
+        controller=_controller.address, price_oracle=_price_oracle.address
+    )
 
 
 @external
 def set_callback(_controller: IController, _cb: ILMCallback):
     """
     @notice Set liquidity mining callback
+    @param _controller Address of the controller to configure
+    @param _cb Address of the liquidity mining callback contract, or empty address to remove
     """
     self._check_authorized(_controller)
     extcall _controller.configure(
@@ -228,6 +242,7 @@ def set_callback(_controller: IController, _cb: ILMCallback):
 def set_amm_fee(_controller: IController, _fee: uint256):
     """
     @notice Set the AMM fee
+    @param _controller Address of the controller to configure
     @param _fee The fee which should be no higher than MAX_AMM_FEE
     """
     self._check_authorized(_controller)

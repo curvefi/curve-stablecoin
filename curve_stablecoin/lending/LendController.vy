@@ -111,6 +111,7 @@ def available_balance() -> uint256:
 def vault() -> address:
     """
     @notice Address of the vault
+    @return Address of the vault contract
     """
     return VAULT.address
 
@@ -138,6 +139,7 @@ def __init__(
     @param _liquidation_discount Discount of the maximum loan size compare to
            get_x_down() for "bad liquidation" purposes
     @param _view_blueprint Address of the controller view blueprint
+    @param _configurator Address of the configurator contract
     """
     VAULT = _vault
 
@@ -166,6 +168,7 @@ def __init__(
 def version() -> String[10]:
     """
     @notice Version of this controller
+    @return Version string of the form "<core_version>-lend"
     """
     return concat(core.version, "-lend")
 
@@ -188,6 +191,7 @@ def on_borrowed_token_transfer_in(_amount: uint256):
     @notice Hook called by
             1. The controller on repay/liquidate
             2. The vault on deposit/mint
+    @param _amount Amount of borrowed tokens transferred in
     """
     assert msg.sender == VAULT.address or msg.sender == self # dev: vault or controller only
     self._available_balance += _amount
@@ -200,6 +204,7 @@ def on_borrowed_token_transfer_out(_amount: uint256):
     @notice Hook called by
             1. The controller on create_loan/borrow_more/collect_fees
             2. The vault on withdraw/redeem
+    @param _amount Amount of borrowed tokens transferred out
     """
     assert msg.sender == VAULT.address or msg.sender == self # dev: vault or controller only
     # core._admin_fees() == 0 in case of collect_fees()
@@ -212,6 +217,7 @@ def on_borrowed_token_transfer_out(_amount: uint256):
 def _on_debt_increased(_total_debt: uint256):
     """
     @notice Hook called when debt is increased
+    @param _total_debt New total debt after the increase
     """
     assert msg.sender == self # dev: virtual method protection (controller only)
     assert _total_debt <= self.borrow_cap, "Borrow cap exceeded"
@@ -242,5 +248,6 @@ def repaid() -> uint256:
 def collected() -> uint256:
     """
     @notice Cumulative amount of borrowed assets ever collected as admin fees
+    @return Total collected admin fees
     """
     return core.collected

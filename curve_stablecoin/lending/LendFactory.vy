@@ -80,6 +80,7 @@ def __init__(
     @param _controller_blueprint Address of Controller blueprint
     @param _vault_blueprint Address of Vault blueprint
     @param _controller_view_blueprint Address of ControllerView blueprint
+    @param _configurator Address of the configurator contract
     @param _admin Admin address (DAO)
     @param _fee_receiver Receiver of interest and admin fees
     """
@@ -139,6 +140,7 @@ def create(
     @param _price_oracle Custom price oracle contract
     @param _monetary_policy Monetary policy contract to set the borrow rate
     @param _supply_limit Supply cap
+    @return Addresses of the deployed [vault, AMM, controller] contracts
     """
     pausable._require_not_paused()
     assert _borrowed_token != _collateral_token, "Same token"
@@ -268,6 +270,7 @@ def vaults_index(_vault: IVault) -> uint256:
 def amm_blueprint() -> address:
     """
     @notice Get the address of the AMM blueprint
+    @return Address of the AMM blueprint
     """
     return blueprint_registry.get(AMM_BLUEPRINT_ID)
 
@@ -277,6 +280,7 @@ def amm_blueprint() -> address:
 def controller_blueprint() -> address:
     """
     @notice Get the address of the controller blueprint
+    @return Address of the controller blueprint
     """
     return blueprint_registry.get(CONTROLLER_BLUEPRINT_ID)
 
@@ -286,6 +290,7 @@ def controller_blueprint() -> address:
 def vault_blueprint() -> address:
     """
     @notice Get the address of the vault blueprint
+    @return Address of the vault blueprint
     """
     return blueprint_registry.get(VAULT_BLUEPRINT_ID)
 
@@ -295,6 +300,7 @@ def vault_blueprint() -> address:
 def controller_view_blueprint() -> address:
     """
     @notice Get the address of the controller view blueprint
+    @return Address of the controller view blueprint
     """
     return blueprint_registry.get(CONTROLLER_VIEW_BLUEPRINT_ID)
 
@@ -307,6 +313,7 @@ def admin() -> address:
     """
     @notice Get the admin of the factory
     @dev Called `admin` for backwards compatibility
+    @return Address of the factory admin
     """
     return ownable.owner
 
