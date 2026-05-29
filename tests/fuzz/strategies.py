@@ -9,8 +9,7 @@ from tests.utils.constants import (
     MAX_UINT256,
     MIN_A,
     MAX_A,
-    MIN_FEE,
-    MAX_FEE,
+    MIN_AMM_FEE,
     WAD,
     MIN_TICKS,
     MAX_TICKS,
@@ -22,7 +21,10 @@ DEBT_CEILING_MAX = 10**8 * 10**18  # TODO this has to go
 
 
 As = integers(min_value=MIN_A, max_value=MAX_A)
-amm_fees = integers(min_value=MIN_FEE, max_value=MAX_FEE)
+
+
+def amm_fees_for_A(a: int):
+    return integers(min_value=MIN_AMM_FEE, max_value=min(WAD * 4 // a, 10**17))
 # Debt ceiling is a uint256 on-chain; generate as an integer
 debt_ceilings = integers(min_value=0, max_value=DEBT_CEILING_MAX)
 token_decimals = integers(min_value=2, max_value=18)
@@ -52,13 +54,12 @@ def discounts(draw):
 def mint_markets(
     draw,
     As=As,
-    amm_fees=amm_fees,
     discounts=discounts(),
     debt_ceilings=debt_ceilings,
     initial_prices=prices,
 ):
     _A = draw(As)
-    _fee = draw(amm_fees)
+    _fee = draw(amm_fees_for_A(_A))
     _loan_discount, _liq_discount = draw(discounts)
     _dc = draw(debt_ceilings)
     _price = draw(initial_prices)
@@ -92,12 +93,11 @@ def mint_markets(
 def lend_markets(
     draw,
     As=As,
-    amm_fees=amm_fees,
     discounts=discounts(),
     initial_prices=prices,
 ):
     _A = draw(As)
-    _fee = draw(amm_fees)
+    _fee = draw(amm_fees_for_A(_A))
     _loan_discount, _liq_discount = draw(discounts)
     _price = draw(initial_prices)
 

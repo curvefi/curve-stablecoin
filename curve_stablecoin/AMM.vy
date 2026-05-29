@@ -56,9 +56,12 @@ from curve_std import token as tkn
 WAD: constant(uint256) = c.WAD
 MAX_TICKS: constant(int256) = c.MAX_TICKS
 MAX_TICKS_UINT: constant(uint256) = c.MAX_TICKS_UINT
+MIN_TICKS_UINT: constant(uint256) = c.MIN_TICKS_UINT
 DEAD_SHARES: constant(uint256) = c.DEAD_SHARES
 MAX_SKIP_TICKS: constant(int256) = c.MAX_SKIP_TICKS
 MAX_SKIP_TICKS_UINT: constant(uint256) = c.MAX_SKIP_TICKS_UINT
+
+MIN_FEE: constant(uint256) = 10**6  # 1e-12, still needs to be above 0
 
 BORROWED_TOKEN: immutable(IERC20)    # x
 BORROWED_PRECISION: immutable(uint256)
@@ -74,6 +77,7 @@ Aminus12: immutable(uint256)
 SQRT_BAND_RATIO: immutable(uint256)  # sqrt(A / (A - 1))
 LOG_A_RATIO: immutable(int256)  # ln(A / (A - 1))
 MAX_ORACLE_DN_POW: immutable(uint256)  # (A / (A - 1)) ** 50
+MAX_FEE: immutable(uint256)  # min(MIN_TICKS / A, 10%)
 
 fee: public(uint256)
 rate: public(uint256)
@@ -153,8 +157,9 @@ def __init__(
     Aminus1 = unsafe_sub(A, 1)
     A2 = pow_mod256(A, 2)
     Aminus12 = pow_mod256(unsafe_sub(A, 1), 2)
+    MAX_FEE = min(WAD * MIN_TICKS_UINT // _A, 10**17)
 
-    self.fee = _fee
+    self._set_fee(_fee)
     self._price_oracle = _price_oracle
     self.prev_p_o_time = block.timestamp
     self.old_p_o = staticcall _price_oracle.price()
@@ -1644,6 +1649,12 @@ def set_rate(rate: uint256) -> uint256:
     return rate_mul
 
 
+@internal
+def _set_fee(_fee: uint256):
+    assert _fee >= MIN_FEE and _fee <= MAX_FEE  # dev: fee is out of bounds
+    self.fee = _fee
+
+
 @external
 @nonreentrant
 def set_fee(fee: uint256):
@@ -1652,7 +1663,7 @@ def set_fee(fee: uint256):
     @param fee Fee where 1e18 == 100%
     """
     assert msg.sender == self.admin
-    self.fee = fee
+    self._set_fee(fee)
 
 
 @external

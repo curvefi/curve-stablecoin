@@ -26,7 +26,6 @@ from snekmate.utils import math
 ################################################################
 
 AMM: immutable(IAMM)
-MAX_AMM_FEE: immutable(uint256)
 A: immutable(uint256)
 # log(A / (A - 1))
 LOGN_A_RATIO: immutable(int256)
@@ -70,7 +69,6 @@ CALLBACK_LIQUIDATE: constant(bytes4) = method_id(
     "callback_liquidate(address,uint256,uint256,uint256,bytes)",
     output_type=bytes4,
 )  # active_band=0
-MIN_AMM_FEE: constant(uint256) = 10**6  # 1e-12, still needs to be above 0
 MAX_RATE: public(constant(uint256)) = 43959106799  # 300% APY
 
 ################################################################
@@ -160,9 +158,6 @@ def __init__(
 
     LOGN_A_RATIO = math._wad_ln(convert(A * WAD // (A - 1), int256))
     SQRT_BAND_RATIO = isqrt(10**36 * A // (A - 1))
-
-    # let's set to MIN_TICKS / A: for example, 4% max fee for A=100
-    MAX_AMM_FEE = min(WAD * MIN_TICKS_UINT // A, 10**17)
 
     COLLATERAL_TOKEN = _collateral_token
     collateral_decimals: uint256 = convert(staticcall COLLATERAL_TOKEN.decimals(), uint256)
@@ -1476,7 +1471,6 @@ def _configure(
         )
         self._view = IView(view)
     if _fee != SKIP_CONFIG_UINT256:
-        assert _fee <= MAX_AMM_FEE and _fee >= MIN_AMM_FEE, "Fee"
         extcall AMM.set_fee(_fee)
     if _price_oracle.address != SKIP_CONFIG_ADDRESS:
         extcall AMM.set_price_oracle(_price_oracle)
