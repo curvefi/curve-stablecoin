@@ -1655,8 +1655,8 @@ def set_fee(fee: uint256):
     self.fee = fee
 
 
-# nonreentrant decorator is in Controller which is admin
 @external
+@nonreentrant
 def set_callback(liquidity_mining_callback: ILMCallback):
     """
     @notice Set a gauge address with callbacks for liquidity mining for collateral
