@@ -34,7 +34,6 @@ def __init__(_default_admin: address):
 
 
 @external
-@reentrant
 def set_custom_admin(_controller: IController, _admin: address):
     """
     @notice Set admin for a specific controller
