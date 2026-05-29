@@ -203,6 +203,7 @@ def set_price_oracle(
         _price_oracle,
         ILMCallback(SKIP_CONFIG_ADDRESS),
     )
+    log IConfigurator.SetPriceOracle(controller=_controller.address, price_oracle=_price_oracle.address)
 
 
 @external
@@ -220,6 +221,7 @@ def set_callback(_controller: IController, _cb: ILMCallback):
         IPriceOracle(SKIP_CONFIG_ADDRESS),
         _cb,
     )
+    log IConfigurator.SetCallback(controller=_controller.address, callback=_cb.address)
 
 
 @external
@@ -238,3 +240,4 @@ def set_amm_fee(_controller: IController, _fee: uint256):
         IPriceOracle(SKIP_CONFIG_ADDRESS),
         ILMCallback(SKIP_CONFIG_ADDRESS),
     )
+    log IConfigurator.SetAmmFee(controller=_controller.address, fee=_fee)

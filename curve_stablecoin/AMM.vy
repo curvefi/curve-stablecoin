@@ -1639,7 +1639,6 @@ def set_fee(fee: uint256):
     """
     assert msg.sender == self.admin
     self.fee = fee
-    log IAMM.SetFee(fee=fee)
 
 
 # nonreentrant decorator is in Controller which is admin
@@ -1651,7 +1650,6 @@ def set_callback(liquidity_mining_callback: ILMCallback):
     """
     assert msg.sender == self.admin  # dev: admin only
     self._liquidity_mining_callback = liquidity_mining_callback
-    log IAMM.SetCallback(callback=liquidity_mining_callback)
 
 
 @external
@@ -1663,4 +1661,3 @@ def set_price_oracle(_price_oracle: IPriceOracle):
     """
     assert msg.sender == self.admin
     self._price_oracle = _price_oracle
-    log IAMM.SetPriceOracle(price_oracle=_price_oracle)

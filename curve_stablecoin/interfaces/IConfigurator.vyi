@@ -39,6 +39,21 @@ event SetView:
     view: address
 
 
+event SetPriceOracle:
+    controller: indexed(address)
+    price_oracle: address
+
+
+event SetCallback:
+    controller: indexed(address)
+    callback: address
+
+
+event SetAmmFee:
+    controller: indexed(address)
+    fee: uint256
+
+
 # Functions
 
 

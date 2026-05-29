@@ -93,3 +93,13 @@ def test_set_price_oracle_replaces_broken_oracle(
     configurator.set_price_oracle(controller, new_oracle, MAX_UINT256, sender=admin)
 
     assert amm.price_oracle_contract() == new_oracle.address
+
+
+def test_set_price_oracle_emits_event(
+    configurator, controller, admin, deploy_price_oracle, price_oracle, single_configurator_event
+):
+    new_oracle = deploy_price_oracle(price_oracle.price())
+    configurator.set_price_oracle(controller, new_oracle, 0, sender=admin)
+    log = single_configurator_event(configurator, "SetPriceOracle")
+    assert log.controller == controller.address
+    assert log.price_oracle == new_oracle.address

@@ -45,18 +45,6 @@ event SetRate:
     time: uint256
 
 
-event SetFee:
-    fee: uint256
-
-
-event SetPriceOracle:
-    price_oracle: IPriceOracle
-
-
-event SetCallback:
-    callback: ILMCallback
-
-
 # Functions
 
 @external
