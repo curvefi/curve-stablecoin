@@ -73,6 +73,8 @@ def set_borrowing_discounts(
     @param _liquidation_discount Discount where bad liquidation starts
     """
     self._check_authorized(_controller)
+    assert _loan_discount != SKIP_CONFIG_UINT256, "loan discount is sentinel"
+    assert _liquidation_discount != SKIP_CONFIG_UINT256, "liquidation discount is sentinel"
     assert _liquidation_discount > 0, "liquidation discount = 0"
     assert _loan_discount < WAD, "loan discount >= 100%"
     assert _loan_discount > _liquidation_discount, "loan discount <= liquidation discount"
@@ -97,6 +99,7 @@ def set_monetary_policy(_controller: IController, _monetary_policy: IMonetaryPol
     @param _monetary_policy Address of the monetary policy contract
     """
     self._check_authorized(_controller)
+    assert _monetary_policy.address != SKIP_CONFIG_ADDRESS, "monetary policy is sentinel"
     extcall _controller.configure(
         SKIP_CONFIG_UINT256,
         SKIP_CONFIG_UINT256,
@@ -119,6 +122,7 @@ def set_view(_controller: IController, _view_blueprint: address):
     """
     self._check_authorized(_controller)
     assert _view_blueprint != empty(address), "view blueprint is empty address"
+    assert _view_blueprint != SKIP_CONFIG_ADDRESS, "view blueprint is sentinel"
 
     extcall _controller.configure(
         SKIP_CONFIG_UINT256,
@@ -144,6 +148,7 @@ def set_borrow_cap(_controller: ILendController, _borrow_cap: uint256):
     @param _borrow_cap New borrow cap in units of borrowed_token
     """
     self._check_authorized(IController(_controller.address))
+    assert _borrow_cap != SKIP_CONFIG_UINT256, "borrow cap is sentinel"
     extcall _controller.configure_lend(_borrow_cap, SKIP_CONFIG_UINT256)
     log IConfigurator.SetBorrowCap(borrow_cap=_borrow_cap)
 
@@ -155,6 +160,7 @@ def set_admin_percentage(_controller: ILendController, _admin_percentage: uint25
     @param _admin_percentage Percentage scaled by 1e18 (e.g. 1e18 == 100%)
     """
     self._check_authorized(IController(_controller.address))
+    assert _admin_percentage != SKIP_CONFIG_UINT256, "admin percentage is sentinel"
     assert _admin_percentage <= WAD, "admin percentage higher than 100%"
     extcall _controller.configure_lend(SKIP_CONFIG_UINT256, _admin_percentage)
     log IConfigurator.SetAdminPercentage(admin_percentage=_admin_percentage)
@@ -175,6 +181,7 @@ def set_price_oracle(
         Can be set to max_value(uint256) to skip the check if oracle is broken.
     """
     self._check_authorized(_controller)
+    assert _price_oracle.address != SKIP_CONFIG_ADDRESS, "price oracle is sentinel"
     assert (
         _max_deviation <= MAX_ORACLE_PRICE_DEVIATION or _max_deviation == max_value(uint256)
     )  # dev: invalid max deviation
@@ -209,6 +216,7 @@ def set_callback(_controller: IController, _cb: ILMCallback):
     @notice Set liquidity mining callback
     """
     self._check_authorized(_controller)
+    assert _cb.address != SKIP_CONFIG_ADDRESS, "callback is sentinel"
     extcall _controller.configure(
         SKIP_CONFIG_UINT256,
         SKIP_CONFIG_UINT256,
@@ -227,6 +235,7 @@ def set_amm_fee(_controller: IController, _fee: uint256):
     @param _fee The fee which should be no higher than MAX_AMM_FEE
     """
     self._check_authorized(_controller)
+    assert _fee != SKIP_CONFIG_UINT256, "fee is sentinel"
     extcall _controller.configure(
         SKIP_CONFIG_UINT256,
         SKIP_CONFIG_UINT256,
