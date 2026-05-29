@@ -201,6 +201,8 @@ def add_collateral_health_preview(
     """
     @notice Natspec for this function is available in its controller contract
     """
+    if _collateral == 0:
+        return staticcall CONTROLLER.health(_for, _full)
     return self._add_collateral_borrow_health_preview(_collateral, 0, _for, _full, False)
 
 
@@ -214,6 +216,8 @@ def remove_collateral_health_preview(
     """
     @notice Natspec for this function is available in its controller contract
     """
+    if _collateral == 0:
+        return staticcall CONTROLLER.health(_for, _full)
     return self._add_collateral_borrow_health_preview(
         _collateral, 0, _for, _full, True
     )
