@@ -204,8 +204,8 @@ def create(
 
     extcall vault.initialize(amm, controller, _borrowed_token, _collateral_token)
 
-    # Validate monetary policy using controller context
-    extcall _monetary_policy.rate_write(controller.address)
+    # Validate monetary policy using controller
+    extcall controller.save_rate()
     log ILendFactory.NewVault(
         id=market_id,
         collateral_token=_collateral_token,
