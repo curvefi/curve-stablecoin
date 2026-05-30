@@ -234,6 +234,8 @@ def borrow_more_health_preview(
     """
     @notice Natspec for this function is available in its controller contract
     """
+    if _debt == 0:
+        return staticcall CONTROLLER.health(_for, _full)
     return self._add_collateral_borrow_health_preview(
         _collateral, _debt, _for, _full, False
     )
