@@ -370,6 +370,8 @@ def users_with_health(
                     user=user, x=xy[0], y=xy[1], debt=debt, health=h
                 )
             )
+            if len(out) == 1000:
+                break
         ix += 1
     return out
 
