@@ -25,6 +25,8 @@ As = integers(min_value=MIN_A, max_value=MAX_A)
 
 def amm_fees_for_A(a: int):
     return integers(min_value=MIN_AMM_FEE, max_value=min(WAD * 4 // a, 10**17))
+
+
 # Debt ceiling is a uint256 on-chain; generate as an integer
 debt_ceilings = integers(min_value=0, max_value=DEBT_CEILING_MAX)
 token_decimals = integers(min_value=2, max_value=18)

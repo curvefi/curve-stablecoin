@@ -8,7 +8,7 @@ DYNARRAY_LIMIT = 1000
 
 @pytest.fixture(scope="module")
 def seed_liquidity(borrowed_token):
-    return 1000 * 18**6 * 10**borrowed_token.decimals()
+    return 1000 * 18**6 * 10 ** borrowed_token.decimals()
 
 
 def test_users_to_liquidate_overflow(
