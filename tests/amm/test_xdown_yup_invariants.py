@@ -25,7 +25,6 @@ def test_immediate(
     price_oracle,
     collateral_token,
     borrowed_token,
-    accounts,
     admin,
     p_o,
     n1,
@@ -36,7 +35,7 @@ def test_immediate(
     is_pump,
 ):
     deposit_amount = deposit_amount // 10 ** (18 - collateral_token.decimals())
-    user = accounts[0]
+    user = boa.env.generate_address()
     with boa.env.prank(admin):
         price_oracle.set_price(p_o)
         amm.amm.eval(f"self.fee = 0")
@@ -93,11 +92,11 @@ def test_immediate(
 
 
 def test_immediate_above_p0(
-    amm, price_oracle, collateral_token, borrowed_token, accounts, admin
+    amm, price_oracle, collateral_token, borrowed_token, admin
 ):
     deposit_amount = 5805319702344997833315303
     deposit_amount = deposit_amount // 10 ** (18 - collateral_token.decimals())
-    user = accounts[0]
+    user = boa.env.generate_address()
 
     with boa.env.prank(admin):
         amm.amm.eval(f"self.fee = 0")
@@ -140,12 +139,12 @@ def test_immediate_above_p0(
 
 
 def test_immediate_in_band(
-    amm, price_oracle, collateral_token, borrowed_token, accounts, admin
+    amm, price_oracle, collateral_token, borrowed_token, admin
 ):
     deposit_amount = 835969548449222546344625
     deposit_amount = deposit_amount // 10 ** (18 - collateral_token.decimals())
 
-    user = accounts[0]
+    user = boa.env.generate_address()
     with boa.env.prank(admin):
         amm.amm.eval(f"self.fee = 0")
         amm.deposit_range(user, deposit_amount, 4, 4)
@@ -198,7 +197,6 @@ def test_adiabatic(
     price_oracle,
     collateral_token,
     borrowed_token,
-    accounts,
     admin,
     p_o_1,
     p_o_2,
@@ -208,7 +206,7 @@ def test_adiabatic(
 ):
     deposit_amount = deposit_amount // 10 ** (18 - collateral_token.decimals())
     N_STEPS = 101
-    user = accounts[0]
+    user = boa.env.generate_address()
 
     with boa.env.prank(admin):
         amm.amm.eval(f"self.fee = 0")
@@ -274,7 +272,7 @@ def test_adiabatic(
 
 
 def test_adiabatic_fail_1(
-    amm, price_oracle, collateral_token, borrowed_token, accounts, admin
+    amm, price_oracle, collateral_token, borrowed_token, admin
 ):
     with boa.env.anchor():
         test_adiabatic.hypothesis.inner_test(
@@ -282,7 +280,6 @@ def test_adiabatic_fail_1(
             price_oracle,
             collateral_token,
             borrowed_token,
-            accounts,
             admin,
             p_o_1=2296376199582847058288,
             p_o_2=2880636282130384399567,

@@ -61,10 +61,10 @@ def test_vault_creation(
 
 
 @pytest.mark.parametrize("supply_limit", [0, 1000 * 10**18, 2**256 - 1, None])
-def test_deposit_and_withdraw(vault, borrowed_token, accounts, admin, supply_limit):
+def test_deposit_and_withdraw(vault, borrowed_token, admin, supply_limit):
     one_token = 10 ** borrowed_token.decimals()
     amount = 10**6 * one_token
-    user = accounts[1]
+    user = boa.env.generate_address()
     boa.deal(borrowed_token, user, amount)
 
     if supply_limit is not None:
@@ -99,7 +99,8 @@ class StatefulVault(RuleBasedStateMachine):
 
     def __init__(self):
         super().__init__()
-        for u in self.accounts:
+        self.borrowers = [boa.env.generate_address(f"borrower_{i}") for i in range(10)]
+        for u in self.borrowers:
             with boa.env.prank(u):
                 self.borrowed_token.approve(self.vault.address, 2**256 - 1)
         assert self.vault.asset() == self.borrowed_token.address
@@ -132,7 +133,7 @@ class StatefulVault(RuleBasedStateMachine):
     @rule(user_id=user_id, assets=amount)
     def deposit(self, user_id, assets):
         assets = assets // self.precision
-        user = self.accounts[user_id]
+        user = self.borrowers[user_id]
         boa.deal(self.borrowed_token, user, assets)
         to_mint = self.vault.previewDeposit(assets)
         d_vault_balance = self.vault.balanceOf(user)
@@ -154,8 +155,8 @@ class StatefulVault(RuleBasedStateMachine):
     @rule(user_from=user_id, user_to=user_id, assets=amount)
     def deposit_for(self, user_from, user_to, assets):
         assets = assets // self.precision
-        user_from = self.accounts[user_from]
-        user_to = self.accounts[user_to]
+        user_from = self.borrowers[user_from]
+        user_to = self.borrowers[user_to]
         boa.deal(self.borrowed_token, user_from, assets)
         to_mint = self.vault.previewDeposit(assets)
         d_vault_balance = self.vault.balanceOf(user_to)
@@ -176,7 +177,7 @@ class StatefulVault(RuleBasedStateMachine):
 
     @rule(user_id=user_id, shares=amount)
     def mint(self, user_id, shares):
-        user = self.accounts[user_id]
+        user = self.borrowers[user_id]
         assets = self.vault.previewMint(shares)
         boa.deal(self.borrowed_token, user, assets)
         d_vault_balance = self.vault.balanceOf(user)
@@ -197,8 +198,8 @@ class StatefulVault(RuleBasedStateMachine):
 
     @rule(user_from=user_id, user_to=user_id, shares=amount)
     def mint_for(self, user_from, user_to, shares):
-        user_from = self.accounts[user_from]
-        user_to = self.accounts[user_to]
+        user_from = self.borrowers[user_from]
+        user_to = self.borrowers[user_to]
         assets = self.vault.previewMint(shares)
         boa.deal(self.borrowed_token, user_from, assets)
         d_vault_balance = self.vault.balanceOf(user_to)
@@ -219,7 +220,7 @@ class StatefulVault(RuleBasedStateMachine):
 
     @rule(user_id=user_id, shares=amount)
     def redeem(self, user_id, shares):
-        user = self.accounts[user_id]
+        user = self.borrowers[user_id]
         max_redeem = self.vault.maxRedeem(user)
         if shares <= max_redeem:
             assets = self.vault.previewRedeem(shares)
@@ -249,8 +250,8 @@ class StatefulVault(RuleBasedStateMachine):
 
     @rule(user_from=user_id, user_to=user_id, shares=amount)
     def redeem_for(self, user_from, user_to, shares):
-        user_from = self.accounts[user_from]
-        user_to = self.accounts[user_to]
+        user_from = self.borrowers[user_from]
+        user_to = self.borrowers[user_to]
         max_redeem = self.vault.maxRedeem(user_from)
         if shares <= max_redeem:
             assets = self.vault.previewRedeem(shares)
@@ -288,9 +289,9 @@ class StatefulVault(RuleBasedStateMachine):
     def redeem_owner_for(self, user_from, user_to, owner, shares, approval):
         if user_from == owner:
             return
-        user_from = self.accounts[user_from]
-        user_to = self.accounts[user_to]
-        owner = self.accounts[owner]
+        user_from = self.borrowers[user_from]
+        user_to = self.borrowers[user_to]
+        owner = self.borrowers[owner]
         max_redeem = self.vault.maxRedeem(owner)
         if shares <= max_redeem:
             with boa.env.prank(owner):
@@ -333,7 +334,7 @@ class StatefulVault(RuleBasedStateMachine):
 
     @rule(user_id=user_id, assets=amount)
     def withdraw(self, user_id, assets):
-        user = self.accounts[user_id]
+        user = self.borrowers[user_id]
         max_withdraw = self.vault.maxWithdraw(user)
         if assets <= max_withdraw:
             shares = self.vault.previewWithdraw(assets)
@@ -363,8 +364,8 @@ class StatefulVault(RuleBasedStateMachine):
 
     @rule(user_from=user_id, user_to=user_id, assets=amount)
     def withdraw_for(self, user_from, user_to, assets):
-        user_from = self.accounts[user_from]
-        user_to = self.accounts[user_to]
+        user_from = self.borrowers[user_from]
+        user_to = self.borrowers[user_to]
         max_withdraw = self.vault.maxWithdraw(user_from)
         if assets <= max_withdraw:
             shares = self.vault.previewWithdraw(assets)
@@ -402,9 +403,9 @@ class StatefulVault(RuleBasedStateMachine):
     def withdraw_owner_for(self, user_from, user_to, owner, assets, approval):
         if user_from == owner:
             return
-        user_from = self.accounts[user_from]
-        user_to = self.accounts[user_to]
-        owner = self.accounts[owner]
+        user_from = self.borrowers[user_from]
+        user_to = self.borrowers[user_to]
+        owner = self.borrowers[owner]
         max_withdraw = self.vault.maxWithdraw(owner)
         if assets <= max_withdraw:
             with boa.env.prank(owner):
@@ -446,7 +447,7 @@ class StatefulVault(RuleBasedStateMachine):
                 self.vault.approve(user_from, 0)
 
 
-def test_stateful_vault(vault, borrowed_token, accounts, admin, amm, controller):
+def test_stateful_vault(vault, borrowed_token, admin, amm, controller):
     StatefulVault.TestCase.settings = settings(max_examples=500, stateful_step_count=50)
     for k, v in locals().items():
         setattr(StatefulVault, k, v)

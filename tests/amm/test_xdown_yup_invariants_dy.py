@@ -30,7 +30,6 @@ def test_immediate(
     price_oracle,
     collateral_token,
     borrowed_token,
-    accounts,
     admin,
     p_o,
     n1,
@@ -44,7 +43,7 @@ def test_immediate(
     borrowed_decimals = borrowed_token.decimals()
     deposit_amount = int(deposit_amount * 10 ** collateral_token.decimals())
     deposit_amount = max(deposit_amount, dn + 1)
-    user = accounts[0]
+    user = boa.env.generate_address()
     prices = []
     prices.append(amm.get_p())
     with boa.env.prank(admin):
@@ -119,7 +118,6 @@ def test_adiabatic(
     price_oracle,
     collateral_token,
     borrowed_token,
-    accounts,
     admin,
     p_o_1,
     p_o_2,
@@ -130,7 +128,7 @@ def test_adiabatic(
     collateral_decimals = collateral_token.decimals()
     deposit_amount = int(deposit_amount * 10**collateral_decimals)
     N_STEPS = 101
-    user = accounts[0]
+    user = boa.env.generate_address()
 
     with boa.env.prank(admin):
         amm.eval(f"self.fee = 0")
