@@ -13,22 +13,17 @@ def test_price_range(peg_keepers, swaps, stablecoin, admin, receiver, reg, rate_
             stablecoin.eval(f"self.balanceOf[{peg_keeper.address}] += {10**18}")
 
     for peg_keeper, swap in zip(peg_keepers, swaps):
+        rate_oracle.set(1, 10**18)
         assert reg.provide_allowed(peg_keeper)
         assert reg.withdraw_allowed(peg_keeper)
 
         # Move current price (get_p) a little
-        try:
-            swap.eval("self.rate_multipliers[0] *= 2")
-        except:
-            rate_oracle.set(1, 2 * 10**18)
+        rate_oracle.set(1, 2 * 10**18)
         assert reg.provide_allowed(peg_keeper)
         assert reg.withdraw_allowed(peg_keeper)
 
         # Move further
-        try:
-            swap.eval("self.rate_multipliers[0] *= 5")
-        except:
-            rate_oracle.set(1, 10**19)
+        rate_oracle.set(1, 10**19)
 
         assert not reg.provide_allowed(peg_keeper)
         assert not reg.withdraw_allowed(peg_keeper)
