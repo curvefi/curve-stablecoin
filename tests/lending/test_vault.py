@@ -106,14 +106,10 @@ class StatefulVault(RuleBasedStateMachine):
         self.total_assets = 0
         self.precision = 10 ** (18 - self.borrowed_token.decimals())
         self.pps = None
-        self.was_used = False
 
     @invariant()
     def inv_aprs(self):
-        if self.was_used:
-            assert self.vault.borrow_apr() / 1e18 == pytest.approx(0.005, rel=1e-5)
-        else:
-            assert self.vault.borrow_apr() == 0
+        assert self.vault.borrow_apr() / 1e18 == pytest.approx(0.005, rel=1e-5)
         assert self.vault.lend_apr() == 0
 
     @invariant()
@@ -148,7 +144,6 @@ class StatefulVault(RuleBasedStateMachine):
                 return
             else:
                 minted = self.vault.deposit(assets)
-        self.was_used = True
         d_vault_balance = self.vault.balanceOf(user) - d_vault_balance
         d_user_tokens -= self.borrowed_token.balanceOf(user)
         assert minted == to_mint
@@ -172,7 +167,6 @@ class StatefulVault(RuleBasedStateMachine):
                 return
             else:
                 minted = self.vault.deposit(assets, user_to)
-        self.was_used = True
         d_vault_balance = self.vault.balanceOf(user_to) - d_vault_balance
         d_user_tokens -= self.borrowed_token.balanceOf(user_from)
         assert minted == to_mint
@@ -194,7 +188,6 @@ class StatefulVault(RuleBasedStateMachine):
                 return
             else:
                 assets_deposited = self.vault.mint(shares)
-        self.was_used = True
         d_vault_balance = self.vault.balanceOf(user) - d_vault_balance
         d_user_tokens -= self.borrowed_token.balanceOf(user)
         assert assets_deposited == assets
@@ -217,7 +210,6 @@ class StatefulVault(RuleBasedStateMachine):
                 return
             else:
                 assets_deposited = self.vault.mint(shares, user_to)
-        self.was_used = True
         d_vault_balance = self.vault.balanceOf(user_to) - d_vault_balance
         d_user_tokens -= self.borrowed_token.balanceOf(user_from)
         assert assets_deposited == assets
@@ -243,7 +235,6 @@ class StatefulVault(RuleBasedStateMachine):
                     return
                 else:
                     assets_redeemed = self.vault.redeem(shares)
-            self.was_used = True
             d_vault_balance -= self.vault.balanceOf(user)
             d_user_tokens = self.borrowed_token.balanceOf(user) - d_user_tokens
             assert assets_redeemed == assets
@@ -275,7 +266,6 @@ class StatefulVault(RuleBasedStateMachine):
                     return
                 else:
                     assets_redeemed = self.vault.redeem(shares, user_to)
-            self.was_used = True
             d_vault_balance -= self.vault.balanceOf(user_from)
             d_user_tokens = self.borrowed_token.balanceOf(user_to) - d_user_tokens
             assert assets_redeemed == assets
@@ -319,7 +309,6 @@ class StatefulVault(RuleBasedStateMachine):
                         return
                     else:
                         assets_redeemed = self.vault.redeem(shares, user_to, owner)
-                self.was_used = True
                 d_vault_balance -= self.vault.balanceOf(owner)
                 d_user_tokens = self.borrowed_token.balanceOf(user_to) - d_user_tokens
                 assert assets_redeemed == assets
@@ -360,7 +349,6 @@ class StatefulVault(RuleBasedStateMachine):
                     return
                 else:
                     shares_withdrawn = self.vault.withdraw(assets)
-            self.was_used = True
             d_vault_balance -= self.vault.balanceOf(user)
             d_user_tokens = self.borrowed_token.balanceOf(user) - d_user_tokens
             assert shares_withdrawn == shares
@@ -392,7 +380,6 @@ class StatefulVault(RuleBasedStateMachine):
                     return
                 else:
                     shares_withdrawn = self.vault.withdraw(assets, user_to)
-            self.was_used = True
             d_vault_balance -= self.vault.balanceOf(user_from)
             d_user_tokens = self.borrowed_token.balanceOf(user_to) - d_user_tokens
             assert shares_withdrawn == shares
@@ -436,7 +423,6 @@ class StatefulVault(RuleBasedStateMachine):
                         return
                     else:
                         shares_withdrawn = self.vault.withdraw(assets, user_to, owner)
-                self.was_used = True
                 d_vault_balance -= self.vault.balanceOf(owner)
                 d_user_tokens = self.borrowed_token.balanceOf(user_to) - d_user_tokens
                 assert shares_withdrawn == shares

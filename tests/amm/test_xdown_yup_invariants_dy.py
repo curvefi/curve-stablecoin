@@ -49,7 +49,7 @@ def test_immediate(
     prices.append(amm.get_p())
     with boa.env.prank(admin):
         price_oracle.set_price(p_o)
-        amm.set_fee(0)
+        amm.eval(f"self.fee = 0")
         amm.deposit_range(user, deposit_amount, n1, n1 + dn)
         mint_for_testing(collateral_token, amm.address, deposit_amount)
         while True:
@@ -133,7 +133,7 @@ def test_adiabatic(
     user = accounts[0]
 
     with boa.env.prank(admin):
-        amm.set_fee(0)
+        amm.eval(f"self.fee = 0")
         amm.deposit_range(user, deposit_amount, dn, n1 + dn)
         mint_for_testing(collateral_token, amm.address, deposit_amount)
         for i in range(2):
