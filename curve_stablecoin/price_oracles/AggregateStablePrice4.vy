@@ -1,8 +1,8 @@
 # pragma version 0.4.3
 """
 @title AggregatorStablePrice - aggregator of stablecoin prices for crvUSD
-@author Curve.Fi
-@license Copyright (c) Curve.Fi, 2020-2023 - all rights reserved
+@author Curve Finance
+@license MIT
 @dev The emergency admin can remove a limited number of price sources. The
      limit is set by admin via `set_emergency_remove_count`.
 """

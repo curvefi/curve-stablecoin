@@ -1,4 +1,10 @@
 # pragma version 0.4.3
+"""
+@title WeightedPrice
+@author Curve Finance
+@license MIT
+@notice Utility module for weighted stablecoin price calculations.
+"""
 
 from snekmate.utils import math
 

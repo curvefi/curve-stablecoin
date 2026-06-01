@@ -1,4 +1,10 @@
 # pragma version 0.4.3
+"""
+@title CappedShare
+@author Curve Finance
+@license MIT
+@notice Utility module for relative TVL share caps.
+"""
 
 MAX_N: constant(uint256) = 64
 WAD: constant(uint256) = 10**18
