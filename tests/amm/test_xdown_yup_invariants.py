@@ -91,9 +91,7 @@ def test_immediate(
     assert y0 == pytest.approx(y1, rel=fee, abs=100)
 
 
-def test_immediate_above_p0(
-    amm, price_oracle, collateral_token, borrowed_token, admin
-):
+def test_immediate_above_p0(amm, price_oracle, collateral_token, borrowed_token, admin):
     deposit_amount = 5805319702344997833315303
     deposit_amount = deposit_amount // 10 ** (18 - collateral_token.decimals())
     user = boa.env.generate_address()
@@ -138,9 +136,7 @@ def test_immediate_above_p0(
     assert y0 == pytest.approx(y1, rel=fee)
 
 
-def test_immediate_in_band(
-    amm, price_oracle, collateral_token, borrowed_token, admin
-):
+def test_immediate_in_band(amm, price_oracle, collateral_token, borrowed_token, admin):
     deposit_amount = 835969548449222546344625
     deposit_amount = deposit_amount // 10 ** (18 - collateral_token.decimals())
 
@@ -271,9 +267,7 @@ def test_adiabatic(
             p_o = int(p_o * p_o_mul)
 
 
-def test_adiabatic_fail_1(
-    amm, price_oracle, collateral_token, borrowed_token, admin
-):
+def test_adiabatic_fail_1(amm, price_oracle, collateral_token, borrowed_token, admin):
     with boa.env.anchor():
         test_adiabatic.hypothesis.inner_test(
             amm,
