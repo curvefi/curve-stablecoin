@@ -77,20 +77,20 @@ def factory() -> IFactory:
     return self._factory
 
 
-maxSupply: public(uint256)
+maxSupply: public(reentrant(uint256))
 
 # ERC20 publics
 
 decimals: public(constant(uint8)) = 18
-name: public(String[64])
-symbol: public(String[34])
+name: public(reentrant(String[64]))
+symbol: public(reentrant(String[34]))
 
 NAME_PREFIX: constant(String[16]) = 'Curve Vault for '
 SYMBOL_PREFIX: constant(String[2]) = 'cv'
 
-allowance: public(HashMap[address, HashMap[address, uint256]])
-balanceOf: public(HashMap[address, uint256])
-totalSupply: public(uint256)
+allowance: public(reentrant(HashMap[address, HashMap[address, uint256]]))
+balanceOf: public(reentrant(HashMap[address, uint256]))
+totalSupply: public(reentrant(uint256))
 
 precision: uint256
 
