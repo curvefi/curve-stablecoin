@@ -3,14 +3,26 @@
 @title AggregatorStablePrice - aggregator of stablecoin prices for crvUSD
 @author Curve.Fi
 @license Copyright (c) Curve.Fi, 2020-2023 - all rights reserved
+@dev The emergency admin can remove a limited number of price sources. The
+     limit is set by admin via `set_emergency_remove_count`.
 """
 # Returns price of stablecoin in "dollars" based on multiple redeemable stablecoins
 # Recommended to use 3+ price sources
 # Version3: Works with -ng pools
-# Version4: Caps normalized TVL weights before computing the aggregate price,
+# Version4: Caps relative TVL weights before computing the aggregate price,
 #           and adds emergency_admin limited price pair removal
 
 from snekmate.utils import math
+
+from aggregate_stable_price import capped_share
+from aggregate_stable_price import weighted_price
+initializes: capped_share
+initializes: weighted_price
+exports: (
+    capped_share.custom_share_cap,
+    capped_share.default_cap,
+    weighted_price.sigma,
+)
 
 interface Stableswap:
     def price_oracle(i: uint256=0) -> uint256: view
@@ -47,16 +59,12 @@ event SetEmergencyAdmin:
 event SetEmergencyRemoveCount:
     emergency_remove_count: uint256
 
-event SetShareCap:
-    share_cap: uint256
-
-
 MAX_PAIRS: constant(uint256) = 20
+MAX_N: constant(uint256) = 64
 MIN_LIQUIDITY: constant(uint256) = 100_000 * 10**18  # Only take into account pools with enough liquidity
 WAD: constant(uint256) = 10**18
 
 STABLECOIN: immutable(address)
-SIGMA: immutable(uint256)
 price_pairs: public(PricePair[MAX_PAIRS])
 n_price_pairs: uint256
 
@@ -64,7 +72,6 @@ last_timestamp: public(uint256)
 last_tvl: public(uint256[MAX_PAIRS])
 TVL_MA_TIME: public(constant(uint256)) = 50000  # s
 last_price: public(uint256)
-custom_share_cap: public(uint256)
 
 admin: public(address)
 emergency_admin: public(address)
@@ -72,52 +79,42 @@ emergency_remove_count: public(uint256)
 
 
 @deploy
-def __init__(stablecoin: address, sigma: uint256, admin: address, emergency_admin: address):
-    STABLECOIN = stablecoin
-    SIGMA = sigma  # The change is so rare that we can change the whole thing altogether
-    self.admin = admin
-    self.emergency_admin = emergency_admin
+def __init__(_stablecoin: address, _sigma: uint256, _admin: address, _emergency_admin: address):
+    """
+    @notice Contract constructor.
+    @param _stablecoin Stablecoin whose price is aggregated by this oracle.
+    @param _sigma Width parameter for exponential price-source penalty.
+    @param _admin Address allowed to manage sources and parameters.
+    @param _emergency_admin Address of the emergency role.
+    """
+    assert _stablecoin != empty(address), "zero stablecoin"
+    STABLECOIN = _stablecoin
+    weighted_price.__init__(_sigma)
+    assert _admin != empty(address), "zero admin"  # Needed to set up the oracle
+    self.admin = _admin
+    self.emergency_admin = _emergency_admin
+
     self.last_price = WAD
     self.last_timestamp = block.timestamp
 
 
 @external
 @view
-def sigma() -> uint256:
-    return SIGMA
-
-
-@external
-@view
 def stablecoin() -> address:
+    """
+    @notice Stablecoin address used by the aggregator.
+    @return Stablecoin address.
+    """
     return STABLECOIN
-
-
-@internal
-@pure
-def _default_cap(n_active: uint256) -> uint256:
-    if n_active <= 1:
-        return WAD
-    elif n_active == 2:
-        return 70 * (WAD // 100)  # 0.7
-    elif n_active <= 5:
-        return 45 * (WAD // 100)  # 0.45
-    else:
-        return 24 * (WAD // 100)  # 0.24
-
-
-@internal
-@view
-def _share_cap(n_active: uint256) -> uint256:
-    max_share: uint256 = self.custom_share_cap
-    if max_share == 0:
-        max_share = self._default_cap(n_active)
-    return max_share
 
 
 @internal
 @view
 def _ema_tvl() -> DynArray[uint256, MAX_PAIRS]:
+    """
+    @dev Compute current TVL values with EMA smoothing for non-NG pools.
+    @return TVLs aligned to configured price-pair slots.
+    """
     tvls: DynArray[uint256, MAX_PAIRS] = []
     last_timestamp: uint256 = self.last_timestamp
 
@@ -148,6 +145,11 @@ def _ema_tvl() -> DynArray[uint256, MAX_PAIRS]:
 @internal
 @view
 def _get_p(price_pair: PricePair) -> uint256:
+    """
+    @dev Read a pool oracle price.
+    @param price_pair Pool metadata.
+    @return WAD-scaled stablecoin price.
+    """
     p: uint256 = 0
     if price_pair.is_ng:
         p = staticcall price_pair.pool.price_oracle(0)
@@ -160,174 +162,101 @@ def _get_p(price_pair: PricePair) -> uint256:
 
 @internal
 @pure
-def _n_active_sources(tvls: DynArray[uint256, MAX_PAIRS], n: uint256) -> uint256:
+def _n_active_sources(tvls: DynArray[uint256, MAX_PAIRS]) -> uint256:
+    """
+    @dev Count TVL entries above the minimum liquidity threshold.
+    @param tvls TVL values aligned to configured price-pair slots.
+    @return Number of active sources.
+    """
     n_active: uint256 = 0
-    for i: uint256 in range(n, bound=MAX_PAIRS):
-        if tvls[i] >= MIN_LIQUIDITY:
+    for tvl: uint256 in tvls:
+        if tvl >= MIN_LIQUIDITY:
             n_active += 1
     return n_active
 
 
 @internal
 @view
-def _active_sources(tvls: DynArray[uint256, MAX_PAIRS], n: uint256) -> (
-    uint256[MAX_PAIRS],
-    uint256[MAX_PAIRS],
-    uint256,
-    uint256
+def _active_sources(tvls: DynArray[uint256, MAX_PAIRS]) -> (
+    DynArray[uint256, MAX_PAIRS],
+    DynArray[uint256, MAX_PAIRS]
 ):
-    prices: uint256[MAX_PAIRS] = empty(uint256[MAX_PAIRS])
-    D: uint256[MAX_PAIRS] = empty(uint256[MAX_PAIRS])
-    Dsum: uint256 = 0
-    n_active: uint256 = 0
-    for i: uint256 in range(n, bound=MAX_PAIRS):
-        price_pair: PricePair = self.price_pairs[i]
-        pool_supply: uint256 = tvls[i]
-
+    """
+    @dev Collect compact arrays of prices and TVLs for active sources only.
+    @param tvls TVL values aligned to price-pair slots.
+    @return Active source prices.
+    @return Active source TVLs.
+    """
+    prices: DynArray[uint256, MAX_PAIRS] = []
+    D: DynArray[uint256, MAX_PAIRS] = []
+    for i: uint256 in range(len(tvls), bound=MAX_PAIRS):
         # Only sufficiently deep pools participate in price aggregation.
-        if pool_supply >= MIN_LIQUIDITY:
-            prices[i] = self._get_p(price_pair)
-            D[i] = pool_supply
-            Dsum += pool_supply
-            n_active += 1
+        if tvls[i] >= MIN_LIQUIDITY:
+            prices.append(self._get_p(self.price_pairs[i]))
+            D.append(tvls[i])
 
-    return prices, D, Dsum, n_active
-
-
-@internal
-@view
-def _capped_weights(
-    D: uint256[MAX_PAIRS],
-    Dsum: uint256,
-    n_active: uint256,
-    n: uint256
-) -> uint256[MAX_PAIRS]:
-    max_share: uint256 = self._share_cap(n_active)
-
-    # Water-filling with an upper cap:
-    #   weight[i] = min(max_share, D[i] * remaining_share / remaining_Dsum)
-    # Each pass fixes newly capped sources, then redistributes the remaining
-    # share over the still-uncapped liquidity.
-    weights: uint256[MAX_PAIRS] = empty(uint256[MAX_PAIRS])
-    remaining_Dsum: uint256 = Dsum
-    remaining_share: uint256 = WAD
-
-    # At most floor((WAD - 1) / max_share) sources can be capped before
-    # the remaining share is <= max_share. Add one pass to detect that no
-    # more caps are needed. n_active is also an upper bound: each successful
-    # pass caps at least one active source.
-    max_passes: uint256 = min(n_active, unsafe_div(WAD - 1, max_share) + 1)
-    for _: uint256 in range(max_passes, bound=MAX_PAIRS):
-        did_cap: bool = False
-        for i: uint256 in range(n, bound=MAX_PAIRS):
-            if weights[i] == 0:
-                candidate_share: uint256 = unsafe_div(remaining_share * D[i], remaining_Dsum)
-                if candidate_share > max_share:
-                    weights[i] = max_share
-                    remaining_Dsum -= D[i]
-                    remaining_share -= max_share
-                    did_cap = True
-        if not did_cap:
-            break
-
-    for i: uint256 in range(n, bound=MAX_PAIRS):
-        if weights[i] == 0:
-            weights[i] = unsafe_div(remaining_share * D[i], remaining_Dsum)
-
-    return weights
-
-
-@internal
-@pure
-def _weighted_avg(
-    prices: uint256[MAX_PAIRS],
-    weights: uint256[MAX_PAIRS],
-    n: uint256
-) -> uint256:
-    # sum(weights[i] * prices[i]) / sum(weights[i])
-    weighted_sum: uint256 = 0
-    weight_sum: uint256 = 0
-    for i: uint256 in range(n, bound=MAX_PAIRS):
-        weighted_sum += weights[i] * prices[i]
-        weight_sum += weights[i]
-    return weighted_sum // weight_sum
-
-
-@internal
-@view
-def _weighted_price(
-    prices: uint256[MAX_PAIRS],
-    weights: uint256[MAX_PAIRS],
-    p_avg: uint256,
-    n: uint256
-) -> uint256:
-    # Penalize sources according to squared distance from the capped-weight
-    # average:
-    #   e[i] = ((p[i] - p_avg) / sigma) ** 2
-    #   exp_weight[i] = weight[i] * exp(-(e[i] - min(e)))
-    # Subtracting min(e) keeps the largest exponential at 1.0 and avoids
-    # underweighting every source when all prices are far from p_avg.
-    e: uint256[MAX_PAIRS] = empty(uint256[MAX_PAIRS])
-    e_min: uint256 = max_value(uint256)
-    for i: uint256 in range(n, bound=MAX_PAIRS):
-        if weights[i] != 0:
-            p: uint256 = prices[i]
-            price_delta: uint256 = max(p, p_avg) - min(p, p_avg)
-            e[i] = price_delta**2 // (SIGMA**2 // WAD)
-            e_min = min(e[i], e_min)
-    exp_weights: uint256[MAX_PAIRS] = empty(uint256[MAX_PAIRS])
-    for i: uint256 in range(n, bound=MAX_PAIRS):
-        if weights[i] != 0:
-            exp_weights[i] = weights[i] * convert(
-                math._wad_exp(-convert(e[i] - e_min, int256)),
-                uint256
-            ) // WAD
-    return self._weighted_avg(prices, exp_weights, n)
+    return prices, D
 
 
 @internal
 @view
 def _price(tvls: DynArray[uint256, MAX_PAIRS]) -> uint256:
-    n: uint256 = self.n_price_pairs
-    prices: uint256[MAX_PAIRS] = empty(uint256[MAX_PAIRS])
-    D: uint256[MAX_PAIRS] = empty(uint256[MAX_PAIRS])
-    Dsum: uint256 = 0
-    n_active: uint256 = 0
-    prices, D, Dsum, n_active = self._active_sources(tvls, n)
-    if Dsum == 0:
+    """
+    @dev Aggregate prices from active sources using capped TVL weights and
+         exponential deviation penalty.
+    @param tvls TVL values aligned to price-pair slots.
+    @return Aggregated WAD-scaled stablecoin price.
+    """
+    prices: DynArray[uint256, MAX_PAIRS] = []
+    D: DynArray[uint256, MAX_PAIRS] = []
+    prices, D = self._active_sources(tvls)
+    if len(D) == 0:
         return WAD  # Placeholder for no active pools
 
-    weights: uint256[MAX_PAIRS] = self._capped_weights(D, Dsum, n_active, n)
-    p_avg: uint256 = self._weighted_avg(prices, weights, n)
-    return self._weighted_price(prices, weights, p_avg, n)
-
-
-@external
-@pure
-def default_cap(n_active: uint256) -> uint256:
-    return self._default_cap(n_active)
+    # Limit impact of a single source by capping its relative share.
+    weights: DynArray[uint256, MAX_N] = capped_share.capped_weights(D)
+    # Take weighted average price as reference.
+    p_ref: uint256 = weighted_price.weighted_avg(prices, weights)
+    # Penalize price sources according to the selected reference price.
+    return weighted_price.exp_penalized_price(prices, weights, p_ref)
 
 
 @external
 @view
 def share_cap() -> uint256:
-    return self._share_cap(self._n_active_sources(self._ema_tvl(), self.n_price_pairs))
+    """
+    @notice Return the share cap currently used for active sources.
+    @return Custom cap if set, otherwise the default cap for current active count.
+    """
+    return capped_share.share_cap(self._n_active_sources(self._ema_tvl()))
 
 
 @external
 @view
 def ema_tvl() -> DynArray[uint256, MAX_PAIRS]:
+    """
+    @notice Compute current EMA TVL values without updating storage.
+    @return TVL values aligned to price-pair slots.
+    """
     return self._ema_tvl()
 
 
 @external
 @view
 def price() -> uint256:
+    """
+    @notice Compute the aggregated price without updating storage.
+    @return WAD-scaled stablecoin price.
+    """
     return self._price(self._ema_tvl())
 
 
 @external
 def price_w() -> uint256:
+    """
+    @notice Compute the aggregated price and checkpoint EMA TVLs.
+    @return WAD-scaled stablecoin price.
+    """
     if self.last_timestamp == block.timestamp:
         return self.last_price
     else:
@@ -342,7 +271,11 @@ def price_w() -> uint256:
 
 @external
 def add_price_pair(_pool: Stableswap):
-    assert msg.sender == self.admin
+    """
+    @notice Add a pool as a price source.
+    @param _pool StableSwap pool containing the configured stablecoin.
+    """
+    assert msg.sender == self.admin, "only admin"
     price_pair: PricePair = empty(PricePair)
     price_pair.pool = _pool
     success: bool = raw_call(
@@ -355,9 +288,9 @@ def add_price_pair(_pool: Stableswap):
     if coins[0] == STABLECOIN:
         price_pair.is_inverse = True
     else:
-        assert coins[1] == STABLECOIN
+        assert coins[1] == STABLECOIN, "not stablecoin pair"
     n: uint256 = self.n_price_pairs
-    self.price_pairs[n] = price_pair  # Should revert if too many pairs
+    self.price_pairs[n] = price_pair  # dev: too many pairs
     self.last_tvl[n] = staticcall _pool.totalSupply()
     self.n_price_pairs = n + 1
     log AddPricePair(n=n, pool=_pool, is_inverse=price_pair.is_inverse)
@@ -365,13 +298,21 @@ def add_price_pair(_pool: Stableswap):
 
 @external
 def remove_price_pair(n: uint256):
-    if msg.sender == self.emergency_admin:
-        self.emergency_remove_count -= 1  # Revert if zero
+    """
+    @notice Remove a price source by index.
+    @dev Admin can remove without limit; emergency admin consumes one removal.
+    @param n Index of the price source to remove.
+    """
+    if msg.sender == self.admin:
+        # Checking admin first, so admin==emergency_admin case
+        # does not create issues with remove counter
+        pass
     else:
-        assert msg.sender == self.admin
+        assert msg.sender == self.emergency_admin, "only admin"
+        self.emergency_remove_count -= 1  # dev: no emergency removals
 
-    n_max: uint256 = self.n_price_pairs - 1
-    assert n <= n_max
+    n_max: uint256 = self.n_price_pairs - 1  # dev: no pairs to remove
+    assert n <= n_max, "bad pair index"
 
     if n < n_max:
         self.price_pairs[n] = self.price_pairs[n_max]
@@ -383,30 +324,42 @@ def remove_price_pair(n: uint256):
 
 @external
 def set_share_cap(_share_cap: uint256):
-    assert msg.sender == self.admin
-    assert _share_cap <= WAD
-    self.custom_share_cap = _share_cap
-    log SetShareCap(share_cap=_share_cap)
+    """
+    @notice Set a custom per-source share cap.
+    @param _share_cap WAD-scaled cap value.
+    """
+    assert msg.sender == self.admin, "only admin"
+    capped_share.set_custom_share_cap(_share_cap)
 
 
 @external
 def set_admin(_admin: address):
-    # We are not doing commit / apply because the owner will be a voting DAO anyway
-    # which has vote delays
-    assert msg.sender == self.admin
+    """
+    @notice Set the admin address.
+    @param _admin New admin address.
+    """
+    assert msg.sender == self.admin, "only admin"
     self.admin = _admin
     log SetAdmin(admin=_admin)
 
 
 @external
 def set_emergency_admin(_emergency_admin: address):
-    assert msg.sender == self.admin
+    """
+    @notice Set the emergency admin address.
+    @param _emergency_admin New emergency admin address.
+    """
+    assert msg.sender == self.admin, "only admin"
     self.emergency_admin = _emergency_admin
     log SetEmergencyAdmin(emergency_admin=_emergency_admin)
 
 
 @external
 def set_emergency_remove_count(_emergency_remove_count: uint256):
-    assert msg.sender == self.admin
+    """
+    @notice Set how many sources the emergency admin may remove.
+    @param _emergency_remove_count Number of permitted emergency removals.
+    """
+    assert msg.sender == self.admin, "only admin"
     self.emergency_remove_count = _emergency_remove_count
     log SetEmergencyRemoveCount(emergency_remove_count=_emergency_remove_count)
