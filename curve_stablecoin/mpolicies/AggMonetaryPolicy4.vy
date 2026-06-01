@@ -190,15 +190,18 @@ def exp(power: int256) -> uint256:
 
 @internal
 @view
-def get_total_debt(_for: address) -> (uint256, uint256):
-    n_controllers: uint256 = self.n_controllers
+def get_total_debt(_for: address, ro: bool) -> (uint256, uint256):
+    n_cached_controllers: uint256 = self.n_controllers
+    n_controllers: uint256 = n_cached_controllers
+    if ro:
+        n_controllers = staticcall CONTROLLER_FACTORY.n_collaterals()
     total_debt: uint256 = 0
     debt_for: uint256 = 0
 
-    for i: uint256 in range(MAX_CONTROLLERS):
-        if i >= n_controllers:
-            break
+    for i: uint256 in range(n_controllers, bound=MAX_CONTROLLERS):
         controller: address = self.controllers[i]
+        if i >= n_cached_controllers:
+            controller = staticcall CONTROLLER_FACTORY.controllers(i)
 
         success: bool = False
         res: Bytes[32] = empty(Bytes[32])
@@ -259,7 +262,7 @@ def read_debt(_for: address, ro: bool) -> (uint256, uint256):
     fresh_for: uint256 = 0
 
     if ro:
-        fresh_total, fresh_for = self.get_total_debt(_for)
+        fresh_total, fresh_for = self.get_total_debt(_for, ro)
         if debt_total > 0:
             debt_total = min(debt_total, fresh_total)
         else:
@@ -271,7 +274,7 @@ def read_debt(_for: address, ro: bool) -> (uint256, uint256):
 
     else:
         if debt_total == 0 or debt_for == 0:
-            fresh_total, fresh_for = self.get_total_debt(_for)
+            fresh_total, fresh_for = self.get_total_debt(_for, ro)
             if debt_total == 0:
                 debt_total = fresh_total
             if debt_for == 0:
@@ -358,7 +361,7 @@ def rate_write(_for: address = msg.sender) -> uint256:
     # Update candles
     total_debt: uint256 = 0
     debt_for: uint256 = 0
-    total_debt, debt_for = self.get_total_debt(_for)
+    total_debt, debt_for = self.get_total_debt(_for, False)
     self.save_candle(TOTAL_DEBT_KEY, total_debt)
     self.save_candle(_for, debt_for)
 
