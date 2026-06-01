@@ -18,9 +18,7 @@ def test_lend_apr_calculation(vault, amm, controller, admin_percentage):
 
     seconds_in_year = 365 * 86400
     admin_fees = (
-        (debt * rate_mul // _total_debt_rate_mul - debt)
-        * (WAD - admin_percentage)
-        // WAD
+        (debt * rate_mul // _total_debt_rate_mul - debt) * admin_percentage // WAD
     )
     debt = debt * rate_mul // _total_debt_rate_mul
     gross_apr = rate * seconds_in_year * debt // (borrowed_balance + debt - admin_fees)
