@@ -114,6 +114,8 @@ def __init__(admin: address,
     for i: uint256 in range(5):
         if peg_keepers[i].address == empty(address):
             break
+        for j: uint256 in range(i, bound=5):
+            assert peg_keepers[j] != peg_keepers[i]  # dev: duplicate peg keeper
         self.peg_keepers[i] = peg_keepers[i]
         n_pks += 1
     self.n_peg_keepers = n_pks
