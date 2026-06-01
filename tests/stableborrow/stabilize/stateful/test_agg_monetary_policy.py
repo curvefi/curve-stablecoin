@@ -7,7 +7,6 @@ from hypothesis.stateful import (
     rule,
     invariant,
 )
-from boa.interpret import VyperContract
 import boa
 from tests.utils.deployers import (
     AGG_MONETARY_POLICY4_DEPLOYER,
@@ -89,9 +88,9 @@ class AggMonetaryPolicyCreation(RuleBasedStateMachine):
             fedUSD = self.ERC20.deploy(digits)
             # Deploy a swap
             n = self.swap_deployer.n()
-            self.swap_deployer.deploy(fedUSD, self.stablecoin)
+            self.swap_deployer.deploy_ng(fedUSD, self.stablecoin)
             addr = self.swap_deployer.pools(n)
-            swap = VyperContract(self.swap_impl.compiler_data, override_address=addr)
+            swap = self.swap_impl.deployer.at(addr)
             fedUSD.approve(swap.address, 2**256 - 1)
             self.stablecoin.approve(swap.address, 2**256 - 1)
             # Deploy a peg keeper

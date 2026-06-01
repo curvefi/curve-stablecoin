@@ -21,10 +21,8 @@ class StateMachine(base.StateMachine):
         """
         Verify that Peg Keeper decreased diff of balances by 1/5.
         """
-        for idx, (peg_keeper, swap, dmul) in enumerate(
-            zip(self.peg_keepers, self.swaps, self.dmul)
-        ):
-            balances_before = [swap.balances(i) for i in range(2)]
+        for idx, (peg_keeper, swap) in enumerate(zip(self.peg_keepers, self.swaps)):
+            balances_before = self._xp(swap)
             profit = 0
 
             try:
@@ -34,13 +32,10 @@ class StateMachine(base.StateMachine):
                 if "peg unprofitable" in str(e):
                     continue
 
-            balances = [swap.balances(i) for i in range(2)]
+            balances = self._xp(swap)
 
-            diff = balances[1] * 10**18 // dmul[1] - balances[0] * 10**18 // dmul[0]
-            last_diff = (
-                balances_before[1] * 10**18 // dmul[1]
-                - balances_before[0] * 10**18 // dmul[0]
-            )
+            diff = balances[1] - balances[0]
+            last_diff = balances_before[1] - balances_before[0]
 
             if diff == last_diff:
                 assert profit == 0
