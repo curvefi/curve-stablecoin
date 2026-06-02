@@ -46,8 +46,8 @@ def test_immediate(
 
     user = boa.env.generate_address()
     with boa.env.prank(user):
-        collateral_token.approve(amm.address, 2 ** 256 - 1)
-        borrowed_token.approve(amm.address, 2 ** 256 - 1)
+        collateral_token.approve(amm.address, 2**256 - 1)
+        borrowed_token.approve(amm.address, 2**256 - 1)
 
     prices = []
     prices.append(amm.get_p())
@@ -136,8 +136,8 @@ def test_adiabatic(
 
     user = boa.env.generate_address()
     with boa.env.prank(user):
-        collateral_token.approve(amm.address, 2 ** 256 - 1)
-        borrowed_token.approve(amm.address, 2 ** 256 - 1)
+        collateral_token.approve(amm.address, 2**256 - 1)
+        borrowed_token.approve(amm.address, 2**256 - 1)
 
     with boa.env.prank(admin):
         amm.eval(f"self.fee = 0")

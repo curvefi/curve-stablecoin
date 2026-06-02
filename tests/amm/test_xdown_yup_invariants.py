@@ -37,8 +37,8 @@ def test_immediate(
     deposit_amount = deposit_amount // 10 ** (18 - collateral_token.decimals())
     user = boa.env.generate_address()
     with boa.env.prank(user):
-        collateral_token.approve(amm.address, 2 ** 256 - 1)
-        borrowed_token.approve(amm.address, 2 ** 256 - 1)
+        collateral_token.approve(amm.address, 2**256 - 1)
+        borrowed_token.approve(amm.address, 2**256 - 1)
     with boa.env.prank(admin):
         price_oracle.set_price(p_o)
         amm.eval(f"self.fee = 0")
@@ -99,8 +99,8 @@ def test_immediate_above_p0(amm, price_oracle, collateral_token, borrowed_token,
     deposit_amount = deposit_amount // 10 ** (18 - collateral_token.decimals())
     user = boa.env.generate_address()
     with boa.env.prank(user):
-        collateral_token.approve(amm.address, 2 ** 256 - 1)
-        borrowed_token.approve(amm.address, 2 ** 256 - 1)
+        collateral_token.approve(amm.address, 2**256 - 1)
+        borrowed_token.approve(amm.address, 2**256 - 1)
 
     with boa.env.prank(admin):
         amm.eval(f"self.fee = 0")
@@ -148,8 +148,8 @@ def test_immediate_in_band(amm, price_oracle, collateral_token, borrowed_token, 
 
     user = boa.env.generate_address()
     with boa.env.prank(user):
-        collateral_token.approve(amm.address, 2 ** 256 - 1)
-        borrowed_token.approve(amm.address, 2 ** 256 - 1)
+        collateral_token.approve(amm.address, 2**256 - 1)
+        borrowed_token.approve(amm.address, 2**256 - 1)
 
     with boa.env.prank(admin):
         amm.eval(f"self.fee = 0")
@@ -215,8 +215,8 @@ def test_adiabatic(
 
     user = boa.env.generate_address()
     with boa.env.prank(user):
-        collateral_token.approve(amm.address, 2 ** 256 - 1)
-        borrowed_token.approve(amm.address, 2 ** 256 - 1)
+        collateral_token.approve(amm.address, 2**256 - 1)
+        borrowed_token.approve(amm.address, 2**256 - 1)
 
     with boa.env.prank(admin):
         amm.eval(f"self.fee = 0")
