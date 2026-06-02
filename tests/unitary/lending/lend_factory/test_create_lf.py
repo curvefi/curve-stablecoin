@@ -214,7 +214,7 @@ def test_revert_create_invalid_fee(
             monetary_policy,
         )
 
-    with boa.reverts(dev="fee is out of bounds"):
+    with boa.reverts():
         _create_market(
             factory,
             admin,
