@@ -79,6 +79,41 @@ def test_default_behavior_partial_peg_keepers(
     assert mp.peg_keepers(1) == ZERO_ADDRESS
 
 
+def test_revert_duplicate_peg_keeper(
+    admin,
+    price_oracle,
+    mock_factory,
+    peg_keepers,
+    default_rate,
+    default_sigma,
+    default_target_debt_fraction,
+    default_extra_const,
+    default_ema_time,
+):
+    """Constructor rejects duplicate peg keeper addresses."""
+    pk_array = [
+        peg_keepers[0].address,
+        peg_keepers[1].address,
+        peg_keepers[0].address,
+        ZERO_ADDRESS,
+        ZERO_ADDRESS,
+    ]
+
+    with boa.env.prank(admin):
+        with boa.reverts(dev="duplicate peg keeper"):
+            AGG_MONETARY_POLICY4_DEPLOYER.deploy(
+                admin,
+                price_oracle.address,
+                mock_factory.address,
+                pk_array,
+                default_rate,
+                default_sigma,
+                default_target_debt_fraction,
+                default_extra_const,
+                default_ema_time,
+            )
+
+
 def test_revert_sigma_too_low(
     admin,
     price_oracle,
