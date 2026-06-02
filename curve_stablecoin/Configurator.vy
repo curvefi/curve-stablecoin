@@ -24,13 +24,13 @@ SKIP_CONFIG_UINT256: constant(uint256) = c.SKIP_CONFIG_UINT256
 SKIP_CONFIG_ADDRESS: constant(address) = c.SKIP_CONFIG_ADDRESS
 MAX_ORACLE_PRICE_DEVIATION: constant(uint256) = WAD // 2  # 50% deviation
 
-DEFAULT_ADMIN: public(immutable(address))
+default_admin: public(address)
 admins: HashMap[IController, address]
 
 
 @deploy
 def __init__(_default_admin: address):
-    DEFAULT_ADMIN = _default_admin
+    self.default_admin = _default_admin
 
 
 @external
@@ -46,15 +46,27 @@ def set_custom_admin(_controller: IController, _admin: address):
     log IConfigurator.SetCustomAdmin(controller=_controller.address, admin=_admin)
 
 
+@external
+def set_owner(_new_default_admin: address):
+    """
+    @notice Set the contract owner and default admin
+    @dev The contract owner is also the default admin used for configurator access control
+    @param _new_default_admin Address of the new owner and default admin
+    """
+    self._check_admin()
+    self.default_admin = _new_default_admin
+    log IConfigurator.SetDefaultAdmin(new_default_admin=_new_default_admin)
+
+
 @internal
 def _check_admin():
-    assert msg.sender == DEFAULT_ADMIN, "Not admin"
+    assert msg.sender == self.default_admin, "Not admin"
 
 
 @internal
 def _check_authorized(_controller: IController):
     assert (
-        msg.sender == DEFAULT_ADMIN or msg.sender == self.admins[_controller]
+        msg.sender == self.default_admin or msg.sender == self.admins[_controller]
     ), "Not authorized for this controller"
 
 

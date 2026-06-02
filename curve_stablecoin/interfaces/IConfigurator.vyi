@@ -54,11 +54,20 @@ event SetAmmFee:
     fee: uint256
 
 
+event SetDefaultAdmin:
+    new_default_admin: address
+
+
 # Functions
 
 
 @external
 def set_custom_admin(_controller: IController, _admin: address):
+    ...
+
+
+@external
+def set_owner(_new_default_admin: address):
     ...
 
 
@@ -104,5 +113,5 @@ def set_amm_fee(_controller: IController, _fee: uint256):
 
 @view
 @external
-def DEFAULT_ADMIN() -> address:
+def default_admin() -> address:
     ...
