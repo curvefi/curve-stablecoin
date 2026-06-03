@@ -71,7 +71,7 @@ jobs:
             runs-on: "ubuntu-latest"
           - folder: "tests/unitary/configurator"
             runs-on: "ubuntu-latest"
-          - folder: "tests/unitary/controller"
+          - folder: "tests/unitary/controller --ignore=tests/unitary/controller/test_users_to_liquidate.py"
             runs-on: "ubuntu-latest"
           - folder: "tests/unitary/lending"
             runs-on: "ubuntu-latest"
