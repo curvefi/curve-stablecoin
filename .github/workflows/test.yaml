@@ -67,7 +67,19 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - folder: "tests/unitary"
+          - folder: "tests/unitary/amm"
+            runs-on: "ubuntu-latest"
+          - folder: "tests/unitary/configurator"
+            runs-on: "ubuntu-latest"
+          - folder: "tests/unitary/controller"
+            runs-on: "ubuntu-latest"
+          - folder: "tests/unitary/lending"
+            runs-on: "ubuntu-latest"
+          - folder: "tests/unitary/lib"
+            runs-on: "ubuntu-latest"
+          - folder: "tests/unitary/mint"
+            runs-on: "ubuntu-latest"
+          - folder: "tests/unitary/mpolicies"
             runs-on: "ubuntu-latest"
           - folder: "tests/e2e"
             runs-on: "ubuntu-latest"
