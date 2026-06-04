@@ -68,6 +68,7 @@ def _deploy(deployer: str, dry_run: bool, report_path: Path, factory_deployment:
     factory = boa.load_partial("curve_stablecoin/lending/LendFactory.vy").at(
         existing["factory"]
     )
+    configurator = boa.load_partial("curve_stablecoin/Configurator.vy").at(existing["configurator"])
 
     monetary_policy = boa.load_partial(
         "curve_stablecoin/mpolicies/SemilogMonetaryPolicy.vy"
@@ -100,7 +101,7 @@ def _deploy(deployer: str, dry_run: bool, report_path: Path, factory_deployment:
 
     # set borrow cap to 200K
     controller = boa.load_partial("curve_stablecoin/lending/LendController.vy").at(deployed[1])
-    controller.set_borrow_cap(200000 * 10**18, sender=deployer)
+    configurator.set_borrow_cap(controller, 200000 * 10**18, sender=deployer)
 
 
     report = {

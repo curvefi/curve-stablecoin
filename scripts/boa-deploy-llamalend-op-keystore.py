@@ -9,6 +9,7 @@ from pathlib import Path
 
 import boa
 import boa_solidity
+from vyper.compiler.settings import OptimizationLevel
 import requests
 import solcx
 from boa.network import NetworkEnv
@@ -62,22 +63,25 @@ def _deploy(deployer: str, dry_run: bool, report_path: Path) -> None:
     else:
         boa.env.suppress_debug_tt()
 
-    amm_blueprint = boa.load_partial("curve_stablecoin/AMM.vy").deploy_as_blueprint()
+    amm_blueprint = boa.load_partial("curve_stablecoin/AMM.vy", compiler_args={"optimize": OptimizationLevel.CODESIZE}).deploy_as_blueprint()
     controller_blueprint = boa.load_partial(
-        "curve_stablecoin/lending/LendController.vy"
+        "curve_stablecoin/lending/LendController.vy", compiler_args={"optimize": OptimizationLevel.CODESIZE}
     ).deploy_as_blueprint()
     vault_blueprint = boa.load_partial(
         "curve_stablecoin/lending/Vault.vy"
     ).deploy_as_blueprint()
     controller_view_blueprint = boa.load_partial(
-        "curve_stablecoin/lending/LendControllerView.vy"
+        "curve_stablecoin/lending/LendControllerView.vy", compiler_args={"optimize": OptimizationLevel.CODESIZE}
     ).deploy_as_blueprint()
+
+    configurator = boa.load_partial("curve_stablecoin/Configurator.vy").deploy(deployer)
 
     factory = boa.load_partial("curve_stablecoin/lending/LendFactory.vy").deploy(
         amm_blueprint.address,
         controller_blueprint.address,
         vault_blueprint.address,
         controller_view_blueprint.address,
+        configurator.address,
         deployer,
         deployer,
     )
@@ -117,7 +121,7 @@ def _deploy(deployer: str, dry_run: bool, report_path: Path) -> None:
 
     # set borrow cap to 5 WETH
     controller = boa.load_partial("curve_stablecoin/lending/LendController.vy").at(deployed[1])
-    controller.set_borrow_cap(5 * 10**18, sender=deployer)
+    configurator.set_borrow_cap(controller, 5 * 10**18, sender=deployer)
 
     report = {
         "chain_id": chain_id,
@@ -125,6 +129,7 @@ def _deploy(deployer: str, dry_run: bool, report_path: Path) -> None:
         "dry_run": dry_run,
         "timestamp": int(time.time()),
         "factory": factory.address,
+        "configurator": configurator.address,
         "monetary_policy": monetary_policy.address,
         "price_oracle": oracle.address,
         "leverage_zap": leverage_zap.address,
@@ -151,6 +156,7 @@ def _deploy(deployer: str, dry_run: bool, report_path: Path) -> None:
     report_path.write_text(json.dumps(report, indent=2) + "\n")
 
     print("Factory:", factory.address)
+    print("Configurator:", configurator.address)
     print("Monetary Policy:", monetary_policy.address)
     print("Price Oracle:", oracle.address)
     print("Vault:", deployed[0])
