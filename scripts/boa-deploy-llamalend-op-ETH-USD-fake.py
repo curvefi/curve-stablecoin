@@ -48,7 +48,12 @@ class RetryRPC(EthereumRPC):
         delay = 1.0
         for attempt in range(6):
             try:
-                return super().fetch(method, params)
+                result = super().fetch(method, params)
+                if result is None and method == "eth_getBlockByNumber" and attempt < 5:
+                    time.sleep(delay)
+                    delay *= 1.5
+                    continue
+                return result
             except requests.exceptions.HTTPError as exc:
                 status = getattr(exc.response, "status_code", None)
                 if status != 503 or attempt == 5:
