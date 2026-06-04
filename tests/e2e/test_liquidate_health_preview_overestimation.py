@@ -28,7 +28,6 @@ def _deploy_lending_market(
         loan_discount=loan_discount,
         liquidation_discount=liquidation_discount,
         price_oracle=price_oracle,
-        name=f"{borrow_decimals}dec Vault",
         min_borrow_rate=min_borrow_rate,
         max_borrow_rate=max_borrow_rate,
         seed_amount=1_000_000 * 10**borrow_decimals,
@@ -40,6 +39,7 @@ def _deploy_lending_market(
 
 def test_liquidate_preview_repro_big_diff_poc(
     proto,
+    configurator,
     price_oracle,
     collateral_token,
     borrowed_token,
@@ -71,8 +71,7 @@ def test_liquidate_preview_repro_big_diff_poc(
         max_borrow_rate,
         borrowed_token.decimals(),
     )
-    with boa.env.prank(proto.admin):
-        controller.set_borrow_cap(10**30)
+    configurator.set_borrow_cap(controller, 10**30, sender=proto.admin)
 
     borrower = boa.env.eoa
     liquidator = boa.env.generate_address()

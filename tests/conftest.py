@@ -54,6 +54,11 @@ def factory(proto):
 
 
 @pytest.fixture(scope="module")
+def configurator(proto):
+    return proto.configurator
+
+
+@pytest.fixture(scope="module")
 def stablecoin(proto):
     return proto.crvUSD
 
@@ -209,7 +214,6 @@ def market(
             loan_discount=loan_discount,
             liquidation_discount=liquidation_discount,
             price_oracle=price_oracle,
-            name="Test Vault",
             min_borrow_rate=min_borrow_rate,
             max_borrow_rate=max_borrow_rate,
             seed_amount=seed_liquidity,
@@ -220,14 +224,13 @@ def market(
 
 
 @pytest.fixture(scope="module")
-def controller(market, market_type, admin, borrow_cap):
+def controller(market, market_type, admin, borrow_cap, configurator):
     """Controller for the current market (mint or lending).
     Sets borrow cap for lending markets to `borrow_cap`.
     """
     ctrl = market["controller"]
     if market_type == "lending" and borrow_cap is not None:
-        with boa.env.prank(admin):
-            ctrl.set_borrow_cap(borrow_cap)
+        configurator.set_borrow_cap(ctrl, borrow_cap, sender=admin)
     return ctrl
 
 

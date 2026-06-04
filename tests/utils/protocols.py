@@ -20,6 +20,7 @@ from tests.utils.deployers import (
     AMM_DEPLOYER,
     CONTROLLER_FACTORY_DEPLOYER,
     CONTROLLER_VIEW_DEPLOYER,
+    CONFIGURATOR_DEPLOYER,
     # Lending contracts
     VAULT_DEPLOYER,
     LEND_CONTROLLER_DEPLOYER,
@@ -70,6 +71,7 @@ class Llamalend:
         """
         self.admin = boa.env.generate_address("admin")
         self.fee_receiver = boa.env.generate_address("fee_receiver")
+        self.configurator = CONFIGURATOR_DEPLOYER.deploy(self.admin)
 
         controller_view_blueprint = CONTROLLER_VIEW_DEPLOYER.deploy_as_blueprint()
 
@@ -80,7 +82,15 @@ class Llamalend:
             f"{controller_view_blueprint.address},",
             1,
         )
+        mint_controller_code = mint_controller_code.replace(
+            "core.IConfigurator(empty(address)),  # to replace at deployment with configurator",
+            f"core.IConfigurator({self.configurator.address}),",
+            1,
+        )
         assert f"{controller_view_blueprint.address}," in mint_controller_code
+        assert (
+            f"core.IConfigurator({self.configurator.address})," in mint_controller_code
+        )
 
         # This is a bit of a special case that breaks our current conventions around
         # deployers. The only reason why this was done is because since we can't change
@@ -144,6 +154,7 @@ class Llamalend:
             self.blueprints.lend_controller.address,
             self.blueprints.vault.address,
             self.blueprints.lend_controller_view.address,
+            self.configurator.address,
             self.admin,
             self.fee_receiver,
         )
@@ -191,9 +202,12 @@ class Llamalend:
         controller_address = self.mint_factory.get_controller(collateral_token.address)
         amm_address = self.mint_factory.get_amm(collateral_token.address)
 
+        controller = self._mint_controller_deployer.at(controller_address)
+        amm = AMM_DEPLOYER.at(amm_address)
+
         return {
-            "controller": self._mint_controller_deployer.at(controller_address),
-            "amm": AMM_DEPLOYER.at(amm_address),
+            "controller": controller,
+            "amm": amm,
         }
 
     def create_lending_market(
@@ -205,7 +219,6 @@ class Llamalend:
         loan_discount: int,
         liquidation_discount: int,
         price_oracle: VyperContract,
-        name: str,
         min_borrow_rate: int,
         max_borrow_rate: int,
         seed_amount: int = 1000 * 10**18,
@@ -223,7 +236,6 @@ class Llamalend:
             loan_discount: Loan discount (e.g., 9 * 10**16 for 9%)
             liquidation_discount: Liquidation discount (e.g., 6 * 10**16 for 6%)
             price_oracle: Price oracle contract
-            name: Name for the vault
             min_borrow_rate: Minimum borrow rate (e.g., 0.5 * 10**16 for 0.5%)
             max_borrow_rate: Maximum borrow rate (e.g., 50 * 10**16 for 50%)
             seed_amount: Borrowed token amount to seed into the vault post-deployment
@@ -254,7 +266,6 @@ class Llamalend:
             liquidation_discount,
             price_oracle.address,
             monetary_policy.address,
-            name,
             supply_limit,
             sender=self.admin,
         )
@@ -305,7 +316,6 @@ if __name__ == "__main__":
         loan_discount=9 * 10**16,  # 9%
         liquidation_discount=6 * 10**16,  # 6%
         price_oracle=proto.price_oracle,
-        name="Test Vault",
         min_borrow_rate=5 * 10**15 // (365 * 86400),  # 0.5% APR
         max_borrow_rate=50 * 10**16 // (365 * 86400),  # 50% APR
     )

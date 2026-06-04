@@ -1,4 +1,4 @@
-from curve_stablecoin.interfaces import ILMGauge
+from curve_stablecoin.interfaces import ILMCallback
 from curve_stablecoin.interfaces import IPriceOracle
 # Structs
 
@@ -45,14 +45,6 @@ event SetRate:
     time: uint256
 
 
-event SetFee:
-    fee: uint256
-
-
-event SetPriceOracle:
-    price_oracle: IPriceOracle
-
-
 # Functions
 
 @external
@@ -69,12 +61,6 @@ def coins(i: uint256) -> address:
 @view
 @external
 def price_oracle() -> uint256:
-    ...
-
-
-@view
-@external
-def dynamic_fee() -> uint256:
     ...
 
 
@@ -123,6 +109,12 @@ def get_p() -> uint256:
 @view
 @external
 def read_user_tick_numbers(user: address) -> int256[2]:
+    ...
+
+
+@view
+@external
+def read_user_ticks(user: address) -> DynArray[uint256, 50]:
     ...
 
 
@@ -229,7 +221,7 @@ def set_fee(fee: uint256):
 
 
 @external
-def set_callback(liquidity_mining_callback: ILMGauge):
+def set_callback(liquidity_mining_callback: ILMCallback):
     ...
 
 
@@ -298,13 +290,8 @@ def bands_y(arg0: int256) -> uint256:
     ...
 
 
-@view
-@external
-def user_shares(arg0: address) -> UserTicks:
-    ...
-
 
 @view
 @external
-def liquidity_mining_callback() -> ILMGauge:
+def liquidity_mining_callback() -> ILMCallback:
     ...

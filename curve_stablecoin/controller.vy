@@ -4,11 +4,12 @@
 
 from curve_stablecoin.interfaces import IAMM
 from curve_stablecoin.interfaces import IMonetaryPolicy
-from curve_stablecoin.interfaces import ILMGauge
+from curve_stablecoin.interfaces import ILMCallback
 from curve_stablecoin.interfaces import IFactory
 from curve_stablecoin.interfaces import IPriceOracle
 from curve_stablecoin.interfaces import IController
 from curve_stablecoin.interfaces import IControllerView as IView
+from curve_stablecoin.interfaces import IConfigurator
 from curve_std.interfaces import IERC20
 
 implements: IController
@@ -25,7 +26,6 @@ from snekmate.utils import math
 ################################################################
 
 AMM: immutable(IAMM)
-MAX_AMM_FEE: immutable(uint256)
 A: immutable(uint256)
 # log(A / (A - 1))
 LOGN_A_RATIO: immutable(int256)
@@ -36,6 +36,7 @@ COLLATERAL_PRECISION: immutable(uint256)
 BORROWED_TOKEN: immutable(IERC20)
 BORROWED_PRECISION: immutable(uint256)
 FACTORY: immutable(IFactory)
+CONFIGURATOR: immutable(IConfigurator)
 
 ################################################################
 #                          CONSTANTS                           #
@@ -53,30 +54,35 @@ MIN_TICKS_UINT: constant(uint256) = c.MIN_TICKS_UINT
 MAX_TICKS_UINT: constant(uint256) = c.MAX_TICKS_UINT
 MIN_TICKS: constant(int256) = c.MIN_TICKS
 CALLDATA_MAX_SIZE: constant(uint256) = c.CALLDATA_MAX_SIZE
+SKIP_CONFIG_UINT256: constant(uint256) = c.SKIP_CONFIG_UINT256
+SKIP_CONFIG_ADDRESS: constant(address) = c.SKIP_CONFIG_ADDRESS
 
 
 CALLBACK_DEPOSIT: constant(bytes4) = method_id(
     "callback_deposit(address,uint256,uint256,uint256,bytes)",
     output_type=bytes4,
-)
+)  # active_band=0, borrowed=0
 CALLBACK_REPAY: constant(bytes4) = method_id(
     "callback_repay(address,uint256,uint256,uint256,bytes)", output_type=bytes4
 )
 CALLBACK_LIQUIDATE: constant(bytes4) = method_id(
     "callback_liquidate(address,uint256,uint256,uint256,bytes)",
     output_type=bytes4,
-)
-
-MIN_AMM_FEE: constant(uint256) = 10**6  # 1e-12, still needs to be above 0
-MAX_RATE: constant(uint256) = 43959106799  # 300% APY
-MAX_ORACLE_PRICE_DEVIATION: constant(uint256) = WAD // 2  # 50% deviation
+)  # active_band=0
+MAX_RATE: public(constant(uint256)) = 43959106799  # 300% APY
 
 ################################################################
 #                           STORAGE                            #
 ################################################################
 
-view_impl: public(address)
 _view: IView
+
+# avoiding circular imports by exposing the getter as address to make the compiler happy
+@external
+@view
+@reentrant
+def view() -> address:
+    return self._view.address
 
 liquidation_discount: public(uint256)
 loan_discount: public(reentrant(uint256))
@@ -89,6 +95,7 @@ _monetary_policy: IMonetaryPolicy
 def monetary_policy() -> IMonetaryPolicy:
     """
     @notice Address of the monetary policy
+    @return Address of the monetary policy contract
     """
     return self._monetary_policy
 
@@ -139,7 +146,8 @@ def __init__(
     _loan_discount: uint256,
     _liquidation_discount: uint256,
     _amm: IAMM,
-    _view_impl: address,
+    _view_blueprint: address,
+    _configurator: IConfigurator,
 ):
     VIRTUAL = VirtualMethods(self)
 
@@ -150,9 +158,6 @@ def __init__(
 
     LOGN_A_RATIO = math._wad_ln(convert(A * WAD // (A - 1), int256))
     SQRT_BAND_RATIO = isqrt(10**36 * A // (A - 1))
-
-    # let's set to MIN_TICKS / A: for example, 4% max fee for A=100
-    MAX_AMM_FEE = min(WAD * MIN_TICKS_UINT // A, 10**17)
 
     COLLATERAL_TOKEN = _collateral_token
     collateral_decimals: uint256 = convert(staticcall COLLATERAL_TOKEN.decimals(), uint256)
@@ -166,47 +171,18 @@ def __init__(
     tkn.max_approve(BORROWED_TOKEN, FACTORY.address)
 
 
-    self._set_borrowing_discounts(_loan_discount, _liquidation_discount)
-    self._monetary_policy = _monetary_policy
+    CONFIGURATOR = _configurator
     self._total_debt.rate_mul = WAD
     self.admin_percentage = WAD
-    self._set_view(_view_impl)
-
-
-@external
-def set_view(_view_impl: address):
-    """
-    @notice Change the contract used to store view functions.
-    @dev This function deploys a new view implementation from a blueprint.
-    @param _view_impl Address of the new view implementation
-    """
-    self._check_admin()
-    self._set_view(_view_impl)
-
-
-@internal
-def _set_view(_view_impl: address):
-    """
-    @notice Set the view implementation
-    @param _view_impl New view implementation
-    """
-    assert _view_impl != empty(address) # dev: view implementation is empty address
-    self.view_impl = _view_impl
-    view: address = create_from_blueprint(
-        _view_impl,
-        self,
-        SQRT_BAND_RATIO,
-        LOGN_A_RATIO,
-        AMM,
-        A,
-        COLLATERAL_TOKEN,
-        COLLATERAL_PRECISION,
-        BORROWED_TOKEN,
-        BORROWED_PRECISION,
+    self._configure(
+        _loan_discount,
+        _liquidation_discount,
+        _monetary_policy,
+        _view_blueprint,
+        SKIP_CONFIG_UINT256,
+        IPriceOracle(SKIP_CONFIG_ADDRESS),
+        ILMCallback(SKIP_CONFIG_ADDRESS),
     )
-    self._view = IView(view)
-
-    log IController.SetView(view=view)
 
 
 @external
@@ -223,14 +199,9 @@ def redeemed() -> uint256:
 
 @external
 @view
+@reentrant
 def available_balance() -> uint256:
     return staticcall BORROWED_TOKEN.balanceOf(self)
-
-
-@internal
-@view
-def _check_admin():
-    assert msg.sender == staticcall FACTORY.admin(), "only admin"
 
 
 @internal
@@ -238,6 +209,7 @@ def _check_admin():
 def _get_total_debt() -> uint256:
     """
     @notice Total debt of this controller
+    @return Total outstanding debt with accrued interest
     """
     rate_mul: uint256 = staticcall AMM.get_rate_mul()
     loan: IController.Loan = self._total_debt
@@ -258,9 +230,10 @@ def _update_total_debt(_d_debt: uint256, _rate_mul: uint256, _is_increase: bool)
     """
     @notice Update total debt of this controller
     @dev This method MUST be called strictly BEFORE lent, repaid or collected change
-    @param d_debt Change in debt amount (unsigned)
-    @param rate_mul New rate_mul
-    @param is_increase Whether debt increases or decreases
+    @param _d_debt Change in debt amount (unsigned)
+    @param _rate_mul New rate multiplier
+    @param _is_increase Whether debt increases or decreases
+    @return Updated loan struct with new initial_debt and rate_mul
     """
     loan: IController.Loan = self._total_debt
     loan_with_interest: uint256 = 0
@@ -287,44 +260,12 @@ def _update_total_debt(_d_debt: uint256, _rate_mul: uint256, _is_increase: bool)
 
 
 @external
-def set_price_oracle(_price_oracle: IPriceOracle, _max_deviation: uint256):
-    """
-    @notice Set a new price oracle for the AMM
-    @param _price_oracle New price oracle contract
-    @param _max_deviation Maximum allowed deviation for the new oracle
-        Can be set to max_value(uint256) to skip the check if oracle is broken.
-    """
-    self._check_admin()
-    assert (
-        _max_deviation <= MAX_ORACLE_PRICE_DEVIATION
-        or _max_deviation == max_value(uint256)
-    )  # dev: invalid max deviation
-
-    # Validate the new oracle has required methods
-    extcall _price_oracle.price_w()
-    new_price: uint256 = staticcall _price_oracle.price()
-
-    # Check price deviation isn't too high
-    current_oracle: IPriceOracle = staticcall AMM.price_oracle_contract()
-    old_price: uint256 = staticcall current_oracle.price()
-    if _max_deviation != max_value(uint256):
-        delta: uint256 = (
-            new_price - old_price
-            if old_price < new_price
-            else old_price - new_price
-        )
-        max_delta: uint256 = old_price * _max_deviation // WAD
-        assert delta <= max_delta, "delta>max"
-
-    extcall AMM.set_price_oracle(_price_oracle)
-
-
-@external
 @view
 @reentrant
 def factory() -> IFactory:
     """
     @notice Address of the factory
+    @return Address of the factory contract
     """
     return FACTORY
 
@@ -335,6 +276,7 @@ def factory() -> IFactory:
 def amm() -> IAMM:
     """
     @notice Address of the AMM
+    @return Address of the AMM contract
     """
     return AMM
 
@@ -345,6 +287,7 @@ def amm() -> IAMM:
 def collateral_token() -> IERC20:
     """
     @notice Address of the collateral token
+    @return Address of the collateral token contract
     """
     return COLLATERAL_TOKEN
 
@@ -355,6 +298,7 @@ def collateral_token() -> IERC20:
 def borrowed_token() -> IERC20:
     """
     @notice Address of the borrowed token
+    @return Address of the borrowed token contract
     """
     return BORROWED_TOKEN
 
@@ -363,6 +307,10 @@ def borrowed_token() -> IERC20:
 def _save_rate():
     """
     @notice Save current rate
+    @dev If the monetary policy is stateful `rate_write` MUST be permissioned
+    so that only the controller can call it. Otherwise one can circumvent the
+    reentrancy lock present in all the external methods that call `self._save_rate`
+    by calling `rate_write` directly.
     """
     rate: uint256 = min(extcall self._monetary_policy.rate_write(), MAX_RATE)
     extcall AMM.set_rate(rate)
@@ -380,7 +328,7 @@ def save_rate():
 @view
 def _debt(_user: address) -> (uint256, uint256):
     """
-    @notice Get the value of debt and rate_mul and update the rate_mul counter
+    @notice Get the value of debt and rate_mul without changing the state
     @param _user User address
     @return (debt, rate_mul)
     """
@@ -411,6 +359,8 @@ def debt(_user: address) -> uint256:
 def loan_exists(_user: address) -> bool:
     """
     @notice Check whether there is a loan of `user` in existence
+    @param _user Address of the user to check
+    @return True if the user has an active loan, False otherwise
     """
     return self.loan[_user].initial_debt > 0
 
@@ -422,6 +372,7 @@ def total_debt() -> uint256:
     """
     @notice Total debt of this controller
     @dev Marked as reentrant because used by monetary policy
+    @return Total outstanding debt with accrued interest
     """
     return self._get_total_debt()
 
@@ -442,6 +393,8 @@ def _get_y_effective(
     @param _collateral Amount of collateral with 18 decimals to get the value for
     @param _N Number of bands the deposit is made into
     @param _discount Loan discount at 1e18 base (e.g. 1e18 == 100%)
+    @param _SQRT_BAND_RATIO Square root of the band ratio sqrt((A-1)/A) at 1e18 base
+    @param _A Band width factor
     @return y_effective
     """
     # x_effective = sum_{i=0..N-1}(y / N * p(n_{n1+i})) =
@@ -522,7 +475,65 @@ def calculate_debt_n1(
     @param _user User to calculate n1 for (only necessary for nonzero extra_health)
     @return Upper band n1 (n1 <= n2) to deposit into. Signed integer
     """
-    return staticcall self._view.calculate_debt_n1(_collateral, _debt, _N, _user)
+    assert _N > MIN_TICKS_UINT - 1  # dev: Need more ticks
+    assert _N < MAX_TICKS_UINT + 1  # dev: Need less ticks
+    return self._calculate_debt_n1(_collateral, _debt, _N, _user)
+
+
+@internal
+@view
+def _calculate_debt_n1(
+    _collateral: uint256,
+    _debt: uint256,
+    _N: uint256,
+    _user: address,
+) -> int256:
+    assert _debt > 0  # dev: No loan
+    n0: int256 = staticcall AMM.active_band()
+    p_base: uint256 = staticcall AMM.p_oracle_up(n0)
+
+    # x_effective = y / N * p_oracle_up(n1) * sqrt((A - 1) / A) * sum_{0..N-1}(((A-1) / A)**k)
+    # === d_y_effective * p_oracle_up(n1) * sum(...) === y_effective * p_oracle_up(n1)
+    # d_y_effective = y / N / sqrt(A / (A - 1))
+    y_effective: uint256 = self._get_y_effective(
+        _collateral * COLLATERAL_PRECISION,
+        _N,
+        self.loan_discount + self.extra_health[_user],
+        SQRT_BAND_RATIO,
+        A,
+    )
+    # p_oracle_up(n1) = base_price * ((A - 1) / A)**n1
+
+    # We borrow up until min band touches p_oracle,
+    # or it touches non-empty bands which cannot be skipped.
+    # We calculate required n1 for given (collateral, debt),
+    # and if n1 corresponds to price_oracle being too high, or unreachable band
+    # - we revert.
+
+    # n1 is band number based on adiabatic trading, e.g. when p_oracle ~ p
+    y_effective = unsafe_div(
+        y_effective * p_base, _debt * BORROWED_PRECISION + 1
+    )  # Now it's a ratio
+
+    # n1 = floor(log(y_effective) / self.logAratio)
+    # EVM semantics is not doing floor unlike Python, so we do this
+    assert y_effective > 0  # dev: Amount too low
+    n1: int256 = math._wad_ln(convert(y_effective, int256))
+    if n1 < 0:
+        n1 -= unsafe_sub(
+            LOGN_A_RATIO, 1
+        )  # This is to deal with vyper's rounding of negative numbers
+    n1 = unsafe_div(n1, LOGN_A_RATIO)
+
+    n1 = min(n1, 1024 - convert(_N, int256)) + n0
+    if n1 <= n0:
+        assert staticcall AMM.can_skip_bands(n1 - 1), "Debt too high"
+
+    assert (
+        staticcall AMM.p_oracle_up(n1) <= staticcall AMM.price_oracle()
+    ), "Debt too high"
+
+    return n1
 
 
 @internal
@@ -533,7 +544,7 @@ def _check_loan_exists(_debt: uint256):
 
 
 @internal
-def execute_callback(
+def _execute_callback(
     _callbacker: address,
     _callback_sig: bytes4,
     _user: address,
@@ -604,6 +615,7 @@ def create_loan_health_preview(
     @param _debt Borrowed asset debt to take
     @param _N Number of bands to deposit into (to do autoliquidation-deliquidation),
            can be from MIN_TICKS to MAX_TICKS
+    @param _for Address of the user the loan is being created for
     @param _full Whether it's a 'full' health or not
     @return Signed health value
     """
@@ -637,7 +649,7 @@ def create_loan(
     if _callbacker != empty(address):
         tkn.transfer(BORROWED_TOKEN, _callbacker, _debt)
         # If there is any unused debt, callbacker can send it to the user
-        more_collateral = self.execute_callback(
+        cb: IController.CallbackData = self._execute_callback(
             _callbacker,
             CALLBACK_DEPOSIT,
             _for,
@@ -645,15 +657,17 @@ def create_loan(
             _collateral,
             _debt,
             _calldata,
-        ).collateral
+        )
+        assert cb.borrowed == 0  # dev: Not available
+        more_collateral = cb.collateral
 
     total_collateral: uint256 = _collateral + more_collateral
 
     assert self.loan[_for].initial_debt == 0, "Loan already created"
-    assert _N > MIN_TICKS_UINT - 1, "Need more ticks"
-    assert _N < MAX_TICKS_UINT + 1, "Need less ticks"
+    assert _N > MIN_TICKS_UINT - 1  # dev: Need more ticks
+    assert _N < MAX_TICKS_UINT + 1  # dev: Need less ticks
 
-    n1: int256 = staticcall self._view.calculate_debt_n1(total_collateral, _debt, _N, _for)
+    n1: int256 = self._calculate_debt_n1(total_collateral, _debt, _N, _for)
     n2: int256 = n1 + convert(unsafe_sub(_N, 1), int256)
 
     rate_mul: uint256 = staticcall AMM.get_rate_mul()
@@ -704,6 +718,7 @@ def _add_collateral_borrow(
     @param _d_debt Amount of debt increase
     @param _for Address to transfer tokens to
     @param _remove_collateral Remove collateral instead of adding
+    @return Current rate multiplier
     """
     debt: uint256 = 0
     rate_mul: uint256 = 0
@@ -720,7 +735,7 @@ def _add_collateral_borrow(
 
     ns: int256[2] = staticcall AMM.read_user_tick_numbers(_for)
     size: uint256 = convert(unsafe_add(unsafe_sub(ns[1], ns[0]), 1), uint256)
-    n1: int256 = staticcall self._view.calculate_debt_n1(xy[1], debt, size, _for)
+    n1: int256 = self._calculate_debt_n1(xy[1], debt, size, _for)
     n2: int256 = n1 + unsafe_sub(ns[1], ns[0])
 
     extcall AMM.deposit_range(_for, xy[1], n1, n2)
@@ -770,7 +785,7 @@ def add_collateral_health_preview(
 @external
 def add_collateral(_collateral: uint256, _for: address = msg.sender):
     """
-    @notice Add extra collateral to avoid bad liqidations
+    @notice Add extra collateral to avoid bad liquidations
     @param _collateral Amount of collateral to add
     @param _for Address to add collateral for
     """
@@ -862,7 +877,7 @@ def borrow_more(
     if _callbacker != empty(address):
         tkn.transfer(BORROWED_TOKEN, _callbacker, _debt)
         # If there is any unused debt, callbacker can send it to the user
-        more_collateral = self.execute_callback(
+        cb: IController.CallbackData = self._execute_callback(
             _callbacker,
             CALLBACK_DEPOSIT,
             _for,
@@ -870,7 +885,9 @@ def borrow_more(
             _collateral,
             _debt,
             _calldata,
-        ).collateral
+        )
+        assert cb.borrowed == 0  # dev: Not available
+        more_collateral = cb.collateral
 
     rate_mul: uint256 = self._add_collateral_borrow(
         _collateral + more_collateral, _debt, _for, False
@@ -909,6 +926,14 @@ def _repay_full(
     _cb: IController.CallbackData,
     _callbacker: address,
 ):
+    """
+    @notice Fully repay a loan and return all remaining collateral to the user
+    @param _for Address of the borrower whose loan is being repaid
+    @param _debt Total debt amount to repay
+    @param _xy Amounts of borrowed and collateral tokens withdrawn from the AMM
+    @param _cb Callback data (usually for selling collateral)
+    @param _callbacker Address of the callback contract, or empty if no callback
+    """
     if _callbacker == empty(address):
         _xy = extcall AMM.withdraw(_for, WAD)
 
@@ -949,6 +974,18 @@ def _repay_partial(
     _max_active_band: int256,
     _shrink: bool,
 ) -> uint256:
+    """
+    @notice Partially repay a loan and reposition the user in the AMM
+    @param _for Address of the borrower whose loan is being partially repaid
+    @param _debt Current total debt of the user before repayment
+    @param _wallet_d_debt Amount of borrowed tokens being repaid from the caller's wallet
+    @param _xy Amounts of borrowed and collateral tokens withdrawn from the AMM
+    @param _cb Callback data (usually for selling collateral)
+    @param _callbacker Address of the callback contract, or empty if no callback
+    @param _max_active_band Maximum allowed active band (slippage guard against griefing)
+    @param _shrink Whether to shrink the position range toward the active band
+    @return Amount of debt actually repaid
+    """
     # slippage-like check to prevent dos on repay (grief attack)
     active_band: int256 = staticcall AMM.active_band_with_skip()
     new_collateral: uint256 = _xy[1]
@@ -978,7 +1015,7 @@ def _repay_partial(
             assert _xy[0] == 0
         new_borrowed = 0
 
-        ns[0] = staticcall self._view.calculate_debt_n1(
+        ns[0] = self._calculate_debt_n1(
             new_collateral,
             new_debt,
             convert(unsafe_add(size, 1), uint256),
@@ -1078,7 +1115,7 @@ def repay(
     if _callbacker != empty(address):
         xy = extcall AMM.withdraw(_for, WAD)
         tkn.transfer_from(COLLATERAL_TOKEN, AMM.address, _callbacker, xy[1])
-        cb = self.execute_callback(
+        cb = self._execute_callback(
             _callbacker, CALLBACK_REPAY, _for, xy[0], xy[1], debt, _calldata
         )
 
@@ -1212,6 +1249,7 @@ def liquidate(
 ):
     """
     @notice Perform a bad liquidation (or self-liquidation) of user if health is not good
+    @param _user Address of the user to liquidate
     @param _min_x Minimal amount of borrowed asset to receive (to avoid liquidators being sandwiched)
     @param _frac Fraction to liquidate; 100% = 10**18
     @param _callbacker Address of the callback contract
@@ -1268,7 +1306,7 @@ def liquidate(
             # Move collateral to callbacker, call it and remove everything from it back in
             tkn.transfer_from(COLLATERAL_TOKEN, AMM.address, _callbacker, xy[1])
             # Callback
-            cb: IController.CallbackData = self.execute_callback(
+            cb: IController.CallbackData = self._execute_callback(
                 _callbacker,
                 CALLBACK_LIQUIDATE,
                 _user,
@@ -1357,6 +1395,9 @@ def health(_user: address, _full: bool = False) -> int256:
     """
     @notice Returns position health normalized to 1e18 for the user.
             Liquidation starts when < 0, however devaluation of collateral doesn't cause liquidation
+    @param _user Address of the user
+    @param _full If True, use the full health calculation including bad debt discounts
+    @return Health value normalized to 1e18
     """
     return self._health(
         _user, self._debt(_user)[0], _full, self.liquidation_discounts[_user]
@@ -1376,17 +1417,6 @@ def users_to_liquidate(
     @return Dynamic array with detailed info about positions of users
     """
     return staticcall self._view.users_to_liquidate(_from, _limit)
-
-
-@external
-@view
-@reentrant
-def amm_price() -> uint256:
-    """
-    @notice Current price from the AMM
-    @dev Marked as reentrant because AMM already has a nonreentrant decorator
-    """
-    return staticcall AMM.get_p()
 
 
 @external
@@ -1411,66 +1441,64 @@ def user_state(_user: address) -> uint256[4]:
     return staticcall self._view.user_state(_user)
 
 
-@external
-@reentrant
-def set_amm_fee(_fee: uint256):
-    """
-    @notice Set the AMM fee (factory admin only)
-    @dev Reentrant because AMM is nonreentrant
-    @param _fee The fee which should be no higher than MAX_AMM_FEE
-    """
-    self._check_admin()
-    assert _fee <= MAX_AMM_FEE and _fee >= MIN_AMM_FEE, "Fee"
-    extcall AMM.set_fee(_fee)
-
-
-@external
-def set_monetary_policy(_monetary_policy: IMonetaryPolicy):
-    """
-    @notice Set monetary policy contract
-    @param _monetary_policy Address of the monetary policy contract
-    """
-    self._check_admin()
-    self._monetary_policy = _monetary_policy
-    extcall _monetary_policy.rate_write()
-    log IController.SetMonetaryPolicy(monetary_policy=_monetary_policy)
-
-
 @internal
-def _set_borrowing_discounts(
-        _loan_discount: uint256, _liquidation_discount: uint256
+def _configure(
+    _loan_discount: uint256,
+    _liquidation_discount: uint256,
+    _monetary_policy: IMonetaryPolicy,
+    _view_blueprint: address,
+    _fee: uint256,
+    _price_oracle: IPriceOracle,
+    _liquidity_mining_callback: ILMCallback,
 ):
-    assert _liquidation_discount > 0 # dev: liquidation discount = 0
-    assert _loan_discount < WAD # dev: loan discount >= 100%
-    assert _loan_discount > _liquidation_discount # dev: loan discount <= liquidation discount
-    self.liquidation_discount = _liquidation_discount
-    self.loan_discount = _loan_discount
-    log IController.SetBorrowingDiscounts(
-        loan_discount=_loan_discount, liquidation_discount=_liquidation_discount
+    if _loan_discount != SKIP_CONFIG_UINT256 and _liquidation_discount != SKIP_CONFIG_UINT256:
+        self.loan_discount = _loan_discount
+        self.liquidation_discount = _liquidation_discount
+    if _monetary_policy.address != SKIP_CONFIG_ADDRESS:
+        self._monetary_policy = _monetary_policy
+    if _view_blueprint != SKIP_CONFIG_ADDRESS:
+        view: address = create_from_blueprint(
+            _view_blueprint,
+            self,
+            SQRT_BAND_RATIO,
+            LOGN_A_RATIO,
+            AMM,
+            A,
+            COLLATERAL_TOKEN,
+            COLLATERAL_PRECISION,
+            BORROWED_TOKEN,
+            BORROWED_PRECISION,
+        )
+        self._view = IView(view)
+    if _fee != SKIP_CONFIG_UINT256:
+        extcall AMM.set_fee(_fee)
+    if _price_oracle.address != SKIP_CONFIG_ADDRESS:
+        extcall AMM.set_price_oracle(_price_oracle)
+    if _liquidity_mining_callback.address != SKIP_CONFIG_ADDRESS:
+        extcall AMM.set_callback(_liquidity_mining_callback)
+
+
+@external
+def configure(
+    _loan_discount: uint256,
+    _liquidation_discount: uint256,
+    _monetary_policy: IMonetaryPolicy,
+    _view_blueprint: address,
+    _fee: uint256,
+    _price_oracle: IPriceOracle,
+    _liquidity_mining_callback: ILMCallback,
+):
+    assert msg.sender == CONFIGURATOR.address  # dev: Only configurator
+    self._configure(
+        _loan_discount,
+        _liquidation_discount,
+        _monetary_policy,
+        _view_blueprint,
+        _fee,
+        _price_oracle,
+        _liquidity_mining_callback,
     )
 
-
-@external
-def set_borrowing_discounts(
-    _loan_discount: uint256, _liquidation_discount: uint256
-):
-    """
-    @notice Set discounts at which we can borrow (defines max LTV) and where bad liquidation starts
-    @param _loan_discount Discount which defines LTV
-    @param _liquidation_discount Discount where bad liquidation starts
-    """
-    self._check_admin()
-    self._set_borrowing_discounts(_loan_discount, _liquidation_discount)
-
-
-@external
-def set_callback(_cb: ILMGauge):
-    """
-    @notice Set liquidity mining callback
-    """
-    self._check_admin()
-    extcall AMM.set_callback(_cb)
-    log IController.SetLMCallback(callback=_cb)
 
 
 @internal
@@ -1481,9 +1509,11 @@ def _admin_fees() -> uint256:
 
 @external
 @view
+@reentrant
 def admin_fees() -> uint256:
     """
     @notice Pending admin fees which can be claimed if the controller has enough balance
+    @return Amount of pending admin fees in borrowed token units
     """
     return self._admin_fees()
 
@@ -1492,6 +1522,7 @@ def admin_fees() -> uint256:
 def collect_fees() -> uint256:
     """
     @notice Collect the fees charged as interest.
+    @return Amount of fees collected and transferred to the fee receiver
     """
     rate_mul: uint256 = staticcall AMM.get_rate_mul()
     self._update_total_debt(0, rate_mul, False)

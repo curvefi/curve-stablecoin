@@ -33,7 +33,6 @@ def create_from_pool(
     _liquidation_discount: uint256,
     _monetary_policy: IMonetaryPolicy,
     _pool: address,
-    _name: String[64],
     _supply_limit: uint256 = max_value(uint256),
 ) -> address[3]:
     """
@@ -47,7 +46,6 @@ def create_from_pool(
     @param _monetary_policy Monetary policy contract for the market
     @param _pool Curve tricrypto-ng, twocrypto-ng or stableswap-ng pool which has non-manipulatable price_oracle().
                 Must contain both collateral_token and borrowed_token.
-    @param _name Human-readable market name
     @param _supply_limit Supply cap
     """
     # Find coins in the pool
@@ -88,7 +86,6 @@ def create_from_pool(
         _liquidation_discount,
         price_oracle,
         _monetary_policy,
-        _name,
         _supply_limit,
     )
 

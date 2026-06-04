@@ -119,7 +119,7 @@ def test_repay_full_from_wallet(
 
     # Withdrawn from AMM
     xy = amm.get_sum_xy(borrower)
-    assert amm.user_shares(borrower)[1][0] == 0
+    assert amm.read_user_ticks(borrower)[0] == 0
     assert xy[0] == 0
     assert xy[1] == 0
     assert controller.n_loans() == 0  # loan removed after full repayment
@@ -245,7 +245,7 @@ def test_repay_full_from_callback(
 
     # Withdrawn from AMM
     xy = amm.get_sum_xy(borrower)
-    assert amm.user_shares(borrower)[1][0] == 0
+    assert amm.read_user_ticks(borrower)[0] == 0
     assert xy[0] == 0
     assert xy[1] == 0
     assert controller.n_loans() == 0  # loan removed after full repayment
@@ -366,7 +366,7 @@ def test_repay_full_from_xy0(
 
     # Withdrawn from AMM
     xy_after = amm.get_sum_xy(borrower)
-    assert amm.user_shares(borrower)[1][0] == 0
+    assert amm.read_user_ticks(borrower)[0] == 0
     assert xy_after[0] == 0
     assert xy_after[1] == 0
     assert controller.n_loans() == 0  # loan removed after full repayment
@@ -495,7 +495,7 @@ def test_repay_full_from_wallet_and_callback(
 
     # Withdrawn from AMM
     xy = amm.get_sum_xy(borrower)
-    assert amm.user_shares(borrower)[1][0] == 0
+    assert amm.read_user_ticks(borrower)[0] == 0
     assert xy[0] == 0
     assert xy[1] == 0
     assert controller.n_loans() == 0  # loan removed after full repayment
@@ -619,7 +619,7 @@ def test_repay_full_from_xy0_and_wallet(
 
     # Withdrawn from AMM
     xy_after = amm.get_sum_xy(borrower)
-    assert amm.user_shares(borrower)[1][0] == 0
+    assert amm.read_user_ticks(borrower)[0] == 0
     assert xy_after[0] == 0
     assert xy_after[1] == 0
     assert controller.n_loans() == 0  # loan removed after full repayment
@@ -756,7 +756,7 @@ def test_repay_full_from_xy0_and_callback(
 
     # Withdrawn from AMM
     xy = amm.get_sum_xy(borrower)
-    assert amm.user_shares(borrower)[1][0] == 0
+    assert amm.read_user_ticks(borrower)[0] == 0
     assert xy[0] == 0
     assert xy[1] == 0
     assert controller.n_loans() == 0  # loan removed after full repayment
@@ -896,7 +896,7 @@ def test_repay_full_from_wallet_and_xy0_and_callback(
 
     # Withdrawn from AMM
     xy = amm.get_sum_xy(borrower)
-    assert amm.user_shares(borrower)[1][0] == 0
+    assert amm.read_user_ticks(borrower)[0] == 0
     assert xy[0] == 0
     assert xy[1] == 0
     assert controller.n_loans() == 0  # loan removed after full repayment

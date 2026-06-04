@@ -9,7 +9,7 @@ def test_default_behavior(factory, admin, controller):
     with boa.env.prank(admin):
         factory.set_custom_fee_receiver(controller.address, new_fee_receiver)
 
-    logs = filter_logs(factory, "CustomSetFeeReceiver")
+    logs = filter_logs(factory, "SetCustomFeeReceiver")
 
     assert factory.fee_receiver(controller.address) == new_fee_receiver
 
@@ -30,13 +30,13 @@ def test_revert_set_custom_fee_receiver_non_controller(factory, admin):
     new_fee_receiver = boa.env.generate_address("new_fee_receiver")
     non_controller = boa.env.generate_address("non_controller")
 
-    logs_before = filter_logs(factory, "CustomSetFeeReceiver")
+    logs_before = filter_logs(factory, "SetCustomFeeReceiver")
 
     with boa.reverts("not a controller"):
         with boa.env.prank(admin):
             factory.set_custom_fee_receiver(non_controller, new_fee_receiver)
 
-    logs_after = filter_logs(factory, "CustomSetFeeReceiver")
+    logs_after = filter_logs(factory, "SetCustomFeeReceiver")
     assert len(logs_after) == len(logs_before)
 
 

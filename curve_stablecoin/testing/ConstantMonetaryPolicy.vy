@@ -4,7 +4,7 @@ Although this monetary policy works, it's only intended to be used in tests
 """
 
 admin: public(address)
-rate: public(uint256)
+_rate: uint256
 
 
 @deploy
@@ -19,11 +19,17 @@ def set_admin(admin: address):
 
 
 @external
-def rate_write() -> uint256:
-    return self.rate
+@view
+def rate() -> uint256:
+    return self._rate
 
 
 @external
-def set_rate(rate: uint256):
+def rate_write() -> uint256:
+    return self._rate
+
+
+@external
+def set_rate(_rate: uint256):
     assert msg.sender == self.admin
-    self.rate = rate
+    self._rate = _rate

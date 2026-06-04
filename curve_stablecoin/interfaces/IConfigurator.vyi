@@ -1,0 +1,117 @@
+from curve_stablecoin.interfaces import IController
+from curve_stablecoin.interfaces import ILendController
+from curve_stablecoin.interfaces import IMonetaryPolicy
+from curve_stablecoin.interfaces import IPriceOracle
+from curve_stablecoin.interfaces import ILMCallback
+
+
+# Events
+
+
+event SetCustomAdmin:
+    controller: indexed(address)
+    admin: address
+
+
+event SetBorrowingDiscounts:
+    controller: indexed(address)
+    loan_discount: uint256
+    liquidation_discount: uint256
+
+
+event SetBorrowCap:
+    controller: indexed(address)
+    borrow_cap: uint256
+
+
+event SetAdminPercentage:
+    controller: indexed(address)
+    admin_percentage: uint256
+
+
+event SetMonetaryPolicy:
+    controller: indexed(address)
+    monetary_policy: address
+
+
+event SetView:
+    controller: indexed(address)
+    view: address
+
+
+event SetPriceOracle:
+    controller: indexed(address)
+    price_oracle: address
+
+
+event SetCallback:
+    controller: indexed(address)
+    callback: address
+
+
+event SetAmmFee:
+    controller: indexed(address)
+    fee: uint256
+
+
+event SetDefaultAdmin:
+    new_default_admin: address
+
+
+# Functions
+
+
+@external
+def set_custom_admin(_controller: IController, _admin: address):
+    ...
+
+
+@external
+def set_owner(_new_default_admin: address):
+    ...
+
+
+@external
+def set_borrowing_discounts(_controller: IController, _loan_discount: uint256, _liquidation_discount: uint256):
+    ...
+
+
+@external
+def set_monetary_policy(_controller: IController, _monetary_policy: IMonetaryPolicy):
+    ...
+
+
+@external
+def set_view(_controller: IController, _view_blueprint: address):
+    ...
+
+
+@external
+def set_borrow_cap(_controller: ILendController, _borrow_cap: uint256):
+    ...
+
+
+@external
+def set_admin_percentage(_controller: ILendController, _admin_percentage: uint256):
+    ...
+
+
+@external
+def set_price_oracle(_controller: IController, _price_oracle: IPriceOracle, _max_deviation: uint256):
+    ...
+
+
+@external
+def set_callback(_controller: IController, _cb: ILMCallback):
+    ...
+
+
+@external
+def set_amm_fee(_controller: IController, _fee: uint256):
+    ...
+
+
+@view
+@external
+def default_admin() -> address:
+    ...

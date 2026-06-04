@@ -47,6 +47,7 @@ def borrower_with_existing_loan(controller, collateral_token, amounts):
 
 def _test_add_collateral_default_behavior(
     controller,
+    configurator,
     amm,
     borrowed_token,
     collateral_token,
@@ -78,8 +79,8 @@ def _test_add_collateral_default_behavior(
 
     old_liquidation_discount = controller.liquidation_discount()
     new_liquidation_discount = old_liquidation_discount // 2
-    controller.set_borrowing_discounts(
-        controller.loan_discount(), new_liquidation_discount, sender=admin
+    configurator.set_borrowing_discounts(
+        controller, controller.loan_discount(), new_liquidation_discount, sender=admin
     )
 
     # ================= Capture initial state =================
@@ -196,6 +197,7 @@ def _test_add_collateral_default_behavior(
 
 def test_default_behavior_self_caller(
     controller,
+    configurator,
     amm,
     borrowed_token,
     collateral_token,
@@ -216,6 +218,7 @@ def test_default_behavior_self_caller(
         new_liquidation_discount,
     ) = _test_add_collateral_default_behavior(
         controller,
+        configurator,
         amm,
         borrowed_token,
         collateral_token,
@@ -257,6 +260,7 @@ def test_default_behavior_different_caller(
 
 def test_default_behavior_approved_caller(
     controller,
+    configurator,
     amm,
     borrowed_token,
     collateral_token,
@@ -280,6 +284,7 @@ def test_default_behavior_approved_caller(
         new_liquidation_discount,
     ) = _test_add_collateral_default_behavior(
         controller,
+        configurator,
         amm,
         borrowed_token,
         collateral_token,
@@ -328,15 +333,50 @@ def test_add_collateral_no_loan_exists(
 
 def test_add_collateral_zero_amount(
     controller,
+    configurator,
     collateral_token,
     borrower_with_existing_loan,
+    admin,
 ):
     """
     Test that adding zero collateral does nothing (early return).
+
+    Also verifies that add_collateral_health_preview(0) matches health()
+    when the global liquidation_discount has changed since the user's last
+    state-changing action. add_collateral(0) is a no-op, so the preview
+    must equal health() which reads the stored per-user discount — not the
+    current global one used unconditionally by the preview.
     """
     borrower = borrower_with_existing_loan
     user_state_before = controller.user_state(borrower)
     initial_collateral = user_state_before[0]
+
+    # ================= Update global liquidation discount =================
+
+    stored_discount = controller.liquidation_discounts(borrower)
+    new_global_discount = stored_discount // 2
+    configurator.set_borrowing_discounts(
+        controller, controller.loan_discount(), new_global_discount, sender=admin
+    )
+
+    # Per-user discount is still the old value; global has changed.
+    assert controller.liquidation_discounts(borrower) == stored_discount
+    assert controller.liquidation_discount() == new_global_discount
+    assert stored_discount != new_global_discount
+
+    # ================= Compare preview vs actual health =================
+
+    # add_collateral(0) is a no-op: the true post-call health equals health()
+    actual_health = controller.health(borrower, False)
+    actual_health_full = controller.health(borrower, True)
+
+    preview_health = controller.add_collateral_health_preview(0, borrower, False)
+    preview_health_full = controller.add_collateral_health_preview(0, borrower, True)
+
+    assert preview_health == pytest.approx(actual_health, rel=1e-10)
+    assert preview_health_full == pytest.approx(actual_health_full, rel=1e-10)
+
+    # ================= Send add_collateral TX =================
 
     # Add zero collateral - should return early without error
     controller.add_collateral(0, sender=borrower)
@@ -344,6 +384,7 @@ def test_add_collateral_zero_amount(
     # State should be unchanged
     user_state_after = controller.user_state(borrower)
     assert user_state_after[0] == initial_collateral
+    assert controller.liquidation_discounts(borrower) == stored_discount
 
 
 def test_add_collateral_underwater(

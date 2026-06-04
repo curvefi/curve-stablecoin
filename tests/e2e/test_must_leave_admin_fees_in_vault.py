@@ -58,6 +58,7 @@ def test_min_total_assets_large_uncollected_fees_pump_pps(
     admin,
     vault,
     controller,
+    configurator,
     factory,
     amm,
     monetary_policy,
@@ -73,7 +74,7 @@ def test_min_total_assets_large_uncollected_fees_pump_pps(
 
     # 10 % admin fee: 90 % of interest goes to lenders (PPS pumps hard),
     # while 10 % crystallises as a large pile of uncollected admin_fees.
-    controller.set_admin_percentage(WAD // 10, sender=admin)
+    configurator.set_admin_percentage(controller, WAD // 10, sender=admin)
 
     # --- Lender deposits ---
     lender = boa.env.generate_address("lender")

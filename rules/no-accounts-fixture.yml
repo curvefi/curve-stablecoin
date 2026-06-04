@@ -1,0 +1,22 @@
+id: no-accounts-fixture
+language: Python
+ignores:
+  - tests/conftest.py
+rule:
+  any:
+    - all:
+        - regex: ^(accounts|alice|bob|charlie)$
+        - kind: identifier
+        - inside:
+            kind: parameters
+            stopBy: end
+    - any:
+        - pattern: alice = $VALUE
+        - pattern: bob = $VALUE
+        - pattern: charlie = $VALUE
+    - any:
+        - pattern: boa.env.generate_address("alice")
+        - pattern: boa.env.generate_address("bob")
+        - pattern: boa.env.generate_address("charlie")
+message: Do not use deprecated address names like `accounts`, `alice`, `bob`, or `charlie` as fixtures or inline addresses. Prefer inline role-named addresses like `depositor`, `admin`, `victim`, or `attacker`. See the style document `STYLE.md` for more details.
+severity: error

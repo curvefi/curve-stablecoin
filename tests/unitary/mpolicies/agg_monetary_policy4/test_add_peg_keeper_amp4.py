@@ -37,11 +37,13 @@ def test_default_behavior(admin, price_oracle, mock_factory):
     assert len(logs) == 1
     assert logs[0].peg_keeper == new_pk.address
 
+    assert mp.n_peg_keepers() == 1
     assert mp.peg_keepers(0) == new_pk.address
 
 
 def test_default_behavior_appends_to_array(mp, admin, peg_keepers):
     """New peg keeper is appended after existing ones."""
+    n_before = mp.n_peg_keepers()
     new_pk = MOCK_PEG_KEEPER_DEPLOYER.deploy(
         10**18, boa.env.generate_address("stablecoin")
     )
@@ -53,6 +55,7 @@ def test_default_behavior_appends_to_array(mp, admin, peg_keepers):
     for i, pk in enumerate(peg_keepers):
         assert mp.peg_keepers(i) == pk.address
     # New one appended
+    assert mp.n_peg_keepers() == n_before + 1
     assert mp.peg_keepers(len(peg_keepers)) == new_pk.address
 
 

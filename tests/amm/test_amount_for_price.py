@@ -3,7 +3,6 @@ import pytest
 from hypothesis import given, settings
 from hypothesis import strategies as st
 from tests.utils import mint_for_testing
-from tests.utils.constants import DEAD_SHARES, MIN_SHARES_ALLOWED
 
 
 @given(
@@ -18,7 +17,6 @@ from tests.utils.constants import DEAD_SHARES, MIN_SHARES_ALLOWED
 def test_amount_for_price(
     price_oracle,
     amm,
-    accounts,
     collateral_token,
     borrowed_token,
     admin,
@@ -30,12 +28,16 @@ def test_amount_for_price(
     init_trade_frac,
     p_frac,
 ):
-    deposit_amount = max(deposit_amount, (dn + 1) * MIN_SHARES_ALLOWED // DEAD_SHARES)
     deposit_amount = deposit_amount // 10 ** (18 - collateral_token.decimals())
     deposit_amount = max(deposit_amount, dn + 1)
-    user = accounts[0]
+
+    user = boa.env.generate_address()
+    with boa.env.prank(user):
+        collateral_token.approve(amm.address, 2**256 - 1)
+        borrowed_token.approve(amm.address, 2**256 - 1)
+
     with boa.env.prank(admin):
-        amm.set_fee(0)
+        amm.eval(f"self.fee = 0")
         price_oracle.set_price(oracle_price)
     boa.env.time_travel(3600)
     n2 = n1 + dn
@@ -117,7 +119,6 @@ def test_amount_for_price(
 def test_amount_for_price_ticks_too_far(
     price_oracle,
     amm,
-    accounts,
     collateral_token,
     borrowed_token,
     admin,
@@ -127,7 +128,6 @@ def test_amount_for_price_ticks_too_far(
         test_amount_for_price.hypothesis.inner_test(
             price_oracle,
             amm,
-            accounts,
             collateral_token,
             borrowed_token,
             admin,

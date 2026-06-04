@@ -36,17 +36,17 @@ def borrow_cap():
 def test_vuln(
     vault,
     controller,
+    configurator,
     amm,
     admin,
     borrowed_token,
     price_oracle,
     collateral_token,
-    accounts,
     victim_gap,
     victim_bins,
 ):
-    victim = accounts[1]
-    hacker = accounts[2]
+    victim = boa.env.generate_address("victim")
+    hacker = boa.env.generate_address("attacker")
 
     # victim loan
     victim_collateral_lent = 10_000 * 10 ** collateral_token.decimals()
@@ -59,7 +59,7 @@ def test_vuln(
 
     # Configure dynamic fee for this scenario
     with boa.env.prank(admin):
-        controller.set_amm_fee(int(0.00001 * 1e18))
+        configurator.set_amm_fee(controller, int(0.00001 * 1e18))
 
     # hacker
     hacker_crvusd_reserves = victim_collateral_lent * p // 10**18
@@ -124,17 +124,17 @@ def test_vuln(
 def test_vuln_lite(
     vault,
     controller,
+    configurator,
     amm,
     admin,
     borrowed_token,
     price_oracle,
     collateral_token,
-    accounts,
 ):
     victim_gap = 0
     victim_bins = 4
-    victim = accounts[1]
-    hacker = accounts[2]
+    victim = boa.env.generate_address("victim")
+    hacker = boa.env.generate_address("attacker")
 
     # victim loan
     victim_collateral_lent = 10_000 * 10 ** collateral_token.decimals()
@@ -147,7 +147,7 @@ def test_vuln_lite(
 
     # Configure dynamic fee for this scenario
     with boa.env.prank(admin):
-        controller.set_amm_fee(int(0.00001 * 1e18))
+        configurator.set_amm_fee(controller, int(0.00001 * 1e18))
 
     # hacker
     hacker_crvusd_reserves = victim_collateral_lent * p // 10**18

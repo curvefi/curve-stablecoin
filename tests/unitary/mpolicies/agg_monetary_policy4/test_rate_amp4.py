@@ -2,7 +2,8 @@
 
 import boa
 
-from tests.utils.deployers import MOCK_MARKET_DEPLOYER
+from tests.utils.deployers import MOCK_FACTORY_DEPLOYER, MOCK_MARKET_DEPLOYER
+from tests.utils.constants import ZERO_ADDRESS
 
 MAX_RATE = 43959106799
 
@@ -83,3 +84,42 @@ def test_zero_ceiling_pushes_rate_to_max(
 
     assert state["rate_before_zero"] == MAX_RATE
     assert state["rate_after_zero"] == MAX_RATE
+
+
+def test_rate_before_cache_refresh(
+    admin,
+    price_oracle,
+    peg_keepers,
+    deployer,
+    default_rate,
+    default_sigma,
+    default_target_debt_fraction,
+    default_extra_const,
+    default_ema_time,
+):
+    """rate() includes controllers added after the last rate_write() cache refresh."""
+    factory = MOCK_FACTORY_DEPLOYER.deploy()
+    pk_array = [pk.address for pk in peg_keepers] + [ZERO_ADDRESS] * (
+        5 - len(peg_keepers)
+    )
+
+    with boa.env.prank(admin):
+        mp = deployer.deploy(
+            admin,
+            price_oracle.address,
+            factory.address,
+            pk_array,
+            default_rate,
+            default_sigma,
+            default_target_debt_fraction,
+            default_extra_const,
+            default_ema_time,
+        )
+        market = MOCK_MARKET_DEPLOYER.deploy()
+        factory.add_market(market.address, 10**24)
+        factory.set_debt(market.address, 9 * 10**23)
+
+        view_rate = mp.rate(market.address)
+        write_rate = mp.rate_write(market.address)
+
+    assert view_rate == write_rate

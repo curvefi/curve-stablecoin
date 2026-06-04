@@ -12,7 +12,6 @@ from hypothesis.stateful import (
 )
 
 from tests.utils.deployers import AMM_DEPLOYER, MINT_CONTROLLER_DEPLOYER
-from tests.utils.constants import DEAD_SHARES, MIN_SHARES_ALLOWED
 
 # Variables and methods to check
 # * A
@@ -114,7 +113,6 @@ class BigFuzz(RuleBasedStateMachine):
             if (
                 debt > max_debt
                 or y * self.collateral_mul // n <= 100
-                or y * self.collateral_mul // n * DEAD_SHARES < MIN_SHARES_ALLOWED
                 or debt == 0
                 or self.market_controller.loan_exists(user)
             ):

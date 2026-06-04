@@ -29,15 +29,6 @@ interface ControllerFactory:
     def n_collaterals() -> uint256: view
     def controllers(i: uint256) -> address: view
 
-interface Controller:
-    def total_debt() -> uint256: view
-
-
-struct TotalDebts:
-    total_debt: uint256
-    controller_debt: uint256
-    ceiling: uint256
-
 
 event SetAdmin:
     admin: address
@@ -72,6 +63,7 @@ target_debt_fraction: public(uint256)
 extra_const: public(uint256)
 
 peg_keepers: public(PegKeeper[1001])
+n_peg_keepers: public(uint256)
 PRICE_ORACLE: public(immutable(PriceOracle))
 CONTROLLER_FACTORY: public(immutable(ControllerFactory))
 
@@ -112,13 +104,21 @@ def __init__(admin: address,
              target_debt_fraction: uint256,
              extra_const: uint256,
              _debt_ratio_ema_time: uint256):
+    assert admin != empty(address)
+    assert price_oracle.address != empty(address)
+    assert controller_factory.address != empty(address)
     self.admin = admin
     PRICE_ORACLE = price_oracle
     CONTROLLER_FACTORY = controller_factory
+    n_pks: uint256 = 0
     for i: uint256 in range(5):
         if peg_keepers[i].address == empty(address):
             break
+        for j: uint256 in range(i, bound=5):
+            assert peg_keepers[j] != peg_keepers[i]  # dev: duplicate peg keeper
         self.peg_keepers[i] = peg_keepers[i]
+        n_pks += 1
+    self.n_peg_keepers = n_pks
 
     assert sigma >= MIN_SIGMA  # dev: sigma too low
     assert sigma <= MAX_SIGMA  # dev: sigma too high
@@ -136,13 +136,22 @@ def __init__(admin: address,
 
 @external
 def set_admin(admin: address):
+    """
+    @notice Set the admin of the monetary policy
+    @param admin New admin address
+    """
     assert msg.sender == self.admin  # dev: only admin
+    assert admin != empty(address)
     self.admin = admin
     log SetAdmin(admin=admin)
 
 
 @external
 def add_peg_keeper(pk: PegKeeper):
+    """
+    @notice Add a peg keeper whose debt is tracked to adjust the borrow rate
+    @param pk Address of the peg keeper to add
+    """
     assert msg.sender == self.admin  # dev: only admin
     assert pk.address != empty(address)  # dev: peg keeper is zero address
     for i: uint256 in range(1000):
@@ -150,25 +159,30 @@ def add_peg_keeper(pk: PegKeeper):
         assert _pk != pk, "Already added"
         if _pk.address == empty(address):
             self.peg_keepers[i] = pk
+            self.n_peg_keepers = i + 1
             log AddPegKeeper(peg_keeper=pk.address)
             break
 
 
 @external
 def remove_peg_keeper(pk: PegKeeper):
+    """
+    @notice Remove a peg keeper from the list tracked by this policy
+    @param pk Address of the peg keeper to remove
+    """
     assert msg.sender == self.admin  # dev: only admin
-    replaced_peg_keeper: uint256 = 10000
+    assert pk.address != empty(address)  # dev: peg keeper is zero address
     for i: uint256 in range(1001):  # 1001th element is always 0x0
         _pk: PegKeeper = self.peg_keepers[i]
         if _pk == pk:
-            replaced_peg_keeper = i
+            n: uint256 = self.n_peg_keepers
+            if i < n - 1:
+                self.peg_keepers[i] = self.peg_keepers[n - 1]
+            self.peg_keepers[n - 1] = PegKeeper(empty(address))
+            self.n_peg_keepers = n - 1
             log RemovePegKeeper(peg_keeper=pk.address)
-        if _pk.address == empty(address):
-            if replaced_peg_keeper < i:
-                if replaced_peg_keeper < i - 1:
-                    self.peg_keepers[replaced_peg_keeper] = self.peg_keepers[i - 1]
-                self.peg_keepers[i - 1] = PegKeeper(empty(address))
-            break
+            return
+    raise  # dev: peg keeper not found
 
 
 @internal
@@ -188,15 +202,18 @@ def exp(power: int256) -> uint256:
 
 @internal
 @view
-def get_total_debt(_for: address) -> (uint256, uint256):
-    n_controllers: uint256 = self.n_controllers
+def get_total_debt(_for: address, ro: bool) -> (uint256, uint256):
+    n_cached_controllers: uint256 = self.n_controllers
+    n_controllers: uint256 = n_cached_controllers
+    if ro:
+        n_controllers = staticcall CONTROLLER_FACTORY.n_collaterals()
     total_debt: uint256 = 0
     debt_for: uint256 = 0
 
-    for i: uint256 in range(MAX_CONTROLLERS):
-        if i >= n_controllers:
-            break
+    for i: uint256 in range(n_controllers, bound=MAX_CONTROLLERS):
         controller: address = self.controllers[i]
+        if i >= n_cached_controllers:
+            controller = staticcall CONTROLLER_FACTORY.controllers(i)
 
         success: bool = False
         res: Bytes[32] = empty(Bytes[32])
@@ -257,7 +274,7 @@ def read_debt(_for: address, ro: bool) -> (uint256, uint256):
     fresh_for: uint256 = 0
 
     if ro:
-        fresh_total, fresh_for = self.get_total_debt(_for)
+        fresh_total, fresh_for = self.get_total_debt(_for, ro)
         if debt_total > 0:
             debt_total = min(debt_total, fresh_total)
         else:
@@ -269,7 +286,7 @@ def read_debt(_for: address, ro: bool) -> (uint256, uint256):
 
     else:
         if debt_total == 0 or debt_for == 0:
-            fresh_total, fresh_for = self.get_total_debt(_for)
+            fresh_total, fresh_for = self.get_total_debt(_for, ro)
             if debt_total == 0:
                 debt_total = fresh_total
             if debt_for == 0:
@@ -332,6 +349,11 @@ def calculate_rate(_for: address, _price: uint256, ro: bool) -> (uint256, uint25
 @view
 @external
 def rate(_for: address = msg.sender) -> uint256:
+    """
+    @notice Get the current borrow rate for a controller (read-only, does not update state)
+    @param _for Address of the controller to calculate the rate for
+    @return Current borrow rate per second scaled by 1e18
+    """
     rate: uint256 = 0
     _: uint256 = 0
     rate, _ = self.calculate_rate(_for, staticcall PRICE_ORACLE.price(), True)
@@ -340,6 +362,11 @@ def rate(_for: address = msg.sender) -> uint256:
 
 @external
 def rate_write(_for: address = msg.sender) -> uint256:
+    """
+    @notice Get the current borrow rate for a controller and update the debt candles and EMA
+    @param _for Address of the controller to calculate the rate for
+    @return Current borrow rate per second scaled by 1e18
+    """
     assert _for != TOTAL_DEBT_KEY  # dev: invalid controller
 
     # Update controller list
@@ -356,7 +383,7 @@ def rate_write(_for: address = msg.sender) -> uint256:
     # Update candles
     total_debt: uint256 = 0
     debt_for: uint256 = 0
-    total_debt, debt_for = self.get_total_debt(_for)
+    total_debt, debt_for = self.get_total_debt(_for, False)
     self.save_candle(TOTAL_DEBT_KEY, total_debt)
     self.save_candle(_for, debt_for)
 
@@ -369,6 +396,10 @@ def rate_write(_for: address = msg.sender) -> uint256:
 
 @external
 def set_rate(rate: uint256):
+    """
+    @notice Set the base borrow rate
+    @param rate New base rate per second scaled by 1e18
+    """
     assert msg.sender == self.admin  # dev: only admin
     assert rate <= MAX_RATE  # dev: rate too high
     self.rate0 = rate
@@ -377,6 +408,10 @@ def set_rate(rate: uint256):
 
 @external
 def set_sigma(sigma: int256):
+    """
+    @notice Set the sigma parameter controlling rate sensitivity to price deviation
+    @param sigma New sigma value scaled by 1e18; larger values make the rate less sensitive
+    """
     assert msg.sender == self.admin  # dev: only admin
     assert sigma >= MIN_SIGMA  # dev: sigma too low
     assert sigma <= MAX_SIGMA  # dev: sigma too high
@@ -387,6 +422,10 @@ def set_sigma(sigma: int256):
 
 @external
 def set_target_debt_fraction(target_debt_fraction: uint256):
+    """
+    @notice Set the target fraction of total debt held by peg keepers
+    @param target_debt_fraction New target fraction scaled by 1e18 (e.g. 1e17 == 10%)
+    """
     assert msg.sender == self.admin  # dev: only admin
     assert target_debt_fraction <= MAX_TARGET_DEBT_FRACTION  # dev: target debt fraction too high
     assert target_debt_fraction > 0  # dev: target debt fraction is zero
@@ -397,6 +436,10 @@ def set_target_debt_fraction(target_debt_fraction: uint256):
 
 @external
 def set_extra_const(extra_const: uint256):
+    """
+    @notice Set the constant rate added on top of the variable component
+    @param extra_const Additional rate per second scaled by 1e18, providing a rate floor
+    """
     assert msg.sender == self.admin  # dev: only admin
     assert extra_const <= MAX_EXTRA_CONST  # dev: extra const too high
 
@@ -406,12 +449,21 @@ def set_extra_const(extra_const: uint256):
 
 @external
 def set_debt_ratio_ema_time(_debt_ratio_ema_time: uint256):
+    """
+    @notice Set the EMA window for smoothing the peg keeper debt ratio
+    @param _debt_ratio_ema_time New EMA window duration in seconds
+    """
     assert msg.sender == self.admin  # dev: only admin
 
     ema.set_ema_time(DEBT_RATIO_EMA_ID, _debt_ratio_ema_time)
     log SetDebtRatioEmaTime(debt_ratio_ema_time=_debt_ratio_ema_time)
 
+
 @external
 @view
 def debt_ratio_ema_time() -> uint256:
+    """
+    @notice EMA window used to smooth the peg keeper debt ratio
+    @return Current EMA window duration in seconds
+    """
     return ema._emas[DEBT_RATIO_EMA_ID].ema_time

@@ -1,7 +1,8 @@
 from curve_std.interfaces import IERC20
-from curve_stablecoin.interfaces import ILMGauge
+from curve_stablecoin.interfaces import ILMCallback
 from curve_stablecoin.interfaces import IAMM
 from curve_stablecoin.interfaces import IMonetaryPolicy
+from curve_stablecoin.interfaces import IPriceOracle
 from curve_stablecoin.interfaces import IFactory
 from curve_stablecoin import constants as c
 
@@ -47,19 +48,6 @@ event Borrow:
     loan_increase: uint256
 
 
-event SetLMCallback:
-    callback: ILMGauge
-
-
-event SetBorrowingDiscounts:
-    loan_discount: uint256
-    liquidation_discount: uint256
-
-
-event SetMonetaryPolicy:
-    monetary_policy: IMonetaryPolicy
-
-
 event Approval:
     owner: indexed(address)
     spender: indexed(address)
@@ -75,8 +63,7 @@ event CollectFees:
     amount: uint256
 
 
-event SetView:
-    view: address
+
 
 
 # Structs
@@ -130,27 +117,20 @@ def borrow_more(collateral: uint256, debt: uint256, _for: address, callbacker: a
 
 
 @external
-def set_callback(cb: ILMGauge):
-    ...
-
-
-@external
-def set_borrowing_discounts(loan_discount: uint256, liquidation_discount: uint256):
-    ...
-
-
-@external
-def set_monetary_policy(monetary_policy: IMonetaryPolicy):
+def configure(
+    loan_discount: uint256,
+    liquidation_discount: uint256,
+    monetary_policy: IMonetaryPolicy,
+    view: address,
+    fee: uint256,
+    price_oracle: IPriceOracle,
+    liquidity_mining_callback: ILMCallback,
+):
     ...
 
 
 @external
 def create_loan(collateral: uint256, debt: uint256, N: uint256, _for: address, callbacker: address, calldata: Bytes[CALLDATA_MAX_SIZE]):
-    ...
-
-
-@external
-def set_amm_fee(fee: uint256):
     ...
 
 
@@ -253,12 +233,6 @@ def calculate_debt_n1(collateral: uint256, debt: uint256, N: uint256, user: addr
 @view
 @external
 def user_prices(user: address) -> uint256[2]:
-    ...
-
-
-@view
-@external
-def amm_price() -> uint256:
     ...
 
 
@@ -391,10 +365,5 @@ def version() -> String[1]:
 
 @view
 @external
-def view_impl() -> address:
-    ...
-
-
-@external
-def set_view(view_impl: address):
+def view() -> address:
     ...

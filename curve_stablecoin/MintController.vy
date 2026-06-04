@@ -32,6 +32,15 @@ def __init__(
     _liquidation_discount: uint256,
     _amm: core.IAMM,
 ):
+    """
+    @notice Mint Controller constructor
+    @param _collateral_token Token used as collateral
+    @param _monetary_policy Address of the monetary policy contract
+    @param _loan_discount Discount of the maximum loan size compared to get_x_down() value
+    @param _liquidation_discount Discount of the maximum loan size compared to
+           get_x_down() for "bad liquidation" purposes
+    @param _amm AMM address (already deployed from blueprint)
+    """
     core.__init__(
         _collateral_token,
         staticcall core.IFactory(msg.sender).stablecoin(),
@@ -40,4 +49,5 @@ def __init__(
         _liquidation_discount,
         _amm,
         empty(address),  # to replace at deployment with view blueprint
+        core.IConfigurator(empty(address)),  # to replace at deployment with configurator
     )

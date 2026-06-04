@@ -22,7 +22,7 @@ event SetFeeReceiver:
     fee_receiver: address
 
 
-event CustomSetFeeReceiver:
+event SetCustomFeeReceiver:
     controller: indexed(address)
     fee_receiver: address
 
@@ -74,7 +74,6 @@ def create(
     _liquidation_discount: uint256,
     _price_oracle: IPriceOracle,
     _monetary_policy: IMonetaryPolicy,
-    _name: String[64],
     _supply_limit: uint256,
 ) -> address[3]:
     ...

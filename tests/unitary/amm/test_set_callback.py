@@ -1,0 +1,14 @@
+import boa
+
+
+def test_set_callback(amm, controller):
+    dummy_callback = boa.env.generate_address("dummy_callback")
+    with boa.env.prank(controller.address):
+        amm.set_callback(dummy_callback)
+    assert amm.liquidity_mining_callback() == dummy_callback
+
+
+def test_set_callback_non_admin_reverts(amm):
+    dummy_callback = boa.env.generate_address("dummy_callback")
+    with boa.reverts(dev="admin only"):
+        amm.set_callback(dummy_callback)
