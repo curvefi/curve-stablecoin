@@ -25,6 +25,7 @@ def test_set_borrow_cap_emits_set_borrow_cap(
 
     log = single_configurator_event(configurator, "SetBorrowCap")
 
+    assert log.controller == controller.address
     assert log.borrow_cap == borrow_cap
 
 

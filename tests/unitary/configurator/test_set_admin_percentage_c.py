@@ -27,6 +27,7 @@ def test_set_admin_percentage_emits_set_admin_percentage(
 
     log = single_configurator_event(configurator, "SetAdminPercentage")
 
+    assert log.controller == controller.address
     assert log.admin_percentage == admin_percentage
 
 

@@ -12,12 +12,14 @@
 
 from curve_stablecoin.interfaces import IAMM
 from curve_stablecoin.interfaces import IController
+from curve_stablecoin.interfaces import IControllerView
 from curve_std.interfaces import IERC20
-
 from curve_stablecoin import controller as core
 from curve_stablecoin import constants as c
 from snekmate.utils import math
 from curve_std import crv_math
+
+implements: IControllerView
 
 
 # https://github.com/vyperlang/vyper/issues/4723
@@ -139,22 +141,6 @@ def _calc_full_health(_collateral: uint256, _debt: uint256, _N: uint256, _n1: in
 
 @external
 @view
-def calculate_debt_n1(
-    _collateral: uint256,
-    _debt: uint256,
-    _N: uint256,
-    _user: address = empty(address),
-) -> int256:
-    """
-    @notice Natspec for this function is available in its controller contract
-    """
-    assert _N > MIN_TICKS_UINT - 1, "Need more ticks"
-    assert _N < MAX_TICKS_UINT + 1, "Need less ticks"
-    return staticcall CONTROLLER.calculate_debt_n1(_collateral, _debt, _N, _user)
-
-
-@external
-@view
 def create_loan_health_preview(
     _collateral: uint256,
     _debt: uint256,
@@ -166,8 +152,6 @@ def create_loan_health_preview(
     @notice Natspec for this function is available in its controller contract
     """
     assert _debt > 0, "debt==0"
-    assert _N > MIN_TICKS_UINT - 1, "Need more ticks"
-    assert _N < MAX_TICKS_UINT + 1, "Need less ticks"
     n1: int256 = staticcall CONTROLLER.calculate_debt_n1(_collateral, _debt, _N, _for)
     ld: uint256 = self._liquidation_discount()
 
@@ -217,6 +201,8 @@ def add_collateral_health_preview(
     """
     @notice Natspec for this function is available in its controller contract
     """
+    if _collateral == 0:
+        return staticcall CONTROLLER.health(_for, _full)
     return self._add_collateral_borrow_health_preview(_collateral, 0, _for, _full, False)
 
 
@@ -230,6 +216,8 @@ def remove_collateral_health_preview(
     """
     @notice Natspec for this function is available in its controller contract
     """
+    if _collateral == 0:
+        return staticcall CONTROLLER.health(_for, _full)
     return self._add_collateral_borrow_health_preview(
         _collateral, 0, _for, _full, True
     )
@@ -246,6 +234,8 @@ def borrow_more_health_preview(
     """
     @notice Natspec for this function is available in its controller contract
     """
+    if _debt == 0:
+        return staticcall CONTROLLER.health(_for, _full)
     return self._add_collateral_borrow_health_preview(
         _collateral, _debt, _for, _full, False
     )
@@ -380,6 +370,8 @@ def users_with_health(
                     user=user, x=xy[0], y=xy[1], debt=debt, health=h
                 )
             )
+            if len(out) == 1000:
+                break
         ix += 1
     return out
 

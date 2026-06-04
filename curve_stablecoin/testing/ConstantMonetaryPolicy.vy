@@ -20,12 +20,12 @@ def set_admin(admin: address):
 
 @external
 @view
-def rate(_for: address = msg.sender) -> uint256:
+def rate() -> uint256:
     return self._rate
 
 
 @external
-def rate_write(_for: address = msg.sender) -> uint256:
+def rate_write() -> uint256:
     return self._rate
 
 

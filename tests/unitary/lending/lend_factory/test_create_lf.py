@@ -1,6 +1,6 @@
 import boa
 
-from tests.utils.constants import MAX_A, MAX_FEE, MAX_UINT256, MIN_A, MIN_FEE
+from tests.utils.constants import MAX_A, MAX_UINT256, MIN_A, MIN_AMM_FEE, WAD
 from tests.utils.deployers import AMM_DEPLOYER, DUMMY_PRICE_ORACLE_DEPLOYER
 from tests.utils.deployers import LEND_CONTROLLER_DEPLOYER, VAULT_DEPLOYER
 
@@ -198,28 +198,30 @@ def test_revert_create_invalid_fee(
         lending_monetary_policy, borrowed_token, min_borrow_rate, max_borrow_rate
     )
 
-    with boa.reverts("Fee too low"):
+    max_amm_fee = min(WAD * 4 // amm_A, 10**17)
+
+    with boa.reverts():
         _create_market(
             factory,
             admin,
             borrowed_token,
             collateral_token,
             amm_A,
-            MIN_FEE - 1,
+            MIN_AMM_FEE - 1,
             loan_discount,
             liquidation_discount,
             price_oracle,
             monetary_policy,
         )
 
-    with boa.reverts("Fee too high"):
+    with boa.reverts():
         _create_market(
             factory,
             admin,
             borrowed_token,
             collateral_token,
             amm_A,
-            MAX_FEE + 1,
+            max_amm_fee + 1,
             loan_discount,
             liquidation_discount,
             price_oracle,

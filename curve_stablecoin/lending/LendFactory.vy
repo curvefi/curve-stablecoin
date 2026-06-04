@@ -45,8 +45,6 @@ exports: (
 
 MIN_A: public(constant(uint256)) = 2
 MAX_A: public(constant(uint256)) = 10000
-MIN_FEE: constant(uint256) = 10**6  # 1e-12, still needs to be above 0
-MAX_FEE: constant(uint256) = 10**17  # 10%
 WAD: constant(uint256) = c.WAD
 AMM_BLUEPRINT_ID: constant(String[4]) = "AMM"
 CONTROLLER_BLUEPRINT_ID: constant(String[4]) = "CTR"
@@ -80,6 +78,7 @@ def __init__(
     @param _controller_blueprint Address of Controller blueprint
     @param _vault_blueprint Address of Vault blueprint
     @param _controller_view_blueprint Address of ControllerView blueprint
+    @param _configurator Address of the configurator contract
     @param _admin Admin address (DAO)
     @param _fee_receiver Receiver of interest and admin fees
     """
@@ -133,18 +132,18 @@ def create(
     @param _borrowed_token Token which is being borrowed
     @param _collateral_token Token used for collateral
     @param _A Amplification coefficient: band size is ~1//A
-    @param _fee Fee for swaps in AMM (for ETH markets found to be 0.6%)
+    @param _fee Fee for swaps in AMM (for ETH markets found to be 0.6%).
+                Bounds are enforced by the AMM: MIN_FEE <= _fee <= min(WAD * MIN_TICKS / _A, 10%)
     @param _loan_discount Maximum discount. LTV = sqrt(((A - 1) // A) ** 4) - loan_discount
     @param _liquidation_discount Liquidation discount. LT = sqrt(((A - 1) // A) ** 4) - liquidation_discount
     @param _price_oracle Custom price oracle contract
     @param _monetary_policy Monetary policy contract to set the borrow rate
     @param _supply_limit Supply cap
+    @return Addresses of the deployed [vault, AMM, controller] contracts
     """
     pausable._require_not_paused()
     assert _borrowed_token != _collateral_token, "Same token"
     assert _A >= MIN_A and _A <= MAX_A, "Wrong A"
-    assert _fee <= MAX_FEE, "Fee too high"
-    assert _fee >= MIN_FEE, "Fee too low"
     assert _liquidation_discount > 0, "liquidation discount = 0"
     assert _loan_discount < WAD, "loan discount >= 100%"
     assert _loan_discount > _liquidation_discount, "loan discount <= liquidation discount"
@@ -205,8 +204,8 @@ def create(
 
     extcall vault.initialize(amm, controller, _borrowed_token, _collateral_token)
 
-    # Validate monetary policy using controller context
-    extcall _monetary_policy.rate_write(controller.address)
+    # Validate monetary policy using controller
+    extcall controller.save_rate()
     log ILendFactory.NewVault(
         id=market_id,
         collateral_token=_collateral_token,
@@ -268,6 +267,7 @@ def vaults_index(_vault: IVault) -> uint256:
 def amm_blueprint() -> address:
     """
     @notice Get the address of the AMM blueprint
+    @return Address of the AMM blueprint
     """
     return blueprint_registry.get(AMM_BLUEPRINT_ID)
 
@@ -277,6 +277,7 @@ def amm_blueprint() -> address:
 def controller_blueprint() -> address:
     """
     @notice Get the address of the controller blueprint
+    @return Address of the controller blueprint
     """
     return blueprint_registry.get(CONTROLLER_BLUEPRINT_ID)
 
@@ -286,6 +287,7 @@ def controller_blueprint() -> address:
 def vault_blueprint() -> address:
     """
     @notice Get the address of the vault blueprint
+    @return Address of the vault blueprint
     """
     return blueprint_registry.get(VAULT_BLUEPRINT_ID)
 
@@ -295,6 +297,7 @@ def vault_blueprint() -> address:
 def controller_view_blueprint() -> address:
     """
     @notice Get the address of the controller view blueprint
+    @return Address of the controller view blueprint
     """
     return blueprint_registry.get(CONTROLLER_VIEW_BLUEPRINT_ID)
 
@@ -307,6 +310,7 @@ def admin() -> address:
     """
     @notice Get the admin of the factory
     @dev Called `admin` for backwards compatibility
+    @return Address of the factory admin
     """
     return ownable.owner
 

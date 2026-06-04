@@ -631,17 +631,70 @@ def test_borrow_more_no_loan_exists(
 
 def test_borrow_more_zero_debt(
     controller,
+    configurator,
     collateral_token,
     borrower_with_existing_loan,
+    admin,
     amounts,
 ):
     """
     Test that borrowing zero debt does nothing (early return).
+
+    Also verifies that borrow_more_health_preview(0, 0) matches health()
+    when the global liquidation_discount has changed since the user's last
+    state-changing action. borrow_more(_, 0) is a no-op, so the preview
+    must equal health() which reads the stored per-user discount — not the
+    current global one used unconditionally by the preview.
     """
     borrower = borrower_with_existing_loan
     user_state_before = controller.user_state(borrower)
     initial_collateral = user_state_before[0]
     initial_debt = user_state_before[2]
+
+    # ================= Non-zero collateral preview vs actual health =================
+
+    # borrow_more(collateral, 0) is a no-op regardless of collateral amount.
+    # The preview must not count collateral that will never be deposited.
+    actual_health = controller.health(borrower, False)
+    actual_health_full = controller.health(borrower, True)
+
+    preview_health_nonzero = controller.borrow_more_health_preview(
+        amounts["additional_collateral"], 0, borrower, False
+    )
+    preview_health_nonzero_full = controller.borrow_more_health_preview(
+        amounts["additional_collateral"], 0, borrower, True
+    )
+
+    assert preview_health_nonzero == pytest.approx(actual_health, rel=1e-10)
+    assert preview_health_nonzero_full == pytest.approx(actual_health_full, rel=1e-10)
+
+    # ================= Update global liquidation discount =================
+
+    stored_discount = controller.liquidation_discounts(borrower)
+    new_global_discount = stored_discount // 2
+    configurator.set_borrowing_discounts(
+        controller, controller.loan_discount(), new_global_discount, sender=admin
+    )
+
+    # Per-user discount is still the old value; global has changed.
+    assert controller.liquidation_discounts(borrower) == stored_discount
+    assert controller.liquidation_discount() == new_global_discount
+    assert stored_discount != new_global_discount
+
+    # ================= Zero collateral preview vs actual health =================
+
+    # With (0, 0): no collateral counted, only discount divergence remains.
+    # borrow_more(_, 0) is a no-op: the true post-call health equals health()
+    actual_health = controller.health(borrower, False)
+    actual_health_full = controller.health(borrower, True)
+
+    preview_health = controller.borrow_more_health_preview(0, 0, borrower, False)
+    preview_health_full = controller.borrow_more_health_preview(0, 0, borrower, True)
+
+    assert preview_health == pytest.approx(actual_health, rel=1e-10)
+    assert preview_health_full == pytest.approx(actual_health_full, rel=1e-10)
+
+    # ================= Send borrow_more TX =================
 
     # Borrow zero debt - should return early without error
     controller.borrow_more(amounts["additional_collateral"], 0, sender=borrower)
@@ -650,6 +703,7 @@ def test_borrow_more_zero_debt(
     user_state_after = controller.user_state(borrower)
     assert user_state_after[0] == initial_collateral
     assert user_state_after[2] == initial_debt
+    assert controller.liquidation_discounts(borrower) == stored_discount
 
 
 def test_borrow_more_underwater(

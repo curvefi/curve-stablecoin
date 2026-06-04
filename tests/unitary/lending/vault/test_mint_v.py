@@ -18,8 +18,9 @@ def test_mint_basic(vault, controller, amm, monetary_policy, borrowed_token):
     initial_total_supply = vault.totalSupply()
     initial_controller_balance = borrowed_token.balanceOf(controller.address)
     initial_amm_rate = amm.rate()
+    initial_rate_time = amm.eval("self.rate_time")
 
-    assert amm.eval("self.rate_time") == 0
+    boa.env.time_travel(1)
 
     shares = 100000 * 10**18
 
@@ -51,7 +52,7 @@ def test_mint_basic(vault, controller, amm, monetary_policy, borrowed_token):
     assert borrowed_token.balanceOf(boa.env.eoa) == 0
 
     # Check rate was saved
-    assert amm.eval("self.rate_time") > 0
+    assert amm.eval("self.rate_time") > initial_rate_time
     assert amm.rate() == initial_amm_rate + 1
 
     # Check event was emitted
@@ -73,8 +74,9 @@ def test_mint_with_receiver(vault, controller, amm, monetary_policy, borrowed_to
     initial_total_supply = vault.totalSupply()
     initial_controller_balance = borrowed_token.balanceOf(controller.address)
     initial_amm_rate = amm.rate()
+    initial_rate_time = amm.eval("self.rate_time")
 
-    assert amm.eval("self.rate_time") == 0
+    boa.env.time_travel(1)
 
     shares = 100000 * 10**18
 
@@ -111,7 +113,7 @@ def test_mint_with_receiver(vault, controller, amm, monetary_policy, borrowed_to
     assert borrowed_token.balanceOf(boa.env.eoa) == 0
 
     # Check rate was saved
-    assert amm.eval("self.rate_time") > 0
+    assert amm.eval("self.rate_time") > initial_rate_time
     assert amm.rate() == initial_amm_rate + 1
 
     # Check event was emitted with correct receiver

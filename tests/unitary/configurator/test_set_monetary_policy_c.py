@@ -64,6 +64,7 @@ def test_set_monetary_policy_emits_set_monetary_policy(
 
     log = single_configurator_event(configurator, "SetMonetaryPolicy")
 
+    assert log.controller == controller.address
     assert log.monetary_policy == replacement_monetary_policy.address
 
 
