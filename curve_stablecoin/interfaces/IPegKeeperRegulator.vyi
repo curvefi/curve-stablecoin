@@ -1,0 +1,50 @@
+@view
+@external
+def stablecoin() -> address:
+    ...
+
+
+@view
+@external
+def aggregator() -> address:
+    ...
+
+
+@view
+@external
+def fee_receiver() -> address:
+    ...
+
+
+@view
+@external
+def worst_price_threshold() -> uint256:
+    ...
+
+
+@view
+@external
+def price_deviation() -> uint256:
+    ...
+
+
+@view
+@external
+def is_killed() -> uint256:
+    ...
+
+
+# Permissionless gates queried by PegKeeperV2.update():
+#   provide_allowed   - max stablecoin the keeper may mint into the pool
+#   withdraw_allowed  - max stablecoin the keeper may pull from the pool
+# A return of 0 from either gate forces update() to revert with "Regulator ban".
+@view
+@external
+def provide_allowed(_pk: address = msg.sender) -> uint256:
+    ...
+
+
+@view
+@external
+def withdraw_allowed(_pk: address = msg.sender) -> uint256:
+    ...

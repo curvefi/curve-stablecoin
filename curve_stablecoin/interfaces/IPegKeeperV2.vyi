@@ -1,0 +1,101 @@
+from curve_std.interfaces import IERC20
+
+
+# --------------------------------------------------------------------
+# Storage / immutable getters
+# --------------------------------------------------------------------
+
+@view
+@external
+def pool() -> address:
+    ...
+
+
+@view
+@external
+def pegged() -> address:
+    ...
+
+
+@view
+@external
+def IS_INVERSE() -> bool:
+    ...
+
+
+@view
+@external
+def IS_NG() -> bool:
+    ...
+
+
+@view
+@external
+def debt() -> uint256:
+    ...
+
+
+@view
+@external
+def last_change() -> uint256:
+    ...
+
+
+@view
+@external
+def action_delay() -> uint256:
+    ...
+
+
+@view
+@external
+def caller_share() -> uint256:
+    ...
+
+
+@view
+@external
+def regulator() -> address:
+    ...
+
+
+@view
+@external
+def admin() -> address:
+    ...
+
+
+@view
+@external
+def factory() -> address:
+    ...
+
+
+# --------------------------------------------------------------------
+# View helpers
+# --------------------------------------------------------------------
+
+@view
+@external
+def calc_profit() -> uint256:
+    ...
+
+
+@view
+@external
+def estimate_caller_profit() -> uint256:
+    ...
+
+
+# --------------------------------------------------------------------
+# State-changing
+# --------------------------------------------------------------------
+
+@external
+def update(_beneficiary: address = msg.sender) -> uint256:
+    ...
+
+
+@external
+def withdraw_profit() -> uint256:
+    ...
