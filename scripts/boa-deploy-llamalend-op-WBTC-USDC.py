@@ -93,7 +93,6 @@ def _deploy(deployer: str, dry_run: bool, report_path: Path, factory_deployment:
         LIQUIDATION_DISCOUNT,
         oracle.address,
         monetary_policy.address,
-        "WBTC / USDC",
         SUPPLY_LIMIT,
         sender=deployer,
     )

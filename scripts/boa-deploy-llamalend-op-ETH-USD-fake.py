@@ -90,7 +90,6 @@ def _deploy(deployer: str, dry_run: bool, report_path: Path, factory_deployment:
         LIQUIDATION_DISCOUNT,
         oracle.address,
         monetary_policy.address,
-        "LLv2 ETH/LLv2 USD",
         SUPPLY_LIMIT,
         sender=deployer,
     )
@@ -99,7 +98,7 @@ def _deploy(deployer: str, dry_run: bool, report_path: Path, factory_deployment:
     if hasattr(boa.env, "get_chain_id"):
         chain_id = boa.env.get_chain_id()
 
-    # set borrow cap to 200K 
+    # set borrow cap to 200K
     controller = boa.load_partial("curve_stablecoin/lending/LendController.vy").at(deployed[1])
     controller.set_borrow_cap(200000 * 10**18, sender=deployer)
 
