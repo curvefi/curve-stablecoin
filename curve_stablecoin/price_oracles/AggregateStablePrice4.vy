@@ -134,8 +134,8 @@ def _ema_tvl() -> DynArray[uint256, MAX_PAIRS]:
         else:
             tvl = self.last_tvl[i]
             if alpha != WAD:
-                new_tvl: uint256 = (staticcall price_pair.pool.totalSupply()) * WAD //\
-                    (staticcall price_pair.pool.get_virtual_price())
+                new_tvl: uint256 = (staticcall price_pair.pool.totalSupply()) *\
+                    (staticcall price_pair.pool.get_virtual_price()) // WAD
                 tvl = (new_tvl * (WAD - alpha) + tvl * alpha) // WAD
         tvls.append(tvl)
 
