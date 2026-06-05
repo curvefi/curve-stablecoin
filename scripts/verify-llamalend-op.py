@@ -7,7 +7,6 @@ import os
 import re
 import sys
 import time
-from collections.abc import Callable
 from pathlib import Path
 
 import boa
@@ -71,17 +70,8 @@ def _source_key(path: Path) -> str:
     return path.name
 
 
-def collect_sources(
-    main_path: Path,
-    patches: dict[str, "Callable[[str], str]"] | None = None,
-) -> dict[str, str]:
-    """Recursively collect all Vyper source files reachable from main_path.
-
-    patches: optional dict mapping source-key strings to callables that receive
-    the original file content and return patched content.  Only the __init__
-    body should ever be patched; imports must be left intact so the resolver
-    keeps working and the compiler sees the same module graph.
-    """
+def collect_sources(main_path: Path) -> dict[str, str]:
+    """Recursively collect all Vyper source files reachable from main_path."""
     sources: dict[str, str] = {}
     visited: set[Path] = set()
     stack = [main_path]
@@ -92,8 +82,6 @@ def collect_sources(
         visited.add(path)
         content = path.read_text()
         key = _source_key(path)
-        if patches and key in patches:
-            content = patches[key](content)
         sources[key] = content
         for m in IMPORT_RE.finditer(content):
             dep = _module_to_path(m.group(1), m.group(2))
@@ -103,102 +91,28 @@ def collect_sources(
 
 
 # ---------------------------------------------------------------------------
-# __init__ patches — make constructors succeed in Etherscan's blank EVM state
-#
-# Vyper 0.4.x: __init__ is INIT CODE ONLY and is NOT included in the deployed
-# runtime bytecode.  Therefore any change to __init__ that preserves the
-# immutable assignments produces an identical deployed bytecode.
-# State-variable writes (e.g. max_approve, _set_view storage writes) are safe
-# to skip or stub out; they don't affect the code section Etherscan compares.
-# ---------------------------------------------------------------------------
-
-
-def _patch_amm_init(content: str) -> str:
-    """Patch AMM.vy: replace oracle price() call in __init__ with literal 0."""
-    return content.replace(
-        "    self.old_p_o = staticcall self._price_oracle.price()",
-        "    self.old_p_o = 0  # patched: avoid external call in blank EVM state",
-    )
-
-
-def _patch_controller_init(content: str, factory_addr: str) -> str:
-    """Patch controller.vy __init__ to eliminate all external calls.
-
-    Immutable values are hardcoded to their on-chain values so that Etherscan's
-    blank-state simulation succeeds while the compiled runtime bytecode stays
-    bit-for-bit identical to the on-chain deployed code.
-    """
-    # 0. FACTORY = IFactory(msg.sender)  →  hardcode factory address
-    #    msg.sender in Etherscan's blank-state simulation is NOT the factory, so
-    #    hardcode the known on-chain factory address directly.
-    content = content.replace(
-        "    FACTORY = IFactory(msg.sender)",
-        f"    FACTORY = IFactory({factory_addr})  # patched: hardcoded on-chain value",
-    )
-    # 1. A = staticcall AMM.A()  →  A = 70  (on-chain confirmed)
-    content = content.replace(
-        "    A = staticcall AMM.A()",
-        "    A = 70  # patched: hardcoded on-chain value, no external call",
-    )
-    # 2. collateral_decimals from token.decimals()  →  18  (COLLATERAL_PRECISION = 1)
-    content = content.replace(
-        "    collateral_decimals: uint256 = convert(staticcall COLLATERAL_TOKEN.decimals(), uint256)",
-        "    collateral_decimals: uint256 = 18  # patched: hardcoded on-chain value",
-    )
-    # 3. borrowed_decimals from token.decimals()  →  18  (BORROWED_PRECISION = 1)
-    content = content.replace(
-        "    borrowed_decimals: uint256 = convert(staticcall BORROWED_TOKEN.decimals(), uint256)",
-        "    borrowed_decimals: uint256 = 18  # patched: hardcoded on-chain value",
-    )
-    # 4. Remove the max_approve call (ERC20 extcall, reverts with empty returndata)
-    content = content.replace(
-        "\n    # This is useless for lending markets, but leaving it doesn't create any harm\n"
-        "    tkn.max_approve(BORROWED_TOKEN, FACTORY.address)\n",
-        "\n",
-    )
-    # 5. Replace _set_view (which calls create_from_blueprint) with a direct
-    #    storage write to view_impl only — _view stays empty(address) which is
-    #    fine since Etherscan only checks the code section, not storage state.
-    content = content.replace(
-        "    self._set_view(_view_impl)",
-        "    self.view_impl = _view_impl  # patched: skip create_from_blueprint",
-    )
-    return content
-
-
-def _patch_lendcontroller_init(content: str) -> str:
-    """Patch LendController.vy __init__: remove max_approve extcall."""
-    content = content.replace(
-        "\n    # Pre-approve the vault to transfer borrowed tokens out of the controller\n"
-        "    tkn.max_approve(core.BORROWED_TOKEN, VAULT.address)\n",
-        "\n",
-    )
-    return content
-
-
-# ---------------------------------------------------------------------------
 # Standard JSON builders
 # ---------------------------------------------------------------------------
 
 
-def _build_vyper_json(
-    main_path: Path,
-    patches: dict[str, "Callable[[str], str]"] | None = None,
-) -> dict:
-    sources = collect_sources(main_path, patches=patches)
+def _build_vyper_json(main_path: Path, optimize: str | None = None) -> dict:
+    sources = collect_sources(main_path)
     main_key = _source_key(main_path)
+    if optimize:
+        # Strip the in-source pragma so it doesn't conflict with the explicit setting.
+        pragma_line = f"# pragma optimize {optimize}\n"
+        if pragma_line in sources.get(main_key, ""):
+            sources[main_key] = sources[main_key].replace(pragma_line, "")
+    settings: dict = {"evmVersion": "cancun"}
+    if optimize:
+        settings["optimize"] = optimize
+    # When no explicit optimize is passed, the source-level # pragma optimize takes
+    # precedence; adding "optimize" here would conflict with the pragma.
+    settings["outputSelection"] = {main_key: ["evm.bytecode", "evm.deployedBytecode", "abi"]}
     return {
         "language": "Vyper",
         "sources": {k: {"content": v} for k, v in sources.items()},
-        "settings": {
-            # No "optimize" here — source-level # pragma optimize takes precedence,
-            # and setting it here (e.g. "gas") conflicts with "# pragma optimize codesize"
-            # causing Vyper to raise a settings conflict error.
-            "evmVersion": "cancun",
-            "outputSelection": {
-                main_key: ["evm.bytecode", "evm.deployedBytecode", "abi"]
-            },
-        },
+        "settings": settings,
     }
 
 
@@ -553,7 +467,7 @@ def _submit(
     data = resp.json()
     result = data.get("result", "")
     if data.get("status") != "1":
-        if "Already Verified" in result:
+        if "already verified" in result.lower():
             return "already_verified"
         raise RuntimeError(f"Etherscan submit failed: {result}")
     return result
@@ -633,7 +547,32 @@ def _sourcify_verify(
     except Exception:
         raise RuntimeError(f"Sourcify HTTP {resp.status_code}: {resp.text[:400]}")
 
-    if resp.status_code not in (200, 201):
+    if resp.status_code == 202:
+        # Async verification — poll until the result is ready
+        verification_id = data.get("verificationId")
+        if not verification_id:
+            raise RuntimeError(f"Sourcify HTTP 202 but no verificationId: {data}")
+        print(f"  Sourcify queued (id={verification_id}), polling...", end="", flush=True)
+        for _ in range(24):
+            time.sleep(5)
+            poll = requests.get(
+                f"{SOURCIFY_SERVER}/v2/verify/{verification_id}",
+                timeout=30,
+            )
+            try:
+                pdata = poll.json()
+            except Exception:
+                print(".", end="", flush=True)
+                continue
+            if poll.status_code == 200:
+                data = pdata
+                break
+            print(".", end="", flush=True)
+        else:
+            raise RuntimeError("Sourcify verification timed out")
+        print()
+
+    if resp.status_code not in (200, 201, 202):
         err = data.get("message", str(data)[:400])
         raise RuntimeError(f"Sourcify HTTP {resp.status_code}: {err}")
 
@@ -667,6 +606,7 @@ def main() -> None:
     params = deployment["params"]
 
     factory_addr = deployment["factory"]
+    configurator_addr = deployment["configurator"]
     mp_addr = deployment["monetary_policy"]
     oracle_addr = deployment["price_oracle"]
     leverage_zap_addr = deployment.get("leverage_zap")
@@ -724,22 +664,8 @@ def main() -> None:
 
     # -- Build (address, label, std_json, compiler, codeformat, ctor_args) ---
 
-    def vy_json(rel: str, patches: dict | None = None) -> dict:
-        return _build_vyper_json(PROJECT_ROOT / rel, patches=patches)
-
-    # Patches for AMM: replace oracle price() call in __init__ with 0
-    amm_patches = {
-        "curve_stablecoin/AMM.vy": _patch_amm_init,
-    }
-
-    # Patches for LendController: hardcode external-call values in controller.vy
-    # __init__ and remove max_approve calls in LendController.vy __init__
-    ctrl_patches = {
-        "curve_stablecoin/controller.vy": lambda c: _patch_controller_init(
-            c, factory_addr
-        ),
-        "curve_stablecoin/lending/LendController.vy": _patch_lendcontroller_init,
-    }
+    def vy_json(rel: str, optimize: str | None = None) -> dict:
+        return _build_vyper_json(PROJECT_ROOT / rel, optimize=optimize)
 
     contracts = [
         # (address, label, contract_name, std_json, compiler, codeformat, ctor_hex, opt_used)
@@ -748,7 +674,10 @@ def main() -> None:
             amm_bp,
             "AMM Blueprint (Vyper 0.4.3)",
             "curve_stablecoin/AMM.vy:AMM",
-            vy_json("curve_stablecoin/AMM.vy", patches=amm_patches),
+            # AMM was deployed with boa compiler_args codesize (no pragma in source at
+            # the time). Pragma vs compiler_args produce different immutable reference
+            # tables, so pass optimize explicitly and strip the pragma to match deployment.
+            vy_json("curve_stablecoin/AMM.vy", optimize="codesize"),
             "vyper:0.4.3",
             "vyper-json",
             "",
@@ -758,7 +687,7 @@ def main() -> None:
             ctrl_bp,
             "LendController Blueprint (Vyper 0.4.3)",
             "curve_stablecoin/lending/LendController.vy:LendController",
-            vy_json("curve_stablecoin/lending/LendController.vy", patches=ctrl_patches),
+            vy_json("curve_stablecoin/lending/LendController.vy"),
             "vyper:0.4.3",
             "vyper-json",
             "",
@@ -782,8 +711,8 @@ def main() -> None:
             "vyper:0.4.3",
             "vyper-json",
             encode(
-                ["address", "address", "address", "address", "address", "address"],
-                [amm_bp, ctrl_bp, vault_bp, ctrl_view_bp, deployer, deployer],
+                ["address", "address", "address", "address", "address", "address", "address"],
+                [amm_bp, ctrl_bp, vault_bp, ctrl_view_bp, configurator_addr, deployer, deployer],
             ).hex(),
             "1",
         ),
@@ -816,6 +745,7 @@ def main() -> None:
                     "uint256",
                     "uint256",
                     "address",
+                    "address",
                 ],
                 [
                     vault_addr,
@@ -826,6 +756,7 @@ def main() -> None:
                     params["loan_discount"],
                     params["liquidation_discount"],
                     ctrl_view_bp,
+                    configurator_addr,
                 ],
             ).hex(),
             "1",
@@ -916,13 +847,6 @@ def main() -> None:
         ))
 
     # -- Submit and poll ------------------------------------------------------
-
-    # For AMM and LendController we submit patched source (modified __init__).
-    # Passing txhash for these causes Etherscan to compare our compiled init code
-    # against the actual blueprint's init code — which would differ because we
-    # patched the __init__ body.  Omitting txhash lets Etherscan compile and
-    # simulate our init code without that blueprint comparison.
-    no_txhash_addrs = set()
 
     # Unpatched sources for Sourcify fallback — Sourcify partial matching only
     # compares runtime bytecode (evm.deployedBytecode) so the __init__ body is
