@@ -1,4 +1,5 @@
 # @version 0.3.10
+
 """
 @title EMAMonetaryPolicy
 @notice Monetary Policy that follows EMA of external rate calculator contract's yield rate
@@ -39,7 +40,8 @@ MAX_UTIL: constant(uint256) = 99 * 10**16
 MIN_LOW_RATIO: constant(uint256) = 10**16
 MAX_HIGH_RATIO: constant(uint256) = 100 * 10**18
 MAX_RATE_SHIFT: constant(uint256) = 100 * 10**18
-MIN_EMA_RATE: constant(uint256) = 317097920 # 1% APR
+MIN_EMA_RATE: constant(uint256) = 317097920        # ~1% APR
+MAX_EMA_RATE: constant(uint256) = 47564687975      # ~150% APR
 
 TEXP: public(constant(uint256)) = 40000
 
@@ -160,7 +162,7 @@ def raw_underlying_apr() -> uint256:
 def ema_rate() -> uint256:
     """
     @notice Calculates exponential moving average of the base rate
-    @return ema_rate EMA-smoothed rate, floored to minimum
+    @return ema_rate EMA-smoothed rate, clamped to [MIN_EMA_RATE, MAX_EMA_RATE]
     """
     last_timestamp: uint256 = self.last_timestamp
     ema: uint256 = self.prev_ma_rate
@@ -168,7 +170,7 @@ def ema_rate() -> uint256:
         alpha: uint256 = self.exp(- convert((block.timestamp - last_timestamp) * (10**18 / TEXP), int256))
         ema = (self.prev_rate * (10**18 - alpha) + self.prev_ma_rate * alpha) / 10**18
 
-    return max(ema, MIN_EMA_RATE)
+    return min(max(ema, MIN_EMA_RATE), MAX_EMA_RATE)
 
 
 @external
@@ -186,7 +188,7 @@ def ema_rate_w() -> uint256:
     """
     @notice Write variant of EMA function — updates stored EMA and raw rates
     @dev Catches reverts from rate calculator and sets fallback rate
-    @return ema_rate Updated EMA rate, floored to minimum
+    @return ema_rate Updated EMA rate, clamped to [MIN_EMA_RATE, MAX_EMA_RATE]
     """
     raw_result: Bytes[32] = empty(Bytes[32])
     success: bool = False
