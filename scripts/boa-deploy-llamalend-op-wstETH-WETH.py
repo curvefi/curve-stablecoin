@@ -28,7 +28,7 @@ LOAN_DISCOUNT = int(0.034 * 10**18)  # 3.4%
 LIQUIDATION_DISCOUNT = int(0.015 * 10**18)  # 1.5%
 SUPPLY_LIMIT = 2**256 - 1
 
-BORROW_CAP = 126 * 10**18  # 126 wstETH
+BORROW_CAP = 824 * 10**18  # 824 wstETH
 ADMIN_PERCENTAGE = 10**16  # 1%
 
 # RATE_CALCULATOR parameters
@@ -38,9 +38,9 @@ OWNERSHIP_AGENT = "0x28c4A1Fa47EEE9226F8dE7D6AF0a41C62Ca98267"
 AVG_WINDOW = 7 * 86400  # 7 days
 
 # EMAMonetaryPolicy parameters
-TARGET_UTILIZATION = int(0.85 * 10**18) # 85%
-LOW_RATIO = int(0.50 * 10**18) # 50%
-HIGH_RATIO = int(3.0 * 10**18) # 3x
+TARGET_UTILIZATION = int(0.85 * 10**18)  # 85%
+LOW_RATIO = int(0.50 * 10**18)  # 50%
+HIGH_RATIO = int(3.0 * 10**18)  # 3x
 RATE_SHIFT = 0
 
 OBSERVATIONS = 20
@@ -165,7 +165,7 @@ def _deploy(deployer: str, dry_run: bool, report_path: Path, factory_deployment:
             "borrowed_token": WETH,
             "collateral_token": WSTETH,
             "chainlink_feed": CHAINLINK_FEED,
-	        "wsteth_rate_oracle": WSTETH_RATE_ORACLE,
+            "wsteth_rate_oracle": WSTETH_RATE_ORACLE,
             "ownership_agent": OWNERSHIP_AGENT,
             "avg_window": AVG_WINDOW,
             "A": A,
@@ -207,7 +207,7 @@ def main() -> None:
     )
     parser.add_argument(
         "--factory-deployment",
-        default="deployments/llamalend-op-testing.jsonc",
+        default="deployments/llamalend-op.jsonc",
         help="Path to existing factory deployment JSON to read factory address from",
     )
     parser.add_argument(
