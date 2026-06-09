@@ -8,30 +8,16 @@ from getpass import getpass
 from pathlib import Path
 
 import boa
-import boa_solidity
 from vyper.compiler.settings import OptimizationLevel
 import requests
-import solcx
 from boa.network import NetworkEnv
 from boa.rpc import EthereumRPC
 from eth_account import Account
 
 
-WETH = "0x4200000000000000000000000000000000000006"
-WSTETH = "0x1F32b1c2345538c0c6f582fCB022739c4A194Ebb"
-CHAINLINK_FEED = "0x524299Ab0987a7c4B3c8022a35669DdcdC715a10"
-
-A = 70
-FEE = 6 * 10**15
-LOAN_DISCOUNT = 70000000000000008
-LIQUIDATION_DISCOUNT = 40000000000000000
-MIN_RATE = 31709791
-MAX_RATE = 317097919837
-SUPPLY_LIMIT = 2**256 - 1
-
-OBSERVATIONS = 20
-INTERVAL = 30
 CHAIN_ID = 10
+OP_DAO_OWNERSHIP = "0x28c4A1Fa47EEE9226F8dE7D6AF0a41C62Ca98267"
+OP_DAO_FEE_RECEIVER = "0xbF7E49483881C76487b0989CD7d9A8239B20CA41"
 
 
 def _load_account(keystore_path: str) -> Account:
@@ -87,33 +73,8 @@ def _deploy(deployer: str, dry_run: bool, report_path: Path) -> None:
         vault_blueprint.address,
         controller_view_blueprint.address,
         configurator.address,
-        deployer,
-        deployer,
-    )
-
-    monetary_policy = boa.load_partial(
-        "curve_stablecoin/mpolicies/SemilogMonetaryPolicy.vy"
-    ).deploy(WETH, MIN_RATE, MAX_RATE, factory.address)
-
-    solcx.install_solc("0.8.25")
-    solcx.set_solc_version("0.8.25")
-    oracle = boa.load_partial_solc("scripts/solidity/ChainlinkEMA.sol").deploy(
-        CHAINLINK_FEED,
-        OBSERVATIONS,
-        INTERVAL,
-    )
-
-    deployed = factory.create(
-        WETH,
-        WSTETH,
-        A,
-        FEE,
-        LOAN_DISCOUNT,
-        LIQUIDATION_DISCOUNT,
-        oracle.address,
-        monetary_policy.address,
-        SUPPLY_LIMIT,
-        sender=deployer,
+        OP_DAO_OWNERSHIP,
+        OP_DAO_FEE_RECEIVER,
     )
 
     leverage_zap = boa.load_partial(
@@ -124,10 +85,6 @@ def _deploy(deployer: str, dry_run: bool, report_path: Path) -> None:
     if hasattr(boa.env, "get_chain_id"):
         chain_id = boa.env.get_chain_id()
 
-    # set borrow cap to 5 WETH
-    controller = boa.load_partial("curve_stablecoin/lending/LendController.vy").at(deployed[1])
-    configurator.set_borrow_cap(controller, 5 * 10**18, sender=deployer)
-
     report = {
         "chain_id": chain_id,
         "deployer": deployer,
@@ -135,26 +92,7 @@ def _deploy(deployer: str, dry_run: bool, report_path: Path) -> None:
         "timestamp": int(time.time()),
         "factory": factory.address,
         "configurator": configurator.address,
-        "monetary_policy": monetary_policy.address,
-        "price_oracle": oracle.address,
         "leverage_zap": leverage_zap.address,
-        "vault": deployed[0],
-        "controller": deployed[1],
-        "amm": deployed[2],
-        "params": {
-            "borrowed_token": WETH,
-            "collateral_token": WSTETH,
-            "chainlink_feed": CHAINLINK_FEED,
-            "A": A,
-            "fee": FEE,
-            "loan_discount": LOAN_DISCOUNT,
-            "liquidation_discount": LIQUIDATION_DISCOUNT,
-            "min_rate": MIN_RATE,
-            "max_rate": MAX_RATE,
-            "supply_limit": SUPPLY_LIMIT,
-            "observations": OBSERVATIONS,
-            "interval": INTERVAL,
-        },
     }
 
     report_path.parent.mkdir(parents=True, exist_ok=True)
@@ -162,11 +100,6 @@ def _deploy(deployer: str, dry_run: bool, report_path: Path) -> None:
 
     print("Factory:", factory.address)
     print("Configurator:", configurator.address)
-    print("Monetary Policy:", monetary_policy.address)
-    print("Price Oracle:", oracle.address)
-    print("Vault:", deployed[0])
-    print("Controller:", deployed[1])
-    print("AMM:", deployed[2])
     print("LeverageZap:", leverage_zap.address)
     print("Report:", report_path)
 
@@ -182,7 +115,7 @@ def main() -> None:
     )
     parser.add_argument(
         "--report-path",
-        default="deployments/llamalend-op-testing.jsonc",
+        default="deployments/llamalend-op.jsonc",
         help="Where to write the deployment report",
     )
     args = parser.parse_args()
