@@ -19,23 +19,23 @@ from eth_account import Account
 # Token addresses for Optimism
 WSTETH = "0x1F32b1c2345538c0c6f582fCB022739c4A194Ebb"
 WETH = "0x4200000000000000000000000000000000000006"
-CHAINLINK_FEED = "0x524299Ab0987a7c4B3c8022a35669DdcdC715a10" # wstETH / WETH Chainlink feed
+CHAINLINK_FEED = "0x524299Ab0987a7c4B3c8022a35669DdcdC715a10"  # wstETH / WETH Chainlink feed
 
 # Market parameters
 A = 186
-FEE = int(0.005 * 10**18) # 0.5%
-LOAN_DISCOUNT = int(0.034 * 10**18) # 3.4%
-LIQUIDATION_DISCOUNT = int(0.015 * 10**18) # 1.5%
+FEE = int(0.005 * 10**18)  # 0.5%
+LOAN_DISCOUNT = int(0.034 * 10**18)  # 3.4%
+LIQUIDATION_DISCOUNT = int(0.015 * 10**18)  # 1.5%
 SUPPLY_LIMIT = 2**256 - 1
 
-borrow_cap = 824
-admin_percentage = 10
+BORROW_CAP = 126 * 10**18  # 126 wstETH
+ADMIN_PERCENTAGE = 10**16  # 1%
 
 # RATE_CALCULATOR parameters
 
-WSTETH_RATE_ORACLE = "0x294ED1f214F4e0ecAE31C3Eae4F04EBB3b36C9d0" # Lido TokenRateOracle (wstETH/stETH)
+WSTETH_RATE_ORACLE = "0x294ED1f214F4e0ecAE31C3Eae4F04EBB3b36C9d0"  # Lido TokenRateOracle (wstETH/stETH)
 OWNERSHIP_AGENT = "0x28c4A1Fa47EEE9226F8dE7D6AF0a41C62Ca98267"
-AVG_WINDOW = 86400
+AVG_WINDOW = 7 * 86400  # 7 days
 
 # EMAMonetaryPolicy parameters
 TARGET_UTILIZATION = int(0.85 * 10**18) # 85%
@@ -139,9 +139,11 @@ def _deploy(deployer: str, dry_run: bool, report_path: Path, factory_deployment:
     if factory.admin() == deployer:
         # set borrow cap to 824 WETH (18 decimals)
         controller = boa.load_partial("curve_stablecoin/lending/LendController.vy").at(deployed[1])
-        configurator.set_borrow_cap(controller, borrow_cap * 10**18, sender=deployer)
+        borrow_cap = BORROW_CAP
+        admin_percentage = ADMIN_PERCENTAGE
+        configurator.set_borrow_cap(controller, borrow_cap, sender=deployer)
         # set admin fee to 10%
-        configurator.set_admin_percentage(controller, admin_percentage * 10**18, sender=deployer)
+        configurator.set_admin_percentage(controller, admin_percentage, sender=deployer)
     else:
         borrow_cap = 0
         admin_percentage = 0
