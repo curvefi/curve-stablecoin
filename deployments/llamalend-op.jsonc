@@ -2,8 +2,8 @@
   "chain_id": 10,
   "deployer": "0x2B6F69E9e51abFc72Bd1cC12733FBf98dF2d2EA3",
   "dry_run": false,
-  "timestamp": 1781011841,
-  "factory": "0x2eACD5dEaa14130bF3BE78D0298937524A683bFB",
-  "configurator": "0x052fA7F1075fc943b9dC614E39521860c8Fdd991",
-  "leverage_zap": "0x63809C3bF9127d69CAB681fC755fAFc3843Fd29c"
+  "timestamp": 1781013940,
+  "factory": "0x5F94073E3f51c1FFf92ffc6b4B06b7Af193B3640",
+  "configurator": "0xd36c590531cAF5F620C57Faf5827Ce8E7f6E5Bec",
+  "leverage_zap": "0x4b10E1774521c077a2887806fa60C56CeFa94cCC"
 }
