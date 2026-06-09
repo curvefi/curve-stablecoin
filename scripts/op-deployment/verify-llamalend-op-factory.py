@@ -16,7 +16,7 @@ from eth_abi import encode
 # Paths
 # ---------------------------------------------------------------------------
 
-PROJECT_ROOT = Path(__file__).parent.parent
+PROJECT_ROOT = Path(__file__).parent.parent.parent
 SNEKMATE_ROOT = Path(
     importlib.util.find_spec("snekmate").submodule_search_locations[0]
 ).parent

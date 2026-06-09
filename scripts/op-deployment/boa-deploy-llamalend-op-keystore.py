@@ -65,7 +65,7 @@ def _deploy(deployer: str, dry_run: bool, report_path: Path) -> None:
         "curve_stablecoin/lending/LendControllerView.vy", compiler_args={"optimize": OptimizationLevel.CODESIZE}
     ).deploy_as_blueprint()
 
-    configurator = boa.load_partial("curve_stablecoin/Configurator.vy").deploy(deployer)
+    configurator = boa.load_partial("curve_stablecoin/Configurator.vy").deploy(OP_DAO_OWNERSHIP)
 
     factory = boa.load_partial("curve_stablecoin/lending/LendFactory.vy").deploy(
         amm_blueprint.address,
