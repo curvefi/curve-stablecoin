@@ -1,0 +1,9 @@
+{
+  "chain_id": 10,
+  "deployer": "0x2B6F69E9e51abFc72Bd1cC12733FBf98dF2d2EA3",
+  "dry_run": false,
+  "timestamp": 1781001236,
+  "factory": "0xb0cEE7943A9B840ca2670d4B9f705B9b578ed1af",
+  "configurator": "0xa59958F51785C7B8D43B8D1B432C878455788F22",
+  "leverage_zap": "0x29837e7a58436D91cC25Cf487dBed0EBF3865c00"
+}
