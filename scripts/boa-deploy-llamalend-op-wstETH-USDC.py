@@ -84,7 +84,7 @@ def _deploy(deployer: str, dry_run: bool, report_path: Path, factory_deployment:
 
     solcx.install_solc("0.8.25")
     solcx.set_solc_version("0.8.25")
-    oracle = boa.load_partial_solc("scripts/solidity/ChainlinkEMA.sol").deploy(
+    oracle = boa.load_partial_solc("scripts/op-deployment/solidity/ChainlinkEMA.sol").deploy(
         CHAINLINK_FEED,
         OBSERVATIONS,
         INTERVAL,
