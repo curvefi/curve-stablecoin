@@ -31,7 +31,7 @@ MAX_RATE = 15854895991 # 50% APR
 SUPPLY_LIMIT = 2**256 - 1
 
 borrow_cap = 2660000
-admin_percentage = 10
+admin_percentage = 1
 
 OBSERVATIONS = 20
 INTERVAL = 30
@@ -84,7 +84,7 @@ def _deploy(deployer: str, dry_run: bool, report_path: Path, factory_deployment:
 
     solcx.install_solc("0.8.25")
     solcx.set_solc_version("0.8.25")
-    oracle = boa.load_partial_solc("scripts/solidity/ChainlinkEMA.sol").deploy(
+    oracle = boa.load_partial_solc("scripts/op-deployment/solidity/ChainlinkEMA.sol").deploy(
         CHAINLINK_FEED,
         OBSERVATIONS,
         INTERVAL,
@@ -116,7 +116,7 @@ def _deploy(deployer: str, dry_run: bool, report_path: Path, factory_deployment:
         controller = boa.load_partial("curve_stablecoin/lending/LendController.vy").at(deployed[1])
         configurator.set_borrow_cap(controller, borrow_cap * 10**6, sender=deployer)
         # set admin fee to 10%
-        configurator.set_admin_percentage(controller, admin_percentage * 10**18, sender=deployer)
+        configurator.set_admin_percentage(controller, admin_percentage * 10**16, sender=deployer)
     else:
         borrow_cap = 0
         admin_percentage = 0
@@ -147,7 +147,7 @@ def _deploy(deployer: str, dry_run: bool, report_path: Path, factory_deployment:
             "observations": OBSERVATIONS,
             "interval": INTERVAL,
             "borrow_cap": borrow_cap * 10**6,
-			"admin_percentage": admin_percentage * 10**18
+			"admin_percentage": admin_percentage * 10**16
         },
     }
 
@@ -174,7 +174,7 @@ def main() -> None:
     )
     parser.add_argument(
         "--factory-deployment",
-        default="deployments/llamalend-op-testing.jsonc",
+        default="deployments/llamalend-op.jsonc",
         help="Path to existing factory deployment JSON to read factory address from",
     )
     parser.add_argument(
