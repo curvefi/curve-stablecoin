@@ -25,7 +25,7 @@ SKIP_CONFIG_ADDRESS: constant(address) = c.SKIP_CONFIG_ADDRESS
 MAX_ORACLE_PRICE_DEVIATION: constant(uint256) = WAD // 2  # 50% deviation
 
 default_admin: public(address)
-admins: HashMap[IController, address]
+admins: public(HashMap[IController, address])
 
 
 @deploy
