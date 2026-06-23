@@ -7,6 +7,7 @@ import pytest
 
 from tests.utils.constants import MAX_UINT256
 from tests.utils import filter_logs
+from tests.utils.deployers import DUMMY_ROUTER_DEPLOYER
 from eth_abi import encode
 
 from tests.e2e.zaps.leverage_zap.conftest import (
@@ -115,6 +116,44 @@ def test_create_loan_slippage_reverts(
 
     with boa.env.prank(borrower):
         with boa.reverts("Slippage"):
+            controller.create_loan(
+                user_collateral, d_debt, N, borrower, leverage_zap.address, calldata
+            )
+
+
+def test_create_loan_unapproved_exchange_reverts(
+    borrower,
+    controller,
+    collateral_token,
+    borrowed_token,
+    leverage_zap,
+    controller_id,
+    price_oracle,
+):
+    """A callback targeting an exchange that is not whitelisted reverts."""
+    rogue_router = DUMMY_ROUTER_DEPLOYER.deploy()
+    assert leverage_zap.is_approved_exchange(rogue_router.address) is False
+
+    bd = borrowed_token.decimals()
+    cd = collateral_token.decimals()
+
+    user_collateral = 2 * 10**cd
+    d_debt = 3000 * 10**bd
+    price = price_oracle.price()
+    collateral_out = collateral_from_borrowed(d_debt, price, bd, cd)
+
+    calldata = make_deposit_calldata(
+        controller_id,
+        collateral_out * 999 // 1000,
+        rogue_router,
+        borrowed_token,
+        collateral_token,
+        d_debt,
+        collateral_out,
+    )
+
+    with boa.env.prank(borrower):
+        with boa.reverts("Exchange not approved"):
             controller.create_loan(
                 user_collateral, d_debt, N, borrower, leverage_zap.address, calldata
             )

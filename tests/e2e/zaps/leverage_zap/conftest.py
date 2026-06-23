@@ -111,14 +111,6 @@ def borrow_cap(seed_liquidity):
 
 
 @pytest.fixture(scope="module")
-def leverage_zap(market_type, factory, mint_factory):
-    if market_type == "lending":
-        return LEVERAGE_ZAP_LENDING_DEPLOYER.deploy(factory.address)
-    else:
-        return LEVERAGE_ZAP_MINT_DEPLOYER.deploy(mint_factory.address)
-
-
-@pytest.fixture(scope="module")
 def dummy_router(borrowed_token, collateral_token):
     router = DUMMY_ROUTER_DEPLOYER.deploy()
     boa.deal(borrowed_token, router.address, 10**9 * 10 ** borrowed_token.decimals())
@@ -126,6 +118,15 @@ def dummy_router(borrowed_token, collateral_token):
         collateral_token, router.address, 10**9 * 10 ** collateral_token.decimals()
     )
     return router
+
+
+@pytest.fixture(scope="module")
+def leverage_zap(market_type, factory, mint_factory, admin, dummy_router):
+    exchanges = [dummy_router.address]
+    if market_type == "lending":
+        return LEVERAGE_ZAP_LENDING_DEPLOYER.deploy(factory.address, admin, exchanges)
+    else:
+        return LEVERAGE_ZAP_MINT_DEPLOYER.deploy(mint_factory.address, admin, exchanges)
 
 
 @pytest.fixture(scope="module")
