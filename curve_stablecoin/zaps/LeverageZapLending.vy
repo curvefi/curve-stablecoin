@@ -40,6 +40,8 @@ CALLDATA_MAX_SIZE: constant(uint256) = c.CALLDATA_MAX_SIZE
 
 _LEND_FACTORY: immutable(ILendFactory)
 
+MAX_INIT_EXCHANGES: constant(uint256) = 10
+
 # Whitelist of exchanges (routers/pools) the zap is allowed to `raw_call`
 is_approved_exchange: public(HashMap[address, bool])
 
@@ -49,7 +51,7 @@ event SetExchange:
 
 
 @deploy
-def __init__(_factory: address, _admin: address, _exchanges: DynArray[address, 10]):
+def __init__(_factory: address, _admin: address, _exchanges: DynArray[address, MAX_INIT_EXCHANGES]):
     _LEND_FACTORY = ILendFactory(_factory)
 
     ownable.__init__()

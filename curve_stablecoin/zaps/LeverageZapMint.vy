@@ -29,7 +29,7 @@ _MINT_FACTORY: immutable(IControllerFactory)
 
 
 @deploy
-def __init__(_factory: address, _admin: address, _exchanges: DynArray[address, core.MAX_EXCHANGES]):
+def __init__(_factory: address, _admin: address, _exchanges: DynArray[address, core.MAX_INIT_EXCHANGES]):
     _MINT_FACTORY = IControllerFactory(_factory)
     core.__init__(_factory, _admin, _exchanges)
 
