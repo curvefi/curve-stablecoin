@@ -43,55 +43,55 @@ def calc_p_avg(in_borrowed, out_collateral, borrowed_decimals, collateral_decima
 
 def make_deposit_calldata(
     controller_id,
-    user_borrowed,
     min_recv,
     router,
     borrowed_token,
     collateral_token,
-    total_borrowed_in,
+    borrowed_in,
     collateral_out,
 ):
-    """Encode calldata for callback_deposit: (controller_id, user_borrowed, min_recv, exchange_address, exchange_calldata)."""
+    """Encode calldata for callback_deposit: (controller_id, min_recv, exchange_address, exchange_calldata).
+
+    The zap only ever swaps the borrowed d_debt it receives from the controller, so
+    `borrowed_in` is just d_debt. The user no longer hands borrowed tokens to the zap.
+    """
     exchange_data = router.exchange.prepare_calldata(
         borrowed_token.address,
         collateral_token.address,
-        total_borrowed_in,
+        borrowed_in,
         collateral_out,
     )
     return encode(
-        ["uint256", "uint256", "uint256", "address", "bytes"],
-        [controller_id, user_borrowed, min_recv, router.address, exchange_data],
+        ["uint256", "uint256", "address", "bytes"],
+        [controller_id, min_recv, router.address, exchange_data],
     )
 
 
 def make_repay_calldata(
     controller_id,
-    user_collateral_amount,
     user_borrowed,
     min_recv,
     router,
     collateral_token,
     borrowed_token,
-    total_collateral_in,
+    collateral_in,
     borrowed_out,
 ):
-    """Encode calldata for callback_repay: (controller_id, user_collateral, user_borrowed, min_recv, exchange_address, exchange_calldata)."""
+    """Encode calldata for callback_repay: (controller_id, user_borrowed, min_recv, exchange_address, exchange_calldata).
+
+    The zap only swaps state collateral it receives from the controller, so `collateral_in`
+    is the amount of state collateral to sell. `user_borrowed` is an events-only annotation;
+    actual wallet repayment is done by the controller via its `_wallet_d_debt` argument.
+    """
     exchange_data = router.exchange.prepare_calldata(
         collateral_token.address,
         borrowed_token.address,
-        total_collateral_in,
+        collateral_in,
         borrowed_out,
     )
     return encode(
-        ["uint256", "uint256", "uint256", "uint256", "address", "bytes"],
-        [
-            controller_id,
-            user_collateral_amount,
-            user_borrowed,
-            min_recv,
-            router.address,
-            exchange_data,
-        ],
+        ["uint256", "uint256", "uint256", "address", "bytes"],
+        [controller_id, user_borrowed, min_recv, router.address, exchange_data],
     )
 
 
@@ -167,7 +167,6 @@ def open_position(
         collateral_out = collateral_from_borrowed(d_debt, price, bd, cd)
         calldata = make_deposit_calldata(
             controller_id,
-            0,
             collateral_out,
             dummy_router,
             borrowed_token,
@@ -178,10 +177,12 @@ def open_position(
 
         boa.deal(collateral_token, borrower, 10**6 * 10**cd)
         boa.deal(borrowed_token, borrower, 10**6 * 10**bd)
+        # The zap needs no allowance from the user. Collateral is approved to the
+        # controller for the deposit; borrowed is approved to the controller for
+        # wallet repayment (_wallet_d_debt) in the repay tests.
         with boa.env.prank(borrower):
             collateral_token.approve(controller.address, MAX_UINT256)
-            collateral_token.approve(leverage_zap.address, MAX_UINT256)
-            borrowed_token.approve(leverage_zap.address, MAX_UINT256)
+            borrowed_token.approve(controller.address, MAX_UINT256)
             controller.create_loan(
                 user_collateral, d_debt, 10, borrower, leverage_zap.address, calldata
             )
