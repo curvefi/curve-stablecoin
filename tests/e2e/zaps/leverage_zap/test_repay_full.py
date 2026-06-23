@@ -167,4 +167,6 @@ def test_repay_full_slippage_reverts(
 
     with boa.env.prank(borrower):
         with boa.reverts("Slippage"):
-            controller.repay(2**255 - 1, borrower, 2**255 - 1, leverage_zap.address, calldata)
+            controller.repay(
+                2**255 - 1, borrower, 2**255 - 1, leverage_zap.address, calldata
+            )
