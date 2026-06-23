@@ -17,15 +17,21 @@ from curve_stablecoin.zaps import LeverageZapLending as core
 
 initializes: core
 
-exports: core.max_borrowable
+exports: (
+    core.max_borrowable,
+    core.ownable.owner,
+    core.ownable.transfer_ownership,
+    core.set_exchange,
+    core.is_approved_exchange,
+)
 
 _MINT_FACTORY: immutable(IControllerFactory)
 
 
 @deploy
-def __init__(_factory: address):
+def __init__(_factory: address, _admin: address, _exchanges: DynArray[address, core.MAX_EXCHANGES]):
     _MINT_FACTORY = IControllerFactory(_factory)
-    core.__init__(_factory)
+    core.__init__(_factory, _admin, _exchanges)
 
 
 @external

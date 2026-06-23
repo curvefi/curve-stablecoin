@@ -16,8 +16,16 @@ from curve_stablecoin.interfaces import ILeverageZap
 from curve_std.interfaces import IERC20
 from curve_std import token as tkn
 from snekmate.utils import math
+from snekmate.auth import ownable
 
 implements: ILeverageZap
+
+initializes: ownable
+
+exports: (
+    ownable.owner,
+    ownable.transfer_ownership,
+)
 
 ################################################################
 #                          CONSTANTS                           #
@@ -32,10 +40,24 @@ CALLDATA_MAX_SIZE: constant(uint256) = c.CALLDATA_MAX_SIZE
 
 _LEND_FACTORY: immutable(ILendFactory)
 
+# Whitelist of exchanges (routers/pools) the zap is allowed to `raw_call`
+is_approved_exchange: public(HashMap[address, bool])
+
+event SetExchange:
+    exchange: indexed(address)
+    approved: bool
+
 
 @deploy
-def __init__(_factory: address):
+def __init__(_factory: address, _admin: address, _exchanges: DynArray[address, 10]):
     _LEND_FACTORY = ILendFactory(_factory)
+
+    ownable.__init__()
+    assert _admin != empty(address)
+    ownable._transfer_ownership(_admin)
+
+    for exchange: address in _exchanges:
+        self._set_exchange(exchange, True)
 
 
 @internal
@@ -78,6 +100,8 @@ def _callback_deposit(
         _exchange_address: address,
         _exchange_calldata: Bytes[CALLDATA_MAX_SIZE - 5 * 32],
 ) -> uint256[2]:
+    assert self.is_approved_exchange[_exchange_address], "Exchange not approved"
+
     amm: IAMM = staticcall IController(_controller).amm()
     borrowed_token: IERC20 = IERC20(staticcall amm.coins(0))
     collateral_token: IERC20 = IERC20(staticcall amm.coins(1))
@@ -111,6 +135,8 @@ def _callback_repay(
         _exchange_address: address,
         _exchange_calldata: Bytes[CALLDATA_MAX_SIZE - 6 * 32],
 ) -> uint256[2]:
+    assert self.is_approved_exchange[_exchange_address], "Exchange not approved"
+
     amm: IAMM = staticcall IController(_controller).amm()
     borrowed_token: IERC20 = IERC20(staticcall amm.coins(0))
     collateral_token: IERC20 = IERC20(staticcall amm.coins(1))
@@ -144,6 +170,24 @@ def _callback_repay(
 @view
 def FACTORY() -> address:
     return _LEND_FACTORY.address
+
+
+@internal
+def _set_exchange(_exchange: address, _approved: bool):
+    self.is_approved_exchange[_exchange] = _approved
+    log SetExchange(exchange=_exchange, approved=_approved)
+
+
+@external
+def set_exchange(_exchange: address, _approved: bool):
+    """
+    @notice Add or remove an exchange (router/pool) from the whitelist of
+            targets the zap is allowed to call during leverage callbacks
+    @param _exchange Address of the exchange
+    @param _approved Whether the exchange is allowed
+    """
+    ownable._check_owner()
+    self._set_exchange(_exchange, _approved)
 
 
 @external
