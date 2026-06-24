@@ -36,32 +36,77 @@ interface LLAMMA:
 event Deposit:
     user: indexed(address)
     user_collateral: uint256
-    user_borrowed: uint256
-    user_collateral_from_borrowed: uint256
-    debt: uint256
     leverage_collateral: uint256
+    debt: uint256
 
 event Repay:
     user: indexed(address)
     state_collateral_used: uint256
     borrowed_from_state_collateral: uint256
-    user_collateral: uint256
-    user_collateral_used: uint256
-    borrowed_from_user_collateral: uint256
     user_borrowed: uint256
+
+event SetExchange:
+    exchange: indexed(address)
+    approved: bool
+
+event OwnershipTransferred:
+    previous_owner: indexed(address)
+    new_owner: indexed(address)
 
 
 DEAD_SHARES: constant(uint256) = 1000
 MAX_TICKS_UINT: constant(uint256) = 50
 MAX_P_BASE_BANDS: constant(int256) = 5
 MAX_SKIP_TICKS: constant(uint256) = 1024
+MAX_INIT_EXCHANGES: constant(uint256) = 10
 
 FACTORIES: public(DynArray[address, 2])
 
+owner: public(address)
+# Whitelist of exchanges (routers/pools) the zap is allowed to `raw_call`
+is_approved_exchange: public(HashMap[address, bool])
+
+
+@internal
+def _set_exchange(_exchange: address, _approved: bool):
+    self.is_approved_exchange[_exchange] = _approved
+    log SetExchange(_exchange, _approved)
+
 
 @external
-def __init__(_factories: DynArray[address, 2]):
+def __init__(_factories: DynArray[address, 2], _admin: address, _exchanges: DynArray[address, MAX_INIT_EXCHANGES]):
     self.FACTORIES = _factories
+
+    assert _admin != empty(address)
+    self.owner = _admin
+    log OwnershipTransferred(empty(address), _admin)
+
+    for exchange in _exchanges:
+        self._set_exchange(exchange, True)
+
+
+@external
+def set_exchange(_exchange: address, _approved: bool):
+    """
+    @notice Add or remove an exchange (router/pool) from the whitelist of
+            targets the zap is allowed to call during leverage callbacks
+    @param _exchange Address of the exchange
+    @param _approved Whether the exchange is allowed
+    """
+    assert msg.sender == self.owner, "ownable: caller is not the owner"
+    self._set_exchange(_exchange, _approved)
+
+
+@external
+def transfer_ownership(_new_owner: address):
+    """
+    @notice Transfer ownership of the contract to a new account
+    @param _new_owner Address of the new owner
+    """
+    assert msg.sender == self.owner, "ownable: caller is not the owner"
+    assert _new_owner != empty(address), "ownable: new owner is the zero address"
+    log OwnershipTransferred(self.owner, _new_owner)
+    self.owner = _new_owner
 
 
 @internal
@@ -265,12 +310,6 @@ def max_borrowable(controller: address, _user_collateral: uint256, _leverage_col
 
 
 @internal
-def _transferFrom(token: address, _from: address, _to: address, amount: uint256):
-    if amount > 0:
-        assert ERC20(token).transferFrom(_from, _to, amount, default_return_value=True)
-
-
-@internal
 def _approve(coin: address, spender: address):
     if ERC20(coin).allowance(self, spender) == 0:
         assert ERC20(coin).approve(spender, max_value(uint256), default_return_value=True)
@@ -286,11 +325,10 @@ def callback_deposit(user: address, stablecoins: uint256, user_collateral: uint2
     @param stablecoins Always 0
     @param user_collateral The amount of collateral token provided by user
     @param d_debt The amount to be borrowed (in addition to what has already been borrowed)
-    @param callback_args [factory_id, controller_id, user_borrowed]
+    @param callback_args [factory_id, controller_id, min_recv]
                          0-1. factory_id, controller_id are needed to check that msg.sender is the one of our controllers
-                         2. user_borrowed - the amount of borrowed token provided by user (needs to be exchanged for collateral)
-                         3. min_recv - the minimum amount to receive from exchange of (user_borrowed + d_debt) for collateral tokens
-    return [0, user_collateral_from_borrowed + leverage_collateral]
+                         2. min_recv - the minimum amount to receive from exchange of d_debt for collateral tokens
+    return [0, leverage_collateral]
     """
     controller: address = Factory(self.FACTORIES[callback_args[0]]).controllers(callback_args[1])
     assert msg.sender == controller, "wrong controller"
@@ -304,21 +342,20 @@ def callback_deposit(user: address, stablecoins: uint256, user_collateral: uint2
     # TOTAL: 96 bytes
     exchange_calldata: Bytes[10 ** 4 - 96 - 16] = empty(Bytes[10 ** 4 - 96 - 16])
     router_address, exchange_calldata = _abi_decode(callback_bytes, (address, Bytes[10 ** 4 - 96 - 16]))
+    assert self.is_approved_exchange[router_address], "Exchange not approved"
 
     self._approve(borrowed_token, router_address)
     self._approve(collateral_token, controller)
 
-    user_borrowed: uint256 = callback_args[2]
-    self._transferFrom(borrowed_token, user, self, user_borrowed)
-    raw_call(router_address, exchange_calldata)  # buys leverage_collateral for user_borrowed + d_debt
-    additional_collateral: uint256 = ERC20(collateral_token).balanceOf(self)
-    assert additional_collateral >= callback_args[3], "Slippage"
-    leverage_collateral: uint256 = d_debt * 10**18 / (d_debt + user_borrowed) * additional_collateral / 10**18
-    user_collateral_from_borrowed: uint256 = additional_collateral - leverage_collateral
+    # Buys collateral token for d_debt.
+    # The amount to be spent is specified inside the exchange_calldata.
+    raw_call(router_address, exchange_calldata)  # buys leverage_collateral for d_debt
+    leverage_collateral: uint256 = ERC20(collateral_token).balanceOf(self)
+    assert leverage_collateral >= callback_args[2], "Slippage"
 
-    log Deposit(user, user_collateral, user_borrowed, user_collateral_from_borrowed, d_debt, leverage_collateral)
+    log Deposit(user, user_collateral, leverage_collateral, d_debt)
 
-    return [0, additional_collateral]
+    return [0, leverage_collateral]
 
 
 @external
@@ -331,12 +368,11 @@ def callback_repay(user: address, stablecoins: uint256, collateral: uint256, deb
     @param stablecoins The value from user_state
     @param collateral The value from user_state
     @param debt The value from user_state
-    @param callback_args [factory_id, controller_id, user_collateral, user_borrowed]
+    @param callback_args [factory_id, controller_id, user_borrowed, min_recv]
                          0-1. factory_id, controller_id are needed to check that msg.sender is the one of our controllers
-                         2. user_collateral - the amount of collateral token provided by user (needs to be exchanged for borrowed)
-                         3. user_borrowed - the amount of borrowed token to repay from user's wallet
-                         4. min_recv - the minimum amount to receive from exchange of (user_collateral + state_collateral) for borrowed tokens
-    return [user_borrowed + borrowed_from_collateral, remaining_collateral]
+                         2. user_borrowed - the amount of borrowed token to repay from user's wallet (needed only for events)
+                         3. min_recv - the minimum amount to receive from exchange of state_collateral for borrowed tokens
+    return [borrowed_from_state_collateral, remaining_collateral]
     """
     controller: address = Factory(self.FACTORIES[callback_args[0]]).controllers(callback_args[1])
     assert msg.sender == controller, "wrong controller"
@@ -344,43 +380,32 @@ def callback_repay(user: address, stablecoins: uint256, collateral: uint256, deb
     borrowed_token: address = amm.coins(0)
     collateral_token: address = amm.coins(1)
 
+    router_address: address = empty(address)
+    # address x1: 32 bytes x1
+    # offset: 32 bytes, length: 32 bytes
+    # TOTAL: 96 bytes
+    exchange_calldata: Bytes[10 ** 4 - 96 - 16] = empty(Bytes[10 ** 4 - 96 - 16])
+    router_address, exchange_calldata = _abi_decode(callback_bytes, (address, Bytes[10 ** 4 - 96 - 16]))
+    assert self.is_approved_exchange[router_address], "Exchange not approved"
+
     self._approve(borrowed_token, controller)
     self._approve(collateral_token, controller)
+    self._approve(collateral_token, router_address)
 
     initial_collateral: uint256 = ERC20(collateral_token).balanceOf(self)
-    user_collateral: uint256 = callback_args[2]
-    if callback_bytes != b"":
-        router_address: address = empty(address)
-        # address x1: 32 bytes x1
-        # offset: 32 bytes, length: 32 bytes
-        # TOTAL: 96 bytes
-        exchange_calldata: Bytes[10 ** 4 - 96 - 16] = empty(Bytes[10 ** 4 - 96 - 16])
-        router_address, exchange_calldata = _abi_decode(callback_bytes, (address, Bytes[10 ** 4 - 96 - 16]))
 
-        self._transferFrom(collateral_token, user, self, user_collateral)
-        self._approve(collateral_token, router_address)
+    # Buys borrowed token for state collateral.
+    # The amount to be spent is specified inside callback_bytes.
+    raw_call(router_address, exchange_calldata)
 
-        # Buys borrowed token for collateral from user's position + from user's wallet.
-        # The amount to be spent is specified inside callback_bytes.
-        raw_call(router_address, exchange_calldata)
-    else:
-        assert user_collateral == 0
     remaining_collateral: uint256 = ERC20(collateral_token).balanceOf(self)
-    state_collateral_used: uint256 = 0
-    borrowed_from_state_collateral: uint256 = 0
-    user_collateral_used: uint256 = user_collateral
-    borrowed_from_user_collateral: uint256 = ERC20(borrowed_token).balanceOf(self)  # here it's total borrowed_from_collateral
-    assert borrowed_from_user_collateral >= callback_args[4], "Slippage"
-    if remaining_collateral < initial_collateral:
-        state_collateral_used = initial_collateral - remaining_collateral
-        borrowed_from_state_collateral = state_collateral_used * 10**18 / (state_collateral_used + user_collateral_used) * borrowed_from_user_collateral / 10**18
-        borrowed_from_user_collateral = borrowed_from_user_collateral - borrowed_from_state_collateral
-    else:
-        user_collateral_used = user_collateral - (remaining_collateral - initial_collateral)
+    borrowed_from_state_collateral: uint256 = ERC20(borrowed_token).balanceOf(self)
+    assert borrowed_from_state_collateral >= callback_args[3], "Slippage"
+    assert remaining_collateral < initial_collateral, "Collateral must decrease"
+    state_collateral_used: uint256 = initial_collateral - remaining_collateral
 
-    user_borrowed: uint256 = callback_args[3]
-    self._transferFrom(borrowed_token, user, self, user_borrowed)
+    user_borrowed: uint256 = callback_args[2]
 
-    log Repay(user, state_collateral_used, borrowed_from_state_collateral, user_collateral, user_collateral_used, borrowed_from_user_collateral, user_borrowed)
+    log Repay(user, state_collateral_used, borrowed_from_state_collateral, user_borrowed)
 
-    return [borrowed_from_state_collateral + borrowed_from_user_collateral + user_borrowed, remaining_collateral]
+    return [borrowed_from_state_collateral, remaining_collateral]
