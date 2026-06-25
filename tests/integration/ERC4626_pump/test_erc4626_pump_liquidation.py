@@ -108,9 +108,9 @@ def test_erc4626_pump_liquidation(
     final_collateral = collateral_token.balanceOf(attacker)
     # p is 1e18-scaled and relates 1e18-normalized amounts, so convert the
     # native-decimal collateral into native-decimal borrowed value.
-    collateral_value = (
-        final_collateral * p * 10 ** borrowed_token.decimals()
-    ) // (10 ** collateral_token.decimals() * 10**18)
+    collateral_value = (final_collateral * p * 10 ** borrowed_token.decimals()) // (
+        10 ** collateral_token.decimals() * 10**18
+    )
     net_profit = final_borrowed + collateral_value - attacker_capital
 
     print("collateral held:", final_collateral / 10 ** collateral_token.decimals())

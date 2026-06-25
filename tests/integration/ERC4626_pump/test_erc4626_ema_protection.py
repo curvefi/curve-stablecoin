@@ -261,7 +261,7 @@ def test_erc4626_ema_sustained_pump_eventually_liquidates(
         with boa.env.prank(attacker):
             ema_oracle.price_w()
         h = controller.health(victim, True)
-        print(f"  {step:>9}  | {ema_oracle.price()/1e18:>7.0f}  | {h/1e18:+.4f}")
+        print(f"  {step:>9}  | {ema_oracle.price() / 1e18:>7.0f}  | {h / 1e18:+.4f}")
         if h < 0 and not crossed:
             crossed = True
 
