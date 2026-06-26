@@ -69,6 +69,9 @@ def test_borrow_more_d_debt(
     assert borrowed_token.balanceOf(leverage_zap.address) == 0
     assert collateral_token.balanceOf(leverage_zap.address) == 0
 
+    # The exchange retains no allowance after the swap
+    assert borrowed_token.allowance(leverage_zap.address, dummy_router.address) == 0
+
 
 def test_borrow_more_d_debt_and_user_collateral(
     open_position,
@@ -126,6 +129,9 @@ def test_borrow_more_d_debt_and_user_collateral(
     # The zap holds no tokens
     assert borrowed_token.balanceOf(leverage_zap.address) == 0
     assert collateral_token.balanceOf(leverage_zap.address) == 0
+
+    # The exchange retains no allowance after the swap
+    assert borrowed_token.allowance(leverage_zap.address, dummy_router.address) == 0
 
 
 def test_borrow_more_slippage_reverts(

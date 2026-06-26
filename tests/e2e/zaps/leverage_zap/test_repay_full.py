@@ -66,6 +66,9 @@ def test_repay_full_state_collateral(
     assert borrowed_token.balanceOf(leverage_zap.address) == 0
     assert collateral_token.balanceOf(leverage_zap.address) == 0
 
+    # The exchange retains no allowance after the swap
+    assert collateral_token.allowance(leverage_zap.address, dummy_router.address) == 0
+
 
 def test_repay_full_state_collateral_and_user_borrowed(
     open_position,
@@ -124,6 +127,9 @@ def test_repay_full_state_collateral_and_user_borrowed(
 
     assert borrowed_token.balanceOf(leverage_zap.address) == 0
     assert collateral_token.balanceOf(leverage_zap.address) == 0
+
+    # The exchange retains no allowance after the swap
+    assert collateral_token.allowance(leverage_zap.address, dummy_router.address) == 0
 
 
 def test_repay_full_slippage_reverts(

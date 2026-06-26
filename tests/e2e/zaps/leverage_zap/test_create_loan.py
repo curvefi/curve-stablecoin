@@ -82,6 +82,9 @@ def test_create_loan_leverage(
     assert borrowed_token.balanceOf(leverage_zap.address) == 0
     assert collateral_token.balanceOf(leverage_zap.address) == 0
 
+    # The exchange retains no allowance after the swap
+    assert borrowed_token.allowance(leverage_zap.address, dummy_router.address) == 0
+
 
 def test_create_loan_slippage_reverts(
     borrower,
