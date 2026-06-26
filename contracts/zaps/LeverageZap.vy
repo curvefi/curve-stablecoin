@@ -60,7 +60,7 @@ MAX_P_BASE_BANDS: constant(int256) = 5
 MAX_SKIP_TICKS: constant(uint256) = 1024
 MAX_INIT_EXCHANGES: constant(uint256) = 10
 
-FACTORIES: public(DynArray[address, 2])
+FACTORY: public(immutable(address))
 
 owner: public(address)
 # Whitelist of exchanges (routers/pools) the zap is allowed to `raw_call`
@@ -74,8 +74,8 @@ def _set_exchange(_exchange: address, _approved: bool):
 
 
 @external
-def __init__(_factories: DynArray[address, 2], _admin: address, _exchanges: DynArray[address, MAX_INIT_EXCHANGES]):
-    self.FACTORIES = _factories
+def __init__(_factory: address, _admin: address, _exchanges: DynArray[address, MAX_INIT_EXCHANGES]):
+    FACTORY = _factory
 
     assert _admin != empty(address)
     self.owner = _admin
@@ -325,12 +325,12 @@ def callback_deposit(user: address, stablecoins: uint256, user_collateral: uint2
     @param stablecoins Always 0
     @param user_collateral The amount of collateral token provided by user
     @param d_debt The amount to be borrowed (in addition to what has already been borrowed)
-    @param callback_args [factory_id, controller_id, min_recv]
-                         0-1. factory_id, controller_id are needed to check that msg.sender is the one of our controllers
-                         2. min_recv - the minimum amount to receive from exchange of d_debt for collateral tokens
+    @param callback_args [controller_id, min_recv]
+                         0. controller_id is needed to check that msg.sender is the one of our controllers
+                         1. min_recv - the minimum amount to receive from exchange of d_debt for collateral tokens
     return [0, leverage_collateral]
     """
-    controller: address = Factory(self.FACTORIES[callback_args[0]]).controllers(callback_args[1])
+    controller: address = Factory(FACTORY).controllers(callback_args[0])
     assert msg.sender == controller, "wrong controller"
     amm: LLAMMA = LLAMMA(Controller(controller).amm())
     borrowed_token: address = amm.coins(0)
@@ -351,7 +351,7 @@ def callback_deposit(user: address, stablecoins: uint256, user_collateral: uint2
     # The amount to be spent is specified inside the exchange_calldata.
     raw_call(router_address, exchange_calldata)  # buys leverage_collateral for d_debt
     leverage_collateral: uint256 = ERC20(collateral_token).balanceOf(self)
-    assert leverage_collateral >= callback_args[2], "Slippage"
+    assert leverage_collateral >= callback_args[1], "Slippage"
 
     log Deposit(user, user_collateral, leverage_collateral, d_debt)
 
@@ -368,13 +368,13 @@ def callback_repay(user: address, stablecoins: uint256, collateral: uint256, deb
     @param stablecoins The value from user_state
     @param collateral The value from user_state
     @param debt The value from user_state
-    @param callback_args [factory_id, controller_id, user_borrowed, min_recv]
-                         0-1. factory_id, controller_id are needed to check that msg.sender is the one of our controllers
-                         2. user_borrowed - the amount of borrowed token to repay from user's wallet (needed only for events)
-                         3. min_recv - the minimum amount to receive from exchange of state_collateral for borrowed tokens
+    @param callback_args [controller_id, user_borrowed, min_recv]
+                         0. controller_id is needed to check that msg.sender is the one of our controllers
+                         1. user_borrowed - the amount of borrowed token to repay from user's wallet (needed only for events)
+                         2. min_recv - the minimum amount to receive from exchange of state_collateral for borrowed tokens
     return [borrowed_from_state_collateral, remaining_collateral]
     """
-    controller: address = Factory(self.FACTORIES[callback_args[0]]).controllers(callback_args[1])
+    controller: address = Factory(FACTORY).controllers(callback_args[0])
     assert msg.sender == controller, "wrong controller"
     amm: LLAMMA = LLAMMA(Controller(controller).amm())
     borrowed_token: address = amm.coins(0)
@@ -400,11 +400,11 @@ def callback_repay(user: address, stablecoins: uint256, collateral: uint256, deb
 
     remaining_collateral: uint256 = ERC20(collateral_token).balanceOf(self)
     borrowed_from_state_collateral: uint256 = ERC20(borrowed_token).balanceOf(self)
-    assert borrowed_from_state_collateral >= callback_args[3], "Slippage"
+    assert borrowed_from_state_collateral >= callback_args[2], "Slippage"
     assert remaining_collateral < initial_collateral, "Collateral must decrease"
     state_collateral_used: uint256 = initial_collateral - remaining_collateral
 
-    user_borrowed: uint256 = callback_args[2]
+    user_borrowed: uint256 = callback_args[1]
 
     log Repay(user, state_collateral_used, borrowed_from_state_collateral, user_borrowed)
 
