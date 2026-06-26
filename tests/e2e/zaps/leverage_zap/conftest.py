@@ -120,12 +120,12 @@ def dummy_router(borrowed_token, collateral_token):
 
 
 @pytest.fixture(scope="module")
-def leverage_zap(market_type, factory, mint_factory, admin, dummy_router):
+def leverage_zap(market_type, factory, mint_factory, dummy_router):
     exchanges = [dummy_router.address]
     if market_type == "lending":
-        return LEVERAGE_ZAP_LENDING_DEPLOYER.deploy(factory.address, admin, exchanges)
+        return LEVERAGE_ZAP_LENDING_DEPLOYER.deploy(factory.address, exchanges)
     else:
-        return LEVERAGE_ZAP_MINT_DEPLOYER.deploy(mint_factory.address, admin, exchanges)
+        return LEVERAGE_ZAP_MINT_DEPLOYER.deploy(mint_factory.address, exchanges)
 
 
 @pytest.fixture(scope="module")
