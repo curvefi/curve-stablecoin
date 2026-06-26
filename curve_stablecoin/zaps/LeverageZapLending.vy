@@ -77,6 +77,20 @@ def _get_k_effective(_controller: IController, _collateral: uint256, _N: uint256
 
 
 @internal
+def _execute_raw_call(
+        _token: IERC20,
+        _exchange_address: address,
+        _exchange_calldata: Bytes[CALLDATA_MAX_SIZE - 5 * 32],
+):
+    assert self.is_approved_exchange[_exchange_address], "Exchange not approved"
+
+    # Approve, call the exchange, then revoke so it retains no allowance afterwards
+    assert extcall _token.approve(_exchange_address, max_value(uint256), default_return_value=True)
+    raw_call(_exchange_address, _exchange_calldata)
+    assert extcall _token.approve(_exchange_address, 0, default_return_value=True)
+
+
+@internal
 def _callback_deposit(
         _controller: address,
         _user: address,
@@ -85,8 +99,6 @@ def _callback_deposit(
         _exchange_address: address,
         _exchange_calldata: Bytes[CALLDATA_MAX_SIZE - 5 * 32],
 ) -> uint256[2]:
-    assert self.is_approved_exchange[_exchange_address], "Exchange not approved"
-
     amm: IAMM = staticcall IController(_controller).amm()
     borrowed_token: IERC20 = IERC20(staticcall amm.coins(0))
     collateral_token: IERC20 = IERC20(staticcall amm.coins(1))
@@ -94,12 +106,11 @@ def _callback_deposit(
     # Dust cleaning
     tkn.transfer(collateral_token, _user, staticcall collateral_token.balanceOf(self))
 
-    tkn.max_approve(borrowed_token, _exchange_address)
     tkn.max_approve(collateral_token, _controller)
 
-    # Buys collateral token for d_debt
+    # Buy leverage_collateral for d_debt
     # The amount to be spent is specified inside the exchange_calldata.
-    raw_call(_exchange_address, _exchange_calldata)  # buys leverage_collateral for d_debt
+    self._execute_raw_call(borrowed_token, _exchange_address, _exchange_calldata)
 
     leverage_collateral: uint256 = staticcall collateral_token.balanceOf(self)
     assert leverage_collateral >= _min_recv, "Slippage"
@@ -124,8 +135,6 @@ def _callback_repay(
         _exchange_address: address,
         _exchange_calldata: Bytes[CALLDATA_MAX_SIZE - 5 * 32],
 ) -> uint256[2]:
-    assert self.is_approved_exchange[_exchange_address], "Exchange not approved"
-
     amm: IAMM = staticcall IController(_controller).amm()
     borrowed_token: IERC20 = IERC20(staticcall amm.coins(0))
     collateral_token: IERC20 = IERC20(staticcall amm.coins(1))
@@ -137,11 +146,10 @@ def _callback_repay(
 
     tkn.max_approve(borrowed_token, _controller)
     tkn.max_approve(collateral_token, _controller)
-    tkn.max_approve(collateral_token, _exchange_address)
 
-    # Buy borrowed token for collateral from user's position + from user's wallet.
+    # Buy borrowed token for collateral from user's position.
     # The amount to be spent is specified inside the exchange_calldata.
-    raw_call(_exchange_address, _exchange_calldata)
+    self._execute_raw_call(collateral_token, _exchange_address, _exchange_calldata)
 
     remaining_collateral: uint256 = staticcall collateral_token.balanceOf(self)
     borrowed_from_state_collateral: uint256 = staticcall borrowed_token.balanceOf(self)
