@@ -24,6 +24,12 @@ def FACTORY() -> address:
 
 @view
 @external
+def admin() -> address:
+    ...
+
+
+@view
+@external
 def max_borrowable(controller: IController, _user_collateral: uint256, _leverage_collateral: uint256, N: uint256, p_avg: uint256) -> uint256:
     ...
 

@@ -16,16 +16,8 @@ from curve_stablecoin.interfaces import ILeverageZap
 from curve_std.interfaces import IERC20
 from curve_std import token as tkn
 from snekmate.utils import math
-from snekmate.auth import ownable
 
 implements: ILeverageZap
-
-initializes: ownable
-
-exports: (
-    ownable.owner,
-    ownable.transfer_ownership,
-)
 
 ################################################################
 #                          CONSTANTS                           #
@@ -51,12 +43,8 @@ event SetExchange:
 
 
 @deploy
-def __init__(_factory: address, _admin: address, _exchanges: DynArray[address, MAX_INIT_EXCHANGES]):
+def __init__(_factory: address, _exchanges: DynArray[address, MAX_INIT_EXCHANGES]):
     _LEND_FACTORY = ILendFactory(_factory)
-
-    ownable.__init__()
-    assert _admin != empty(address)
-    ownable._transfer_ownership(_admin)
 
     for exchange: address in _exchanges:
         self._set_exchange(exchange, True)
@@ -170,6 +158,15 @@ def FACTORY() -> address:
     return _LEND_FACTORY.address
 
 
+@external
+@view
+def admin() -> address:
+    """
+    @notice Admin allowed to manage the exchange whitelist, delegated to the factory
+    """
+    return staticcall _LEND_FACTORY.admin()
+
+
 @internal
 def _set_exchange(_exchange: address, _approved: bool):
     self.is_approved_exchange[_exchange] = _approved
@@ -184,7 +181,7 @@ def set_exchange(_exchange: address, _approved: bool):
     @param _exchange Address of the exchange
     @param _approved Whether the exchange is allowed
     """
-    ownable._check_owner()
+    assert msg.sender == staticcall _LEND_FACTORY.admin(), "Only admin"
     self._set_exchange(_exchange, _approved)
 
 

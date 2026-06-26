@@ -19,8 +19,7 @@ initializes: core
 
 exports: (
     core.max_borrowable,
-    core.ownable.owner,
-    core.ownable.transfer_ownership,
+    core.admin,
     core.set_exchange,
     core.is_approved_exchange,
 )
@@ -29,9 +28,9 @@ _MINT_FACTORY: immutable(IControllerFactory)
 
 
 @deploy
-def __init__(_factory: address, _admin: address, _exchanges: DynArray[address, core.MAX_INIT_EXCHANGES]):
+def __init__(_factory: address, _exchanges: DynArray[address, core.MAX_INIT_EXCHANGES]):
     _MINT_FACTORY = IControllerFactory(_factory)
-    core.__init__(_factory, _admin, _exchanges)
+    core.__init__(_factory, _exchanges)
 
 
 @external
