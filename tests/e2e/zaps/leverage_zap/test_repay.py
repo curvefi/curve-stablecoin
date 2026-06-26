@@ -3,11 +3,10 @@ E2E tests for LeverageZap.callback_repay via controller.repay.
 
 The zap only swaps the position's state collateral (sent to it by the controller) into
 the borrowed token. Wallet repayment is handled by the controller via its `_wallet_d_debt`
-argument; the zap's `user_borrowed` is only an event annotation.
+argument.
 """
 
 import boa
-from eth_abi import encode
 
 from tests.utils import filter_logs
 from tests.utils.deployers import DUMMY_ROUTER_DEPLOYER
@@ -48,7 +47,6 @@ def test_repay_state_collateral(
 
     calldata = make_repay_calldata(
         controller_id,
-        0,
         borrowed_out * 999 // 1000,
         dummy_router,
         collateral_token,
@@ -71,7 +69,6 @@ def test_repay_state_collateral(
     assert log.user == borrower
     assert log.state_collateral_used == collateral_to_swap
     assert log.borrowed_from_state_collateral == borrowed_out
-    assert log.user_borrowed == 0
 
     assert borrowed_token.balanceOf(leverage_zap.address) == 0
     assert collateral_token.balanceOf(leverage_zap.address) == 0
@@ -90,7 +87,6 @@ def test_repay_state_collateral_and_user_borrowed(
     """
     State collateral swap + wallet repayment: the zap swaps state collateral while the
     user also repays from their wallet via the controller's `_wallet_d_debt`.
-    `user_borrowed` is passed in the calldata only for the event annotation.
     Checks state, Repay event fields, and zero zap balances after.
     """
     borrower = open_position()
@@ -105,7 +101,6 @@ def test_repay_state_collateral_and_user_borrowed(
 
     calldata = make_repay_calldata(
         controller_id,
-        user_borrowed,
         borrowed_out * 999 // 1000,
         dummy_router,
         collateral_token,
@@ -130,7 +125,6 @@ def test_repay_state_collateral_and_user_borrowed(
     assert log.user == borrower
     assert log.state_collateral_used == collateral_to_swap
     assert log.borrowed_from_state_collateral == borrowed_out
-    assert log.user_borrowed == user_borrowed
 
     assert borrowed_token.balanceOf(leverage_zap.address) == 0
     assert collateral_token.balanceOf(leverage_zap.address) == 0
@@ -158,7 +152,6 @@ def test_repay_slippage_reverts(
 
     calldata = make_repay_calldata(
         controller_id,
-        0,
         borrowed_out + 1,  # min_recv 1 above actual
         dummy_router,
         collateral_token,
@@ -196,7 +189,6 @@ def test_repay_unapproved_exchange_reverts(
 
     calldata = make_repay_calldata(
         controller_id,
-        0,
         borrowed_out * 999 // 1000,
         rogue_router,
         collateral_token,
@@ -220,12 +212,8 @@ def test_repay_wrong_controller_reverts(
     """Calling callback_repay directly (not from controller) must revert."""
     attacker = boa.env.generate_address()
 
-    exchange_data = dummy_router.exchange.prepare_calldata(
-        collateral_token.address, borrowed_token.address, 0, 0
-    )
-    calldata = encode(
-        ["uint256", "uint256", "uint256", "address", "bytes"],
-        [controller_id, 0, 0, dummy_router.address, exchange_data],
+    calldata = make_repay_calldata(
+        controller_id, 0, dummy_router, collateral_token, borrowed_token, 0, 0
     )
 
     with boa.env.prank(attacker):

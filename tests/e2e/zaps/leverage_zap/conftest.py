@@ -69,7 +69,6 @@ def make_deposit_calldata(
 
 def make_repay_calldata(
     controller_id,
-    user_borrowed,
     min_recv,
     router,
     collateral_token,
@@ -77,11 +76,11 @@ def make_repay_calldata(
     collateral_in,
     borrowed_out,
 ):
-    """Encode calldata for callback_repay: (controller_id, user_borrowed, min_recv, exchange_address, exchange_calldata).
+    """Encode calldata for callback_repay: (controller_id, min_recv, exchange_address, exchange_calldata).
 
     The zap only swaps state collateral it receives from the controller, so `collateral_in`
-    is the amount of state collateral to sell. `user_borrowed` is an events-only annotation;
-    actual wallet repayment is done by the controller via its `_wallet_d_debt` argument.
+    is the amount of state collateral to sell. Actual wallet repayment is done by the
+    controller via its `_wallet_d_debt` argument.
     """
     exchange_data = router.exchange.prepare_calldata(
         collateral_token.address,
@@ -90,8 +89,8 @@ def make_repay_calldata(
         borrowed_out,
     )
     return encode(
-        ["uint256", "uint256", "uint256", "address", "bytes"],
-        [controller_id, user_borrowed, min_recv, router.address, exchange_data],
+        ["uint256", "uint256", "address", "bytes"],
+        [controller_id, min_recv, router.address, exchange_data],
     )
 
 

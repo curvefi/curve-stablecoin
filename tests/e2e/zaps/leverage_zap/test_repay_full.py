@@ -2,12 +2,10 @@
 E2E tests for LeverageZap.callback_repay via controller.repay — full repayment (position close).
 
 The zap only swaps the position's state collateral. Any shortfall needed to fully close the
-loan is pulled from the user's wallet by the controller via its `_wallet_d_debt` argument; the
-zap's `user_borrowed` is only an event annotation.
+loan is pulled from the user's wallet by the controller via its `_wallet_d_debt` argument.
 """
 
 import boa
-from eth_abi import encode
 
 from tests.utils import filter_logs
 
@@ -45,7 +43,6 @@ def test_repay_full_state_collateral(
 
     calldata = make_repay_calldata(
         controller_id,
-        0,
         borrowed_out * 999 // 1000,
         dummy_router,
         collateral_token,
@@ -65,7 +62,6 @@ def test_repay_full_state_collateral(
     assert log.user == borrower
     assert log.state_collateral_used == collateral_to_swap
     assert log.borrowed_from_state_collateral == borrowed_out
-    assert log.user_borrowed == 0
 
     assert borrowed_token.balanceOf(leverage_zap.address) == 0
     assert collateral_token.balanceOf(leverage_zap.address) == 0
@@ -85,8 +81,7 @@ def test_repay_full_state_collateral_and_user_borrowed(
     Swap part of the state collateral (not enough alone) and let the controller pull the
     remaining shortfall from the user's wallet via `_wallet_d_debt` to fully close the loan.
     The remaining (unswapped) state collateral is returned to the user.
-    `user_borrowed` in the calldata is only an event annotation; the actual wallet repayment
-    is the shortfall computed by the controller.
+    The actual wallet repayment is the shortfall computed by the controller.
     Checks position is closed, Repay event fields, wallet usage, and zero zap balances after.
     """
     borrower = open_position()
@@ -98,11 +93,9 @@ def test_repay_full_state_collateral_and_user_borrowed(
     collateral_to_swap = state0[0] // 4
     price = price_oracle.price()
     borrowed_out = borrowed_from_collateral(collateral_to_swap, price, bd, cd)
-    user_borrowed = 200 * 10**bd  # event annotation only
 
     calldata = make_repay_calldata(
         controller_id,
-        user_borrowed,
         borrowed_out * 999 // 1000,
         dummy_router,
         collateral_token,
@@ -128,7 +121,6 @@ def test_repay_full_state_collateral_and_user_borrowed(
     assert log.user == borrower
     assert log.state_collateral_used == collateral_to_swap
     assert log.borrowed_from_state_collateral == borrowed_out
-    assert log.user_borrowed == user_borrowed
 
     assert borrowed_token.balanceOf(leverage_zap.address) == 0
     assert collateral_token.balanceOf(leverage_zap.address) == 0
@@ -156,7 +148,6 @@ def test_repay_full_slippage_reverts(
 
     calldata = make_repay_calldata(
         controller_id,
-        0,
         borrowed_out + 1,  # min_recv 1 above actual
         dummy_router,
         collateral_token,

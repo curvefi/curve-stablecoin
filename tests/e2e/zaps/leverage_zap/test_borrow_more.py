@@ -6,7 +6,6 @@ import boa
 
 from tests.utils import filter_logs
 from tests.utils.deployers import DUMMY_ROUTER_DEPLOYER
-from eth_abi import encode
 
 from tests.e2e.zaps.leverage_zap.conftest import (
     collateral_from_borrowed,
@@ -63,9 +62,8 @@ def test_borrow_more_d_debt(
     assert len(logs) == 1
     log = logs[0]
     assert log.user == borrower
-    assert log.user_collateral == 0
     assert log.leverage_collateral == collateral_out
-    assert log.debt == d_debt
+    assert log.d_debt == d_debt
 
     # The zap holds no tokens
     assert borrowed_token.balanceOf(leverage_zap.address) == 0
@@ -122,9 +120,8 @@ def test_borrow_more_d_debt_and_user_collateral(
     assert len(logs) == 1
     log = logs[0]
     assert log.user == borrower
-    assert log.user_collateral == user_collateral
     assert log.leverage_collateral == collateral_out
-    assert log.debt == d_debt
+    assert log.d_debt == d_debt
 
     # The zap holds no tokens
     assert borrowed_token.balanceOf(leverage_zap.address) == 0
@@ -209,12 +206,8 @@ def test_callback_deposit_wrong_controller_reverts(
     """Calling callback_deposit directly (not from controller) must revert."""
     attacker = boa.env.generate_address()
 
-    exchange_data = dummy_router.exchange.prepare_calldata(
-        borrowed_token.address, collateral_token.address, 0, 0
-    )
-    calldata = encode(
-        ["uint256", "uint256", "address", "bytes"],
-        [controller_id, 0, dummy_router.address, exchange_data],
+    calldata = make_deposit_calldata(
+        controller_id, 0, dummy_router, borrowed_token, collateral_token, 0, 0
     )
 
     with boa.env.prank(attacker):
