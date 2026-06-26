@@ -35,7 +35,6 @@ interface LLAMMA:
 
 event Deposit:
     user: indexed(address)
-    user_collateral: uint256
     leverage_collateral: uint256
     debt: uint256
 
@@ -43,7 +42,6 @@ event Repay:
     user: indexed(address)
     state_collateral_used: uint256
     borrowed_from_state_collateral: uint256
-    user_borrowed: uint256
 
 event SetExchange:
     exchange: indexed(address)
@@ -323,7 +321,7 @@ def callback_deposit(user: address, stablecoins: uint256, user_collateral: uint2
     @notice Callback method which should be called by controller to create leveraged position
     @param user Address of the user
     @param stablecoins Always 0
-    @param user_collateral The amount of collateral token provided by user
+    @param user_collateral The amount of collateral token provided by user (unused)
     @param d_debt The amount to be borrowed (in addition to what has already been borrowed)
     @param callback_args [controller_id, min_recv]
                          0. controller_id is needed to check that msg.sender is the one of our controllers
@@ -353,7 +351,7 @@ def callback_deposit(user: address, stablecoins: uint256, user_collateral: uint2
     leverage_collateral: uint256 = ERC20(collateral_token).balanceOf(self)
     assert leverage_collateral >= callback_args[1], "Slippage"
 
-    log Deposit(user, user_collateral, leverage_collateral, d_debt)
+    log Deposit(user, leverage_collateral, d_debt)
 
     return [0, leverage_collateral]
 
@@ -368,10 +366,9 @@ def callback_repay(user: address, stablecoins: uint256, collateral: uint256, deb
     @param stablecoins The value from user_state
     @param collateral The value from user_state
     @param debt The value from user_state
-    @param callback_args [controller_id, user_borrowed, min_recv]
+    @param callback_args [controller_id, min_recv]
                          0. controller_id is needed to check that msg.sender is the one of our controllers
-                         1. user_borrowed - the amount of borrowed token to repay from user's wallet (needed only for events)
-                         2. min_recv - the minimum amount to receive from exchange of state_collateral for borrowed tokens
+                         1. min_recv - the minimum amount to receive from exchange of state_collateral for borrowed tokens
     return [borrowed_from_state_collateral, remaining_collateral]
     """
     controller: address = Factory(FACTORY).controllers(callback_args[0])
@@ -400,12 +397,10 @@ def callback_repay(user: address, stablecoins: uint256, collateral: uint256, deb
 
     remaining_collateral: uint256 = ERC20(collateral_token).balanceOf(self)
     borrowed_from_state_collateral: uint256 = ERC20(borrowed_token).balanceOf(self)
-    assert borrowed_from_state_collateral >= callback_args[2], "Slippage"
+    assert borrowed_from_state_collateral >= callback_args[1], "Slippage"
     assert remaining_collateral < initial_collateral, "Collateral must decrease"
     state_collateral_used: uint256 = initial_collateral - remaining_collateral
 
-    user_borrowed: uint256 = callback_args[1]
-
-    log Repay(user, state_collateral_used, borrowed_from_state_collateral, user_borrowed)
+    log Repay(user, state_collateral_used, borrowed_from_state_collateral)
 
     return [borrowed_from_state_collateral, remaining_collateral]
