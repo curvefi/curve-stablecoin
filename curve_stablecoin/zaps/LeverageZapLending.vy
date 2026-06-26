@@ -91,6 +91,9 @@ def _callback_deposit(
     borrowed_token: IERC20 = IERC20(staticcall amm.coins(0))
     collateral_token: IERC20 = IERC20(staticcall amm.coins(1))
 
+    # Dust cleaning
+    tkn.transfer(collateral_token, _user, staticcall collateral_token.balanceOf(self))
+
     tkn.max_approve(borrowed_token, _exchange_address)
     tkn.max_approve(collateral_token, _controller)
 
@@ -100,6 +103,9 @@ def _callback_deposit(
 
     leverage_collateral: uint256 = staticcall collateral_token.balanceOf(self)
     assert leverage_collateral >= _min_recv, "Slippage"
+
+    # Refund borrowed tokens the exchange didn't spend back to the user (controller requires returned borrowed == 0).
+    tkn.transfer(borrowed_token, _user, staticcall borrowed_token.balanceOf(self))
 
     log ILeverageZap.Deposit(
         user=_user,
@@ -123,6 +129,10 @@ def _callback_repay(
     amm: IAMM = staticcall IController(_controller).amm()
     borrowed_token: IERC20 = IERC20(staticcall amm.coins(0))
     collateral_token: IERC20 = IERC20(staticcall amm.coins(1))
+
+    # Dust cleaning
+    tkn.transfer(borrowed_token, _user, staticcall borrowed_token.balanceOf(self))
+
     initial_collateral: uint256 = staticcall collateral_token.balanceOf(self)
 
     tkn.max_approve(borrowed_token, _controller)
