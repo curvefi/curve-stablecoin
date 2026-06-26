@@ -8,6 +8,7 @@
 """
 
 interface ERC20:
+    def transfer(_to: address, _value: uint256) -> bool: nonpayable
     def transferFrom(_from: address, _to: address, _value: uint256) -> bool: nonpayable
     def balanceOf(_for: address) -> uint256: view
     def allowance(_owner: address, _spender: address) -> uint256: view
@@ -302,6 +303,12 @@ def _approve(coin: address, spender: address):
         assert ERC20(coin).approve(spender, max_value(uint256), default_return_value=True)
 
 
+@internal
+def _transfer(_token: address, _to: address, _amount: uint256):
+    if _amount > 0:
+        assert ERC20(_token).transfer(_to, _amount, default_return_value=True)
+
+
 @external
 @nonreentrant('lock')
 def callback_deposit(user: address, stablecoins: uint256, user_collateral: uint256, d_debt: uint256,
@@ -331,6 +338,9 @@ def callback_deposit(user: address, stablecoins: uint256, user_collateral: uint2
     router_address, exchange_calldata = _abi_decode(callback_bytes, (address, Bytes[10 ** 4 - 96 - 16]))
     assert self.is_approved_exchange[router_address], "Exchange not approved"
 
+    # Dust cleaning
+    self._transfer(collateral_token, user, ERC20(collateral_token).balanceOf(self))
+
     self._approve(borrowed_token, router_address)
     self._approve(collateral_token, controller)
 
@@ -339,6 +349,9 @@ def callback_deposit(user: address, stablecoins: uint256, user_collateral: uint2
     raw_call(router_address, exchange_calldata)  # buys leverage_collateral for d_debt
     leverage_collateral: uint256 = ERC20(collateral_token).balanceOf(self)
     assert leverage_collateral >= callback_args[1], "Slippage"
+
+    # Refund borrowed tokens the exchange didn't spend back to the user (controller requires returned borrowed == 0).
+    self._transfer(borrowed_token, user, ERC20(borrowed_token).balanceOf(self))
 
     log Deposit(user, leverage_collateral, d_debt)
 
@@ -377,6 +390,9 @@ def callback_repay(user: address, stablecoins: uint256, collateral: uint256, deb
     self._approve(borrowed_token, controller)
     self._approve(collateral_token, controller)
     self._approve(collateral_token, router_address)
+
+    # Dust cleaning
+    self._transfer(borrowed_token, user, ERC20(borrowed_token).balanceOf(self))
 
     initial_collateral: uint256 = ERC20(collateral_token).balanceOf(self)
 
