@@ -66,6 +66,7 @@ def test_repay_state_collateral(
 
     assert len(logs) == 1
     log = logs[0]
+    assert log.controller == controller.address
     assert log.user == borrower
     assert log.state_collateral_used == collateral_to_swap
     assert log.borrowed_from_state_collateral == borrowed_out
@@ -125,6 +126,7 @@ def test_repay_state_collateral_and_user_borrowed(
 
     assert len(logs) == 1
     log = logs[0]
+    assert log.controller == controller.address
     assert log.user == borrower
     assert log.state_collateral_used == collateral_to_swap
     assert log.borrowed_from_state_collateral == borrowed_out

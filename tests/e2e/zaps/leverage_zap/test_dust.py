@@ -142,6 +142,7 @@ def test_deposit_collateral_dust_flushed_to_user(
 
     # Dust returned to user; only the swap output counts as leverage collateral
     assert collateral_token.balanceOf(borrower) == c_before - user_collateral + dust
+    assert logs[0].controller == controller.address
     assert logs[0].leverage_collateral == collateral_out
 
     state = controller.user_state(borrower)
@@ -243,6 +244,7 @@ def test_repay_borrowed_dust_flushed_to_user(
 
     # Dust returned to user; only the swap output repaid debt
     assert borrowed_token.balanceOf(borrower) == b_before + dust
+    assert logs[0].controller == controller.address
     assert logs[0].borrowed_from_state_collateral == borrowed_out
     assert logs[0].state_collateral_used == collateral_to_swap
 

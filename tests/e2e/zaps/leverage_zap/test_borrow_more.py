@@ -61,6 +61,7 @@ def test_borrow_more_d_debt(
     # Check event
     assert len(logs) == 1
     log = logs[0]
+    assert log.controller == controller.address
     assert log.user == borrower
     assert log.leverage_collateral == collateral_out
     assert log.d_debt == d_debt
@@ -122,6 +123,7 @@ def test_borrow_more_d_debt_and_user_collateral(
     # Check event
     assert len(logs) == 1
     log = logs[0]
+    assert log.controller == controller.address
     assert log.user == borrower
     assert log.leverage_collateral == collateral_out
     assert log.d_debt == d_debt
