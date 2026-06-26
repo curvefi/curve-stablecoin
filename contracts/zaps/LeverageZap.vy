@@ -36,11 +36,13 @@ interface LLAMMA:
 
 
 event Deposit:
+    controller: indexed(address)
     user: indexed(address)
     leverage_collateral: uint256
     d_debt: uint256
 
 event Repay:
+    controller: indexed(address)
     user: indexed(address)
     state_collateral_used: uint256
     borrowed_from_state_collateral: uint256
@@ -361,7 +363,7 @@ def callback_deposit(user: address, stablecoins: uint256, user_collateral: uint2
     # Refund borrowed tokens the exchange didn't spend back to the user (controller requires returned borrowed == 0).
     self._transfer(borrowed_token, user, ERC20(borrowed_token).balanceOf(self))
 
-    log Deposit(user, leverage_collateral, d_debt)
+    log Deposit(controller, user, leverage_collateral, d_debt)
 
     return [0, leverage_collateral]
 
@@ -412,6 +414,6 @@ def callback_repay(user: address, stablecoins: uint256, collateral: uint256, deb
     assert remaining_collateral < initial_collateral, "Collateral must decrease"
     state_collateral_used: uint256 = initial_collateral - remaining_collateral
 
-    log Repay(user, state_collateral_used, borrowed_from_state_collateral)
+    log Repay(controller, user, state_collateral_used, borrowed_from_state_collateral)
 
     return [borrowed_from_state_collateral, remaining_collateral]
