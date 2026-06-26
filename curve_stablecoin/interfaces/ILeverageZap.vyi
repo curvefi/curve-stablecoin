@@ -16,6 +16,11 @@ event Repay:
     borrowed_from_state_collateral: uint256
 
 
+event SetExchange:
+    exchange: indexed(address)
+    approved: bool
+
+
 @view
 @external
 def FACTORY() -> address:

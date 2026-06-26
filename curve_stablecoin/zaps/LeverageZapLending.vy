@@ -37,10 +37,6 @@ MAX_INIT_EXCHANGES: constant(uint256) = 10
 # Whitelist of exchanges (routers/pools) the zap is allowed to `raw_call`
 is_approved_exchange: public(HashMap[address, bool])
 
-event SetExchange:
-    exchange: indexed(address)
-    approved: bool
-
 
 @deploy
 def __init__(_factory: address, _exchanges: DynArray[address, MAX_INIT_EXCHANGES]):
@@ -170,7 +166,7 @@ def admin() -> address:
 @internal
 def _set_exchange(_exchange: address, _approved: bool):
     self.is_approved_exchange[_exchange] = _approved
-    log SetExchange(exchange=_exchange, approved=_approved)
+    log ILeverageZap.SetExchange(exchange=_exchange, approved=_approved)
 
 
 @external
