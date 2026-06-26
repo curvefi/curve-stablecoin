@@ -53,7 +53,7 @@ def callback_deposit(
     @notice Callback method which should be called by controller to create leveraged position
     @param _user Address of the user
     @param _borrowed Always 0
-    @param _user_collateral The amount of collateral token provided by user (used only for events)
+    @param _user_collateral The amount of collateral token provided by user (unused)
     @param _d_debt The amount to be borrowed (in addition to what has already been borrowed)
     @param _calldata controller_id + min_recv + exchange_address + exchange_calldata
                     - controller_id is needed to check that msg.sender is the one of our controllers
@@ -73,7 +73,7 @@ def callback_deposit(
     controller: address = staticcall _MINT_FACTORY.controllers(controller_id)
     assert msg.sender == controller, "wrong controller"
 
-    return core._callback_deposit(controller, _user, _user_collateral, _d_debt, min_recv, exchange_address, exchange_calldata)
+    return core._callback_deposit(controller, _user, _d_debt, min_recv, exchange_address, exchange_calldata)
 
 
 @external
@@ -91,24 +91,22 @@ def callback_repay(
     @param _borrowed The value from user_state
     @param _collateral The value from user_state
     @param _debt The value from user_state
-    @param _calldata controller_id + user_borrowed + min_recv + exchange_address + exchange_calldata
+    @param _calldata controller_id + min_recv + exchange_address + exchange_calldata
                     - controller_id is needed to check that msg.sender is the one of our controllers
-                    - user_borrowed - the amount of borrowed token to repay from user's wallet (needed only for events)
                     - min_recv - the minimum amount to receive from exchange of state_collateral for borrowed tokens
                     - exchange_address - the address of the exchange (e. g. pool, router) to swap collateral -> borrowed
                     - exchange_calldata - the data for the exchange (e. g. pool, router)
     return [borrowed_from_state_collateral, remaining_collateral]
     """
     controller_id: uint256 = 0
-    user_borrowed: uint256 = 0
     min_recv: uint256 = 0
     exchange_address: address = empty(address)
-    exchange_calldata: Bytes[core.CALLDATA_MAX_SIZE - 6 * 32] = empty(Bytes[core.CALLDATA_MAX_SIZE - 6 * 32])
-    controller_id, user_borrowed, min_recv, exchange_address, exchange_calldata = abi_decode(
-        _calldata, (uint256, uint256, uint256, address, Bytes[core.CALLDATA_MAX_SIZE - 6 * 32])
+    exchange_calldata: Bytes[core.CALLDATA_MAX_SIZE - 5 * 32] = empty(Bytes[core.CALLDATA_MAX_SIZE - 5 * 32])
+    controller_id, min_recv, exchange_address, exchange_calldata = abi_decode(
+        _calldata, (uint256, uint256, address, Bytes[core.CALLDATA_MAX_SIZE - 5 * 32])
     )
 
     controller: address = staticcall _MINT_FACTORY.controllers(controller_id)
     assert msg.sender == controller, "wrong controller"
 
-    return core._callback_repay(controller, _user, user_borrowed, min_recv, exchange_address, exchange_calldata)
+    return core._callback_repay(controller, _user, min_recv, exchange_address, exchange_calldata)

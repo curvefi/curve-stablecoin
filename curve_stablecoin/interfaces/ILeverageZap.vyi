@@ -6,7 +6,6 @@ CALLDATA_MAX_SIZE: constant(uint256) = c.CALLDATA_MAX_SIZE
 
 event Deposit:
     user: indexed(address)
-    user_collateral: uint256
     leverage_collateral: uint256
     debt: uint256
 
@@ -15,7 +14,6 @@ event Repay:
     user: indexed(address)
     state_collateral_used: uint256
     borrowed_from_state_collateral: uint256
-    user_borrowed: uint256
 
 
 @view
