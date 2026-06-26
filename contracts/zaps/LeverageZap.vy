@@ -36,7 +36,7 @@ interface LLAMMA:
 event Deposit:
     user: indexed(address)
     leverage_collateral: uint256
-    debt: uint256
+    d_debt: uint256
 
 event Repay:
     user: indexed(address)
