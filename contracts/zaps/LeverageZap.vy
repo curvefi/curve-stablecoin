@@ -309,6 +309,16 @@ def _transfer(_token: address, _to: address, _amount: uint256):
         assert ERC20(_token).transfer(_to, _amount, default_return_value=True)
 
 
+@internal
+def _execute_raw_call(_token: address, _exchange: address, _exchange_calldata: Bytes[10 ** 4 - 96 - 16]):
+    assert self.is_approved_exchange[_exchange], "Exchange not approved"
+
+    # Approve, call the exchange, then revoke so it retains no allowance afterwards
+    assert ERC20(_token).approve(_exchange, max_value(uint256), default_return_value=True)
+    raw_call(_exchange, _exchange_calldata)
+    assert ERC20(_token).approve(_exchange, 0, default_return_value=True)
+
+
 @external
 @nonreentrant('lock')
 def callback_deposit(user: address, stablecoins: uint256, user_collateral: uint256, d_debt: uint256,
@@ -336,17 +346,15 @@ def callback_deposit(user: address, stablecoins: uint256, user_collateral: uint2
     # TOTAL: 96 bytes
     exchange_calldata: Bytes[10 ** 4 - 96 - 16] = empty(Bytes[10 ** 4 - 96 - 16])
     router_address, exchange_calldata = _abi_decode(callback_bytes, (address, Bytes[10 ** 4 - 96 - 16]))
-    assert self.is_approved_exchange[router_address], "Exchange not approved"
 
     # Dust cleaning
     self._transfer(collateral_token, user, ERC20(collateral_token).balanceOf(self))
 
-    self._approve(borrowed_token, router_address)
     self._approve(collateral_token, controller)
 
-    # Buys collateral token for d_debt.
+    # Buy leverage_collateral for d_debt.
     # The amount to be spent is specified inside the exchange_calldata.
-    raw_call(router_address, exchange_calldata)  # buys leverage_collateral for d_debt
+    self._execute_raw_call(borrowed_token, router_address, exchange_calldata)
     leverage_collateral: uint256 = ERC20(collateral_token).balanceOf(self)
     assert leverage_collateral >= callback_args[1], "Slippage"
 
@@ -385,20 +393,18 @@ def callback_repay(user: address, stablecoins: uint256, collateral: uint256, deb
     # TOTAL: 96 bytes
     exchange_calldata: Bytes[10 ** 4 - 96 - 16] = empty(Bytes[10 ** 4 - 96 - 16])
     router_address, exchange_calldata = _abi_decode(callback_bytes, (address, Bytes[10 ** 4 - 96 - 16]))
-    assert self.is_approved_exchange[router_address], "Exchange not approved"
 
     self._approve(borrowed_token, controller)
     self._approve(collateral_token, controller)
-    self._approve(collateral_token, router_address)
 
     # Dust cleaning
     self._transfer(borrowed_token, user, ERC20(borrowed_token).balanceOf(self))
 
     initial_collateral: uint256 = ERC20(collateral_token).balanceOf(self)
 
-    # Buys borrowed token for state collateral.
+    # Buy borrowed token for state collateral.
     # The amount to be spent is specified inside callback_bytes.
-    raw_call(router_address, exchange_calldata)
+    self._execute_raw_call(collateral_token, router_address, exchange_calldata)
 
     remaining_collateral: uint256 = ERC20(collateral_token).balanceOf(self)
     borrowed_from_state_collateral: uint256 = ERC20(borrowed_token).balanceOf(self)
