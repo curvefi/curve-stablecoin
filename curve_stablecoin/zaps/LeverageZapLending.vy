@@ -120,7 +120,7 @@ def _callback_deposit(
     log ILeverageZap.Deposit(
         user=_user,
         leverage_collateral=leverage_collateral,
-        debt=_d_debt,
+        d_debt=_d_debt,
     )
 
     return [0, leverage_collateral]
