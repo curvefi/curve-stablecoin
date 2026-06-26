@@ -16,6 +16,7 @@ interface ERC20:
 
 interface Factory:
     def controllers(i: uint256) -> address: view
+    def admin() -> address: view
 
 interface Controller:
     def collateral_token() -> ERC20: view
@@ -47,10 +48,6 @@ event SetExchange:
     exchange: indexed(address)
     approved: bool
 
-event OwnershipTransferred:
-    previous_owner: indexed(address)
-    new_owner: indexed(address)
-
 
 DEAD_SHARES: constant(uint256) = 1000
 MAX_TICKS_UINT: constant(uint256) = 50
@@ -60,9 +57,17 @@ MAX_INIT_EXCHANGES: constant(uint256) = 10
 
 FACTORY: public(immutable(address))
 
-owner: public(address)
 # Whitelist of exchanges (routers/pools) the zap is allowed to `raw_call`
 is_approved_exchange: public(HashMap[address, bool])
+
+
+@external
+@view
+def admin() -> address:
+    """
+    @notice Admin allowed to manage the exchange whitelist, delegated to the factory
+    """
+    return Factory(FACTORY).admin()
 
 
 @internal
@@ -72,12 +77,8 @@ def _set_exchange(_exchange: address, _approved: bool):
 
 
 @external
-def __init__(_factory: address, _admin: address, _exchanges: DynArray[address, MAX_INIT_EXCHANGES]):
+def __init__(_factory: address, _exchanges: DynArray[address, MAX_INIT_EXCHANGES]):
     FACTORY = _factory
-
-    assert _admin != empty(address)
-    self.owner = _admin
-    log OwnershipTransferred(empty(address), _admin)
 
     for exchange in _exchanges:
         self._set_exchange(exchange, True)
@@ -91,20 +92,8 @@ def set_exchange(_exchange: address, _approved: bool):
     @param _exchange Address of the exchange
     @param _approved Whether the exchange is allowed
     """
-    assert msg.sender == self.owner, "ownable: caller is not the owner"
+    assert msg.sender == Factory(FACTORY).admin(), "Only admin"
     self._set_exchange(_exchange, _approved)
-
-
-@external
-def transfer_ownership(_new_owner: address):
-    """
-    @notice Transfer ownership of the contract to a new account
-    @param _new_owner Address of the new owner
-    """
-    assert msg.sender == self.owner, "ownable: caller is not the owner"
-    assert _new_owner != empty(address), "ownable: new owner is the zero address"
-    log OwnershipTransferred(self.owner, _new_owner)
-    self.owner = _new_owner
 
 
 @internal
