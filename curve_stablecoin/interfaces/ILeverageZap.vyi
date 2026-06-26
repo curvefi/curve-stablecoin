@@ -5,12 +5,14 @@ CALLDATA_MAX_SIZE: constant(uint256) = c.CALLDATA_MAX_SIZE
 
 
 event Deposit:
+    controller: indexed(address)
     user: indexed(address)
     leverage_collateral: uint256
     d_debt: uint256
 
 
 event Repay:
+    controller: indexed(address)
     user: indexed(address)
     state_collateral_used: uint256
     borrowed_from_state_collateral: uint256

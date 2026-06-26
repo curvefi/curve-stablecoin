@@ -119,6 +119,7 @@ def _callback_deposit(
     tkn.transfer(borrowed_token, _user, staticcall borrowed_token.balanceOf(self))
 
     log ILeverageZap.Deposit(
+        controller=_controller,
         user=_user,
         leverage_collateral=leverage_collateral,
         d_debt=_d_debt,
@@ -158,6 +159,7 @@ def _callback_repay(
     state_collateral_used: uint256 = initial_collateral - remaining_collateral
 
     log ILeverageZap.Repay(
+        controller=_controller,
         user=_user,
         state_collateral_used=state_collateral_used,
         borrowed_from_state_collateral=borrowed_from_state_collateral,
