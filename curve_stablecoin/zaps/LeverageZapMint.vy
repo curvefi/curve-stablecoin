@@ -2,7 +2,7 @@
 # pragma optimize codesize
 
 """
-@title LlamaLendLeverageZapMint
+@title crvUSDLeverageZap
 @author Curve.Fi
 @license Copyright (c) Curve.Fi, 2020-2026 - all rights reserved
 @notice Creates leverage on crvUSD markets via any Aggregator Router. Does calculations for leverage.
@@ -36,6 +36,10 @@ def __init__(_factory: address, _exchanges: DynArray[address, core.MAX_INIT_EXCH
 @external
 @view
 def FACTORY() -> address:
+    """
+    @notice Factory the zap is associated with
+    @return Address of the factory
+    """
     return _MINT_FACTORY.address
 
 
@@ -85,7 +89,7 @@ def callback_repay(
         _calldata: Bytes[core.CALLDATA_MAX_SIZE],
 ) -> uint256[2]:
     """
-    @notice Callback method which should be called by controller to create leveraged position
+    @notice Callback method which should be called by controller to deleverage/repay a position using collateral from the user's position
     @param _user Address of the user
     @param _borrowed The value from user_state
     @param _collateral The value from user_state

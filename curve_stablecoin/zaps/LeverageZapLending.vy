@@ -53,7 +53,9 @@ def _get_k_effective(_controller: IController, _collateral: uint256, _N: uint256
     @notice Intermediary method which calculates k_effective defined as x_effective / p_base / y,
             however discounted by loan_discount.
             x_effective is an amount which can be obtained from collateral when liquidating
-    @param N Number of bands the deposit is made into
+    @param _controller Controller of the market
+    @param _collateral Total collateral deposited into the bands
+    @param _N Number of bands the deposit is made into
     @return k_effective
     """
     # x_effective = sum_{i=0..N-1}(y / N * p(n_{n1+i})) =
@@ -171,6 +173,10 @@ def _callback_repay(
 @external
 @view
 def FACTORY() -> address:
+    """
+    @notice Factory the zap is associated with
+    @return Address of the factory
+    """
     return _LEND_FACTORY.address
 
 
@@ -212,6 +218,12 @@ def max_borrowable(
 ) -> uint256:
     """
     @notice Calculation of maximum which can be borrowed with leverage
+    @param _controller Controller of the market
+    @param _user_collateral Amount of collateral token provided by the user
+    @param _leverage_collateral Amount of collateral token obtained from leverage (borrowed swapped to collateral)
+    @param _N Number of bands the deposit is made into
+    @param _p_avg Average price of collateral in borrowed token expected from the leverage swap
+    @return Maximum amount of borrowed token that can be borrowed with leverage
     """
     # max_borrowable = collateral / (1 / (k_effective * max_p_base) - 1 / p_avg)
     amm: IAMM = staticcall _controller.amm()
@@ -285,7 +297,7 @@ def callback_repay(
         _calldata: Bytes[CALLDATA_MAX_SIZE],
 ) -> uint256[2]:
     """
-    @notice Callback method which should be called by controller to create leveraged position
+    @notice Callback method which should be called by controller to deleverage/repay a position using collateral from the user's position
     @param _user Address of the user
     @param _borrowed The value from user_state
     @param _collateral The value from user_state
