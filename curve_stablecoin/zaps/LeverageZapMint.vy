@@ -29,6 +29,11 @@ _MINT_FACTORY: immutable(IControllerFactory)
 
 @deploy
 def __init__(_factory: address, _exchanges: DynArray[address, core.MAX_INIT_EXCHANGES]):
+    """
+    @notice Contract constructor
+    @param _factory Address of the factory the zap is associated with (used to look up controllers and the admin)
+    @param _exchanges Initial list of exchanges (routers/pools) to add to the whitelist
+    """
     _MINT_FACTORY = IControllerFactory(_factory)
     core.__init__(_factory, _exchanges)
 
@@ -63,7 +68,7 @@ def callback_deposit(
                     - min_recv - the minimum amount to receive from exchange of _d_debt for collateral tokens
                     - exchange_address - the address of the exchange (e. g. pool, router) to swap borrowed -> collateral
                     - exchange_calldata - the data for the exchange (e. g. pool, router)
-    return [0, leverage_collateral]
+    @return [0, leverage_collateral]
     """
     controller_id: uint256 = 0
     min_recv: uint256 = 0
@@ -99,7 +104,7 @@ def callback_repay(
                     - min_recv - the minimum amount to receive from exchange of state_collateral for borrowed tokens
                     - exchange_address - the address of the exchange (e. g. pool, router) to swap collateral -> borrowed
                     - exchange_calldata - the data for the exchange (e. g. pool, router)
-    return [borrowed_from_state_collateral, remaining_collateral]
+    @return [borrowed_from_state_collateral, remaining_collateral]
     """
     controller_id: uint256 = 0
     min_recv: uint256 = 0
