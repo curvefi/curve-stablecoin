@@ -3,13 +3,12 @@
 """
 @title LlamaLendLeverageZap
 @author Curve.Fi
-@license Copyright (c) Curve.Fi, 2020-2025 - all rights reserved
-@notice Creates leverage on LlamaLend and crvUSD markets via any Aggregator Router. Does calculations for leverage.
+@license Copyright (c) Curve.Fi, 2020-2026 - all rights reserved
+@notice Creates leverage on LlamaLend or crvUSD markets via any Aggregator Router. Does calculations for leverage.
 """
 
 interface ERC20:
     def transfer(_to: address, _value: uint256) -> bool: nonpayable
-    def transferFrom(_from: address, _to: address, _value: uint256) -> bool: nonpayable
     def balanceOf(_for: address) -> uint256: view
     def allowance(_owner: address, _spender: address) -> uint256: view
     def approve(_spender: address, _value: uint256) -> bool: nonpayable
@@ -23,7 +22,6 @@ interface Controller:
     def collateral_token() -> ERC20: view
     def loan_discount() -> uint256: view
     def amm() -> address: view
-    def create_loan_extended(collateral: uint256, debt: uint256, N: uint256, callbacker: address, callback_args: DynArray[uint256,5]): nonpayable
 
 interface LLAMMA:
     def A() -> uint256: view
@@ -220,6 +218,8 @@ def _get_k_effective(controller: address, collateral: uint256, N: uint256) -> ui
     @notice Intermediary method which calculates k_effective defined as x_effective / p_base / y,
             however discounted by loan_discount.
             x_effective is an amount which can be obtained from collateral when liquidating
+    @param controller Controller of the market
+    @param collateral Total collateral deposited into the bands
     @param N Number of bands the deposit is made into
     @return k_effective
     """
@@ -251,6 +251,8 @@ def _get_k_effective(controller: address, collateral: uint256, N: uint256) -> ui
 def _max_p_base(controller: address) -> uint256:
     """
     @notice Calculate max base price including skipping bands
+    @param controller Controller of the market
+    @return Max base price
     """
     AMM: LLAMMA = LLAMMA(Controller(controller).amm())
     A: uint256 = AMM.A()
@@ -283,6 +285,12 @@ def _max_p_base(controller: address) -> uint256:
 def max_borrowable(controller: address, _user_collateral: uint256, _leverage_collateral: uint256, N: uint256, p_avg: uint256) -> uint256:
     """
     @notice Calculation of maximum which can be borrowed with leverage
+    @param controller Controller of the market
+    @param _user_collateral Amount of collateral token provided by the user
+    @param _leverage_collateral Amount of collateral token obtained from leverage
+    @param N Number of bands the deposit is made into
+    @param p_avg Average price of collateral in borrowed token expected from swap
+    @return Maximum amount of borrowed token that can be borrowed with leverage
     """
     # max_borrowable = collateral / (1 / (k_effective * max_p_base) - 1 / p_avg)
     AMM: LLAMMA = LLAMMA(Controller(controller).amm())
@@ -332,21 +340,21 @@ def callback_deposit(user: address, stablecoins: uint256, user_collateral: uint2
     @param user_collateral The amount of collateral token provided by user (unused)
     @param d_debt The amount to be borrowed (in addition to what has already been borrowed)
     @param callback_args Unused, kept for controller compatibility
-    @param callback_bytes ABI-encoded (controller_id, min_recv, exchange, exchange_calldata)
+    @param callback_bytes ABI-encoded (controller_id, min_recv, exchange_address, exchange_calldata)
                           - controller_id is needed to check that msg.sender is the one of our controllers
                           - min_recv - the minimum amount to receive from exchange of d_debt for collateral tokens
-                          - exchange - the router/pool to call
-                          - exchange_calldata - the calldata to call the exchange with
-    return [0, leverage_collateral]
+                          - exchange_address - the address of the exchange (e. g. pool, router) to swap borrowed -> collateral
+                          - exchange_calldata - the data for the exchange (e. g. pool, router)
+    @return [0, leverage_collateral]
     """
     controller_id: uint256 = 0
     min_recv: uint256 = 0
-    router_address: address = empty(address)
+    exchange_address: address = empty(address)
     # controller_id: 32 bytes, min_recv: 32 bytes, address: 32 bytes
     # offset: 32 bytes, length: 32 bytes
     # TOTAL: 160 bytes
     exchange_calldata: Bytes[10 ** 4 - 160 - 16] = empty(Bytes[10 ** 4 - 160 - 16])
-    controller_id, min_recv, router_address, exchange_calldata = _abi_decode(
+    controller_id, min_recv, exchange_address, exchange_calldata = _abi_decode(
         callback_bytes, (uint256, uint256, address, Bytes[10 ** 4 - 160 - 16])
     )
 
@@ -363,7 +371,7 @@ def callback_deposit(user: address, stablecoins: uint256, user_collateral: uint2
 
     # Buy leverage_collateral for d_debt.
     # The amount to be spent is specified inside the exchange_calldata.
-    self._execute_raw_call(borrowed_token, router_address, exchange_calldata)
+    self._execute_raw_call(borrowed_token, exchange_address, exchange_calldata)
     leverage_collateral: uint256 = ERC20(collateral_token).balanceOf(self)
     assert leverage_collateral >= min_recv, "Slippage"
 
@@ -380,27 +388,27 @@ def callback_deposit(user: address, stablecoins: uint256, user_collateral: uint2
 def callback_repay(user: address, stablecoins: uint256, collateral: uint256, debt: uint256,
                    callback_args: DynArray[uint256,10], callback_bytes: Bytes[10 ** 4] = b"") -> uint256[2]:
     """
-    @notice Callback method which should be called by controller to create leveraged position
+    @notice Callback method for controller to deleverage/repay a position using collateral
     @param user Address of the user
     @param stablecoins The value from user_state
     @param collateral The value from user_state
     @param debt The value from user_state
     @param callback_args Unused, kept for controller compatibility
-    @param callback_bytes ABI-encoded (controller_id, min_recv, exchange, exchange_calldata)
+    @param callback_bytes ABI-encoded (controller_id, min_recv, exchange_address, exchange_calldata)
                           - controller_id is needed to check that msg.sender is the one of our controllers
                           - min_recv - the minimum amount to receive from exchange of state_collateral for borrowed tokens
-                          - exchange - the router/pool to call
-                          - exchange_calldata - the calldata to call the exchange with
-    return [borrowed_from_state_collateral, remaining_collateral]
+                          - exchange_address - the address of the exchange (e. g. pool, router) to swap collateral -> borrowed
+                          - exchange_calldata - the data for the exchange (e. g. pool, router)
+    @return [borrowed_from_state_collateral, remaining_collateral]
     """
     controller_id: uint256 = 0
     min_recv: uint256 = 0
-    router_address: address = empty(address)
+    exchange_address: address = empty(address)
     # controller_id: 32 bytes, min_recv: 32 bytes, address: 32 bytes
     # offset: 32 bytes, length: 32 bytes
     # TOTAL: 160 bytes
     exchange_calldata: Bytes[10 ** 4 - 160 - 16] = empty(Bytes[10 ** 4 - 160 - 16])
-    controller_id, min_recv, router_address, exchange_calldata = _abi_decode(
+    controller_id, min_recv, exchange_address, exchange_calldata = _abi_decode(
         callback_bytes, (uint256, uint256, address, Bytes[10 ** 4 - 160 - 16])
     )
 
@@ -420,7 +428,7 @@ def callback_repay(user: address, stablecoins: uint256, collateral: uint256, deb
 
     # Buy borrowed token for state collateral.
     # The amount to be spent is specified inside callback_bytes.
-    self._execute_raw_call(collateral_token, router_address, exchange_calldata)
+    self._execute_raw_call(collateral_token, exchange_address, exchange_calldata)
 
     remaining_collateral: uint256 = ERC20(collateral_token).balanceOf(self)
     borrowed_from_state_collateral: uint256 = ERC20(borrowed_token).balanceOf(self)
