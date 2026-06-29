@@ -13,7 +13,7 @@ from curve_stablecoin.interfaces import ILeverageZap
 
 implements: ILeverageZap
 
-from curve_stablecoin.zaps import LeverageZapLending as core
+from curve_stablecoin.zaps import LeverageZapLend as core
 
 initializes: core
 
