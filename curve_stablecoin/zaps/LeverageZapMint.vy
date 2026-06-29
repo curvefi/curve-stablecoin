@@ -5,7 +5,7 @@
 @title crvUSDLeverageZap
 @author Curve.Fi
 @license Copyright (c) Curve.Fi, 2020-2026 - all rights reserved
-@notice Creates leverage on crvUSD markets via any Aggregator Router. Does calculations for leverage.
+@notice Creates leverage on crvUSD markets via whitelisted Aggregator Routers. Does calculations for leverage.
 """
 
 from curve_stablecoin.interfaces import IControllerFactory
