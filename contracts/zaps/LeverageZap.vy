@@ -331,23 +331,30 @@ def callback_deposit(user: address, stablecoins: uint256, user_collateral: uint2
     @param stablecoins Always 0
     @param user_collateral The amount of collateral token provided by user (unused)
     @param d_debt The amount to be borrowed (in addition to what has already been borrowed)
-    @param callback_args [controller_id, min_recv]
-                         0. controller_id is needed to check that msg.sender is the one of our controllers
-                         1. min_recv - the minimum amount to receive from exchange of d_debt for collateral tokens
+    @param callback_args Unused, kept for controller compatibility
+    @param callback_bytes ABI-encoded (controller_id, min_recv, exchange, exchange_calldata)
+                          - controller_id is needed to check that msg.sender is the one of our controllers
+                          - min_recv - the minimum amount to receive from exchange of d_debt for collateral tokens
+                          - exchange - the router/pool to call
+                          - exchange_calldata - the calldata to call the exchange with
     return [0, leverage_collateral]
     """
-    controller: address = Factory(FACTORY).controllers(callback_args[0])
+    controller_id: uint256 = 0
+    min_recv: uint256 = 0
+    router_address: address = empty(address)
+    # controller_id: 32 bytes, min_recv: 32 bytes, address: 32 bytes
+    # offset: 32 bytes, length: 32 bytes
+    # TOTAL: 160 bytes
+    exchange_calldata: Bytes[10 ** 4 - 160 - 16] = empty(Bytes[10 ** 4 - 160 - 16])
+    controller_id, min_recv, router_address, exchange_calldata = _abi_decode(
+        callback_bytes, (uint256, uint256, address, Bytes[10 ** 4 - 160 - 16])
+    )
+
+    controller: address = Factory(FACTORY).controllers(controller_id)
     assert msg.sender == controller, "wrong controller"
     amm: LLAMMA = LLAMMA(Controller(controller).amm())
     borrowed_token: address = amm.coins(0)
     collateral_token: address = amm.coins(1)
-
-    router_address: address = empty(address)
-    # address x1: 32 bytes x1
-    # offset: 32 bytes, length: 32 bytes
-    # TOTAL: 96 bytes
-    exchange_calldata: Bytes[10 ** 4 - 96 - 16] = empty(Bytes[10 ** 4 - 96 - 16])
-    router_address, exchange_calldata = _abi_decode(callback_bytes, (address, Bytes[10 ** 4 - 96 - 16]))
 
     # Dust cleaning
     self._transfer(collateral_token, user, ERC20(collateral_token).balanceOf(self))
@@ -358,7 +365,7 @@ def callback_deposit(user: address, stablecoins: uint256, user_collateral: uint2
     # The amount to be spent is specified inside the exchange_calldata.
     self._execute_raw_call(borrowed_token, router_address, exchange_calldata)
     leverage_collateral: uint256 = ERC20(collateral_token).balanceOf(self)
-    assert leverage_collateral >= callback_args[1], "Slippage"
+    assert leverage_collateral >= min_recv, "Slippage"
 
     # Refund borrowed tokens the exchange didn't spend back to the user (controller requires returned borrowed == 0).
     self._transfer(borrowed_token, user, ERC20(borrowed_token).balanceOf(self))
@@ -378,23 +385,30 @@ def callback_repay(user: address, stablecoins: uint256, collateral: uint256, deb
     @param stablecoins The value from user_state
     @param collateral The value from user_state
     @param debt The value from user_state
-    @param callback_args [controller_id, min_recv]
-                         0. controller_id is needed to check that msg.sender is the one of our controllers
-                         1. min_recv - the minimum amount to receive from exchange of state_collateral for borrowed tokens
+    @param callback_args Unused, kept for controller compatibility
+    @param callback_bytes ABI-encoded (controller_id, min_recv, exchange, exchange_calldata)
+                          - controller_id is needed to check that msg.sender is the one of our controllers
+                          - min_recv - the minimum amount to receive from exchange of state_collateral for borrowed tokens
+                          - exchange - the router/pool to call
+                          - exchange_calldata - the calldata to call the exchange with
     return [borrowed_from_state_collateral, remaining_collateral]
     """
-    controller: address = Factory(FACTORY).controllers(callback_args[0])
+    controller_id: uint256 = 0
+    min_recv: uint256 = 0
+    router_address: address = empty(address)
+    # controller_id: 32 bytes, min_recv: 32 bytes, address: 32 bytes
+    # offset: 32 bytes, length: 32 bytes
+    # TOTAL: 160 bytes
+    exchange_calldata: Bytes[10 ** 4 - 160 - 16] = empty(Bytes[10 ** 4 - 160 - 16])
+    controller_id, min_recv, router_address, exchange_calldata = _abi_decode(
+        callback_bytes, (uint256, uint256, address, Bytes[10 ** 4 - 160 - 16])
+    )
+
+    controller: address = Factory(FACTORY).controllers(controller_id)
     assert msg.sender == controller, "wrong controller"
     amm: LLAMMA = LLAMMA(Controller(controller).amm())
     borrowed_token: address = amm.coins(0)
     collateral_token: address = amm.coins(1)
-
-    router_address: address = empty(address)
-    # address x1: 32 bytes x1
-    # offset: 32 bytes, length: 32 bytes
-    # TOTAL: 96 bytes
-    exchange_calldata: Bytes[10 ** 4 - 96 - 16] = empty(Bytes[10 ** 4 - 96 - 16])
-    router_address, exchange_calldata = _abi_decode(callback_bytes, (address, Bytes[10 ** 4 - 96 - 16]))
 
     self._approve(borrowed_token, controller)
     self._approve(collateral_token, controller)
@@ -410,7 +424,7 @@ def callback_repay(user: address, stablecoins: uint256, collateral: uint256, deb
 
     remaining_collateral: uint256 = ERC20(collateral_token).balanceOf(self)
     borrowed_from_state_collateral: uint256 = ERC20(borrowed_token).balanceOf(self)
-    assert borrowed_from_state_collateral >= callback_args[1], "Slippage"
+    assert borrowed_from_state_collateral >= min_recv, "Slippage"
     assert remaining_collateral < initial_collateral, "Collateral must decrease"
     state_collateral_used: uint256 = initial_collateral - remaining_collateral
 
