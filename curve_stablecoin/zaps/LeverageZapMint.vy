@@ -2,10 +2,10 @@
 # pragma optimize codesize
 
 """
-@title crvUSDLeverageZap
-@author Curve.Fi
-@license Copyright (c) Curve.Fi, 2020-2026 - all rights reserved
-@notice Creates leverage on crvUSD markets via whitelisted Aggregator Routers. Does calculations for leverage.
+@title crvUSD V2 Markets LeverageZap
+@author Curve.Finance
+@license Copyright (c) Curve.Finance, 2020-2026 - all rights reserved
+@notice Creates leverage on crvUSD V2 markets via whitelisted Aggregator Routers. Does calculations for leverage.
 """
 
 from curve_stablecoin.interfaces import IControllerFactory

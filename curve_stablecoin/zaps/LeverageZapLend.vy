@@ -2,10 +2,10 @@
 # pragma optimize codesize
 
 """
-@title LlamaLendLeverageZap
-@author Curve.Fi
-@license Copyright (c) Curve.Fi, 2020-2026 - all rights reserved
-@notice Creates leverage on LlamaLend markets via whitelisted Aggregator Routers. Does calculations for leverage.
+@title LlamaLend V2 LeverageZap
+@author Curve.Finance
+@license Copyright (c) Curve.Finance, 2020-2026 - all rights reserved
+@notice Creates leverage on LlamaLend V2 markets via whitelisted Aggregator Routers. Does calculations for leverage.
 """
 
 from curve_stablecoin.interfaces import IAMM
