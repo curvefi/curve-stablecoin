@@ -2,8 +2,8 @@
 
 """
 @title LlamaLendLeverageZap
-@author Curve.Fi
-@license Copyright (c) Curve.Fi, 2020-2026 - all rights reserved
+@author Curve.Finance
+@license Copyright (c) Curve.Finance, 2020-2026 - all rights reserved
 @notice Creates leverage on LlamaLend or crvUSD markets via whitelisted Aggregator Routers. Does calculations for leverage.
 """
 
