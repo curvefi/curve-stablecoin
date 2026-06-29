@@ -4,7 +4,7 @@
 @title LlamaLendLeverageZap
 @author Curve.Fi
 @license Copyright (c) Curve.Fi, 2020-2026 - all rights reserved
-@notice Creates leverage on LlamaLend or crvUSD markets via any Aggregator Router. Does calculations for leverage.
+@notice Creates leverage on LlamaLend or crvUSD markets via whitelisted Aggregator Routers. Does calculations for leverage.
 """
 
 interface ERC20:
@@ -67,6 +67,7 @@ is_approved_exchange: public(HashMap[address, bool])
 def admin() -> address:
     """
     @notice Admin allowed to manage the exchange whitelist, delegated to the factory
+    @return Address of the admin
     """
     return Factory(FACTORY).admin()
 
@@ -79,6 +80,11 @@ def _set_exchange(_exchange: address, _approved: bool):
 
 @external
 def __init__(_factory: address, _exchanges: DynArray[address, MAX_INIT_EXCHANGES]):
+    """
+    @notice Contract constructor
+    @param _factory Address of the factory the zap is associated with (used to look up controllers and the admin)
+    @param _exchanges Initial list of exchanges (routers/pools) to add to the whitelist
+    """
     FACTORY = _factory
 
     for exchange in _exchanges:
@@ -336,7 +342,7 @@ def callback_deposit(user: address, stablecoins: uint256, user_collateral: uint2
     """
     @notice Callback method which should be called by controller to create leveraged position
     @param user Address of the user
-    @param stablecoins Always 0
+    @param stablecoins Always 0 (unused)
     @param user_collateral The amount of collateral token provided by user (unused)
     @param d_debt The amount to be borrowed (in addition to what has already been borrowed)
     @param callback_args Unused, kept for controller compatibility
@@ -390,9 +396,9 @@ def callback_repay(user: address, stablecoins: uint256, collateral: uint256, deb
     """
     @notice Callback method for controller to deleverage/repay a position using collateral
     @param user Address of the user
-    @param stablecoins The value from user_state
-    @param collateral The value from user_state
-    @param debt The value from user_state
+    @param stablecoins The value from user_state (unused)
+    @param collateral The value from user_state (unused)
+    @param debt The value from user_state (unused)
     @param callback_args Unused, kept for controller compatibility
     @param callback_bytes ABI-encoded (controller_id, min_recv, exchange_address, exchange_calldata)
                           - controller_id is needed to check that msg.sender is the one of our controllers
@@ -427,7 +433,7 @@ def callback_repay(user: address, stablecoins: uint256, collateral: uint256, deb
     initial_collateral: uint256 = ERC20(collateral_token).balanceOf(self)
 
     # Buy borrowed token for state collateral.
-    # The amount to be spent is specified inside callback_bytes.
+    # The amount to be spent is specified inside the exchange_calldata.
     self._execute_raw_call(collateral_token, exchange_address, exchange_calldata)
 
     remaining_collateral: uint256 = ERC20(collateral_token).balanceOf(self)
