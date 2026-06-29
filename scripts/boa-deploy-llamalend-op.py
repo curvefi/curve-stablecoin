@@ -99,9 +99,9 @@ def _deploy(deployer: str, dry_run: bool, report_path: Path) -> None:
         sender=deployer,
     )
 
-    leverage_zap = boa.load_partial(
-        "curve_stablecoin/zaps/LeverageZapLend.vy"
-    ).deploy(factory.address)
+    leverage_zap = boa.load_partial("curve_stablecoin/zaps/LeverageZapLend.vy").deploy(
+        factory.address
+    )
 
     chain_id = CHAIN_ID
     if hasattr(boa.env, "get_chain_id"):
