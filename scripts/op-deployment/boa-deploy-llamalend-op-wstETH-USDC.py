@@ -17,20 +17,20 @@ from eth_account import Account
 
 
 # Token addresses for Optimism
-WBTC = "0x68f180fcCe6836688e9084f035309E29Bf0A2095"
+WSTETH = "0x1F32b1c2345538c0c6f582fCB022739c4A194Ebb"
 USDC = "0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85"
-CHAINLINK_FEED = "0xD702DD976Fb76Fffc2D3963D037dfDae5b04E593" # BTC / USD
+CHAINLINK_FEED = "0x698B585CbC4407e2D54aa898B2600B53C68958f7" # wstETH / USD
 
-# Market parameters
-A = 96
-FEE = int(0.0008 * 10**18) # 0.08%
-LOAN_DISCOUNT = int(0.08 * 10**18) # 8%
-LIQUIDATION_DISCOUNT = int(0.05 * 10**18) # 5%
+# Market parameters (using wstETH/USDC parameters from doc as requested)
+A = 83
+FEE = int(0.014 * 10**18) # 1.4%
+LOAN_DISCOUNT = int(0.14 * 10**18) # 14%
+LIQUIDATION_DISCOUNT = int(0.11 * 10**18) # 11%
 MIN_RATE = 158548959 # 0.5% APR
 MAX_RATE = 15854895991 # 50% APR
 SUPPLY_LIMIT = 2**256 - 1
 
-borrow_cap = 4380000
+borrow_cap = 2660000
 admin_percentage = 1
 
 OBSERVATIONS = 20
@@ -92,7 +92,7 @@ def _deploy(deployer: str, dry_run: bool, report_path: Path, factory_deployment:
 
     deployed = factory.create(
         USDC,
-        WBTC,
+        WSTETH,
         A,
         FEE,
         LOAN_DISCOUNT,
@@ -110,8 +110,9 @@ def _deploy(deployer: str, dry_run: bool, report_path: Path, factory_deployment:
     # this only works if the factory is owned by the address doing the tx here
     # if the DAO owns the factory, a DAO vote is needed
     # set borrow cap and admin fee only if deployer is admin
+
     if factory.admin() == deployer:
-        # set borrow cap to 4.38 Mil USDC (6 decimals)
+        # set borrow cap to 2.66 Mil USDC (6 decimals)
         controller = boa.load_partial("curve_stablecoin/lending/LendController.vy").at(deployed[1])
         configurator.set_borrow_cap(controller, borrow_cap * 10**6, sender=deployer)
         # set admin fee to 10%
@@ -134,7 +135,7 @@ def _deploy(deployer: str, dry_run: bool, report_path: Path, factory_deployment:
         "amm": deployed[2],
         "params": {
             "borrowed_token": USDC,
-            "collateral_token": WBTC,
+            "collateral_token": WSTETH,
             "chainlink_feed": CHAINLINK_FEED,
             "A": A,
             "fee": FEE,
@@ -146,7 +147,7 @@ def _deploy(deployer: str, dry_run: bool, report_path: Path, factory_deployment:
             "observations": OBSERVATIONS,
             "interval": INTERVAL,
             "borrow_cap": borrow_cap * 10**6,
-            "admin_percentage": admin_percentage * 10**16
+			"admin_percentage": admin_percentage * 10**16
         },
     }
 
@@ -163,7 +164,7 @@ def _deploy(deployer: str, dry_run: bool, report_path: Path, factory_deployment:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Deploy LlamaLend WBTC/USDC on OP")
+    parser = argparse.ArgumentParser(description="Deploy LlamaLend wstETH/USDC on OP")
     parser.add_argument("--rpc-url", default=os.environ.get("OP_RPC_URL"))
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument(
@@ -173,12 +174,12 @@ def main() -> None:
     )
     parser.add_argument(
         "--factory-deployment",
-        default="deployments/llamalend-op.jsonc",
+        default="deployments/op/llamalend-op.jsonc",
         help="Path to existing factory deployment JSON to read factory address from",
     )
     parser.add_argument(
         "--report-path",
-        default="deployments/llamalend-op-WBTC-USDC.jsonc",
+        default="deployments/op/llamalend-op-wstETH-USDC.jsonc",
         help="Where to write the deployment report",
     )
     args = parser.parse_args()

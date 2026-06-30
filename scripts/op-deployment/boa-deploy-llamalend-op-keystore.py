@@ -115,7 +115,7 @@ def main() -> None:
     )
     parser.add_argument(
         "--report-path",
-        default="deployments/llamalend-op.jsonc",
+        default="deployments/op/llamalend-op.jsonc",
         help="Where to write the deployment report",
     )
     args = parser.parse_args()

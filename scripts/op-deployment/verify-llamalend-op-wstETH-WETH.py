@@ -234,7 +234,7 @@ def main() -> None:
     if not api_key:
         raise SystemExit("Missing ETHERSCAN_API_KEY")
 
-    deployment_path = PROJECT_ROOT / "deployments" / "llamalend-op-wstETH-WETH.jsonc"
+    deployment_path = PROJECT_ROOT / "deployments" / "op" / "llamalend-op-wstETH-WETH.jsonc"
     deployment = json.loads(deployment_path.read_text())
     params = deployment["params"]
 

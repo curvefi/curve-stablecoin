@@ -240,7 +240,7 @@ def main() -> None:
     if not rpc_url:
         raise SystemExit("Missing OP_RPC_URL")
 
-    deployment_path = PROJECT_ROOT / "deployments" / "llamalend-op.jsonc"
+    deployment_path = PROJECT_ROOT / "deployments" / "op" / "llamalend-op.jsonc"
     deployment = json.loads(deployment_path.read_text())
 
     factory_addr = deployment["factory"]

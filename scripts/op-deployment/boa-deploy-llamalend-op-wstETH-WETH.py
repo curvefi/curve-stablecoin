@@ -207,12 +207,12 @@ def main() -> None:
     )
     parser.add_argument(
         "--factory-deployment",
-        default="deployments/llamalend-op.jsonc",
+        default="deployments/op/llamalend-op.jsonc",
         help="Path to existing factory deployment JSON to read factory address from",
     )
     parser.add_argument(
         "--report-path",
-        default="deployments/llamalend-op-wstETH-WETH.jsonc",
+        default="deployments/op/llamalend-op-wstETH-WETH.jsonc",
         help="Where to write the deployment report",
     )
     args = parser.parse_args()
