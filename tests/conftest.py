@@ -35,6 +35,12 @@ settings.register_profile(
     max_examples=3,
     stateful_step_count=15,
 )
+settings.register_profile(
+    "ci-stateful",
+    parent=default_profile,
+    max_examples=25,
+    stateful_step_count=25,
+)
 
 settings.load_profile("default")
 
