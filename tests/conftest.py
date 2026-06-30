@@ -16,21 +16,33 @@ boa.env.enable_fast_mode()
 
 TESTING_DECIMALS = [2, 18]
 
+PHASES_WITHOUT_SHRINKING = (
+    Phase.explicit,
+    Phase.reuse,
+    Phase.generate,
+    Phase.target,
+)
 
-no_shrink = settings.register_profile(
-    "no-shrink",
-    phases=list(Phase)[:4],
+default_profile = settings.register_profile(
+    "default",
+    phases=PHASES_WITHOUT_SHRINKING,
     deadline=timedelta(seconds=1000),
     print_blob=True,
 )
 settings.register_profile(
     "quick",
-    parent=no_shrink,
+    parent=default_profile,
     max_examples=3,
     stateful_step_count=15,
 )
+settings.register_profile(
+    "ci-stateful",
+    parent=default_profile,
+    max_examples=25,
+    stateful_step_count=25,
+)
 
-settings.load_profile("no-shrink")
+settings.load_profile("default")
 
 
 @pytest.fixture(scope="module")
