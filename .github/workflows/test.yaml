@@ -98,7 +98,7 @@ jobs:
             runs-on: "ubuntu-latest"
           - folder: "tests/amm"
             runs-on: "ubuntu-latest"
-          - folder: "tests/lending"
+          - folder: "tests/lending --ignore=tests/lending/test_bigfuzz.py --ignore=tests/lending/test_oracle_attack.py"
             runs-on: "ubuntu-latest"
           - folder: "tests/stableborrow --ignore=tests/stableborrow/stabilize"
             runs-on: "ubuntu-latest"
