@@ -100,7 +100,9 @@ def _build_vyper_json(main_path: Path, optimize: str | None = None) -> dict:
     settings: dict = {"evmVersion": "cancun"}
     if optimize:
         settings["optimize"] = optimize
-    settings["outputSelection"] = {main_key: ["evm.bytecode", "evm.deployedBytecode", "abi"]}
+    settings["outputSelection"] = {
+        main_key: ["evm.bytecode", "evm.deployedBytecode", "abi"]
+    }
     return {
         "language": "Vyper",
         "sources": {k: {"content": v} for k, v in sources.items()},
@@ -139,6 +141,7 @@ def _get_creation_txhash(api_key: str, address: str) -> str | None:
 
 def _call_address(rpc_url: str, to: str, sig: str) -> str:
     from eth_utils.crypto import keccak
+
     selector = keccak(sig.encode())[:4].hex()
     resp = requests.post(
         rpc_url,
@@ -286,7 +289,9 @@ def main() -> None:
             ctrl_view_bp,
             "LendControllerView Blueprint (Vyper 0.4.3)",
             "curve_stablecoin/lending/LendControllerView.vy:LendControllerView",
-            vy_json("curve_stablecoin/lending/LendControllerView.vy", optimize="codesize"),
+            vy_json(
+                "curve_stablecoin/lending/LendControllerView.vy", optimize="codesize"
+            ),
             "vyper:0.4.3",
             "vyper-json",
             "",
@@ -320,8 +325,24 @@ def main() -> None:
             "vyper:0.4.3",
             "vyper-json",
             encode(
-                ["address", "address", "address", "address", "address", "address", "address"],
-                [amm_bp, ctrl_bp, vault_bp, ctrl_view_bp, configurator_addr, deployer, deployer],
+                [
+                    "address",
+                    "address",
+                    "address",
+                    "address",
+                    "address",
+                    "address",
+                    "address",
+                ],
+                [
+                    amm_bp,
+                    ctrl_bp,
+                    vault_bp,
+                    ctrl_view_bp,
+                    configurator_addr,
+                    deployer,
+                    deployer,
+                ],
             ).hex(),
             "1",
         ),

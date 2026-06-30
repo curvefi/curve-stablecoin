@@ -18,16 +18,16 @@ from pathlib import Path
 import requests
 
 EXPLORERS = {
-    1:   "https://etherscan.io",
-    10:  "https://optimistic.etherscan.io",
+    1: "https://etherscan.io",
+    10: "https://optimistic.etherscan.io",
     137: "https://polygonscan.com",
     42161: "https://arbiscan.io",
 }
 
 CURVE_NETWORKS = {
-    1:     "ethereum",
-    10:    "optimism",
-    137:   "polygon",
+    1: "ethereum",
+    10: "optimism",
+    137: "polygon",
     42161: "arbitrum",
 }
 
@@ -72,14 +72,31 @@ def field(label: str, value: str) -> str:
             </div>"""
 
 
-def render(data: dict, explorer: str, title: str, contracts_verified: dict, curve_network: str | None = None) -> str:
+def render(
+    data: dict,
+    explorer: str,
+    title: str,
+    contracts_verified: dict,
+    curve_network: str | None = None,
+) -> str:
     ts = data.get("timestamp", 0)
-    ts_str = datetime.fromtimestamp(ts, tz=timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
+    ts_str = datetime.fromtimestamp(ts, tz=timezone.utc).strftime(
+        "%Y-%m-%d %H:%M:%S UTC"
+    )
 
     p = data.get("params", {})
 
     # Contract rows — only include keys that exist in the JSON
-    contract_keys = ["factory", "rate_calculator", "monetary_policy", "price_oracle", "leverage_zap", "vault", "controller", "amm"]
+    contract_keys = [
+        "factory",
+        "rate_calculator",
+        "monetary_policy",
+        "price_oracle",
+        "leverage_zap",
+        "vault",
+        "controller",
+        "amm",
+    ]
     contract_labels = {
         "factory": "Factory",
         "rate_calculator": "Rate Calculator",
@@ -95,7 +112,9 @@ def render(data: dict, explorer: str, title: str, contracts_verified: dict, curv
         if key in data:
             addr = data[key]
             verified = contracts_verified.get(addr)
-            contract_rows.append(field(contract_labels[key], addr_link(explorer, addr, verified)))
+            contract_rows.append(
+                field(contract_labels[key], addr_link(explorer, addr, verified))
+            )
 
     # Param rows
     param_labels = {
@@ -120,7 +139,13 @@ def render(data: dict, explorer: str, title: str, contracts_verified: dict, curv
         "interval": "Interval",
         "borrow_cap": "Borrow Cap",
     }
-    addr_params = {"borrowed_token", "collateral_token", "chainlink_feed", "wsteth_rate_oracle", "ownership_agent"}
+    addr_params = {
+        "borrowed_token",
+        "collateral_token",
+        "chainlink_feed",
+        "wsteth_rate_oracle",
+        "ownership_agent",
+    }
     param_rows = []
     for key, label in param_labels.items():
         if key not in p:
@@ -230,11 +255,19 @@ def render(data: dict, explorer: str, title: str, contracts_verified: dict, curv
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Generate HTML overview from deployment JSONC")
+    parser = argparse.ArgumentParser(
+        description="Generate HTML overview from deployment JSONC"
+    )
     parser.add_argument("input", help="Path to deployment .jsonc file")
-    parser.add_argument("--output", help="Output HTML path (default: same name as input with .html)")
+    parser.add_argument(
+        "--output", help="Output HTML path (default: same name as input with .html)"
+    )
     parser.add_argument("--title", help="Page title (default: derived from filename)")
-    parser.add_argument("--no-verify-check", action="store_true", help="Skip Etherscan verification check")
+    parser.add_argument(
+        "--no-verify-check",
+        action="store_true",
+        help="Skip Etherscan verification check",
+    )
     args = parser.parse_args()
 
     input_path = Path(args.input)
@@ -249,7 +282,16 @@ def main() -> None:
     explorer = EXPLORERS.get(chain_id, f"https://etherscan.io")
 
     # Collect all contract addresses to check
-    contract_keys = ["factory", "rate_calculator", "monetary_policy", "price_oracle", "leverage_zap", "vault", "controller", "amm"]
+    contract_keys = [
+        "factory",
+        "rate_calculator",
+        "monetary_policy",
+        "price_oracle",
+        "leverage_zap",
+        "vault",
+        "controller",
+        "amm",
+    ]
     contracts = {data[k] for k in contract_keys if k in data}
 
     api_key = os.environ.get("ETHERSCAN_API_KEY")
@@ -260,7 +302,9 @@ def main() -> None:
     else:
         if not api_key:
             print("Warning: ETHERSCAN_API_KEY not set, verification check may fail")
-        print(f"Checking verification status for {len(contracts)} contracts on chain {chain_id}...")
+        print(
+            f"Checking verification status for {len(contracts)} contracts on chain {chain_id}..."
+        )
         for addr in contracts:
             v = is_verified(chain_id, addr, api_key)
             contracts_verified[addr] = v

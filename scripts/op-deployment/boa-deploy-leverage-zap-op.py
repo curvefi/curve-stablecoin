@@ -55,7 +55,9 @@ class RetryRPC(EthereumRPC):
                 delay *= 1.5
 
 
-def _deploy(deployer: str, factory: str, exchanges: list, dry_run: bool, report_path: Path) -> None:
+def _deploy(
+    deployer: str, factory: str, exchanges: list, dry_run: bool, report_path: Path
+) -> None:
     if dry_run:
         boa.env.eoa = deployer
         boa.env.set_balance(deployer, 10**30)
@@ -63,7 +65,8 @@ def _deploy(deployer: str, factory: str, exchanges: list, dry_run: bool, report_
         boa.env.suppress_debug_tt()
 
     leverage_zap = boa.load_partial(
-        "curve_stablecoin/zaps/LeverageZapLend.vy", compiler_args={"optimize": OptimizationLevel.CODESIZE}
+        "curve_stablecoin/zaps/LeverageZapLend.vy",
+        compiler_args={"optimize": OptimizationLevel.CODESIZE},
     ).deploy(factory, exchanges)
 
     chain_id = CHAIN_ID
@@ -90,7 +93,9 @@ def _deploy(deployer: str, factory: str, exchanges: list, dry_run: bool, report_
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Deploy LlamaLend V2 LeverageZap on OP")
+    parser = argparse.ArgumentParser(
+        description="Deploy LlamaLend V2 LeverageZap on OP"
+    )
     parser.add_argument("--rpc-url", default=os.environ.get("OP_RPC_URL"))
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument(
@@ -123,17 +128,27 @@ def main() -> None:
 
     if args.dry_run:
         if not args.keystore:
-            raise SystemExit("Missing --keystore or DEPLOYER_KEYSTORE for dry-run address")
+            raise SystemExit(
+                "Missing --keystore or DEPLOYER_KEYSTORE for dry-run address"
+            )
         deployer = _load_account(args.keystore).address
         with boa.fork(args.rpc_url):
-            _deploy(deployer, args.factory, exchanges, dry_run=True, report_path=report_path)
+            _deploy(
+                deployer, args.factory, exchanges, dry_run=True, report_path=report_path
+            )
     else:
         if not args.keystore:
             raise SystemExit("Missing --keystore or DEPLOYER_KEYSTORE")
         acct = _load_account(args.keystore)
         with boa.set_env(NetworkEnv(RetryRPC(args.rpc_url))):
             boa.env.add_account(acct, force_eoa=True)
-            _deploy(acct.address, args.factory, exchanges, dry_run=False, report_path=report_path)
+            _deploy(
+                acct.address,
+                args.factory,
+                exchanges,
+                dry_run=False,
+                report_path=report_path,
+            )
 
 
 if __name__ == "__main__":

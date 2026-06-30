@@ -100,7 +100,9 @@ def _build_vyper_json(main_path: Path, optimize: str | None = None) -> dict:
     settings: dict = {"evmVersion": "cancun"}
     if optimize:
         settings["optimize"] = optimize
-    settings["outputSelection"] = {main_key: ["evm.bytecode", "evm.deployedBytecode", "abi"]}
+    settings["outputSelection"] = {
+        main_key: ["evm.bytecode", "evm.deployedBytecode", "abi"]
+    }
     return {
         "language": "Vyper",
         "sources": {k: {"content": v} for k, v in sources.items()},
@@ -118,7 +120,9 @@ def _build_solidity_json(sol_path: Path) -> dict:
         "settings": {
             "optimizer": {"enabled": False, "runs": 200},
             "evmVersion": "cancun",
-            "outputSelection": {source_key: {"*": ["abi", "evm.bytecode", "evm.deployedBytecode"]}},
+            "outputSelection": {
+                source_key: {"*": ["abi", "evm.bytecode", "evm.deployedBytecode"]}
+            },
         },
     }
 
@@ -234,7 +238,9 @@ def main() -> None:
     if not api_key:
         raise SystemExit("Missing ETHERSCAN_API_KEY")
 
-    deployment_path = PROJECT_ROOT / "deployments" / "op" / "llamalend-op-wstETH-WETH.jsonc"
+    deployment_path = (
+        PROJECT_ROOT / "deployments" / "op" / "llamalend-op-wstETH-WETH.jsonc"
+    )
     deployment = json.loads(deployment_path.read_text())
     params = deployment["params"]
 
@@ -282,8 +288,24 @@ def main() -> None:
             "vyper:0.3.10",
             "vyper-json",
             encode(
-                ["address", "address", "address", "uint256", "uint256", "uint256", "uint256"],
-                [factory_addr, rate_calculator_addr, weth, target_utilization, low_ratio, high_ratio, rate_shift],
+                [
+                    "address",
+                    "address",
+                    "address",
+                    "uint256",
+                    "uint256",
+                    "uint256",
+                    "uint256",
+                ],
+                [
+                    factory_addr,
+                    rate_calculator_addr,
+                    weth,
+                    target_utilization,
+                    low_ratio,
+                    high_ratio,
+                    rate_shift,
+                ],
             ).hex(),
             "1",
         ),

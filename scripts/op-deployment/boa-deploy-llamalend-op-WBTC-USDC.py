@@ -19,15 +19,15 @@ from eth_account import Account
 # Token addresses for Optimism
 WBTC = "0x68f180fcCe6836688e9084f035309E29Bf0A2095"
 USDC = "0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85"
-CHAINLINK_FEED = "0xD702DD976Fb76Fffc2D3963D037dfDae5b04E593" # BTC / USD
+CHAINLINK_FEED = "0xD702DD976Fb76Fffc2D3963D037dfDae5b04E593"  # BTC / USD
 
 # Market parameters
 A = 96
-FEE = int(0.0008 * 10**18) # 0.08%
-LOAN_DISCOUNT = int(0.08 * 10**18) # 8%
-LIQUIDATION_DISCOUNT = int(0.05 * 10**18) # 5%
-MIN_RATE = 158548959 # 0.5% APR
-MAX_RATE = 15854895991 # 50% APR
+FEE = int(0.0008 * 10**18)  # 0.08%
+LOAN_DISCOUNT = int(0.08 * 10**18)  # 8%
+LIQUIDATION_DISCOUNT = int(0.05 * 10**18)  # 5%
+MIN_RATE = 158548959  # 0.5% APR
+MAX_RATE = 15854895991  # 50% APR
 SUPPLY_LIMIT = 2**256 - 1
 
 borrow_cap = 4380000
@@ -65,7 +65,9 @@ class RetryRPC(EthereumRPC):
                 delay *= 1.5
 
 
-def _deploy(deployer: str, dry_run: bool, report_path: Path, factory_deployment: Path) -> None:
+def _deploy(
+    deployer: str, dry_run: bool, report_path: Path, factory_deployment: Path
+) -> None:
     if dry_run:
         boa.env.eoa = deployer
         boa.env.set_balance(deployer, 10**30)
@@ -76,7 +78,9 @@ def _deploy(deployer: str, dry_run: bool, report_path: Path, factory_deployment:
     factory = boa.load_partial("curve_stablecoin/lending/LendFactory.vy").at(
         existing["factory"]
     )
-    configurator = boa.load_partial("curve_stablecoin/Configurator.vy").at(existing["configurator"])
+    configurator = boa.load_partial("curve_stablecoin/Configurator.vy").at(
+        existing["configurator"]
+    )
 
     monetary_policy = boa.load_partial(
         "curve_stablecoin/mpolicies/SemilogMonetaryPolicy.vy"
@@ -84,7 +88,9 @@ def _deploy(deployer: str, dry_run: bool, report_path: Path, factory_deployment:
 
     solcx.install_solc("0.8.25")
     solcx.set_solc_version("0.8.25")
-    oracle = boa.load_partial_solc("scripts/op-deployment/solidity/ChainlinkEMA.sol").deploy(
+    oracle = boa.load_partial_solc(
+        "scripts/op-deployment/solidity/ChainlinkEMA.sol"
+    ).deploy(
         CHAINLINK_FEED,
         OBSERVATIONS,
         INTERVAL,
@@ -112,14 +118,20 @@ def _deploy(deployer: str, dry_run: bool, report_path: Path, factory_deployment:
     # set borrow cap and admin fee only if deployer is admin
     if factory.admin() == deployer:
         # set borrow cap to 4.38 Mil USDC (6 decimals)
-        controller = boa.load_partial("curve_stablecoin/lending/LendController.vy").at(deployed[1])
+        controller = boa.load_partial("curve_stablecoin/lending/LendController.vy").at(
+            deployed[1]
+        )
         configurator.set_borrow_cap(controller, borrow_cap * 10**6, sender=deployer)
         # set admin fee to 10%
-        configurator.set_admin_percentage(controller, admin_percentage * 10**16, sender=deployer)
+        configurator.set_admin_percentage(
+            controller, admin_percentage * 10**16, sender=deployer
+        )
     else:
         borrow_cap = 0
         admin_percentage = 0
-        print(f"[SKIP] deployer {deployer} is not factory admin — skipping borrow cap and admin fee setup")
+        print(
+            f"[SKIP] deployer {deployer} is not factory admin — skipping borrow cap and admin fee setup"
+        )
 
     report = {
         "chain_id": chain_id,
@@ -146,7 +158,7 @@ def _deploy(deployer: str, dry_run: bool, report_path: Path, factory_deployment:
             "observations": OBSERVATIONS,
             "interval": INTERVAL,
             "borrow_cap": borrow_cap * 10**6,
-            "admin_percentage": admin_percentage * 10**16
+            "admin_percentage": admin_percentage * 10**16,
         },
     }
 
@@ -194,17 +206,29 @@ def main() -> None:
 
     if args.dry_run:
         if not args.keystore:
-            raise SystemExit("Missing --keystore or DEPLOYER_KEYSTORE for dry-run address")
+            raise SystemExit(
+                "Missing --keystore or DEPLOYER_KEYSTORE for dry-run address"
+            )
         deployer = _load_account(args.keystore).address
         with boa.fork(args.rpc_url):
-            _deploy(deployer, dry_run=True, report_path=report_path, factory_deployment=factory_deployment)
+            _deploy(
+                deployer,
+                dry_run=True,
+                report_path=report_path,
+                factory_deployment=factory_deployment,
+            )
     else:
         if not args.keystore:
             raise SystemExit("Missing --keystore or DEPLOYER_KEYSTORE")
         acct = _load_account(args.keystore)
         with boa.set_env(NetworkEnv(RetryRPC(args.rpc_url))):
             boa.env.add_account(acct, force_eoa=True)
-            _deploy(acct.address, dry_run=False, report_path=report_path, factory_deployment=factory_deployment)
+            _deploy(
+                acct.address,
+                dry_run=False,
+                report_path=report_path,
+                factory_deployment=factory_deployment,
+            )
 
 
 if __name__ == "__main__":

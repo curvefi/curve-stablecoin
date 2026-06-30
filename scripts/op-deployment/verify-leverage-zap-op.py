@@ -99,7 +99,9 @@ def _build_vyper_json(main_path: Path, optimize: str | None = None) -> dict:
     settings: dict = {"evmVersion": "cancun"}
     if optimize:
         settings["optimize"] = optimize
-    settings["outputSelection"] = {main_key: ["evm.bytecode", "evm.deployedBytecode", "abi"]}
+    settings["outputSelection"] = {
+        main_key: ["evm.bytecode", "evm.deployedBytecode", "abi"]
+    }
     return {
         "language": "Vyper",
         "sources": {k: {"content": v} for k, v in sources.items()},

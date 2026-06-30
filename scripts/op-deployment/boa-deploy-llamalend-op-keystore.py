@@ -54,18 +54,25 @@ def _deploy(deployer: str, dry_run: bool, report_path: Path) -> None:
     else:
         boa.env.suppress_debug_tt()
 
-    amm_blueprint = boa.load_partial("curve_stablecoin/AMM.vy", compiler_args={"optimize": OptimizationLevel.CODESIZE}).deploy_as_blueprint()
+    amm_blueprint = boa.load_partial(
+        "curve_stablecoin/AMM.vy",
+        compiler_args={"optimize": OptimizationLevel.CODESIZE},
+    ).deploy_as_blueprint()
     controller_blueprint = boa.load_partial(
-        "curve_stablecoin/lending/LendController.vy", compiler_args={"optimize": OptimizationLevel.CODESIZE}
+        "curve_stablecoin/lending/LendController.vy",
+        compiler_args={"optimize": OptimizationLevel.CODESIZE},
     ).deploy_as_blueprint()
     vault_blueprint = boa.load_partial(
         "curve_stablecoin/lending/Vault.vy"
     ).deploy_as_blueprint()
     controller_view_blueprint = boa.load_partial(
-        "curve_stablecoin/lending/LendControllerView.vy", compiler_args={"optimize": OptimizationLevel.CODESIZE}
+        "curve_stablecoin/lending/LendControllerView.vy",
+        compiler_args={"optimize": OptimizationLevel.CODESIZE},
     ).deploy_as_blueprint()
 
-    configurator = boa.load_partial("curve_stablecoin/Configurator.vy").deploy(OP_DAO_OWNERSHIP)
+    configurator = boa.load_partial("curve_stablecoin/Configurator.vy").deploy(
+        OP_DAO_OWNERSHIP
+    )
 
     factory = boa.load_partial("curve_stablecoin/lending/LendFactory.vy").deploy(
         amm_blueprint.address,
@@ -77,9 +84,9 @@ def _deploy(deployer: str, dry_run: bool, report_path: Path) -> None:
         OP_DAO_FEE_RECEIVER,
     )
 
-    leverage_zap = boa.load_partial(
-        "curve_stablecoin/zaps/LeverageZapLend.vy"
-    ).deploy(factory.address)
+    leverage_zap = boa.load_partial("curve_stablecoin/zaps/LeverageZapLend.vy").deploy(
+        factory.address
+    )
 
     chain_id = CHAIN_ID
     if hasattr(boa.env, "get_chain_id"):
@@ -127,7 +134,9 @@ def main() -> None:
 
     if args.dry_run:
         if not args.keystore:
-            raise SystemExit("Missing --keystore or DEPLOYER_KEYSTORE for dry-run address")
+            raise SystemExit(
+                "Missing --keystore or DEPLOYER_KEYSTORE for dry-run address"
+            )
         deployer = _load_account(args.keystore).address
         with boa.fork(args.rpc_url):
             _deploy(deployer, dry_run=True, report_path=report_path)

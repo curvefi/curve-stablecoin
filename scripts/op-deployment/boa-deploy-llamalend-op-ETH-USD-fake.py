@@ -19,7 +19,7 @@ from eth_account import Account
 LLV2ETH = "0x79CC1c5C0171FF25eF391055e529A56A12Bf3D39"
 LLV2USD = "0xE8e9Cd957DC2b5A32ea822a3799f65940cF51f19"
 
-CHAINLINK_FEED = "0x13e3Ee699D1909E989722E753853AE30b17e08c5" # ETH / USD = ETH in USD (WSTETH in ETH)
+CHAINLINK_FEED = "0x13e3Ee699D1909E989722E753853AE30b17e08c5"  # ETH / USD = ETH in USD (WSTETH in ETH)
 
 
 A = 70
@@ -62,7 +62,9 @@ class RetryRPC(EthereumRPC):
                 delay *= 1.5
 
 
-def _deploy(deployer: str, dry_run: bool, report_path: Path, factory_deployment: Path) -> None:
+def _deploy(
+    deployer: str, dry_run: bool, report_path: Path, factory_deployment: Path
+) -> None:
     if dry_run:
         boa.env.eoa = deployer
         boa.env.set_balance(deployer, 10**30)
@@ -73,7 +75,9 @@ def _deploy(deployer: str, dry_run: bool, report_path: Path, factory_deployment:
     factory = boa.load_partial("curve_stablecoin/lending/LendFactory.vy").at(
         existing["factory"]
     )
-    configurator = boa.load_partial("curve_stablecoin/Configurator.vy").at(existing["configurator"])
+    configurator = boa.load_partial("curve_stablecoin/Configurator.vy").at(
+        existing["configurator"]
+    )
 
     monetary_policy = boa.load_partial(
         "curve_stablecoin/mpolicies/SemilogMonetaryPolicy.vy"
@@ -105,9 +109,10 @@ def _deploy(deployer: str, dry_run: bool, report_path: Path, factory_deployment:
         chain_id = boa.env.get_chain_id()
 
     # set borrow cap to 200K
-    controller = boa.load_partial("curve_stablecoin/lending/LendController.vy").at(deployed[1])
+    controller = boa.load_partial("curve_stablecoin/lending/LendController.vy").at(
+        deployed[1]
+    )
     configurator.set_borrow_cap(controller, 200000 * 10**18, sender=deployer)
-
 
     report = {
         "chain_id": chain_id,
@@ -180,17 +185,29 @@ def main() -> None:
 
     if args.dry_run:
         if not args.keystore:
-            raise SystemExit("Missing --keystore or DEPLOYER_KEYSTORE for dry-run address")
+            raise SystemExit(
+                "Missing --keystore or DEPLOYER_KEYSTORE for dry-run address"
+            )
         deployer = _load_account(args.keystore).address
         with boa.fork(args.rpc_url):
-            _deploy(deployer, dry_run=True, report_path=report_path, factory_deployment=factory_deployment)
+            _deploy(
+                deployer,
+                dry_run=True,
+                report_path=report_path,
+                factory_deployment=factory_deployment,
+            )
     else:
         if not args.keystore:
             raise SystemExit("Missing --keystore or DEPLOYER_KEYSTORE")
         acct = _load_account(args.keystore)
         with boa.set_env(NetworkEnv(RetryRPC(args.rpc_url))):
             boa.env.add_account(acct, force_eoa=True)
-            _deploy(acct.address, dry_run=False, report_path=report_path, factory_deployment=factory_deployment)
+            _deploy(
+                acct.address,
+                dry_run=False,
+                report_path=report_path,
+                factory_deployment=factory_deployment,
+            )
 
 
 if __name__ == "__main__":
