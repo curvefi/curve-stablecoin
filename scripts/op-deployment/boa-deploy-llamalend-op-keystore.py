@@ -78,7 +78,7 @@ def _deploy(deployer: str, dry_run: bool, report_path: Path) -> None:
     )
 
     leverage_zap = boa.load_partial(
-        "curve_stablecoin/zaps/LeverageZapLending.vy"
+        "curve_stablecoin/zaps/LeverageZapLend.vy"
     ).deploy(factory.address)
 
     chain_id = CHAIN_ID

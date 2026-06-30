@@ -837,9 +837,9 @@ def main() -> None:
     if leverage_zap_addr:
         contracts.append((
             leverage_zap_addr,
-            "LeverageZapLending (Vyper 0.4.3)",
-            "curve_stablecoin/zaps/LeverageZapLending.vy:LeverageZapLending",
-            vy_json("curve_stablecoin/zaps/LeverageZapLending.vy"),
+            "LeverageZapLend (Vyper 0.4.3)",
+            "curve_stablecoin/zaps/LeverageZapLend.vy:LeverageZapLend",
+            vy_json("curve_stablecoin/zaps/LeverageZapLend.vy"),
             "vyper:0.4.3",
             "vyper-json",
             encode(["address"], [factory_addr]).hex(),
