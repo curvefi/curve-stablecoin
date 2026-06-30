@@ -2,8 +2,12 @@
   "chain_id": 10,
   "deployer": "0x2B6F69E9e51abFc72Bd1cC12733FBf98dF2d2EA3",
   "dry_run": false,
-  "timestamp": 1781013940,
+  "timestamp": 1782822221,
   "factory": "0x5F94073E3f51c1FFf92ffc6b4B06b7Af193B3640",
-  "configurator": "0xd36c590531cAF5F620C57Faf5827Ce8E7f6E5Bec",
+  "exchanges": [
+    "0x0DCDED3545D565bA3B19E683431381007245d983",
+    "0x0D05a7D3448512B78fa8A9e46c4872C88C4a0D05",
+    "0xF75584eF6673aD213a685a1B58Cc0330B8eA22Cf"
+  ],
   "leverage_zap": "0xdbeBDaE6f2D47B553B984E4091693824cf38584a"
 }
