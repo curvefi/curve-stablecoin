@@ -54,6 +54,7 @@ exports: (
     core.amm,
     core.view,
     core.factory,
+    core.configurator,
     # Getters
     core.approval,
     core.borrowed_token,
