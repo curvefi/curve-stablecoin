@@ -221,7 +221,7 @@ VAULT_REENTRANCY_CALLBACK_DEPLOYER = boa.load_partial(
     compiler_args=compiler_args_default,
 )
 LEVERAGE_ZAP_LENDING_DEPLOYER = boa.load_partial(
-    ZAPS_CONTRACT_PATH / "LeverageZapLending.vy",
+    ZAPS_CONTRACT_PATH / "LeverageZapLend.vy",
     compiler_args=compiler_args_codesize,
 )
 LEVERAGE_ZAP_MINT_DEPLOYER = boa.load_partial(
