@@ -30,7 +30,7 @@ def test_offboarding(
     swaps,
     receiver,
     admin,
-    alice,
+    liquidity_provider,
     peg_keeper_updater,
 ):
     with boa.env.prank(admin):
@@ -42,7 +42,7 @@ def test_offboarding(
         assert offboarding.withdraw_allowed(peg_keeper) == 2**256 - 1
 
         # Able to withdraw
-        with boa.env.prank(alice):
+        with boa.env.prank(liquidity_provider):
             swap.add_liquidity([0, 10**20], 0)
         balances = [swap.balances(0), swap.balances(1)]
 
@@ -82,7 +82,7 @@ def test_set_killed(offboarding, peg_keepers, admin, stablecoin):
         assert offboarding.withdraw_allowed(peg_keeper) == 0
 
 
-def test_admin(reg, admin, alice, agg, receiver):
+def test_admin(reg, admin, liquidity_provider, agg, receiver):
     # initial parameters
     assert reg.fee_receiver() == receiver
     assert reg.emergency_admin() == admin
@@ -90,29 +90,29 @@ def test_admin(reg, admin, alice, agg, receiver):
     assert reg.admin() == admin
 
     # third party has no access
-    with boa.env.prank(alice):
+    with boa.env.prank(liquidity_provider):
         with boa.reverts():
-            reg.set_fee_receiver(alice)
+            reg.set_fee_receiver(liquidity_provider)
         with boa.reverts():
-            reg.set_emergency_admin(alice)
+            reg.set_emergency_admin(liquidity_provider)
         with boa.reverts():
             reg.set_killed(1)
         with boa.reverts():
-            reg.set_admin(alice)
+            reg.set_admin(liquidity_provider)
 
     # admin has access
     with boa.env.prank(admin):
-        reg.set_fee_receiver(alice)
-        assert reg.fee_receiver() == alice
+        reg.set_fee_receiver(liquidity_provider)
+        assert reg.fee_receiver() == liquidity_provider
 
-        reg.set_emergency_admin(alice)
-        assert reg.emergency_admin() == alice
+        reg.set_emergency_admin(liquidity_provider)
+        assert reg.emergency_admin() == liquidity_provider
 
         reg.set_killed(1)
         assert reg.is_killed() == 1
-        with boa.env.prank(alice):  # emergency admin
+        with boa.env.prank(liquidity_provider):  # emergency admin
             reg.set_killed(2)
             assert reg.is_killed() == 2
 
-        reg.set_admin(alice)
-        assert reg.admin() == alice
+        reg.set_admin(liquidity_provider)
+        assert reg.admin() == liquidity_provider

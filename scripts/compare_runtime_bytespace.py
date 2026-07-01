@@ -70,6 +70,9 @@ def build_report(
     head_report: ReportData,
     deltas: list[tuple[str, int, int, int]],
 ) -> str:
+    if head_report.status == "skipped":
+        return ""
+
     if base_report.status == "failed":
         lines = [
             f"### {contract}",

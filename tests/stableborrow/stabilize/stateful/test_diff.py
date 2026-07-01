@@ -28,7 +28,7 @@ class StateMachine(base.StateMachine):
             profit = 0
 
             try:
-                with boa.env.prank(self.alice):
+                with boa.env.prank(self.liquidity_provider):
                     profit = peg_keeper.update()
             except BoaError as e:
                 if "peg unprofitable" in str(e):
@@ -56,7 +56,7 @@ def test_stable_peg(
     peg_keepers,
     redeemable_tokens,
     stablecoin,
-    alice,
+    liquidity_provider,
     receiver,
     admin,
 ):
@@ -74,7 +74,7 @@ def test_fail_remove(
     peg_keepers,
     redeemable_tokens,
     stablecoin,
-    alice,
+    liquidity_provider,
     receiver,
     admin,
 ):
@@ -93,7 +93,7 @@ def test_fail_wrong_diff(
     peg_keepers,
     redeemable_tokens,
     stablecoin,
-    alice,
+    liquidity_provider,
     receiver,
     admin,
 ):
@@ -114,7 +114,7 @@ def test_fail_wrong_diff_2(
     peg_keepers,
     redeemable_tokens,
     stablecoin,
-    alice,
+    liquidity_provider,
     receiver,
     admin,
 ):
