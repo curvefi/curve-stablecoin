@@ -105,9 +105,7 @@ def test_add_price_pair_permissions_and_pair_validation(
             agg.add_price_pair(invalid_pool.address)
 
 
-def test_inverse_pair_with_zero_pool_price_reverts(
-    agg, old_pool_factory, admin
-):
+def test_inverse_pair_with_zero_pool_price_reverts(agg, old_pool_factory, admin):
     pool = old_pool_factory(price=0, stable_ix=0)
 
     with boa.env.prank(admin):
@@ -129,9 +127,7 @@ def test_only_active_sources_are_used(agg, old_pool_factory, admin):
     assert agg.price() == 11 * WAD // 10
 
 
-def test_price_w_checkpoints_tvl_and_caches_same_block(
-    agg, old_pool_factory, admin
-):
+def test_price_w_checkpoints_tvl_and_caches_same_block(agg, old_pool_factory, admin):
     pool = old_pool_factory(price=WAD, tvl=MIN_LIQUIDITY * 2)
     with boa.env.prank(admin):
         agg.add_price_pair(pool.address)
@@ -212,9 +208,7 @@ def test_remove_price_pair_admin_and_emergency_flow(
     assert agg.price() == WAD
 
 
-def test_remove_price_pair_rejects_empty_and_bad_index(
-    agg, old_pool_factory, admin
-):
+def test_remove_price_pair_rejects_empty_and_bad_index(agg, old_pool_factory, admin):
     with boa.reverts(dev="no pairs to remove"):
         with boa.env.prank(admin):
             agg.remove_price_pair(0)

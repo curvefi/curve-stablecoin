@@ -11,7 +11,13 @@ pytestmark = pytest.mark.usefixtures(
 
 @given(amount=st.integers(min_value=10**20, max_value=10**24))
 def test_provide(
-    swaps, redeemable_tokens, stablecoin, liquidity_provider, amount, peg_keepers, peg_keeper_updater
+    swaps,
+    redeemable_tokens,
+    stablecoin,
+    liquidity_provider,
+    amount,
+    peg_keepers,
+    peg_keeper_updater,
 ):
     for swap, rtoken, peg_keeper in zip(swaps, redeemable_tokens, peg_keepers):
         rtoken_mul = 10 ** (18 - rtoken.decimals())
@@ -41,7 +47,12 @@ def test_min_coin_amount(
 
 
 def test_almost_balanced(
-    swaps, liquidity_provider, peg_keepers, peg_keeper_updater, redeemable_tokens, stablecoin
+    swaps,
+    liquidity_provider,
+    peg_keepers,
+    peg_keeper_updater,
+    redeemable_tokens,
+    stablecoin,
 ):
     for swap, peg_keeper, rtoken in zip(swaps, peg_keepers, redeemable_tokens):
         with boa.env.prank(liquidity_provider):

@@ -12,7 +12,13 @@ pytestmark = pytest.mark.usefixtures(
 
 @pytest.mark.parametrize("method", ["provide", "withdraw"])
 def test_update_delay(
-    peg_keepers, swaps, redeemable_tokens, stablecoin, caller, peg_keeper_updater, method
+    peg_keepers,
+    swaps,
+    redeemable_tokens,
+    stablecoin,
+    caller,
+    peg_keeper_updater,
+    method,
 ):
     for pk, swap, rtoken in zip(peg_keepers, swaps, redeemable_tokens):
         with boa.env.anchor():
@@ -31,7 +37,13 @@ def test_update_delay(
 
 @pytest.mark.parametrize("method", ["provide", "withdraw"])
 def test_update_no_delay(
-    peg_keepers, swaps, redeemable_tokens, stablecoin, caller, peg_keeper_updater, method
+    peg_keepers,
+    swaps,
+    redeemable_tokens,
+    stablecoin,
+    caller,
+    peg_keeper_updater,
+    method,
 ):
     for pk, swap, rtoken in zip(peg_keepers, swaps, redeemable_tokens):
         with boa.env.anchor():

@@ -10,7 +10,9 @@ COMPILER_ARGS_DEFAULT = {"experimental_codegen": False}
 
 
 AGGREGATE_STABLE_PRICE4_DEPLOYER = boa.load_partial(
-    Path("curve_stablecoin/price_oracles/aggregate_stable_price/AggregateStablePrice4.vy"),
+    Path(
+        "curve_stablecoin/price_oracles/aggregate_stable_price/AggregateStablePrice4.vy"
+    ),
     compiler_args=COMPILER_ARGS_DEFAULT,
 )
 ERC20_MOCK_DEPLOYER = boa.load_partial(

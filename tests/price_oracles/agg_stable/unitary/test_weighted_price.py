@@ -34,11 +34,14 @@ def test_weighted_avg_reverts_on_bad_lengths_and_zero_weights(weighted_price):
 def test_exp_penalized_price_identical_prices_invariant(weighted_price):
     price = 102 * WAD // 100
 
-    assert weighted_price.exp_penalized_price(
-        [price, price, price],
-        [WAD // 2, WAD // 3, WAD // 6],
-        WAD,
-    ) == price
+    assert (
+        weighted_price.exp_penalized_price(
+            [price, price, price],
+            [WAD // 2, WAD // 3, WAD // 6],
+            WAD,
+        )
+        == price
+    )
 
 
 def test_exp_penalized_price_stays_in_source_range(weighted_price):

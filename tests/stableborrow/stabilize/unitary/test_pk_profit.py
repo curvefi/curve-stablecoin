@@ -10,7 +10,9 @@ pytestmark = pytest.mark.usefixtures(
 
 
 @pytest.fixture(scope="module")
-def make_profit(swaps, redeemable_tokens, stablecoin, liquidity_provider, admin, set_fee):
+def make_profit(
+    swaps, redeemable_tokens, stablecoin, liquidity_provider, admin, set_fee
+):
     def _inner(amount, i=None):
         """Amount to add to balances."""
         for j, (rtoken, swap) in enumerate(zip(redeemable_tokens, swaps)):

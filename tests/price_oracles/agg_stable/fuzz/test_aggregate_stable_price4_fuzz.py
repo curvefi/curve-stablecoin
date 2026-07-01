@@ -101,4 +101,3 @@ def test_sources_below_min_liquidity_do_not_affect_price(
             agg.add_price_pair(active_pool.address)
 
         assert agg.price() == active_price
-
