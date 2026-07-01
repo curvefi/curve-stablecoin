@@ -44,9 +44,11 @@ factory_ng: FactoryNG
 rate_oracle: address
 
 @deploy
-def __init__(impl: address):
+def __init__(impl: address, _factory_ng: address, _rate_oracle: address):
     IMPL = impl
     self.admin = msg.sender
+    self.factory_ng = FactoryNG(_factory_ng)
+    self.rate_oracle = _rate_oracle
 
 
 @external
