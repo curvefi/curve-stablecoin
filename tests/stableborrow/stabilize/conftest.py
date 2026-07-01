@@ -9,7 +9,7 @@ from tests.utils.deployers import (
     CURVE_STABLESWAP_NG_DEPLOYER,
     CURVE_STABLESWAP_NG_MATH_DEPLOYER,
     CURVE_STABLESWAP_NG_VIEWS_DEPLOYER,
-    AGGREGATE_STABLE_PRICE3_DEPLOYER,
+    AGGREGATE_STABLE_PRICE4_DEPLOYER,
     TRICRYPTO_MOCK_DEPLOYER,
     CRYPTO_WITH_STABLE_PRICE_DEPLOYER,
     CRYPTO_WITH_STABLE_PRICE_AND_CHAINLINK_DEPLOYER,
@@ -153,7 +153,9 @@ def redeemable_tokens(stablecoin_a, stablecoin_b):
 @pytest.fixture(scope="module")
 def price_aggregator(stablecoin, stableswap_a, stableswap_b, admin):
     with boa.env.prank(admin):
-        agg = AGGREGATE_STABLE_PRICE3_DEPLOYER.deploy(stablecoin.address, 10**15, admin)
+        agg = AGGREGATE_STABLE_PRICE4_DEPLOYER.deploy(
+            stablecoin.address, 10**15, admin, admin
+        )
         agg.add_price_pair(stableswap_a.address)
         agg.add_price_pair(stableswap_b.address)
         return agg

@@ -135,8 +135,8 @@ EMA_PRICE_ORACLE_DEPLOYER = boa.load_partial(
     PRICE_ORACLES_CONTRACT_PATH / "EmaPriceOracle.vy",
     compiler_args=compiler_args_default,
 )
-AGGREGATE_STABLE_PRICE3_DEPLOYER = boa.load_partial(
-    PRICE_ORACLES_CONTRACT_PATH / "AggregateStablePrice3.vy",
+AGGREGATE_STABLE_PRICE4_DEPLOYER = boa.load_partial(
+    PRICE_ORACLES_CONTRACT_PATH / "aggregate_stable_price" / "AggregateStablePrice4.vy",
     compiler_args=compiler_args_default,
 )
 CRYPTO_WITH_STABLE_PRICE_DEPLOYER = boa.load_partial(

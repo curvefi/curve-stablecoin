@@ -14,8 +14,8 @@
 
 from snekmate.utils import math
 
-from aggregate_stable_price import capped_share
-from aggregate_stable_price import weighted_price
+from curve_stablecoin.price_oracles.aggregate_stable_price import capped_share
+from curve_stablecoin.price_oracles.aggregate_stable_price import weighted_price
 initializes: capped_share
 initializes: weighted_price
 exports: (
