@@ -205,8 +205,8 @@ def emergency_admin():
 
 
 @pytest.fixture(scope="module")
-def alice():
-    return boa.env.generate_address("agg_alice")
+def new_emergency_admin():
+    return boa.env.generate_address("agg_new_emergency_admin")
 
 
 @pytest.fixture(scope="module")

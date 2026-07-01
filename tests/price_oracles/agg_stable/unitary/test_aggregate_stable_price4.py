@@ -84,20 +84,20 @@ def test_add_price_pair_emits_event_and_rejects_too_many_sources(
 
 
 def test_add_price_pair_permissions_and_pair_validation(
-    agg, old_pool_factory, admin, alice, other_token
+    agg, old_pool_factory, admin, new_emergency_admin, other_token
 ):
     valid_pool = old_pool_factory()
     invalid_pool = OLD_POOL_DEPLOYER.deploy(
         admin,
         other_token.address,
-        alice,
+        new_emergency_admin,
         WAD,
         MIN_LIQUIDITY,
         WAD,
     )
 
     with boa.reverts("only admin"):
-        with boa.env.prank(alice):
+        with boa.env.prank(new_emergency_admin):
             agg.add_price_pair(valid_pool.address)
 
     with boa.reverts("not stablecoin pair"):
@@ -159,9 +159,9 @@ def test_ng_tvl_is_not_ema_smoothed(agg, ng_pool_factory, admin):
     assert agg.ema_tvl() == [MIN_LIQUIDITY * 4]
 
 
-def test_share_cap_admin_flow(agg, old_pool_factory, admin, alice):
+def test_share_cap_admin_flow(agg, old_pool_factory, admin, new_emergency_admin):
     with boa.reverts("only admin"):
-        with boa.env.prank(alice):
+        with boa.env.prank(new_emergency_admin):
             agg.set_share_cap(45 * WAD // 100)
 
     pool_a = old_pool_factory()
@@ -181,7 +181,7 @@ def test_share_cap_admin_flow(agg, old_pool_factory, admin, alice):
 
 
 def test_remove_price_pair_admin_and_emergency_flow(
-    agg, old_pool_factory, admin, emergency_admin, alice
+    agg, old_pool_factory, admin, emergency_admin, new_emergency_admin
 ):
     pools = [old_pool_factory(price=(i + 1) * WAD) for i in range(3)]
     with boa.env.prank(admin):
@@ -189,7 +189,7 @@ def test_remove_price_pair_admin_and_emergency_flow(
             agg.add_price_pair(pool.address)
 
     with boa.reverts("only admin"):
-        with boa.env.prank(alice):
+        with boa.env.prank(new_emergency_admin):
             agg.remove_price_pair(0)
 
     with boa.reverts(dev="no emergency removals"):
@@ -228,25 +228,25 @@ def test_remove_price_pair_rejects_empty_and_bad_index(
             agg.remove_price_pair(1)
 
 
-def test_admin_can_rotate_roles(agg, admin, emergency_admin, alice):
+def test_admin_can_rotate_roles(agg, admin, emergency_admin, new_emergency_admin):
     with boa.reverts("only admin"):
-        with boa.env.prank(alice):
-            agg.set_admin(alice)
+        with boa.env.prank(new_emergency_admin):
+            agg.set_admin(new_emergency_admin)
     with boa.reverts("only admin"):
-        with boa.env.prank(alice):
-            agg.set_emergency_admin(alice)
+        with boa.env.prank(new_emergency_admin):
+            agg.set_emergency_admin(new_emergency_admin)
     with boa.reverts("only admin"):
-        with boa.env.prank(alice):
+        with boa.env.prank(new_emergency_admin):
             agg.set_emergency_remove_count(1)
 
     with boa.env.prank(admin):
-        agg.set_emergency_admin(alice)
+        agg.set_emergency_admin(new_emergency_admin)
         agg.set_emergency_remove_count(2)
         agg.set_admin(emergency_admin)
         logs = _logs(agg, "SetAdmin")
         assert len(logs) == 1
         assert logs[0].admin == emergency_admin
 
-    assert agg.emergency_admin() == alice
+    assert agg.emergency_admin() == new_emergency_admin
     assert agg.emergency_remove_count() == 2
     assert agg.admin() == emergency_admin

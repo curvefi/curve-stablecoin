@@ -33,7 +33,7 @@ class StateMachine(base.StateMachine):
         """
         for peg_keeper, swap in zip(self.peg_keepers, self.swaps):
             try:
-                with boa.env.prank(self.alice):
+                with boa.env.prank(self.liquidity_provider):
                     peg_keeper.update()
             except BoaError as e:
                 if "peg unprofitable" in str(e):
@@ -54,7 +54,7 @@ def test_profit(
     peg_keepers,
     redeemable_tokens,
     stablecoin,
-    alice,
+    liquidity_provider,
     receiver,
     admin,
 ):
@@ -78,7 +78,7 @@ def test_unprofitable_peg(
     peg_keepers,
     redeemable_tokens,
     stablecoin,
-    alice,
+    liquidity_provider,
     receiver,
     admin,
 ):

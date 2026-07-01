@@ -72,7 +72,7 @@ def test_oracle_handles_pool_lifecycle_and_price_updates(
 
 
 def test_admin_configures_oracle_and_events_match_state(
-    agg, old_pool_factory, ng_pool_factory, admin, emergency_admin, alice
+    agg, old_pool_factory, ng_pool_factory, admin, emergency_admin, new_emergency_admin
 ):
     old_pool = old_pool_factory(price=99 * WAD // 100, tvl=MIN_LIQUIDITY * 3)
     ng_pool = ng_pool_factory(price=101 * WAD // 100, tvl=MIN_LIQUIDITY * 3)
@@ -93,10 +93,10 @@ def test_admin_configures_oracle_and_events_match_state(
         assert len(share_cap_logs) == 1
         assert share_cap_logs[0].share_cap == 45 * WAD // 100
 
-        agg.set_emergency_admin(alice)
+        agg.set_emergency_admin(new_emergency_admin)
         emergency_admin_logs = _logs(agg, "SetEmergencyAdmin")
         assert len(emergency_admin_logs) == 1
-        assert emergency_admin_logs[0].emergency_admin == alice
+        assert emergency_admin_logs[0].emergency_admin == new_emergency_admin
 
         agg.set_emergency_remove_count(1)
         count_logs = _logs(agg, "SetEmergencyRemoveCount")
@@ -105,11 +105,11 @@ def test_admin_configures_oracle_and_events_match_state(
 
     assert agg.custom_share_cap() == 45 * WAD // 100
     assert agg.share_cap() == 45 * WAD // 100
-    assert agg.emergency_admin() == alice
+    assert agg.emergency_admin() == new_emergency_admin
     assert agg.emergency_remove_count() == 1
     assert 99 * WAD // 100 <= agg.price() <= 101 * WAD // 100
 
-    with boa.env.prank(alice):
+    with boa.env.prank(new_emergency_admin):
         agg.remove_price_pair(1)
         remove_logs = _logs(agg, "RemovePricePair")
         assert len(remove_logs) == 1

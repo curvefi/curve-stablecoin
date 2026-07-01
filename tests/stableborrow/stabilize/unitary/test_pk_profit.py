@@ -10,7 +10,7 @@ pytestmark = pytest.mark.usefixtures(
 
 
 @pytest.fixture(scope="module")
-def make_profit(swaps, redeemable_tokens, stablecoin, alice, admin, set_fee):
+def make_profit(swaps, redeemable_tokens, stablecoin, liquidity_provider, admin, set_fee):
     def _inner(amount, i=None):
         """Amount to add to balances."""
         for j, (rtoken, swap) in enumerate(zip(redeemable_tokens, swaps)):
@@ -23,8 +23,8 @@ def make_profit(swaps, redeemable_tokens, stablecoin, alice, admin, set_fee):
 
             set_fee(swap, 10**9)
 
-            with boa.env.prank(alice):
-                boa.deal(rtoken, alice, exchange_amount)
+            with boa.env.prank(liquidity_provider):
+                boa.deal(rtoken, liquidity_provider, exchange_amount)
                 rtoken.approve(swap.address, exchange_amount)
                 out = swap.exchange(0, 1, exchange_amount, 0)
 
@@ -76,7 +76,7 @@ def test_withdraw_profit(
     make_profit,
     admin,
     receiver,
-    alice,
+    liquidity_provider,
     peg_keeper_updater,
     donate_fee,
     price_aggregator,
@@ -98,8 +98,8 @@ def test_withdraw_profit(
 
             debt = peg_keeper.debt()
             amount = 5 * debt + swap.balances(0) * rtoken_mul - swap.balances(1)
-            with boa.env.prank(alice):
-                _mint(alice, [stablecoin], [amount])
+            with boa.env.prank(liquidity_provider):
+                _mint(liquidity_provider, [stablecoin], [amount])
                 stablecoin.approve(swap, amount)
                 swap.add_liquidity([0, amount], 0)
 
@@ -126,21 +126,21 @@ def test_0_after_withdraw(peg_keepers, admin):
         assert peg_keeper.calc_profit() == 0
 
 
-def test_withdraw_profit_access(peg_keepers, alice):
+def test_withdraw_profit_access(peg_keepers, liquidity_provider):
     for peg_keeper in peg_keepers:
-        with boa.env.prank(alice):
+        with boa.env.prank(liquidity_provider):
             peg_keeper.withdraw_profit()
 
 
 @pytest.mark.parametrize("coin_to_imbalance", [0, 1])
 def test_profit_receiver(
-    swaps, peg_keepers, bob, receiver, coin_to_imbalance, imbalance_pools
+    swaps, peg_keepers, caller, receiver, coin_to_imbalance, imbalance_pools
 ):
     imbalance_pools(coin_to_imbalance)
     for peg_keeper, swap in zip(peg_keepers, swaps):
-        with boa.env.prank(bob):
+        with boa.env.prank(caller):
             peg_keeper.update(receiver)
-        assert swap.balanceOf(bob) == 0
+        assert swap.balanceOf(caller) == 0
         assert swap.balanceOf(receiver) > 0
 
 
@@ -149,7 +149,7 @@ def test_unprofitable_peg(
     peg_keepers,
     redeemable_tokens,
     stablecoin,
-    alice,
+    liquidity_provider,
     imbalance_pool,
     admin,
     set_fee,
@@ -160,7 +160,7 @@ def test_unprofitable_peg(
             little = 10 * 10**18
             rtoken_mul = 10 ** (18 - rtoken.decimals())
             imbalance_pool(swap, 1, 5 * (peg_keeper.debt() - little))
-            with boa.env.prank(alice):
+            with boa.env.prank(liquidity_provider):
                 peg_keeper.update()
 
             # Imbalance so it should give all
@@ -171,14 +171,14 @@ def test_unprofitable_peg(
 
             boa.env.time_travel(12)
             with boa.reverts("peg unprofitable"):  # dev: peg was unprofitable
-                with boa.env.prank(alice):
+                with boa.env.prank(liquidity_provider):
                     peg_keeper.update()
 
 
 @given(share=st.integers(min_value=0, max_value=10**5))
 @pytest.mark.parametrize("coin_to_imbalance", [0, 1])
 def test_profit_share(
-    peg_keepers, swaps, bob, admin, coin_to_imbalance, imbalance_pools, share
+    peg_keepers, swaps, caller, admin, coin_to_imbalance, imbalance_pools, share
 ):
     imbalance_pools(coin_to_imbalance)
 
@@ -188,11 +188,11 @@ def test_profit_share(
                 peg_keeper.set_new_caller_share(share)
 
             profit_before = peg_keeper.calc_profit()
-            with boa.env.prank(bob):
+            with boa.env.prank(caller):
                 peg_keeper.update()
             profit_after = peg_keeper.calc_profit()
 
             receiver_profit = profit_after - profit_before
-            caller_profit = swap.balanceOf(bob)
+            caller_profit = swap.balanceOf(caller)
 
             assert caller_profit == (receiver_profit + caller_profit) * share // 10**5

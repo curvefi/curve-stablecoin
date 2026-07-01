@@ -12,15 +12,15 @@ pytestmark = pytest.mark.usefixtures(
 
 @pytest.mark.parametrize("method", ["provide", "withdraw"])
 def test_update_delay(
-    peg_keepers, swaps, redeemable_tokens, stablecoin, bob, peg_keeper_updater, method
+    peg_keepers, swaps, redeemable_tokens, stablecoin, caller, peg_keeper_updater, method
 ):
     for pk, swap, rtoken in zip(peg_keepers, swaps, redeemable_tokens):
         with boa.env.anchor():
-            with boa.env.prank(bob):
+            with boa.env.prank(caller):
                 if method == "provide":
-                    swap.add_liquidity([rtoken.balanceOf(bob), 0], 0)
+                    swap.add_liquidity([rtoken.balanceOf(caller), 0], 0)
                 else:
-                    swap.add_liquidity([0, stablecoin.balanceOf(bob)], 0)
+                    swap.add_liquidity([0, stablecoin.balanceOf(caller)], 0)
 
             t0 = pk.last_change()
             boa.env.time_travel(ACTION_DELAY + 1)
@@ -31,15 +31,15 @@ def test_update_delay(
 
 @pytest.mark.parametrize("method", ["provide", "withdraw"])
 def test_update_no_delay(
-    peg_keepers, swaps, redeemable_tokens, stablecoin, bob, peg_keeper_updater, method
+    peg_keepers, swaps, redeemable_tokens, stablecoin, caller, peg_keeper_updater, method
 ):
     for pk, swap, rtoken in zip(peg_keepers, swaps, redeemable_tokens):
         with boa.env.anchor():
-            with boa.env.prank(bob):
+            with boa.env.prank(caller):
                 if method == "provide":
-                    swap.add_liquidity([rtoken.balanceOf(bob), 0], 0)
+                    swap.add_liquidity([rtoken.balanceOf(caller), 0], 0)
                 else:
-                    swap.add_liquidity([0, stablecoin.balanceOf(bob)], 0)
+                    swap.add_liquidity([0, stablecoin.balanceOf(caller)], 0)
 
             t0 = pk.last_change()
             boa.env.timestamp = t0 + ACTION_DELAY - 3
