@@ -135,6 +135,63 @@ def compile_runtime(source_path: Path) -> str:
     return result.stdout
 
 
+def vyper_version() -> str:
+    result = subprocess.run(
+        ["vyper", "--version"],
+        text=True,
+        capture_output=True,
+        check=True,
+    )
+    return result.stdout.strip()
+
+
+def version_spec(source_lines: list[str]) -> str | None:
+    for line in source_lines:
+        stripped = line.strip()
+        if not stripped:
+            continue
+        match = re.match(r"#\s*@version\s+(.+)", stripped)
+        if match:
+            return match.group(1).strip()
+        match = re.match(r"#\s*pragma\s+version\s+(.+)", stripped)
+        if match:
+            return match.group(1).strip()
+        if not stripped.startswith("#"):
+            return None
+    return None
+
+
+def major_minor(version: str) -> tuple[int, int] | None:
+    match = re.match(r"(?:==)?(\d+)\.(\d+)\.", version)
+    if not match:
+        return None
+    return (int(match.group(1)), int(match.group(2)))
+
+
+def is_version_compatible(spec: str | None, compiler_version: str) -> bool:
+    if spec is None:
+        return True
+    if not spec.startswith(("==", "0")):
+        return True
+    expected = major_minor(spec)
+    actual = major_minor(compiler_version)
+    return expected is None or actual is None or expected == actual
+
+
+def write_skipped_report(report_md: Path, report_csv: Path, reason: str) -> None:
+    report_md.write_text(
+        "# Runtime bytespace report\n\n"
+        "- Status: skipped\n"
+        f"- Error: {reason}\n"
+    )
+    with report_csv.open("w", newline="") as f:
+        writer = csv.writer(f)
+        writer.writerow(["function", "base_size", "new_size", "savings", "savings_pct"])
+    print(f"Skipping runtime bytespace report: {reason}")
+    print(report_md)
+    print(report_csv)
+
+
 def format_compile_error(exc: subprocess.CalledProcessError) -> str:
     message = (exc.stderr or exc.output or str(exc)).strip()
     return message or str(exc)
@@ -176,11 +233,21 @@ def main() -> None:
     source_lines = source_path.read_text().splitlines()
     funcs = parse_functions(source_lines)
 
-    base_out = compile_runtime(source_path)
-    base_size = len(base_out.encode())
-
     report_md = runtime_root / "bytespace-report-runtime.md"
     report_csv = runtime_root / "bytespace-report-runtime.csv"
+
+    spec = version_spec(source_lines)
+    compiler_version = vyper_version()
+    if not is_version_compatible(spec, compiler_version):
+        write_skipped_report(
+            report_md,
+            report_csv,
+            f"version {spec} is not compatible with compiler {compiler_version}",
+        )
+        return
+
+    base_out = compile_runtime(source_path)
+    base_size = len(base_out.encode())
 
     def compile_function(func: dict) -> tuple[str, int | None, int | None]:
         name = func["name"]
