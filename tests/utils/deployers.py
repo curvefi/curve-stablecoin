@@ -131,6 +131,14 @@ CRYPTO_FROM_POOL_DEPLOYER = boa.load_partial(
     PRICE_ORACLES_CONTRACT_PATH / "CryptoFromPool.vy",
     compiler_args=compiler_args_default,
 )
+CRYPTO_FROM_ORACLE_AND_ERC4626_DEPLOYER = boa.load_partial(
+    PRICE_ORACLES_CONTRACT_PATH / "CryptoFromOracleAndERC4626.vy",
+    compiler_args=compiler_args_default,
+)
+ORACLE_AND_EMA_ERC4626_DEPLOYER = boa.load_partial(
+    PRICE_ORACLES_CONTRACT_PATH / "OracleAndEMAERC4626.vy",
+    compiler_args=compiler_args_default,
+)
 EMA_PRICE_ORACLE_DEPLOYER = boa.load_partial(
     PRICE_ORACLES_CONTRACT_PATH / "EmaPriceOracle.vy",
     compiler_args=compiler_args_default,
