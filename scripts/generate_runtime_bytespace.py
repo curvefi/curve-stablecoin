@@ -180,9 +180,7 @@ def is_version_compatible(spec: str | None, compiler_version: str) -> bool:
 
 def write_skipped_report(report_md: Path, report_csv: Path, reason: str) -> None:
     report_md.write_text(
-        "# Runtime bytespace report\n\n"
-        "- Status: skipped\n"
-        f"- Error: {reason}\n"
+        f"# Runtime bytespace report\n\n- Status: skipped\n- Error: {reason}\n"
     )
     with report_csv.open("w", newline="") as f:
         writer = csv.writer(f)
