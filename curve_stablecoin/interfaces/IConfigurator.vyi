@@ -115,3 +115,9 @@ def set_amm_fee(_controller: IController, _fee: uint256):
 @external
 def default_admin() -> address:
     ...
+
+
+@view
+@external
+def admins(_controller: IController) -> address:
+    ...
