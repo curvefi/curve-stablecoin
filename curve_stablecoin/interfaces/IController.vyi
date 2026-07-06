@@ -311,6 +311,12 @@ def factory() -> IFactory:
 
 @view
 @external
+def configurator() -> address:
+    ...
+
+
+@view
+@external
 def liquidation_discount() -> uint256:
     ...
 
