@@ -122,9 +122,7 @@ def read_pragma_version(source_lines: list[str]) -> str | None:
 
 
 def installed_vyper_version() -> str | None:
-    result = subprocess.run(
-        ["vyper", "--version"], text=True, capture_output=True
-    )
+    result = subprocess.run(["vyper", "--version"], text=True, capture_output=True)
     if result.returncode != 0:
         return None
     return result.stdout.strip().split("+")[0]
@@ -213,13 +211,9 @@ def main() -> None:
             f"but installed compiler is {installed_version}"
         )
         (runtime_root / "bytespace-report-runtime.md").write_text(
-            "# Runtime bytespace report\n\n"
-            "- Status: skipped\n"
-            f"- Reason: {reason}\n"
+            f"# Runtime bytespace report\n\n- Status: skipped\n- Reason: {reason}\n"
         )
-        with (runtime_root / "bytespace-report-runtime.csv").open(
-            "w", newline=""
-        ) as f:
+        with (runtime_root / "bytespace-report-runtime.csv").open("w", newline="") as f:
             csv.writer(f).writerow(
                 ["function", "base_size", "new_size", "savings", "savings_pct"]
             )
