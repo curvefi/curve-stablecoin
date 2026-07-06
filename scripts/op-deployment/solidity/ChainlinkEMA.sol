@@ -1,5 +1,6 @@
-// Oracle created by defi.money for their crvUSD fork
 // SPDX-License-Identifier: MIT
+// Oracle created by defi.money for their crvUSD fork
+// Source: https://github.com/defidotmoney/dfm-contracts
 
 pragma solidity 0.8.25;
 
@@ -7,46 +8,23 @@ interface IChainlinkAggregator {
     function latestRoundData()
         external
         view
-        returns (
-            uint80 roundId,
-            int256 answer,
-            uint256 startedAt,
-            uint256 updatedAt,
-            uint80 answeredInRound
-        );
+        returns (uint80 roundId, int256 answer, uint256 startedAt, uint256 updatedAt, uint80 answeredInRound);
 
-    function getRoundData(
-        uint80 _roundId
-    )
+    function getRoundData(uint80 _roundId)
         external
         view
-        returns (
-            uint80 roundId,
-            int256 answer,
-            uint256 startedAt,
-            uint256 updatedAt,
-            uint80 answeredInRound
-        );
+        returns (uint80 roundId, int256 answer, uint256 startedAt, uint256 updatedAt, uint80 answeredInRound);
 
     function decimals() external view returns (uint256);
 }
 
 interface IPriceOracle {
     function price_w() external returns (uint256);
-
     function price() external view returns (uint256);
 }
 
-/**
-    @title Chainlink EMA Oracle
-    @author defidotmoney
-    @notice Calculates an exponential moving average from a Chainlink feed
-    @dev This contract is designed for use in L2/sidechain environments where
-         gas costs are negligible. It is not recommended for use on Ethereum mainnet.
- */
 contract ChainlinkEMA {
     IChainlinkAggregator public immutable chainlinkFeed;
-
     uint256 public immutable OBSERVATIONS;
     uint256 public immutable INTERVAL;
     uint256 public immutable SMOOTHING_FACTOR;
@@ -61,7 +39,7 @@ contract ChainlinkEMA {
     struct ChainlinkResponse {
         uint80 roundId;
         uint128 updatedAt;
-        uint256 answer; // normalized to 1e18
+        uint256 answer;
     }
 
     constructor(IChainlinkAggregator _chainlink, uint256 _observations, uint256 _interval) {
@@ -83,9 +61,9 @@ contract ChainlinkEMA {
         if (currentObservation == storedObservation) return storedPrice;
 
         if (storedObservation + MAX_LOOKBACK * INTERVAL > currentObservation) {
-            (currentPrice, , ) = _calculateLatestEMA(currentObservation, storedObservation);
+            (currentPrice,,) = _calculateLatestEMA(currentObservation, storedObservation);
         } else {
-            (currentPrice, ) = _calculateNewEMA(currentObservation);
+            (currentPrice,) = _calculateNewEMA(currentObservation);
         }
         return currentPrice;
     }
@@ -98,10 +76,7 @@ contract ChainlinkEMA {
         if (storedObservation + MAX_LOOKBACK * INTERVAL > currentObservation) {
             bool isNewResponse;
             ChainlinkResponse memory response;
-            (currentPrice, response, isNewResponse) = _calculateLatestEMA(
-                currentObservation,
-                storedObservation
-            );
+            (currentPrice, response, isNewResponse) = _calculateLatestEMA(currentObservation, storedObservation);
             if (isNewResponse) storedResponse = response;
         } else {
             (currentPrice, storedResponse) = _calculateNewEMA(currentObservation);
@@ -111,10 +86,11 @@ contract ChainlinkEMA {
         return currentPrice;
     }
 
-    function _calculateLatestEMA(
-        uint256 currentObservation,
-        uint256 storedObservation
-    ) internal view returns (uint256 currentPrice, ChainlinkResponse memory latestResponse, bool isNewResponse) {
+    function _calculateLatestEMA(uint256 currentObservation, uint256 storedObservation)
+        internal
+        view
+        returns (uint256 currentPrice, ChainlinkResponse memory latestResponse, bool isNewResponse)
+    {
         currentPrice = storedPrice;
         latestResponse = _getLatestRoundData();
         ChainlinkResponse memory response = storedResponse;
@@ -152,9 +128,11 @@ contract ChainlinkEMA {
         return (currentPrice, latestResponse, true);
     }
 
-    function _calculateNewEMA(
-        uint256 observationTimestamp
-    ) internal view returns (uint256 currentPrice, ChainlinkResponse memory latestResponse) {
+    function _calculateNewEMA(uint256 observationTimestamp)
+        internal
+        view
+        returns (uint256 currentPrice, ChainlinkResponse memory latestResponse)
+    {
         latestResponse = _getLatestRoundData();
         ChainlinkResponse memory response = latestResponse;
 
@@ -199,22 +177,18 @@ contract ChainlinkEMA {
     }
 
     function _getLatestRoundData() internal view returns (ChainlinkResponse memory) {
-        (uint80 roundId, int256 answer, , uint256 updatedAt, ) = chainlinkFeed.latestRoundData();
+        (uint80 roundId, int256 answer,, uint256 updatedAt,) = chainlinkFeed.latestRoundData();
         return _validateAndFormatResponse(roundId, answer, updatedAt);
     }
 
     function _getRoundData(uint80 roundId) internal view returns (ChainlinkResponse memory) {
-        (uint80 round, int256 answer, , uint256 updatedAt, ) = chainlinkFeed.getRoundData(roundId);
-        return _validateAndFormatResponse(round, answer, updatedAt);
+        (uint80 roundId, int256 answer,, uint256 updatedAt,) = chainlinkFeed.getRoundData(roundId);
+        return _validateAndFormatResponse(roundId, answer, updatedAt);
     }
 
     function _getNextRoundData(uint80 roundId) internal view returns (ChainlinkResponse memory) {
         try chainlinkFeed.getRoundData(roundId + 1) returns (
-            uint80 round,
-            int256 answer,
-            uint256,
-            uint256 updatedAt,
-            uint80
+            uint80 round, int256 answer, uint256, uint256 updatedAt, uint80
         ) {
             if (updatedAt > 0) return _validateAndFormatResponse(round, answer, updatedAt);
         } catch {}
@@ -222,17 +196,15 @@ contract ChainlinkEMA {
         return _getRoundData(nextRoundId);
     }
 
-    function _validateAndFormatResponse(
-        uint80 roundId,
-        int256 answer,
-        uint256 updatedAt
-    ) internal view returns (ChainlinkResponse memory) {
+    function _validateAndFormatResponse(uint80 roundId, int256 answer, uint256 updatedAt)
+        internal
+        view
+        returns (ChainlinkResponse memory)
+    {
         require(answer > 0, "DFM: Chainlink answer too low");
         return
             ChainlinkResponse({
-                roundId: roundId,
-                updatedAt: uint128(updatedAt),
-                answer: uint256(answer) * PRECISION_MUL
+                roundId: roundId, updatedAt: uint128(updatedAt), answer: uint256(answer) * PRECISION_MUL
             });
     }
 }

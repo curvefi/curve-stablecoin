@@ -70,6 +70,16 @@ def build_report(
     head_report: ReportData,
     deltas: list[tuple[str, int, int, int]],
 ) -> str:
+    if head_report.status == "skipped" or base_report.status == "skipped":
+        return "\n".join(
+            [
+                f"### {contract}",
+                "",
+                "- Skipped: contract targets a vyper version other than the "
+                "pinned compiler; runtime bytespace not measured.",
+            ]
+        )
+
     if base_report.status == "failed":
         lines = [
             f"### {contract}",
