@@ -7,14 +7,18 @@
         and all the prices in the chain are for underlying coins of such pools.
 """
 
-MAX_COINS: constant(uint256) = 8
-MAX_POOLS: constant(uint256) = 8
+from curve_stablecoin.interfaces import IPriceOracle
+
+implements: IPriceOracle
 
 
 interface Pool:
     def price_oracle(i: uint256 = 0) -> uint256: view  # Universal method!
     def coins(i: uint256) -> address: view
 
+
+MAX_COINS: constant(uint256) = 8
+MAX_POOLS: constant(uint256) = 8
 
 POOLS: public(immutable(DynArray[Pool, MAX_POOLS]))
 BORROWED_IX: public(immutable(DynArray[uint256, MAX_POOLS]))

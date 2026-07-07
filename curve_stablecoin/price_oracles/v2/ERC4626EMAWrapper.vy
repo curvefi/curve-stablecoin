@@ -22,20 +22,16 @@
 """
 
 from curve_std import ema
+from curve_stablecoin.interfaces import IPriceOracle
 
+implements: IPriceOracle
 initializes: ema
-
-
-interface Oracle:
-    def price() -> uint256: view
-    def price_w() -> uint256: nonpayable
-
 
 interface ERC4626:
     def convertToAssets(shares: uint256) -> uint256: view
 
 
-ORACLE: public(immutable(Oracle))
+ORACLE: public(immutable(IPriceOracle))
 VAULT: public(immutable(ERC4626))
 
 WAD: constant(uint256) = 10**18
@@ -45,7 +41,7 @@ SHARE_PRICE_EMA_ID: constant(String[4]) = "shp"
 
 @deploy
 def __init__(
-    oracle: Oracle,
+    oracle: IPriceOracle,
     vault: ERC4626,
     ema_time: uint256,
 ):
