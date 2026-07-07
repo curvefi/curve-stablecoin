@@ -1,8 +1,8 @@
 # pragma version 0.4.3
 """
-@title OracleAndEMAERC4626
-@author Curve.Fi
-@license MIT
+@title ERC4626 EMA Wrapper
+@author Curve.Finance
+@license Copyright (c) Curve.Finance, 2020-2026 - all rights reserved
 @notice Chains an external oracle with an ERC4626 vault's share price.
 
         The ERC4626 share price (`convertToAssets(1e18)`) is instantaneously
@@ -16,8 +16,8 @@
             value is never hidden behind a stale, too-high price (which would
             over-value collateral - the wrong failure mode).
 
-        Concretely the reported share price is `min(spot, ema)`, where `ema`
-        ratchets up slowly (over `ema_time`) and is reset down to `spot` the
+        The reported share price is `min(spot, ema)`, where `ema`
+        grows up slowly (over `ema_time`) and is reset down to `spot` the
         moment `spot` falls below it.
 """
 

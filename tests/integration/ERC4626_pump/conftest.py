@@ -4,7 +4,7 @@ import pytest
 from tests.utils.constants import MAX_UINT256
 from tests.utils.deployers import (
     CRYPTO_FROM_ORACLE_AND_ERC4626_DEPLOYER,
-    ORACLE_AND_EMA_ERC4626_DEPLOYER,
+    ERC4626_EMA_WRAPPER_DEPLOYER,
     DUMMY_PRICE_ORACLE_DEPLOYER,
 )
 
@@ -120,6 +120,6 @@ def ema_time():
 
 @pytest.fixture(scope="module")
 def ema_oracle(base_oracle, dummy_vault, ema_time):
-    return ORACLE_AND_EMA_ERC4626_DEPLOYER.deploy(
+    return ERC4626_EMA_WRAPPER_DEPLOYER.deploy(
         base_oracle.address, dummy_vault.address, ema_time
     )
