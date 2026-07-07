@@ -155,6 +155,10 @@ CRYPTO_WITH_STABLE_PRICE_AND_CHAINLINK_DEPLOYER = boa.load_partial(
     PRICE_ORACLES_CONTRACT_PATH / "CryptoWithStablePriceAndChainlink.vy",
     compiler_args=compiler_args_default,
 )
+ORACLE_FROM_CURVE_POOLS_DEPLOYER = boa.load_partial(
+    PRICE_ORACLES_CONTRACT_PATH / "v2" / "OracleFromCurvePools.vy",
+    compiler_args=compiler_args_default,
+)
 
 # Proxy oracle contracts - have #pragma optimize gas
 PROXY_ORACLE_DEPLOYER = boa.load_partial(
