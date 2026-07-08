@@ -36,8 +36,8 @@ MARKETS = {
     "sDOLA-crvUSD": {
         "pool": {
             "address": "0x76A962BA6770068bCF454D34dDE17175611e6637",  # sDOLA/scrvUSD
-            "collateral_idx": 0,
-            "borrowed_idx": 1,
+            "collateral_idx": 1,
+            "borrowed_idx": 0,
         },
         "vault": {
             "address": "0xb45ad160634c528Cc3D2926d9807104FA3157305",  # sDOLA
