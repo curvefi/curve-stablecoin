@@ -1,5 +1,5 @@
 version = 1
-revision = 2
+revision = 3
 requires-python = ">=3.10, <4"
 
 [[package]]
@@ -542,7 +542,7 @@ dev = [
     { name = "pytest-forked", specifier = ">=1.6.0" },
     { name = "pytest-profiling", specifier = ">=1.8.1" },
     { name = "pytest-xdist", specifier = ">=3.5" },
-    { name = "titanoboa", git = "https://github.com/AlbertoCentonze/titanoboa?rev=vvm-eval" },
+    { name = "titanoboa", git = "https://github.com/vyperlang/titanoboa?rev=ed81f209bc407fe4c990d4875dcd4106e976a27f" },
     { name = "z3-solver", specifier = ">=4.12.0" },
 ]
 
@@ -1980,8 +1980,8 @@ wheels = [
 
 [[package]]
 name = "titanoboa"
-version = "0.2.7"
-source = { git = "https://github.com/AlbertoCentonze/titanoboa?rev=vvm-eval#71f7ad1adc799367cfd44920fb1de945500bb3f7" }
+version = "0.2.8"
+source = { git = "https://github.com/vyperlang/titanoboa?rev=ed81f209bc407fe4c990d4875dcd4106e976a27f#ed81f209bc407fe4c990d4875dcd4106e976a27f" }
 dependencies = [
     { name = "eth-abi" },
     { name = "eth-account" },
