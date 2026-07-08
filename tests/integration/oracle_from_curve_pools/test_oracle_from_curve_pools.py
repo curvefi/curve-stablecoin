@@ -13,6 +13,7 @@ These tests use inline mock pools (see conftest.py) to cover every branch:
 success prices for both price_oracle shapes, both index directions, N>2 pools,
 and multi-pool chains; plus every revert site in the constructor and in price().
 """
+
 import boa
 
 from tests.integration.oracle_from_curve_pools.conftest import ONE
@@ -117,7 +118,12 @@ def test_chain_arg_then_noarg(make_arg_pool, make_noarg_pool, deploy_oracle):
     assert [oracle.NO_ARGUMENT(0), oracle.NO_ARGUMENT(1)] == [False, True]
 
     cfg = [
-        {"no_argument": False, "borrowed_ix": 0, "collateral_ix": 2, "prices": [P1, P2]},
+        {
+            "no_argument": False,
+            "borrowed_ix": 0,
+            "collateral_ix": 2,
+            "prices": [P1, P2],
+        },
         {"no_argument": True, "borrowed_ix": 0, "collateral_ix": 1, "prices": [Q]},
     ]
     expected = ref_price(cfg)
@@ -133,8 +139,18 @@ def test_chain_inverse_then_forward(make_arg_pool, deploy_oracle):
     oracle = deploy_oracle([pool0, pool1], [1, 0], [0, 1])
 
     cfg = [
-        {"no_argument": False, "borrowed_ix": 1, "collateral_ix": 0, "prices": [2000 * ONE]},
-        {"no_argument": False, "borrowed_ix": 0, "collateral_ix": 1, "prices": [3000 * ONE]},
+        {
+            "no_argument": False,
+            "borrowed_ix": 1,
+            "collateral_ix": 0,
+            "prices": [2000 * ONE],
+        },
+        {
+            "no_argument": False,
+            "borrowed_ix": 0,
+            "collateral_ix": 1,
+            "prices": [3000 * ONE],
+        },
     ]
     expected = ref_price(cfg)
     # (1e36 / 2000e18) * 3000e18 / 1e18 = 1.5e18
@@ -156,8 +172,8 @@ def test_public_config_getters(make_arg_pool, make_noarg_pool, deploy_oracle):
     assert oracle.POOL_COUNT() == 2
     assert oracle.POOLS(0) == pool0.address
     assert oracle.POOLS(1) == pool1.address
-    assert [oracle.BORROWED_IX(0), oracle.BORROWED_IX(1)] == [0, 1]
-    assert [oracle.COLLATERAL_IX(0), oracle.COLLATERAL_IX(1)] == [2, 0]
+    assert [oracle.BORROWED_IXS(0), oracle.BORROWED_IXS(1)] == [0, 1]
+    assert [oracle.COLLATERAL_IXS(0), oracle.COLLATERAL_IXS(1)] == [2, 0]
 
 
 # ===========================================================================

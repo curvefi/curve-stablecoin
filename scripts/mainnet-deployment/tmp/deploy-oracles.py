@@ -31,7 +31,7 @@ MARKETS = {
         "vault": {
             "address": "0x80ac24aA929eaF5013f6436cdA2a7ba190f5Cc0b",  # syrupUSDC
             "adapter": "curve_stablecoin/price_oracles/v2/adapters/SyrupUSDCAdapter.vy",
-        }
+        },
     },
     "sDOLA-crvUSD": {
         "pool": {
@@ -42,7 +42,7 @@ MARKETS = {
         "vault": {
             "address": "0xb45ad160634c528Cc3D2926d9807104FA3157305",  # sDOLA
             "adapter": None,
-        }
+        },
     },
     "sfrxUSD-crvUSD": {
         "pool": {
@@ -53,7 +53,7 @@ MARKETS = {
         "vault": {
             "address": "0xcf62F905562626CfcDD2261162a51fd02Fc9c5b6",  # sfrxUSD
             "adapter": None,
-        }
+        },
     },
 }
 

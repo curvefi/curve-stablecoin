@@ -28,7 +28,7 @@ implements: IPriceOracle
 initializes: ema
 
 interface ERC4626:
-    def convertToAssets(shares: uint256) -> uint256: view
+    def convertToAssets(_shares: uint256) -> uint256: view
 
 
 ORACLE: public(immutable(IPriceOracle))
@@ -41,19 +41,25 @@ SHARE_PRICE_EMA_ID: constant(String[4]) = "shp"
 
 @deploy
 def __init__(
-    oracle: IPriceOracle,
-    vault: ERC4626,
-    ema_time: uint256,
+    _oracle: IPriceOracle,
+    _vault: ERC4626,
+    _ema_time: uint256,
 ):
-    ORACLE = oracle
-    VAULT = vault
+    """
+    @notice Wrap a base oracle with an ERC4626 vault's EMA-dampened share price.
+    @param _oracle Base price oracle, reported in the units this contract returns.
+    @param _vault ERC4626 vault whose `convertToAssets(1e18)` gives the share price.
+    @param _ema_time Smoothing horizon (seconds) of the upside share-price EMA.
+    """
+    ORACLE = _oracle
+    VAULT = _vault
 
     ema.__init__(
         [
             ema.EMAConfig(
                 ema_id=SHARE_PRICE_EMA_ID,
-                initial_value=staticcall vault.convertToAssets(WAD),
-                ema_time=ema_time,
+                initial_value=staticcall _vault.convertToAssets(WAD),
+                ema_time=_ema_time,
             )
         ]
     )
@@ -101,11 +107,19 @@ def _share_price_w() -> uint256:
 @external
 @view
 def price() -> uint256:
+    """
+    @notice Base oracle price scaled by the dampened ERC4626 share price (1e18).
+    @return The manipulation-resistant collateral price.
+    """
     p1: uint256 = staticcall ORACLE.price()
     return p1 * self._share_price() // WAD
 
 
 @external
 def price_w() -> uint256:
+    """
+    @notice Same as `price`, but persists the share-price EMA state.
+    @return The manipulation-resistant collateral price.
+    """
     p1: uint256 = extcall ORACLE.price_w()
     return p1 * self._share_price_w() // WAD
