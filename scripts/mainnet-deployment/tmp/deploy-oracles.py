@@ -46,7 +46,7 @@ MARKETS = {
     },
     "sfrxUSD-crvUSD": {
         "pool": {
-            "address": "0x76A962BA6770068bCF454D34dDE17175611e6637",  # frxUSD/crvUSD
+            "address": "0x13e12BB0E6A2f1A3d6901a59a9d585e89A6243e1",  # frxUSD/crvUSD
             "collateral_idx": 0,
             "borrowed_idx": 1,
         },
