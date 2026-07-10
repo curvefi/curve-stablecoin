@@ -7,6 +7,7 @@
 @notice Monetary Policy that follows EMA of external rate calculator contract's yield rate.
         The external contract should return the rate per second.
         For use with yield-bearing assets in like-kind lend markets (e.g. sfrxUSD/crvUSD).
+@custom:kill This monetary policy is bound to its Controller; kill the Controller to halt new borrowing.
 """
 
 from curve_std import ema
