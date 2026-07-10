@@ -119,6 +119,10 @@ AGG_MONETARY_POLICY4_DEPLOYER = boa.load_partial(
     MPOLICIES_CONTRACT_PATH / "AggMonetaryPolicy4.vy",
     compiler_args=compiler_args_default,
 )
+HYPERBOLIC_DYNAMIC_MP_DEPLOYER = boa.load_partial(
+    MPOLICIES_CONTRACT_PATH / "v2" / "HyperbolicDynamicMP.vy",
+    compiler_args=compiler_args_default,
+)
 
 # Price oracles
 DUMMY_PRICE_ORACLE_DEPLOYER = boa.load_partial(
@@ -263,6 +267,12 @@ MOCK_MARKET_DEPLOYER = boa.load_partial(
 )
 MOCK_RATE_SETTER_DEPLOYER = boa.load_partial(
     TESTING_CONTRACT_PATH / "MockRateSetter.vy", compiler_args=compiler_args_default
+)
+MOCK_RATE_CALCULATOR_DEPLOYER = boa.load_partial(
+    TESTING_CONTRACT_PATH / "MockRateCalculator.vy", compiler_args=compiler_args_default
+)
+MOCK_CONTROLLER_MP_DEPLOYER = boa.load_partial(
+    TESTING_CONTRACT_PATH / "MockControllerMP.vy", compiler_args=compiler_args_default
 )
 MOCK_PEG_KEEPER_DEPLOYER = boa.load_partial(
     TESTING_CONTRACT_PATH / "MockPegKeeper.vy", compiler_args=compiler_args_default
