@@ -1,0 +1,55 @@
+#pragma version 0.4.3
+"""
+@title sfrxUSD Rate Calculator
+@author Curve.Finance
+@license Copyright (c) Curve.Finance, 2020-2026 - all rights reserved
+@notice Provides a per-second yield rate for sfrxUSD, based on current cycle data and stored assets
+@custom:kill This rate calculator is bound to its monetary policy, and the monetary policy is bound to its Controller;
+             kill the Controller to halt new borrowing.
+"""
+
+interface IFraxVault:
+    def rewardsCycleData() -> (uint256, uint256, uint256): view
+    def storedTotalAssets() -> uint256: view
+    def maxDistributionPerSecondPerAsset() -> uint256: view
+
+
+SFRXUSD: public(immutable(IFraxVault))
+
+
+@deploy
+def __init__(_sfrxusd: address):
+    """
+    @param _sfrxusd Address of the sfrxUSD vault contract
+    @notice Initializes the rate calculator with the sfrxUSD contract address
+    """
+    SFRXUSD = IFraxVault(_sfrxusd)
+
+
+@external
+@view
+def rate() -> uint256:
+    """
+    @notice Calculates the current per-second rate for sfrxUSD
+    @return rate Yield per second, scaled by 1e18
+    """
+    cycle_end: uint256 = 0
+    last_sync: uint256 = 0
+    reward_amt: uint256 = 0
+    cycle_end, last_sync, reward_amt = staticcall SFRXUSD.rewardsCycleData()
+
+    # Prevent division by zero
+    if cycle_end <= last_sync:
+        return 0
+
+    assets: uint256 = staticcall SFRXUSD.storedTotalAssets()
+    if assets == 0:
+        assets = 1
+
+    max_distro: uint256 = staticcall SFRXUSD.maxDistributionPerSecondPerAsset()
+    duration: uint256 = cycle_end - last_sync
+
+    frax_per_second: uint256 = reward_amt // duration
+    frax_per_second = frax_per_second * 10**18 // assets
+
+    return min(frax_per_second, max_distro)
