@@ -1,0 +1,99 @@
+# Events
+
+event SetParameters:
+    u_inf: uint256
+    A: uint256
+    r_minf: int256
+    target_utilization: uint256
+    low_ratio: uint256
+    high_ratio: uint256
+    rate_shift: uint256
+
+
+# Structs
+
+struct Parameters:
+    u_inf: uint256
+    A: uint256
+    r_minf: int256
+    target_utilization: uint256
+    low_ratio: uint256
+    high_ratio: uint256
+    rate_shift: uint256
+
+
+# Functions
+
+@view
+@external
+def TEXP() -> uint256:
+    ...
+
+
+@view
+@external
+def CONTROLLER() -> address:
+    ...
+
+
+@view
+@external
+def RATE_CALCULATOR() -> address:
+    ...
+
+
+@view
+@external
+def parameters() -> Parameters:
+    ...
+
+
+@view
+@external
+def raw_underlying_rate() -> uint256:
+    ...
+
+
+@view
+@external
+def raw_underlying_apr() -> uint256:
+    ...
+
+
+@view
+@external
+def target_rate() -> uint256:
+    ...
+
+
+@view
+@external
+def target_apr() -> uint256:
+    ...
+
+
+@view
+@external
+def rate() -> uint256:
+    ...
+
+
+@external
+def rate_write() -> uint256:
+    ...
+
+
+@external
+def set_parameters(
+    _target_utilization: uint256,
+    _low_ratio: uint256,
+    _high_ratio: uint256,
+    _rate_shift: uint256,
+):
+    ...
+
+
+@view
+@external
+def future_rate(_d_reserves: int256, _d_debt: int256) -> uint256:
+    ...
