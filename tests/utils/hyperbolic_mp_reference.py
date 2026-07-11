@@ -26,8 +26,8 @@ MAX_TARGET_RATE = _MP._constants.MAX_TARGET_RATE
 
 # Default constructor parameters used across the suite (all within bounds)
 DEFAULT_TARGET_UTILIZATION = 85 * 10**16  # 0.85
-DEFAULT_LOW_RATIO = 5 * 10**17            # 0.5x base at 0% utilization
-DEFAULT_HIGH_RATIO = 2 * 10**18           # 2x base at 100% utilization
+DEFAULT_LOW_RATIO = 5 * 10**17  # 0.5x base at 0% utilization
+DEFAULT_HIGH_RATIO = 2 * 10**18  # 2x base at 100% utilization
 DEFAULT_RATE_SHIFT = 0
 # ~10% APR expressed as a per-second rate; comfortably within [MIN, MAX]_EMA_RATE
 DEFAULT_RATE = 10**10
@@ -52,8 +52,13 @@ def get_params(u0: int, alpha: int, beta: int):
     return u_inf, A, r_minf
 
 
-def utilization(available_balance: int, total_debt: int, admin_fees: int,
-                d_reserves: int = 0, d_debt: int = 0) -> int:
+def utilization(
+    available_balance: int,
+    total_debt: int,
+    admin_fees: int,
+    d_reserves: int = 0,
+    d_debt: int = 0,
+) -> int:
     """Replicates `_get_utilization`."""
     total_reserves = available_balance + total_debt - admin_fees + d_reserves
     debt = total_debt + d_debt

@@ -11,7 +11,7 @@ from tests.utils.deployers import MOCK_CONTROLLER_MP_DEPLOYER
 def controller(factory):
     """Fresh mock controller returning `factory` as its factory."""
     _controller = MOCK_CONTROLLER_MP_DEPLOYER.deploy(factory.address)
-    _controller.set_state(50 * 10 ** 18, 50 * 10 ** 18, 0)
+    _controller.set_state(50 * 10**18, 50 * 10**18, 0)
     return _controller
 
 
@@ -24,12 +24,20 @@ def test_rate_write_only_controller(mp):
 
 def test_rate_write_matches_rate_at_seed(mp, controller, default_params):
     params = ref.get_params(*default_params)
-    u = ref.utilization(controller.available_balance(), controller.total_debt(), 0)  # controller state -> u = 0.5
+    u = ref.utilization(
+        controller.available_balance(), controller.total_debt(), 0
+    )  # controller state -> u = 0.5
     with boa.env.prank(controller.address):
-        assert mp.rate_write() == mp.rate() == ref.calculate_rate(params, u, ref.DEFAULT_RATE)
+        assert (
+            mp.rate_write()
+            == mp.rate()
+            == ref.calculate_rate(params, u, ref.DEFAULT_RATE)
+        )
 
 
-def test_rate_write_ema_moves_toward_new_rate(mp, controller, rate_calculator, default_params):
+def test_rate_write_ema_moves_toward_new_rate(
+    mp, controller, rate_calculator, default_params
+):
     params = ref.get_params(*default_params)
     u = ref.utilization(50 * 10**18, 50 * 10**18, 0)  # controller state -> u = 0.5
 
@@ -54,7 +62,9 @@ def test_rate_write_ema_moves_toward_new_rate(mp, controller, rate_calculator, d
         assert mp.rate_write() == mp.rate() == ref.calculate_rate(params, u, moved)
 
 
-def test_rate_write_fallback_on_calculator_revert(mp, controller, rate_calculator, default_params):
+def test_rate_write_fallback_on_calculator_revert(
+    mp, controller, rate_calculator, default_params
+):
     params = ref.get_params(*default_params)
     u = ref.utilization(50 * 10**18, 50 * 10**18, 0)
 
@@ -72,10 +82,16 @@ def test_rate_write_fallback_on_calculator_revert(mp, controller, rate_calculato
 
     assert mp.target_rate() == ref.MIN_TARGET_RATE
     with boa.env.prank(controller.address):
-        assert mp.rate_write() == mp.rate() == ref.calculate_rate(params, u, ref.MIN_TARGET_RATE)
+        assert (
+            mp.rate_write()
+            == mp.rate()
+            == ref.calculate_rate(params, u, ref.MIN_TARGET_RATE)
+        )
 
 
-def test_rate_write_result_in_ema_bounds(mp, controller, rate_calculator, default_params):
+def test_rate_write_result_in_ema_bounds(
+    mp, controller, rate_calculator, default_params
+):
     params = ref.get_params(*default_params)
     u = ref.utilization(50 * 10**18, 50 * 10**18, 0)
 
@@ -91,4 +107,8 @@ def test_rate_write_result_in_ema_bounds(mp, controller, rate_calculator, defaul
 
     assert mp.target_rate() == ref.MAX_TARGET_RATE
     with boa.env.prank(controller.address):
-        assert mp.rate_write() == mp.rate() == ref.calculate_rate(params, u, ref.MAX_TARGET_RATE)
+        assert (
+            mp.rate_write()
+            == mp.rate()
+            == ref.calculate_rate(params, u, ref.MAX_TARGET_RATE)
+        )

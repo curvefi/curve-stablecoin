@@ -12,11 +12,11 @@ from tests.utils import hyperbolic_mp_reference as ref
 # (total_debt, available_balance, admin_fees) controller states.
 # Utilization u = debt / (available_balance + debt - admin_fees).
 STATES = [
-    (50 * 10**18, 50 * 10**18, 0),    # u = 0.5
-    (10 * 10**18, 90 * 10**18, 0),    # u = 0.1
-    (90 * 10**18, 10 * 10**18, 0),    # u = 0.9
+    (50 * 10**18, 50 * 10**18, 0),  # u = 0.5
+    (10 * 10**18, 90 * 10**18, 0),  # u = 0.1
+    (90 * 10**18, 10 * 10**18, 0),  # u = 0.9
     (100 * 10**18, 10 * 10**18, 5 * 10**18),  # with admin fees
-    (0, 100 * 10**18, 0),             # u = 0 (no debt)
+    (0, 100 * 10**18, 0),  # u = 0 (no debt)
 ]
 
 

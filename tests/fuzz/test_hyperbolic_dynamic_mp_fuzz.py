@@ -100,13 +100,17 @@ def field_valid_params(draw):
         high = draw(high_ratio_st)
         window = ((high - WAD) * u0 - 1) // ((WAD + 1) * (WAD - u0))
         assume(window >= 1)
-        low = draw(st.integers(min_value=max(ref.MIN_LOW_RATIO, WAD - window), max_value=WAD - 1))
+        low = draw(
+            st.integers(
+                min_value=max(ref.MIN_LOW_RATIO, WAD - window), max_value=WAD - 1
+            )
+        )
         return u0, low, high, shift
 
     low = draw(low_ratio_st)
     subtrahend = (WAD - u0) * (WAD - low)
     beta_lo = WAD + (subtrahend + WAD + u0 - 1) // u0  # smallest beta with inner >= WAD
-    beta_hi = WAD + (WAD + 1) * subtrahend // u0        # largest beta with u_inf > WAD
+    beta_hi = WAD + (WAD + 1) * subtrahend // u0  # largest beta with u_inf > WAD
     if regime == "invalid_curve":
         hi = min(beta_lo - 1, ref.MAX_HIGH_RATIO)
         assume(WAD + 1 <= hi)
@@ -165,8 +169,13 @@ def test_matches_reference(params, seed_rate, reserves, frac):
     # parameters depend only on the curve args
     p = mp.parameters()
     assert (
-        p.u_inf, p.A, p.r_minf,
-        p.target_utilization, p.low_ratio, p.high_ratio, p.rate_shift,
+        p.u_inf,
+        p.A,
+        p.r_minf,
+        p.target_utilization,
+        p.low_ratio,
+        p.high_ratio,
+        p.rate_shift,
     ) == (u_inf, A, r_minf, u0, low, high, shift)
 
     # rate() depends on the seeded EMA and the controller state
