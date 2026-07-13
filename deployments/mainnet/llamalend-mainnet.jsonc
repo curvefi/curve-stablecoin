@@ -1,0 +1,15 @@
+{
+  "chain_id": 1,
+  "deployer": "0xE6B328e141EF304739892A864CebFe148a04353e",
+  "dry_run": false,
+  "timestamp": 1783939972,
+  "contracts": {
+    "amm_blueprint": "0x3B50FbeF90317E012ac4BCc63A466c5334542adD",
+    "controller_blueprint": "0x030Ae1518186e43F12d0e7dF9BCAa764Bd1C1950",
+    "vault_blueprint": "0x4640ccEe32A39f06dDC8654c5B0C06bFdE2040b2",
+    "controller_view_blueprint": "0x40D4740d6BbC918C3355050CF2a84700e7cFa9a4",
+    "configurator": "0x942057d2FFB5Da031c7F7226F25Bb23A5dB7147b",
+    "factory": "0x1d15265ecc913088fA49Abb4B940a871Bbeff394",
+    "leverage_zap": "0x294D32692ab56ee053E7c33bc26d292872203a5B"
+  }
+}
