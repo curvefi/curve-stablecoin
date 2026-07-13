@@ -35,9 +35,12 @@ def rate() -> uint256:
     @notice Calculates the current per-second rate for sDOLA
     @return rate Yield per second, scaled by 1e18
     """
+    assets: uint256 = staticcall SDOLA.totalAssets()
+    if assets == 0:
+        return 0
+
     current_week: uint256 = block.timestamp // WEEK
     weekly_revenue: uint256 = staticcall SDOLA.weeklyRevenue(current_week - 1)
-    assets: uint256 = staticcall SDOLA.totalAssets()
-
     sdola_per_second: uint256 = weekly_revenue // WEEK
+
     return sdola_per_second * 10**18 // assets
