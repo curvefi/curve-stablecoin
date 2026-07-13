@@ -8,6 +8,7 @@
 """
 
 from curve_stablecoin.interfaces import IPriceOracle
+from curve_stablecoin import constants as c
 
 implements: IPriceOracle
 
@@ -17,6 +18,7 @@ interface Pool:
     def coins(i: uint256) -> address: view
 
 
+WAD: constant(uint256) = c.WAD
 MAX_COINS: constant(uint256) = 8
 MAX_POOLS: constant(uint256) = 8
 
@@ -99,10 +101,10 @@ def _price() -> uint256:
          pool's reference coin (price 1e18); a non-zero index is priced via the
          pool's `price_oracle`, using the no-argument form when NO_ARGUMENT is set.
     """
-    _price: uint256 = 10**18
+    _price: uint256 = WAD
     for i: uint256 in range(POOL_COUNT, bound=MAX_POOLS):
-        p_borrowed: uint256 = 10**18
-        p_collateral: uint256 = 10**18
+        p_borrowed: uint256 = WAD
+        p_collateral: uint256 = WAD
 
         if NO_ARGUMENT[i]:
             if BORROWED_IXS[i] > 0:

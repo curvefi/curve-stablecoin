@@ -23,6 +23,7 @@
 
 from curve_std import ema
 from curve_stablecoin.interfaces import IPriceOracle
+from curve_stablecoin import constants as c
 
 implements: IPriceOracle
 initializes: ema
@@ -34,7 +35,7 @@ interface ERC4626:
 ORACLE: public(immutable(IPriceOracle))
 VAULT: public(immutable(ERC4626))
 
-WAD: constant(uint256) = 10**18
+WAD: constant(uint256) = c.WAD
 # Identifier of the EMA tracking the ERC4626 share price (convertToAssets(1e18)).
 SHARE_PRICE_EMA_ID: constant(String[4]) = "shp"
 
