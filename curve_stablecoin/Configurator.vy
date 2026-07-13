@@ -1,10 +1,13 @@
 # pragma version 0.4.3
 # pragma nonreentrancy on
 """
-@title LlamaLend Markets Configurator
-@author Curve.fi
-@license Copyright (c) Curve.Fi, 2020-2026 - all rights reserved
-@custom:security security@curve.fi
+@title LlamaLend V2 Markets Configurator
+@author Curve.Finance
+@license Copyright (c) Curve.Finance, 2020-2026 - all rights reserved
+@notice Admin entrypoint for configuring LlamaLend V2 markets. Manages per-controller admins and
+        applies parameter changes across a market's contracts (monetary policy, price oracle,
+        AMM, LM callback).
+@custom:security security@curve.finance
 @custom:kill If the underlying market is killed this contract will also be unable to operate.
 """
 

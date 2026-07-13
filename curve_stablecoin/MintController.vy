@@ -2,14 +2,12 @@
 # pragma nonreentrancy on
 # pragma optimize codesize
 """
-@title Llamalend Mint Market Controller
-@author Curve.Fi
-@license Copyright (c) Curve.Fi, 2020-2025 - all rights reserved
-@notice Main contract to interact with a Llamalend Mint Market. Each
-    contract is specific to a single mint market.
-@dev This is just a simple adapter not to have to deploy a new
-    factory for mint markets.
-@custom:security security@curve.fi
+@title Llamalend V2 Mint Market Controller
+@author Curve.Finance
+@license Copyright (c) Curve.Finance, 2020-2026 - all rights reserved
+@notice Main contract to interact with a Llamalend Mint Market. Each contract is specific to a single mint market.
+@dev This is just a simple adapter not to have to deploy a new factory for mint markets.
+@custom:security security@curve.finance
 @custom:kill Set debt_ceiling to 0 via ControllerFactory to prevent new loans. Existing loans can still be repaid/liquidated.
 """
 

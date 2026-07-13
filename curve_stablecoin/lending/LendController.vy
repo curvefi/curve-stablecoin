@@ -2,12 +2,11 @@
 # pragma nonreentrancy on
 # pragma optimize codesize
 """
-@title LlamaLend Lend Market Controller
-@author Curve.Fi
-@license Copyright (c) Curve.Fi, 2020-2025 - all rights reserved
-@notice Main contract to interact with a Llamalend Lend Market. Each
-    contract is specific to a single lending market.
-@custom:security security@curve.fi
+@title LlamaLend V2 Lend Market Controller
+@author Curve.Finance
+@license Copyright (c) Curve.Finance, 2020-2026 - all rights reserved
+@notice Main contract to interact with a LlamaLend Lend Market. Each contract is specific to a single lending market.
+@custom:security security@curve.finance
 @custom:kill Set borrow_cap to 0 and vault's max_supply to 0 to prevent new deposits. Existing loans can still be repaid/liquidated.
 """
 
