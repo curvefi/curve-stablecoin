@@ -134,7 +134,7 @@ def main() -> None:
     parser.add_argument(
         "--account-name",
         default=os.environ.get("ACCOUNT_NAME"),
-        help="Path to keystore JSON file",
+        help="Brownie account name",
     )
     parser.add_argument(
         "--report-path",
@@ -157,9 +157,9 @@ def main() -> None:
         with boa.fork(args.rpc_url):
             _deploy(deployer, dry_run=True, report_path=report_path)
     else:
-        if not args.keystore:
+        if not args.account_name:
             raise SystemExit("Missing --account-name or ACCOUNT_NAME")
-        acct = _load_account(args.keystore)
+        acct = _load_account(args.account_name)
         with boa.set_env(NetworkEnv(RetryRPC(args.rpc_url))):
             boa.env.add_account(acct, force_eoa=True)
             _deploy(acct.address, dry_run=False, report_path=report_path)
