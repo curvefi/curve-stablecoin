@@ -16,8 +16,8 @@ from eth_account import account
 
 
 CHAIN_ID = 1
-MAINNET_DAO_AND_EMERGENCY = "0xb7400D2EA0f6DC1d7b153aA430B9E572F28afB79"
-MAINNET_DAO_FEE_RECEIVER = "0xa2Bcd1a4Efbd04B63cd03f5aFf2561106ebCCE00"
+MAINNET_DAO = "0x40907540d8a6C65c637785e8f8B742ae6b0b9968"
+MAINNET_FEE_COLLECTOR = "0xa2Bcd1a4Efbd04B63cd03f5aFf2561106ebCCE00"
 
 MAINNET_EXCHANGES = [
     "0x45312ea0eFf7E09C83CBE249fa1d7598c4C8cd4e",  # curve-js
@@ -79,7 +79,7 @@ def _deploy(deployer: str, dry_run: bool, report_path: Path) -> None:
     ).deploy_as_blueprint()
 
     configurator = boa.load_partial("curve_stablecoin/Configurator.vy").deploy(
-        MAINNET_DAO_AND_EMERGENCY
+        MAINNET_DAO
     )
 
     factory = boa.load_partial("curve_stablecoin/lending/LendFactory.vy").deploy(
@@ -88,8 +88,8 @@ def _deploy(deployer: str, dry_run: bool, report_path: Path) -> None:
         vault_blueprint.address,
         controller_view_blueprint.address,
         configurator.address,
-        MAINNET_DAO_AND_EMERGENCY,
-        MAINNET_DAO_FEE_RECEIVER,
+        MAINNET_DAO,
+        MAINNET_FEE_COLLECTOR,
     )
 
     leverage_zap = boa.load_partial("curve_stablecoin/zaps/LeverageZapLend.vy").deploy(
