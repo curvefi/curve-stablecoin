@@ -2,14 +2,14 @@
   "chain_id": 1,
   "deployer": "0xE6B328e141EF304739892A864CebFe148a04353e",
   "dry_run": false,
-  "timestamp": 1783939972,
+  "timestamp": 1783943882,
   "contracts": {
-    "amm_blueprint": "0x3B50FbeF90317E012ac4BCc63A466c5334542adD",
-    "controller_blueprint": "0x030Ae1518186e43F12d0e7dF9BCAa764Bd1C1950",
-    "vault_blueprint": "0x4640ccEe32A39f06dDC8654c5B0C06bFdE2040b2",
-    "controller_view_blueprint": "0x40D4740d6BbC918C3355050CF2a84700e7cFa9a4",
-    "configurator": "0x942057d2FFB5Da031c7F7226F25Bb23A5dB7147b",
-    "factory": "0x1d15265ecc913088fA49Abb4B940a871Bbeff394",
-    "leverage_zap": "0x294D32692ab56ee053E7c33bc26d292872203a5B"
+    "amm_blueprint": "0xc8AC252738E1Ece3f69CF77649C266c4E893cf41",
+    "controller_blueprint": "0x47b6dF6494aD62474cDF365B90a56C648778A75d",
+    "vault_blueprint": "0x2c3822264dcbd18d910C7834b1De8A70f368375b",
+    "controller_view_blueprint": "0x7259efD886e3A717a9206C604E0156E720871B2C",
+    "configurator": "0x6065858d0eF0AA240DFdf6f1A0B2ae34B41f49bC",
+    "factory": "0x8f6B56EC5ddF1F2691a1059f1D3cd97Ac9EaB0bd",
+    "leverage_zap": "0x5D847c892891B503c3483D3Abbc2a23774279b85"
   }
 }

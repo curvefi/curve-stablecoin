@@ -294,7 +294,7 @@ def main() -> None:
             ctrl_bp,
             "LendController Blueprint (Vyper 0.4.3)",
             "curve_stablecoin/lending/LendController.vy:LendController",
-            vy_json("curve_stablecoin/lending/LendController.vy", optimize="codesize"),
+            vy_json("curve_stablecoin/lending/LendController.vy"),
             "vyper:0.4.3",
             "vyper-json",
             "",
