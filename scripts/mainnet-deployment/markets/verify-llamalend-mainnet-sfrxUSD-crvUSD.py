@@ -38,7 +38,9 @@ RATE_CALCULATOR_SRC = (
     "curve_stablecoin/mpolicies/v2/rate_calculators/SfrxUSDRateCalculator.vy"
 )
 RATE_CALCULATOR_NAME = f"{RATE_CALCULATOR_SRC}:SfrxUSDRateCalculator"
-DEFAULT_DEPLOYMENT = "deployments/mainnet/markets/llamalend-mainnet-sfrxUSD-crvUSD.jsonc"
+DEFAULT_DEPLOYMENT = (
+    "deployments/mainnet/markets/llamalend-mainnet-sfrxUSD-crvUSD.jsonc"
+)
 
 # ---------------------------------------------------------------------------
 # Paths

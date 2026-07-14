@@ -53,7 +53,7 @@ CHAIN_ID = 1
 
 # --- Tokens ---
 CRVUSD = "0xf939E0A03FB07F59A73314E73794Be0E57ac1b4E"  # borrowed
-SDOLA = "0xb45ad160634c528Cc3D2926d9807104FA3157305"   # collateral (ERC4626 vault)
+SDOLA = "0xb45ad160634c528Cc3D2926d9807104FA3157305"  # collateral (ERC4626 vault)
 COLLATERAL = SDOLA
 
 # --- Oracle config (from tmp/deploy-oracles.py: "sDOLA-crvUSD") ---
@@ -65,9 +65,13 @@ EMA_TIME = 866
 
 # --- Contract sources ---
 ORACLE_FROM_CURVE_POOLS = "curve_stablecoin/price_oracles/v2/OracleFromCurvePools.vy"
-CRVUSD_AGGREGATOR_WRAPPER = "curve_stablecoin/price_oracles/v2/CrvUSDAggregatorWrapper.vy"
+CRVUSD_AGGREGATOR_WRAPPER = (
+    "curve_stablecoin/price_oracles/v2/CrvUSDAggregatorWrapper.vy"
+)
 ERC4626_EMA_WRAPPER = "curve_stablecoin/price_oracles/v2/ERC4626EMAWrapper.vy"
-RATE_CALCULATOR = "curve_stablecoin/mpolicies/v2/rate_calculators/SDolaRateCalculator.vy"
+RATE_CALCULATOR = (
+    "curve_stablecoin/mpolicies/v2/rate_calculators/SDolaRateCalculator.vy"
+)
 HYPERBOLIC_DYNAMIC_MP = "curve_stablecoin/mpolicies/v2/HyperbolicDynamicMP.vy"
 LEND_FACTORY = "curve_stablecoin/lending/LendFactory.vy"
 CONFIGURATOR = "curve_stablecoin/Configurator.vy"
@@ -75,20 +79,20 @@ LEND_CONTROLLER = "curve_stablecoin/lending/LendController.vy"
 
 # --- Monetary policy curve (from tmp/deploy-hyperbolic-mp.py) ---
 TARGET_UTILIZATION = 90 * 10**16  # 90%
-LOW_RATIO = 5 * 10**17            # 0.5x base at 0% utilization
-HIGH_RATIO = 5 * 10**18           # 5x base at 100% utilization
+LOW_RATIO = 5 * 10**17  # 0.5x base at 0% utilization
+HIGH_RATIO = 5 * 10**18  # 5x base at 100% utilization
 RATE_SHIFT = 0
 
 # --- Market risk parameters (stable/stable) — subject to governance review ---
 A = 285
-FEE = int(0.002 * 10**18)                  # 0.2%
-LOAN_DISCOUNT = int(0.013 * 10**18)        # 1.3%
+FEE = int(0.002 * 10**18)  # 0.2%
+LOAN_DISCOUNT = int(0.013 * 10**18)  # 1.3%
 LIQUIDATION_DISCOUNT = int(0.01 * 10**18)  # 1%
-SUPPLY_LIMIT = 2**256 - 1                  # unlimited; borrow cap set separately
+SUPPLY_LIMIT = 2**256 - 1  # unlimited; borrow cap set separately
 
 # --- Post-create configuration (requires factory admin / DAO vote) ---
 BORROW_CAP = 12_400_000 * 10**18  # crvUSD (18 decimals)
-ADMIN_FEE = 10**17                # 10%
+ADMIN_FEE = 10**17  # 10%
 
 
 def _load_account(fname: str) -> account.LocalAccount:
@@ -156,7 +160,9 @@ def _deploy(
     pool_oracle = boa.load_partial(ORACLE_FROM_CURVE_POOLS).deploy(
         [POOL], [POOL_BORROWED_IDX], [POOL_COLLATERAL_IDX]
     )
-    agg_wrapper = boa.load_partial(CRVUSD_AGGREGATOR_WRAPPER).deploy(pool_oracle.address)
+    agg_wrapper = boa.load_partial(CRVUSD_AGGREGATOR_WRAPPER).deploy(
+        pool_oracle.address
+    )
     oracle = boa.load_partial(ERC4626_EMA_WRAPPER).deploy(
         agg_wrapper.address, COLLATERAL, EMA_TIME
     )
