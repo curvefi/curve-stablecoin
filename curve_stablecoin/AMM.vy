@@ -1,9 +1,12 @@
 # pragma version 0.4.3
 """
-@title LLAMMA - crvUSD AMM
-@author Curve.Fi
-@license Copyright (c) Curve.Fi, 2020-2024 - all rights reserved
-@custom:security security@curve.fi
+@title LlamaLend V2 AMM
+@author Curve.Finance
+@license Copyright (c) Curve.Finance, 2020-2026 - all rights reserved
+@notice Lending-liquidating AMM (LLAMMA) that spreads collateral across price bands and
+        continuously converts it between the borrowed and collateral coins as the oracle
+        price moves, soft-liquidating loans instead of closing them at a single price.
+@custom:security security@curve.finance
 @custom:kill AMM is controlled by its Controller. Kill the Controller to halt new loans and liquidations.
 """
 

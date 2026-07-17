@@ -1,10 +1,10 @@
 # pragma version 0.4.3
 """
-@title LlamaLend LMCallback
-@author Curve.Fi
-@license Copyright (c) Curve.Fi, 2020-2023 - all rights reserved
+@title LlamaLend V2 LMCallback
+@author Curve.Finance
+@license Copyright (c) Curve.Finance, 2020-2026 - all rights reserved
 @notice LM callback works like a gauge for collateral in LlamaLend/crvUSD AMMs
-@custom:security security@curve.fi
+@custom:security security@curve.finance
 @custom:kill Call set_killed(true) via factory admin to stop CRV emissions
 """
 

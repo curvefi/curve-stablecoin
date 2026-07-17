@@ -2,12 +2,14 @@
 # pragma nonreentrancy on
 """
 @title Create From Pool Factory Helper
+@author Curve.Finance
+@license Copyright (c) Curve.Finance, 2020-2026 - all rights reserved
 @notice Disposable contract to create lending markets using existing Curve pools as price oracles.
-    Needs to be redeployed to change pool_price_oracle_blueprint.
-@author Curve.fi
-@license Copyright (c) Curve.Fi, 2020-2025 - all rights reserved
-@custom:security security@curve.fi
+        Needs to be redeployed to change pool_price_oracle_blueprint.
+@custom:security security@curve.finance
+@custom:kill Pause factory to halt deployments.
 """
+
 from curve_std.interfaces import IERC20
 from curve_stablecoin.interfaces import ILendFactory
 from curve_stablecoin.interfaces import IMonetaryPolicy

@@ -1,0 +1,3 @@
+@view
+def rate() -> uint256:
+    ...

@@ -1,8 +1,8 @@
 # pragma version 0.4.3
 """
-@title OracleAndEMAERC4626
-@author Curve.Fi
-@license MIT
+@title ERC4626 EMA Wrapper
+@author Curve.Finance
+@license Copyright (c) Curve.Finance, 2020-2026 - all rights reserved
 @notice Chains an external oracle with an ERC4626 vault's share price.
 
         The ERC4626 share price (`convertToAssets(1e18)`) is instantaneously
@@ -16,48 +16,51 @@
             value is never hidden behind a stale, too-high price (which would
             over-value collateral - the wrong failure mode).
 
-        Concretely the reported share price is `min(spot, ema)`, where `ema`
-        ratchets up slowly (over `ema_time`) and is reset down to `spot` the
+        The reported share price is `min(spot, ema)`, where `ema`
+        grows up slowly (over `ema_time`) and is reset down to `spot` the
         moment `spot` falls below it.
 """
 
 from curve_std import ema
+from curve_stablecoin.interfaces import IPriceOracle
+from curve_stablecoin import constants as c
 
+implements: IPriceOracle
 initializes: ema
 
-
-interface Oracle:
-    def price() -> uint256: view
-    def price_w() -> uint256: nonpayable
-
-
 interface ERC4626:
-    def convertToAssets(shares: uint256) -> uint256: view
+    def convertToAssets(_shares: uint256) -> uint256: view
 
 
-ORACLE: public(immutable(Oracle))
+ORACLE: public(immutable(IPriceOracle))
 VAULT: public(immutable(ERC4626))
 
-WAD: constant(uint256) = 10**18
+WAD: constant(uint256) = c.WAD
 # Identifier of the EMA tracking the ERC4626 share price (convertToAssets(1e18)).
 SHARE_PRICE_EMA_ID: constant(String[4]) = "shp"
 
 
 @deploy
 def __init__(
-    oracle: Oracle,
-    vault: ERC4626,
-    ema_time: uint256,
+    _oracle: IPriceOracle,
+    _vault: ERC4626,
+    _ema_time: uint256,
 ):
-    ORACLE = oracle
-    VAULT = vault
+    """
+    @notice Wrap a base oracle with an ERC4626 vault's EMA-dampened share price.
+    @param _oracle Base price oracle, reported in the units this contract returns.
+    @param _vault ERC4626 vault whose `convertToAssets(1e18)` gives the share price.
+    @param _ema_time Smoothing horizon (seconds) of the upside share-price EMA.
+    """
+    ORACLE = _oracle
+    VAULT = _vault
 
     ema.__init__(
         [
             ema.EMAConfig(
                 ema_id=SHARE_PRICE_EMA_ID,
-                initial_value=staticcall vault.convertToAssets(WAD),
-                ema_time=ema_time,
+                initial_value=staticcall _vault.convertToAssets(WAD),
+                ema_time=_ema_time,
             )
         ]
     )
@@ -105,11 +108,19 @@ def _share_price_w() -> uint256:
 @external
 @view
 def price() -> uint256:
+    """
+    @notice Base oracle price scaled by the dampened ERC4626 share price (1e18).
+    @return The manipulation-resistant collateral price.
+    """
     p1: uint256 = staticcall ORACLE.price()
     return p1 * self._share_price() // WAD
 
 
 @external
 def price_w() -> uint256:
+    """
+    @notice Same as `price`, but persists the share-price EMA state.
+    @return The manipulation-resistant collateral price.
+    """
     p1: uint256 = extcall ORACLE.price_w()
     return p1 * self._share_price_w() // WAD

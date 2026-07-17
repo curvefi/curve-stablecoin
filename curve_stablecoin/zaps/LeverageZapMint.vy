@@ -2,10 +2,12 @@
 # pragma optimize codesize
 
 """
-@title crvUSD V2 Markets LeverageZap
+@title LlamaLend V2 Mint Markets LeverageZap
 @author Curve.Finance
 @license Copyright (c) Curve.Finance, 2020-2026 - all rights reserved
 @notice Creates leverage on crvUSD V2 markets via whitelisted Aggregator Routers. Does calculations for leverage.
+@custom:security security@curve.finance
+@custom:kill Set is_approved_exchange False for all the exchanges.
 """
 
 from curve_stablecoin.interfaces import IControllerFactory

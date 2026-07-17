@@ -1,12 +1,11 @@
 # pragma version 0.4.3
 # pragma nonreentrancy on
 """
-@title Controller View Contract
-@author Curve.Fi
-@license Copyright (c) Curve.Fi, 2020-2025 - all rights reserved
-@notice This contract never requires any direct interaction as the
-    main controller contract forwards all relevant calls.
-@custom:security security@curve.fi
+@title LlamaLend V2 Mint Controller View Contract
+@author Curve.Finance
+@license Copyright (c) Curve.Finance, 2020-2026 - all rights reserved
+@notice This contract never requires any direct interaction as the main controller contract forwards all relevant calls.
+@custom:security security@curve.finance
 @custom:kill Stateless contract doesn't need to be killed.
 """
 
