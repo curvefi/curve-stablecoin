@@ -123,9 +123,7 @@ def field_valid_params(draw):
 
 def _deploy(u0, low, high, shift, target_rate):
     ctrl = MOCK_CONTROLLER_MP_DEPLOYER.deploy(boa.env.generate_address("fuzz_factory"))
-    mp = HYPERBOLIC_MP_DEPLOYER.deploy(
-        ctrl.address, u0, target_rate, low, high, shift
-    )
+    mp = HYPERBOLIC_MP_DEPLOYER.deploy(ctrl.address, u0, target_rate, low, high, shift)
     return mp, ctrl
 
 

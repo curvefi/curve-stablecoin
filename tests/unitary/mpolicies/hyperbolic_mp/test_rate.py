@@ -60,9 +60,7 @@ def test_rate_scales_with_target_rate(deployer, controller, default_curve):
     u0, alpha, beta = default_curve
 
     low = deployer.deploy(controller.address, u0, ref.DEFAULT_RATE, alpha, beta, 0)
-    high = deployer.deploy(
-        controller.address, u0, 3 * ref.DEFAULT_RATE, alpha, beta, 0
-    )
+    high = deployer.deploy(controller.address, u0, 3 * ref.DEFAULT_RATE, alpha, beta, 0)
 
     params = ref.get_params(*default_curve)
     u = ref.utilization(50 * 10**18, 50 * 10**18, 0)

@@ -33,9 +33,7 @@ def test_rate_write_matches_rate(mp, controller, default_curve, target_rate):
     )  # controller state -> u = 0.5
     with boa.env.prank(controller.address):
         assert (
-            mp.rate_write()
-            == mp.rate()
-            == ref.calculate_rate(params, u, target_rate)
+            mp.rate_write() == mp.rate() == ref.calculate_rate(params, u, target_rate)
         )
 
 
