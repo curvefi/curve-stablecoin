@@ -29,8 +29,9 @@ DEFAULT_TARGET_UTILIZATION = 85 * 10**16  # 0.85
 DEFAULT_LOW_RATIO = 5 * 10**17  # 0.5x base at 0% utilization
 DEFAULT_HIGH_RATIO = 2 * 10**18  # 2x base at 100% utilization
 DEFAULT_RATE_SHIFT = 0
-# ~10% APR expressed as a per-second rate; comfortably within [MIN, MAX]_EMA_RATE
-DEFAULT_RATE = 10**10
+# ~5% APR expressed as a per-second rate (5x the ~1% MIN_TARGET_RATE anchor);
+# comfortably within [MIN, MAX]_TARGET_RATE.
+DEFAULT_RATE = 1_585_489_600
 
 
 def tdiv(a: int, b: int) -> int:
