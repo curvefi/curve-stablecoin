@@ -123,6 +123,10 @@ HYPERBOLIC_DYNAMIC_MP_DEPLOYER = boa.load_partial(
     MPOLICIES_CONTRACT_PATH / "v2" / "HyperbolicDynamicMP.vy",
     compiler_args=compiler_args_default,
 )
+HYPERBOLIC_MP_DEPLOYER = boa.load_partial(
+    MPOLICIES_CONTRACT_PATH / "v2" / "HyperbolicMP.vy",
+    compiler_args=compiler_args_default,
+)
 
 # Price oracles
 DUMMY_PRICE_ORACLE_DEPLOYER = boa.load_partial(
