@@ -4,8 +4,8 @@
 @author Curve.Finance
 @license Copyright (c) Curve.Finance, 2020-2026 - all rights reserved
 @notice Provides a per-second yield rate for sfrxUSD, based on current cycle data and stored assets
-@custom:kill This rate calculator is bound to its monetary policy, and the monetary policy is bound to its Controller;
-             kill the Controller to halt new borrowing.
+@custom:security security@curve.finance
+@custom:kill There is no need to kill this contract, just kill the underlying market
 """
 
 interface IFraxVault:

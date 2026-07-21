@@ -4,8 +4,7 @@
 @title sDOLA Rate Calculator
 @author Inverse Finance
 @notice Provides a per-second yield rate for sDOLA, based on the previous week's revenue and current total assets
-@custom:kill This rate calculator is bound to its monetary policy, and the monetary policy is bound to its Controller;
-kill the Controller to halt new borrowing.
+@custom:kill There is no need to kill this contract, just kill the underlying market
 """
 
 
