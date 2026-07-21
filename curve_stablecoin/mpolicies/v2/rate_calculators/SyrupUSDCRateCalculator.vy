@@ -13,6 +13,10 @@
 @custom:kill There is no need to kill this contract, just kill the underlying market
 """
 
+from curve_stablecoin.interfaces import IRateCalculator
+
+implements: IRateCalculator
+
 
 interface ISyrupUSDC:
     def convertToExitAssets(_shares: uint256) -> uint256: view
