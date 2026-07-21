@@ -26,8 +26,8 @@ from tests.utils.deployers import (
 # --- reference helpers (only needed to steer/predict the fuzz) -------------
 
 
-def clamp_ema(rate: int) -> int:
-    """Replicates the [MIN_TARGET_RATE, MAX_TARGET_RATE] clamp applied to the EMA read."""
+def clamp_target_rate(rate: int) -> int:
+    """Replicates the [MIN_TARGET_RATE, MAX_TARGET_RATE] clamp applied to the calculator's rate."""
     return min(max(rate, ref.MIN_TARGET_RATE), ref.MAX_TARGET_RATE)
 
 
@@ -160,7 +160,7 @@ def test_matches_reference(params, seed_rate, reserves, frac):
     u_inf, A, r_minf = ref_params
 
     debt, avail, u = _debt_and_avail_for_utilization(reserves, u_inf, frac)
-    r0 = clamp_ema(seed_rate)
+    r0 = clamp_target_rate(seed_rate)
     expected = ref.calculate_rate(ref_params, u, r0, shift)
     assume(expected >= 0)  # a negative rate would revert on-chain
 
@@ -178,7 +178,7 @@ def test_matches_reference(params, seed_rate, reserves, frac):
         p.rate_shift,
     ) == (u_inf, A, r_minf, u0, low, high, shift)
 
-    # rate() depends on the seeded EMA and the controller state
+    # rate() depends on the (clamped) calculator rate and the controller state
     ctrl.set_state(debt, avail, 0)
     assert mp.target_rate() == r0
     assert mp.rate() == expected
@@ -218,7 +218,7 @@ def test_rate_monotonic_in_utilization(params, reserves, f1, f2):
     debt_hi, avail_hi, u_hi = _debt_and_avail_for_utilization(reserves, u_inf, hi_frac)
 
     # Keep the lower endpoint on the non-negative branch of the curve.
-    r0 = clamp_ema(ref.DEFAULT_RATE)
+    r0 = clamp_target_rate(ref.DEFAULT_RATE)
     assume(u_hi > u_lo)
     assume(ref.calculate_rate(ref_params, u_lo, r0, shift) >= 0)
     assume(ref.calculate_rate(ref_params, u_hi, r0, shift) >= 0)

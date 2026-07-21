@@ -5,6 +5,8 @@
 @notice Minimal stand-in for the external rate calculator used by
         HyperbolicDynamicMP. Returns a settable per-second rate and can be
         toggled to revert, to exercise the fallback-to-0 path in `rate_write`.
+        Exposes both rate() (view) and rate_w() (mutating), matching
+        IRateCalculator; rate_write() calls rate_w().
 """
 
 rate_value: public(uint256)
@@ -19,6 +21,12 @@ def __init__(_rate: uint256):
 @external
 @view
 def rate() -> uint256:
+    assert not self.should_revert, "rate calc reverted"
+    return self.rate_value
+
+
+@external
+def rate_w() -> uint256:
     assert not self.should_revert, "rate calc reverted"
     return self.rate_value
 

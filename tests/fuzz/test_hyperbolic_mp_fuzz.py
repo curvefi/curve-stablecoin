@@ -5,7 +5,7 @@ tests/unitary/mpolicies/hyperbolic_mp and share the same pure-Python reference
 model (tests.utils.hyperbolic_mp_reference). The only collaborator is a mocked
 controller, so this stays unit-scoped — hypothesis just explores the input space.
 
-Unlike the dynamic policy there is no rate calculator / EMA: the base rate is a
+Unlike the dynamic policy there is no rate calculator: the base rate is a
 fixed `target_rate` constructor parameter validated into
 [MIN_TARGET_RATE, MAX_TARGET_RATE].
 
