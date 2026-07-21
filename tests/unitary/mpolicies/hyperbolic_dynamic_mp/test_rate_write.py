@@ -35,7 +35,9 @@ def test_rate_write_matches_rate_at_seed(mp, controller, default_params):
         )
 
 
-def test_rate_write_tracks_new_target_rate(mp, controller, rate_calculator, default_params):
+def test_rate_write_tracks_new_target_rate(
+    mp, controller, rate_calculator, default_params
+):
     params = ref.get_params(*default_params)
     u = ref.utilization(50 * 10**18, 50 * 10**18, 0)  # controller state -> u = 0.5
 
@@ -70,9 +72,7 @@ def test_rate_write_fallback_on_calculator_revert(
     assert mp.rate() == ref.calculate_rate(params, u, ref.MIN_TARGET_RATE)
 
 
-def test_rate_write_result_clamped_low(
-    mp, controller, rate_calculator, default_params
-):
+def test_rate_write_result_clamped_low(mp, controller, rate_calculator, default_params):
     params = ref.get_params(*default_params)
     u = ref.utilization(50 * 10**18, 50 * 10**18, 0)
 

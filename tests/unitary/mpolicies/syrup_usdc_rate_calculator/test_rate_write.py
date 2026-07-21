@@ -8,7 +8,9 @@ samples (see tests/utils/syrup_pps_data.py).
 import pytest
 
 from tests.unitary.mpolicies.syrup_usdc_rate_calculator.conftest import DAY, WAD
-from tests.unitary.mpolicies.syrup_usdc_rate_calculator.test_syrup_pps_data import SYRUP_PPS_DAYS
+from tests.unitary.mpolicies.syrup_usdc_rate_calculator.test_syrup_pps_data import (
+    SYRUP_PPS_DAYS,
+)
 
 T0 = 1_700_000_000  # arbitrary start timestamp for synthetic scenarios
 

@@ -47,6 +47,7 @@ SYRUP_PPS_DAYS = [
 ]
 # fmt: on
 
+
 @pytest.mark.parametrize("day", SYRUP_PPS_DAYS[1:], ids=lambda d: str(d["ts"]))
 def test_recorded_rate_is_plausible_apr(day):
     """Sanity bound on the recorded data itself: each per-second rate is a
