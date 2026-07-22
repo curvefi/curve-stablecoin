@@ -58,8 +58,40 @@ def price_oracle() -> uint256:
     return self.oracle_price
 """
 
+# A 2-coin crypto pool as actually deployed by *old* Curve pools that hold
+# native ETH: compiled with Vyper 0.3.1, exposing only the argument-less
+# price_oracle(), plus a payable __default__() so the pool can receive ETH.
+#
+# The fallback is the tricky case for NO_ARGUMENT detection. Probing the
+# (nonexistent) price_oracle(uint256) selector does NOT revert -- it lands in
+# __default__ and STOPs, returning success with *empty* returndata. So a probe
+# that checks only `success` would misclassify this no-argument pool as one that
+# takes an index argument; the oracle must also require non-empty returndata.
+# (The compiler version is incidental: any pool with a non-reverting fallback
+# behaves this way; real old ETH pools happen to be 0.3.x.)
+OLD_ETH_POOL_SOURCE = """
+# @version 0.3.1
+
+oracle_price: public(uint256)
+
+@external
+def __init__(price: uint256):
+    self.oracle_price = price
+
+@external
+@view
+def price_oracle() -> uint256:
+    return self.oracle_price
+
+@external
+@payable
+def __default__():
+    pass  # receive ETH; also swallows unknown selectors -> STOP, empty returndata
+"""
+
 ARG_POOL_DEPLOYER = boa.loads_partial(ARG_POOL_SOURCE)
 NOARG_POOL_DEPLOYER = boa.loads_partial(NOARG_POOL_SOURCE)
+OLD_ETH_POOL_DEPLOYER = boa.loads_partial(OLD_ETH_POOL_SOURCE)
 
 
 # ---------------------------------------------------------------------------
@@ -87,6 +119,19 @@ def make_noarg_pool():
 
     def _make(price):
         return NOARG_POOL_DEPLOYER.deploy(price)
+
+    return _make
+
+
+@pytest.fixture(scope="module")
+def make_old_eth_pool():
+    """Deploy a real Vyper 0.3.1 2-coin pool: no-arg price_oracle() plus a
+    payable __default__() (as ETH-holding crypto pools have). The fallback makes
+    a price_oracle(uint256) probe STOP (success, empty returndata) instead of
+    reverting -- the condition that breaks a success-only NO_ARGUMENT probe."""
+
+    def _make(price):
+        return OLD_ETH_POOL_DEPLOYER.deploy(price)
 
     return _make
 

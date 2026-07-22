@@ -92,6 +92,20 @@ def test_single_noarg_pool_inverse(make_noarg_pool, deploy_oracle):
     assert oracle.price() == ONE * ONE // Q
 
 
+def test_noarg_pool_with_fallback_is_detected(make_old_eth_pool, deploy_oracle):
+    # Real-world case: an old 2-coin crypto pool that holds native ETH exposes
+    # only price_oracle() but has a payable __default__. Probing
+    # price_oracle(uint256) hits the fallback and STOPs (success, empty
+    # returndata) instead of reverting, so classifying on `success` alone would
+    # misclassify it as taking an index argument. The oracle guards against this
+    # by also requiring non-empty returndata, so it is detected NO_ARGUMENT=True.
+    pool = make_old_eth_pool(Q)
+    oracle = deploy_oracle([pool], [0], [1])  # collateral = coin1
+
+    assert oracle.NO_ARGUMENT(0) is True
+    assert oracle.price() == Q
+
+
 def test_three_coin_pool_collateral_vs_reference(make_arg_pool, deploy_oracle):
     # N>2 pool is always treated as argument-taking (NO_ARGUMENT False).
     pool = make_arg_pool(3, [P1, P2])
