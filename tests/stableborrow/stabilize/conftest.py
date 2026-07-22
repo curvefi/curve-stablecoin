@@ -2,7 +2,6 @@ import boa
 import pytest
 from tests.utils.deployers import (
     ERC20_MOCK_DEPLOYER,
-    STABLESWAP_DEPLOYER,
     SWAP_FACTORY_DEPLOYER,
     MOCK_RATE_ORACLE_DEPLOYER,
     CURVE_STABLESWAP_FACTORY_NG_DEPLOYER,
@@ -65,39 +64,35 @@ def stablecoin_b(admin):
 
 
 @pytest.fixture(scope="module")
-def swap_impl(admin):
+def swap_deployer(swap_factory, swap_impl_ng, rate_oracle, admin):
     with boa.env.prank(admin):
-        return STABLESWAP_DEPLOYER.deploy()
+        return SWAP_FACTORY_DEPLOYER.deploy(
+            ZERO_ADDRESS, swap_factory.address, rate_oracle.address
+        )
 
 
 @pytest.fixture(scope="module")
-def swap_deployer(swap_impl, admin):
-    with boa.env.prank(admin):
-        deployer = SWAP_FACTORY_DEPLOYER.deploy(swap_impl.address)
-        return deployer
-
-
-@pytest.fixture(scope="module")
-def rate_oracle(swap_impl, admin):
+def rate_oracle(admin):
     return MOCK_RATE_ORACLE_DEPLOYER.deploy()
 
 
 @pytest.fixture(scope="module")
-def swap_impl_ng(admin, swap_deployer, rate_oracle):
+def swap_factory(admin):
     with boa.env.prank(admin):
-        # Do not forget `git submodule init` and `git submodule update`
-        factory = CURVE_STABLESWAP_FACTORY_NG_DEPLOYER.deploy(admin, admin)
-        swap_deployer.eval(f"self.factory_ng = FactoryNG({factory.address})")
-        swap_deployer.eval(f"self.rate_oracle = {rate_oracle.address}")
+        return CURVE_STABLESWAP_FACTORY_NG_DEPLOYER.deploy(admin, admin)
 
+
+@pytest.fixture(scope="module")
+def swap_impl_ng(swap_factory, admin):
+    with boa.env.prank(admin):
         impl = CURVE_STABLESWAP_NG_DEPLOYER.deploy_as_blueprint()
-        factory.set_pool_implementations(0, impl)
+        swap_factory.set_pool_implementations(0, impl)
 
         math = CURVE_STABLESWAP_NG_MATH_DEPLOYER.deploy()
-        factory.set_math_implementation(math)
+        swap_factory.set_math_implementation(math)
 
         views = CURVE_STABLESWAP_NG_VIEWS_DEPLOYER.deploy()
-        factory.set_views_implementation(views)
+        swap_factory.set_views_implementation(views)
         return impl
 
 
@@ -106,17 +101,17 @@ def unsafe_factory(controller_factory, stablecoin, admin, accounts):
     with boa.env.anchor():
         with boa.env.prank(admin):
             # Give admin ability to mint coins for testing (don't do that at home!)
-            controller_factory.set_debt_ceiling(admin, 10**6 * 10**18)
+            controller_factory.set_debt_ceiling(admin, 10**8 * 10**18)
         yield controller_factory
 
 
 @pytest.fixture(scope="module")
 def stableswap_a(
-    unsafe_factory, swap_deployer, swap_impl, stablecoin, stablecoin_a, admin
+    unsafe_factory, swap_deployer, swap_impl_ng, stablecoin, stablecoin_a, admin
 ):
     with boa.env.prank(admin):
-        addr = swap_deployer.deploy(stablecoin_a, stablecoin)
-        swap = swap_impl.deployer.at(addr)
+        addr = swap_deployer.deploy_ng(stablecoin_a, stablecoin)
+        swap = swap_impl_ng.deployer.at(addr)
         return swap
 
 
@@ -199,32 +194,32 @@ def agg(
         yield price_aggregator
 
 
-@pytest.fixture(scope="module")
-def crypto_agg(dummy_tricrypto, agg, stableswap_a, admin):
-    with boa.env.prank(admin):
-        crypto_agg = CRYPTO_WITH_STABLE_PRICE_DEPLOYER.deploy(
-            dummy_tricrypto.address, 0, stableswap_a, agg, 5000
-        )
-        crypto_agg.price_w()
-        return crypto_agg
-
-
-@pytest.fixture(scope="module")
-def crypto_agg_with_external_oracle(
-    dummy_tricrypto, agg, stableswap_a, chainlink_price_oracle, admin
-):
-    with boa.env.prank(admin):
-        crypto_agg = CRYPTO_WITH_STABLE_PRICE_AND_CHAINLINK_DEPLOYER.deploy(
-            dummy_tricrypto.address,
-            0,
-            stableswap_a,
-            agg,
-            chainlink_price_oracle.address,
-            5000,
-            1,
-        )
-        crypto_agg.price_w()
-        return crypto_agg
+# @pytest.fixture(scope="module")
+# def crypto_agg(dummy_tricrypto, agg, stableswap_a, admin):
+#     with boa.env.prank(admin):
+#         crypto_agg = CRYPTO_WITH_STABLE_PRICE_DEPLOYER.deploy(
+#             dummy_tricrypto.address, 0, stableswap_a, agg, 5000
+#         )
+#         crypto_agg.price_w()
+#         return crypto_agg
+#
+#
+# @pytest.fixture(scope="module")
+# def crypto_agg_with_external_oracle(
+#     dummy_tricrypto, agg, stableswap_a, chainlink_price_oracle, admin
+# ):
+#     with boa.env.prank(admin):
+#         crypto_agg = CRYPTO_WITH_STABLE_PRICE_AND_CHAINLINK_DEPLOYER.deploy(
+#             dummy_tricrypto.address,
+#             0,
+#             stableswap_a,
+#             agg,
+#             chainlink_price_oracle.address,
+#             5000,
+#             1,
+#         )
+#         crypto_agg.price_w()
+#         return crypto_agg
 
 
 @pytest.fixture(scope="module")
@@ -248,11 +243,17 @@ def reg(agg, stablecoin, mock_peg_keepers, receiver, admin):
 
 
 @pytest.fixture(scope="module")
+def pk_debt_ceilings():
+    return [10**8 * 10**18, 10**8 * 10**18]
+
+
+@pytest.fixture(scope="module")
 def peg_keepers(
     stablecoin_a,
     stablecoin_b,
     stableswap_a,
     stableswap_b,
+    pk_debt_ceilings,
     controller_factory,
     reg,
     admin,
@@ -271,80 +272,82 @@ def peg_keepers(
                 )
             )
         reg.add_peg_keepers([pk.address for pk in pks])
+        for pk, debt_ceiling in zip(pks, pk_debt_ceilings):
+            controller_factory.set_debt_ceiling(pk.address, debt_ceiling)
     return pks
 
 
-@pytest.fixture(scope="module")
-def agg_monetary_policy(peg_keepers, agg, controller_factory, admin):
-    with boa.env.prank(admin):
-        mp = AGG_MONETARY_POLICY4_DEPLOYER.deploy(
-            admin,
-            agg.address,
-            controller_factory.address,
-            [p.address for p in peg_keepers] + [ZERO_ADDRESS] * 3,
-            0,  # Rate
-            2 * 10**16,  # Sigma 2%
-            5 * 10**16,  # Target debt fraction 5%
-            0,
-            86400,
-        )
-        mp.rate_write()
-        return mp
+# @pytest.fixture(scope="module")
+# def agg_monetary_policy(peg_keepers, agg, controller_factory, admin):
+#     with boa.env.prank(admin):
+#         mp = AGG_MONETARY_POLICY4_DEPLOYER.deploy(
+#             admin,
+#             agg.address,
+#             controller_factory.address,
+#             [p.address for p in peg_keepers] + [ZERO_ADDRESS] * 3,
+#             0,  # Rate
+#             2 * 10**16,  # Sigma 2%
+#             5 * 10**16,  # Target debt fraction 5%
+#             0,
+#             86400,
+#         )
+#         mp.rate_write()
+#         return mp
 
 
-@pytest.fixture(scope="module")
-def market_agg(
-    controller_factory,
-    collateral_token,
-    agg_monetary_policy,
-    crypto_agg,
-    peg_keepers,
-    admin,
-):
-    with boa.env.prank(admin):
-        controller_factory.add_market(
-            collateral_token.address,
-            100,
-            10**16,
-            0,
-            crypto_agg.address,
-            agg_monetary_policy.address,
-            5 * 10**16,
-            2 * 10**16,
-            10**8 * 10**18,
-        )
-        for pk in peg_keepers:
-            controller_factory.set_debt_ceiling(pk.address, 10**8 * 10**18)
-        return controller_factory
+# @pytest.fixture(scope="module")
+# def market_agg(
+#     controller_factory,
+#     collateral_token,
+#     agg_monetary_policy,
+#     crypto_agg,
+#     peg_keepers,
+#     admin,
+# ):
+#     with boa.env.prank(admin):
+#         controller_factory.add_market(
+#             collateral_token.address,
+#             100,
+#             10**16,
+#             0,
+#             crypto_agg.address,
+#             agg_monetary_policy.address,
+#             5 * 10**16,
+#             2 * 10**16,
+#             10**8 * 10**18,
+#         )
+#         for pk in peg_keepers:
+#             controller_factory.set_debt_ceiling(pk.address, 10**8 * 10**18)
+#         return controller_factory
 
 
-@pytest.fixture(scope="module")
-def market_amm_agg(market, collateral_token, stablecoin, amm_impl, accounts):
-    amm = AMM_DEPLOYER.at(market.get_amm(collateral_token.address))
-    for acc in accounts:
-        with boa.env.prank(acc):
-            collateral_token.approve(amm.address, 2**256 - 1)
-            stablecoin.approve(amm.address, 2**256 - 1)
-    return amm
+# @pytest.fixture(scope="module")
+# def market_amm_agg(market, collateral_token, stablecoin, amm_impl, accounts):
+#     amm = AMM_DEPLOYER.at(market.get_amm(collateral_token.address))
+#     for acc in accounts:
+#         with boa.env.prank(acc):
+#             collateral_token.approve(amm.address, 2**256 - 1)
+#             stablecoin.approve(amm.address, 2**256 - 1)
+#     return amm
 
 
-@pytest.fixture(scope="module")
-def market_controller_agg(
-    market_agg,
-    stablecoin,
-    collateral_token,
-    controller_impl,
-    controller_factory,
-    accounts,
-):
-    controller = LEND_CONTROLLER_DEPLOYER.at(
-        market_agg.get_controller(collateral_token.address)
-    )
-    for acc in accounts:
-        with boa.env.prank(acc):
-            collateral_token.approve(controller.address, 2**256 - 1)
-            stablecoin.approve(controller.address, 2**256 - 1)
-    return controller
+# @pytest.fixture(scope="module")
+# def market_controller_agg(
+#     market_agg,
+#     stablecoin,
+#     collateral_token,
+#     controller_impl,
+#     controller_factory,
+#     accounts,
+# ):
+#     controller = LEND_CONTROLLER_DEPLOYER.at(
+#         market_agg.get_controller(collateral_token.address)
+#     )
+#     for acc in accounts:
+#         with boa.env.prank(acc):
+#             collateral_token.approve(controller.address, 2**256 - 1)
+#             stablecoin.approve(controller.address, 2**256 - 1)
+#     return controller
 
 
 @pytest.fixture(scope="module")
@@ -357,25 +360,15 @@ def initial_amounts(redeemable_tokens, stablecoin):
 
 
 @pytest.fixture(scope="module")
-def _mint(stablecoin, collateral_token, market_controller_agg):
+def _mint(stablecoin, admin, unsafe_factory):
     def f(acct, coins, amounts):
-        with boa.env.prank(acct):
-            for coin, amount in zip(coins, amounts):
-                if amount > 0:
-                    if coin == stablecoin:
-                        collateral_amount = amount * 50 // 3000
-                        boa.deal(collateral_token, acct, collateral_amount)
-                        if market_controller_agg.debt(acct) == 0:
-                            collateral_token.approve(
-                                market_controller_agg.address, 2**256 - 1
-                            )
-                            market_controller_agg.create_loan(
-                                collateral_amount, amount, 5
-                            )
-                        else:
-                            market_controller_agg.borrow_more(collateral_amount, amount)
-                    else:
-                        boa.deal(coin, acct, amount)
+        for coin, amount in zip(coins, amounts):
+            if amount > 0:
+                if coin == stablecoin:
+                    with boa.env.prank(admin):
+                        stablecoin.transfer(acct, amount)
+                else:
+                    boa.deal(coin, acct, amount)
 
     return f
 
@@ -386,8 +379,6 @@ def add_initial_liquidity(
     stablecoin,
     redeemable_tokens,
     swaps,
-    collateral_token,
-    market_controller_agg,
     alice,
     _mint,
 ):
@@ -441,8 +432,6 @@ def imbalance_pool(
     initial_amounts,
     redeemable_tokens,
     stablecoin,
-    collateral_token,
-    market_controller_agg,
     alice,
     _mint,
 ):
@@ -473,8 +462,6 @@ def imbalance_pools(
     initial_amounts,
     redeemable_tokens,
     stablecoin,
-    collateral_token,
-    market_controller_agg,
     alice,
     _mint,
 ):
@@ -513,6 +500,6 @@ def mint_alice(alice, stablecoin, redeemable_tokens, swaps, initial_amounts, _mi
             stablecoin.approve(swap, 2**256 - 1)
 
 
-@pytest.fixture(scope="module")
-def chainlink_price_oracle(admin):
-    return CHAINLINK_AGGREGATOR_MOCK_DEPLOYER.deploy(8, admin, 1000)
+# @pytest.fixture(scope="module")
+# def chainlink_price_oracle(admin):
+#     return CHAINLINK_AGGREGATOR_MOCK_DEPLOYER.deploy(8, admin, 1000)

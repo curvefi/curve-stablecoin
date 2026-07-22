@@ -34,8 +34,9 @@ MPOLICIES_CONTRACT_PATH = _PACKAGE_ROOT / "mpolicies"
 PRICE_ORACLES_CONTRACT_PATH = _PACKAGE_ROOT / "price_oracles"
 STABILIZER_CONTRACT_PATH = _PACKAGE_ROOT / "stabilizer"
 FLASHLOAN_CONTRACT_PATH = _PACKAGE_ROOT / "flashloan"
+_REPO_ROOT = _PACKAGE_ROOT.parent
 STABLESWAP_NG_PATH = (
-    _PACKAGE_ROOT / "testing" / "stableswap-ng" / "curve_stablecoin" / "main"
+    _REPO_ROOT / "contracts" / "testing" / "stableswap-ng" / "contracts" / "main"
 )
 ZAPS_CONTRACT_PATH = _PACKAGE_ROOT / "zaps"
 
@@ -153,6 +154,10 @@ EMA_PRICE_ORACLE_DEPLOYER = boa.load_partial(
 )
 AGGREGATE_STABLE_PRICE3_DEPLOYER = boa.load_partial(
     PRICE_ORACLES_CONTRACT_PATH / "AggregateStablePrice3.vy",
+    compiler_args=compiler_args_default,
+)
+STABLESWAP_NG_ADAPTER_DEPLOYER = boa.load_partial(
+    PRICE_ORACLES_CONTRACT_PATH / "StableSwapNGAdapter.vy",
     compiler_args=compiler_args_default,
 )
 CRYPTO_WITH_STABLE_PRICE_DEPLOYER = boa.load_partial(
@@ -319,20 +324,19 @@ MOCK_STABLE_SWAP_NO_ARGUMENT_DEPLOYER = boa.load_partial(
 )
 
 # Stableswap NG contracts
-# TODO will fix
-# CURVE_STABLESWAP_FACTORY_NG_DEPLOYER = boa.load_partial(
-#     STABLESWAP_NG_PATH + "CurveStableSwapFactoryNG.vy",
-#     compiler_args=compiler_args_default,
-# )
+CURVE_STABLESWAP_FACTORY_NG_DEPLOYER = boa.load_partial(
+    STABLESWAP_NG_PATH / "CurveStableSwapFactoryNG.vy",
+    compiler_args=compiler_args_default,
+)
 # CurveStableSwapNG.vy has #pragma optimize codesize
-# CURVE_STABLESWAP_NG_DEPLOYER = boa.load_partial(
-#     STABLESWAP_NG_PATH + "CurveStableSwapNG.vy", compiler_args=compiler_args_codesize
-# )
-# # CurveStableSwapNGMath.vy has #pragma optimize gas
-# CURVE_STABLESWAP_NG_MATH_DEPLOYER = boa.load_partial(
-#     STABLESWAP_NG_PATH + "CurveStableSwapNGMath.vy", compiler_args=compiler_args_gas
-# )
-# CURVE_STABLESWAP_NG_VIEWS_DEPLOYER = boa.load_partial(
-#     STABLESWAP_NG_PATH + "CurveStableSwapNGViews.vy",
-#     compiler_args=compiler_args_default,
-# )
+CURVE_STABLESWAP_NG_DEPLOYER = boa.load_partial(
+    STABLESWAP_NG_PATH / "CurveStableSwapNG.vy", compiler_args=compiler_args_codesize
+)
+# CurveStableSwapNGMath.vy has #pragma optimize gas
+CURVE_STABLESWAP_NG_MATH_DEPLOYER = boa.load_partial(
+    STABLESWAP_NG_PATH / "CurveStableSwapNGMath.vy", compiler_args=compiler_args_gas
+)
+CURVE_STABLESWAP_NG_VIEWS_DEPLOYER = boa.load_partial(
+    STABLESWAP_NG_PATH / "CurveStableSwapNGViews.vy",
+    compiler_args=compiler_args_default,
+)

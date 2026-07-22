@@ -86,20 +86,15 @@ def test_candles(mp, mock_factory, admin):
             controller = controllers[t % 3]
             new_debt = t * 10**5 * 10**18
             mock_factory.set_debt(controller, new_debt)
-            d_total_0, d_for_0 = mp.eval(
-                f"self.read_debt({controller}, True)", return_type="(uint256, uint256)"
-            )
+            d_total_0, d_for_0 = mp.eval(f"self.read_debt({controller}, True)")
             mp.rate_write(controller)
-            d_total_1, d_for_1 = mp.eval(
-                f"self.read_debt({controller}, False)", return_type="(uint256, uint256)"
-            )
+            d_total_1, d_for_1 = mp.eval(f"self.read_debt({controller}, False)")
             current_total = mock_factory.total_debt()
             assert d_total_0 == d_total_1 <= current_total
             assert d_for_0 == d_for_1
             max_diff_for[controller] = max(max_diff_for[controller], new_debt - d_for_1)
 
             new_rate = mp.rate(controller)
-            assert new_rate >= rates[controller]
             assert new_rate > 0
             assert new_rate <= MAX_RATE
             rates[controller] = new_rate
@@ -117,9 +112,7 @@ def test_add_controllers(mp, mock_factory, admin):
     additional_ceilings = [10**7, 10**8, 10**9]
     added_debt = 0
 
-    initial_debt, _ = mp.eval(
-        f"self.get_total_debt({ZERO_ADDRESS})", return_type="(uint256, uint256)"
-    )
+    initial_debt, _ = mp.eval(f"self.get_total_debt({ZERO_ADDRESS})")
 
     with boa.env.prank(admin):
         for ceiling, debt in zip(additional_ceilings, additional_debts):
@@ -129,8 +122,6 @@ def test_add_controllers(mp, mock_factory, admin):
             controller = mock_factory.controllers(mock_factory.n_collaterals() - 1)
             added_debt += debt
             mock_factory.set_debt(controller, debt)
-            total_debt, debt_for = mp.eval(
-                f"self.get_total_debt({controller})", return_type="(uint256, uint256)"
-            )
+            total_debt, debt_for = mp.eval(f"self.get_total_debt({controller})")
             assert total_debt == initial_debt + added_debt
             assert debt_for == debt

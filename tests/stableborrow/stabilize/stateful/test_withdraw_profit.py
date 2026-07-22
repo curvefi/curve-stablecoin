@@ -28,7 +28,7 @@ class StateMachine(base.StateMachine):
         """
         Withdraw profit and check that Peg Keeper is still able to withdraw his debt.
         """
-        for peg_keeper, swap, dmul in zip(self.peg_keepers, self.swaps, self.dmul):
+        for peg_keeper, swap in zip(self.peg_keepers, self.swaps):
             try:
                 peg_keeper.update()
             except BoaError:
@@ -42,10 +42,10 @@ class StateMachine(base.StateMachine):
                     peg_keeper.withdraw_profit()
 
                 debt = peg_keeper.debt()
+                balances = self._xp(swap)
+                rates = swap.stored_rates()
                 amount = (
-                    5 * (debt + 1)
-                    + swap.balances(0) * 10**18 // dmul[0]
-                    - swap.balances(1)
+                    5 * (debt + 1) + (balances[0] - balances[1]) * 10**18 // rates[1]
                 )
                 if amount < 0:
                     return
@@ -64,9 +64,10 @@ class StateMachine(base.StateMachine):
                 except BoaError:
                     continue
 
+                balances = self._xp(swap)
                 assert peg_keeper.debt() == 0
                 assert abs(
-                    swap.balances(0) * 10**18 // dmul[0] - (swap.balances(1) - 4 * debt)
+                    balances[0] - (balances[1] - 4 * debt * rates[1] // 10**18)
                 ) <= debt * swap.fee() // (2 * 10**10)
 
 

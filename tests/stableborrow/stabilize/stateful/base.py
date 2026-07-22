@@ -35,6 +35,10 @@ class StateMachine(RuleBasedStateMachine):
             for swap, fee in zip(self.swaps, self.fees):
                 swap.eval(f"self.fee = {fee}")
 
+    def _xp(self, swap):
+        rates = swap.stored_rates()
+        return [swap.balances(i) * rates[i] // 10**18 for i in range(2)]
+
     @rule(idx=st_idx, pct=st_pct, pool_idx=st_pool)
     def add_one_coin(self, idx, pct, pool_idx):
         """

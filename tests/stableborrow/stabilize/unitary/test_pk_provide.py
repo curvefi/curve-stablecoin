@@ -11,11 +11,17 @@ pytestmark = pytest.mark.usefixtures(
 
 @given(amount=st.integers(min_value=10**20, max_value=10**24))
 def test_provide(
-    swaps, redeemable_tokens, stablecoin, alice, amount, peg_keepers, peg_keeper_updater
+    swaps,
+    redeemable_tokens,
+    stablecoin,
+    alice,
+    amount,
+    peg_keepers,
+    peg_keeper_updater,
 ):
     for swap, rtoken, peg_keeper in zip(swaps, redeemable_tokens, peg_keepers):
-        rtoken_mul = 10 ** (18 - rtoken.decimals())
-        ramount = amount // rtoken_mul
+        rates = swap.stored_rates()
+        ramount = amount * rates[1] // rates[0]
         with boa.env.prank(alice):
             swap.add_liquidity([ramount, 0], 0)
         balances = [swap.balances(0), swap.balances(1)]
@@ -25,9 +31,9 @@ def test_provide(
 
         new_balances = [swap.balances(0), swap.balances(1)]
         assert new_balances[0] == balances[0]
-        assert (
-            (new_balances[1]) // rtoken_mul == (balances[1] + amount // 5) // rtoken_mul
-        )
+        assert new_balances[1] == pytest.approx(
+            balances[1] + amount // 5, rel=1e-12
+        )  # Error from rates calculations
 
 
 def test_min_coin_amount(
