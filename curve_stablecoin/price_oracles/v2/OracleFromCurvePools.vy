@@ -58,7 +58,11 @@ def __init__(
             _pools[i].address,
             abi_encode(empty(uint256), method_id=method_id("price_oracle(uint256)")),
             max_outsize=32, is_static_call=True, revert_on_failure=False)
-        if not success:
+        # Empty returndata means the pool has no price_oracle(uint256): either it
+        # reverted, or its fallback swallowed the call (e.g. old ETH pools STOP on
+        # an unknown selector, returning success with no data). Both mean the pool
+        # only exposes the argument-less price_oracle().
+        if not success or len(res) == 0:
             # A no-argument price_oracle() pool is 2-coin by construction,
             # so its coin indexes must be 0 or 1.
             assert _borrowed_ixs[i] <= 1 and _collateral_ixs[i] <= 1, "Bad coin index"
