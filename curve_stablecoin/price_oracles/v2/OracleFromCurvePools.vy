@@ -15,11 +15,9 @@ implements: IPriceOracle
 
 interface Pool:
     def price_oracle(i: uint256 = 0) -> uint256: view  # Universal method!
-    def coins(i: uint256) -> address: view
 
 
 WAD: constant(uint256) = c.WAD
-MAX_COINS: constant(uint256) = 8
 MAX_POOLS: constant(uint256) = 8
 
 POOLS: public(immutable(DynArray[Pool, MAX_POOLS]))
@@ -37,8 +35,8 @@ def __init__(
     ):
     """
     @notice Configure the chain of Curve pools to price through.
-    @dev The coin count of each pool is auto-detected, as is whether its
-         `price_oracle` takes a coin-index argument (recorded in NO_ARGUMENT).
+    @dev Whether each pool's `price_oracle` takes a coin-index argument is
+         auto-detected and recorded in NO_ARGUMENT.
     @param _pools Curve pools to chain, in order (1 to MAX_POOLS).
     @param _borrowed_ixs For each pool, the coin index of the borrowed-side token.
     @param _collateral_ixs For each pool, the coin index of the collateral-side token.
@@ -50,47 +48,30 @@ def __init__(
 
     no_arguments: DynArray[bool, MAX_POOLS] = empty(DynArray[bool, MAX_POOLS])
     for i: uint256 in range(POOL_COUNT, bound=MAX_POOLS):
-
-        # --- Find the number of coins in the pool (N) ---
-
-        N: uint256 = 0
-        for j: uint256 in range(MAX_COINS + 1):
-            success: bool = False
-            res: Bytes[32] = empty(Bytes[32])
-            success, res = raw_call(
-                _pools[i].address,
-                abi_encode(j, method_id=method_id("coins(uint256)")),
-                max_outsize=32, is_static_call=True, revert_on_failure=False)
-            if not success:
-                assert j >= 2, "Less than 2 coins"
-                N = j
-                break
-
-        # --- Check coin indexes ---
-
         assert _borrowed_ixs[i] != _collateral_ixs[i]
-        assert _borrowed_ixs[i] < N
-        assert _collateral_ixs[i] < N
 
         # --- Check and record if pool requires coin id in argument or not ---
 
-        if N == 2:
-            success: bool = False
-            res: Bytes[32] = empty(Bytes[32])
-            success, res = raw_call(
-                _pools[i].address,
-                abi_encode(empty(uint256), method_id=method_id("price_oracle(uint256)")),
-                max_outsize=32, is_static_call=True, revert_on_failure=False)
-            if not success:
-                no_arguments.append(True)
-            else:
-                no_arguments.append(False)
+        success: bool = False
+        res: Bytes[32] = empty(Bytes[32])
+        success, res = raw_call(
+            _pools[i].address,
+            abi_encode(empty(uint256), method_id=method_id("price_oracle(uint256)")),
+            max_outsize=32, is_static_call=True, revert_on_failure=False)
+        if not success:
+            # A no-argument price_oracle() pool is 2-coin by construction,
+            # so its coin indexes must be 0 or 1.
+            assert _borrowed_ixs[i] <= 1 and _collateral_ixs[i] <= 1, "Bad coin index"
+            no_arguments.append(True)
         else:
             no_arguments.append(False)
 
     NO_ARGUMENT = no_arguments
     BORROWED_IXS = _borrowed_ixs
     COLLATERAL_IXS = _collateral_ixs
+
+    # Validate the oracle
+    assert self._price() > 0
 
 
 @internal
