@@ -9,23 +9,18 @@ ONE = 10**18
 # ---------------------------------------------------------------------------
 # Inline mock pools.
 #
-# The oracle only touches two methods on each pool:
-#   * coins(uint256)          - probed 0,1,2,...  to discover the coin count N
-#                               (reverts past the last coin).
-#   * price_oracle(...)       - the "universal" price method.
-#
-# Curve pools come in two shapes for price_oracle, which the oracle detects and
-# stores as the per-pool NO_ARGUMENT flag:
-#   * ArgPool   - price_oracle(uint256): stableswap-ng / tricrypto style.  Used
-#                 for every pool with N > 2, and for N == 2 pools that accept an
-#                 index argument -> NO_ARGUMENT = False.
+# The oracle only touches price_oracle(...) on each pool, the "universal" price
+# method. Curve pools come in two shapes for it, which the oracle detects (by
+# probing price_oracle(uint256)) and stores as the per-pool NO_ARGUMENT flag:
+#   * ArgPool   - price_oracle(uint256): stableswap-ng / tricrypto style.  The
+#                 probe succeeds -> NO_ARGUMENT = False. Reverts on an
+#                 out-of-range index, like a real pool.
 #   * NoArgPool - price_oracle():        old 2-coin plain-pool style.  The oracle
 #                 probes price_oracle(uint256), the call fails (no such selector)
 #                 -> NO_ARGUMENT = True.
 # ---------------------------------------------------------------------------
 
-# N-coin pool exposing price_oracle(uint256). `n` coins are advertised by
-# coins(i); price_oracle(i) returns a preconfigured value per index.
+# price_oracle(i) returns a preconfigured value per valid index.
 ARG_POOL_SOURCE = """
 # pragma version 0.4.3
 
@@ -40,13 +35,8 @@ def __init__(n: uint256, prices: DynArray[uint256, 8]):
 
 @external
 @view
-def coins(i: uint256) -> address:
-    assert i < self.n_coins  # reverts past the last coin -> tells the oracle N
-    return convert(unsafe_add(i, 1), address)  # dummy non-zero address
-
-@external
-@view
 def price_oracle(i: uint256) -> uint256:
+    assert i + 1 < self.n_coins  # valid indices are 0 .. n_coins-2, like real pools
     return self.prices[i]
 """
 
@@ -61,12 +51,6 @@ oracle_price: public(uint256)
 @deploy
 def __init__(price: uint256):
     self.oracle_price = price
-
-@external
-@view
-def coins(i: uint256) -> address:
-    assert i < 2  # exactly 2 coins
-    return convert(unsafe_add(i, 1), address)
 
 @external
 @view

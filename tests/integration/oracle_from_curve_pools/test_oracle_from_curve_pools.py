@@ -3,11 +3,14 @@ Unit/integration tests for curve_stablecoin/price_oracles/v2/OracleFromCurvePool
 
 The oracle chains one or more Curve pool `price_oracle`s into a single
 collateral/borrowed price.  Per pool it:
-  * discovers the coin count N by probing coins(0), coins(1), ... until revert,
-  * detects whether price_oracle needs an index argument (NO_ARGUMENT flag),
+  * detects whether price_oracle needs an index argument (NO_ARGUMENT flag) by
+    probing price_oracle(uint256),
   * multiplies the running price by (p_collateral / p_borrowed), where each of
     p_collateral / p_borrowed is 1e18 for coin index 0 (the pool's reference
     coin) or the relevant price_oracle output otherwise.
+The constructor calls _price() once as a deploy-time sanity check, so a config
+that would make price() revert (bad index on an argument pool, zero borrowed
+price) fails at deploy instead.
 
 These tests use inline mock pools (see conftest.py) to cover every branch:
 success prices for both price_oracle shapes, both index directions, N>2 pools,
@@ -198,18 +201,6 @@ def test_revert_inconsistent_collateral_len(make_arg_pool, deploy_oracle):
         deploy_oracle([pool], [0], [1, 0])  # len(collateral) != len(pools)
 
 
-def test_revert_one_coin_pool(make_arg_pool, deploy_oracle):
-    pool = make_arg_pool(1, [P])  # coins(0) ok, coins(1) reverts -> N = 1
-    with boa.reverts("Less than 2 coins"):
-        deploy_oracle([pool], [0], [0])
-
-
-def test_revert_zero_coin_pool(make_arg_pool, deploy_oracle):
-    pool = make_arg_pool(0, [])  # coins(0) reverts -> N = 0
-    with boa.reverts("Less than 2 coins"):
-        deploy_oracle([pool], [0], [0])
-
-
 def test_revert_borrowed_equals_collateral(make_arg_pool, deploy_oracle):
     pool = make_arg_pool(2, [P])
     with boa.reverts():  # assert borrowed_ixs[i] != collateral_ixs[i]
@@ -217,20 +208,39 @@ def test_revert_borrowed_equals_collateral(make_arg_pool, deploy_oracle):
 
 
 def test_revert_borrowed_index_out_of_range(make_arg_pool, deploy_oracle):
+    # Arg pool: out-of-range index is caught when the constructor's _price()
+    # validation calls price_oracle(1) on a 2-coin pool, which reverts.
     pool = make_arg_pool(2, [P])
-    with boa.reverts():  # assert borrowed_ixs[i] < N
+    with boa.reverts():
         deploy_oracle([pool], [2], [0])
 
 
 def test_revert_collateral_index_out_of_range(make_arg_pool, deploy_oracle):
+    # Same, on the collateral side.
     pool = make_arg_pool(2, [P])
-    with boa.reverts():  # assert collateral_ixs[i] < N
+    with boa.reverts():
         deploy_oracle([pool], [0], [2])
 
 
+def test_revert_noarg_index_out_of_range(make_noarg_pool, deploy_oracle):
+    # No-argument (2-coin) pool: price_oracle() takes no index, so the
+    # constructor asserts the coin indexes are 0 or 1 directly.
+    pool = make_noarg_pool(Q)
+    with boa.reverts("Bad coin index"):
+        deploy_oracle([pool], [2], [0])
+
+
 def test_revert_price_division_by_zero(make_arg_pool, deploy_oracle):
-    # borrowed price of 0 -> `_price * p_collateral // p_borrowed` divides by 0.
+    # borrowed price of 0 -> `_price * p_collateral // p_borrowed` divides by 0,
+    # caught at deploy by the constructor's _price() validation.
     pool = make_arg_pool(2, [0])  # price_oracle(0) == 0
-    oracle = deploy_oracle([pool], [1], [0])  # borrowed = coin1 -> p_borrowed = 0
     with boa.reverts():
-        oracle.price()
+        deploy_oracle([pool], [1], [0])  # borrowed = coin1 -> p_borrowed = 0
+
+
+def test_revert_zero_price(make_arg_pool, deploy_oracle):
+    # collateral price of 0 makes _price() return 0 without any division by
+    # zero -> caught only by the constructor's `assert self._price() > 0`.
+    pool = make_arg_pool(2, [0])  # price_oracle(0) == 0
+    with boa.reverts():
+        deploy_oracle([pool], [0], [1])  # collateral = coin1 -> p_collateral = 0
