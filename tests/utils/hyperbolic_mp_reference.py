@@ -60,12 +60,26 @@ def utilization(
     d_reserves: int = 0,
     d_debt: int = 0,
 ) -> int:
-    """Replicates `_get_utilization`."""
+    """Replicates `_get_utilization`.
+
+    Both guards are conditional on the sign of the delta, mirroring the contract:
+
+    * `debt` can only go negative when `d_debt` does, since `total_debt` is a
+      uint256 on-chain.
+    * The reserve guard is skipped unless the action actually takes liquidity out
+      (`d_reserves < 0`) or draws on it (`d_debt > 0`). Skipping it is what stops
+      accrued `admin_fees` exceeding the available balance from bricking `rate()`:
+      that state is not an action, it just means there is no free liquidity, so
+      the ratio overshoots and the `min(..., WAD)` below pins it at 100%.
+    """
     total_reserves = available_balance + total_debt - admin_fees + d_reserves
     debt = total_debt + d_debt
-    assert debt >= 0, "Negative debt"
-    assert total_reserves >= debt, "Reserves too small"
-    return (debt * WAD // total_reserves) if total_reserves > 0 else 0
+    if d_debt < 0:
+        assert debt >= 0, "Negative debt"
+    if d_reserves < 0 or d_debt > 0:
+        assert total_reserves >= debt, "Reserves too small"
+    u = (debt * WAD // total_reserves) if total_reserves > 0 else 0
+    return min(u, WAD)
 
 
 def calculate_rate(params, u: int, r0: int, shift: int = 0) -> int:
