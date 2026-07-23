@@ -205,9 +205,10 @@ def _set_parameters(
 def _get_utilization(_d_reserves: int256, _d_debt: int256) -> uint256:
     """
     @notice Computes market utilization under simulated reserve/debt changes
+    @dev Both guards are for future_rate() calls only
     @param _d_reserves Change in reserves (simulated)
     @param _d_debt Change in debt (simulated)
-    @return u Utilization ratio (total_debt / total_reserves), scaled by 1e18
+    @return u Utilization ratio (total_debt / total_reserves) scaled and capped by 1e18
     """
     total_debt: int256 = convert(staticcall CONTROLLER.total_debt(), int256)
     total_reserves: int256 = (
@@ -217,14 +218,19 @@ def _get_utilization(_d_reserves: int256, _d_debt: int256) -> uint256:
         + _d_reserves
     )
     total_debt += _d_debt
-    assert total_debt >= 0, "Negative debt"
-    assert total_reserves >= total_debt, "Reserves too small"
+    # CONTROLLER.total_debt() is a uint256, so the sum can only go negative if _d_debt does
+    if _d_debt < 0:
+        assert total_debt >= 0, "Negative debt"
+    # Only an action that takes liquidity out (_d_reserves < 0) or draws on it
+    # (_d_debt > 0) can over-draw the market -- see @dev above before unguarding
+    if _d_reserves < 0 or _d_debt > 0:
+        assert total_reserves >= total_debt, "Reserves too small"
 
     u: uint256 = 0
     if total_reserves > 0:
         u = convert(total_debt * SWAD // total_reserves, uint256)
 
-    return u
+    return min(u, WAD)
 
 
 @internal
