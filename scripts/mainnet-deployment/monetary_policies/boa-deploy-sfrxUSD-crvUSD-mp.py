@@ -100,9 +100,11 @@ def _deploy(deployer: str, dry_run: bool, market_deployment: Path) -> None:
     contracts = existing.get("contracts", existing)
     controller_addr = to_checksum_address(contracts["controller"])
     if "collateral_token" in existing.get("params", {}):
-        assert to_checksum_address(existing["params"]["collateral_token"]) == to_checksum_address(
-            COLLATERAL
-        ), "market deployment collateral does not match sfrxUSD"
+        assert to_checksum_address(
+            existing["params"]["collateral_token"]
+        ) == to_checksum_address(COLLATERAL), (
+            "market deployment collateral does not match sfrxUSD"
+        )
 
     # 1. Rate calculator reading the live vault.
     rate_calculator = boa.load_partial(RATE_CALCULATOR).deploy(COLLATERAL)

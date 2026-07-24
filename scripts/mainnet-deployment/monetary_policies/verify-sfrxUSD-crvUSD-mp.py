@@ -39,7 +39,9 @@ RATE_CALCULATOR_NAME = f"{RATE_CALCULATOR_SRC}:SfrxUSDRateCalculator"
 HYPERBOLIC_DYNAMIC_MP_SRC = "curve_stablecoin/mpolicies/v2/HyperbolicDynamicMP.vy"
 HYPERBOLIC_DYNAMIC_MP_NAME = f"{HYPERBOLIC_DYNAMIC_MP_SRC}:HyperbolicDynamicMP"
 
-DEFAULT_DEPLOYMENT = "deployments/mainnet/markets/llamalend-mainnet-sfrxUSD-crvUSD.jsonc"
+DEFAULT_DEPLOYMENT = (
+    "deployments/mainnet/markets/llamalend-mainnet-sfrxUSD-crvUSD.jsonc"
+)
 
 # ---------------------------------------------------------------------------
 # Paths
