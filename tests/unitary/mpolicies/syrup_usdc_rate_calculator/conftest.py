@@ -1,8 +1,8 @@
 """Fixtures for SyrupUSDCRateCalculator unit tests.
 
 The calculator's only external collaborator is syrupUSDC, read through
-`convertToExitAssets`. It is mocked inline with a settable price-per-share
-(pps == exit assets for one whole 1e18 share), so tests can drive the PPS
+`convertToAssets`. It is mocked inline with a settable price-per-share
+(pps == assets for one whole 1e18 share), so tests can drive the PPS
 directly instead of forking mainnet.
 """
 
@@ -14,7 +14,7 @@ from tests.utils.deployers import SYRUP_USDC_RATE_CALCULATOR_DEPLOYER
 WAD = 10**18
 DAY = 86400
 
-# Inline syrupUSDC stand-in: convertToExitAssets(shares) == shares * pps / 1e18.
+# Inline syrupUSDC stand-in: convertToAssets(shares) == shares * pps / 1e18.
 _SYRUP_MOCK = """
 WAD: constant(uint256) = 10**18
 
@@ -26,7 +26,7 @@ def __init__(_pps: uint256):
 
 @external
 @view
-def convertToExitAssets(_shares: uint256) -> uint256:
+def convertToAssets(_shares: uint256) -> uint256:
     return _shares * self.pps // WAD
 
 @external

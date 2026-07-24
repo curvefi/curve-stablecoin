@@ -19,7 +19,7 @@ implements: IRateCalculator
 
 
 interface ISyrupUSDC:
-    def convertToExitAssets(_shares: uint256) -> uint256: view
+    def convertToAssets(_shares: uint256) -> uint256: view
 
 
 DAY: constant(uint256) = 86400
@@ -49,9 +49,10 @@ def __init__(_syrup_usdc: address):
 @view
 def _pps() -> uint256:
     """
-    @notice Current price-per-share: exit assets for one whole share (net of exit fees)
+    @notice Current price-per-share: assets for one whole share
+            (gross, doesn't take into account impairment losses)
     """
-    return staticcall SYRUP_USDC.convertToExitAssets(WAD)
+    return staticcall SYRUP_USDC.convertToAssets(WAD)
 
 
 @internal

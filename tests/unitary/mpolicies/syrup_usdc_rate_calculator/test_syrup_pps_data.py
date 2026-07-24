@@ -3,7 +3,7 @@
 Generated from a mainnet fork replay of SyrupUSDCRateCalculator.rate_w()
 (see syrup_pps_records.txt). Each entry is one daily rate_w() call:
   ts    -> block.timestamp at the call
-  pps   -> syrupUSDC.convertToExitAssets(1e18) at that block
+  pps   -> syrupUSDC.convertToAssets(1e18) at that block
   rate  -> expected rate_w() return (per-second growth, 1e18-scaled)
   after -> expected pps_records ring buffer (7 slots) after the call
 """
