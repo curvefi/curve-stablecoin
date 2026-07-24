@@ -26,12 +26,6 @@ struct Parameters:
 
 @view
 @external
-def TEXP() -> uint256:
-    ...
-
-
-@view
-@external
 def CONTROLLER() -> address:
     ...
 
@@ -45,18 +39,6 @@ def RATE_CALCULATOR() -> address:
 @view
 @external
 def parameters() -> Parameters:
-    ...
-
-
-@view
-@external
-def raw_underlying_rate() -> uint256:
-    ...
-
-
-@view
-@external
-def raw_underlying_apr() -> uint256:
     ...
 
 

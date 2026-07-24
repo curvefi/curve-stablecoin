@@ -4,7 +4,7 @@
   "dry_run": false,
   "timestamp": 1781077434,
   "factory": "0x5F94073E3f51c1FFf92ffc6b4B06b7Af193B3640",
-  "monetary_policy": "0x8c800590BA148a0EFBeE8eFC9d83767f4Fe5BA00",
+  "monetary_policy": "0x79982D49B4eB097b9172c31Cc1Da5a4ef1Cb665b",
   "price_oracle": "0x63284D83e542CC774c52394073Ef6875c3cE03bd",
   "vault": "0xfF9a3085ed83dA377a94e32dd4745bB57411Ea24",
   "controller": "0x9fC15ac3EF97093832f49B7997A58E29b49C56dE",
