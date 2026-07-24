@@ -348,14 +348,6 @@ ACTIONS = [
 ]
 
 
-def _ref_rate_or_none(params, u, r0, shift):
-    """Reference rate, or None where the curve goes negative (reverts on-chain)."""
-    try:
-        return ref.calculate_rate(params, u, r0, shift)
-    except AssertionError:
-        return None
-
-
 @st.composite
 def state_and_action(draw):
     """A valid curve, a solvent controller state, and one (d_reserves, d_debt) action.
@@ -442,18 +434,11 @@ def test_future_rate_matches_applied_action(scenario, seed_rate):
     u = ref.utilization(avail, debt, fees, d_reserves, d_debt)
     assert u == ref.utilization(avail_after, debt_after, fees)
 
-    # ...and therefore the same rate. The `None` arm covers the curve's negative
-    # branch: unreachable for an in-range target_rate and a non-negative shift,
-    # but if it ever is reached both paths must revert together rather than one
-    # of them quoting a rate the market cannot land on.
-    expected = _ref_rate_or_none(ref_params, u, target_rate, shift)
-    if expected is None:
-        with boa.reverts("Negative rate"):
-            mp.future_rate(d_reserves, d_debt)
-        ctrl.set_state(debt_after, avail_after, fees)
-        with boa.reverts("Negative rate"):
-            mp.rate()
-        return
+    # ...and therefore the same rate. The curve's negative branch is unreachable
+    # for an in-range target_rate and a non-negative shift; were it ever hit, both
+    # paths clamp to 0 together rather than one quoting a rate the market cannot
+    # land on.
+    expected = ref.calculate_rate(ref_params, u, target_rate, shift)
 
     assert mp.future_rate(d_reserves, d_debt) == expected
     ctrl.set_state(debt_after, avail_after, fees)

@@ -249,9 +249,10 @@ def _calculate_rate(_d_reserves: int256, _d_debt: int256, _r0: uint256) -> uint2
     b: int256 = convert(p.A * _r0 // (p.u_inf - u), int256)
     rate_shift: int256 = convert(p.rate_shift, int256)
     rate: int256 = a + b + rate_shift
-    assert rate >= 0, "Negative rate"
-
-    return convert(rate, uint256)
+    # A sub-zero rate is unreachable under the validated curve (the minimum, at
+    # u=0, is _r0*low_ratio/WAD + rate_shift > 0). Clamp rather than revert so an
+    # unforeseen edge case can never brick the Controller's rate_write.
+    return convert(max(rate, 0), uint256)
 
 
 @view

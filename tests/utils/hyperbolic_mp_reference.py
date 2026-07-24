@@ -93,5 +93,5 @@ def calculate_rate(params, u: int, r0: int, shift: int = 0) -> int:
     a = tdiv(r0 * r_minf, WAD)
     b = A * r0 // (u_inf - u)
     rate = a + b + shift
-    assert rate >= 0, "Negative rate"
-    return rate
+    # Mirror the contract: clamp a (unreachable) sub-zero rate to 0 instead of reverting.
+    return max(rate, 0)
