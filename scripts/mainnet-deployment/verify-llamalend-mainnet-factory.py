@@ -15,8 +15,8 @@ from eth_abi import encode
 # Deployment constants (must match boa-deploy-llamalend-mainnet.py)
 # ---------------------------------------------------------------------------
 
-MAINNET_DAO_AND_EMERGENCY = "0xb7400D2EA0f6DC1d7b153aA430B9E572F28afB79"
-MAINNET_DAO_FEE_RECEIVER = "0xa2Bcd1a4Efbd04B63cd03f5aFf2561106ebCCE00"
+MAINNET_DAO = "0x40907540d8a6C65c637785e8f8B742ae6b0b9968"
+MAINNET_FEE_COLLECTOR = "0xa2Bcd1a4Efbd04B63cd03f5aFf2561106ebCCE00"
 
 MAINNET_EXCHANGES = [
     "0x45312ea0eFf7E09C83CBE249fa1d7598c4C8cd4e",  # curve-js
@@ -329,7 +329,7 @@ def main() -> None:
             vy_json("curve_stablecoin/Configurator.vy"),
             "vyper:0.4.3",
             "vyper-json",
-            encode(["address"], [MAINNET_DAO_AND_EMERGENCY]).hex(),
+            encode(["address"], [MAINNET_DAO]).hex(),
             "1",
         ),
         (
@@ -355,8 +355,8 @@ def main() -> None:
                     vault_bp,
                     ctrl_view_bp,
                     configurator_addr,
-                    MAINNET_DAO_AND_EMERGENCY,
-                    MAINNET_DAO_FEE_RECEIVER,
+                    MAINNET_DAO,
+                    MAINNET_FEE_COLLECTOR,
                 ],
             ).hex(),
             "1",
