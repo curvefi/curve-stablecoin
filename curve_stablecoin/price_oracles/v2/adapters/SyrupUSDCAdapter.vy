@@ -4,6 +4,9 @@
 @author Curve.Finance
 @license Copyright (c) Curve.Finance, 2020-2026 - all rights reserved
 @notice Exposes SyrupUSDC as an ERC4626-style `convertToAssets`
+@dev Use this contract only on Ethereum Mainnet since the syrupUSDC address is hardcoded
+@custom:security security@curve.finance
+@custom:kill There is no need to kill this contract, just kill the underlying market
 """
 
 interface ISyrupUSDC:

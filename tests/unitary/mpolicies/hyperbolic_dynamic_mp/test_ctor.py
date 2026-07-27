@@ -28,10 +28,9 @@ def test_parameters_match_reference(mp, default_params):
     ) == (u_inf, A, r_minf) + default_params + (0,)
 
 
-def test_initial_ema_equals_rate_calculator(mp):
-    # Right after deploy the EMA seed equals the calculator's rate.
+def test_target_rate_reads_calculator(mp):
+    # target_rate reads the calculator's rate directly (in-bounds -> passthrough).
     assert mp.target_rate() == ref.DEFAULT_RATE
-    assert mp.raw_underlying_rate() == ref.DEFAULT_RATE
 
 
 def test_ctor_emits_set_parameters(

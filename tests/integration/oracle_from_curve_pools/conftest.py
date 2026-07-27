@@ -9,23 +9,18 @@ ONE = 10**18
 # ---------------------------------------------------------------------------
 # Inline mock pools.
 #
-# The oracle only touches two methods on each pool:
-#   * coins(uint256)          - probed 0,1,2,...  to discover the coin count N
-#                               (reverts past the last coin).
-#   * price_oracle(...)       - the "universal" price method.
-#
-# Curve pools come in two shapes for price_oracle, which the oracle detects and
-# stores as the per-pool NO_ARGUMENT flag:
-#   * ArgPool   - price_oracle(uint256): stableswap-ng / tricrypto style.  Used
-#                 for every pool with N > 2, and for N == 2 pools that accept an
-#                 index argument -> NO_ARGUMENT = False.
+# The oracle only touches price_oracle(...) on each pool, the "universal" price
+# method. Curve pools come in two shapes for it, which the oracle detects (by
+# probing price_oracle(uint256)) and stores as the per-pool NO_ARGUMENT flag:
+#   * ArgPool   - price_oracle(uint256): stableswap-ng / tricrypto style.  The
+#                 probe succeeds -> NO_ARGUMENT = False. Reverts on an
+#                 out-of-range index, like a real pool.
 #   * NoArgPool - price_oracle():        old 2-coin plain-pool style.  The oracle
 #                 probes price_oracle(uint256), the call fails (no such selector)
 #                 -> NO_ARGUMENT = True.
 # ---------------------------------------------------------------------------
 
-# N-coin pool exposing price_oracle(uint256). `n` coins are advertised by
-# coins(i); price_oracle(i) returns a preconfigured value per index.
+# price_oracle(i) returns a preconfigured value per valid index.
 ARG_POOL_SOURCE = """
 # pragma version 0.4.3
 
@@ -40,13 +35,8 @@ def __init__(n: uint256, prices: DynArray[uint256, 8]):
 
 @external
 @view
-def coins(i: uint256) -> address:
-    assert i < self.n_coins  # reverts past the last coin -> tells the oracle N
-    return convert(unsafe_add(i, 1), address)  # dummy non-zero address
-
-@external
-@view
 def price_oracle(i: uint256) -> uint256:
+    assert i + 1 < self.n_coins  # valid indices are 0 .. n_coins-2, like real pools
     return self.prices[i]
 """
 
@@ -64,18 +54,44 @@ def __init__(price: uint256):
 
 @external
 @view
-def coins(i: uint256) -> address:
-    assert i < 2  # exactly 2 coins
-    return convert(unsafe_add(i, 1), address)
+def price_oracle() -> uint256:
+    return self.oracle_price
+"""
+
+# A 2-coin crypto pool as actually deployed by *old* Curve pools that hold
+# native ETH: compiled with Vyper 0.3.1, exposing only the argument-less
+# price_oracle(), plus a payable __default__() so the pool can receive ETH.
+#
+# The fallback is the tricky case for NO_ARGUMENT detection. Probing the
+# (nonexistent) price_oracle(uint256) selector does NOT revert -- it lands in
+# __default__ and STOPs, returning success with *empty* returndata. So a probe
+# that checks only `success` would misclassify this no-argument pool as one that
+# takes an index argument; the oracle must also require non-empty returndata.
+# (The compiler version is incidental: any pool with a non-reverting fallback
+# behaves this way; real old ETH pools happen to be 0.3.x.)
+OLD_ETH_POOL_SOURCE = """
+# @version 0.3.1
+
+oracle_price: public(uint256)
+
+@external
+def __init__(price: uint256):
+    self.oracle_price = price
 
 @external
 @view
 def price_oracle() -> uint256:
     return self.oracle_price
+
+@external
+@payable
+def __default__():
+    pass  # receive ETH; also swallows unknown selectors -> STOP, empty returndata
 """
 
 ARG_POOL_DEPLOYER = boa.loads_partial(ARG_POOL_SOURCE)
 NOARG_POOL_DEPLOYER = boa.loads_partial(NOARG_POOL_SOURCE)
+OLD_ETH_POOL_DEPLOYER = boa.loads_partial(OLD_ETH_POOL_SOURCE)
 
 
 # ---------------------------------------------------------------------------
@@ -103,6 +119,19 @@ def make_noarg_pool():
 
     def _make(price):
         return NOARG_POOL_DEPLOYER.deploy(price)
+
+    return _make
+
+
+@pytest.fixture(scope="module")
+def make_old_eth_pool():
+    """Deploy a real Vyper 0.3.1 2-coin pool: no-arg price_oracle() plus a
+    payable __default__() (as ETH-holding crypto pools have). The fallback makes
+    a price_oracle(uint256) probe STOP (success, empty returndata) instead of
+    reverting -- the condition that breaks a success-only NO_ARGUMENT probe."""
+
+    def _make(price):
+        return OLD_ETH_POOL_DEPLOYER.deploy(price)
 
     return _make
 

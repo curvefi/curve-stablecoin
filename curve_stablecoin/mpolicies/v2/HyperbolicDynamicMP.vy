@@ -4,20 +4,18 @@
 @title Hyperbolic Monetary Policy With Dynamic Rate
 @author Curve.Finance
 @license Copyright (c) Curve.Finance, 2020-2026 - all rights reserved
-@notice Monetary Policy that follows EMA of external rate calculator contract's yield rate.
+@notice Monetary Policy that follows an external rate calculator contract's yield rate.
         The external contract should return the rate per second.
         For use with yield-bearing assets in like-kind lend markets (e.g. sfrxUSD/crvUSD).
 @custom:kill This monetary policy is bound to its Controller; kill the Controller to halt new borrowing.
 """
 
-from curve_std import ema
 from curve_stablecoin import constants as c
 from curve_stablecoin.interfaces import IController
 from curve_stablecoin.interfaces import IHyperbolicDynamicMP
 from curve_stablecoin.interfaces import IRateCalculator
 
 implements: IHyperbolicDynamicMP
-initializes: ema
 
 
 WAD: constant(uint256) = c.WAD
@@ -31,15 +29,10 @@ MAX_RATE_SHIFT: constant(uint256) = 100 * WAD
 MIN_TARGET_RATE: constant(uint256) = 317097920        # ~1% APR
 MAX_TARGET_RATE: constant(uint256) = 47564687975      # ~150% APR
 
-TEXP: public(constant(uint256)) = 40000
-
 CONTROLLER: public(immutable(IController))
 RATE_CALCULATOR: public(immutable(IRateCalculator))
 
 parameters: public(IHyperbolicDynamicMP.Parameters)
-
-# Identifier of the EMA tracking the rate calculator's per-second yield rate.
-TARGET_RATE_EMA_ID: constant(String[4]) = "rate"
 
 
 @deploy
@@ -52,7 +45,7 @@ def __init__(
     _rate_shift: uint256
 ):
     """
-    @notice Initializes the monetary policy with given parameters and sets initial EMA rate
+    @notice Initializes the monetary policy with given parameters
     @param _controller Address of the market's controller contract (for access control)
     @param _rate_calculator Address of the external rate calculator (e.g. for sfrxUSD)
     @param _target_utilization Utilization (0–1e18) where borrow rate equals base rate
@@ -63,75 +56,15 @@ def __init__(
     CONTROLLER = _controller
     RATE_CALCULATOR = _rate_calculator
 
-    ema.__init__(
-        [
-            ema.EMAConfig(
-                ema_id=TARGET_RATE_EMA_ID,
-                initial_value=staticcall _rate_calculator.rate(),
-                ema_time=TEXP,
-            )
-        ]
-    )
-
     self._set_parameters(_target_utilization, _low_ratio, _high_ratio, _rate_shift)
-
-
-@external
-@view
-def raw_underlying_rate() -> uint256:
-    """
-    @notice Read the current per-second rate from the external rate calculator
-    @return rate Yield rate per second, scaled by 1e18
-    """
-    return staticcall RATE_CALCULATOR.rate()
-
-
-@external
-@view
-def raw_underlying_apr() -> uint256:
-    """
-    @notice Annualized version of the raw per-second rate
-    @return APR Estimate, scaled by 1e18
-    """
-    return (staticcall RATE_CALCULATOR.rate()) * (365 * 86400)
 
 
 @internal
 @view
 def _target_rate() -> uint256:
     """
-    @notice Reads the EMA-smoothed base rate
-    @return ema_rate EMA-smoothed rate, clamped to [MIN_TARGET_RATE, MAX_TARGET_RATE]
-    """
-    return min(max(ema.read(TARGET_RATE_EMA_ID), MIN_TARGET_RATE), MAX_TARGET_RATE)
-
-
-@external
-@view
-def target_rate() -> uint256:
-    """
-    @notice View function to get EMA-smoothed rate per-second
-    @return ema_rate The smoothed rate
-    """
-    return self._target_rate()
-
-
-@external
-@view
-def target_apr() -> uint256:
-    """
-    @notice View function to get annualized EMA-smoothed rate (APR)
-    @return ema_apr The smoothed rate annualized
-    """
-    return self._target_rate() * (365 * 86400)
-
-
-@internal
-def _target_rate_w() -> uint256:
-    """
-    @notice Write variant of EMA function — updates and returns the stored EMA rate
-    @dev If the rate calculator call reverts, updates the EMA with a fallback rate of 0
-    @return ema_rate Updated EMA rate, clamped to [MIN_TARGET_RATE, MAX_TARGET_RATE]
+    @notice Reads the current base rate from the rate calculator, clamped to bounds
+    @return rate Rate, clamped to [MIN_TARGET_RATE, MAX_TARGET_RATE]
     """
     raw_result: Bytes[32] = empty(Bytes[32])
     success: bool = False
@@ -148,7 +81,54 @@ def _target_rate_w() -> uint256:
     if success and len(raw_result) > 0:
         r = convert(raw_result, uint256)
 
-    return min(max(ema.update(TARGET_RATE_EMA_ID, r), MIN_TARGET_RATE), MAX_TARGET_RATE)
+    return min(max(r, MIN_TARGET_RATE), MAX_TARGET_RATE)
+
+
+@external
+@view
+def target_rate() -> uint256:
+    """
+    @notice View function to get the clamped per-second base rate
+    @return rate The base rate, clamped to [MIN_TARGET_RATE, MAX_TARGET_RATE]
+    """
+    return self._target_rate()
+
+
+@external
+@view
+def target_apr() -> uint256:
+    """
+    @notice View function to get the annualized clamped base rate (APR)
+    @return apr The clamped base rate annualized
+    """
+    return self._target_rate() * (365 * 86400)
+
+
+@internal
+def _target_rate_w() -> uint256:
+    """
+    @notice Mutating variant of `_target_rate`: calls the calculator's `rate_w` so a
+            stateful calculator can record a fresh sample, then clamps the result
+    @dev Uses a non-reverting call so a failing rate calculator cannot brick the
+         Controller's `rate_write`; on failure it falls back to a rate of 0 (clamped
+         up to MIN_TARGET_RATE).
+    @return rate Current rate, clamped to [MIN_TARGET_RATE, MAX_TARGET_RATE]
+    """
+    raw_result: Bytes[32] = empty(Bytes[32])
+    success: bool = False
+
+    success, raw_result = raw_call(
+        RATE_CALCULATOR.address,
+        method_id("rate_w()"),
+        max_outsize=32,
+        revert_on_failure=False
+    )
+
+    r: uint256 = 0
+    if success and len(raw_result) > 0:
+        r = convert(raw_result, uint256)
+
+    return min(max(r, MIN_TARGET_RATE), MAX_TARGET_RATE)
 
 
 @internal
@@ -225,9 +205,10 @@ def _set_parameters(
 def _get_utilization(_d_reserves: int256, _d_debt: int256) -> uint256:
     """
     @notice Computes market utilization under simulated reserve/debt changes
+    @dev Both guards are for future_rate() calls only
     @param _d_reserves Change in reserves (simulated)
     @param _d_debt Change in debt (simulated)
-    @return u Utilization ratio (total_debt / total_reserves), scaled by 1e18
+    @return u Utilization ratio (total_debt / total_reserves) scaled and capped by 1e18
     """
     total_debt: int256 = convert(staticcall CONTROLLER.total_debt(), int256)
     total_reserves: int256 = (
@@ -237,14 +218,19 @@ def _get_utilization(_d_reserves: int256, _d_debt: int256) -> uint256:
         + _d_reserves
     )
     total_debt += _d_debt
-    assert total_debt >= 0, "Negative debt"
-    assert total_reserves >= total_debt, "Reserves too small"
+    # CONTROLLER.total_debt() is a uint256, so the sum can only go negative if _d_debt does
+    if _d_debt < 0:
+        assert total_debt >= 0, "Negative debt"
+    # Only an action that takes liquidity out (_d_reserves < 0) or draws on it
+    # (_d_debt > 0) can over-draw the market -- see @dev above before unguarding
+    if _d_reserves < 0 or _d_debt > 0:
+        assert total_reserves >= total_debt, "Reserves too small"
 
     u: uint256 = 0
     if total_reserves > 0:
         u = convert(total_debt * SWAD // total_reserves, uint256)
 
-    return u
+    return min(u, WAD)
 
 
 @internal
@@ -254,7 +240,7 @@ def _calculate_rate(_d_reserves: int256, _d_debt: int256, _r0: uint256) -> uint2
     @notice Computes dynamic interest rate based on utilization
     @param _d_reserves Change in reserves (simulated)
     @param _d_debt Change in debt (simulated)
-    @param _r0 Base rate (e.g., EMA rate)
+    @param _r0 Base rate
     @return rate Final rate based on utilization
     """
     p: IHyperbolicDynamicMP.Parameters = self.parameters
@@ -263,9 +249,10 @@ def _calculate_rate(_d_reserves: int256, _d_debt: int256, _r0: uint256) -> uint2
     b: int256 = convert(p.A * _r0 // (p.u_inf - u), int256)
     rate_shift: int256 = convert(p.rate_shift, int256)
     rate: int256 = a + b + rate_shift
-    assert rate >= 0, "Negative rate"
-
-    return convert(rate, uint256)
+    # A sub-zero rate is unreachable under the validated curve (the minimum, at
+    # u=0, is _r0*low_ratio/WAD + rate_shift > 0). Clamp rather than revert so an
+    # unforeseen edge case can never brick the Controller's rate_write.
+    return convert(max(rate, 0), uint256)
 
 
 @view
@@ -281,7 +268,7 @@ def rate() -> uint256:
 @external
 def rate_write() -> uint256:
     """
-    @notice Updates EMA and returns current rate
+    @notice Records a fresh sample from the rate calculator and returns current rate
     @return rate Updated rate
     """
     assert CONTROLLER.address == msg.sender, "Controller only"

@@ -48,3 +48,40 @@ def test_future_rate_revert_reserves_too_small(mp, controller):
     controller.set_state(10 * 10**18, 90 * 10**18, 0)
     with boa.reverts("Reserves too small"):
         mp.future_rate(-(91 * 10**18), 0)
+
+
+def test_future_rate_deposit_below_admin_fees_pins_utilization(
+    mp, controller, default_params
+):
+    """A deposit smaller than the accrued fees adds no free liquidity.
+
+    admin_fees are netted out of the balance *after* the delta is applied, so
+    every deposit up to the fee debt leaves utilization pinned at 100% rather
+    than crediting coins that are already owed.
+    """
+    debt, fees = 1000 * 10**18, 10 * 10**18
+    controller.set_state(debt, 0, fees)
+    params = ref.get_params(*default_params)
+    at_full = ref.calculate_rate(params, ref.WAD, mp.target_rate())
+
+    for d_reserves in (1, fees // 4, fees // 2, fees - 1, fees):
+        assert mp.future_rate(d_reserves, 0) == at_full
+
+    # Past the fee debt the surplus is real liquidity and utilization drops.
+    assert mp.future_rate(fees + 5 * 10**18, 0) < at_full
+
+
+@pytest.mark.parametrize("fees", [0, 10 * 10**18])
+def test_future_rate_withdrawal_capped_at_balance_minus_fees(mp, controller, fees):
+    """The withdrawal guard mirrors the Controller's transfer-out limit.
+
+    LendController allows at most `sub_or_zero(balance, admin_fees)` to leave, so
+    a simulated withdrawal beyond that describes an unreachable state.
+    """
+    debt, avail = 10 * 10**18, 90 * 10**18
+    controller.set_state(debt, avail, fees)
+    withdrawable = max(avail - fees, 0)
+
+    mp.future_rate(-withdrawable, 0)  # exactly at the limit is fine
+    with boa.reverts("Reserves too small"):
+        mp.future_rate(-(withdrawable + 1), 0)
