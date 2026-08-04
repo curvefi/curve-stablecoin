@@ -4,6 +4,62 @@ from tests.utils.constants import MAX_UINT256
 WEEK = 7 * 86400
 
 
+def test_set_killed(
+    admin,
+    collateral_token,
+    crv,
+    controller,
+    lm_callback,
+    minter,
+):
+    borrower = boa.env.generate_address("borrower")
+    boa.deal(collateral_token, borrower, 1000 * 10**18)
+    collateral_token.approve(controller, MAX_UINT256, sender=borrower)
+
+    boa.env.time_travel(seconds=2 * WEEK + 5)
+
+    controller.create_loan(10**21, 10**21 * 2600, 10, sender=borrower)
+
+    boa.env.time_travel(4 * WEEK)
+
+    with boa.env.anchor():
+        rewards_borrower = lm_callback.claimable_tokens(borrower)
+    assert rewards_borrower > 0
+    crv_balance = crv.balanceOf(borrower)
+    minter.mint(lm_callback.address, sender=borrower)
+    assert crv.balanceOf(borrower) - crv_balance == rewards_borrower
+
+    # Kill lm callback
+    with boa.reverts("only owner"):
+        lm_callback.set_killed(True, sender=borrower)
+    lm_callback.set_killed(True, sender=admin)
+
+    boa.env.time_travel(4 * WEEK)
+
+    # No rewards while killed
+    with boa.env.anchor():
+        rewards_borrower = lm_callback.claimable_tokens(borrower)
+    assert rewards_borrower == 0
+    crv_balance = crv.balanceOf(borrower)
+    minter.mint(lm_callback.address, sender=borrower)
+    assert crv.balanceOf(borrower) == crv_balance
+
+    # Unkill lm callback
+    with boa.reverts("only owner"):
+        lm_callback.set_killed(False, sender=borrower)
+    lm_callback.set_killed(False, sender=admin)
+
+    boa.env.time_travel(4 * WEEK)
+
+    # Rewards resume after unkill
+    with boa.env.anchor():
+        rewards_borrower = lm_callback.claimable_tokens(borrower)
+    assert rewards_borrower > 0
+    crv_balance = crv.balanceOf(borrower)
+    minter.mint(lm_callback.address, sender=borrower)
+    assert crv.balanceOf(borrower) - crv_balance == rewards_borrower
+
+
 def test_rewards_kill(
     admin,
     collateral_token,
