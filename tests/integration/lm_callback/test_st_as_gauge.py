@@ -9,6 +9,7 @@ from hypothesis.stateful import (
 )
 from random import random
 import pytest
+from tests.integration.lm_callback.utils import RATE_REDUCTION_TIME, accrue
 from tests.utils.constants import MAX_UINT256
 
 
@@ -27,10 +28,14 @@ class StateMachine(RuleBasedStateMachine):
             self.collateral_token.approve(self.controller, MAX_UINT256, sender=b)
             self.borrowed_token.approve(self.controller, MAX_UINT256, sender=b)
         self.checkpoint_total_collateral = 0
+        # Every borrower is re-checkpointed on every `update_integrals`, so the
+        # CRV schedule cache is shared - it mirrors the single cache the callback
+        # keeps in `inflation_rate` / `future_epoch_time`
+        self.checkpoint_time = boa.env.timestamp
         self.checkpoint_rate = self.crv.rate()
+        self.checkpoint_future_epoch = self.crv.start_epoch_time() + RATE_REDUCTION_TIME
         self.integrals = {
             b: {
-                "checkpoint": boa.env.timestamp,
                 "integral": 0,
                 "collateral": 0,
             }
@@ -38,29 +43,28 @@ class StateMachine(RuleBasedStateMachine):
         }
 
     def update_integrals(self, user, d_balance=0):
-        # Update rewards
+        # Update rewards. Must be called right after every action that checkpoints
+        # the callback, otherwise the two CRV schedule caches drift apart
         t1 = boa.env.timestamp
-        t_epoch = self.crv.start_epoch_time_write(sender=self.admin)
-        rate1 = self.crv.rate()
+        rate_x_time, self.checkpoint_rate, self.checkpoint_future_epoch = accrue(
+            self.crv,
+            self.checkpoint_time,
+            t1,
+            self.checkpoint_rate,
+            self.checkpoint_future_epoch,
+        )
         for b in self.borrowers:
             integral = self.integrals[b]
-            if integral["checkpoint"] >= t_epoch:
-                rate_x_time = (t1 - integral["checkpoint"]) * rate1
-            else:
-                rate_x_time = (
-                    t_epoch - integral["checkpoint"]
-                ) * self.checkpoint_rate + (t1 - t_epoch) * rate1
             if self.checkpoint_total_collateral > 0:
                 integral["integral"] += (
                     rate_x_time
                     * integral["collateral"]
                     // self.checkpoint_total_collateral
                 )
-            integral["checkpoint"] = t1
             if b == user:
                 integral["collateral"] += d_balance
+        self.checkpoint_time = t1
         self.checkpoint_total_collateral += d_balance
-        self.checkpoint_rate = rate1
 
     @rule(uid=user_id, value=value)
     def deposit(self, uid, value):
@@ -108,7 +112,8 @@ class StateMachine(RuleBasedStateMachine):
                 remove_amount = collateral_in_amm
             else:
                 repay_amount = int(debt * random() * 0.99)
-                self.controller.repay(repay_amount)
+                if repay_amount > 0:
+                    self.controller.repay(repay_amount)
                 min_collateral_required = self.controller.min_collateral(
                     debt - repay_amount, 10
                 )
@@ -116,6 +121,10 @@ class StateMachine(RuleBasedStateMachine):
                 remove_amount = max(remove_amount, 0)
                 if remove_amount > 0:
                     self.controller.remove_collateral(remove_amount)
+                elif repay_amount == 0:
+                    # Same as in `teardown`: nothing was sent, so the callback
+                    # would not have checkpointed while the model does
+                    self.lm_callback.user_checkpoint(user)
             self.update_integrals(user, -remove_amount)
 
             assert self.collateral_token.balanceOf(user) == balance + remove_amount
@@ -161,6 +170,9 @@ class StateMachine(RuleBasedStateMachine):
                 crv_reward = self.lm_callback.claimable_tokens(user)
             self.minter.mint(self.lm_callback.address)
             assert self.crv.balanceOf(user) - crv_balance == crv_reward
+            # Minting checkpoints the callback, so the model has to follow along -
+            # otherwise it can miss a CRV epoch the callback has already stepped over
+            self.update_integrals(user)
 
     @invariant()
     def invariant_collateral(self):
@@ -185,6 +197,11 @@ class StateMachine(RuleBasedStateMachine):
                 debt = self.controller.user_state(b)[2]
                 if debt > 0:
                     self.controller.repay(debt)
+                else:
+                    # Nothing is sent, so the callback would not have checkpointed
+                    # here while the model does - their cached CRV epochs would
+                    # drift apart and the model would keep using the stale rate
+                    self.lm_callback.user_checkpoint(b)
                 self.update_integrals(b)
 
                 assert not self.controller.loan_exists(b)

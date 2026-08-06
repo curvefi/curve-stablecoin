@@ -11,15 +11,20 @@ import pytest
 from hypothesis import given, settings
 from hypothesis import strategies as st
 
+from tests.integration.lm_callback.utils import (
+    ONE,
+    RATE_REDUCTION_TIME,
+    WEEK,
+    YEAR,
+    accrue,
+    chance,
+    pick,
+    scale,
+)
 from tests.utils.constants import MAX_UINT256
-
-YEAR = 365 * 86400
-WEEK = 7 * 86400
-RATE_REDUCTION_TIME = YEAR  # ERC20CRV.vy:64
 
 N_ITERATIONS = 20
 N_BANDS = 10
-ONE = 10**18
 
 FRACTION = st.integers(min_value=0, max_value=ONE)
 
@@ -28,23 +33,6 @@ FRACTION = st.integers(min_value=0, max_value=ONE)
 # range, plain randomness never did.
 MIN_DEPOSIT = 10**16
 DEBT_FRACTION = st.integers(min_value=10**16, max_value=ONE)  # of max_borrowable
-
-
-def chance(percent):
-    """True with `percent` probability - mirrors `random() < percent / 100`."""
-    return st.integers(min_value=0, max_value=99).map(lambda x: x < percent)
-
-
-def scale(fraction, lo, hi):
-    """Map a 1e18-scaled fraction onto [lo, hi] - mirrors `randrange(lo, hi + 1)`."""
-    if hi <= lo:
-        return lo
-    return lo + (hi - lo) * fraction // ONE
-
-
-def pick(fraction, seq):
-    """Map a 1e18-scaled fraction onto an element of `seq` - mirrors `choice(seq)`."""
-    return seq[fraction * len(seq) // (ONE + 1)]
 
 
 USER_STEP = st.fixed_dictionaries(
@@ -70,31 +58,6 @@ EXCHANGE_STEP = st.fixed_dictionaries(
         "borrower2": USER_STEP,
     }
 )
-
-
-def accrue(crv, t0, t1, rate, future_epoch):
-    """CRV per unit of collateral over [t0, t1], counted the way LMCallback counts it.
-
-    Mirrors `_checkpoint_collateral_shares` (LMCallback.vy:125-163): the interval is
-    split at the epoch end that was cached at `t0`, and everything past it accrues at
-    CRV's rate *now*. The schedule is read from CRV (`rate` / `start_epoch_time`
-    views), never from the callback's own bookkeeping, so a bug in that bookkeeping
-    still shows up here.
-
-    Returns the integral together with the refreshed (rate, future_epoch) cache.
-    """
-    new_rate, new_future_epoch = rate, future_epoch
-    if t1 >= future_epoch:
-        # exactly the condition on which the callback refreshes its cached rate
-        new_rate = crv.rate()
-        new_future_epoch = crv.start_epoch_time() + RATE_REDUCTION_TIME
-
-    if t0 <= future_epoch < t1:
-        rate_x_time = rate * (future_epoch - t0) + new_rate * (t1 - future_epoch)
-    else:
-        rate_x_time = rate * (t1 - t0)
-
-    return rate_x_time, new_rate, new_future_epoch
 
 
 def act(controller, amm, lm_callback, collateral_token, user, step):
