@@ -7,7 +7,7 @@ env:
   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
   EXPLORER_TOKEN: ${{ secrets.EXPLORER_TOKEN }}
   WEB3_PROVIDER_URL: ${{ secrets.WEB3_PROVIDER_URL }}
-  HYPOTHESIS_PROFILE: no-shrink
+  HYPOTHESIS_PROFILE: default
 
 jobs:
   ast-grep:
@@ -85,8 +85,9 @@ jobs:
             runs-on: "ubuntu-latest"
           - folder: "tests/integration"
             runs-on: "ubuntu-latest"
-          # - folder: "tests/stateful" not ready yet
-          #   runs-on: "ubuntu-latest"
+          - folder: "tests/fuzz/stateful"
+            runs-on: "ubuntu-latest"
+            hypothesis_profile: "ci-stateful"
           # Old tests to be migrated
           - folder: "tests/flashloan"
             runs-on: "ubuntu-latest"
@@ -128,4 +129,4 @@ jobs:
 
       - name: Run tests
         run: |
-          uv run pytest ${{ matrix.folder }} -n auto
+          uv run pytest ${{ matrix.folder }} --hypothesis-profile=${{ matrix.hypothesis_profile || 'default' }} -n auto
