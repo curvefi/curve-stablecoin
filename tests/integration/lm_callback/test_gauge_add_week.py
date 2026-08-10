@@ -17,7 +17,6 @@ window is a known six days and inflation has long been running.
 import boa
 
 from tests.utils.constants import MAX_UINT256
-from tests.utils.deployers import LM_CALLBACK_DEPLOYER
 
 WEEK = 7 * 86400
 DAY = 86400
@@ -31,9 +30,8 @@ def test_no_rewards_before_week_boundary(
     controller,
     configurator,
     amm,
-    minter,
     gauge_controller,
-    lm_factory,
+    deploy_lm_callback,
 ):
     with boa.env.anchor():
         borrower = boa.env.generate_address("borrower")
@@ -51,10 +49,8 @@ def test_no_rewards_before_week_boundary(
         now = boa.env.timestamp
         boa.env.time_travel(seconds=(now // WEEK + 2) * WEEK + DAY - now)
 
+        cb = deploy_lm_callback(amm)
         with boa.env.prank(admin):
-            cb = LM_CALLBACK_DEPLOYER.deploy(
-                amm, crv, gauge_controller, minter, lm_factory
-            )
             configurator.set_callback(controller, cb)
             gauge_controller.add_gauge(cb.address, 0, 10**18)
 

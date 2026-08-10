@@ -30,6 +30,7 @@ _PACKAGE_ROOT = Path(curve_stablecoin.__file__).parent
 BASE_CONTRACT_PATH = _PACKAGE_ROOT
 TESTING_CONTRACT_PATH = _PACKAGE_ROOT / "testing"
 LENDING_CONTRACT_PATH = _PACKAGE_ROOT / "lending"
+LM_CALLBACK_CONTRACT_PATH = _PACKAGE_ROOT / "lm_callback"
 MPOLICIES_CONTRACT_PATH = _PACKAGE_ROOT / "mpolicies"
 PRICE_ORACLES_CONTRACT_PATH = _PACKAGE_ROOT / "price_oracles"
 STABILIZER_CONTRACT_PATH = _PACKAGE_ROOT / "stabilizer"
@@ -210,10 +211,17 @@ PEG_KEEPER_OFFBOARDING_DEPLOYER = boa.load_partial(
     compiler_args=compiler_args_default,
 )
 
-# Callback contracts
+# LMCallback contracts
 LM_CALLBACK_DEPLOYER = boa.load_partial(
-    BASE_CONTRACT_PATH / "LMCallback.vy", compiler_args=compiler_args_default
+    LM_CALLBACK_CONTRACT_PATH / "LMCallback.vy",
+    compiler_args=compiler_args_default,
 )
+
+LM_CALLBACK_FACTORY_DEPLOYER = boa.load_partial(
+    LM_CALLBACK_CONTRACT_PATH / "LMCallbackFactory.vy",
+    compiler_args=compiler_args_default,
+)
+
 
 # Testing/Mock contracts
 ERC20_MOCK_DEPLOYER = boa.load_partial(

@@ -6,8 +6,17 @@ from tests.utils.deployers import (
     GAUGE_CONTROLLER_DEPLOYER,
     MINTER_DEPLOYER,
     LM_CALLBACK_DEPLOYER,
+    LM_CALLBACK_FACTORY_DEPLOYER,
 )
 from tests.utils.constants import MAX_UINT256
+
+# `LMCallback` hardcodes the mainnet CRV, GaugeController and Minter addresses so
+# that it carries no constructor arguments beyond the AMM. The mocks are deployed
+# over those addresses rather than the source being rewritten, so these tests run
+# the exact bytecode that ships.
+CRV_ADDRESS = "0xD533a949740bb3306d119CC777fa900bA034cd52"
+GAUGE_CONTROLLER_ADDRESS = "0x2F50D538606Fa9EDD2B11E2446BEb18C9D5846bB"
+MINTER_ADDRESS = "0xd061D61a4d941c39E5453435B6345Dc261C2fcE0"
 
 
 # ── Market-parameter overrides ─────────────────────────────────────────────────
@@ -57,7 +66,9 @@ def seed_liquidity(borrowed_token):
 @pytest.fixture(scope="module")
 def crv(admin):
     with boa.env.prank(admin):
-        return ERC20_CRV_DEPLOYER.deploy("Curve DAO Token", "CRV", 18)
+        return ERC20_CRV_DEPLOYER.deploy(
+            "Curve DAO Token", "CRV", 18, override_address=CRV_ADDRESS
+        )
 
 
 @pytest.fixture(scope="module")
@@ -71,7 +82,9 @@ def voting_escrow(admin, crv):
 @pytest.fixture(scope="module")
 def gauge_controller(admin, crv, voting_escrow):
     with boa.env.prank(admin):
-        gc = GAUGE_CONTROLLER_DEPLOYER.deploy(crv, voting_escrow)
+        gc = GAUGE_CONTROLLER_DEPLOYER.deploy(
+            crv, voting_escrow, override_address=GAUGE_CONTROLLER_ADDRESS
+        )
         gc.add_type("crvUSD Market")
         gc.change_type_weight(0, 10**18)
         return gc
@@ -80,18 +93,41 @@ def gauge_controller(admin, crv, voting_escrow):
 @pytest.fixture(scope="module")
 def minter(admin, crv, gauge_controller):
     with boa.env.prank(admin):
-        _minter = MINTER_DEPLOYER.deploy(crv, gauge_controller)
+        _minter = MINTER_DEPLOYER.deploy(
+            crv, gauge_controller, override_address=MINTER_ADDRESS
+        )
         crv.set_minter(_minter)
         return _minter
 
 
-# ── Market aliases ─────────────────────────────────────────────────────────────
+# ── LM Callback factory ────────────────────────────────────────────────────────
 
 
 @pytest.fixture(scope="module")
-def lm_factory(controller):
-    """Returns the factory whose admin() is used for LMCallback access control."""
-    return controller.factory()
+def lm_callback_factory(admin, minter):
+    """
+    Factory whose owner() gates set_killed on every callback it deploys.
+
+    LMCallback can only be deployed from a factory - its constructor takes the
+    deployer as LM_CALLBACK_FACTORY - so tests go through the real one. Depends
+    on `minter` to pull in the whole CRV ecosystem, which the callback
+    constructor reaches out to at its hardcoded addresses.
+    """
+    with boa.env.prank(admin):
+        blueprint = LM_CALLBACK_DEPLOYER.deploy_as_blueprint()
+        return LM_CALLBACK_FACTORY_DEPLOYER.deploy(admin, blueprint)
+
+
+@pytest.fixture(scope="module")
+def deploy_lm_callback(admin, lm_callback_factory):
+    """Deploy a callback for `amm` through the factory and wrap it for tests."""
+
+    def _deploy(amm):
+        with boa.env.prank(admin):
+            address = lm_callback_factory.deploy_lm_callback(amm)
+        return LM_CALLBACK_DEPLOYER.at(address)
+
+    return _deploy
 
 
 # ── Actors ────────────────────────────────────────────────────────────────────
@@ -112,11 +148,9 @@ def trader(borrowed_token, collateral_token, amm):
 
 
 @pytest.fixture(scope="module")
-def lm_callback(
-    admin, amm, crv, gauge_controller, minter, controller, configurator, lm_factory
-):
+def lm_callback(admin, amm, gauge_controller, controller, configurator, deploy_lm_callback):
+    cb = deploy_lm_callback(amm)
     with boa.env.prank(admin):
-        cb = LM_CALLBACK_DEPLOYER.deploy(amm, crv, gauge_controller, minter, lm_factory)
         configurator.set_callback(controller, cb)
         gauge_controller.add_gauge(cb.address, 0, 10**18)
-        return cb
+    return cb
