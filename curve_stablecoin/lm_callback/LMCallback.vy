@@ -4,6 +4,7 @@
 @author Curve.Finance
 @license Copyright (c) Curve.Finance, 2020-2026 - all rights reserved
 @notice LM callback works like a gauge for collateral in LlamaLend/crvUSD AMMs
+@dev Use this contract only on Ethereum Mainnet since CRV, GAUGE_CONTROLLER and MINTER addresses are hardcoded
 @custom:security security@curve.finance
 @custom:kill Call set_killed(true) via factory admin to stop CRV emissions
 """
@@ -12,39 +13,34 @@ from curve_std.interfaces import IERC20
 from curve_stablecoin import constants as c
 from curve_stablecoin.interfaces import IAMM
 from curve_stablecoin.interfaces import ILMCallback
+from curve_stablecoin.interfaces import ILMCallbackFactory
 
 implements: ILMCallback
 
-interface CRV20:
+interface ICRV20:
     def future_epoch_time_write() -> uint256: nonpayable
     def rate() -> uint256: view
 
-interface GaugeController:
+interface IGaugeController:
     def gauge_relative_weight(addr: address, time: uint256) -> uint256: view
     def checkpoint_gauge(addr: address): nonpayable
 
-interface Minter:
+interface IMinter:
     def minted(user: address, gauge: address) -> uint256: view
-
-interface LendingFactory:
-    def admin() -> address: view
-
 
 
 MAX_TICKS_UINT: constant(uint256) = c.MAX_TICKS_UINT
 MAX_TICKS_INT: constant(int256) = c.MAX_TICKS
 WEEK: constant(uint256) = 604800
-
+CRV: constant(ICRV20) = ICRV20(0xD533a949740bb3306d119CC777fa900bA034cd52)
+GAUGE_CONTROLLER: constant(IGaugeController) = IGaugeController(0x2F50D538606Fa9EDD2B11E2446BEb18C9D5846bB)
+MINTER: constant(IMinter) = IMinter(0xd061D61a4d941c39E5453435B6345Dc261C2fcE0)
 
 AMM: public(immutable(IAMM))
-CRV: public(immutable(CRV20))
-GAUGE_CONTROLLER: public(immutable(GaugeController))
-MINTER: public(immutable(Minter))
-LENDING_FACTORY: public(immutable(LendingFactory))
+LM_CALLBACK_FACTORY: public(immutable(ILMCallbackFactory))
 COLLATERAL_TOKEN: public(immutable(IERC20))
 
 is_killed: public(bool)
-
 collateral_per_share: public(HashMap[int256, uint256])
 
 # Tracking of mining period
@@ -85,31 +81,20 @@ integrate_fraction: public(HashMap[address, uint256])
 
 
 @deploy
-def __init__(
-        amm: IAMM,
-        crv: CRV20,
-        gauge_controller: GaugeController,
-        minter: Minter,
-        factory: LendingFactory,
-):
+def __init__(_amm: IAMM):
     """
     @notice LMCallback constructor. Should be deployed manually.
-    @param amm The address of amm
-    @param crv The address of CRV token
-    @param gauge_controller The address of the gauge controller
-    @param minter the address of CRV minter
-    @param factory The address of the lending/mint factory
+    @param _amm The address of amm
     """
-    AMM = amm
-    CRV = crv
-    GAUGE_CONTROLLER = gauge_controller
-    MINTER = minter
-    LENDING_FACTORY = factory
-    COLLATERAL_TOKEN = IERC20(staticcall amm.coins(1))
+    LM_CALLBACK_FACTORY = ILMCallbackFactory(msg.sender)
+    assert staticcall LM_CALLBACK_FACTORY.owner() != empty(address), "zero factory owner"
+
+    AMM = _amm
+    COLLATERAL_TOKEN = IERC20(staticcall AMM.coins(1))
     assert staticcall COLLATERAL_TOKEN.decimals() == 18, "collateral decimals must be 18"
 
-    self.future_epoch_time = extcall crv.future_epoch_time_write()
-    self.inflation_rate = staticcall crv.rate()
+    self.future_epoch_time = extcall CRV.future_epoch_time_write()
+    self.inflation_rate = staticcall CRV.rate()
     self.I_rpc.t = block.timestamp
 
 
@@ -320,7 +305,7 @@ def set_killed(_is_killed: bool):
     @dev When killed, the gauge always yields a rate of 0 and so cannot mint CRV
     @param _is_killed Killed status to set
     """
-    assert msg.sender == staticcall LENDING_FACTORY.admin(), "only owner"
+    assert msg.sender == staticcall LM_CALLBACK_FACTORY.owner(), "only owner"
     self._checkpoint_collateral_shares(0, [], 0)
     self.is_killed = _is_killed
     log ILMCallback.SetKilled(is_killed=_is_killed)
