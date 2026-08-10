@@ -23,7 +23,9 @@ def test_invalid_for_directly_deployed_callback(factory, dummy_amm):
     assert not factory.is_valid_lm_callback(lm_callback.address)
 
 
-def test_invalid_across_factories(deploy_factory, owner, lm_callback_blueprint, dummy_amm):
+def test_invalid_across_factories(
+    deploy_factory, owner, lm_callback_blueprint, dummy_amm
+):
     """Each factory vouches only for its own deployments."""
     factory = deploy_factory(owner, lm_callback_blueprint)
     other_factory = deploy_factory(owner, lm_callback_blueprint)

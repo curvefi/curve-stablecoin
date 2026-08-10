@@ -148,7 +148,9 @@ def trader(borrowed_token, collateral_token, amm):
 
 
 @pytest.fixture(scope="module")
-def lm_callback(admin, amm, gauge_controller, controller, configurator, deploy_lm_callback):
+def lm_callback(
+    admin, amm, gauge_controller, controller, configurator, deploy_lm_callback
+):
     cb = deploy_lm_callback(amm)
     with boa.env.prank(admin):
         configurator.set_callback(controller, cb)

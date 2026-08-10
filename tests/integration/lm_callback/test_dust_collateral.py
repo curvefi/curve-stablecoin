@@ -150,9 +150,7 @@ def test_dust_threshold(
         for leftover in (threshold - 1, threshold):
             # A nested anchor so both leftovers start from the same AMM state
             with boa.env.anchor():
-                amm.exchange_dy(
-                    0, 1, deposit - leftover, MAX_UINT256, sender=trader
-                )
+                amm.exchange_dy(0, 1, deposit - leftover, MAX_UINT256, sender=trader)
                 assert lm_callback.total_collateral() == leftover
 
                 lm_callback.user_checkpoint(borrower, sender=borrower)

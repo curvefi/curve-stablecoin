@@ -60,7 +60,9 @@ def test_no_rewards_before_week_boundary(
 
         boundary = (boa.env.timestamp // WEEK + 1) * WEEK
         assert boundary - boa.env.timestamp == 6 * DAY
-        assert gauge_controller.gauge_relative_weight(cb.address, boa.env.timestamp) == 0
+        assert (
+            gauge_controller.gauge_relative_weight(cb.address, boa.env.timestamp) == 0
+        )
         assert gauge_controller.gauge_relative_weight(cb.address, boundary) > 0
 
         controller.create_loan(10**21, 10**21 * 2000, 10, sender=borrower)

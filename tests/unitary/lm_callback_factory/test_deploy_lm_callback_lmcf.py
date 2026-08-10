@@ -49,7 +49,9 @@ def test_deploy_registers_the_callback(factory, dummy_amm):
     assert factory.get_lm_callback(0) == lm_callback
 
 
-def test_deploy_emits_event(factory, dummy_amm, lm_callback_blueprint, single_factory_event):
+def test_deploy_emits_event(
+    factory, dummy_amm, lm_callback_blueprint, single_factory_event
+):
     deployer = boa.env.generate_address("deployer")
     lm_callback = factory.deploy_lm_callback(dummy_amm, sender=deployer)
 
