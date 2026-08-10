@@ -6,7 +6,7 @@
 @notice LM callback works like a gauge for collateral in LlamaLend/crvUSD AMMs
 @dev Use this contract only on Ethereum Mainnet since CRV, GAUGE_CONTROLLER and MINTER addresses are hardcoded
 @custom:security security@curve.finance
-@custom:kill Call set_killed(true) via factory admin to stop CRV emissions
+@custom:kill Call set_killed(true) via factory owner to stop CRV emissions
 """
 
 from curve_std.interfaces import IERC20
@@ -32,6 +32,7 @@ interface IMinter:
 MAX_TICKS_UINT: constant(uint256) = c.MAX_TICKS_UINT
 MAX_TICKS_INT: constant(int256) = c.MAX_TICKS
 WEEK: constant(uint256) = 604800
+
 CRV: constant(ICRV20) = ICRV20(0xD533a949740bb3306d119CC777fa900bA034cd52)
 GAUGE_CONTROLLER: constant(IGaugeController) = IGaugeController(0x2F50D538606Fa9EDD2B11E2446BEb18C9D5846bB)
 MINTER: constant(IMinter) = IMinter(0xd061D61a4d941c39E5453435B6345Dc261C2fcE0)
@@ -83,7 +84,8 @@ integrate_fraction: public(HashMap[address, uint256])
 @deploy
 def __init__(_amm: IAMM):
     """
-    @notice LMCallback constructor. Should be deployed manually.
+    @notice LMCallback constructor. Deployed from a blueprint by an
+    LMCallbackFactory, which becomes LM_CALLBACK_FACTORY and gates set_killed.
     @param _amm The address of amm
     """
     LM_CALLBACK_FACTORY = ILMCallbackFactory(msg.sender)

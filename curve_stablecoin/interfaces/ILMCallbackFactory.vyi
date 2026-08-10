@@ -1,0 +1,73 @@
+from curve_stablecoin.interfaces import IAMM
+
+event DeployedLMCallback:
+    amm: indexed(address)
+    deployer: indexed(address)
+    blueprint: indexed(address)
+    lm_callback: address
+
+
+event UpdateLMCallbackBlueprint:
+    old_blueprint: address
+    new_blueprint: address
+
+
+@view
+@external
+def owner() -> address:
+    ...
+
+
+@external
+def transfer_ownership(new_owner: address):
+    ...
+
+
+@external
+def deploy_lm_callback(_amm: IAMM) -> address:
+    ...
+
+
+@view
+@external
+def lm_callback_blueprint() -> address:
+    ...
+
+
+@view
+@external
+def is_valid_lm_callback(_lm_callback: address) -> bool:
+    ...
+
+
+@view
+@external
+def get_lm_callback(_i: uint256) -> address:
+    ...
+
+
+@view
+@external
+def get_lm_callback_count() -> uint256:
+    ...
+
+
+@external
+def pause():
+    ...
+
+
+@external
+def unpause():
+    ...
+
+
+@view
+@external
+def paused() -> bool:
+    ...
+
+
+@external
+def set_blueprint(_blueprint: address):
+    ...
