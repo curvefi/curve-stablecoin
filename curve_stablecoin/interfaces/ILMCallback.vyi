@@ -36,8 +36,107 @@ struct IntegralRPU:
     rps: uint256
 
 
+# Immutables. Typed as plain addresses rather than IAMM/ILMCallbackFactory/IERC20
+# so that this interface stays free of imports that would cycle back into it.
+@view
+@external
+def AMM() -> address:
+    ...
+
+
+@view
+@external
+def LM_CALLBACK_FACTORY() -> address:
+    ...
+
+
+@view
+@external
+def COLLATERAL_TOKEN() -> address:
+    ...
+
+
+@view
+@external
+def is_killed() -> bool:
+    ...
+
+
+@view
+@external
+def collateral_per_share(_n: int256) -> uint256:
+    ...
+
+
+@view
+@external
+def inflation_rate() -> uint256:
+    ...
+
+
+@view
+@external
+def future_epoch_time() -> uint256:
+    ...
+
+
+@view
+@external
+def I_rpc() -> IntegralRPC:
+    ...
+
+
+@view
+@external
+def I_rps(_n: int256) -> IntegralRPS:
+    ...
+
+
+@view
+@external
+def I_rpu(_user: address, _n: int256) -> IntegralRPU:
+    ...
+
+
+@view
+@external
+def integrate_fraction(_user: address) -> uint256:
+    ...
+
+
+@view
+@external
+def total_collateral() -> uint256:
+    ...
+
+
+@view
+@external
+def user_collateral(user: address) -> uint256:
+    ...
+
+
+@external
 def callback_collateral_shares(n: int256, collateral_per_share: DynArray[uint256, MAX_TICKS_UINT], size: uint256):
     ...
 
+
+@external
 def callback_user_shares(user: address, n: int256, user_shares: DynArray[uint256, MAX_TICKS_UINT], size: uint256):
+    ...
+
+
+@external
+def user_checkpoint(addr: address) -> bool:
+    ...
+
+
+# Not a view: it checkpoints before returning (see the note on the implementation)
+@external
+def claimable_tokens(addr: address) -> uint256:
+    ...
+
+
+@external
+def set_killed(_is_killed: bool):
     ...
