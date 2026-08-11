@@ -67,26 +67,44 @@ def test_update_inflation_rate(collateral_token, controller, lm_callback):
         assert logs[0].future_epoch_time == lm_callback.future_epoch_time()
 
 
-def test_attached_and_detached(admin, controller, configurator, lm_callback):
+def test_attached_and_detached(
+    admin, controller, configurator, amm, deploy_lm_callback
+):
     with boa.env.anchor():
-        # the fixture wires the callback to the AMM, but the flag only latches on
-        # the first call that observes it
-        assert not lm_callback.attached()
+        # deployment and attachment are separate transactions: nothing may be
+        # emitted in between, or a poke could take the callback live - or brick
+        # it - before it was ever wired up
+        cb = deploy_lm_callback(amm)
+        assert not cb.attached() and not cb.detached()
 
-        lm_callback.user_checkpoint(ZERO_ADDRESS)
-        assert len(filter_logs(lm_callback, "Attached")) == 1
-        assert lm_callback.attached()
+        cb.user_checkpoint(ZERO_ADDRESS)
+        assert len(filter_logs(cb, "Attached")) == 0
+        assert len(filter_logs(cb, "Detached")) == 0
+        assert not cb.attached() and not cb.detached()
+
+        # wired to the AMM, but the flag only latches on the first call that
+        # observes it
+        configurator.set_callback(controller, cb, sender=admin)
+        assert not cb.attached()
+
+        cb.user_checkpoint(ZERO_ADDRESS)
+        assert len(filter_logs(cb, "Attached")) == 1
+        assert len(filter_logs(cb, "Detached")) == 0
+        assert cb.attached()
 
         # latched, not re-emitted
-        lm_callback.user_checkpoint(ZERO_ADDRESS)
-        assert len(filter_logs(lm_callback, "Attached")) == 0
+        cb.user_checkpoint(ZERO_ADDRESS)
+        assert len(filter_logs(cb, "Attached")) == 0
+        assert len(filter_logs(cb, "Detached")) == 0
 
         configurator.set_callback(controller, ZERO_ADDRESS, sender=admin)
-        assert not lm_callback.detached()
+        assert not cb.detached()
 
-        lm_callback.user_checkpoint(ZERO_ADDRESS)
-        assert len(filter_logs(lm_callback, "Detached")) == 1
-        assert lm_callback.detached()
+        cb.user_checkpoint(ZERO_ADDRESS)
+        assert len(filter_logs(cb, "Attached")) == 0
+        assert len(filter_logs(cb, "Detached")) == 1
+        assert cb.detached()
 
-        lm_callback.user_checkpoint(ZERO_ADDRESS)
-        assert len(filter_logs(lm_callback, "Detached")) == 0
+        cb.user_checkpoint(ZERO_ADDRESS)
+        assert len(filter_logs(cb, "Attached")) == 0
+        assert len(filter_logs(cb, "Detached")) == 0
