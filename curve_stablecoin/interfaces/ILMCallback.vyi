@@ -138,4 +138,3 @@ def user_checkpoint(addr: address) -> bool:
 @external
 def claimable_tokens(addr: address) -> uint256:
     ...
-

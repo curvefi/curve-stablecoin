@@ -338,4 +338,3 @@ def claimable_tokens(addr: address) -> uint256:
     self._user_checkpoint(addr)
 
     return self.integrate_fraction[addr] - staticcall MINTER.minted(addr, self)
-

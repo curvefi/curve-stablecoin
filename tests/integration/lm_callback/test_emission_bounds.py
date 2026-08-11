@@ -83,8 +83,16 @@ def soft_liquidate(amm, price_oracle, admin, trader, borrowed_token, factor):
 
 
 def test_weight_budget_attached(
-    admin, trader, collateral_token, borrowed_token, crv, controller, amm,
-    price_oracle, lm_callback, gauge_controller,
+    admin,
+    trader,
+    collateral_token,
+    borrowed_token,
+    crv,
+    controller,
+    amm,
+    price_oracle,
+    lm_callback,
+    gauge_controller,
 ):
     """While attached, total mintable never exceeds the gauge's weight budget.
 
@@ -111,13 +119,22 @@ def test_weight_budget_attached(
 
         assert crv.start_epoch_time() == epoch0, "test crossed a CRV epoch"
         minted = sum(lm_callback.integrate_fraction(u) for u in users)
-        budget = weight_budget(gauge_controller, lm_callback, rate, t0, boa.env.timestamp)
+        budget = weight_budget(
+            gauge_controller, lm_callback, rate, t0, boa.env.timestamp
+        )
         assert minted <= budget, f"over-mint by {minted - budget}"
 
 
 def test_unattached_callback_cannot_be_bricked(
-    admin, collateral_token, borrowed_token, crv, controller, configurator, amm,
-    deploy_lm_callback, gauge_controller,
+    admin,
+    collateral_token,
+    borrowed_token,
+    crv,
+    controller,
+    configurator,
+    amm,
+    deploy_lm_callback,
+    gauge_controller,
 ):
     """A callback that has not gone live yet must not arm the detach latch.
 
@@ -156,8 +173,16 @@ def test_unattached_callback_cannot_be_bricked(
 
 
 def test_detached_does_not_accrue_on_stale_cps(
-    admin, trader, collateral_token, borrowed_token, crv, controller, configurator,
-    amm, price_oracle, lm_callback,
+    admin,
+    trader,
+    collateral_token,
+    borrowed_token,
+    crv,
+    controller,
+    configurator,
+    amm,
+    price_oracle,
+    lm_callback,
 ):
     """Once detached, stale `collateral_per_share` must not keep earning.
 
@@ -192,8 +217,14 @@ def test_detached_does_not_accrue_on_stale_cps(
 
 
 def test_detached_deposit_earns_nothing(
-    admin, collateral_token, borrowed_token, crv, controller, configurator,
-    lm_callback, minter,
+    admin,
+    collateral_token,
+    borrowed_token,
+    crv,
+    controller,
+    configurator,
+    lm_callback,
+    minter,
 ):
     """Path 1: deposit while detached, then call the permissionless checkpoint.
 
@@ -223,8 +254,14 @@ def test_detached_deposit_earns_nothing(
 
 
 def test_detached_stays_within_weight_budget(
-    admin, collateral_token, borrowed_token, crv, controller, configurator,
-    lm_callback, gauge_controller,
+    admin,
+    collateral_token,
+    borrowed_token,
+    crv,
+    controller,
+    configurator,
+    lm_callback,
+    gauge_controller,
 ):
     """The weight bound must survive detachment, whatever else changes."""
     with boa.env.anchor():
@@ -243,18 +280,25 @@ def test_detached_stays_within_weight_budget(
         lm_callback.user_checkpoint(latecomer)
 
         assert crv.start_epoch_time() == epoch0, "test crossed a CRV epoch"
-        minted = sum(
-            lm_callback.integrate_fraction(u) for u in (honest, latecomer)
+        minted = sum(lm_callback.integrate_fraction(u) for u in (honest, latecomer))
+        budget = weight_budget(
+            gauge_controller, lm_callback, rate, t0, boa.env.timestamp
         )
-        budget = weight_budget(gauge_controller, lm_callback, rate, t0, boa.env.timestamp)
         assert minted <= budget, (
             f"over-mint by {minted - budget} ({minted / budget:.2f}x budget)"
         )
 
 
 def test_detached_stale_baseline_earns_nothing(
-    admin, collateral_token, borrowed_token, crv, controller, configurator,
-    amm, lm_callback, minter,
+    admin,
+    collateral_token,
+    borrowed_token,
+    crv,
+    controller,
+    configurator,
+    amm,
+    lm_callback,
+    minter,
 ):
     """A baseline left behind by a closed position must not license a new one.
 
@@ -298,8 +342,14 @@ def test_detached_stale_baseline_earns_nothing(
 
 
 def test_reattached_deposit_earns_nothing_for_the_gap(
-    admin, collateral_token, borrowed_token, crv, controller, configurator,
-    lm_callback, minter,
+    admin,
+    collateral_token,
+    borrowed_token,
+    crv,
+    controller,
+    configurator,
+    lm_callback,
+    minter,
 ):
     """Path 2: deposit lands during a detach window, then the callback is re-attached.
 
