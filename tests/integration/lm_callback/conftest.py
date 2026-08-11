@@ -106,7 +106,7 @@ def minter(admin, crv, gauge_controller):
 @pytest.fixture(scope="module")
 def lm_callback_factory(admin, minter):
     """
-    Factory whose owner() gates set_killed on every callback it deploys.
+    Factory that deploys the callbacks under test.
 
     LMCallback can only be deployed from a factory - its constructor takes the
     deployer as LM_CALLBACK_FACTORY - so tests go through the real one. Depends

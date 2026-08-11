@@ -36,8 +36,8 @@ def test_transfer_ownership_unauthorized(factory, owner, non_owner):
 
 def test_transfer_ownership_to_zero_reverts(factory, owner):
     """
-    The owner cannot be dropped: `LMCallback.set_killed` is gated on it, and an
-    ownerless factory could never update or unset its blueprint again.
+    The owner cannot be dropped: an ownerless factory could never update or
+    unset its blueprint again.
     """
     with boa.reverts("ownable: new owner is the zero address"):
         factory.transfer_ownership(ZERO_ADDRESS, sender=owner)
