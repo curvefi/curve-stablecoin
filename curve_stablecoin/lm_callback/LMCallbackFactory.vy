@@ -22,8 +22,7 @@ initializes: pausable
 
 exports: (
     # `renounce_ownership` is intentionally not exported: with a zero owner the
-    # blueprint could never be updated again, and `set_killed` would be
-    # permanently uncallable on every LM Callback this factory deployed
+    # blueprint could never be updated again
     ownable.owner,
     ownable.transfer_ownership,
     pausable.paused,

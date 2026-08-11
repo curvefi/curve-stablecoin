@@ -2,8 +2,11 @@ from curve_stablecoin import constants as c
 MAX_TICKS_UINT: constant(uint256) = c.MAX_TICKS_UINT
 
 
-event SetKilled:
-    is_killed: bool
+event Attached:
+    pass
+
+event Detached:
+    pass
 
 event UpdateInflationRate:
     new_rate: uint256
@@ -46,19 +49,19 @@ def AMM() -> address:
 
 @view
 @external
-def LM_CALLBACK_FACTORY() -> address:
-    ...
-
-
-@view
-@external
 def COLLATERAL_TOKEN() -> address:
     ...
 
 
 @view
 @external
-def is_killed() -> bool:
+def attached() -> bool:
+    ...
+
+
+@view
+@external
+def detached() -> bool:
     ...
 
 
@@ -136,7 +139,3 @@ def user_checkpoint(addr: address) -> bool:
 def claimable_tokens(addr: address) -> uint256:
     ...
 
-
-@external
-def set_killed(_is_killed: bool):
-    ...
