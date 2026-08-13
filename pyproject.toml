@@ -13,6 +13,7 @@ dependencies = [
     "snekmate>=0.1.1",
     "curve-std",
     "boa-solidity",
+    "stableswap-ng",
 ]
 
 [dependency-groups]
@@ -30,9 +31,9 @@ dev = [
 
 [tool.uv.sources]
 titanoboa = { git = "https://github.com/vyperlang/titanoboa", rev = "ed81f209bc407fe4c990d4875dcd4106e976a27f" }
-curve-std = { git = "https://github.com/curvefi/curve-std", rev = "5556df1908837454c1b99d3cb79dd7e3d552d047" }
+curve-std = { git = "https://github.com/curvefi/curve-std", rev = "main" }
 boa-solidity = { git = "https://github.com/z80dev/boa-solidity", rev = "main" }
-# TODO add stableswap here as a package instead of git submodule
+stableswap-ng = { git = "https://github.com/curvefi/stableswap-ng", rev = "7a9f6f11fb67e4778fb2496e65a09ec2939e339c" }
 
 
 [tool.ruff.lint]

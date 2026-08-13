@@ -509,6 +509,7 @@ dependencies = [
     { name = "boa-solidity" },
     { name = "curve-std" },
     { name = "snekmate" },
+    { name = "stableswap-ng" },
     { name = "vyper" },
 ]
 
@@ -528,8 +529,9 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "boa-solidity", git = "https://github.com/z80dev/boa-solidity?rev=main" },
-    { name = "curve-std", git = "https://github.com/curvefi/curve-std?rev=5556df1908837454c1b99d3cb79dd7e3d552d047" },
+    { name = "curve-std", git = "https://github.com/curvefi/curve-std?rev=main" },
     { name = "snekmate", specifier = ">=0.1.1" },
+    { name = "stableswap-ng", git = "https://github.com/curvefi/stableswap-ng?rev=7a9f6f11fb67e4778fb2496e65a09ec2939e339c" },
     { name = "vyper", specifier = "==0.4.3" },
 ]
 
@@ -549,9 +551,10 @@ dev = [
 [[package]]
 name = "curve-std"
 version = "0.1.0"
-source = { git = "https://github.com/curvefi/curve-std?rev=5556df1908837454c1b99d3cb79dd7e3d552d047#5556df1908837454c1b99d3cb79dd7e3d552d047" }
+source = { git = "https://github.com/curvefi/curve-std?rev=main#048cb23d0ed4c48768815ea5c46d4a676da8de35" }
 dependencies = [
     { name = "snekmate" },
+    { name = "titanoboa" },
     { name = "vyper" },
 ]
 
@@ -1976,6 +1979,16 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/e8/c4/ba2f8066cceb6f23394729afe52f3bf7adec04bf9ed2c820b39e19299111/sortedcontainers-2.4.0.tar.gz", hash = "sha256:25caa5a06cc30b6b83d11423433f65d1f9d76c4c6a0c90e3379eaa43b9bfdb88", size = 30594, upload-time = "2021-05-16T22:03:42.897Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/32/46/9cb0e58b2deb7f82b84065f37f3bffeb12413f947f9388e4cac22c4621ce/sortedcontainers-2.4.0-py2.py3-none-any.whl", hash = "sha256:a163dcaede0f1c021485e957a39245190e74249897e2ae4b2aa38595db237ee0", size = 29575, upload-time = "2021-05-16T22:03:41.177Z" },
+]
+
+[[package]]
+name = "stableswap-ng"
+version = "0.0.1"
+source = { git = "https://github.com/curvefi/stableswap-ng?rev=7a9f6f11fb67e4778fb2496e65a09ec2939e339c#7a9f6f11fb67e4778fb2496e65a09ec2939e339c" }
+dependencies = [
+    { name = "curve-std" },
+    { name = "snekmate" },
+    { name = "vyper" },
 ]
 
 [[package]]
