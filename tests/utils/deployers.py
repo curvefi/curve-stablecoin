@@ -4,6 +4,7 @@ Each deployer is a VyperDeployer object returned using boa.load_partial().
 """
 
 import curve_stablecoin
+import stableswap_ng
 from pathlib import Path
 
 import boa
@@ -39,6 +40,9 @@ STABLESWAP_NG_PATH = (
     _PACKAGE_ROOT / "testing" / "stableswap-ng" / "curve_stablecoin" / "main"
 )
 ZAPS_CONTRACT_PATH = _PACKAGE_ROOT / "zaps"
+
+# Contracts shipped by the installed `stableswap-ng` dependency (namespace package)
+STABLESWAP_NG_PACKAGE_PATH = Path(list(stableswap_ng.__path__)[0])
 
 # Constants contract (for accessing constants)
 CONSTANTS_DEPLOYER = boa.load_partial(
@@ -144,10 +148,6 @@ CRYPTO_FROM_POOL_DEPLOYER = boa.load_partial(
     PRICE_ORACLES_CONTRACT_PATH / "CryptoFromPool.vy",
     compiler_args=compiler_args_default,
 )
-CRYPTO_FROM_ORACLE_AND_ERC4626_DEPLOYER = boa.load_partial(
-    PRICE_ORACLES_CONTRACT_PATH / "CryptoFromOracleAndERC4626.vy",
-    compiler_args=compiler_args_default,
-)
 ERC4626_EMA_WRAPPER_DEPLOYER = boa.load_partial(
     PRICE_ORACLES_CONTRACT_PATH / "v2" / "ERC4626EMAWrapper.vy",
     compiler_args=compiler_args_default,
@@ -195,6 +195,18 @@ LP_ORACLE_CRYPTO_DEPLOYER = boa.load_partial(
 # LPOracleFactory.vy has #pragma optimize gas
 LP_ORACLE_FACTORY_DEPLOYER = boa.load_partial(
     PRICE_ORACLES_CONTRACT_PATH / "lp-oracles" / "LPOracleFactory.vy",
+    compiler_args=compiler_args_gas,
+)
+# LPOracleStableSwapNG.vy has #pragma optimize codesize
+LP_ORACLE_STABLESWAP_NG_DEPLOYER = boa.load_partial(
+    PRICE_ORACLES_CONTRACT_PATH / "v2" / "LPOracleStableSwapNG.vy",
+    compiler_args=compiler_args_codesize,
+)
+# Upstream (stableswap-ng package) LP oracle reading the pool's *spot* virtual
+# price - the un-hardened counterpart of LPOracleStableSwapNG.
+# It has #pragma optimize gas.
+STABLESWAP_NG_SPOT_LP_ORACLE_DEPLOYER = boa.load_partial(
+    STABLESWAP_NG_PACKAGE_PATH / "LPOracle.vy",
     compiler_args=compiler_args_gas,
 )
 
