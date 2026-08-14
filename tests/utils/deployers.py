@@ -197,13 +197,13 @@ LP_ORACLE_FACTORY_DEPLOYER = boa.load_partial(
     PRICE_ORACLES_CONTRACT_PATH / "lp-oracles" / "LPOracleFactory.vy",
     compiler_args=compiler_args_gas,
 )
-# LPOracleStableSwapNG.vy has #pragma optimize codesize
+# StableSwapNGLPOracle.vy has #pragma optimize codesize
 LP_ORACLE_STABLESWAP_NG_DEPLOYER = boa.load_partial(
-    PRICE_ORACLES_CONTRACT_PATH / "v2" / "LPOracleStableSwapNG.vy",
+    PRICE_ORACLES_CONTRACT_PATH / "v2" / "StableSwapNGLPOracle.vy",
     compiler_args=compiler_args_codesize,
 )
 # Upstream (stableswap-ng package) LP oracle reading the pool's *spot* virtual
-# price - the un-hardened counterpart of LPOracleStableSwapNG.
+# price - the un-hardened counterpart of StableSwapNGLPOracle.
 # It has #pragma optimize gas.
 STABLESWAP_NG_SPOT_LP_ORACLE_DEPLOYER = boa.load_partial(
     STABLESWAP_NG_PACKAGE_PATH / "LPOracle.vy",

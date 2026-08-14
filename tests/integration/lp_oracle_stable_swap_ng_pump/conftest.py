@@ -127,7 +127,7 @@ def pool(pool_A_precise, pool_price):
 
 
 # ---------------------------------------------------------------------------
-# Oracle plumbing: LPOracleStableSwapNG(POOL, COIN_IDX, ema_time) prices the
+# Oracle plumbing: StableSwapNGLPOracle(POOL, COIN_IDX, ema_time) prices the
 # pool while smoothing its manipulable virtual price.  The market is created
 # with it directly.
 #

@@ -13,7 +13,7 @@ same factor and can force a liquidation.  (See tests/integration/ERC4626_pump fo
 that attack carried out end to end against a naive oracle; there the manipulated
 input is an ERC4626 share price, but the market-level mechanics are identical.)
 
-``LPOracleStableSwapNG`` smooths the manipulable virtual price with an
+``StableSwapNGLPOracle`` smooths the manipulable virtual price with an
 exponential moving average:
 
     price = portfolio_value(A, POOL.price_oracle(0)) * EMA(virtual_price) / 1e18
