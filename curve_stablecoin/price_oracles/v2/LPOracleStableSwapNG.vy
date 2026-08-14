@@ -1,6 +1,4 @@
 # pragma version 0.4.3
-# pragma nonreentrancy on
-# pragma optimize codesize
 """
 @title StableSwapNG LP EMA Oracle
 @author Curve.Finance
@@ -80,8 +78,7 @@ def _virtual_price() -> uint256:
     @dev Upside is the EMA-smoothed value, downside is the spot value -
          i.e. `min(spot, ema)`.
     """
-    spot: uint256 = staticcall POOL.get_virtual_price()
-    return min(spot, ema.read(VIRTUAL_PRICE_EMA_ID))
+    return min(staticcall POOL.get_virtual_price(), ema.read(VIRTUAL_PRICE_EMA_ID))
 
 
 @internal
@@ -104,6 +101,7 @@ def _virtual_price_w() -> uint256:
             prev_timestamp=block.timestamp,
             queued_value=spot,
         )
+        log ema.EmaUpdate(ema_id=VIRTUAL_PRICE_EMA_ID, prev_value=spot, queued_value=spot)
         return spot
 
     # Upside: smooth toward spot via the EMA's queueing update and report the
