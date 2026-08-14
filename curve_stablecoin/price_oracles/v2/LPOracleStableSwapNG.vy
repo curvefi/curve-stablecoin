@@ -3,8 +3,9 @@
 @title StableSwapNG LP EMA Oracle
 @author Curve.Finance
 @license Copyright (c) Curve.Finance, 2020-2026 - all rights reserved
-@notice Prices the LP token of a 2-coin StableSwap-NG pool, quoted in the base
-        asset of coin `COIN_IDX`. Each contract is specific to a single pool.
+@notice Prices the LP token of a 2-coin StableSwap-NG pool, quoted in the
+        underlying asset of coin `COIN_IDX`. Each contract is specific to a
+        single pool.
 
         The LP price is the pool's portfolio value (derived from the pool's
         internal `price_oracle`) scaled by the pool's `get_virtual_price()`.
@@ -39,17 +40,17 @@ initializes: ema
 
 POOL: public(immutable(lp_oracle.IStableSwapNG))
 COIN_IDX: public(immutable(uint256))
-# Identifier of the EMA tracking the pool share price (get_virtual_price()).
+# Identifier of the EMA tracking the pool virtual price (get_virtual_price()).
 VIRTUAL_PRICE_EMA_ID: constant(String[4]) = "vp"
 
 
 @deploy
 def __init__(_pool: lp_oracle.IStableSwapNG, _i: uint256, _ema_time: uint256,):
     """
-    @notice Price the LP token of a StableSwap-NG pool with an EMA-dampened virtual price.
+    @notice Set the priced pool and seed the virtual-price EMA with its current value.
     @param _pool StableSwap-NG pool (2 coins only) whose LP token is priced.
     @param _i Coin index used for quoting, 0 or 1. The price is quoted in
-           the base asset of that coin: for a plain ERC20 coin this is the token
+           the underlying asset of that coin: for a plain ERC20 coin this is the token
            itself, for a yield-bearing coin, e.g. `sA`, it is the underlying `A`.
     @param _ema_time Smoothing horizon (seconds) of the upside virtual-price EMA.
     """
@@ -92,7 +93,7 @@ def _virtual_price_w() -> uint256:
     spot: uint256 = staticcall POOL.get_virtual_price()
 
     if spot < ema.read(VIRTUAL_PRICE_EMA_ID):
-        # Downside (or flat): apply immediately and snap the EMA down to spot.
+        # Downside: apply immediately and snap the EMA down to spot.
         # prev_value == queued_value == spot makes `read` return spot for any dt,
         # so this is a fully consistent EMA state.
         ema._emas[VIRTUAL_PRICE_EMA_ID] = ema.EMA(
@@ -115,7 +116,7 @@ def price() -> uint256:
     """
     @notice LP token price: pool portfolio value scaled by the dampened virtual price.
     @return The manipulation-resistant LP price, 1e18-scaled and quoted in the
-            base asset of coin `COIN_IDX`.
+            underlying asset of coin `COIN_IDX`.
     """
     return lp_oracle._portfolio_value(POOL, COIN_IDX) * self._virtual_price() // lp_oracle.PRECISION
 
@@ -125,6 +126,6 @@ def price_w() -> uint256:
     """
     @notice Same as `price`, but persists the virtual-price EMA state.
     @return The manipulation-resistant LP price, 1e18-scaled and quoted in the
-            base asset of coin `COIN_IDX`.
+            underlying asset of coin `COIN_IDX`.
     """
     return lp_oracle._portfolio_value(POOL, COIN_IDX) * self._virtual_price_w() // lp_oracle.PRECISION
