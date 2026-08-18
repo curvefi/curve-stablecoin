@@ -12,7 +12,7 @@ import requests
 from eth_abi import encode
 
 # ---------------------------------------------------------------------------
-# Deployment constants (must match boa-deploy-llamalend-mainnet.py)
+# Deployment constants (must match deploy-llamalend-mainnet.py)
 # ---------------------------------------------------------------------------
 
 MAINNET_DAO = "0x40907540d8a6C65c637785e8f8B742ae6b0b9968"

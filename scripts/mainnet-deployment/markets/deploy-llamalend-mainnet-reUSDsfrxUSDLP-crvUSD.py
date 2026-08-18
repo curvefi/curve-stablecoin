@@ -46,11 +46,11 @@ safe) rather than silently misconfigure.
 Run:
     # dry-run against a fork
     MAINNET_RPC_URL=... python scripts/mainnet-deployment/markets/\
-boa-deploy-llamalend-mainnet-reUSD-sfrxUSD-LP-crvUSD.py --dry-run --account-name <name>
+deploy-llamalend-mainnet-reUSD-sfrxUSD-LP-crvUSD.py --dry-run --account-name <name>
 
     # broadcast
     MAINNET_RPC_URL=... python scripts/mainnet-deployment/markets/\
-boa-deploy-llamalend-mainnet-reUSD-sfrxUSD-LP-crvUSD.py --account-name <name>
+deploy-llamalend-mainnet-reUSD-sfrxUSD-LP-crvUSD.py --account-name <name>
 """
 
 import argparse

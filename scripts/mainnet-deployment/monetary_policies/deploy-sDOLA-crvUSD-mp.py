@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 """
-Deploy the RateCalculator + HyperbolicDynamicMP for the *existing* sfrxUSD/crvUSD
+Deploy the RateCalculator + HyperbolicDynamicMP for the *existing* sDOLA/crvUSD
 LlamaLend V2 market on Ethereum Mainnet (the contracts were fixed and refactored).
 
 Unlike the original market-deploy script, the market already exists, so nothing
 is created here and no oracle stack is touched. This deploys, in order:
-    1. SfrxUSDRateCalculator(sfrxUSD)          -> per-second yield rate of collateral
+    1. SDolaRateCalculator(sDOLA)              -> per-second yield rate of collateral
     2. HyperbolicDynamicMP(controller, rate_calculator, curve params...)
 
 The controller is NOT precomputed: it is read from the existing market deployment
@@ -20,11 +20,11 @@ governance action (the DAO owns the factory/controller), e.g. via
 Run:
     # dry-run against a fork
     MAINNET_RPC_URL=... python scripts/mainnet-deployment/monetary_policies/\
-boa-deploy-sfrxUSD-crvUSD-mp.py --dry-run --account-name <name>
+deploy-sDOLA-crvUSD-mp.py --dry-run --account-name <name>
 
     # broadcast
     MAINNET_RPC_URL=... python scripts/mainnet-deployment/monetary_policies/\
-boa-deploy-sfrxUSD-crvUSD-mp.py --account-name <name>
+deploy-sDOLA-crvUSD-mp.py --account-name <name>
 """
 
 import argparse
@@ -43,16 +43,16 @@ from eth_utils import to_checksum_address
 
 
 # --- Tokens ---
-SFRXUSD = "0xcf62F905562626CfcDD2261162a51fd02Fc9c5b6"  # collateral (ERC4626 vault)
-COLLATERAL = SFRXUSD
+SDOLA = "0xb45ad160634c528Cc3D2926d9807104FA3157305"  # collateral (ERC4626 vault)
+COLLATERAL = SDOLA
 
 # --- Contract sources ---
 RATE_CALCULATOR = (
-    "curve_stablecoin/mpolicies/v2/rate_calculators/SfrxUSDRateCalculator.vy"
+    "curve_stablecoin/mpolicies/v2/rate_calculators/SDolaRateCalculator.vy"
 )
 HYPERBOLIC_DYNAMIC_MP = "curve_stablecoin/mpolicies/v2/HyperbolicDynamicMP.vy"
 
-# --- Monetary policy curve (identical to the original sfrxUSD/crvUSD deployment) ---
+# --- Monetary policy curve (identical to the original sDOLA/crvUSD deployment) ---
 TARGET_UTILIZATION = 90 * 10**16  # 90%
 LOW_RATIO = 5 * 10**17  # 0.5x base at 0% utilization
 HIGH_RATIO = 5 * 10**18  # 5x base at 100% utilization
@@ -103,7 +103,7 @@ def _deploy(deployer: str, dry_run: bool, market_deployment: Path) -> None:
         assert to_checksum_address(
             existing["params"]["collateral_token"]
         ) == to_checksum_address(COLLATERAL), (
-            "market deployment collateral does not match sfrxUSD"
+            "market deployment collateral does not match sDOLA"
         )
 
     # 1. Rate calculator reading the live vault.
@@ -123,7 +123,7 @@ def _deploy(deployer: str, dry_run: bool, market_deployment: Path) -> None:
     target_rate = monetary_policy.target_rate()
     rate = monetary_policy.rate()
 
-    print("Market:", "sfrxUSD/crvUSD")
+    print("Market:", "sDOLA/crvUSD")
     print("Controller (existing):", controller_addr)
     print("Rate Calculator:", rate_calculator.address)
     print("Monetary Policy:", monetary_policy.address)
@@ -142,7 +142,7 @@ def _deploy(deployer: str, dry_run: bool, market_deployment: Path) -> None:
 
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description="Deploy sfrxUSD/crvUSD RateCalculator + HyperbolicDynamicMP on Mainnet"
+        description="Redeploy sDOLA/crvUSD RateCalculator + HyperbolicDynamicMP on Mainnet"
     )
     parser.add_argument("--rpc-url", default=os.environ.get("MAINNET_RPC_URL"))
     parser.add_argument("--dry-run", action="store_true")
@@ -153,7 +153,7 @@ def main() -> None:
     )
     parser.add_argument(
         "--market-deployment",
-        default="deployments/mainnet/markets/llamalend-mainnet-sfrxUSD-crvUSD.jsonc",
+        default="deployments/mainnet/markets/llamalend-mainnet-sDOLA-crvUSD.jsonc",
         help="Existing market deployment JSON to read the controller address from",
     )
     args = parser.parse_args()

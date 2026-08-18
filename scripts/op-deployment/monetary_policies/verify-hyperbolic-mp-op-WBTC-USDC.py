@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Verify the WBTC/USDC HyperbolicMP monetary policy on Optimism Etherscan.
 
-Companion to boa-deploy-hyperbolic-mp-op-WBTC-USDC.py, which deploys just the
+Companion to deploy-hyperbolic-mp-op-WBTC-USDC.py, which deploys just the
 policy against the existing market and writes no report. Update the market
 deployment file's `monetary_policy` field to the redeployed HyperbolicMP address,
 then run this; the controller (a HyperbolicMP constructor arg) is read from that
@@ -24,7 +24,7 @@ import requests
 from eth_abi import encode
 
 # ---------------------------------------------------------------------------
-# Contract source + curve params (must match boa-deploy-hyperbolic-mp-op-WBTC-USDC.py)
+# Contract source + curve params (must match deploy-hyperbolic-mp-op-WBTC-USDC.py)
 # ---------------------------------------------------------------------------
 
 HYPERBOLIC_MP_SRC = "curve_stablecoin/mpolicies/v2/HyperbolicMP.vy"

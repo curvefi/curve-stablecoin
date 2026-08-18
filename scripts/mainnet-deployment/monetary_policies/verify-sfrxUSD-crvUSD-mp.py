@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Verify the sfrxUSD/crvUSD RateCalculator + HyperbolicDynamicMP on Etherscan (Mainnet).
 
-Companion to boa-deploy-sfrxUSD-crvUSD-mp.py, which redeploys just these two
+Companion to deploy-sfrxUSD-crvUSD-mp.py, which redeploys just these two
 contracts against the existing market and writes NO report file. Update the
 market deployment report's `rate_calculator` and `monetary_policy` fields to the
 newly deployed addresses, then run this; the controller and curve parameters
@@ -29,7 +29,7 @@ import requests
 from eth_abi import encode
 
 # ---------------------------------------------------------------------------
-# Contract sources (must match boa-deploy-sfrxUSD-crvUSD-mp.py)
+# Contract sources (must match deploy-sfrxUSD-crvUSD-mp.py)
 # ---------------------------------------------------------------------------
 
 RATE_CALCULATOR_SRC = (

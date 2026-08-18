@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """
-Deploy a HyperbolicMP monetary policy for the WBTC/USDC LlamaLend market on Optimism.
+Deploy a HyperbolicMP monetary policy for the wstETH/USDC LlamaLend market on Optimism.
 
 HyperbolicMP is a fixed-target-rate policy with a hyperbolic rate curve. Its
 Controller is an immutable set in the constructor, so this script binds it to the
-*existing* WBTC/USDC market controller (read from the market's deployment file).
+*existing* wstETH/USDC market controller (read from the market's deployment file).
 
 This only deploys the policy; wiring it into the controller (set_monetary_policy)
 is a separate factory-admin / DAO action and is intentionally not done here.
@@ -15,11 +15,11 @@ guard in _deploy() aborts before touching the chain.
 Run:
     # dry-run against a fork
     OP_RPC_URL=... python scripts/op-deployment/\
-boa-deploy-hyperbolic-mp-op-WBTC-USDC.py --dry-run --keystore <path>
+deploy-hyperbolic-mp-op-wstETH-USDC.py --dry-run --keystore <path>
 
     # broadcast
     OP_RPC_URL=... python scripts/op-deployment/\
-boa-deploy-hyperbolic-mp-op-WBTC-USDC.py --keystore <path>
+deploy-hyperbolic-mp-op-wstETH-USDC.py --keystore <path>
 """
 
 import argparse
@@ -103,7 +103,7 @@ def _deploy(deployer: str, dry_run: bool, market_deployment: Path) -> None:
         RATE_SHIFT,
     )
 
-    print("Market: WBTC/USDC (Optimism)")
+    print("Market: wstETH/USDC (Optimism)")
     print("Controller:", controller)
     print("Monetary Policy (HyperbolicMP):", monetary_policy.address)
     print("Target APR:", monetary_policy.target_apr() / 10**18)
@@ -111,7 +111,7 @@ def _deploy(deployer: str, dry_run: bool, market_deployment: Path) -> None:
 
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description="Deploy HyperbolicMP for WBTC/USDC on Optimism"
+        description="Deploy HyperbolicMP for wstETH/USDC on Optimism"
     )
     parser.add_argument("--rpc-url", default=os.environ.get("OP_RPC_URL"))
     parser.add_argument("--dry-run", action="store_true")
@@ -122,7 +122,7 @@ def main() -> None:
     )
     parser.add_argument(
         "--market-deployment",
-        default="deployments/op/llamalend-op-WBTC-USDC.jsonc",
+        default="deployments/op/llamalend-op-wstETH-USDC.jsonc",
         help="Path to the existing market deployment JSON to read the controller from",
     )
     args = parser.parse_args()

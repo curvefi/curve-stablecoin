@@ -3,7 +3,7 @@
 policy on Etherscan (Mainnet).
 
 Reads the deployment report written by
-    boa-deploy-llamalend-mainnet-sDOLA-crvUSD.py
+    deploy-llamalend-mainnet-sDOLA-crvUSD.py
 and submits source + constructor args for each contract that script deploys:
     1. OracleFromCurvePools   (pool_oracle)
     2. CrvUSDAggregatorWrapper (agg_wrapper)
@@ -31,7 +31,7 @@ import requests
 from eth_abi import encode
 
 # ---------------------------------------------------------------------------
-# Contract sources (must match boa-deploy-llamalend-mainnet-sDOLA-crvUSD.py)
+# Contract sources (must match deploy-llamalend-mainnet-sDOLA-crvUSD.py)
 # ---------------------------------------------------------------------------
 
 RATE_CALCULATOR_SRC = (
