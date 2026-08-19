@@ -9,17 +9,12 @@ Verifies, with their constructor args:
                                  blueprint itself is submitted with none
     2. LMCallbackFactory      -- ctor: (owner, blueprint)
 
-With --callbacks it also walks the factory's registry over RPC and verifies every
-callback deployed from it (ctor: (amm), read back from the instance). Callbacks
-are deployed permissionlessly, so that set grows independently of this script.
+The callbacks the factory deploys are blueprint copies of 1., so verifying the
+blueprint covers them and they are not submitted individually.
 
 Run:
     ETHERSCAN_API_KEY=... python scripts/mainnet-deployment/\
 verify-lm-callback-factory.py
-
-    # also verify the callbacks deployed so far
-    ETHERSCAN_API_KEY=... MAINNET_RPC_URL=... python scripts/mainnet-deployment/\
-verify-lm-callback-factory.py --callbacks
 """
 
 import argparse
@@ -222,36 +217,6 @@ def _get_creation_txhash(api_key: str, address: str) -> str | None:
     return None
 
 
-def _eth_call(rpc_url: str, to: str, sig: str, arg: int | None = None) -> str:
-    """Single-word `eth_call`, returned as a 32-byte hex word."""
-    from eth_utils.crypto import keccak
-
-    data = "0x" + keccak(sig.encode())[:4].hex()
-    if arg is not None:
-        data += f"{arg:064x}"
-    resp = requests.post(
-        rpc_url,
-        json={
-            "jsonrpc": "2.0",
-            "method": "eth_call",
-            "params": [{"to": to, "data": data}, "latest"],
-            "id": 1,
-        },
-        timeout=30,
-    )
-    resp.raise_for_status()
-    result = resp.json()["result"]
-    return result[2:].zfill(64)
-
-
-def _call_address(rpc_url: str, to: str, sig: str, arg: int | None = None) -> str:
-    return "0x" + _eth_call(rpc_url, to, sig, arg)[-40:]
-
-
-def _call_uint(rpc_url: str, to: str, sig: str, arg: int | None = None) -> int:
-    return int(_eth_call(rpc_url, to, sig, arg), 16)
-
-
 def _submit(
     api_key: str,
     address: str,
@@ -338,12 +303,6 @@ def main() -> None:
         default=DEFAULT_DEPLOYMENT,
         help="Path to the deployment report written by deploy-lm-callback-factory.py",
     )
-    parser.add_argument(
-        "--callbacks",
-        action="store_true",
-        help="Also verify every LM Callback the factory has deployed (needs "
-        "MAINNET_RPC_URL to read the factory's registry)",
-    )
     args = parser.parse_args()
 
     api_key = os.environ.get("ETHERSCAN_API_KEY")
@@ -366,14 +325,12 @@ def main() -> None:
     def vy_json(rel: str, optimize: str | None = None) -> dict:
         return _build_vyper_json(PROJECT_ROOT / rel, optimize=optimize)
 
-    lm_callback_json = vy_json(LM_CALLBACK_SRC)
-
     contracts = [
         (
             blueprint_addr,
             "LMCallback Blueprint (Vyper 0.4.3)",
             LM_CALLBACK_NAME,
-            lm_callback_json,
+            vy_json(LM_CALLBACK_SRC),
             "vyper:0.4.3",
             "vyper-json",
             "",
@@ -390,32 +347,6 @@ def main() -> None:
             "1",
         ),
     ]
-
-    if args.callbacks:
-        rpc_url = os.environ.get("MAINNET_RPC_URL")
-        if not rpc_url:
-            raise SystemExit("--callbacks needs MAINNET_RPC_URL")
-        count = _call_uint(rpc_url, factory_addr, "get_lm_callback_count()")
-        print(f"Factory {factory_addr} has deployed {count} LM Callback(s)")
-        for i in range(count):
-            callback = _call_address(
-                rpc_url, factory_addr, "get_lm_callback(uint256)", i
-            )
-            # The callback's only constructor arg, read back from the instance.
-            amm = _call_address(rpc_url, callback, "AMM()")
-            print(f"  [{i}] {callback} (AMM {amm})")
-            contracts.append(
-                (
-                    callback,
-                    f"LMCallback #{i} (Vyper 0.4.3)",
-                    LM_CALLBACK_NAME,
-                    lm_callback_json,
-                    "vyper:0.4.3",
-                    "vyper-json",
-                    encode(["address"], [amm]).hex(),
-                    "1",
-                )
-            )
 
     for (
         address,
