@@ -27,13 +27,19 @@ dev = [
     "pytest-profiling>=1.8.1",
     "pre-commit==4.3.0",
     "z3-solver>=4.12.0",
+    "curve-dao",
 ]
+
+[tool.uv]
+# curve-dao pins its own titanoboa rev; keep the repo's pin everywhere.
+override-dependencies = ["titanoboa"]
 
 [tool.uv.sources]
 titanoboa = { git = "https://github.com/vyperlang/titanoboa", rev = "ed81f209bc407fe4c990d4875dcd4106e976a27f" }
 curve-std = { git = "https://github.com/curvefi/curve-std", rev = "main" }
 boa-solidity = { git = "https://github.com/z80dev/boa-solidity", rev = "main" }
 stableswap-ng = { git = "https://github.com/curvefi/stableswap-ng", rev = "7a9f6f11fb67e4778fb2496e65a09ec2939e339c" }
+curve-dao = { git = "https://github.com/heswithme/curve-dao", rev = "03697aebafb016ad297eb5036498c39eead88370" }
 
 
 [tool.ruff.lint]
