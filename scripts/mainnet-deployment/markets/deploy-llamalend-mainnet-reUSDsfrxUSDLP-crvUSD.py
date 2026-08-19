@@ -22,6 +22,15 @@ Per market this deploys, in order:
     2. HyperbolicMP(controller, curve params...) - fixed target rate, for
        like-kind (stable collateral / stable debt) markets.
     3. factory.create(crvUSD, LP token, ... oracle, monetary_policy, supply_limit).
+    4. GaugeFactory.deploy_gauge(vault) - liquidity gauge over the vault's ERC4626
+       shares, i.e. the lender side of CRV emissions.
+    5. LMCallbackFactory.deploy_lm_callback(amm) - gauge-like callback over the
+       AMM's collateral, i.e. the borrower side.
+
+Both liquidity-mining factories are permissionless, so the deploying account
+creates the gauge and the callback here, but neither emits anything on its own:
+the GaugeController has to register them and the Configurator has to attach the
+callback to the market, which is what --create-vote asks the DAO for.
 
 Coin layout of the two pools (both are 2-coin; `coins(2)` reverts):
 
@@ -43,14 +52,40 @@ The constructor only stores the controller (it does not call it), so a
 precomputed address is safe; a wrong prediction makes create() revert (fail
 safe) rather than silently misconfigure.
 
+The borrow cap, the admin fee percentage and the LM callback are set through the
+Configurator, which checks the factory admin - the Ownership DAO on mainnet -
+and adding a gauge needs the DAO-owned GaugeController.  With --create-vote the
+script therefore ends by creating an Ownership DAO vote against the contracts it
+just deployed:
+
+    set_borrow_cap, set_admin_percentage, add_gauge(vault gauge),
+    set_callback(LM callback), add_gauge(LM callback)
+
+both gauges registered with type 0 and zero weight, so emissions follow from
+gauge weight votes.  On a fork the vote is created from a pranked veCRV holder,
+voted through, time-travelled past the voting period and executed, so the
+resulting borrow cap, admin percentage and attached callback are read back
+on-chain and land in the report.  Live, the vote is created from the deploying
+account (which needs to clear the DAO's proposal threshold in veCRV) and nothing
+else happens - the DAO votes on it.
+
+--create-vote needs an Etherscan API key (curve_dao fetches the Aragon agent and
+the target ABIs from it) and, live only, a Pinata token to pin the vote
+description to IPFS - a simulated vote carries the description inline.
+
 Run:
     # dry-run against a fork
     MAINNET_RPC_URL=... python scripts/mainnet-deployment/markets/\
-deploy-llamalend-mainnet-reUSD-sfrxUSD-LP-crvUSD.py --dry-run --account-name <name>
+deploy-llamalend-mainnet-reUSDsfrxUSD-LP-crvUSD.py --dry-run --account-name <name>
+
+    # dry-run, including the activation vote
+    MAINNET_RPC_URL=... ETHERSCAN_API_KEY=... PINATA_TOKEN=... python scripts/\
+mainnet-deployment/markets/deploy-llamalend-mainnet-reUSDsfrxUSD-LP-crvUSD.py \
+--dry-run --account-name <name> --create-vote
 
     # broadcast
     MAINNET_RPC_URL=... python scripts/mainnet-deployment/markets/\
-deploy-llamalend-mainnet-reUSD-sfrxUSD-LP-crvUSD.py --account-name <name>
+deploy-llamalend-mainnet-reUSDsfrxUSD-LP-crvUSD.py --account-name <name>
 """
 
 import argparse
@@ -61,6 +96,7 @@ from getpass import getpass
 from pathlib import Path
 
 import boa
+import curve_dao
 import requests
 from boa.network import NetworkEnv
 from boa.rpc import EthereumRPC
@@ -97,6 +133,17 @@ BRIDGE_QUOTE_IDX = 1  # scrvUSD
 # crvUSD stable aggregator, already deployed (same address CrvUSDAggregatorWrapper pins).
 AGG = "0x18672b1b0c623a30089A280Ed9256379fb0E4E62"
 
+# --- Liquidity mining (all three already deployed, all owned by the DAO) ---
+# Deploys the gauge over the vault's ERC4626 shares - CRV for lenders.
+GAUGE_FACTORY = "0x64e1a69732fAC63F6790b3d8a34C5D713cC623E6"
+# Deploys the callback over the AMM's collateral - CRV for borrowers.
+LM_CALLBACK_FACTORY = "0x323E4BA335F830B6bd3bDeD522368b2A8e3a880E"
+GAUGE_CONTROLLER = "0x2F50D538606Fa9EDD2B11E2446BEb18C9D5846bB"
+# Gauge type 0 and no initial weight: registering only, emissions follow from
+# gauge weight votes.
+GAUGE_TYPE = 0
+GAUGE_WEIGHT = 0
+
 # Smoothing horizon of the LP virtual-price EMA (seconds). 866 ~= 600s / ln(2).
 EMA_TIME = 866
 
@@ -113,6 +160,9 @@ HYPERBOLIC_MP = "curve_stablecoin/mpolicies/v2/HyperbolicMP.vy"
 LEND_FACTORY = "curve_stablecoin/lending/LendFactory.vy"
 CONFIGURATOR = "curve_stablecoin/Configurator.vy"
 LEND_CONTROLLER = "curve_stablecoin/lending/LendController.vy"
+LM_CALLBACK_FACTORY_SRC = "curve_stablecoin/lm_callback/LMCallbackFactory.vy"
+LM_CALLBACK_SRC = "curve_stablecoin/lm_callback/LMCallback.vy"
+AMM_SRC = "curve_stablecoin/AMM.vy"
 
 # --- Monetary policy curve (HyperbolicMP) — subject to governance review ---
 TARGET_UTILIZATION = 90 * 10**16  # 90%
@@ -132,6 +182,15 @@ SUPPLY_LIMIT = 2**256 - 1  # unlimited; borrow cap set separately
 BORROW_CAP = 5_000_000 * 10**18  # crvUSD (18 decimals) — placeholder
 ADMIN_FEE = 10**17  # 10%
 
+# --- Activation vote (the Ownership DAO owns the factory on mainnet) ---
+VOTE_DAO = curve_dao.DAO.OWNERSHIP
+VOTE_DESCRIPTION = (
+    "Activate reUSDsfrxUSDLP-crvUSD Llamalend V2 market on ETH mainnet by "
+    "setting borrow cap {borrow_cap:,} crvUSD and admin fee percentage "
+    "{admin_fee:g}%, adding the vault gauge and the LM callback gauge to the "
+    "gauge controller and setting the LM callback on the market."
+)
+
 # Minimal ABI for reading pool coins.
 POOL_ABI = json.dumps(
     [
@@ -142,6 +201,27 @@ POOL_ABI = json.dumps(
             "inputs": [{"name": "arg0", "type": "uint256"}],
             "outputs": [{"name": "", "type": "address"}],
         }
+    ]
+)
+
+
+# Minimal ABI for the gauge factory (only the two entry points used here).
+GAUGE_FACTORY_ABI = json.dumps(
+    [
+        {
+            "name": "deploy_gauge",
+            "type": "function",
+            "stateMutability": "nonpayable",
+            "inputs": [{"name": "_lp_token", "type": "address"}],
+            "outputs": [{"name": "", "type": "address"}],
+        },
+        {
+            "name": "get_gauge_from_lp_token",
+            "type": "function",
+            "stateMutability": "view",
+            "inputs": [{"name": "arg0", "type": "address"}],
+            "outputs": [{"name": "", "type": "address"}],
+        },
     ]
 )
 
@@ -210,8 +290,80 @@ def _check_pool_coins(pool_addr: str, expected: dict[int, str], label: str) -> N
     print(f"{label} coins verified:", {i: t for i, t in expected.items()})
 
 
+def _create_activation_vote(
+    configurator_addr: str,
+    controller_addr: str,
+    gauge_addr: str,
+    lm_callback_addr: str,
+    dry_run: bool,
+    etherscan_api_key: str,
+    pinata_token: str | None,
+) -> int:
+    """
+    Create the Ownership DAO vote that activates the market.
+
+    Sets the borrow cap and the admin fee, registers both gauges with the
+    GaugeController and attaches the LM callback to the market.  The gauge and
+    the callback are deployed permissionlessly (see `_deploy`), but neither
+    emits anything until it is registered here.
+
+    On a fork the vote is also passed and executed (curve_dao.simulate votes with
+    the Convex voterproxy and time-travels past voteTime), so the caller can read
+    the resulting configuration straight off the controller and the AMM.
+    """
+    actions = [
+        (configurator_addr, "set_borrow_cap", controller_addr, BORROW_CAP),
+        (configurator_addr, "set_admin_percentage", controller_addr, ADMIN_FEE),
+        # Lender-side gauge over the vault shares.
+        (GAUGE_CONTROLLER, "add_gauge", gauge_addr, GAUGE_TYPE, GAUGE_WEIGHT),
+        # Borrower-side callback: attached to the market, then registered as a
+        # gauge in its own right (it reads its relative weight off the
+        # GaugeController and mints through the Minter).
+        (configurator_addr, "set_callback", controller_addr, lm_callback_addr),
+        (GAUGE_CONTROLLER, "add_gauge", lm_callback_addr, GAUGE_TYPE, GAUGE_WEIGHT),
+    ]
+    description = VOTE_DESCRIPTION.format(
+        borrow_cap=BORROW_CAP // 10**18, admin_fee=ADMIN_FEE / 10**16
+    )
+    print("Vote description:", description)
+
+    if not dry_run:
+        # Sent by the deploying account, which needs enough veCRV to propose.
+        vote_id = curve_dao.create_vote(
+            VOTE_DAO,
+            actions,
+            description,
+            etherscan_api_key=etherscan_api_key,
+            pinata_token=pinata_token,
+            is_simulation=False,
+        )
+        print("Activation vote created:", vote_id)
+        return vote_id
+
+    # On a fork the description is not pinned to IPFS, so no Pinata token is
+    # needed; the vote is created from a veCRV holder instead of the deployer.
+    with boa.env.prank(curve_dao.addresses.CONVEX_VOTERPROXY):
+        vote_id = curve_dao.create_vote(
+            VOTE_DAO,
+            actions,
+            description,
+            etherscan_api_key=etherscan_api_key,
+            pinata_token=pinata_token,
+            is_simulation=True,
+        )
+    print("Simulated activation vote:", vote_id)
+    curve_dao.simulate(vote_id, VOTE_DAO, etherscan_api_key)
+    return vote_id
+
+
 def _deploy(
-    deployer: str, dry_run: bool, report_path: Path, factory_deployment: Path
+    deployer: str,
+    dry_run: bool,
+    report_path: Path,
+    factory_deployment: Path,
+    create_vote: bool,
+    etherscan_api_key: str | None,
+    pinata_token: str | None,
 ) -> None:
     if dry_run:
         boa.env.eoa = deployer
@@ -281,25 +433,81 @@ def _deploy(
         f"got {to_checksum_address(controller_addr)}"
     )
 
+    # 4. Liquidity mining. Both factories are permissionless, so the deployer
+    #    creates the contracts; registering them is governance (see the vote).
+    gauge_factory = boa.loads_abi(GAUGE_FACTORY_ABI).at(GAUGE_FACTORY)
+    gauge_addr = to_checksum_address(
+        str(gauge_factory.deploy_gauge(vault_addr, sender=deployer))
+    )
+    # One gauge per LP token: a second deploy_gauge for this vault would revert.
+    assert (
+        to_checksum_address(str(gauge_factory.get_gauge_from_lp_token(vault_addr)))
+        == gauge_addr
+    ), "gauge not registered for the vault"
+
+    lm_callback_factory = boa.load_partial(LM_CALLBACK_FACTORY_SRC).at(
+        LM_CALLBACK_FACTORY
+    )
+    lm_callback_addr = to_checksum_address(
+        str(lm_callback_factory.deploy_lm_callback(amm_addr, sender=deployer))
+    )
+    assert lm_callback_factory.is_valid_lm_callback(lm_callback_addr), (
+        "LM callback not registered by its factory"
+    )
+    lm_callback = boa.load_partial(LM_CALLBACK_SRC).at(lm_callback_addr)
+    assert to_checksum_address(str(lm_callback.AMM())) == to_checksum_address(
+        amm_addr
+    ), "LM callback bound to the wrong AMM"
+
     chain_id = CHAIN_ID
     if hasattr(boa.env, "get_chain_id"):
         chain_id = boa.env.get_chain_id()
 
-    # Optional: borrow cap and admin fee (only if deployer is the factory admin;
-    # on mainnet the DAO owns the factory, so this needs a DAO vote instead).
-    borrow_cap = BORROW_CAP
-    admin_fee = ADMIN_FEE
+    # Borrow cap, admin fee and the callback: set directly if the deployer is the
+    # factory admin, otherwise (mainnet, where the DAO owns the factory) through a
+    # DAO vote. Registering either gauge always needs the DAO - the GaugeController
+    # is DAO-owned and this script never has its admin.
+    controller = boa.load_partial(LEND_CONTROLLER).at(controller_addr)
+    vote_id = None
     if factory.admin() == deployer:
-        controller = boa.load_partial(LEND_CONTROLLER).at(controller_addr)
-        configurator.set_borrow_cap(controller, borrow_cap, sender=deployer)
-        configurator.set_admin_percentage(controller, admin_fee, sender=deployer)
-    else:
-        borrow_cap = 0
-        admin_fee = 0
+        configurator.set_borrow_cap(controller, BORROW_CAP, sender=deployer)
+        configurator.set_admin_percentage(controller, ADMIN_FEE, sender=deployer)
+        configurator.set_callback(controller, lm_callback_addr, sender=deployer)
         print(
-            f"[SKIP] deployer {deployer} is not factory admin — borrow cap and "
-            "admin fee must be set via a DAO vote"
+            "[SKIP] gauge registration: add_gauge on the GaugeController needs "
+            "the DAO, so neither gauge is emitting yet"
         )
+    elif create_vote:
+        print(
+            f"deployer {deployer} is not factory admin — creating the activation "
+            "vote for the Ownership DAO"
+        )
+        vote_id = _create_activation_vote(
+            configurator.address,
+            controller_addr,
+            gauge_addr,
+            lm_callback_addr,
+            dry_run,
+            etherscan_api_key,
+            pinata_token,
+        )
+    else:
+        print(
+            f"[SKIP] deployer {deployer} is not factory admin — borrow cap, admin "
+            "fee, the LM callback and both gauges must be set via a DAO vote "
+            "(rerun with --create-vote)"
+        )
+
+    # Read back what is actually configured on-chain: the vote only applies on a
+    # fork, live it still has to pass.
+    borrow_cap = controller.borrow_cap()
+    admin_fee = controller.admin_percentage()
+    amm = boa.load_partial(AMM_SRC).at(amm_addr)
+    attached_callback = to_checksum_address(str(amm.liquidity_mining_callback()))
+    callback_attached = attached_callback == lm_callback_addr
+    print(f"Controller borrow cap    : {borrow_cap / 10**18:,.0f} crvUSD")
+    print(f"Controller admin fee     : {admin_fee / 10**16:g}%")
+    print(f"AMM callback             : {attached_callback}")
 
     report = {
         "chain_id": chain_id,
@@ -316,6 +524,10 @@ def _deploy(
         "vault": vault_addr,
         "controller": controller_addr,
         "amm": amm_addr,
+        "gauge": gauge_addr,
+        "lm_callback": lm_callback_addr,
+        "callback_attached": callback_attached,
+        "activation_vote_id": vote_id,
         "params": {
             "borrowed_token": CRVUSD,
             "collateral_token": LP_POOL,
@@ -339,6 +551,10 @@ def _deploy(
             "rate_shift": RATE_SHIFT,
             "borrow_cap": borrow_cap,
             "admin_fee": admin_fee,
+            "gauge_factory": GAUGE_FACTORY,
+            "lm_callback_factory": LM_CALLBACK_FACTORY,
+            "gauge_type": GAUGE_TYPE,
+            "gauge_weight": GAUGE_WEIGHT,
             "initial_price": price,
             "initial_lp_price": lp_price,
             "initial_bridge_price": bridge_price,
@@ -356,6 +572,14 @@ def _deploy(
     print("Vault:", vault_addr)
     print("Controller:", controller_addr)
     print("AMM:", amm_addr)
+    print("Gauge (vault):", gauge_addr)
+    print(
+        "LM Callback (AMM):",
+        lm_callback_addr,
+        "(attached)" if callback_attached else "(not attached yet)",
+    )
+    if vote_id is not None:
+        print("Activation vote:", vote_id)
     print("Report:", report_path)
 
 
@@ -376,10 +600,27 @@ def main() -> None:
         help="Path to the factory deployment JSON to read factory/configurator from",
     )
     parser.add_argument(
+        "--create-vote",
+        action="store_true",
+        help=(
+            "Create the Ownership DAO vote setting the borrow cap and admin fee "
+            "for the new market (simulated end-to-end under --dry-run)"
+        ),
+    )
+    parser.add_argument(
+        "--etherscan-api-key",
+        default=os.environ.get("ETHERSCAN_API_KEY"),
+        help="Etherscan API key, needed by --create-vote to fetch target ABIs",
+    )
+    parser.add_argument(
+        "--pinata-token",
+        default=os.environ.get("PINATA_TOKEN"),
+        help="Pinata token, needed by --create-vote to pin the vote description",
+    )
+    parser.add_argument(
         "--report-path",
         default=(
-            "deployments/mainnet/markets/"
-            "llamalend-mainnet-reUSD-sfrxUSD-LP-crvUSD.jsonc"
+            "deployments/mainnet/markets/llamalend-mainnet-reUSDsfrxUSDLP-crvUSD.jsonc"
         ),
         help="Where to write the deployment report",
     )
@@ -396,6 +637,15 @@ def main() -> None:
     if not args.account_name:
         raise SystemExit("Missing --account-name or ACCOUNT_NAME")
 
+    if args.create_vote:
+        if not args.etherscan_api_key:
+            raise SystemExit(
+                "--create-vote needs --etherscan-api-key or ETHERSCAN_API_KEY"
+            )
+        # The description is only pinned for a live vote.
+        if not args.dry_run and not args.pinata_token:
+            raise SystemExit("--create-vote needs --pinata-token or PINATA_TOKEN")
+
     if args.dry_run:
         deployer = _load_account(args.account_name).address
         with boa.fork(args.rpc_url):
@@ -404,6 +654,9 @@ def main() -> None:
                 dry_run=True,
                 report_path=report_path,
                 factory_deployment=factory_deployment,
+                create_vote=args.create_vote,
+                etherscan_api_key=args.etherscan_api_key,
+                pinata_token=args.pinata_token,
             )
     else:
         acct = _load_account(args.account_name)
@@ -414,6 +667,9 @@ def main() -> None:
                 dry_run=False,
                 report_path=report_path,
                 factory_deployment=factory_deployment,
+                create_vote=args.create_vote,
+                etherscan_api_key=args.etherscan_api_key,
+                pinata_token=args.pinata_token,
             )
 
 
