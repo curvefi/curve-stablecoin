@@ -4,8 +4,11 @@ Generate an HTML overview from a LlamaLend deployment JSONC file.
 Checks Etherscan (OP) to flag which contracts are verified.
 
 Usage:
-    python scripts/gen-deployment-html.py deployments/llamalend-op-testing.jsonc
-    python scripts/gen-deployment-html.py deployments/llamalend-op-testing.jsonc --output deployments/llamalend-op-testing.html
+    python scripts/gen-deployment-html.py \
+deployments/llamalend/optimism/testing/factory.jsonc
+    python scripts/gen-deployment-html.py \
+deployments/llamalend/optimism/testing/factory.jsonc \
+--output deployments/llamalend/optimism/testing/factory.html
 """
 
 import argparse
