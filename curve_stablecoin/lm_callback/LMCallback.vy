@@ -6,14 +6,25 @@
 @notice LM callback works like a gauge for collateral in LlamaLend/crvUSD AMMs
 @dev Use this contract only on Ethereum Mainnet since CRV, GAUGE_CONTROLLER and MINTER addresses are hardcoded
 @custom:security security@curve.finance
-@custom:kill Call set_killed(true) via factory owner to stop CRV emissions
+@custom:kill Detach via the Controller's Configurator (set_callback to any other
+             address). The callback latches `detached` on the next call that
+             observes the detach, and is permanently inert from then on - CRV
+             emissions stop and cannot be resumed. Recommended procedure:
+             1. Checkpoint every borrower first. Crediting stops once detached,
+                so whatever a borrower accrued since their last checkpoint is
+                lost otherwise.
+             2. In the same transaction as the detach, call user_checkpoint on
+                this contract (the address argument is irrelevant - use the zero
+                address) to arm the latch immediately. Until it is armed, a
+                deposit landing in the AMM gets no I_rpu baseline, and could
+                claim the band's entire banked I_rps if the callback were later
+                re-attached. Anyone may arm it, but do not rely on that.
 """
 
 from curve_std.interfaces import IERC20
 from curve_stablecoin import constants as c
 from curve_stablecoin.interfaces import IAMM
 from curve_stablecoin.interfaces import ILMCallback
-from curve_stablecoin.interfaces import ILMCallbackFactory
 
 implements: ILMCallback
 
@@ -38,10 +49,13 @@ GAUGE_CONTROLLER: constant(IGaugeController) = IGaugeController(0x2F50D538606Fa9
 MINTER: constant(IMinter) = IMinter(0xd061D61a4d941c39E5453435B6345Dc261C2fcE0)
 
 AMM: public(immutable(IAMM))
-LM_CALLBACK_FACTORY: public(immutable(ILMCallbackFactory))
 COLLATERAL_TOKEN: public(immutable(IERC20))
 
-is_killed: public(bool)
+# Set the first time this contract is seen as the AMM's configured callback
+attached: public(bool)
+# Latched when a callback that had gone live is no longer the AMM's configured
+# callback. A detached callback reads `attached == True` and `detached == True`.
+detached: public(bool)
 collateral_per_share: public(HashMap[int256, uint256])
 
 # Tracking of mining period
@@ -84,13 +98,9 @@ integrate_fraction: public(HashMap[address, uint256])
 @deploy
 def __init__(_amm: IAMM):
     """
-    @notice LMCallback constructor. Deployed from a blueprint by an
-    LMCallbackFactory, which becomes LM_CALLBACK_FACTORY and gates set_killed.
-    @param _amm The address of amm
+    @notice LMCallback constructor
+    @param _amm The address of the AMM
     """
-    LM_CALLBACK_FACTORY = ILMCallbackFactory(msg.sender)
-    assert staticcall LM_CALLBACK_FACTORY.owner() != empty(address), "zero factory owner"
-
     AMM = _amm
     COLLATERAL_TOKEN = IERC20(staticcall AMM.coins(1))
     assert staticcall COLLATERAL_TOKEN.decimals() == 18, "collateral decimals must be 18"
@@ -98,6 +108,36 @@ def __init__(_amm: IAMM):
     self.future_epoch_time = extcall CRV.future_epoch_time_write()
     self.inflation_rate = staticcall CRV.rate()
     self.I_rpc.t = block.timestamp
+
+
+@internal
+def _attached() -> bool:
+    """
+    @notice Whether this contract is currently the AMM's configured callback
+    @dev Latches `detached` on a negative observation, but only once the callback
+         has gone live - see `attached`. Both integrals are gated on this: while
+         detached the AMM stops reporting band and user share changes, so
+         `collateral_per_share` freezes while `total_collateral` keeps tracking
+         `balanceOf(AMM)`, and deposits land with no `I_rpu` baseline. Accruing on
+         either would mint more CRV than the gauge weight allows.
+    @return True only while this contract is the AMM's live callback
+    """
+    if self.detached:
+        return False
+
+    if (staticcall AMM.liquidity_mining_callback()).address == self:
+        if not self.attached:
+            self.attached = True
+            log ILMCallback.Attached()
+        return True
+
+    # Not the AMM's callback. Before going live that is just the deployment
+    # window and must not arm the latch; after going live it is a detach.
+    if self.attached:
+        self.detached = True
+        log ILMCallback.Detached()
+
+    return False
 
 
 @internal
@@ -109,6 +149,9 @@ def _checkpoint_collateral_shares(n_start: int256, collateral_per_share: DynArra
     @param collateral_per_share Collateral per share ratio by bands
     @param size The number of bands to checkpoint starting from `n_start`
     """
+    if not self._attached():
+        return
+
     # Read current and new rate; update the new rate if needed
     I_rpc: ILMCallback.IntegralRPC = self.I_rpc
     rate: uint256 = self.inflation_rate
@@ -119,11 +162,6 @@ def _checkpoint_collateral_shares(n_start: int256, collateral_per_share: DynArra
         new_rate = staticcall CRV.rate()
         self.inflation_rate = new_rate
         log ILMCallback.UpdateInflationRate(new_rate=new_rate, future_epoch_time=self.future_epoch_time)
-
-    is_killed: bool = self.is_killed
-    if is_killed:
-        rate = 0
-        new_rate = 0
 
     # Transfers from/to AMM always happen after LM Callback calls, so this value is taken BEFORE the action
     total_collateral: uint256 = staticcall COLLATERAL_TOKEN.balanceOf(AMM.address)
@@ -162,11 +200,10 @@ def _checkpoint_collateral_shares(n_start: int256, collateral_per_share: DynArra
 
     # * Record the collateral per share values
     # * Record integrals of rewards per share
-    if not is_killed:
-        I_rpc.t = block.timestamp
-        I_rpc.rpc += delta_rpc
-        self.I_rpc = I_rpc
-        log ILMCallback.CheckpointRPC(rpc=I_rpc.rpc, t=I_rpc.t)
+    I_rpc.t = block.timestamp
+    I_rpc.rpc += delta_rpc
+    self.I_rpc = I_rpc
+    log ILMCallback.CheckpointRPC(rpc=I_rpc.rpc, t=I_rpc.t)
 
     for i: int256 in range(size, bound=MAX_TICKS_INT):
         _n: int256 = n_start + i
@@ -192,6 +229,9 @@ def _checkpoint_user_shares(user: address, n_start: int256, old_user_shares: Dyn
     @param old_user_shares User's shares by bands taken BEFORE the action
     @param size The number of bands to checkpoint starting from `n_start`
     """
+    if not self._attached():
+        return
+
     rpu: uint256 = self.integrate_fraction[user]
     for i: int256 in range(size, bound=MAX_TICKS_INT):
         _n: int256 = n_start + i
@@ -298,16 +338,3 @@ def claimable_tokens(addr: address) -> uint256:
     self._user_checkpoint(addr)
 
     return self.integrate_fraction[addr] - staticcall MINTER.minted(addr, self)
-
-
-@external
-def set_killed(_is_killed: bool):
-    """
-    @notice Set the killed status for this contract
-    @dev When killed, the gauge always yields a rate of 0 and so cannot mint CRV
-    @param _is_killed Killed status to set
-    """
-    assert msg.sender == staticcall LM_CALLBACK_FACTORY.owner(), "only owner"
-    self._checkpoint_collateral_shares(0, [], 0)
-    self.is_killed = _is_killed
-    log ILMCallback.SetKilled(is_killed=_is_killed)

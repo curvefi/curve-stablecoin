@@ -3,7 +3,6 @@ import pytest
 
 from tests.utils.constants import MAX_UINT256
 from tests.utils.deployers import (
-    CRYPTO_FROM_ORACLE_AND_ERC4626_DEPLOYER,
     ERC4626_EMA_WRAPPER_DEPLOYER,
     DUMMY_PRICE_ORACLE_DEPLOYER,
 )
@@ -12,9 +11,9 @@ from tests.utils.deployers import (
 # ---------------------------------------------------------------------------
 # Dummy ERC4626 vault (inline).
 #
-# The CryptoFromOracleAndERC4626 oracle only reads `convertToAssets` from its
-# VAULT.  We expose `set_share_price` so a test can instantaneously "pump" the
-# share price (price per share) to manipulate the oracle.
+# The oracle only reads `convertToAssets` from its VAULT.  We expose
+# `set_share_price` so a test can instantaneously "pump" the share price (price
+# per share) to manipulate the oracle.
 # ---------------------------------------------------------------------------
 DUMMY_VAULT_SOURCE = """
 # pragma version 0.4.3
@@ -78,7 +77,9 @@ def initial_price():
 
 
 # ---------------------------------------------------------------------------
-# Oracle plumbing: CryptoFromOracleAndERC4626(ORACLE, VAULT)
+# Oracle plumbing: ERC4626EMAWrapper(ORACLE, VAULT, ema_time) chains the dummy
+# ORACLE with the dummy VAULT's share price, smoothing the manipulable share
+# price.  The market is created with it directly.
 # ---------------------------------------------------------------------------
 
 
@@ -95,31 +96,15 @@ def dummy_vault():
 
 
 @pytest.fixture(scope="module")
-def price_oracle(base_oracle, dummy_vault):
-    """Override the global price_oracle so the market is created with the
-    CryptoFromOracleAndERC4626 oracle wrapping our dummy ORACLE + VAULT."""
-    return CRYPTO_FROM_ORACLE_AND_ERC4626_DEPLOYER.deploy(
-        base_oracle.address, dummy_vault.address
-    )
-
-
-# ---------------------------------------------------------------------------
-# EMA-hardened oracle: OracleAndEMAERC4626(ORACLE, VAULT, ema_time).
-#
-# Wraps the *same* dummy ORACLE + VAULT but smooths the ERC4626 share price.
-# A test swaps it onto the existing market via the Configurator to show an
-# instantaneous share-price pump cannot force a liquidation.
-# ---------------------------------------------------------------------------
-
-
-@pytest.fixture(scope="module")
 def ema_time():
     # Smoothing horizon of the share-price EMA (seconds).
     return 600
 
 
 @pytest.fixture(scope="module")
-def ema_oracle(base_oracle, dummy_vault, ema_time):
+def price_oracle(base_oracle, dummy_vault, ema_time):
+    """Override the global price_oracle so the market is created with the
+    EMA-hardened ERC4626 oracle."""
     return ERC4626_EMA_WRAPPER_DEPLOYER.deploy(
         base_oracle.address, dummy_vault.address, ema_time
     )

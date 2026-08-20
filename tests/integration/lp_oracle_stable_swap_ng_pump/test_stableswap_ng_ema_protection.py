@@ -1,34 +1,34 @@
 """
-ERC4626 share-price pump is neutralised by the EMA oracle
-=========================================================
+StableSwap-NG virtual-price pump is neutralised by the EMA oracle
+=================================================================
 
-An un-hardened ERC4626 oracle reports
+An un-hardened StableSwap-NG LP oracle reports
 
-    price = ORACLE.price() * VAULT.convertToAssets(1e18) / 1e18
+    price = portfolio_value(A, POOL.price_oracle(0)) * POOL.get_virtual_price() / 1e18
 
-so the collateral price scales linearly with the vault's share price.  An
-attacker that can momentarily inflate the share price - a donation/pump into the
-vault - inflates the collateral price by the same factor and can force a
-liquidation.  (See tests/lending/test_oracle_attack.py for that attack carried
-out end to end; there the price is bumped through the base oracle itself, but
-the market-level mechanics are identical.)
+so the LP price scales linearly with the pool's virtual price.  An attacker that
+can momentarily inflate the virtual price - by wash trading, or through a
+misbehaving rate oracle of a pool coin - inflates the collateral price by the
+same factor and can force a liquidation.  (See tests/integration/ERC4626_pump for
+that attack carried out end to end against a naive oracle; there the manipulated
+input is an ERC4626 share price, but the market-level mechanics are identical.)
 
-``ERC4626EMAWrapper`` smooths the manipulable share price with an exponential
-moving average:
+``StableSwapNGLPOracle`` smooths the manipulable virtual price with an
+exponential moving average:
 
-    price = ORACLE.price() * EMA(VAULT.convertToAssets(1e18)) / 1e18
+    price = portfolio_value(A, POOL.price_oracle(0)) * EMA(virtual_price) / 1e18
 
-The EMA module queues the freshly supplied share price for the *next* update and
-only ever reports the previously-queued value blended over ``ema_time``.  As a
-result an instantaneous (single-block) pump of the share price does not move the
-reported price at all, so the victim's health does not budge and the forced
+The EMA module queues the freshly supplied virtual price for the *next* update
+and only ever reports the previously-queued value blended over ``ema_time``.  As
+a result an instantaneous (single-block) pump of the virtual price does not move
+the reported price at all, so the victim's health does not budge and the forced
 liquidation reverts with "Not enough rekt".
 
 Steps of the attack the first test runs against the hardened market:
   1. The victim borrows the maximum against their collateral.
   2. The attacker trades through the whole victim position (pushes the AMM price
      up so all of the victim's collateral is converted to the borrowed token).
-  3. The attacker pumps the VAULT share price by 20% (and even forces an oracle
+  3. The attacker pumps the pool virtual price by 20% (and even forces an oracle
      update) - the EMA absorbs none of it within the block.
   4. The attacker's liquidation attempt reverts; the victim stays solvent.
 
@@ -38,10 +38,11 @@ price - that is the documented, accepted trade-off of EMA smoothing, covered by
 the third test.
 
 The second test covers the *downside* scenario.  The dampening is asymmetric:
-upward share-price moves are smoothed, but downward moves are passed through
-immediately, so a genuine loss of vault value is never hidden behind a stale,
-too-high price.  A drop in the share price therefore lowers the oracle price in
-the same block and lets an honestly under-collateralised borrower be liquidated.
+upward virtual-price moves are smoothed, but downward moves are passed through
+immediately, so a genuine loss of pool value is never hidden behind a stale,
+too-high price.  A real pool virtual price falls when a coin's rate oracle
+reprices down; such a drop lowers the oracle price in the same block and lets an
+honestly under-collateralised borrower be liquidated.
 """
 
 import boa
@@ -50,16 +51,17 @@ from tests.utils.constants import MAX_UINT256
 
 
 N = 10
-PUMP = 12 * 10**17  # +20% share price (1.2e18)
-DUMP = 7 * 10**17  # -30% share price (0.7e18)
+PUMP = 12 * 10**17  # +20% virtual price (1.2e18)
+DUMP = 7 * 10**17  # -30% virtual price (0.7e18)
 
 
-def test_erc4626_ema_blocks_pump_liquidation(
+def test_stableswap_ng_ema_blocks_pump_liquidation(
     controller,
     amm,
     vault,
-    base_oracle,
-    dummy_vault,
+    pool,
+    coin_idx,
+    spot_lp_oracle,
     price_oracle,
     borrowed_token,
     collateral_token,
@@ -67,10 +69,10 @@ def test_erc4626_ema_blocks_pump_liquidation(
     victim = boa.env.generate_address("victim")
     attacker = boa.env.generate_address("attacker")
 
-    # Share price is still 1.0, so the EMA is settled and the oracle reports
-    # exactly the un-dampened base price.
+    # Virtual price is still 1.0, so the EMA is settled and the oracle reports
+    # exactly the un-dampened LP price.
     p = price_oracle.price()
-    assert p == base_oracle.price()
+    assert p == spot_lp_oracle.lp_price(pool.address, coin_idx)
 
     # Approvals
     for user in (victim, attacker):
@@ -99,13 +101,13 @@ def test_erc4626_ema_blocks_pump_liquidation(
 
     health_before_pump = controller.health(victim, True)
 
-    # ----- 3) attacker pumps the VAULT share price by 20% -----
-    dummy_vault.set_share_price(PUMP)
+    # ----- 3) attacker pumps the pool virtual price by 20% -----
+    pool.set_virtual_price(PUMP)
 
-    # Spot share price is pumped, but the EMA oracle does not reflect it: the
+    # Spot virtual price is pumped, but the EMA oracle does not reflect it: the
     # pumped value is only *queued*, the reported price stays put within the
     # block.
-    assert dummy_vault.convertToAssets(10**18) == PUMP
+    assert pool.get_virtual_price() == PUMP
     assert price_oracle.price() == p
 
     # Even forcing an oracle state update (queuing the pumped value) changes
@@ -131,28 +133,29 @@ def test_erc4626_ema_blocks_pump_liquidation(
     print("EMA price held at:  ", price_oracle.price() / 1e18, "(== unmanipulated)")
 
 
-def test_erc4626_ema_passes_downside_through(
+def test_stableswap_ng_ema_passes_downside_through(
     controller,
     amm,
     vault,
-    base_oracle,
-    dummy_vault,
+    pool,
+    coin_idx,
+    spot_lp_oracle,
     price_oracle,
     borrowed_token,
     collateral_token,
 ):
-    """A downward move of the vault share price must be reflected immediately
+    """A downward move of the pool virtual price must be reflected immediately
     (no EMA lag), so an honestly under-collateralised borrower can be liquidated.
     """
     victim = boa.env.generate_address("down_victim")
     liquidator = boa.env.generate_address("liquidator")
 
-    # ----- clean baseline: share price back to 1.0 -----
+    # ----- clean baseline: virtual price back to 1.0 -----
     # (robust whether or not the pump test ran first on this shared market;
     #  min(spot, ema) picks the spot value, so a pumped EMA cannot leak in)
-    dummy_vault.set_share_price(10**18)
+    pool.set_virtual_price(10**18)
     p = price_oracle.price()
-    assert p == base_oracle.price()  # share price 1.0 -> oracle == base price
+    assert p == spot_lp_oracle.lp_price(pool.address, coin_idx)  # vp 1.0 -> spot price
 
     # Approvals
     for user in (victim, liquidator):
@@ -170,12 +173,12 @@ def test_erc4626_ema_passes_downside_through(
     health_before = controller.health(victim, True)
     assert health_before > 0
 
-    # ----- share price drops 30% (genuine loss of vault value) -----
-    dummy_vault.set_share_price(DUMP)
+    # ----- virtual price drops 30% (genuine loss of pool value) -----
+    pool.set_virtual_price(DUMP)
 
     # The drop is passed through *immediately* - no price_w / time travel needed.
     # min(spot, ema) picks spot on the downside.
-    assert dummy_vault.convertToAssets(10**18) == DUMP
+    assert pool.get_virtual_price() == DUMP
     assert price_oracle.price() == p * DUMP // 10**18  # full -30%, no lag
 
     # The borrower is now genuinely underwater.
@@ -196,19 +199,20 @@ def test_erc4626_ema_passes_downside_through(
     print("health:", health_before / 1e18, "->", health_after / 1e18)
 
 
-def test_erc4626_ema_sustained_pump_eventually_liquidates(
+def test_stableswap_ng_ema_sustained_pump_eventually_liquidates(
     controller,
     amm,
     vault,
-    base_oracle,
-    dummy_vault,
+    pool,
+    coin_idx,
+    spot_lp_oracle,
     price_oracle,
     borrowed_token,
     collateral_token,
     ema_time,
 ):
     """The EMA only *delays* an upward manipulation.  If the attacker sustains
-    the pumped share price across several blocks (~ema_time), the EMA converges
+    the pumped virtual price across several blocks (~ema_time), the EMA converges
     to the pumped value, the victim's health goes negative and the liquidation
     that was impossible atomically becomes possible.
     """
@@ -216,9 +220,9 @@ def test_erc4626_ema_sustained_pump_eventually_liquidates(
     attacker = boa.env.generate_address("slow_attacker")
 
     # ----- clean baseline -----
-    dummy_vault.set_share_price(10**18)
+    pool.set_virtual_price(10**18)
     p = price_oracle.price()
-    assert p == base_oracle.price()
+    assert p == spot_lp_oracle.lp_price(pool.address, coin_idx)
 
     for user in (victim, attacker):
         with boa.env.prank(user):
@@ -243,8 +247,8 @@ def test_erc4626_ema_sustained_pump_eventually_liquidates(
         amm.exchange(0, 1, attacker_reserves, 0)
     assert controller.user_state(victim)[0] == 0  # collateral gone
 
-    # ----- attacker pumps the share price +20% and SUSTAINS it -----
-    dummy_vault.set_share_price(PUMP)
+    # ----- attacker pumps the virtual price +20% and SUSTAINS it -----
+    pool.set_virtual_price(PUMP)
     with boa.env.prank(attacker):
         price_oracle.price_w()  # queue the pumped value
 
@@ -260,7 +264,7 @@ def test_erc4626_ema_sustained_pump_eventually_liquidates(
         with boa.env.prank(attacker):
             price_oracle.price_w()
         h = controller.health(victim, True)
-        print(f"  {step:>9}  | {price_oracle.price() / 1e18:>7.0f}  | {h / 1e18:+.4f}")
+        print(f"  {step:>9}  | {price_oracle.price() / 1e18:>7.4f}  | {h / 1e18:+.4f}")
         if h < 0 and not crossed:
             crossed = True
 

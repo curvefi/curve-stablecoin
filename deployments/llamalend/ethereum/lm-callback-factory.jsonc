@@ -1,0 +1,13 @@
+{
+  "chain_id": 1,
+  "deployer": "0xE6B328e141EF304739892A864CebFe148a04353e",
+  "dry_run": false,
+  "timestamp": 1787137035,
+  "contracts": {
+    "lm_callback_blueprint": "0xA233e77AE47bf839Fd1c1d30f9EAa0584737376a",
+    "lm_callback_factory": "0x323E4BA335F830B6bd3bDeD522368b2A8e3a880E"
+  },
+  "params": {
+    "owner": "0x40907540d8a6C65c637785e8f8B742ae6b0b9968"
+  }
+}
