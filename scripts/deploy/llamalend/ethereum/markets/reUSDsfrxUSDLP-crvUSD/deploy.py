@@ -450,7 +450,7 @@ def _deploy(
     lm_callback_addr = to_checksum_address(
         str(lm_callback_factory.deploy_lm_callback(amm_addr, sender=deployer))
     )
-    assert lm_callback_factory.is_valid_lm_callback(lm_callback_addr), (
+    assert lm_callback_factory.is_valid_gauge(lm_callback_addr), (
         "LM callback not registered by its factory"
     )
     lm_callback = boa.load_partial(LM_CALLBACK_SRC).at(lm_callback_addr)

@@ -36,7 +36,7 @@ def lm_callback_blueprint() -> address:
 
 @view
 @external
-def is_valid_lm_callback(_lm_callback: address) -> bool:
+def is_valid_gauge(_lm_callback: address) -> bool:
     ...
 
 

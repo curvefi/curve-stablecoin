@@ -32,7 +32,10 @@ exports: (
 MAX_LM_CALLBACKS: constant(uint256) = 10**18
 
 lm_callback_blueprint: public(address)
-is_valid_lm_callback: public(HashMap[address, bool])
+# Named after the gauge factories' getter rather than after the callback:
+# integrations validate a gauge by asking its factory for `is_valid_gauge`,
+# and LM Callbacks are gauges from their point of view
+is_valid_gauge: public(HashMap[address, bool])
 
 _lm_callbacks: DynArray[address, MAX_LM_CALLBACKS]
 
@@ -76,7 +79,7 @@ def deploy_lm_callback(_amm: IAMM) -> address:
         code_offset=3,
     )
 
-    self.is_valid_lm_callback[lm_callback] = True
+    self.is_valid_gauge[lm_callback] = True
     self._lm_callbacks.append(lm_callback)
 
     log ILMCallbackFactory.DeployedLMCallback(

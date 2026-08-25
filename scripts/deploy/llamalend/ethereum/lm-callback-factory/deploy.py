@@ -89,7 +89,7 @@ def _smoke_test(factory, amm: str) -> None:
     lm_callback_addr = factory.deploy_lm_callback(amm)
     lm_callback = boa.load_partial(LM_CALLBACK).at(lm_callback_addr)
 
-    assert factory.is_valid_lm_callback(lm_callback_addr), "callback not registered"
+    assert factory.is_valid_gauge(lm_callback_addr), "callback not registered"
     assert factory.get_lm_callback_count() == 1
     assert factory.get_lm_callback(0) == lm_callback_addr
     assert to_checksum_address(lm_callback.AMM()) == to_checksum_address(amm)

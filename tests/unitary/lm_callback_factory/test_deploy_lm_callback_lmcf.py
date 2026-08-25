@@ -44,7 +44,7 @@ def test_deploy_uses_blueprint_and_forwards_amm(factory, dummy_amm):
 def test_deploy_registers_the_callback(factory, dummy_amm):
     lm_callback = factory.deploy_lm_callback(dummy_amm)
 
-    assert factory.is_valid_lm_callback(lm_callback)
+    assert factory.is_valid_gauge(lm_callback)
     assert factory.get_lm_callback_count() == 1
     assert factory.get_lm_callback(0) == lm_callback
 
@@ -68,7 +68,7 @@ def test_deploy_is_permissionless(factory, dummy_amm, owner):
 
     lm_callback = factory.deploy_lm_callback(dummy_amm, sender=anyone)
 
-    assert factory.is_valid_lm_callback(lm_callback)
+    assert factory.is_valid_gauge(lm_callback)
 
 
 def test_deploy_appends_in_order(factory):
@@ -80,7 +80,7 @@ def test_deploy_appends_in_order(factory):
     assert factory.get_lm_callback_count() == 3
     for i, lm_callback in enumerate(lm_callbacks):
         assert factory.get_lm_callback(i) == lm_callback
-        assert factory.is_valid_lm_callback(lm_callback)
+        assert factory.is_valid_gauge(lm_callback)
 
 
 def test_deploy_allows_several_callbacks_per_amm(factory, dummy_amm):
@@ -89,8 +89,8 @@ def test_deploy_allows_several_callbacks_per_amm(factory, dummy_amm):
     second = factory.deploy_lm_callback(dummy_amm)
 
     assert first != second
-    assert factory.is_valid_lm_callback(first)
-    assert factory.is_valid_lm_callback(second)
+    assert factory.is_valid_gauge(first)
+    assert factory.is_valid_gauge(second)
 
 
 def test_deploy_reverts_when_paused(paused_factory, dummy_amm):
@@ -103,7 +103,7 @@ def test_deploy_works_again_after_unpause(paused_factory, dummy_amm, owner):
 
     lm_callback = paused_factory.deploy_lm_callback(dummy_amm)
 
-    assert paused_factory.is_valid_lm_callback(lm_callback)
+    assert paused_factory.is_valid_gauge(lm_callback)
 
 
 def test_deploy_reverts_when_blueprint_has_no_code(deploy_factory, owner, dummy_amm):
@@ -151,4 +151,4 @@ def test_deploy_does_not_validate_the_amm(factory, amm):
     """The factory takes the AMM on trust; it never checks it is a real market."""
     lm_callback = factory.deploy_lm_callback(amm)
 
-    assert factory.is_valid_lm_callback(lm_callback)
+    assert factory.is_valid_gauge(lm_callback)
