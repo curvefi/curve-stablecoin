@@ -108,10 +108,10 @@ def lm_callback_factory(admin, minter):
     """
     Factory that deploys the callbacks under test.
 
-    LMCallback can only be deployed from a factory - its constructor takes the
-    deployer as LM_CALLBACK_FACTORY - so tests go through the real one. Depends
-    on `minter` to pull in the whole CRV ecosystem, which the callback
-    constructor reaches out to at its hardcoded addresses.
+    A callback records its deployer as `factory()`, so tests go through the real
+    factory to get the same wiring production has. Depends on `minter` to pull in
+    the whole CRV ecosystem, which the callback constructor reaches out to at its
+    hardcoded addresses.
     """
     with boa.env.prank(admin):
         blueprint = LM_CALLBACK_DEPLOYER.deploy_as_blueprint()
