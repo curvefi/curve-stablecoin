@@ -454,6 +454,10 @@ def _deploy(
         "LM callback not registered by its factory"
     )
     lm_callback = boa.load_partial(LM_CALLBACK_SRC).at(lm_callback_addr)
+    # The other direction of the gauge round trip: the callback names its factory
+    assert to_checksum_address(str(lm_callback.factory())) == to_checksum_address(
+        LM_CALLBACK_FACTORY
+    ), "LM callback points at another factory"
     assert to_checksum_address(str(lm_callback.AMM())) == to_checksum_address(
         amm_addr
     ), "LM callback bound to the wrong AMM"
