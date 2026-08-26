@@ -12,6 +12,8 @@
 from curve_stablecoin.interfaces import IAMM
 from curve_stablecoin.interfaces import ILMCallbackFactory
 
+version: public(constant(String[5])) = "1.0.0"
+
 implements: ILMCallbackFactory
 
 from snekmate.auth import ownable

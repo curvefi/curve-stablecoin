@@ -26,6 +26,8 @@ from curve_stablecoin import constants as c
 from curve_stablecoin.interfaces import IAMM
 from curve_stablecoin.interfaces import ILMCallback
 
+version: public(constant(String[5])) = "1.0.0"
+
 implements: ILMCallback
 
 interface ICRV20:
