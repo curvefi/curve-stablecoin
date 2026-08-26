@@ -17,6 +17,21 @@ def test_factory_vouches_for_its_callback(lm_callback, lm_callback_factory):
     assert lm_callback_factory.is_valid_gauge(lm_callback.address)
 
 
+def test_factory_resolves_the_callback_from_the_amm(
+    lm_callback, lm_callback_factory, amm
+):
+    """The same round trip starting from the market instead of the callback."""
+    assert lm_callback_factory.get_lm_callback_by_amm(amm.address) == (
+        lm_callback.address
+    )
+    assert lm_callback.AMM() == amm.address
+
+
+def test_callback_and_factory_report_versions(lm_callback, lm_callback_factory):
+    assert lm_callback.version() == "1.0.0"
+    assert lm_callback_factory.version() == "1.0.0"
+
+
 def test_direct_deployment_records_its_deployer(amm, lm_callback_factory):
     """
     Deploying outside a factory is not blocked, it just leaves `factory()`

@@ -83,14 +83,52 @@ def test_deploy_appends_in_order(factory):
         assert factory.is_valid_gauge(lm_callback)
 
 
-def test_deploy_allows_several_callbacks_per_amm(factory, dummy_amm):
-    """Nothing dedupes by AMM: the same market can back more than one callback."""
+def test_deploy_reverts_on_duplicate_for_same_amm(factory, dummy_amm):
+    """A market cannot be handed two identical callbacks back to back."""
+    factory.deploy_lm_callback(dummy_amm)
+
+    with boa.reverts("already deployed"):
+        factory.deploy_lm_callback(dummy_amm)
+
+
+def test_deploy_allows_several_callbacks_per_amm(
+    factory, dummy_amm, owner, other_blueprint
+):
+    """
+    The duplicate check is per blueprint, not per AMM: rotating to a new
+    blueprint reopens the market, and the superseded callback stays valid.
+    """
     first = factory.deploy_lm_callback(dummy_amm)
+
+    factory.set_blueprint(other_blueprint, sender=owner)
     second = factory.deploy_lm_callback(dummy_amm)
 
     assert first != second
     assert factory.is_valid_gauge(first)
     assert factory.is_valid_gauge(second)
+    assert factory.get_lm_callback_count() == 2
+
+
+def test_deploy_reopens_when_rotated_back(
+    factory, dummy_amm, owner, lm_callback_blueprint, other_blueprint
+):
+    """
+    Only the AMM's newest callback is compared, so rotating away and back does
+    let a market get a second callback from the earlier blueprint. Pinned as a
+    known consequence of the rule, not as a property worth relying on.
+    """
+    first = factory.deploy_lm_callback(dummy_amm)
+
+    factory.set_blueprint(other_blueprint, sender=owner)
+    factory.deploy_lm_callback(dummy_amm)
+
+    factory.set_blueprint(lm_callback_blueprint, sender=owner)
+    third = factory.deploy_lm_callback(dummy_amm)
+
+    assert third != first
+    assert factory.get_blueprint_by_lm_callback(
+        third
+    ) == factory.get_blueprint_by_lm_callback(first)
 
 
 def test_deploy_reverts_when_paused(paused_factory, dummy_amm):
