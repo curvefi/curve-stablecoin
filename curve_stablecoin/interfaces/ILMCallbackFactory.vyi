@@ -48,6 +48,18 @@ def get_lm_callback(_i: uint256) -> address:
 
 @view
 @external
+def get_lm_callback_by_amm(_amm: address) -> address:
+    ...
+
+
+@view
+@external
+def get_blueprint_by_lm_callback(_lm_callback: address) -> address:
+    ...
+
+
+@view
+@external
 def get_lm_callback_count() -> uint256:
     ...
 
@@ -70,4 +82,10 @@ def paused() -> bool:
 
 @external
 def set_blueprint(_blueprint: address):
+    ...
+
+
+@view
+@external
+def version() -> String[5]:
     ...

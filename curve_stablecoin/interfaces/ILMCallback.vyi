@@ -63,6 +63,12 @@ def factory() -> address:
 
 @view
 @external
+def version() -> String[5]:
+    ...
+
+
+@view
+@external
 def attached() -> bool:
     ...
 
