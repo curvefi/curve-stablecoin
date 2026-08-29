@@ -147,7 +147,7 @@ def trader(borrowed_token, collateral_token, amm):
 # ── LM Callback ───────────────────────────────────────────────────────────────
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture(scope="function")
 def lm_callback(
     admin, amm, gauge_controller, controller, configurator, deploy_lm_callback
 ):
