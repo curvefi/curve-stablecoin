@@ -53,6 +53,20 @@ def COLLATERAL_TOKEN() -> address:
     ...
 
 
+# Lowercase to follow the gauge convention, which pairs with the factory's
+# `is_valid_gauge()` - see the getter's docstring in `LMCallback.vy`
+@view
+@external
+def factory() -> address:
+    ...
+
+
+@view
+@external
+def version() -> String[5]:
+    ...
+
+
 @view
 @external
 def attached() -> bool:

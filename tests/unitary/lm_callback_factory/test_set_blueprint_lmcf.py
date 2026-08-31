@@ -60,7 +60,7 @@ def test_blueprint_is_never_zero(factory, owner, other_blueprint, dummy_amm):
     factory.set_blueprint(other_blueprint, sender=owner)
 
     assert factory.lm_callback_blueprint() != ZERO_ADDRESS
-    assert factory.is_valid_lm_callback(factory.deploy_lm_callback(dummy_amm))
+    assert factory.is_valid_gauge(factory.deploy_lm_callback(dummy_amm))
 
 
 def test_new_blueprint_is_used_for_later_deployments(
@@ -72,8 +72,8 @@ def test_new_blueprint_is_used_for_later_deployments(
     from_new_blueprint = factory.deploy_lm_callback(dummy_amm)
 
     assert boa.env.get_code(from_new_blueprint) != boa.env.get_code(from_old_blueprint)
-    assert factory.is_valid_lm_callback(from_old_blueprint)
-    assert factory.is_valid_lm_callback(from_new_blueprint)
+    assert factory.is_valid_gauge(from_old_blueprint)
+    assert factory.is_valid_gauge(from_new_blueprint)
 
 
 def test_event_reports_the_blueprint_a_deployment_used(

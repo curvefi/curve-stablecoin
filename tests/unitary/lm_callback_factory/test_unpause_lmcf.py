@@ -38,4 +38,4 @@ def test_pause_cycle(factory, owner, dummy_amm):
     factory.unpause(sender=owner)
 
     assert not factory.paused()
-    assert factory.is_valid_lm_callback(factory.deploy_lm_callback(dummy_amm))
+    assert factory.is_valid_gauge(factory.deploy_lm_callback(dummy_amm))
