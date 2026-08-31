@@ -1,0 +1,77 @@
+from curve_stablecoin.interfaces import IController
+from curve_stablecoin.zaps.leverage_transient_zap import leverage_transient_zap_constants as zc
+
+EXCHANGE_CALLDATA_MAX_SIZE: constant(uint256) = zc.EXCHANGE_CALLDATA_MAX_SIZE
+CALLBACK_CALLDATA_MAX_SIZE: constant(uint256) = zc.CALLBACK_CALLDATA_MAX_SIZE
+
+
+@view
+@external
+def version() -> String[5]:
+    ...
+
+
+@view
+@external
+def FACTORY() -> address:
+    ...
+
+
+@view
+@external
+def admin() -> address:
+    ...
+
+
+@view
+@external
+def max_borrowable(controller: IController, _user_collateral: uint256, _leverage_collateral: uint256, N: uint256, p_avg: uint256) -> uint256:
+    ...
+
+
+@external
+def create_loan(
+    controller_id: uint256,
+    collateral: uint256,
+    debt: uint256,
+    N: uint256,
+    min_recv: uint256,
+    exchange_address: address,
+    exchange_calldata: Bytes[EXCHANGE_CALLDATA_MAX_SIZE],
+):
+    ...
+
+
+@external
+def borrow_more(
+    controller_id: uint256,
+    collateral: uint256,
+    debt: uint256,
+    min_recv: uint256,
+    exchange_address: address,
+    exchange_calldata: Bytes[EXCHANGE_CALLDATA_MAX_SIZE],
+):
+    ...
+
+
+@external
+def repay(
+    controller_id: uint256,
+    wallet_d_debt: uint256,
+    min_recv: uint256,
+    exchange_address: address,
+    exchange_calldata: Bytes[EXCHANGE_CALLDATA_MAX_SIZE],
+    max_active_band: int256 = max_value(int256),
+    shrink: bool = False,
+):
+    ...
+
+
+@external
+def callback_deposit(user: address, borrowed: uint256, user_collateral: uint256, d_debt: uint256, calldata: Bytes[CALLBACK_CALLDATA_MAX_SIZE]) -> uint256[2]:
+    ...
+
+
+@external
+def callback_repay(user: address, borrowed: uint256, collateral: uint256, debt: uint256, calldata: Bytes[CALLBACK_CALLDATA_MAX_SIZE]) -> uint256[2]:
+    ...
