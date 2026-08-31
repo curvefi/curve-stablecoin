@@ -1,0 +1,201 @@
+import boa
+import pytest
+
+from tests.utils.constants import WAD, MAX_UINT256
+from tests.utils.deployers import (
+    LEVERAGE_TRANSIENT_ZAP_LENDING_DEPLOYER,
+    LEVERAGE_TRANSIENT_ZAP_MINT_DEPLOYER,
+    DUMMY_ROUTER_DEPLOYER,
+)
+
+
+# ---------------------------------------------------------------------------
+# Pure helper functions (no fixtures)
+# ---------------------------------------------------------------------------
+
+
+def collateral_from_borrowed(amount_in, price, borrowed_decimals, collateral_decimals):
+    """Compute raw collateral out for raw borrowed_in at price (WAD-scaled borrowed-per-collateral)."""
+    borrowed_precision = 10 ** (18 - borrowed_decimals)
+    collateral_precision = 10 ** (18 - collateral_decimals)
+    return amount_in * borrowed_precision * WAD // (price * collateral_precision)
+
+
+def borrowed_from_collateral(amount_in, price, borrowed_decimals, collateral_decimals):
+    """Compute raw borrowed out for raw collateral_in at price."""
+    borrowed_precision = 10 ** (18 - borrowed_decimals)
+    collateral_precision = 10 ** (18 - collateral_decimals)
+    return amount_in * collateral_precision * price // (WAD * borrowed_precision)
+
+
+def calc_p_avg(in_borrowed, out_collateral, borrowed_decimals, collateral_decimals):
+    """Compute _p_avg (WAD-scaled borrowed-per-collateral) from raw swap amounts."""
+    borrowed_precision = 10 ** (18 - borrowed_decimals)
+    collateral_precision = 10 ** (18 - collateral_decimals)
+    return (
+        in_borrowed
+        * borrowed_precision
+        * WAD
+        // (out_collateral * collateral_precision)
+    )
+
+
+def make_deposit_calldata(
+    controller_id,
+    min_recv,
+    router,
+    borrowed_token,
+    collateral_token,
+    borrowed_in,
+    collateral_out,
+):
+    """Build the swap arguments create_loan / borrow_more take: (min_recv, exchange, exchange_calldata).
+
+    Nothing is routed through the controller here - the zap is the entry point and holds
+    the exchange calldata in transient storage, so `controller_id` is passed separately
+    as the first argument of the entry point and is unused by this helper.
+
+    The zap only ever swaps the borrowed d_debt it receives from the controller, so
+    `borrowed_in` is just d_debt. The user no longer hands borrowed tokens to the zap.
+    """
+    exchange_data = router.exchange.prepare_calldata(
+        borrowed_token.address,
+        collateral_token.address,
+        borrowed_in,
+        collateral_out,
+    )
+    return min_recv, router.address, exchange_data
+
+
+def make_repay_calldata(
+    controller_id,
+    min_recv,
+    router,
+    collateral_token,
+    borrowed_token,
+    collateral_in,
+    borrowed_out,
+):
+    """Build the swap arguments repay takes: (min_recv, exchange, exchange_calldata).
+
+    The zap only swaps state collateral it receives from the controller, so `collateral_in`
+    is the amount of state collateral to sell. Actual wallet repayment is done by the
+    zap's `_wallet_d_debt` argument, which it forwards to the controller.
+    """
+    exchange_data = router.exchange.prepare_calldata(
+        collateral_token.address,
+        borrowed_token.address,
+        collateral_in,
+        borrowed_out,
+    )
+    return min_recv, router.address, exchange_data
+
+
+def approve_zap(user, controller, leverage_zap, collateral_token, borrowed_token):
+    """The zap acts on the user's behalf, so it needs token and controller approval."""
+    with boa.env.prank(user):
+        collateral_token.approve(leverage_zap.address, MAX_UINT256)
+        borrowed_token.approve(leverage_zap.address, MAX_UINT256)
+        controller.approve(leverage_zap.address, True)
+
+
+# ---------------------------------------------------------------------------
+# Fixtures
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture(scope="module")
+def seed_liquidity(borrowed_token):
+    return 10**6 * 10 ** borrowed_token.decimals()
+
+
+@pytest.fixture(scope="module")
+def borrow_cap(seed_liquidity):
+    return seed_liquidity
+
+
+@pytest.fixture(scope="module")
+def dummy_router(borrowed_token, collateral_token):
+    router = DUMMY_ROUTER_DEPLOYER.deploy()
+    boa.deal(borrowed_token, router.address, 10**9 * 10 ** borrowed_token.decimals())
+    boa.deal(
+        collateral_token, router.address, 10**9 * 10 ** collateral_token.decimals()
+    )
+    return router
+
+
+@pytest.fixture(scope="module")
+def leverage_zap(market_type, factory, mint_factory, dummy_router):
+    exchanges = [dummy_router.address]
+    if market_type == "lending":
+        return LEVERAGE_TRANSIENT_ZAP_LENDING_DEPLOYER.deploy(
+            factory.address, exchanges
+        )
+    else:
+        return LEVERAGE_TRANSIENT_ZAP_MINT_DEPLOYER.deploy(
+            mint_factory.address, exchanges
+        )
+
+
+@pytest.fixture(scope="module")
+def controller_id(market_type, factory, mint_factory, controller):
+    if market_type == "lending":
+        for i in range(factory.market_count()):
+            mkt = factory.markets(i)
+            ctrl = mkt.controller if hasattr(mkt, "controller") else mkt[1]
+            ctrl_addr = ctrl.address if hasattr(ctrl, "address") else ctrl
+            if ctrl_addr == controller.address:
+                return i
+    else:
+        for i in range(mint_factory.n_collaterals()):
+            if mint_factory.controllers(i) == controller.address:
+                return i
+    raise ValueError("Controller not found in factory")
+
+
+@pytest.fixture
+def open_position(
+    controller,
+    collateral_token,
+    borrowed_token,
+    leverage_zap,
+    dummy_router,
+    controller_id,
+    price_oracle,
+):
+    """Create a leveraged position via zap and return a factory that generates borrower addresses."""
+
+    def _open():
+        borrower = boa.env.generate_address()
+        bd = borrowed_token.decimals()
+        cd = collateral_token.decimals()
+
+        user_collateral = 2 * 10**cd
+        d_debt = 3000 * 10**bd
+        price = price_oracle.price()
+        collateral_out = collateral_from_borrowed(d_debt, price, bd, cd)
+        calldata = make_deposit_calldata(
+            controller_id,
+            collateral_out,
+            dummy_router,
+            borrowed_token,
+            collateral_token,
+            d_debt,
+            collateral_out,
+        )
+
+        boa.deal(collateral_token, borrower, 10**6 * 10**cd)
+        boa.deal(borrowed_token, borrower, 10**6 * 10**bd)
+        # The zap is the entry point and acts for the user: it pulls collateral (and
+        # borrowed, for wallet repayment) from the wallet and needs the controller's
+        # approval to open and manage the loan on the user's behalf.
+        approve_zap(
+            borrower, controller, leverage_zap, collateral_token, borrowed_token
+        )
+        with boa.env.prank(borrower):
+            leverage_zap.create_loan(
+                controller_id, user_collateral, d_debt, 10, *calldata
+            )
+        return borrower
+
+    return _open
