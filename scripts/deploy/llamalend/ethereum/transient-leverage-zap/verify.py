@@ -221,7 +221,11 @@ def main() -> None:
         raise SystemExit("Missing ETHERSCAN_API_KEY")
 
     deployment_path = (
-        PROJECT_ROOT / "deployments" / "llamalend" / "ethereum" / "transient-leverage-zap.jsonc"
+        PROJECT_ROOT
+        / "deployments"
+        / "llamalend"
+        / "ethereum"
+        / "transient-leverage-zap.jsonc"
     )
     deployment = json.loads(deployment_path.read_text())
 
@@ -230,7 +234,8 @@ def main() -> None:
     exchanges = deployment["exchanges"]
 
     std_json = _build_vyper_json(
-        PROJECT_ROOT / "curve_stablecoin/zaps/transient_leverage_zap/TransientLeverageZapLend.vy",
+        PROJECT_ROOT
+        / "curve_stablecoin/zaps/transient_leverage_zap/TransientLeverageZapLend.vy",
         optimize="codesize",
     )
     ctor_hex = encode(["address", "address[]"], [factory_addr, exchanges]).hex()
