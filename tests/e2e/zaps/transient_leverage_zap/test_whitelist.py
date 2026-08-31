@@ -14,18 +14,18 @@ import pytest
 
 from tests.utils import filter_logs
 from tests.utils.deployers import (
-    LEVERAGE_TRANSIENT_ZAP_LENDING_DEPLOYER,
-    LEVERAGE_TRANSIENT_ZAP_MINT_DEPLOYER,
+    TRANSIENT_LEVERAGE_ZAP_LENDING_DEPLOYER,
+    TRANSIENT_LEVERAGE_ZAP_MINT_DEPLOYER,
 )
 
 
 def deploy_zap(market_type, factory, mint_factory, exchanges):
     """Deploy a fresh zap for the current market type."""
     if market_type == "lending":
-        return LEVERAGE_TRANSIENT_ZAP_LENDING_DEPLOYER.deploy(
+        return TRANSIENT_LEVERAGE_ZAP_LENDING_DEPLOYER.deploy(
             factory.address, exchanges
         )
-    return LEVERAGE_TRANSIENT_ZAP_MINT_DEPLOYER.deploy(mint_factory.address, exchanges)
+    return TRANSIENT_LEVERAGE_ZAP_MINT_DEPLOYER.deploy(mint_factory.address, exchanges)
 
 
 @pytest.fixture

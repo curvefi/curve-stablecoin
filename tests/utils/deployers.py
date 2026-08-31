@@ -272,18 +272,18 @@ LEVERAGE_ZAP_MINT_DEPLOYER = boa.load_partial(
     ZAPS_CONTRACT_PATH / "LeverageZapMint.vy",
     compiler_args=compiler_args_codesize,
 )
-LEVERAGE_TRANSIENT_ZAP_LENDING_DEPLOYER = boa.load_partial(
-    ZAPS_CONTRACT_PATH / "leverage_transient_zap" / "LeverageTransientZapLend.vy",
+TRANSIENT_LEVERAGE_ZAP_LENDING_DEPLOYER = boa.load_partial(
+    ZAPS_CONTRACT_PATH / "transient_leverage_zap" / "TransientLeverageZapLend.vy",
     compiler_args=compiler_args_codesize,
 )
-LEVERAGE_TRANSIENT_ZAP_MINT_DEPLOYER = boa.load_partial(
-    ZAPS_CONTRACT_PATH / "leverage_transient_zap" / "LeverageTransientZapMint.vy",
+TRANSIENT_LEVERAGE_ZAP_MINT_DEPLOYER = boa.load_partial(
+    ZAPS_CONTRACT_PATH / "transient_leverage_zap" / "TransientLeverageZapMint.vy",
     compiler_args=compiler_args_codesize,
 )
-LEVERAGE_TRANSIENT_ZAP_CONSTANTS_DEPLOYER = boa.load_partial(
+TRANSIENT_LEVERAGE_ZAP_CONSTANTS_DEPLOYER = boa.load_partial(
     ZAPS_CONTRACT_PATH
-    / "leverage_transient_zap"
-    / "leverage_transient_zap_constants.vy",
+    / "transient_leverage_zap"
+    / "transient_leverage_zap_constants.vy",
     compiler_args=compiler_args_default,
 )
 

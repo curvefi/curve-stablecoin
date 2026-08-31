@@ -5,7 +5,7 @@ This contract is for testing only.
 If you see it on mainnet - it won't be used for anything except testing the actual deployment
 
 Makes several calls inside a single transaction, so that tests can drive a
-LeverageTransientZap more than once per transaction - the only way to observe whether
+TransientLeverageZap more than once per transaction - the only way to observe whether
 the zap's transient stash is really cleared between calls, since the transaction
 boundary would wipe it regardless.
 

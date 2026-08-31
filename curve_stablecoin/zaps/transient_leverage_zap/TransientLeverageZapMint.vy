@@ -2,7 +2,7 @@
 # pragma optimize codesize
 
 """
-@title LlamaLend V2 Mint Markets LeverageTransientZap
+@title LlamaLend V2 Mint Markets TransientLeverageZap
 @author Curve.Finance
 @license Copyright (c) Curve.Finance, 2020-2026 - all rights reserved
 @notice Creates leverage on crvUSD V2 markets via whitelisted Aggregator Routers.
@@ -17,11 +17,11 @@
 
 from curve_stablecoin.interfaces import IController
 from curve_stablecoin.interfaces import IControllerFactory
-from curve_stablecoin.interfaces import ILeverageTransientZap
+from curve_stablecoin.interfaces import ITransientLeverageZap
 
-implements: ILeverageTransientZap
+implements: ITransientLeverageZap
 
-from curve_stablecoin.zaps.leverage_transient_zap import LeverageTransientZapLend as core
+from curve_stablecoin.zaps.transient_leverage_zap import TransientLeverageZapLend as core
 
 initializes: core
 

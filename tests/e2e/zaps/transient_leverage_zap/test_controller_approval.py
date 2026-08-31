@@ -1,5 +1,5 @@
 """
-Tests for the trust assumption LeverageTransientZap introduces: the zap is the entry
+Tests for the trust assumption TransientLeverageZap introduces: the zap is the entry
 point and acts *for* the caller, so the caller must grant it `controller.approve(zap,
 True)`. The older LeverageZap needed no such approval - the user called the controller
 themselves and the zap was only a callback.

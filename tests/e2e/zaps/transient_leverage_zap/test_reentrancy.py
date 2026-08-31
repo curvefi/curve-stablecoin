@@ -2,8 +2,8 @@
 Tests for the guards that protect the transient stash while a whitelisted exchange is
 on the stack.
 
-`raw_call`-ing an exchange (LeverageTransientZapLend.vy:219) hands control to another
-contract at the worst possible moment: the stash is populated, the zap is holding the
+`raw_call`-ing an exchange from `_execute_raw_call` hands control to another contract
+at the worst possible moment: the stash is populated, the zap is holding the
 user's parked collateral plus the freshly borrowed tokens, and it has standing
 approvals on both the controller and - for the token being sold - the exchange itself.
 The exchanges are whitelisted, but a whitelist entry is a router that can be upgraded,
@@ -143,8 +143,8 @@ def test_exchange_reentering_repay_cannot_drain_in_flight_collateral(
 ):
     """
     The nastiest shape of the re-entrancy: `_repay` opens by sweeping the zap's entire
-    collateral balance to `msg.sender` (LeverageTransientZapLend.vy:410), and during
-    `callback_deposit` that balance is the borrower's parked collateral plus the swap
+    collateral balance to `msg.sender`, and during `callback_deposit` that balance is
+    the borrower's parked collateral plus the swap
     output. An exchange that re-enters `repay` would be sweeping the borrower's funds
     to itself.
 

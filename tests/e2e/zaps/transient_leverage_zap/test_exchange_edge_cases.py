@@ -2,9 +2,9 @@
 Edge cases in what the caller passes and what the exchange does back.
 
 `_execute_raw_call` approves the exchange for the whole balance, `raw_call`s it, and
-then judges the result purely by the change in the zap's own token balance
-(LeverageTransientZapLend.vy:213-220). The call itself is unchecked: no code-size check
-and no return value, which is normal for an aggregator but means the only thing
+then judges the result purely by the change in the zap's own token balance. The call
+itself is unchecked: no code-size check and no return value, which is normal for an
+aggregator but means the only thing
 separating "the swap happened" from "nothing happened" is the balance comparison the
 callbacks make afterwards. These tests pin that separation from both sides, plus the
 argument shapes nothing else covers.

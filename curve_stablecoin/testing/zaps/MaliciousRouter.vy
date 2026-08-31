@@ -5,7 +5,7 @@ This contract is for testing only.
 If you see it on mainnet - it won't be used for anything except testing the actual deployment
 
 A DummyRouter-compatible exchange that can be told to misbehave while it sits on the
-stack inside a LeverageTransientZap callback - i.e. at the exact moment the zap has
+stack inside a TransientLeverageZap callback - i.e. at the exact moment the zap has
 swap parameters stashed in transient storage, holds user funds, and has standing
 approvals on the controller.
 

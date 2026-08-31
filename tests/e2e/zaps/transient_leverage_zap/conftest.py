@@ -3,8 +3,8 @@ import pytest
 
 from tests.utils.constants import WAD, MAX_UINT256
 from tests.utils.deployers import (
-    LEVERAGE_TRANSIENT_ZAP_LENDING_DEPLOYER,
-    LEVERAGE_TRANSIENT_ZAP_MINT_DEPLOYER,
+    TRANSIENT_LEVERAGE_ZAP_LENDING_DEPLOYER,
+    TRANSIENT_LEVERAGE_ZAP_MINT_DEPLOYER,
     DUMMY_ROUTER_DEPLOYER,
 )
 
@@ -128,11 +128,11 @@ def dummy_router(borrowed_token, collateral_token):
 def leverage_zap(market_type, factory, mint_factory, dummy_router):
     exchanges = [dummy_router.address]
     if market_type == "lending":
-        return LEVERAGE_TRANSIENT_ZAP_LENDING_DEPLOYER.deploy(
+        return TRANSIENT_LEVERAGE_ZAP_LENDING_DEPLOYER.deploy(
             factory.address, exchanges
         )
     else:
-        return LEVERAGE_TRANSIENT_ZAP_MINT_DEPLOYER.deploy(
+        return TRANSIENT_LEVERAGE_ZAP_MINT_DEPLOYER.deploy(
             mint_factory.address, exchanges
         )
 

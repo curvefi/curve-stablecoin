@@ -19,7 +19,7 @@ import pytest
 
 from tests.utils.deployers import (
     CONSTANTS_DEPLOYER,
-    LEVERAGE_TRANSIENT_ZAP_CONSTANTS_DEPLOYER,
+    TRANSIENT_LEVERAGE_ZAP_CONSTANTS_DEPLOYER,
     PADDED_ROUTER_DEPLOYER,
 )
 
@@ -35,7 +35,7 @@ N = 10
 @pytest.fixture(scope="module")
 def zap_calldata_max():
     """The zap's own cap, from the constants module both zap flavours share."""
-    return LEVERAGE_TRANSIENT_ZAP_CONSTANTS_DEPLOYER.deploy().eval(
+    return TRANSIENT_LEVERAGE_ZAP_CONSTANTS_DEPLOYER.deploy().eval(
         "EXCHANGE_CALLDATA_MAX_SIZE"
     )
 

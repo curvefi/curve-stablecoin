@@ -2,7 +2,7 @@
 # pragma optimize codesize
 
 """
-@title LlamaLend V2 Lend Markets LeverageTransientZap
+@title LlamaLend V2 Lend Markets TransientLeverageZap
 @author Curve.Finance
 @license Copyright (c) Curve.Finance, 2020-2026 - all rights reserved
 @notice Creates leverage on LlamaLend V2 markets via whitelisted Aggregator Routers.
@@ -20,21 +20,21 @@ from curve_stablecoin.interfaces import ILendFactory
 from curve_stablecoin.interfaces import IController
 from curve_stablecoin import ControllerView
 from curve_stablecoin.interfaces import ILeverageZap
-from curve_stablecoin.interfaces import ILeverageTransientZap
+from curve_stablecoin.interfaces import ITransientLeverageZap
 from curve_std.interfaces import IERC20
 from curve_std import token as tkn
 from snekmate.utils import math
 
 version: public(constant(String[5])) = "1.0.0"
 
-implements: ILeverageTransientZap
+implements: ITransientLeverageZap
 
 ################################################################
 #                          CONSTANTS                           #
 ################################################################
 
 from curve_stablecoin import constants as c
-from curve_stablecoin.zaps.leverage_transient_zap import leverage_transient_zap_constants as zc
+from curve_stablecoin.zaps.transient_leverage_zap import transient_leverage_zap_constants as zc
 
 WAD: constant(uint256) = c.WAD
 DEAD_SHARES: constant(uint256) = c.DEAD_SHARES

@@ -4,8 +4,8 @@ Repay paths the ported test suite never reaches.
 test_repay.py and test_repay_full.py both run against a healthy, all-collateral
 position and take every optional argument at its default. That leaves untested:
 
-  * the collateral flush `_repay` performs before handing over to the controller
-    (LeverageTransientZapLend.vy:406-410), whose stated purpose is to avoid a revert,
+  * the collateral flush `_repay` performs before handing over to the controller,
+    whose stated purpose is to avoid a revert,
   * `_max_active_band` and `_shrink`, which the entry point exposes and forwards but
     which nothing ever passes a non-default value for,
   * a position in soft liquidation - where the controller refuses a callback repay
@@ -264,7 +264,8 @@ def test_repay_soft_liquidated_position_requires_shrink(
 ):
     """
     Once a position is in soft liquidation the controller refuses a callback repay
-    unless `_shrink` is set (controller.vy:1040) - so on exactly the positions users
+    unless `_shrink` is set (the `assert _callbacker == empty(address)` in the
+    controller's `_repay_partial`) - so on exactly the positions users
     most want to deleverage, the zap only works one way. Pinning both halves keeps that
     from silently becoming "the zap does not work here".
     """
@@ -324,7 +325,8 @@ def test_repay_soft_liquidated_reports_only_swap_proceeds(
     """
     In soft liquidation the position holds borrowed tokens of its own, and the
     controller recovers those itself rather than routing them through the callback
-    (controller.vy:1046). The zap must therefore still report - and be measured on -
+    (the `if _shrink` branch of `_repay_partial`). The zap must therefore still report
+    - and be measured on -
     only what the exchange produced, with the position's own borrowed side neither
     double-counted in the event nor able to stand in for swap output.
     """

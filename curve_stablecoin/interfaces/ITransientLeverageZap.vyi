@@ -1,5 +1,5 @@
 from curve_stablecoin.interfaces import IController
-from curve_stablecoin.zaps.leverage_transient_zap import leverage_transient_zap_constants as zc
+from curve_stablecoin.zaps.transient_leverage_zap import transient_leverage_zap_constants as zc
 
 EXCHANGE_CALLDATA_MAX_SIZE: constant(uint256) = zc.EXCHANGE_CALLDATA_MAX_SIZE
 CALLBACK_CALLDATA_MAX_SIZE: constant(uint256) = zc.CALLBACK_CALLDATA_MAX_SIZE

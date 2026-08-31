@@ -6,7 +6,7 @@ If you see it on mainnet - it won't be used for anything except testing the actu
 
 A DummyRouter that also accepts an opaque route blob, the way a real aggregator does.
 Such a blob is what makes aggregator calldata large, and carrying one that no longer
-has to fit in the controller's CALLDATA_MAX_SIZE is the reason LeverageTransientZap
+has to fit in the controller's CALLDATA_MAX_SIZE is the reason TransientLeverageZap
 exists - so tests need an exchange whose calldata can be grown on demand.
 
 `exchange_with_route` covers the realistic case: the route is a genuine ABI argument.
