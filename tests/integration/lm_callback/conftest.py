@@ -8,7 +8,7 @@ from tests.utils.deployers import (
     LM_CALLBACK_DEPLOYER,
     LM_CALLBACK_FACTORY_DEPLOYER,
 )
-from tests.utils.constants import MAX_UINT256
+from tests.utils.constants import MAX_UINT256, ZERO_ADDRESS
 
 # `LMCallback` hardcodes the mainnet CRV, GaugeController and Minter addresses so
 # that it carries no constructor arguments beyond the AMM. The mocks are deployed
@@ -120,10 +120,28 @@ def lm_callback_factory(admin, minter):
 
 @pytest.fixture(scope="module")
 def deploy_lm_callback(admin, lm_callback_factory):
-    """Deploy a callback for `amm` through the factory and wrap it for tests."""
+    """
+    Deploy a callback for `amm` through the factory and wrap it for tests.
+
+    The factory refuses a second callback for an AMM while the blueprint it was
+    deployed from is still the current one. Tests that need a fresh callback for
+    an AMM that already has one - a replacement, or one deliberately left
+    unattached - therefore rotate a new blueprint in first, which is the same
+    escape hatch production has.
+    """
 
     def _deploy(amm):
         with boa.env.prank(admin):
+            existing = lm_callback_factory.get_lm_callback_by_amm(amm.address)
+            blueprint = lm_callback_factory.lm_callback_blueprint()
+            if (
+                existing != ZERO_ADDRESS
+                and lm_callback_factory.get_blueprint_by_lm_callback(existing)
+                == blueprint
+            ):
+                lm_callback_factory.set_blueprint(
+                    LM_CALLBACK_DEPLOYER.deploy_as_blueprint()
+                )
             address = lm_callback_factory.deploy_lm_callback(amm)
         return LM_CALLBACK_DEPLOYER.at(address)
 
@@ -147,7 +165,7 @@ def trader(borrowed_token, collateral_token, amm):
 # ── LM Callback ───────────────────────────────────────────────────────────────
 
 
-@pytest.fixture(scope="function")
+@pytest.fixture(scope="module")
 def lm_callback(
     admin, amm, gauge_controller, controller, configurator, deploy_lm_callback
 ):
