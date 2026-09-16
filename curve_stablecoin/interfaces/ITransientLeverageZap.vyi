@@ -58,6 +58,7 @@ def borrow_more(
 def repay(
     controller_id: uint256,
     wallet_d_debt: uint256,
+    collateral_to_spend: uint256,
     min_recv: uint256,
     exchange_address: address,
     exchange_calldata: Bytes[EXCHANGE_CALLDATA_MAX_SIZE],

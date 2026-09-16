@@ -60,6 +60,7 @@ is_approved_exchange: public(HashMap[address, bool])
 # so it is both the callback's authentication and the entry points' reentrancy guard.
 stashed_controller: transient(address)
 stashed_exchange: transient(address)
+stashed_max_spent: transient(uint256)
 stashed_min_recv: transient(uint256)
 stashed_calldata: transient(Bytes[EXCHANGE_CALLDATA_MAX_SIZE])
 # Balance the zap held when the entry point handed over to the controller: user funds
@@ -163,6 +164,7 @@ def max_borrowable(
 @internal
 def _stash(
         _controller: address,
+        _max_spent: uint256,
         _min_recv: uint256,
         _exchange_address: address,
         _exchange_calldata: Bytes[EXCHANGE_CALLDATA_MAX_SIZE],
@@ -178,6 +180,7 @@ def _stash(
     assert _controller != empty(address)  # dev: would leave the callback unguarded
 
     self.stashed_controller = _controller
+    self.stashed_max_spent = _max_spent
     self.stashed_min_recv = _min_recv
     self.stashed_exchange = _exchange_address
     self.stashed_calldata = _exchange_calldata
@@ -187,6 +190,7 @@ def _stash(
 @internal
 def _unstash():
     self.stashed_controller = empty(address)
+    self.stashed_max_spent = 0
     self.stashed_min_recv = 0
     self.stashed_exchange = empty(address)
     self.stashed_calldata = b""
@@ -213,11 +217,11 @@ def _stashed_controller() -> address:
 
 
 @internal
-def _execute_raw_call(_token: IERC20, _exchange_address: address, _exchange_calldata: Bytes[EXCHANGE_CALLDATA_MAX_SIZE]):
+def _execute_raw_call(_token: IERC20, _max_spent: uint256, _exchange_address: address, _exchange_calldata: Bytes[EXCHANGE_CALLDATA_MAX_SIZE]):
     assert self.is_approved_exchange[_exchange_address], "Exchange not approved"
 
-    # Approve, call the exchange, then revoke so it retains no allowance afterwards
-    assert extcall _token.approve(_exchange_address, max_value(uint256), default_return_value=True)
+    # Approve at most `_max_spent`, call the exchange, then revoke so it retains no allowance afterwards
+    assert extcall _token.approve(_exchange_address, _max_spent, default_return_value=True)
     raw_call(_exchange_address, _exchange_calldata)
     assert extcall _token.approve(_exchange_address, 0, default_return_value=True)
 
@@ -249,8 +253,8 @@ def callback_deposit(
     tkn.max_approve(collateral_token, controller)
 
     # Buy leverage_collateral for d_debt
-    # The amount to be spent is specified inside the exchange_calldata.
-    self._execute_raw_call(borrowed_token, self.stashed_exchange, self.stashed_calldata)
+    # The amount to be spent is specified inside the exchange_calldata, capped by the approval.
+    self._execute_raw_call(borrowed_token, self.stashed_max_spent, self.stashed_exchange, self.stashed_calldata)
 
     # Everything the zap held before the swap belongs to the user, not to the exchange
     leverage_collateral: uint256 = (staticcall collateral_token.balanceOf(self)) - self.stashed_held
@@ -299,8 +303,8 @@ def callback_repay(
     tkn.max_approve(collateral_token, controller)
 
     # Buy borrowed token for collateral from user's position.
-    # The amount to be spent is specified inside the exchange_calldata.
-    self._execute_raw_call(collateral_token, self.stashed_exchange, self.stashed_calldata)
+    # The amount to be spent is specified inside the exchange_calldata, capped by the approval.
+    self._execute_raw_call(collateral_token, self.stashed_max_spent, self.stashed_exchange, self.stashed_calldata)
 
     remaining_collateral: uint256 = staticcall collateral_token.balanceOf(self)
     # Everything the zap held before the swap belongs to the user, not to the exchange
@@ -308,6 +312,8 @@ def callback_repay(
     assert borrowed_from_state_collateral >= self.stashed_min_recv, "Slippage"
     assert remaining_collateral < initial_collateral, "Collateral must decrease"
     state_collateral_used: uint256 = initial_collateral - remaining_collateral
+    # Sanity check just in case, the approval already caps what the exchange can pull
+    assert state_collateral_used <= self.stashed_max_spent, "Input slippage"
 
     log ILeverageZap.Repay(
         controller=controller,
@@ -352,6 +358,7 @@ def _create_loan(
     tkn.transfer_from(collateral_token, msg.sender, self, _collateral)
     self._stash(
         _controller.address,
+        _debt,
         _min_recv,
         _exchange_address,
         _exchange_calldata,
@@ -379,6 +386,7 @@ def _borrow_more(
     tkn.transfer_from(collateral_token, msg.sender, self, _collateral)
     self._stash(
         _controller.address,
+        _debt,
         _min_recv,
         _exchange_address,
         _exchange_calldata,
@@ -395,10 +403,11 @@ def _borrow_more(
 def _repay(
         _controller: IController,
         _wallet_d_debt: uint256,
-        _max_active_band: int256,
+        _collateral_to_spend: uint256,
         _min_recv: uint256,
         _exchange_address: address,
         _exchange_calldata: Bytes[EXCHANGE_CALLDATA_MAX_SIZE],
+        _max_active_band: int256,
         _shrink: bool,
 ):
     amm: IAMM = staticcall _controller.amm()
@@ -419,6 +428,7 @@ def _repay(
     tkn.transfer_from(borrowed_token, msg.sender, self, wallet_d_debt)
     self._stash(
         _controller.address,
+        _collateral_to_spend,
         _min_recv,
         _exchange_address,
         _exchange_calldata,
@@ -497,6 +507,7 @@ def borrow_more(
 def repay(
         _controller_id: uint256,
         _wallet_d_debt: uint256,
+        _collateral_to_spend: uint256,
         _min_recv: uint256,
         _exchange_address: address,
         _exchange_calldata: Bytes[EXCHANGE_CALLDATA_MAX_SIZE],
@@ -511,6 +522,8 @@ def repay(
          part the swap did not cover; the rest is refunded.
     @param _controller_id Index of the market in the factory
     @param _wallet_d_debt Amount of borrowed token the caller adds from their wallet
+    @param _collateral_to_spend Maximum amount of state collateral the exchange is allowed to take.
+           Pass exactly `max_value(uint256)` for no cap
     @param _min_recv Minimum amount of borrowed token to receive from the exchange
     @param _exchange_address Address of the exchange (e. g. pool, router) to swap collateral -> borrowed
     @param _exchange_calldata Data for the exchange
@@ -520,10 +533,11 @@ def repay(
     self._repay(
         (staticcall _LEND_FACTORY.markets(_controller_id)).controller,
         _wallet_d_debt,
-        _max_active_band,
+        _collateral_to_spend,
         _min_recv,
         _exchange_address,
         _exchange_calldata,
+        _max_active_band,
         _shrink,
     )
 

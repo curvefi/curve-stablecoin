@@ -127,6 +127,7 @@ def borrow_more(
 def repay(
         _controller_id: uint256,
         _wallet_d_debt: uint256,
+        _collateral_to_spend: uint256,
         _min_recv: uint256,
         _exchange_address: address,
         _exchange_calldata: Bytes[core.EXCHANGE_CALLDATA_MAX_SIZE],
@@ -141,6 +142,8 @@ def repay(
          part the swap did not cover; the rest is refunded.
     @param _controller_id Index of the controller in the factory
     @param _wallet_d_debt Amount of borrowed token the caller adds from their wallet
+    @param _collateral_to_spend Maximum amount of state collateral the exchange is allowed to take.
+           Pass exactly `max_value(uint256)` for no cap
     @param _min_recv Minimum amount of borrowed token to receive from the exchange
     @param _exchange_address Address of the exchange (e. g. pool, router) to swap collateral -> borrowed
     @param _exchange_calldata Data for the exchange
@@ -150,9 +153,10 @@ def repay(
     core._repay(
         IController(staticcall _MINT_FACTORY.controllers(_controller_id)),
         _wallet_d_debt,
-        _max_active_band,
+        _collateral_to_spend,
         _min_recv,
         _exchange_address,
         _exchange_calldata,
+        _max_active_band,
         _shrink,
     )
