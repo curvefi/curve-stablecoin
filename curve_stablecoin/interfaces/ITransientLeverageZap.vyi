@@ -25,54 +25,65 @@ def admin() -> address:
 
 @view
 @external
-def max_borrowable(controller: IController, _user_collateral: uint256, _leverage_collateral: uint256, N: uint256, p_avg: uint256) -> uint256:
+def is_approved_exchange(_exchange: address) -> bool:
+    ...
+
+
+@view
+@external
+def max_borrowable(_controller: IController, _user_collateral: uint256, _leverage_collateral: uint256, _N: uint256, _p_avg: uint256) -> uint256:
     ...
 
 
 @external
 def create_loan(
-    controller_id: uint256,
-    collateral: uint256,
-    debt: uint256,
-    N: uint256,
-    min_recv: uint256,
-    exchange_address: address,
-    exchange_calldata: Bytes[EXCHANGE_CALLDATA_MAX_SIZE],
+    _controller_id: uint256,
+    _collateral: uint256,
+    _debt: uint256,
+    _N: uint256,
+    _min_recv: uint256,
+    _exchange_address: address,
+    _exchange_calldata: Bytes[EXCHANGE_CALLDATA_MAX_SIZE],
 ):
     ...
 
 
 @external
 def borrow_more(
-    controller_id: uint256,
-    collateral: uint256,
-    debt: uint256,
-    min_recv: uint256,
-    exchange_address: address,
-    exchange_calldata: Bytes[EXCHANGE_CALLDATA_MAX_SIZE],
+    _controller_id: uint256,
+    _collateral: uint256,
+    _debt: uint256,
+    _min_recv: uint256,
+    _exchange_address: address,
+    _exchange_calldata: Bytes[EXCHANGE_CALLDATA_MAX_SIZE],
 ):
     ...
 
 
 @external
 def repay(
-    controller_id: uint256,
-    wallet_d_debt: uint256,
-    collateral_to_spend: uint256,
-    min_recv: uint256,
-    exchange_address: address,
-    exchange_calldata: Bytes[EXCHANGE_CALLDATA_MAX_SIZE],
-    max_active_band: int256 = max_value(int256),
-    shrink: bool = False,
+    _controller_id: uint256,
+    _wallet_d_debt: uint256,
+    _collateral_to_spend: uint256,
+    _min_recv: uint256,
+    _exchange_address: address,
+    _exchange_calldata: Bytes[EXCHANGE_CALLDATA_MAX_SIZE],
+    _max_active_band: int256 = max_value(int256),
+    _shrink: bool = False,
 ):
     ...
 
 
 @external
-def callback_deposit(user: address, borrowed: uint256, user_collateral: uint256, d_debt: uint256, calldata: Bytes[CALLBACK_CALLDATA_MAX_SIZE]) -> uint256[2]:
+def callback_deposit(_user: address, _borrowed: uint256, _user_collateral: uint256, _d_debt: uint256, _calldata: Bytes[CALLBACK_CALLDATA_MAX_SIZE]) -> uint256[2]:
     ...
 
 
 @external
-def callback_repay(user: address, borrowed: uint256, collateral: uint256, debt: uint256, calldata: Bytes[CALLBACK_CALLDATA_MAX_SIZE]) -> uint256[2]:
+def callback_repay(_user: address, _borrowed: uint256, _collateral: uint256, _debt: uint256, _calldata: Bytes[CALLBACK_CALLDATA_MAX_SIZE]) -> uint256[2]:
+    ...
+
+
+@external
+def set_exchange(_exchange: address, _approved: bool):
     ...
