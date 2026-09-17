@@ -221,3 +221,66 @@ def test_repay_wrong_controller_reverts(
     with boa.env.prank(attacker):
         with boa.reverts("wrong controller"):
             leverage_zap.callback_repay(attacker, 0, 0, 0, b"")
+
+
+def test_repay_exchange_cannot_take_more_than_collateral_to_spend(
+    open_position,
+    controller,
+    collateral_token,
+    borrowed_token,
+    leverage_zap,
+    dummy_router,
+    controller_id,
+    price_oracle,
+):
+    """
+    The zap holds the whole state collateral during the callback, but the exchange is only
+    approved for `_collateral_to_spend`. A route selling more than that reverts.
+    """
+    borrower = open_position()
+    bd = borrowed_token.decimals()
+    cd = collateral_token.decimals()
+
+    state0 = controller.user_state(borrower)
+    collateral_to_swap = state0[0] // 4
+    borrowed_out = borrowed_from_collateral(
+        collateral_to_swap, price_oracle.price(), bd, cd
+    )
+
+    _, min_recv, exchange, exchange_calldata = make_repay_calldata(
+        controller_id,
+        borrowed_out * 999 // 1000,
+        dummy_router,
+        collateral_token,
+        borrowed_token,
+        collateral_to_swap,
+        borrowed_out,
+    )
+
+    with boa.env.prank(borrower):
+        with boa.reverts("erc20: insufficient allowance"):
+            leverage_zap.repay(
+                controller_id,
+                0,
+                collateral_to_swap - 1,
+                min_recv,
+                exchange,
+                exchange_calldata,
+            )
+
+    assert controller.user_state(borrower) == state0
+    assert collateral_token.allowance(leverage_zap.address, dummy_router.address) == 0
+
+    # Exactly the cap goes through, and no allowance is left behind
+    with boa.env.prank(borrower):
+        leverage_zap.repay(
+            controller_id,
+            0,
+            collateral_to_swap,
+            min_recv,
+            exchange,
+            exchange_calldata,
+        )
+
+    assert controller.user_state(borrower)[0] == state0[0] - collateral_to_swap
+    assert collateral_token.allowance(leverage_zap.address, dummy_router.address) == 0

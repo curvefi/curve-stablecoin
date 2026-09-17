@@ -1,7 +1,7 @@
 """
 Edge cases in what the caller passes and what the exchange does back.
 
-`_execute_raw_call` approves the exchange for the whole balance, `raw_call`s it, and
+`_execute_raw_call` approves the exchange for at most the caller's cap, `raw_call`s it, and
 then judges the result purely by the change in the zap's own token balance. The call
 itself is unchecked: no code-size check and no return value, which is normal for an
 aggregator but means the only thing

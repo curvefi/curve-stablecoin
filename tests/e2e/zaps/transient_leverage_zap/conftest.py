@@ -40,6 +40,19 @@ def calc_p_avg(in_borrowed, out_collateral, borrowed_decimals, collateral_decima
     )
 
 
+def insufficient_allowance_reverts(market_type):
+    """Expect a borrowed token `transferFrom` beyond the allowance to revert.
+
+    Lending markets use the snekmate ERC20Mock, which reverts with a message. Mint markets
+    borrow crvUSD, whose `transferFrom` just underflows `allowance - _value`. boa has no
+    source map for that 0.3.10 contract, so there is no reason to match - callers have to
+    pin the cause down themselves (e.g. by the same call succeeding within the allowance).
+    """
+    if market_type == "lending":
+        return boa.reverts("erc20: insufficient allowance")
+    return boa.reverts()
+
+
 def make_deposit_calldata(
     controller_id,
     min_recv,
@@ -76,11 +89,13 @@ def make_repay_calldata(
     collateral_in,
     borrowed_out,
 ):
-    """Build the swap arguments repay takes: (min_recv, exchange, exchange_calldata).
+    """Build the swap arguments repay takes:
+    (collateral_to_spend, min_recv, exchange, exchange_calldata).
 
     The zap only swaps state collateral it receives from the controller, so `collateral_in`
-    is the amount of state collateral to sell. Actual wallet repayment is done by the
-    zap's `_wallet_d_debt` argument, which it forwards to the controller.
+    is the amount of state collateral to sell, and also the cap on the exchange's approval.
+    Actual wallet repayment is done by the zap's `_wallet_d_debt` argument, which it
+    forwards to the controller.
     """
     exchange_data = router.exchange.prepare_calldata(
         collateral_token.address,
@@ -88,7 +103,7 @@ def make_repay_calldata(
         collateral_in,
         borrowed_out,
     )
-    return min_recv, router.address, exchange_data
+    return collateral_in, min_recv, router.address, exchange_data
 
 
 def approve_zap(user, controller, leverage_zap, collateral_token, borrowed_token):

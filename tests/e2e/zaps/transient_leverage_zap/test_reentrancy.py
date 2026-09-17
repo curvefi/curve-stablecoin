@@ -31,6 +31,8 @@ than leave the position or the zap's balances damaged.
 
 import boa
 import pytest
+from boa import BoaError
+from eth_utils import keccak
 
 from tests.utils.deployers import MALICIOUS_ROUTER_DEPLOYER
 
@@ -148,9 +150,14 @@ def test_exchange_reentering_repay_cannot_drain_in_flight_collateral(
     output. An exchange that re-enters `repay` would be sweeping the borrower's funds
     to itself.
 
-    `_stash` reverts before the sweep can be committed. Here the router swallows that
-    revert, so the test can prove the sub-call rolled back: the honest loan is created
-    in full and the router ends up with exactly the collateral it sold, not a wei more.
+    The sweep is never committed, but not because of `_stash`: before stashing, `_repay`
+    reads `debt()` from the controller, which is still inside `create_loan` and locks its
+    views (`# pragma nonreentrancy on`), so the sub-call reverts there and the sweep rolls
+    back with it. The zap's own "Reentrancy" guard is a second layer this path never
+    reaches (`test_exchange_reentering_repay_reverts` pins the actual guard). Here the
+    router swallows that revert, so the test can prove the sub-call rolled back: the
+    honest loan is created in full and the router ends up with exactly the collateral it
+    sold, not a wei more.
     """
     bd = borrowed_token.decimals()
     cd = collateral_token.decimals()
@@ -159,7 +166,7 @@ def test_exchange_reentering_repay_cannot_drain_in_flight_collateral(
     collateral_out, calldata = deposit_swap(malicious_router, d_debt)
 
     reentrant_call = leverage_zap.repay.prepare_calldata(
-        controller_id, 0, 0, malicious_router.address, b"", 2**255 - 1, False
+        controller_id, 0, 0, 0, malicious_router.address, b"", 2**255 - 1, False
     )
     malicious_router.set_attack(leverage_zap.address, reentrant_call)
     malicious_router.set_catch_attack(True)
@@ -184,6 +191,50 @@ def test_exchange_reentering_repay_cannot_drain_in_flight_collateral(
         collateral_token.balanceOf(malicious_router.address)
         == router_collateral_before - collateral_out
     )
+
+
+def test_exchange_reentering_repay_reverts(
+    borrower,
+    controller,
+    collateral_token,
+    borrowed_token,
+    leverage_zap,
+    malicious_router,
+    deposit_swap,
+    controller_id,
+):
+    """
+    Same attack as above with the revert left to bubble up, pinning which guard stops it.
+
+    It is not the zap's `_stash` check: `_repay` asks the controller for the caller's
+    `debt()` before stashing, and the controller - `# pragma nonreentrancy on`, which
+    locks its views too - is still inside `create_loan`. That reverts without a reason
+    and takes the collateral sweep down with it, so the innermost failing call is pinned
+    instead.
+    """
+    bd = borrowed_token.decimals()
+    cd = collateral_token.decimals()
+    d_debt = 3000 * 10**bd
+    collateral_out, calldata = deposit_swap(malicious_router, d_debt)
+
+    reentrant_call = leverage_zap.repay.prepare_calldata(
+        controller_id, 0, 0, 0, malicious_router.address, b"", 2**255 - 1, False
+    )
+    malicious_router.set_attack(leverage_zap.address, reentrant_call)
+
+    with boa.env.prank(borrower):
+        with pytest.raises(BoaError) as e:
+            leverage_zap.create_loan(controller_id, 2 * 10**cd, d_debt, N, *calldata)
+
+    frame = e.value.call_trace
+    while failed := [child for child in frame.children if child.is_error]:
+        frame = failed[-1]
+    assert frame.address == controller.address
+    assert frame.selector == keccak(text="debt(address)")[:4]
+
+    assert not controller.loan_exists(borrower)
+    assert collateral_token.balanceOf(leverage_zap.address) == 0
+    assert borrowed_token.balanceOf(leverage_zap.address) == 0
 
 
 def test_exchange_reentering_borrow_more_reverts(

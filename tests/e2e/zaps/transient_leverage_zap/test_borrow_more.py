@@ -9,6 +9,7 @@ from tests.utils.deployers import DUMMY_ROUTER_DEPLOYER
 
 from tests.e2e.zaps.transient_leverage_zap.conftest import (
     collateral_from_borrowed,
+    insufficient_allowance_reverts,
     make_deposit_calldata,
 )
 
@@ -215,3 +216,72 @@ def test_callback_deposit_wrong_controller_reverts(
     with boa.env.prank(attacker):
         with boa.reverts("wrong controller"):
             leverage_zap.callback_deposit(attacker, 0, 0, 0, b"")
+
+
+def test_borrow_more_exchange_cannot_take_more_than_d_debt(
+    market_type,
+    open_position,
+    controller,
+    collateral_token,
+    borrowed_token,
+    leverage_zap,
+    dummy_router,
+    controller_id,
+    price_oracle,
+):
+    """
+    The exchange is only approved for d_debt. Borrowed dust sitting on the zap would
+    cover a route selling more, but the approval does not, so such a route reverts.
+    """
+    borrower = open_position()
+    bd = borrowed_token.decimals()
+    cd = collateral_token.decimals()
+
+    state0 = controller.user_state(borrower)
+
+    d_debt = 1000 * 10**bd
+    dust = 10 * 10**bd
+    price = price_oracle.price()
+    boa.deal(borrowed_token, leverage_zap.address, dust)
+
+    collateral_out = collateral_from_borrowed(d_debt + dust, price, bd, cd)
+    calldata = make_deposit_calldata(
+        controller_id,
+        collateral_out * 999 // 1000,
+        dummy_router,
+        borrowed_token,
+        collateral_token,
+        d_debt + dust,
+        collateral_out,
+    )
+
+    with boa.env.prank(borrower):
+        with insufficient_allowance_reverts(market_type):
+            leverage_zap.borrow_more(controller_id, 0, d_debt, *calldata)
+
+    assert controller.user_state(borrower) == state0
+    assert borrowed_token.balanceOf(leverage_zap.address) == dust
+    assert borrowed_token.allowance(leverage_zap.address, dummy_router.address) == 0
+
+    # A route selling exactly d_debt goes through and leaves the dust to the user
+    collateral_out = collateral_from_borrowed(d_debt, price, bd, cd)
+    calldata = make_deposit_calldata(
+        controller_id,
+        collateral_out * 999 // 1000,
+        dummy_router,
+        borrowed_token,
+        collateral_token,
+        d_debt,
+        collateral_out,
+    )
+    borrowed_before = borrowed_token.balanceOf(borrower)
+
+    with boa.env.prank(borrower):
+        leverage_zap.borrow_more(controller_id, 0, d_debt, *calldata)
+
+    state1 = controller.user_state(borrower)
+    assert state1[0] == state0[0] + collateral_out
+    assert state1[2] == state0[2] + d_debt
+    assert borrowed_token.balanceOf(borrower) == borrowed_before + dust
+    assert borrowed_token.balanceOf(leverage_zap.address) == 0
+    assert borrowed_token.allowance(leverage_zap.address, dummy_router.address) == 0

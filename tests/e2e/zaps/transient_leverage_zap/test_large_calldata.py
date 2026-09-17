@@ -163,6 +163,7 @@ def test_repay_with_route_larger_than_controller_limit(
         leverage_zap.repay(
             controller_id,
             0,
+            collateral_to_swap,
             borrowed_out * 999 // 1000,
             padded_router.address,
             exchange_calldata,
