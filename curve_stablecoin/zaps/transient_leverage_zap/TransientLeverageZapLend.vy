@@ -25,7 +25,7 @@ from curve_std.interfaces import IERC20
 from curve_std import token as tkn
 from snekmate.utils import math
 
-version: public(constant(String[5])) = "1.0.0"
+version: public(constant(String[5])) = "1.0.1"
 
 implements: ITransientLeverageZap
 
