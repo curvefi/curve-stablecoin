@@ -19,7 +19,6 @@ from curve_stablecoin.interfaces import IAMM
 from curve_stablecoin.interfaces import ILendFactory
 from curve_stablecoin.interfaces import IController
 from curve_stablecoin import ControllerView
-from curve_stablecoin.interfaces import ILeverageZap
 from curve_stablecoin.interfaces import ITransientLeverageZap
 from curve_std.interfaces import IERC20
 from curve_std import token as tkn
@@ -260,7 +259,7 @@ def callback_deposit(
     leverage_collateral: uint256 = (staticcall collateral_token.balanceOf(self)) - self.stashed_held
     assert leverage_collateral >= self.stashed_min_recv, "Slippage"
 
-    log ILeverageZap.Deposit(
+    log ITransientLeverageZap.Deposit(
         controller=controller,
         user=_user,
         leverage_collateral=leverage_collateral,
@@ -315,7 +314,7 @@ def callback_repay(
     # Sanity check just in case, the approval already caps what the exchange can pull
     assert state_collateral_used <= self.stashed_max_spent, "Input slippage"
 
-    log ILeverageZap.Repay(
+    log ITransientLeverageZap.Repay(
         controller=controller,
         user=_user,
         state_collateral_used=state_collateral_used,
@@ -570,7 +569,7 @@ def admin() -> address:
 @internal
 def _set_exchange(_exchange: address, _approved: bool):
     self.is_approved_exchange[_exchange] = _approved
-    log ILeverageZap.SetExchange(exchange=_exchange, approved=_approved)
+    log ITransientLeverageZap.SetExchange(exchange=_exchange, approved=_approved)
 
 
 @external
