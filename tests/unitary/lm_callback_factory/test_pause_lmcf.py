@@ -37,6 +37,6 @@ def test_pause_leaves_the_registry_readable(factory, dummy_amm, owner):
 
     factory.pause(sender=owner)
 
-    assert factory.is_valid_lm_callback(lm_callback)
+    assert factory.is_valid_gauge(lm_callback)
     assert factory.get_lm_callback_count() == 1
     assert factory.get_lm_callback(0) == lm_callback

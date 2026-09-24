@@ -8,7 +8,7 @@ from tests.utils.deployers import (
     LM_CALLBACK_DEPLOYER,
     LM_CALLBACK_FACTORY_DEPLOYER,
 )
-from tests.utils.constants import MAX_UINT256
+from tests.utils.constants import MAX_UINT256, ZERO_ADDRESS
 
 # `LMCallback` hardcodes the mainnet CRV, GaugeController and Minter addresses so
 # that it carries no constructor arguments beyond the AMM. The mocks are deployed
@@ -108,10 +108,10 @@ def lm_callback_factory(admin, minter):
     """
     Factory that deploys the callbacks under test.
 
-    LMCallback can only be deployed from a factory - its constructor takes the
-    deployer as LM_CALLBACK_FACTORY - so tests go through the real one. Depends
-    on `minter` to pull in the whole CRV ecosystem, which the callback
-    constructor reaches out to at its hardcoded addresses.
+    A callback records its deployer as `factory()`, so tests go through the real
+    factory to get the same wiring production has. Depends on `minter` to pull in
+    the whole CRV ecosystem, which the callback constructor reaches out to at its
+    hardcoded addresses.
     """
     with boa.env.prank(admin):
         blueprint = LM_CALLBACK_DEPLOYER.deploy_as_blueprint()
@@ -120,10 +120,28 @@ def lm_callback_factory(admin, minter):
 
 @pytest.fixture(scope="module")
 def deploy_lm_callback(admin, lm_callback_factory):
-    """Deploy a callback for `amm` through the factory and wrap it for tests."""
+    """
+    Deploy a callback for `amm` through the factory and wrap it for tests.
+
+    The factory refuses a second callback for an AMM while the blueprint it was
+    deployed from is still the current one. Tests that need a fresh callback for
+    an AMM that already has one - a replacement, or one deliberately left
+    unattached - therefore rotate a new blueprint in first, which is the same
+    escape hatch production has.
+    """
 
     def _deploy(amm):
         with boa.env.prank(admin):
+            existing = lm_callback_factory.get_lm_callback_by_amm(amm.address)
+            blueprint = lm_callback_factory.lm_callback_blueprint()
+            if (
+                existing != ZERO_ADDRESS
+                and lm_callback_factory.get_blueprint_by_lm_callback(existing)
+                == blueprint
+            ):
+                lm_callback_factory.set_blueprint(
+                    LM_CALLBACK_DEPLOYER.deploy_as_blueprint()
+                )
             address = lm_callback_factory.deploy_lm_callback(amm)
         return LM_CALLBACK_DEPLOYER.at(address)
 

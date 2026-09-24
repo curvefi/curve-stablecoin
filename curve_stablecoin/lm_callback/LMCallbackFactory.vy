@@ -12,6 +12,8 @@
 from curve_stablecoin.interfaces import IAMM
 from curve_stablecoin.interfaces import ILMCallbackFactory
 
+version: public(constant(String[5])) = "1.0.0"
+
 implements: ILMCallbackFactory
 
 from snekmate.auth import ownable
@@ -32,7 +34,17 @@ exports: (
 MAX_LM_CALLBACKS: constant(uint256) = 10**18
 
 lm_callback_blueprint: public(address)
-is_valid_lm_callback: public(HashMap[address, bool])
+# Named after the gauge factories' getter rather than after the callback:
+# integrations validate a gauge by asking its factory for `is_valid_gauge`,
+# and LM Callbacks are gauges from their point of view
+is_valid_gauge: public(HashMap[address, bool])
+# The newest callback this factory deployed for an AMM - deploy-time intent, not
+# live state: the Configurator can attach any address it likes, and a detach is
+# never reflected here. Ask the AMM itself for what is currently attached
+get_lm_callback_by_amm: public(HashMap[address, address])
+# Blueprint each callback was created from, kept for the duplicate check in
+# `deploy_lm_callback` and so integrations can tell callback generations apart
+get_blueprint_by_lm_callback: public(HashMap[address, address])
 
 _lm_callbacks: DynArray[address, MAX_LM_CALLBACKS]
 
@@ -63,12 +75,23 @@ def deploy_lm_callback(_amm: IAMM) -> address:
     @dev Reentrancy-locked because the blueprint constructor hands control to
     the caller-supplied `_amm`; the lock keeps the registry writes below
     atomic with respect to the deployment they describe
+    @dev Reverts if the AMM's newest callback came from the blueprint currently
+    set, so a market cannot be handed two identical callbacks back to back.
+    Only that newest callback is compared, not every one ever deployed for the
+    AMM: rotating the blueprint away and back therefore does allow another
+    deployment from the earlier blueprint
     @param _amm LlamaLend AMM the deployed LM Callback is going to be used for
     @return Address of the deployed LM Callback
     """
     pausable._require_not_paused()
 
     lm_callback_blueprint: address = self.lm_callback_blueprint
+    existing_lm_callback: address = self.get_lm_callback_by_amm[_amm.address]
+    if existing_lm_callback != empty(address):
+        assert (
+            self.get_blueprint_by_lm_callback[existing_lm_callback]
+            != lm_callback_blueprint
+        ), "already deployed"
 
     lm_callback: address = create_from_blueprint(
         lm_callback_blueprint,
@@ -76,8 +99,10 @@ def deploy_lm_callback(_amm: IAMM) -> address:
         code_offset=3,
     )
 
-    self.is_valid_lm_callback[lm_callback] = True
+    self.is_valid_gauge[lm_callback] = True
     self._lm_callbacks.append(lm_callback)
+    self.get_lm_callback_by_amm[_amm.address] = lm_callback
+    self.get_blueprint_by_lm_callback[lm_callback] = lm_callback_blueprint
 
     log ILMCallbackFactory.DeployedLMCallback(
         amm=_amm.address,
