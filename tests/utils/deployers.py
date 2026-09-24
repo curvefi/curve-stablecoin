@@ -272,9 +272,37 @@ LEVERAGE_ZAP_MINT_DEPLOYER = boa.load_partial(
     ZAPS_CONTRACT_PATH / "LeverageZapMint.vy",
     compiler_args=compiler_args_codesize,
 )
+TRANSIENT_LEVERAGE_ZAP_LENDING_DEPLOYER = boa.load_partial(
+    ZAPS_CONTRACT_PATH / "transient_leverage_zap" / "TransientLeverageZapLend.vy",
+    compiler_args=compiler_args_codesize,
+)
+TRANSIENT_LEVERAGE_ZAP_MINT_DEPLOYER = boa.load_partial(
+    ZAPS_CONTRACT_PATH / "transient_leverage_zap" / "TransientLeverageZapMint.vy",
+    compiler_args=compiler_args_codesize,
+)
+TRANSIENT_LEVERAGE_ZAP_CONSTANTS_DEPLOYER = boa.load_partial(
+    ZAPS_CONTRACT_PATH
+    / "transient_leverage_zap"
+    / "transient_leverage_zap_constants.vy",
+    compiler_args=compiler_args_default,
+)
 
 DUMMY_ROUTER_DEPLOYER = boa.load_partial(
     TESTING_CONTRACT_PATH / "DummyRouter.vy",
+)
+
+# Testing helpers for the transient leverage zaps
+MALICIOUS_ROUTER_DEPLOYER = boa.load_partial(
+    TESTING_CONTRACT_PATH / "zaps" / "MaliciousRouter.vy",
+    compiler_args=compiler_args_default,
+)
+PADDED_ROUTER_DEPLOYER = boa.load_partial(
+    TESTING_CONTRACT_PATH / "zaps" / "PaddedRouter.vy",
+    compiler_args=compiler_args_default,
+)
+ZAP_BATCHER_DEPLOYER = boa.load_partial(
+    TESTING_CONTRACT_PATH / "zaps" / "ZapBatcher.vy",
+    compiler_args=compiler_args_default,
 )
 
 DUMMY_FLASH_BORROWER_DEPLOYER = boa.load_partial(
