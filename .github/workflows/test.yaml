@@ -81,6 +81,8 @@ jobs:
             runs-on: "ubuntu-latest"
           - folder: "tests/unitary/mpolicies"
             runs-on: "ubuntu-latest"
+          - folder: "tests/unitary/price_oracles"
+            runs-on: "ubuntu-latest"
           - folder: "tests/e2e"
             runs-on: "ubuntu-latest"
           - folder: "tests/integration"
@@ -103,6 +105,8 @@ jobs:
           - folder: "tests/stableborrow --ignore=tests/stableborrow/stabilize"
             runs-on: "ubuntu-latest"
           - folder: "tests/forked/mint_factory_new_implementations"
+            runs-on: "ubuntu-latest"
+          - folder: "tests/forked/reusd_lp_oracle"
             runs-on: "ubuntu-latest"
     steps:
       - name: Checkout repo

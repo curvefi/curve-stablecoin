@@ -184,6 +184,10 @@ PROXY_ORACLE_FACTORY_DEPLOYER = boa.load_partial(
 )
 
 # LP oracle contracts
+REUSD_CRVUSD_ADAPTER_DEPLOYER = boa.load_partial(
+    PRICE_ORACLES_CONTRACT_PATH / "v2" / "adapters" / "ReusdCrvUSDAdapter.vy",
+    compiler_args=compiler_args_default,
+)
 LP_ORACLE_STABLE_DEPLOYER = boa.load_partial(
     PRICE_ORACLES_CONTRACT_PATH / "lp-oracles" / "LPOracleStable.vy",
     compiler_args=compiler_args_default,
