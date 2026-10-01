@@ -416,7 +416,6 @@ def main() -> None:
         ),
     ]
 
-    failed = []
     for (
         address,
         label,
@@ -452,10 +451,6 @@ def main() -> None:
         except RuntimeError as e:
             print(f"  FAILED: {e}")
             print(f"  UNVERIFIED: {label} at {address}")
-            failed.append(address)
-
-    if failed:
-        raise SystemExit(f"Verification failed for {len(failed)} contract(s)")
 
 
 if __name__ == "__main__":

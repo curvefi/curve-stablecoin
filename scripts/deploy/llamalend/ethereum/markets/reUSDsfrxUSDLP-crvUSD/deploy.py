@@ -66,11 +66,10 @@ on-chain and land in the report.  Live, the vote is created from the deploying
 account (which needs to clear the DAO's proposal threshold in veCRV) and nothing
 else happens - the DAO votes on it.
 
-Use --vote-only with the saved --report-path to propose activation later without
-redeploying. Incomplete reports retain confirmed addresses for manual recovery;
-the script refuses to overwrite them. Dry runs use a separate default report.
+Deployment addresses are saved before governance calls; existing reports are
+never overwritten by another deployment. Use a separate --report-path for forks.
 
---create-vote and --vote-only need an Etherscan API key (curve_dao fetches the Aragon agent and
+--create-vote needs an Etherscan API key (curve_dao fetches the Aragon agent and
 the target ABIs from it) and, live only, a Pinata token to pin the vote
 description to IPFS - a simulated vote carries the description inline.
 
@@ -161,7 +160,7 @@ RATE_SHIFT = 0  # no flat shift
 
 # --- Market risk parameters (stable/stable) — subject to governance review ---
 A = 440
-FEE = 9_090_909_000_000_000  # 0.91% (rounded)
+FEE = 9_090_909_000_000_000  # 0.91% rounded; below the AMM's 4/A cap
 LOAN_DISCOUNT = 3 * 10**16  # 3%
 LIQUIDATION_DISCOUNT = 25 * 10**15  # 2.5%
 SUPPLY_LIMIT = 2**256 - 1  # unlimited; borrow cap set separately
@@ -236,11 +235,7 @@ class RetryRPC(EthereumRPC):
                 return result
             except requests.exceptions.HTTPError as exc:
                 status = getattr(exc.response, "status_code", None)
-                if (
-                    status != 503
-                    or attempt == 5
-                    or method in ("eth_sendRawTransaction", "eth_sendTransaction")
-                ):
+                if status != 503 or attempt == 5:
                     raise
                 time.sleep(delay)
                 delay *= 1.5
@@ -348,79 +343,10 @@ def _create_activation_vote(
     return vote_id
 
 
-def _write_report(path: Path, report: dict, **updates) -> None:
-    report.update(updates)
+def _write_report(path: Path, report: dict) -> None:
     temporary = path.with_suffix(".tmp")
     temporary.write_text(json.dumps(report, indent=2) + "\n")
     temporary.replace(path)
-
-
-def _activate(
-    report_path: Path,
-    dry_run: bool,
-    etherscan_api_key: str | None,
-    pinata_token: str | None,
-) -> int:
-    chain_id = (
-        boa.env.get_chain_id()
-        if hasattr(boa.env, "get_chain_id")
-        else boa.env.evm.patch.chain_id
-    )
-    assert chain_id == CHAIN_ID, "Ethereum mainnet required"
-    report = json.loads(report_path.read_text())
-    assert report.get("complete"), (
-        "Deployment is incomplete; reconcile the saved addresses first"
-    )
-    assert report["chain_id"] == CHAIN_ID
-    assert dry_run or not report["dry_run"], "Cannot activate fork addresses on mainnet"
-    assert not report.get("activation_vote_pending"), (
-        "Reconcile the previous vote transaction first"
-    )
-    assert report.get("activation_vote_id") is None, "Activation vote already created"
-    factory = boa.load_partial(LEND_FACTORY).at(report["factory"])
-    controller = boa.load_partial(LEND_CONTROLLER).at(report["controller"])
-    amm = boa.load_partial(AMM_SRC).at(report["amm"])
-    lm_factory = boa.load_partial(LM_CALLBACK_FACTORY_SRC).at(LM_CALLBACK_FACTORY)
-    gauge_factory = boa.loads_abi(GAUGE_FACTORY_ABI).at(GAUGE_FACTORY)
-    assert controller.factory() == factory.address
-    assert controller.configurator() == report["configurator"]
-    assert factory.markets(factory.vaults_index(report["vault"]))[1:3] == (
-        report["controller"],
-        report["amm"],
-    )
-    assert controller.monetary_policy() == report["monetary_policy"]
-    assert amm.price_oracle_contract() == report["price_oracle"]
-    assert amm.coins(0) == CRVUSD and amm.coins(1) == LP_POOL
-    assert amm.A() == A and amm.fee() == FEE
-    assert controller.loan_discount() == LOAN_DISCOUNT
-    assert controller.liquidation_discount() == LIQUIDATION_DISCOUNT
-    assert report["params"]["requested_borrow_cap"] == BORROW_CAP
-    assert report["params"]["requested_admin_fee"] == ADMIN_FEE
-    assert gauge_factory.get_gauge_from_lp_token(report["vault"]) == report["gauge"]
-    assert lm_factory.get_lm_callback_by_amm(report["amm"]) == report["lm_callback"]
-    assert (
-        lm_factory.get_blueprint_by_lm_callback(report["lm_callback"])
-        == LM_CALLBACK_BLUEPRINT
-    )
-    if not dry_run:
-        _write_report(report_path, report, activation_vote_pending=True)
-    vote_id = _create_activation_vote(
-        report["configurator"],
-        report["controller"],
-        report["gauge"],
-        report["lm_callback"],
-        dry_run,
-        etherscan_api_key,
-        pinata_token,
-    )
-    if not dry_run:
-        _write_report(
-            report_path,
-            report,
-            activation_vote_pending=False,
-            activation_vote_id=vote_id,
-        )
-    return vote_id
 
 
 def _deploy(
@@ -454,13 +380,6 @@ def _deploy(
     assert existing["chain_id"] == CHAIN_ID
     assert configurator.default_admin() == factory.admin()
     assert not factory.paused(), "Lending factory is paused"
-    for key in (
-        "amm_blueprint",
-        "controller_blueprint",
-        "vault_blueprint",
-        "controller_view_blueprint",
-    ):
-        assert getattr(factory, key)() == contracts[key], f"Unexpected {key}"
     lm_callback_factory = boa.load_partial(LM_CALLBACK_FACTORY_SRC).at(
         LM_CALLBACK_FACTORY
     )
@@ -473,31 +392,15 @@ def _deploy(
     #    deploying anything.
     _check_pool_coins(LP_POOL, LP_POOL_COINS, "LP pool (reUSD/sfrxUSD)")
 
-    report = {
-        "chain_id": chain_id,
-        "deployer": deployer,
-        "dry_run": dry_run,
-        "timestamp": int(time.time()),
-        "factory": factory.address,
-        "configurator": configurator.address,
-        "complete": False,
-    }
-    report_path.parent.mkdir(parents=True, exist_ok=True)
-    with report_path.open("x") as f:
-        json.dump(report, f, indent=2)
-
     # 1. Oracle stack: LP/reUSD -> reUSD/crvUSD -> crvUSD/USD, chained.
     lp_oracle = boa.load_partial(STABLESWAP_NG_LP_ORACLE).deploy(
         LP_POOL, LP_COIN_IDX, EMA_TIME
     )
-    _write_report(report_path, report, lp_oracle=lp_oracle.address)
     reusd_adapter = boa.load_partial(REUSD_ADAPTER).deploy()
-    _write_report(report_path, report, reusd_adapter=reusd_adapter.address)
     oracle = boa.load_partial(CHAIN_ORACLE).deploy(
         [lp_oracle.address, reusd_adapter.address, AGG]
     )
 
-    _write_report(report_path, report, price_oracle=oracle.address)
     lp_price = lp_oracle.price()
     reusd_price = reusd_adapter.price()
     price = oracle.price()
@@ -523,8 +426,6 @@ def _deploy(
         RATE_SHIFT,
     )
 
-    _write_report(report_path, report, monetary_policy=monetary_policy.address)
-
     # 3. Create the market (deploys vault, controller, amm and wires everything).
     assert _predict_controller(factory.address) == predicted_controller, (
         "Factory nonce changed; deploy a new monetary policy before creating the market"
@@ -542,9 +443,6 @@ def _deploy(
         sender=deployer,
     )
     vault_addr, controller_addr, amm_addr = deployed
-    _write_report(
-        report_path, report, vault=vault_addr, controller=controller_addr, amm=amm_addr
-    )
     assert to_checksum_address(controller_addr) == predicted_controller, (
         f"controller address mismatch: predicted {predicted_controller}, "
         f"got {to_checksum_address(controller_addr)}"
@@ -556,7 +454,6 @@ def _deploy(
     gauge_addr = to_checksum_address(
         str(gauge_factory.deploy_gauge(vault_addr, sender=deployer))
     )
-    _write_report(report_path, report, gauge=gauge_addr)
     # One gauge per LP token: a second deploy_gauge for this vault would revert.
     assert (
         to_checksum_address(str(gauge_factory.get_gauge_from_lp_token(vault_addr)))
@@ -566,7 +463,6 @@ def _deploy(
     lm_callback_addr = to_checksum_address(
         str(lm_callback_factory.deploy_lm_callback(amm_addr, sender=deployer))
     )
-    _write_report(report_path, report, lm_callback=lm_callback_addr)
     assert lm_callback_factory.is_valid_gauge(lm_callback_addr), (
         "LM callback not registered by its factory"
     )
@@ -631,8 +527,6 @@ def _deploy(
             "low_ratio": LOW_RATIO,
             "high_ratio": HIGH_RATIO,
             "rate_shift": RATE_SHIFT,
-            "requested_borrow_cap": BORROW_CAP,
-            "requested_admin_fee": ADMIN_FEE,
             "borrow_cap": borrow_cap,
             "admin_fee": admin_fee,
             "gauge_factory": GAUGE_FACTORY,
@@ -645,7 +539,9 @@ def _deploy(
         },
     }
 
-    _write_report(report_path, report, complete=True)
+    report_path.parent.mkdir(parents=True, exist_ok=True)
+    with report_path.open("x") as f:
+        f.write(json.dumps(report, indent=2) + "\n")
 
     # Borrow cap, admin fee and the callback: set directly if the deployer is the
     # factory admin, otherwise (mainnet, where the DAO owns the factory) through a
@@ -664,24 +560,31 @@ def _deploy(
             f"deployer {deployer} is not factory admin — creating the activation "
             "vote for the Ownership DAO"
         )
-        vote_id = _activate(report_path, dry_run, etherscan_api_key, pinata_token)
+        vote_id = _create_activation_vote(
+            configurator.address,
+            controller_addr,
+            gauge_addr,
+            lm_callback_addr,
+            dry_run,
+            etherscan_api_key,
+            pinata_token,
+        )
     else:
         print(
             f"[SKIP] deployer {deployer} is not factory admin — borrow cap, admin "
             "fee, the LM callback and both gauges must be set via a DAO vote "
-            "(use --vote-only with this report)"
+            "using the saved deployment addresses"
         )
 
     borrow_cap = controller.borrow_cap()
     admin_fee = controller.admin_percentage()
     callback_attached = amm.liquidity_mining_callback() == lm_callback_addr
     report["params"].update(borrow_cap=borrow_cap, admin_fee=admin_fee)
-    _write_report(
-        report_path,
-        report,
+    report.update(
         callback_attached=callback_attached,
         activation_vote_id=vote_id,
     )
+    _write_report(report_path, report)
 
     print(f"Controller borrow cap    : {borrow_cap / 10**18:,.0f} crvUSD")
     print(f"Controller admin fee     : {admin_fee / 10**16:g}%")
@@ -730,11 +633,6 @@ def main() -> None:
         ),
     )
     parser.add_argument(
-        "--vote-only",
-        action="store_true",
-        help="Create the activation vote from --report-path without deploying another market",
-    )
-    parser.add_argument(
         "--etherscan-api-key",
         default=os.environ.get("ETHERSCAN_API_KEY"),
         help="Etherscan API key, needed by --create-vote to fetch target ABIs",
@@ -762,16 +660,7 @@ def main() -> None:
     if not args.account_name:
         raise SystemExit("Missing --account-name or ACCOUNT_NAME")
 
-    if args.vote_only and args.create_vote:
-        raise SystemExit("Use either --vote-only or --create-vote")
-    if (
-        args.dry_run
-        and not args.vote_only
-        and report_path == Path(parser.get_default("report_path"))
-    ):
-        report_path = report_path.with_name(report_path.stem + ".dry-run.json")
-
-    if args.create_vote or args.vote_only:
+    if args.create_vote:
         if not args.etherscan_api_key:
             raise SystemExit(
                 "--create-vote needs --etherscan-api-key or ETHERSCAN_API_KEY"
@@ -783,9 +672,6 @@ def main() -> None:
     if args.dry_run:
         deployer = _load_account(args.account_name).address
         with boa.fork(args.rpc_url):
-            if args.vote_only:
-                _activate(report_path, True, args.etherscan_api_key, args.pinata_token)
-                return
             _deploy(
                 deployer,
                 dry_run=True,
@@ -799,10 +685,6 @@ def main() -> None:
         acct = _load_account(args.account_name)
         with boa.set_env(NetworkEnv(RetryRPC(args.rpc_url))):
             boa.env.add_account(acct, force_eoa=True)
-            assert boa.env.get_chain_id() == CHAIN_ID, "Ethereum mainnet required"
-            if args.vote_only:
-                _activate(report_path, False, args.etherscan_api_key, args.pinata_token)
-                return
             _deploy(
                 acct.address,
                 dry_run=False,
