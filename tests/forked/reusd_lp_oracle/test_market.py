@@ -1,8 +1,10 @@
 import importlib.util
 import json
+import os
 from pathlib import Path
 
 import boa
+import curve_dao
 import pytest
 
 from tests.forked.settings import WEB3_PROVIDER_URL
@@ -108,3 +110,102 @@ def test_admin_deployment_keeps_initial_settings(deploy, market, tmp_path):
         assert int(str(amm.liquidity_mining_callback()), 16) == 0
         assert not saved["callback_attached"]
         assert "activation_vote_id" not in saved
+
+
+@pytest.fixture(scope="module")
+def api_key():
+    key = os.environ.get("ETHERSCAN_API_KEY") or os.environ.get("EXPLORER_TOKEN")
+    assert key, "Set ETHERSCAN_API_KEY or EXPLORER_TOKEN"
+    return key
+
+
+@pytest.fixture
+def proposer(deploy, market, api_key):
+    with boa.env.anchor():
+        dao = curve_dao.get_dao_parameters(deploy.VOTE_DAO)
+        vecrv = boa.from_etherscan(dao["token"], api_key=api_key)
+        crv = boa.from_etherscan(vecrv.token(), api_key=api_key)
+        proposer = boa.env.generate_address("activation-proposer")
+        boa.env.eoa = proposer
+        amount = 10_000 * WAD
+        boa.deal(crv, proposer, amount)
+        crv.approve(vecrv, amount)
+        vecrv.create_lock(amount, boa.env.evm.patch.timestamp + 4 * 365 * 86400)
+        boa.env.time_travel(blocks=1)
+        yield proposer
+
+
+def test_deployer_proposes_activation(deploy, proposer, api_key, tmp_path):
+    path = tmp_path / "activation.json"
+    deploy._deploy(proposer, True, path, FACTORY_REPORT, True, api_key)
+    report = json.loads(path.read_text())
+    vote_id = report["activation_vote_id"]
+    dao = curve_dao.get_dao_parameters(deploy.VOTE_DAO)
+    voting = boa.env.lookup_contract(dao["voting"])
+    event = next(log for log in voting.get_logs() if type(log).__name__ == "StartVote")
+    assert event.voteId == vote_id
+    assert event.creator == report["deployer"] == proposer
+    assert boa.env.get_code(proposer) == b""
+
+    controller = boa.load_partial(deploy.LEND_CONTROLLER).at(report["controller"])
+    amm = boa.load_partial(deploy.AMM_SRC).at(report["amm"])
+    gauges = boa.from_etherscan(deploy.GAUGE_CONTROLLER, api_key=api_key)
+    # Creating the proposal alone must leave the market inactive.
+    assert controller.borrow_cap() == report["params"]["borrow_cap"] == 0
+    assert controller.admin_percentage() == report["params"]["admin_fee"] == 0
+    assert int(str(amm.liquidity_mining_callback()), 16) == 0
+    assert not report["callback_attached"]
+    for gauge in (report["gauge"], report["lm_callback"]):
+        with boa.reverts():
+            gauges.gauge_types(gauge)
+
+    # Only the test passes and executes the vote, entirely on the fork.
+    curve_dao.simulate(vote_id, deploy.VOTE_DAO, api_key)
+    assert controller.borrow_cap() == deploy.BORROW_CAP
+    assert controller.admin_percentage() == deploy.ADMIN_FEE
+    assert amm.liquidity_mining_callback() == report["lm_callback"]
+    for gauge in (report["gauge"], report["lm_callback"]):
+        assert gauges.gauge_types(gauge) == 0
+        assert gauges.get_gauge_weight(gauge) == 0
+
+
+def test_ineligible_proposer_fails_before_deployment(deploy, market, api_key, tmp_path):
+    _, report = market
+    with boa.env.anchor():
+        factory = boa.load_partial(deploy.LEND_FACTORY).at(report["factory"])
+        count = factory.market_count()
+        nonce = deploy._factory_nonce(factory.address)
+        path = tmp_path / "ineligible.json"
+        with pytest.raises(AssertionError, match="Deployer is not eligible"):
+            deploy._deploy(
+                boa.env.generate_address("ineligible"),
+                True,
+                path,
+                FACTORY_REPORT,
+                True,
+                api_key,
+            )
+        assert not path.exists()
+        assert factory.market_count() == count
+        assert deploy._factory_nonce(factory.address) == nonce
+
+
+def test_failed_proposal_preserves_report(
+    deploy, proposer, api_key, tmp_path, monkeypatch
+):
+    path = tmp_path / "failed-vote.json"
+    saved = []
+
+    def fail_vote(*args, **kwargs):
+        saved.append(path.read_bytes())
+        raise RuntimeError("Proposal failed")
+
+    monkeypatch.setattr(curve_dao, "create_vote", fail_vote)
+    with pytest.raises(RuntimeError, match="Proposal failed"):
+        deploy._deploy(proposer, True, path, FACTORY_REPORT, True, api_key)
+    assert path.read_bytes() == saved[0]
+    report = json.loads(path.read_text())
+    assert report["deployer"] == proposer
+    assert "activation_vote_id" not in report
+    for key in ("vault", "controller", "amm", "gauge", "lm_callback"):
+        assert boa.env.get_code(report[key])
