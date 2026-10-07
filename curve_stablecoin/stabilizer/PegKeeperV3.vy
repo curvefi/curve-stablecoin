@@ -12,7 +12,7 @@
     2. Profit is accounted in crvUSD: lp_balance * virtual_price - debt.
     3. Every provide / withdraw must earn at least a minimal profit relative to the moved amount
        (separate entry and exit thresholds), otherwise update() reverts. Caller's share is paid
-       from the profit above that minimum.
+       from the whole profit.
     4. withdraw_profit() pays crvUSD from the idle balance and converts the paid amount into debt
        backed by LP tokens, instead of transferring surplus LP tokens.
     5. Debt ceiling cuts are honored passively: idle crvUSD a cut requires to burn is reserved
@@ -494,10 +494,9 @@ def _calc_caller_profit(_amount: uint256, _deficit: bool) -> uint256:
     if after <= before:
         return 0
     profit: uint256 = after - before
-    min_profit: uint256 = self._min_profit(amount, _deficit)
-    if profit < min_profit:
+    if profit < self._min_profit(amount, _deficit):
         return 0
-    return (profit - min_profit) * self.caller_share // SHARE_PRECISION
+    return profit * self.caller_share // SHARE_PRECISION
 
 
 @external
@@ -561,7 +560,7 @@ def update(_beneficiary: address = msg.sender) -> uint256:
     """
     @notice Provide or withdraw coins from the pool to stabilize it
     @dev Reverts if the action is unprofitable or profit per moved crvUSD is below threshold.
-        Beneficiary gets caller_share of the profit above the threshold
+        Beneficiary gets caller_share of the profit
     @param _beneficiary Beneficiary address
     @return Profit in crvUSD received by beneficiary (paid in LP tokens at virtual price)
     """
@@ -587,11 +586,9 @@ def update(_beneficiary: address = msg.sender) -> uint256:
     before: uint256 = lp_value + self.debt
     assert after > before, "peg unprofitable"
     profit: uint256 = after - before
-    min_profit: uint256 = self._min_profit(amount, diff.deficit)
-    assert profit >= min_profit, "profit below min"
+    assert profit >= self._min_profit(amount, diff.deficit), "profit below min"
 
-    # Send caller's share of profit above the min
-    caller_profit: uint256 = (profit - min_profit) * self.caller_share // SHARE_PRECISION
+    caller_profit: uint256 = profit * self.caller_share // SHARE_PRECISION
     if caller_profit > 0:
         lp_amount: uint256 = caller_profit * PRECISION // virtual_price
         assert extcall POOL.transfer(_beneficiary, lp_amount)
