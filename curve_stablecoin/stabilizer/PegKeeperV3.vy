@@ -286,11 +286,11 @@ def pool() -> CurvePool:
 
 @internal
 @view
-def _lp_value() -> uint256:
+def _lp_value(_virtual_price: uint256) -> uint256:
     """
-    @notice Value of LP tokens held, in crvUSD at the pool virtual price (rounded down)
+    @notice Value of LP tokens held, in crvUSD at the given pool virtual price (rounded down)
     """
-    return staticcall POOL.balanceOf(self) * staticcall POOL.get_virtual_price() // PRECISION
+    return staticcall POOL.balanceOf(self) * _virtual_price // PRECISION
 
 
 @internal
@@ -299,7 +299,7 @@ def _calc_profit() -> uint256:
     """
     @notice Calculate PegKeeper's profit using current values
     """
-    lp_value: uint256 = self._lp_value()
+    lp_value: uint256 = self._lp_value(staticcall POOL.get_virtual_price())
     debt: uint256 = self.debt
     if lp_value <= debt:
         return 0
@@ -557,7 +557,7 @@ def update(_beneficiary: address = msg.sender) -> uint256:
         return 0
 
     diff: BalanceDiff = self._balance_diff()
-    lp_value: uint256 = self._lp_value()
+    lp_value: uint256 = self._lp_value(staticcall POOL.get_virtual_price())
     debt: uint256 = self.debt
 
     balance: uint256 = self._get_balance()  # apply a debt ceiling cut first
@@ -569,7 +569,8 @@ def update(_beneficiary: address = msg.sender) -> uint256:
     else:
         amount = self._withdraw(amount)  # this pumps stablecoin
 
-    after: uint256 = self._lp_value() + debt  # change of (lp_value - debt), without clamping at 0
+    virtual_price: uint256 = staticcall POOL.get_virtual_price()
+    after: uint256 = self._lp_value(virtual_price) + debt  # change of (lp_value - debt), unclamped
     before: uint256 = lp_value + self.debt
     assert after > before, "peg unprofitable"
     profit: uint256 = after - before
@@ -579,7 +580,7 @@ def update(_beneficiary: address = msg.sender) -> uint256:
     # Send caller's share of profit above the min
     caller_profit: uint256 = (profit - min_profit) * self.caller_share // SHARE_PRECISION
     if caller_profit > 0:
-        lp_amount: uint256 = caller_profit * PRECISION // staticcall POOL.get_virtual_price()
+        lp_amount: uint256 = caller_profit * PRECISION // virtual_price
         assert extcall POOL.transfer(_beneficiary, lp_amount)
 
     return caller_profit
