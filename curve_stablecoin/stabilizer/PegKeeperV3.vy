@@ -17,12 +17,25 @@
        idle crvUSD is returned to the factory before being used, and provide / withdraw_profit are
        blocked until the cut is fully honored.
 @custom:kill Regulator can ban provide and / or withdraw via provide_allowed() / withdraw_allowed().
-    Admin can switch the regulator (e.g. to PegKeeperOffboarding to leave only withdrawals).
+    Owner can switch the regulator (e.g. to PegKeeperOffboarding to leave only withdrawals).
     Factory can always pull idle crvUSD back by cutting the debt ceiling. Profit withdrawal stays available.
-@custom:security Pool is trusted (Curve StableSwap-NG). Regulator is trusted and set by admin.
+@custom:security Pool is trusted (Curve StableSwap). Regulator is trusted and set by owner.
     Caller reward is paid in LP tokens valued at the pool virtual price.
+    Ownership is two-step (snekmate ownable_2step); renounce_ownership is not exported.
 @custom:version 3.0.0
 """
+
+from snekmate.auth import ownable
+from snekmate.auth import ownable_2step
+
+initializes: ownable
+initializes: ownable_2step[ownable := ownable]
+exports: (
+    ownable_2step.owner,
+    ownable_2step.pending_owner,
+    ownable_2step.transfer_ownership,
+    ownable_2step.accept_ownership,
+)
 
 
 interface Regulator:
@@ -86,14 +99,6 @@ event Profit:
     amount: uint256
 
 
-event CommitNewAdmin:
-    admin: address
-
-
-event ApplyNewAdmin:
-    admin: address
-
-
 event SetNewActionDelay:
     action_delay: uint256
 
@@ -146,12 +151,6 @@ caller_share: public(uint256)
 provide_min_profit: public(uint256)  # min profit per provided crvUSD, with PRECISION
 withdraw_min_profit: public(uint256)  # min profit per withdrawn crvUSD, with PRECISION
 
-# Admin
-ADMIN_ACTIONS_DELAY: constant(uint256) = 3 * 86400
-admin: public(address)
-future_admin: public(address)
-new_admin_deadline: public(uint256)
-
 
 @deploy
 def __init__(
@@ -161,7 +160,7 @@ def __init__(
     _withdraw_min_profit: uint256,
     _factory: Factory,
     _regulator: Regulator,
-    _admin: address,
+    _owner: address,
 ):
     """
     @notice Contract constructor
@@ -171,11 +170,11 @@ def __init__(
     @param _withdraw_min_profit Min profit per withdrawn crvUSD, with PRECISION
     @param _factory Factory which should be able to take coins away
     @param _regulator Peg Keeper Regulator
-    @param _admin Admin account
+    @param _owner Owner account
     """
     assert _factory.address != empty(address)  # dev: bad factory
     assert _regulator.address != empty(address)  # dev: bad regulator
-    assert _admin != empty(address)  # dev: bad admin
+    assert _owner != empty(address)  # dev: bad owner
 
     POOL = _pool
     FACTORY = _factory
@@ -205,8 +204,9 @@ def __init__(
     if IS_NG:
         assert len(staticcall _pool.stored_rates()) == 2  # dev: not a 2-coin pool
 
-    self.admin = _admin
-    log ApplyNewAdmin(admin=_admin)
+    ownable.__init__()
+    ownable_2step.__init__()
+    ownable._transfer_ownership(_owner)
 
     self.regulator = _regulator
     log SetNewRegulator(regulator=_regulator.address)
@@ -600,7 +600,7 @@ def withdraw_profit() -> uint256:
     return amount
 
 
-# ------------------------------- Admin methods --------------------------------
+# ------------------------------- Owner methods --------------------------------
 
 
 @external
@@ -609,7 +609,7 @@ def set_new_action_delay(_new_action_delay: uint256):
     @notice Set new action delay
     @param _new_action_delay Action delay in seconds
     """
-    assert msg.sender == self.admin  # dev: only admin
+    ownable._check_owner()
 
     self.action_delay = _new_action_delay
 
@@ -622,7 +622,7 @@ def set_new_caller_share(_new_caller_share: uint256):
     @notice Set new update caller's part
     @param _new_caller_share Part with SHARE_PRECISION
     """
-    assert msg.sender == self.admin  # dev: only admin
+    ownable._check_owner()
     assert _new_caller_share <= SHARE_PRECISION  # dev: bad part value
 
     self.caller_share = _new_caller_share
@@ -637,7 +637,7 @@ def set_new_min_profit(_provide_min_profit: uint256, _withdraw_min_profit: uint2
     @param _provide_min_profit Min profit per provided crvUSD, with PRECISION
     @param _withdraw_min_profit Min profit per withdrawn crvUSD, with PRECISION
     """
-    assert msg.sender == self.admin  # dev: only admin
+    ownable._check_owner()
     assert _provide_min_profit <= MAX_MIN_PROFIT  # dev: bad min profit
     assert _withdraw_min_profit <= MAX_MIN_PROFIT  # dev: bad min profit
 
@@ -654,42 +654,8 @@ def set_new_regulator(_new_regulator: Regulator):
     """
     @notice Set new peg keeper regulator
     """
-    assert msg.sender == self.admin  # dev: only admin
+    ownable._check_owner()
     assert _new_regulator.address != empty(address)  # dev: bad regulator
 
     self.regulator = _new_regulator
     log SetNewRegulator(regulator=_new_regulator.address)
-
-
-@external
-def commit_new_admin(_new_admin: address):
-    """
-    @notice Commit new admin of the Peg Keeper
-    @dev In order to revert, commit_new_admin(current_admin) may be called
-    @param _new_admin Address of the new admin
-    """
-    assert msg.sender == self.admin  # dev: only admin
-    assert _new_admin != empty(address)  # dev: bad admin
-
-    self.new_admin_deadline = block.timestamp + ADMIN_ACTIONS_DELAY
-    self.future_admin = _new_admin
-
-    log CommitNewAdmin(admin=_new_admin)
-
-
-@external
-def apply_new_admin():
-    """
-    @notice Apply new admin of the Peg Keeper
-    @dev Should be executed from new admin
-    """
-    new_admin: address = self.future_admin
-    new_admin_deadline: uint256 = self.new_admin_deadline
-    assert msg.sender == new_admin  # dev: only new admin
-    assert block.timestamp >= new_admin_deadline  # dev: insufficient time
-    assert new_admin_deadline != 0  # dev: no active action
-
-    self.admin = new_admin
-    self.new_admin_deadline = 0
-
-    log ApplyNewAdmin(admin=new_admin)
