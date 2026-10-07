@@ -23,11 +23,11 @@
 @custom:kill Regulator can ban provide and / or withdraw via provide_allowed() / withdraw_allowed().
     Owner can switch the regulator (e.g. to PegKeeperOffboarding to leave only withdrawals).
     Factory can always pull idle crvUSD back by cutting the debt ceiling; with the ceiling at 0 the
-    keeper can only withdraw, and owner can move all LP tokens and paired coin out via offload()
-    to unwind them elsewhere (e.g. paired coin depeg); debt is reset and the hole is tracked by the
-    factory as debt_ceiling_residual until crvUSD is returned to the keeper and burned via rug.
-    Once the hole is closed, owner can move crvUSD above what the factory minted out via
-    recover_excess().
+    keeper can only withdraw, and owner can move all LP tokens out via offload_lp() to unwind them
+    elsewhere (e.g. paired coin depeg); debt is reset and the hole is tracked by the factory as
+    debt_ceiling_residual until crvUSD is returned to the keeper and burned via rug. Owner can also
+    move out donated paired coin via recover_paired() and, once the hole is closed, crvUSD above
+    what the factory minted via recover_excess().
 @custom:security Pool is trusted (Curve StableSwap). Regulator is trusted and set by owner.
     Caller reward is paid in LP tokens valued at the pool virtual price.
     Ownership is two-step (snekmate ownable_2step); renounce_ownership is not exported.
@@ -135,11 +135,15 @@ event DepositDonation:
     lp_amount: uint256
 
 
-event Offload:
+event OffloadLP:
     receiver: indexed(address)
     lp_amount: uint256
-    paired_amount: uint256
     debt: uint256
+
+
+event RecoverPaired:
+    receiver: indexed(address)
+    amount: uint256
 
 
 event RecoverExcess:
@@ -301,9 +305,10 @@ def _calc_profit() -> uint256:
     @notice Calculate PegKeeper's profit using current values
     """
     lp_value: uint256 = self._lp_value()
-    if lp_value <= self.debt:
+    debt: uint256 = self.debt
+    if lp_value <= debt:
         return 0
-    return lp_value - self.debt
+    return lp_value - debt
 
 
 @internal
@@ -473,7 +478,8 @@ def _allowed(_deficit: bool) -> uint256:
 def _calc_call_profit(_amount: uint256, _deficit: bool) -> uint256:
     """
     @notice Calculate profit in crvUSD from calling update() above the min profit threshold
-    @dev Returns 0 if the min profit threshold is not met
+    @dev Provide adds LP and debt, withdraw removes both, so the change of (lp_value - debt)
+        is the difference between LP value moved and crvUSD moved. Returns 0 if below the min
     """
     lp_balance: uint256 = staticcall POOL.balanceOf(self)
     virtual_price: uint256 = staticcall POOL.get_virtual_price()
@@ -489,24 +495,15 @@ def _calc_call_profit(_amount: uint256, _deficit: bool) -> uint256:
     amounts[I] = amount
     lp_balance_diff: uint256 = self._calc_token_amount(amounts, _deficit)
 
-    lp_balance_after: uint256 = 0
-    debt_after: uint256 = 0
-    if _deficit:
-        lp_balance_after = lp_balance + lp_balance_diff
-        debt_after = debt + amount
-    else:
-        if lp_balance_diff > lp_balance:
-            return 0  # not enough LP to withdraw, update() would revert
-        lp_balance_after = lp_balance - lp_balance_diff
-        debt_after = debt - amount
+    if not _deficit and lp_balance_diff > lp_balance:
+        return 0  # not enough LP to withdraw, update() would revert
 
-
-    # (lp_value_after - debt_after) - (lp_value - debt), without clamping at zero
-    gain: uint256 = lp_balance_after * virtual_price // PRECISION + debt
-    loss: uint256 = lp_balance * virtual_price // PRECISION + debt_after
-    if gain <= loss:
+    value_diff: uint256 = lp_balance_diff * virtual_price // PRECISION  # LP moved, in crvUSD
+    after: uint256 = value_diff if _deficit else amount
+    before: uint256 = amount if _deficit else value_diff
+    if after <= before:
         return 0
-    profit: uint256 = gain - loss
+    profit: uint256 = after - before
     min_profit: uint256 = self._min_profit(amount, _deficit)
     if profit < min_profit:
         return 0
@@ -518,7 +515,7 @@ def _calc_call_profit(_amount: uint256, _deficit: bool) -> uint256:
 def estimate_caller_profit() -> uint256:
     """
     @notice Estimate profit from calling update()
-    @dev This method is not precise, real profit is always more because of increasing virtual price
+    @dev This method is not precise: the virtual price changes between the estimate and the call
     @return Expected amount of profit in crvUSD going to beneficiary
     """
     if self.last_change + self.action_delay > block.timestamp:
@@ -533,21 +530,20 @@ def estimate_caller_profit() -> uint256:
 def _provide(_amount: uint256) -> uint256:
     """
     @notice Implementation of provide
-    @dev Coins should be already in the contract
+    @dev Coins should be already in the contract and the amount limited by the caller
     @return Amount of crvUSD provided
     """
-    amount: uint256 = min(_amount, self._get_balance())
-    if amount == 0:
+    if _amount == 0:
         return 0
 
     amounts: uint256[2] = empty(uint256[2])
-    amounts[I] = amount
+    amounts[I] = _amount
     self._add_liquidity(amounts, 0)
 
     self.last_change = block.timestamp
-    self.debt += amount
-    log Provide(amount=amount)
-    return amount
+    self.debt += _amount
+    log Provide(amount=_amount)
+    return _amount
 
 
 @internal
@@ -586,21 +582,19 @@ def update(_beneficiary: address = msg.sender) -> uint256:
     lp_value: uint256 = self._lp_value()
     debt: uint256 = self.debt
 
-    self._get_balance()  # apply a scheduled debt ceiling cut before the regulator reads the balance
+    balance: uint256 = self._get_balance()  # rug first, so the regulator sees the real balance
     allowed: uint256 = self._allowed(diff.deficit)
     assert allowed > 0, "Regulator ban"
     amount: uint256 = min(diff.amount // 5, allowed)
     if diff.deficit:
-        amount = self._provide(amount)  # this dumps stablecoin
+        amount = self._provide(min(amount, balance))  # this dumps stablecoin
     else:
         amount = self._withdraw(amount)  # this pumps stablecoin
 
-
-    # (lp_value_after - debt_after) - (lp_value - debt), without clamping at zero
-    gain: uint256 = self._lp_value() + debt
-    loss: uint256 = lp_value + self.debt
-    assert gain > loss, "peg unprofitable"
-    profit: uint256 = gain - loss
+    after: uint256 = self._lp_value() + debt  # change of (lp_value - debt), without clamping at 0
+    before: uint256 = lp_value + self.debt
+    assert after > before, "peg unprofitable"
+    profit: uint256 = after - before
     min_profit: uint256 = self._min_profit(amount, diff.deficit)
     assert profit >= min_profit, "profit below min"
 
@@ -625,7 +619,8 @@ def _deposit_donation() -> uint256:
         Silently does nothing if there is nothing to deposit, the regulator does not allow the
         direction, or the pool would mint less than MAX_DONATION_LOSS tolerates
     @dev Both branches move the pool towards balance and earn the scarce coin premium;
-        the loss in a balanced pool is bounded by fee / 2 on the deposit
+        the loss in a balanced pool is bounded by fee / 2 on the deposit.
+        A scheduled debt ceiling cut is applied before the regulator is asked
     @return Amount of LP tokens minted
     """
     paired: uint256 = staticcall PAIRED.balanceOf(self)
@@ -708,21 +703,20 @@ def withdraw_profit(_deposit_donation: bool = True) -> uint256:
     return amount
 
 
-# ----------------------------------- Offload -----------------------------------
+# --------------------------------- Offload LP ----------------------------------
 
 
 @external
 @nonreentrant
-def offload(_receiver: address) -> uint256:
+def offload_lp(_receiver: address) -> uint256:
     """
-    @notice Move all LP tokens and not yet deposited paired coin out to unwind them elsewhere,
-        e.g. when the paired coin is depegged and withdrawing crvUSD from the pool is not an
-        option. Only transfers, does not swap. Only after the DAO has cut the debt ceiling to 0,
-        i.e. decommissioned this keeper
+    @notice Move all LP tokens out to unwind them elsewhere, e.g. when the paired coin is depegged
+        and withdrawing crvUSD from the pool is not an option. Only transfers LP, does not swap it.
+        Only after the DAO has cut the debt ceiling to 0, i.e. decommissioned this keeper
     @dev debt is reset: the hole is tracked by the factory as debt_ceiling_residual until crvUSD
         is sent back to the keeper and burned via rug, which is kept scheduled so crvUSD sent back
         can not be provided again
-    @param _receiver Receiver of LP tokens and paired coin
+    @param _receiver Receiver of LP tokens
     @return Amount of LP tokens transferred
     """
     ownable._check_owner()
@@ -734,11 +728,28 @@ def offload(_receiver: address) -> uint256:
     self.debt = 0
     lp_amount: uint256 = staticcall POOL.balanceOf(self)
     assert extcall POOL.transfer(_receiver, lp_amount)
-    paired_amount: uint256 = staticcall PAIRED.balanceOf(self)
-    if paired_amount > 0:
-        assert extcall PAIRED.transfer(_receiver, paired_amount, default_return_value=True)
-    log Offload(receiver=_receiver, lp_amount=lp_amount, paired_amount=paired_amount, debt=debt)
+    log OffloadLP(receiver=_receiver, lp_amount=lp_amount, debt=debt)
     return lp_amount
+
+
+@external
+@nonreentrant
+def recover_paired(_receiver: address) -> uint256:
+    """
+    @notice Move out donated paired coin that was not deposited. Only after the DAO has cut the
+        debt ceiling to 0
+    @param _receiver Receiver of paired coin
+    @return Amount of paired coin transferred
+    """
+    ownable._check_owner()
+    assert staticcall FACTORY.debt_ceiling(self) == 0  # dev: debt ceiling is not zero
+    assert _receiver != empty(address)  # dev: bad receiver
+
+    amount: uint256 = staticcall PAIRED.balanceOf(self)
+    if amount > 0:
+        assert extcall PAIRED.transfer(_receiver, amount, default_return_value=True)
+        log RecoverPaired(receiver=_receiver, amount=amount)
+    return amount
 
 
 @external
@@ -817,7 +828,7 @@ def set_new_regulator(_new_regulator: Regulator):
     @notice Set new peg keeper regulator
     """
     ownable._check_owner()
-    assert _new_regulator.address != empty(address)  # dev: bad regulator
+    assert staticcall _new_regulator.stablecoin() == PEGGED.address  # dev: bad regulator
 
     self.regulator = _new_regulator
     log SetNewRegulator(regulator=_new_regulator.address)
