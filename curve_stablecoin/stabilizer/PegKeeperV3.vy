@@ -154,7 +154,6 @@ PRECISION: constant(uint256) = 10**18
 MAX_COINS: constant(uint256) = 8
 IMBALANCE_FRACTION: constant(uint256) = 5  # move 1/5 of the pool imbalance per call
 MAX_DONATION_LOSS: constant(uint256) = 10**14  # 1bp of deposited value
-LP_VALUE_MARGIN: constant(uint256) = 1000  # withdraw at most lp_value - lp_value / 1000
 
 # Pool
 POOL: immutable(CurvePool)
@@ -480,7 +479,7 @@ def _allowed(_deficit: bool) -> uint256:
 @view
 def _calc_caller_profit(_amount: uint256, _deficit: bool) -> uint256:
     """
-    @notice Calculate caller's share of profit in crvUSD from calling update(), as update() pays it
+    @notice Calculate caller's share of profit in crvUSD from calling update()
     @dev Provide adds LP and debt, withdraw removes both, so the change of (lp_value - debt)
         is the difference between LP value moved and crvUSD moved. Returns 0 if below the min
     """
@@ -492,15 +491,11 @@ def _calc_caller_profit(_amount: uint256, _deficit: bool) -> uint256:
     if _deficit:
         amount = min(_amount, self._calc_balance())
     else:
-        lp_value: uint256 = lp_balance * virtual_price // PRECISION
-        amount = min(min(_amount, debt), lp_value - lp_value // LP_VALUE_MARGIN)
+        amount = min(min(_amount, debt), lp_balance * virtual_price // PRECISION)
 
     amounts: uint256[2] = empty(uint256[2])
     amounts[I] = amount
     lp_balance_diff: uint256 = self._calc_token_amount(amounts, _deficit)
-
-    if not _deficit and lp_balance_diff > lp_balance:
-        return 0  # not enough LP to withdraw, update() would revert
 
     value_diff: uint256 = lp_balance_diff * virtual_price // PRECISION  # LP moved, in crvUSD
     after: uint256 = value_diff if _deficit else amount
@@ -511,9 +506,7 @@ def _calc_caller_profit(_amount: uint256, _deficit: bool) -> uint256:
     min_profit: uint256 = self._min_profit(amount, _deficit)
     if profit < min_profit:
         return 0
-    caller_profit: uint256 = (profit - min_profit) * self.caller_share // SHARE_PRECISION
-    lp_left: uint256 = lp_balance + lp_balance_diff if _deficit else lp_balance - lp_balance_diff
-    return min(caller_profit, lp_left * virtual_price // PRECISION)
+    return (profit - min_profit) * self.caller_share // SHARE_PRECISION
 
 
 @external
@@ -579,8 +572,7 @@ def update(_beneficiary: address = msg.sender) -> uint256:
     @dev Reverts if the action is unprofitable or profit per moved crvUSD is below threshold.
         Beneficiary gets caller_share of the profit above the threshold
     @param _beneficiary Beneficiary address
-    @return Profit in crvUSD received by beneficiary (paid in LP tokens at virtual price,
-        capped at LP tokens held)
+    @return Profit in crvUSD received by beneficiary (paid in LP tokens at virtual price)
     """
     if self.last_change + self.action_delay > block.timestamp:
         return 0
@@ -596,26 +588,24 @@ def update(_beneficiary: address = msg.sender) -> uint256:
     if diff.deficit:
         amount = self._provide(min(amount, balance))  # this dumps stablecoin
     else:
-        # Fees make a withdraw of the full LP value need more LP than held, so keep a margin
-        amount = min(amount, lp_value - lp_value // LP_VALUE_MARGIN)
-        amount = self._withdraw(amount)  # this pumps stablecoin
+        # Up to LP value: then a profitable withdraw always has enough LP to burn and to pay
+        amount = self._withdraw(min(amount, lp_value))  # this pumps stablecoin
 
     virtual_price: uint256 = staticcall POOL.get_virtual_price()
-    lp_balance: uint256 = staticcall POOL.balanceOf(self)
-    after: uint256 = lp_balance * virtual_price // PRECISION + debt  # change of (lp_value - debt)
+    after: uint256 = self._lp_value(virtual_price) + debt  # change of (lp_value - debt), unclamped
     before: uint256 = lp_value + self.debt
     assert after > before, "peg unprofitable"
     profit: uint256 = after - before
     min_profit: uint256 = self._min_profit(amount, diff.deficit)
     assert profit >= min_profit, "profit below min"
 
-    # Send caller's share of profit above the min, capped at LP left when LP value < debt
+    # Send caller's share of profit above the min
     caller_profit: uint256 = (profit - min_profit) * self.caller_share // SHARE_PRECISION
-    lp_amount: uint256 = min(caller_profit * PRECISION // virtual_price, lp_balance)
-    if lp_amount > 0:
+    if caller_profit > 0:
+        lp_amount: uint256 = caller_profit * PRECISION // virtual_price
         assert extcall POOL.transfer(_beneficiary, lp_amount)
 
-    return lp_amount * virtual_price // PRECISION
+    return caller_profit
 
 
 # ---------------------------------- Donations ----------------------------------
