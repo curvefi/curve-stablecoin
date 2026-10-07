@@ -750,14 +750,17 @@ def recover_excess(_receiver: address) -> uint256:
         proceeds above the hole. A debt ceiling cut is applied first
     @dev Excess is idle + min(debt, lp_value) - residual: crvUSD in the pool is still the factory's
         and counts only as far as LP covers it, so a hole is closed before anything is excess.
-        Only the part of the excess that is idle can leave now
+        Only the part of the excess that is idle can leave now. The pool is not touched once
+        debt is 0 (after offload_lp), so a broken rate oracle does not block the recovery
     @param _receiver Receiver of crvUSD
     @return Amount of crvUSD transferred
     """
     ownable._check_owner()
     idle: uint256 = self._get_balance()  # 0 while a debt ceiling cut is not fully honored
-    lp_value: uint256 = self._lp_value(staticcall POOL.get_virtual_price())
-    total: uint256 = idle + min(self.debt, lp_value)
+    backed: uint256 = self.debt
+    if backed > 0:
+        backed = min(backed, self._lp_value(staticcall POOL.get_virtual_price()))
+    total: uint256 = idle + backed
     excess: uint256 = total - min(total, staticcall FACTORY.debt_ceiling_residual(self))
     return self._recover(PEGGED, _receiver, min(excess, idle))
 
