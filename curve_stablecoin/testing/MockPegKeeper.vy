@@ -8,6 +8,7 @@ If you see it on mainnet - it won't be used for anything except testing the actu
 pool: public(immutable(address))
 IS_INVERSE: public(bool)
 debt: public(uint256)
+calc_balance: public(uint256)  # idle stablecoin the keeper may provide
 
 coins: public(address[2])
 get_virtual_price: public(uint256)
@@ -23,8 +24,8 @@ def __init__(price: uint256, stablecoin: address):
     self.debt = 0
 
     self.coins = [empty(address), stablecoin]
-    self.get_virtual_price = 10 ** 18  # 1.0
-    self.totalSupply = 10 ** 9 * 10 ** 18  # 1B
+    self.get_virtual_price = 10**18  # 1.0
+    self.totalSupply = 10**9 * 10**18  # 1B
 
     self.price = price
 
@@ -49,3 +50,8 @@ def set_price(price: uint256):
 @external
 def set_debt(debt: uint256):
     self.debt = debt
+
+
+@external
+def set_balance(_balance: uint256):
+    self.calc_balance = _balance

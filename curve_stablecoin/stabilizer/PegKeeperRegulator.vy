@@ -26,6 +26,7 @@ interface StableSwap:
 interface PegKeeper:
     def pool() -> StableSwap: view
     def debt() -> uint256: view
+    def calc_balance() -> uint256: view
     def IS_INVERSE() -> bool: view
 
 
@@ -219,7 +220,7 @@ def _get_ratio(_peg_keeper: PegKeeper) -> uint256:
     @return debt ratio limited up to 1
     """
     debt: uint256 = staticcall _peg_keeper.debt()
-    return debt * ONE // (1 + debt + staticcall STABLECOIN.balanceOf(_peg_keeper.address))
+    return debt * ONE // (1 + debt + staticcall _peg_keeper.calc_balance())
 
 
 @internal
@@ -287,7 +288,7 @@ def provide_allowed(_pk: address = msg.sender) -> uint256:
         return 0
 
     debt: uint256 = staticcall PegKeeper(_pk).debt()
-    total: uint256 = debt + staticcall STABLECOIN.balanceOf(_pk)
+    total: uint256 = debt + staticcall PegKeeper(_pk).calc_balance()
     limit: uint256 = self._get_max_ratio(debt_ratios) * total // ONE
     if limit <= debt:
         return 0

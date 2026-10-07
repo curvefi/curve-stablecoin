@@ -17,7 +17,8 @@
        backed by LP tokens, instead of transferring surplus LP tokens.
     5. Debt ceiling cuts are applied by the keeper itself: before idle crvUSD is used, it is
        returned to the factory, and provide / withdraw_profit are blocked until the cut is fully
-       honored.
+       honored. calc_balance() reports the idle crvUSD the regulator should count, 0 once the
+       ceiling is 0.
     6. Donated paired coin is deposited into the pool: 50/50 by value with idle crvUSD while crvUSD
        is scarce (subject to provide_allowed()), paired coin only while crvUSD is abundant (subject to
        withdraw_allowed()). LP minted above the crvUSD part is Peg Keeper's profit.
@@ -335,6 +336,31 @@ def _need_to_rug() -> bool:
 
 
 @internal
+@view
+def _calc_balance() -> uint256:
+    """
+    @notice Idle crvUSD the keeper may provide: balance left after a pending debt ceiling cut,
+        0 with the ceiling at 0 (decommissioned keeper)
+    """
+    ceiling: uint256 = staticcall FACTORY.debt_ceiling(self)
+    if ceiling == 0:
+        return 0
+    balance: uint256 = staticcall PEGGED.balanceOf(self)
+    residual: uint256 = staticcall FACTORY.debt_ceiling_residual(self)
+    to_rug: uint256 = residual - min(residual, ceiling)
+    return balance - min(balance, to_rug)
+
+
+@external
+@view
+def calc_balance() -> uint256:
+    """
+    @notice Idle crvUSD the keeper may provide, as the regulator should count it
+    """
+    return self._calc_balance()
+
+
+@internal
 def _get_balance() -> uint256:
     """
     @notice Get idle crvUSD balance after rugging debt ceiling
@@ -463,11 +489,7 @@ def _calc_caller_profit(_amount: uint256, _deficit: bool) -> uint256:
 
     amount: uint256 = 0
     if _deficit:
-        # idle crvUSD left after a debt ceiling cut, which update() applies first
-        balance: uint256 = staticcall PEGGED.balanceOf(self)
-        residual: uint256 = staticcall FACTORY.debt_ceiling_residual(self)
-        to_rug: uint256 = residual - min(residual, staticcall FACTORY.debt_ceiling(self))
-        amount = min(_amount, balance - min(balance, to_rug))
+        amount = min(_amount, self._calc_balance())
     else:
         amount = min(_amount, debt)
 
