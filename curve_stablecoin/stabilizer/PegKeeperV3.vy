@@ -17,8 +17,9 @@
     5. Debt ceiling cuts are applied the way FastBridgeVault does: anyone can schedule_rug(), after which
        idle crvUSD is returned to the factory before being used, and provide / withdraw_profit are
        blocked until the cut is fully honored.
-    6. Donated paired coin is deposited 50/50 by value together with idle crvUSD (subject to
-       provide_allowed()); LP minted above the crvUSD part is Peg Keeper's profit.
+    6. Donated paired coin is deposited into the pool: 50/50 by value with idle crvUSD while crvUSD
+       is scarce (subject to provide_allowed()), paired coin only while crvUSD is abundant (subject to
+       withdraw_allowed()). LP minted above the crvUSD part is Peg Keeper's profit.
 @custom:kill Regulator can ban provide and / or withdraw via provide_allowed() / withdraw_allowed().
     Owner can switch the regulator (e.g. to PegKeeperOffboarding to leave only withdrawals).
     Factory can always pull idle crvUSD back by cutting the debt ceiling; with the ceiling at 0 the
@@ -147,7 +148,7 @@ PRECISION: constant(uint256) = 10**18
 MAX_COINS: constant(uint256) = 8
 MAX_DONATION_LOSS: constant(uint256) = (
     10**14
-)  # 0.01% of deposited value, measured worst case is ~0.001%
+)  # 1bp of deposited value; balanced pool charges fee / 2
 
 # Pool
 POOL: immutable(CurvePool)
@@ -605,12 +606,13 @@ def update(_beneficiary: address = msg.sender) -> uint256:
 @internal
 def _deposit_donation() -> uint256:
     """
-    @notice Deposit donated paired coin 50/50 by value together with idle crvUSD.
-        Silently does nothing if there is nothing to deposit, crvUSD is not available or not
-        allowed by the regulator, or the pool would mint less than MAX_DONATION_LOSS tolerates
-    @dev The crvUSD part is accounted as debt, LP minted above it is profit.
-        Depositing both coins moves the pool towards balance; the scarce coin premium covers
-        the imbalance fee in all but nearly balanced pools, where the loss is bounded by fee / 2
+    @notice Deposit donated paired coin into the pool.
+        crvUSD scarce: 50/50 by value with idle crvUSD (crvUSD part is debt).
+        crvUSD abundant: paired coin only, up to 1/5 of the imbalance per call, no debt.
+        Silently does nothing if there is nothing to deposit, the regulator does not allow the
+        direction, or the pool would mint less than MAX_DONATION_LOSS tolerates
+    @dev Both branches move the pool towards balance and earn the scarce coin premium;
+        the loss in a balanced pool is bounded by fee / 2 on the deposit
     @return Amount of LP tokens minted
     """
     paired: uint256 = staticcall PAIRED.balanceOf(self)
@@ -618,17 +620,29 @@ def _deposit_donation() -> uint256:
         return 0
 
     rates: uint256[2] = self._rates()
-    pegged: uint256 = min(paired * rates[1 - I] // rates[I], self._get_balance())
-    pegged = min(pegged, staticcall self.regulator.provide_allowed())
-    if pegged == 0:
-        return 0
-    paired = pegged * rates[I] // rates[1 - I]  # keep 50/50 by value
-
+    diff: BalanceDiff = self._balance_diff()
+    pegged: uint256 = 0
+    if diff.deficit:
+        # crvUSD is scarce: 50/50 by value, crvUSD part is a provide
+        pegged = min(paired * rates[1 - I] // rates[I], self._get_balance())
+        pegged = min(pegged, staticcall self.regulator.provide_allowed())
+        if pegged == 0:
+            return 0
+        paired = pegged * rates[I] // rates[1 - I]
+    else:
+        # crvUSD is abundant: paired coin only, like a withdraw for the pool price
+        if staticcall self.regulator.withdraw_allowed() == 0:
+            return 0
+        paired = min(paired, diff.amount // 5 * rates[I] // rates[1 - I])
+        if paired == 0:
+            return 0
     amounts: uint256[2] = empty(uint256[2])
     amounts[I] = pegged
     amounts[1 - I] = paired
-    virtual_price: uint256 = staticcall POOL.get_virtual_price()
-    min_mint_amount: uint256 = 2 * pegged * (PRECISION - MAX_DONATION_LOSS) // virtual_price
+    value: uint256 = pegged + paired * rates[1 - I] // rates[I]
+    min_mint_amount: uint256 = (
+        value * (PRECISION - MAX_DONATION_LOSS) // staticcall POOL.get_virtual_price()
+    )
     if self._calc_token_amount(amounts, True) < min_mint_amount:
         return 0
 
@@ -642,7 +656,7 @@ def _deposit_donation() -> uint256:
 @nonreentrant
 def deposit_donation() -> uint256:
     """
-    @notice Deposit donated paired coin 50/50 by value together with idle crvUSD. Callable by anyone
+    @notice Deposit donated paired coin into the pool. Callable by anyone
     @return Amount of LP tokens minted, 0 if nothing was deposited
     """
     return self._deposit_donation()
