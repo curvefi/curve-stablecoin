@@ -18,7 +18,9 @@
        blocked until the cut is fully honored.
 @custom:kill Regulator can ban provide and / or withdraw via provide_allowed() / withdraw_allowed().
     Owner can switch the regulator (e.g. to PegKeeperOffboarding to leave only withdrawals).
-    Factory can always pull idle crvUSD back by cutting the debt ceiling. Profit withdrawal stays available.
+    Factory can always pull idle crvUSD back by cutting the debt ceiling; with the ceiling at 0 the
+    keeper can only withdraw, and owner can move LP tokens out via offload_lp() to unwind them
+    elsewhere (e.g. paired coin depeg). debt is left untouched as a record of the hole.
 @custom:security Pool is trusted (Curve StableSwap). Regulator is trusted and set by owner.
     Caller reward is paid in LP tokens valued at the pool virtual price.
     Ownership is two-step (snekmate ownable_2step); renounce_ownership is not exported.
@@ -118,6 +120,11 @@ event SetNewRegulator:
 
 event RugScheduled:
     status: bool
+
+
+event OffloadLP:
+    receiver: indexed(address)
+    lp_amount: uint256
 
 
 struct BalanceDiff:
@@ -598,6 +605,33 @@ def withdraw_profit() -> uint256:
 
     log Profit(amount=amount)
     return amount
+
+
+# --------------------------------- Offload LP ----------------------------------
+
+
+@external
+@nonreentrant
+def offload_lp(_receiver: address, _amount: uint256):
+    """
+    @notice Move LP tokens out to unwind the position elsewhere, e.g. when the paired coin is depegged
+        and withdrawing crvUSD from the pool is not an option. Only transfers LP, does not swap it.
+        Only after the DAO has cut the debt ceiling to 0, i.e. decommissioned this keeper
+    @dev Schedules debt ceiling rug if not scheduled yet, so crvUSD withdrawn from the pool later
+        can not be provided again. debt is not changed: it stays as a record of the hole to cover
+    @param _receiver Receiver of LP tokens
+    @param _amount Amount of LP tokens
+    """
+    ownable._check_owner()
+    assert staticcall FACTORY.debt_ceiling(self) == 0  # dev: debt ceiling is not zero
+    assert _receiver != empty(address)  # dev: bad receiver
+
+    if not self.rug_scheduled:
+        self.rug_scheduled = True
+        log RugScheduled(status=True)
+
+    assert extcall POOL.transfer(_receiver, _amount)
+    log OffloadLP(receiver=_receiver, lp_amount=_amount)
 
 
 # ------------------------------- Owner methods --------------------------------
