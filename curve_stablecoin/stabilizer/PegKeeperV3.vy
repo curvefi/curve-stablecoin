@@ -160,7 +160,7 @@ MAX_DONATION_LOSS: constant(uint256) = 10**14  # 1bp of deposited value
 POOL: immutable(CurvePool)
 I: immutable(uint256)  # index of pegged in pool
 PEGGED: immutable(ERC20)
-PAIRED: immutable(ERC20)  # the other coin of the pool
+PAIRED: immutable(ERC20)  # the second coin of the pool
 IS_INVERSE: public(immutable(bool))
 IS_NG: public(immutable(bool))  # Interface for CurveStableSwapNG
 RATES: immutable(uint256[2])  # Constant rates for legacy pools: 10 ** (36 - decimals)
@@ -311,12 +311,12 @@ def _calc_profit() -> uint256:
 
 @internal
 @view
-def _min_profit(_amount: uint256, _is_deposit: bool) -> uint256:
+def _min_profit(_amount: uint256, _deficit: bool) -> uint256:
     """
     @notice Min profit required for moving _amount: entry (provide) or exit (withdraw) threshold
     @dev Rounded down
     """
-    min_profit: uint256 = self.provide_min_profit if _is_deposit else self.withdraw_min_profit
+    min_profit: uint256 = self.provide_min_profit if _deficit else self.withdraw_min_profit
     return _amount * min_profit // PRECISION
 
 
@@ -447,33 +447,33 @@ def _balance_diff() -> BalanceDiff:
     """
     rates: uint256[2] = self._rates()
     normalized_pegged: uint256 = staticcall POOL.balances(I) * rates[I] // PRECISION
-    normalized_other: uint256 = staticcall POOL.balances(1 - I) * rates[1 - I] // PRECISION
+    normalized_paired: uint256 = staticcall POOL.balances(1 - I) * rates[1 - I] // PRECISION
 
-    if normalized_pegged >= normalized_other:
+    if normalized_pegged >= normalized_paired:
         return BalanceDiff(
-            amount=unsafe_sub(normalized_pegged, normalized_other) * PRECISION // rates[I],
+            amount=unsafe_sub(normalized_pegged, normalized_paired) * PRECISION // rates[I],
             deficit=False,
         )
     return BalanceDiff(
-        amount=unsafe_sub(normalized_other, normalized_pegged) * PRECISION // rates[I],
+        amount=unsafe_sub(normalized_paired, normalized_pegged) * PRECISION // rates[I],
         deficit=True,
     )
 
 
 @internal
 @view
-def _allowed(_is_deposit: bool) -> uint256:
+def _allowed(_deficit: bool) -> uint256:
     """
-    @notice Amount of crvUSD the regulator allows to provide or withdraw
+    @notice Amount of crvUSD the regulator allows to provide (deficit) or withdraw
     """
-    if _is_deposit:
+    if _deficit:
         return staticcall self.regulator.provide_allowed()
     return staticcall self.regulator.withdraw_allowed()
 
 
 @internal
 @view
-def _calc_call_profit(_amount: uint256, _is_deposit: bool) -> uint256:
+def _calc_call_profit(_amount: uint256, _deficit: bool) -> uint256:
     """
     @notice Calculate profit in crvUSD from calling update() above the min profit threshold
     @dev Returns 0 if the min profit threshold is not met
@@ -484,16 +484,16 @@ def _calc_call_profit(_amount: uint256, _is_deposit: bool) -> uint256:
     initial_profit: uint256 = self._calc_profit_from(lp_balance, virtual_price, debt)
 
     amount: uint256 = 0
-    if _is_deposit:
+    if _deficit:
         amount = min(_amount, self._calc_balance())
     else:
         amount = min(_amount, debt)
 
     amounts: uint256[2] = empty(uint256[2])
     amounts[I] = amount
-    lp_balance_diff: uint256 = self._calc_token_amount(amounts, _is_deposit)
+    lp_balance_diff: uint256 = self._calc_token_amount(amounts, _deficit)
 
-    if _is_deposit:
+    if _deficit:
         lp_balance += lp_balance_diff
         debt += amount
     else:
@@ -506,7 +506,7 @@ def _calc_call_profit(_amount: uint256, _is_deposit: bool) -> uint256:
     if new_profit <= initial_profit:
         return 0
     profit: uint256 = new_profit - initial_profit
-    min_profit: uint256 = self._min_profit(amount, _is_deposit)
+    min_profit: uint256 = self._min_profit(amount, _deficit)
     if profit < min_profit:
         return 0
     return profit - min_profit
