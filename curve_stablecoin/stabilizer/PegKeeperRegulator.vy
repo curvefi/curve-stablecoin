@@ -282,7 +282,8 @@ def provide_allowed(_pk: address = msg.sender) -> uint256:
     largest_price: uint256 = 0
     debt_ratios: DynArray[uint256, MAX_LEN] = []
     price, largest_price, debt_ratios = self._scan_peg_keepers(_pk)
-    # price is max_value if _pk is not registered or out of range, so this returns 0 then too.
+    if price == max_value(uint256):
+        return 0  # not registered, or spot price out of range of the EMA
     # A keeper without peers has nothing to compare with
     if len(debt_ratios) > 0 and largest_price < unsafe_sub(price, self.worst_price_threshold):
         return 0
