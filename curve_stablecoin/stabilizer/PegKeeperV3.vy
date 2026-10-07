@@ -26,7 +26,7 @@
     keeper can only withdraw, and owner can move all LP tokens out via offload_lp() to unwind them
     elsewhere (e.g. paired coin depeg); debt is reset and the hole is tracked by the factory as
     debt_ceiling_residual until crvUSD is returned to the keeper and burned via rug. Owner can also
-    move out donated paired coin via recover_paired() and, once the hole is closed, crvUSD above
+    move out donated paired coin via recover_donation() and, once the hole is closed, crvUSD above
     what the factory minted via recover_excess().
 @custom:security Pool is trusted (Curve StableSwap). Regulator is trusted and set by owner.
     Caller reward is paid in LP tokens valued at the pool virtual price.
@@ -141,7 +141,7 @@ event OffloadLP:
     debt: uint256
 
 
-event RecoverPaired:
+event RecoverDonation:
     receiver: indexed(address)
     amount: uint256
 
@@ -734,7 +734,7 @@ def offload_lp(_receiver: address) -> uint256:
 
 @external
 @nonreentrant
-def recover_paired(_receiver: address) -> uint256:
+def recover_donation(_receiver: address) -> uint256:
     """
     @notice Move out donated paired coin that was not deposited. Only after the DAO has cut the
         debt ceiling to 0
@@ -748,7 +748,7 @@ def recover_paired(_receiver: address) -> uint256:
     amount: uint256 = staticcall PAIRED.balanceOf(self)
     if amount > 0:
         assert extcall PAIRED.transfer(_receiver, amount, default_return_value=True)
-        log RecoverPaired(receiver=_receiver, amount=amount)
+        log RecoverDonation(receiver=_receiver, amount=amount)
     return amount
 
 
