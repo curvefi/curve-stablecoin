@@ -23,9 +23,9 @@
 @custom:kill Regulator can ban provide and / or withdraw via provide_allowed() / withdraw_allowed().
     Owner can switch the regulator (e.g. to PegKeeperOffboarding to leave only withdrawals).
     Factory can always pull idle crvUSD back by cutting the debt ceiling; with the ceiling at 0 the
-    keeper can only withdraw, and owner can move all LP tokens out via offload_lp() to unwind them
-    elsewhere (e.g. paired coin depeg); debt is reset and the hole is tracked by the factory as
-    debt_ceiling_residual until crvUSD is returned to the keeper and burned via rug.
+    keeper can only withdraw, and owner can move all LP tokens and paired coin out via offload()
+    to unwind them elsewhere (e.g. paired coin depeg); debt is reset and the hole is tracked by the
+    factory as debt_ceiling_residual until crvUSD is returned to the keeper and burned via rug.
 @custom:security Pool is trusted (Curve StableSwap). Regulator is trusted and set by owner.
     Caller reward is paid in LP tokens valued at the pool virtual price.
     Ownership is two-step (snekmate ownable_2step); renounce_ownership is not exported.
@@ -133,9 +133,10 @@ event DepositDonation:
     lp_amount: uint256
 
 
-event OffloadLP:
+event Offload:
     receiver: indexed(address)
     lp_amount: uint256
+    paired_amount: uint256
     debt: uint256
 
 
@@ -693,20 +694,21 @@ def withdraw_profit(_deposit_donation: bool = True) -> uint256:
     return amount
 
 
-# --------------------------------- Offload LP ----------------------------------
+# ----------------------------------- Offload -----------------------------------
 
 
 @external
 @nonreentrant
-def offload_lp(_receiver: address) -> uint256:
+def offload(_receiver: address) -> uint256:
     """
-    @notice Move all LP tokens out to unwind the position elsewhere, e.g. when the paired coin is
-        depegged and withdrawing crvUSD from the pool is not an option. Only transfers LP, does not
-        swap it. Only after the DAO has cut the debt ceiling to 0, i.e. decommissioned this keeper
+    @notice Move all LP tokens and not yet deposited paired coin out to unwind them elsewhere,
+        e.g. when the paired coin is depegged and withdrawing crvUSD from the pool is not an
+        option. Only transfers, does not swap. Only after the DAO has cut the debt ceiling to 0,
+        i.e. decommissioned this keeper
     @dev debt is reset: the hole is tracked by the factory as debt_ceiling_residual until crvUSD
         is sent back to the keeper and burned via rug. Schedules the rug if not scheduled yet, so
         crvUSD sent back can not be provided again
-    @param _receiver Receiver of LP tokens
+    @param _receiver Receiver of LP tokens and paired coin
     @return Amount of LP tokens transferred
     """
     ownable._check_owner()
@@ -721,7 +723,10 @@ def offload_lp(_receiver: address) -> uint256:
     self.debt = 0
     lp_amount: uint256 = staticcall POOL.balanceOf(self)
     assert extcall POOL.transfer(_receiver, lp_amount)
-    log OffloadLP(receiver=_receiver, lp_amount=lp_amount, debt=debt)
+    paired_amount: uint256 = staticcall PAIRED.balanceOf(self)
+    if paired_amount > 0:
+        assert extcall PAIRED.transfer(_receiver, paired_amount, default_return_value=True)
+    log Offload(receiver=_receiver, lp_amount=lp_amount, paired_amount=paired_amount, debt=debt)
     return lp_amount
 
 
