@@ -25,9 +25,9 @@
     Factory can always pull idle crvUSD back by cutting the debt ceiling; with the ceiling at 0 the
     keeper can only withdraw, and owner can move all LP tokens out via offload_lp() to unwind them
     elsewhere (e.g. paired coin depeg); debt is reset and the hole is tracked by the factory as
-    debt_ceiling_residual until crvUSD is returned to the keeper and burned via rug. Owner can also
-    move out donated paired coin via recover_donation() and, once the hole is closed, crvUSD above
-    what the factory minted via recover_excess().
+    debt_ceiling_residual until crvUSD is returned to the keeper and burned via rug. Owner can at
+    any time move out donated paired coin via recover_donation() and crvUSD above what the factory
+    minted via recover_excess().
 @custom:security Pool is trusted (Curve StableSwap). Regulator is trusted and set by owner.
     Caller reward is paid in LP tokens valued at the pool virtual price.
     Ownership is two-step (snekmate ownable_2step); renounce_ownership is not exported.
@@ -137,12 +137,8 @@ event OffloadLP:
     debt: uint256
 
 
-event RecoverDonation:
-    receiver: indexed(address)
-    amount: uint256
-
-
-event RecoverExcess:
+event Recover:
+    token: indexed(address)
     receiver: indexed(address)
     amount: uint256
 
@@ -154,6 +150,7 @@ struct BalanceDiff:
 
 PRECISION: constant(uint256) = 10**18
 MAX_COINS: constant(uint256) = 8
+IMBALANCE_FRACTION: constant(uint256) = 5  # move 1/5 of the pool imbalance per call
 MAX_DONATION_LOSS: constant(uint256) = 10**14  # 1bp of deposited value
 
 # Pool
@@ -214,13 +211,10 @@ def __init__(
 
     coins: ERC20[2] = [ERC20(staticcall _pool.coins(0)), ERC20(staticcall _pool.coins(1))]
     assert pegged in coins  # dev: pegged not in pool
-    i: uint256 = 1
-    if coins[0] == pegged:
-        i = 0
-    I = i
-    IS_INVERSE = i == 0
-    PAIRED = coins[1 - i]
-    extcall coins[1 - i].approve(_pool.address, max_value(uint256))  # for donations
+    I = 0 if coins[0] == pegged else 1
+    IS_INVERSE = I == 0
+    PAIRED = coins[1 - I]
+    extcall PAIRED.approve(_pool.address, max_value(uint256))  # for donations
     RATES = [
         10**(36 - staticcall coins[0].decimals()),
         10**(36 - staticcall coins[1].decimals()),
@@ -340,21 +334,6 @@ def _need_to_rug() -> bool:
 
 
 @internal
-@view
-def _calc_balance() -> uint256:
-    """
-    @notice Idle crvUSD balance left after a debt ceiling cut is applied
-    @return 0 while the cut can not be fully honored
-    """
-    balance: uint256 = staticcall PEGGED.balanceOf(self)
-    residual: uint256 = staticcall FACTORY.debt_ceiling_residual(self)
-    to_rug: uint256 = residual - min(residual, staticcall FACTORY.debt_ceiling(self))
-    if to_rug >= balance:
-        return 0
-    return balance - to_rug
-
-
-@internal
 def _get_balance() -> uint256:
     """
     @notice Get idle crvUSD balance after rugging debt ceiling
@@ -381,6 +360,24 @@ def _rates() -> uint256[2]:
         rates: DynArray[uint256, MAX_COINS] = staticcall POOL.stored_rates()
         return [rates[0], rates[1]]
     return RATES
+
+
+@internal
+@view
+def _to_pegged(_paired: uint256, _rates: uint256[2]) -> uint256:
+    """
+    @notice Amount of pegged coin with the same value as _paired of paired coin
+    """
+    return _paired * _rates[1 - I] // _rates[I]
+
+
+@internal
+@view
+def _to_paired(_pegged: uint256, _rates: uint256[2]) -> uint256:
+    """
+    @notice Amount of paired coin with the same value as _pegged of pegged coin
+    """
+    return _pegged * _rates[I] // _rates[1 - I]
 
 
 @internal
@@ -453,9 +450,9 @@ def _allowed(_deficit: bool) -> uint256:
 
 @internal
 @view
-def _calc_call_profit(_amount: uint256, _deficit: bool) -> uint256:
+def _calc_caller_profit(_amount: uint256, _deficit: bool) -> uint256:
     """
-    @notice Calculate profit in crvUSD from calling update() above the min profit threshold
+    @notice Calculate caller's share of profit in crvUSD from calling update(), as update() pays it
     @dev Provide adds LP and debt, withdraw removes both, so the change of (lp_value - debt)
         is the difference between LP value moved and crvUSD moved. Returns 0 if below the min
     """
@@ -465,7 +462,11 @@ def _calc_call_profit(_amount: uint256, _deficit: bool) -> uint256:
 
     amount: uint256 = 0
     if _deficit:
-        amount = min(_amount, self._calc_balance())
+        # idle crvUSD left after a debt ceiling cut, which update() applies first
+        balance: uint256 = staticcall PEGGED.balanceOf(self)
+        residual: uint256 = staticcall FACTORY.debt_ceiling_residual(self)
+        to_rug: uint256 = residual - min(residual, staticcall FACTORY.debt_ceiling(self))
+        amount = min(_amount, balance - min(balance, to_rug))
     else:
         amount = min(_amount, debt)
 
@@ -485,7 +486,9 @@ def _calc_call_profit(_amount: uint256, _deficit: bool) -> uint256:
     min_profit: uint256 = self._min_profit(amount, _deficit)
     if profit < min_profit:
         return 0
-    return profit - min_profit
+    caller_profit: uint256 = (profit - min_profit) * self.caller_share // SHARE_PRECISION
+    lp_left: uint256 = lp_balance + lp_balance_diff if _deficit else lp_balance - lp_balance_diff
+    return min(caller_profit, lp_left * virtual_price // PRECISION)
 
 
 @external
@@ -500,8 +503,8 @@ def estimate_caller_profit() -> uint256:
         return 0
 
     diff: BalanceDiff = self._balance_diff()
-    amount: uint256 = min(diff.amount // 5, self._allowed(diff.deficit))
-    return self._calc_call_profit(amount, diff.deficit) * self.caller_share // SHARE_PRECISION
+    amount: uint256 = min(diff.amount // IMBALANCE_FRACTION, self._allowed(diff.deficit))
+    return self._calc_caller_profit(amount, diff.deficit)
 
 
 @internal
@@ -551,7 +554,8 @@ def update(_beneficiary: address = msg.sender) -> uint256:
     @dev Reverts if the action is unprofitable or profit per moved crvUSD is below threshold.
         Beneficiary gets caller_share of the profit above the threshold
     @param _beneficiary Beneficiary address
-    @return Profit in crvUSD received by beneficiary (paid in LP tokens at virtual price)
+    @return Profit in crvUSD received by beneficiary (paid in LP tokens at virtual price,
+        capped at LP tokens held)
     """
     if self.last_change + self.action_delay > block.timestamp:
         return 0
@@ -563,27 +567,28 @@ def update(_beneficiary: address = msg.sender) -> uint256:
     balance: uint256 = self._get_balance()  # apply a debt ceiling cut first
     allowed: uint256 = self._allowed(diff.deficit)
     assert allowed > 0, "Regulator ban"
-    amount: uint256 = min(diff.amount // 5, allowed)
+    amount: uint256 = min(diff.amount // IMBALANCE_FRACTION, allowed)
     if diff.deficit:
         amount = self._provide(min(amount, balance))  # this dumps stablecoin
     else:
         amount = self._withdraw(amount)  # this pumps stablecoin
 
     virtual_price: uint256 = staticcall POOL.get_virtual_price()
-    after: uint256 = self._lp_value(virtual_price) + debt  # change of (lp_value - debt), unclamped
+    lp_balance: uint256 = staticcall POOL.balanceOf(self)
+    after: uint256 = lp_balance * virtual_price // PRECISION + debt  # change of (lp_value - debt)
     before: uint256 = lp_value + self.debt
     assert after > before, "peg unprofitable"
     profit: uint256 = after - before
     min_profit: uint256 = self._min_profit(amount, diff.deficit)
     assert profit >= min_profit, "profit below min"
 
-    # Send caller's share of profit above the min
+    # Send caller's share of profit above the min, capped at LP left when LP value < debt
     caller_profit: uint256 = (profit - min_profit) * self.caller_share // SHARE_PRECISION
-    if caller_profit > 0:
-        lp_amount: uint256 = caller_profit * PRECISION // virtual_price
+    lp_amount: uint256 = min(caller_profit * PRECISION // virtual_price, lp_balance)
+    if lp_amount > 0:
         assert extcall POOL.transfer(_beneficiary, lp_amount)
 
-    return caller_profit
+    return lp_amount * virtual_price // PRECISION
 
 
 # ---------------------------------- Donations ----------------------------------
@@ -596,7 +601,9 @@ def _deposit_donation() -> uint256:
         crvUSD scarce: 50/50 by value with idle crvUSD (crvUSD part is debt).
         crvUSD abundant: paired coin only, up to 1/5 of the imbalance per call, no debt.
         Silently does nothing if there is nothing to deposit, the regulator does not allow the
-        direction, or the pool would mint less than MAX_DONATION_LOSS tolerates
+        direction, or the pool would mint less than MAX_DONATION_LOSS tolerates.
+        While A is ramping, calc_token_amount() of an NG pool is off by up to ~0.2 ppm, so the
+        deposit can still revert right at the tolerance; pass _deposit_donation=False then
     @dev Both branches move the pool towards balance and earn the scarce coin premium;
         the loss in a balanced pool is bounded by fee / 2 on the deposit.
         A debt ceiling cut is applied before the regulator is asked
@@ -613,22 +620,22 @@ def _deposit_donation() -> uint256:
     pegged: uint256 = 0
     if diff.deficit:
         # crvUSD is scarce: 50/50 by value, crvUSD part is a provide
-        pegged = min(paired * rates[1 - I] // rates[I], balance)
+        pegged = min(self._to_pegged(paired, rates), balance)
         pegged = min(pegged, allowed)
         if pegged == 0:
             return 0
-        paired = pegged * rates[I] // rates[1 - I]
+        paired = self._to_paired(pegged, rates)
     else:
         # crvUSD is abundant: paired coin only, like a withdraw for the pool price
         if allowed == 0:
             return 0
-        paired = min(paired, diff.amount // 5 * rates[I] // rates[1 - I])
+        paired = min(paired, self._to_paired(diff.amount // IMBALANCE_FRACTION, rates))
         if paired == 0:
             return 0
     amounts: uint256[2] = empty(uint256[2])
     amounts[I] = pegged
     amounts[1 - I] = paired
-    value: uint256 = pegged + paired * rates[1 - I] // rates[I]
+    value: uint256 = pegged + self._to_pegged(paired, rates)
     min_mint_amount: uint256 = (
         value * (PRECISION - MAX_DONATION_LOSS) // staticcall POOL.get_virtual_price()
     )
@@ -710,45 +717,48 @@ def offload_lp(_receiver: address) -> uint256:
     return lp_amount
 
 
+# ----------------------------------- Recover -----------------------------------
+
+
+@internal
+def _recover(_token: ERC20, _receiver: address, _amount: uint256) -> uint256:
+    assert _receiver != empty(address)  # dev: bad receiver
+    if _amount > 0:
+        assert extcall _token.transfer(_receiver, _amount, default_return_value=True)
+        log Recover(token=_token.address, receiver=_receiver, amount=_amount)
+    return _amount
+
+
 @external
 @nonreentrant
 def recover_donation(_receiver: address) -> uint256:
     """
-    @notice Move out donated paired coin that was not deposited. Only after the DAO has cut the
-        debt ceiling to 0
+    @notice Move out donated paired coin that was not deposited
     @param _receiver Receiver of paired coin
     @return Amount of paired coin transferred
     """
     ownable._check_owner()
-    assert staticcall FACTORY.debt_ceiling(self) == 0  # dev: debt ceiling is not zero
-    assert _receiver != empty(address)  # dev: bad receiver
-
-    amount: uint256 = staticcall PAIRED.balanceOf(self)
-    if amount > 0:
-        assert extcall PAIRED.transfer(_receiver, amount, default_return_value=True)
-        log RecoverDonation(receiver=_receiver, amount=amount)
-    return amount
+    return self._recover(PAIRED, _receiver, staticcall PAIRED.balanceOf(self))
 
 
 @external
 @nonreentrant
 def recover_excess(_receiver: address) -> uint256:
     """
-    @notice Move out crvUSD held above what the factory minted (donations, offloaded LP proceeds
-        above the hole). Only after the DAO has cut the debt ceiling to 0: the rug burns idle
-        crvUSD up to the residual first, whatever is left is the excess
+    @notice Move out crvUSD held above what the factory minted: donations and offloaded LP
+        proceeds above the hole. A debt ceiling cut is applied first
+    @dev Excess is idle + min(debt, lp_value) - residual: crvUSD in the pool is still the factory's
+        and counts only as far as LP covers it, so a hole is closed before anything is excess.
+        Only the part of the excess that is idle can leave now
     @param _receiver Receiver of crvUSD
-    @return Amount of crvUSD transferred, 0 while the residual is not covered yet
+    @return Amount of crvUSD transferred
     """
     ownable._check_owner()
-    assert staticcall FACTORY.debt_ceiling(self) == 0  # dev: debt ceiling is not zero
-    assert _receiver != empty(address)  # dev: bad receiver
-
-    amount: uint256 = self._get_balance()  # 0 while the factory still has crvUSD to burn
-    if amount > 0:
-        assert extcall PEGGED.transfer(_receiver, amount, default_return_value=True)
-        log RecoverExcess(receiver=_receiver, amount=amount)
-    return amount
+    idle: uint256 = self._get_balance()  # 0 while a debt ceiling cut is not fully honored
+    lp_value: uint256 = self._lp_value(staticcall POOL.get_virtual_price())
+    total: uint256 = idle + min(self.debt, lp_value)
+    excess: uint256 = total - min(total, staticcall FACTORY.debt_ceiling_residual(self))
+    return self._recover(PEGGED, _receiver, min(excess, idle))
 
 
 # ------------------------------- Owner methods --------------------------------
@@ -806,7 +816,7 @@ def set_new_regulator(_new_regulator: Regulator):
     @notice Set new peg keeper regulator
     """
     ownable._check_owner()
-    assert staticcall _new_regulator.stablecoin() == PEGGED.address  # dev: bad regulator
+    assert _new_regulator.address != empty(address)  # dev: bad regulator
 
     self.regulator = _new_regulator
     log SetNewRegulator(regulator=_new_regulator.address)

@@ -8,7 +8,8 @@
     coin is depegged; provide_allowed() returns 0 instead of reverting when debt is above the limit;
     withdraw_allowed() no longer requires the spot price to be in range of the EMA.
 @custom:kill admin or emergency_admin can pause provide and / or withdraw for all Peg Keepers
-    via set_killed(). Keepers can be detached from this regulator by their owners.
+    via set_killed(); only admin can unpause. Keepers can be detached from this regulator by
+    their owners.
 @custom:version 1.1.0
 """
 
@@ -230,6 +231,28 @@ def _get_max_ratio(_debt_ratios: DynArray[uint256, MAX_LEN]) -> uint256:
     return (self.alpha + self.beta * rsum // ONE)**2 // ONE
 
 
+@internal
+@view
+def _scan_peg_keepers(_pk: address) -> (uint256, uint256, DynArray[uint256, MAX_LEN]):
+    """
+    @return EMA price of the _pk pool, or max_value if _pk is not registered or its spot price
+        is out of range of the EMA; largest EMA price among the other pools; debt ratios of the
+        other keepers
+    """
+    price: uint256 = max_value(uint256)
+    largest_price: uint256 = 0
+    debt_ratios: DynArray[uint256, MAX_LEN] = []
+    for info: PegKeeperInfo in self.peg_keepers:
+        price_oracle: uint256 = self._get_price_oracle(info)
+        if info.peg_keeper.address == _pk:
+            if self._price_in_range(price_oracle, self._get_price(info)):
+                price = price_oracle
+            continue
+        largest_price = max(largest_price, price_oracle)
+        debt_ratios.append(self._get_ratio(info.peg_keeper))
+    return price, largest_price, debt_ratios
+
+
 @external
 @view
 def provide_allowed(_pk: address = msg.sender) -> uint256:
@@ -254,21 +277,13 @@ def provide_allowed(_pk: address = msg.sender) -> uint256:
     if coin_oracle.oracle.address != empty(address):
         if staticcall coin_oracle.oracle.price() < coin_oracle.min_price:
             return 0
-    price: uint256 = max_value(uint256)  # stays max if _pk is not registered -> 0 below
+    price: uint256 = 0
     largest_price: uint256 = 0
     debt_ratios: DynArray[uint256, MAX_LEN] = []
-    for info: PegKeeperInfo in self.peg_keepers:
-        price_oracle: uint256 = self._get_price_oracle(info)
-        if info.peg_keeper.address == _pk:
-            price = price_oracle
-            if not self._price_in_range(price, self._get_price(info)):
-                return 0
-            continue
-        elif largest_price < price_oracle:
-            largest_price = price_oracle
-        debt_ratios.append(self._get_ratio(info.peg_keeper))
-
-    if largest_price < unsafe_sub(price, self.worst_price_threshold):
+    price, largest_price, debt_ratios = self._scan_peg_keepers(_pk)
+    # price is max_value if _pk is not registered or out of range, so this returns 0 then too.
+    # A keeper without peers has nothing to compare with
+    if len(debt_ratios) > 0 and largest_price < unsafe_sub(price, self.worst_price_threshold):
         return 0
 
     debt: uint256 = staticcall PegKeeper(_pk).debt()
@@ -435,9 +450,11 @@ def set_fee_receiver(_fee_receiver: address):
 def set_killed(_is_killed: Killed):
     """
     @notice Pause/unpause Peg Keepers
-    @dev 0 unpause, 1 provide, 2 withdraw, 3 everything
+    @dev 0 unpause, 1 provide, 2 withdraw, 3 everything. Emergency admin can only pause
     """
-    assert msg.sender in [self.admin, self.emergency_admin]
+    if msg.sender != self.admin:
+        assert msg.sender == self.emergency_admin  # dev: only admin or emergency admin
+        assert self.is_killed & _is_killed == self.is_killed  # dev: emergency admin can only pause
     self.is_killed = _is_killed
     log SetKilled(is_killed=_is_killed, by=msg.sender)
 
