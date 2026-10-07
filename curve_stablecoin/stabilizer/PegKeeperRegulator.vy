@@ -5,7 +5,8 @@
 @license MIT
 @notice Regulations for Peg Keeper
 @dev Diff from the previous version: optional per-keeper coin oracle blocks provide while the paired
-    coin is depegged; provide_allowed() returns 0 instead of reverting when debt is above the limit.
+    coin is depegged; provide_allowed() returns 0 instead of reverting when debt is above the limit;
+    withdraw_allowed() no longer requires the spot price to be in range of the EMA.
 @custom:kill admin or emergency_admin can pause provide and / or withdraw for all Peg Keepers
     via set_killed(). Keepers can be detached from this regulator by their owners.
 @custom:version 1.1.0
@@ -131,6 +132,12 @@ def __init__(
     _admin: address,
     _emergency_admin: address,
 ):
+    assert _stablecoin.address != empty(address)  # dev: bad stablecoin
+    assert _agg.address != empty(address)  # dev: bad aggregator
+    assert _fee_receiver != empty(address)  # dev: bad fee receiver
+    assert _admin != empty(address)  # dev: bad admin
+    assert _emergency_admin != empty(address)  # dev: bad emergency admin
+
     STABLECOIN = _stablecoin
     self.aggregator = _agg
     self.fee_receiver = _fee_receiver
@@ -152,6 +159,9 @@ def __init__(
 @view
 def stablecoin() -> ERC20:
     return STABLECOIN
+
+
+# ----------------------------------- Allowance ----------------------------------
 
 
 @internal
@@ -231,6 +241,7 @@ def provide_allowed(_pk: address = msg.sender) -> uint256:
         2) current price location among other pools in case of contrary coin depeg
         3) stablecoin price is above 1
         4) paired coin price from the optional coin oracle is above its min price
+        5) debt is below the alpha / beta limit given other keepers' debt ratios
     @return Amount of stablecoin allowed to provide
     """
     if Killed.Provide in self.is_killed:
@@ -243,7 +254,7 @@ def provide_allowed(_pk: address = msg.sender) -> uint256:
     if coin_oracle.oracle.address != empty(address):
         if staticcall coin_oracle.oracle.price() < coin_oracle.min_price:
             return 0
-    price: uint256 = max_value(uint256)  # Will fail if PegKeeper is not in self.price_pairs
+    price: uint256 = max_value(uint256)  # stays max if _pk is not registered -> 0 below
     largest_price: uint256 = 0
     debt_ratios: DynArray[uint256, MAX_LEN] = []
     for info: PegKeeperInfo in self.peg_keepers:
@@ -275,8 +286,8 @@ def withdraw_allowed(_pk: address = msg.sender) -> uint256:
     @notice Allow Peg Keeper to withdraw stablecoin from the pool
     @dev Can return more amount than available
     @custom:dev Checks
-        1) current price in range of oracle in case of spam-attack
-        2) stablecoin price is below 1
+        1) stablecoin price is below 1
+        2) Peg Keeper is registered
     @return Amount of stablecoin allowed to withdraw
     """
     if Killed.Withdraw in self.is_killed:
@@ -285,16 +296,20 @@ def withdraw_allowed(_pk: address = msg.sender) -> uint256:
     if staticcall self.aggregator.price() > ONE:
         return 0
 
-    i: uint256 = self.peg_keeper_i[PegKeeper(_pk)]
-    if i > 0:
-        info: PegKeeperInfo = self.peg_keepers[i - 1]
-        if self._price_in_range(self._get_price(info), self._get_price_oracle(info)):
-            return max_value(uint256)
-    return 0
+    if self.peg_keeper_i[PegKeeper(_pk)] == 0:
+        return 0
+    return max_value(uint256)
+
+
+# ----------------------------------- Keepers ------------------------------------
 
 
 @external
 def add_peg_keepers(_peg_keepers: DynArray[PegKeeper, MAX_LEN]):
+    """
+    @notice Register Peg Keepers; pool and IS_INVERSE are read from each keeper
+    @param _peg_keepers Peg Keepers to add
+    """
     assert msg.sender == self.admin
 
     i: uint256 = len(self.peg_keepers)
@@ -352,6 +367,9 @@ def set_coin_oracle(_pk: PegKeeper, _oracle: PriceOracle, _min_price: uint256):
     assert _min_price <= ONE  # dev: bad min price
     self.coin_oracle[_pk] = CoinOracle(oracle=_oracle, min_price=_min_price)
     log SetCoinOracle(peg_keeper=_pk, oracle=_oracle.address, min_price=_min_price)
+
+
+# ------------------------------------ Admin -------------------------------------
 
 
 @external
