@@ -24,6 +24,10 @@
        withdraw_allowed()). LP minted above the crvUSD part is Peg Keeper's profit.
 @custom:kill Regulator can ban provide and / or withdraw via provide_allowed() / withdraw_allowed().
     Owner can switch the regulator (e.g. to PegKeeperOffboarding to leave only withdrawals).
+    To retire a keeper, ban provide first and keep the debt ceiling: update() and withdraw_profit()
+    then unwind debt and pay out profit by themselves, and the ceiling cut afterwards burns all
+    idle crvUSD. Cutting the ceiling first burns every withdrawn crvUSD at once, so the profit
+    stays in LP until offload_lp().
     Factory can always pull idle crvUSD back by cutting the debt ceiling; with the ceiling at 0 the
     keeper can only withdraw, and owner can move all LP tokens out via offload_lp() to unwind them
     elsewhere (e.g. paired coin depeg); debt is reset and the hole is tracked by the factory as
