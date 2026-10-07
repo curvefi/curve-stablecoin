@@ -7,8 +7,8 @@ Reads the deployment report written by
 and submits source + constructor args for each contract that script deploys
 directly:
     1. StableSwapNGLPOracle (lp_oracle)      -- ctor: (lp_pool, coin_idx, ema_time)
-    2. CurvePoolOracle      (bridge_oracle)  -- ctor: (bridge_pool, base_idx, quote_idx)
-    3. ChainOracle          (price_oracle)   -- ctor: ([lp_oracle, bridge_oracle, agg])
+    2. ReusdCrvUSDAdapter   (reusd_adapter)  -- no constructor arguments
+    3. ChainOracle          (price_oracle)   -- ctor: ([lp_oracle, reusd_adapter, agg])
     4. HyperbolicMP         (monetary_policy)-- ctor: (controller, target_util,
                                                 target_rate, low, high, rate_shift)
 
@@ -44,7 +44,7 @@ from eth_abi import encode
 STABLESWAP_NG_LP_ORACLE_SRC = (
     "curve_stablecoin/price_oracles/v2/StableSwapNGLPOracle.vy"
 )
-CURVE_POOL_ORACLE_SRC = "curve_stablecoin/price_oracles/v2/CurvePoolOracle.vy"
+REUSD_ADAPTER_SRC = "curve_stablecoin/price_oracles/v2/adapters/ReusdCrvUSDAdapter.vy"
 CHAIN_ORACLE_SRC = "curve_stablecoin/price_oracles/v2/ChainOracle.vy"
 HYPERBOLIC_MP_SRC = "curve_stablecoin/mpolicies/v2/HyperbolicMP.vy"
 
@@ -341,16 +341,13 @@ def main() -> None:
     params = deployment["params"]
 
     lp_oracle_addr = deployment["lp_oracle"]
-    bridge_oracle_addr = deployment["bridge_oracle"]
+    reusd_adapter_addr = deployment["reusd_adapter"]
     oracle_addr = deployment["price_oracle"]
     monetary_policy_addr = deployment["monetary_policy"]
     controller_addr = deployment["controller"]
 
     lp_pool = params["lp_pool"]
     lp_coin_idx = params["lp_coin_idx"]
-    bridge_pool = params["bridge_pool"]
-    bridge_base_idx = params["bridge_base_idx"]
-    bridge_quote_idx = params["bridge_quote_idx"]
     agg = params["agg"]
     ema_time = params["ema_time"]
     target_utilization = params["target_utilization"]
@@ -377,16 +374,13 @@ def main() -> None:
             "1",
         ),
         (
-            bridge_oracle_addr,
-            "CurvePoolOracle (Vyper 0.4.3)",
-            f"{CURVE_POOL_ORACLE_SRC}:CurvePoolOracle",
-            vy_json(CURVE_POOL_ORACLE_SRC),
+            reusd_adapter_addr,
+            "ReusdCrvUSDAdapter (Vyper 0.4.3)",
+            f"{REUSD_ADAPTER_SRC}:ReusdCrvUSDAdapter",
+            vy_json(REUSD_ADAPTER_SRC),
             "vyper:0.4.3",
             "vyper-json",
-            encode(
-                ["address", "uint256", "uint256"],
-                [bridge_pool, bridge_base_idx, bridge_quote_idx],
-            ).hex(),
+            "",
             "1",
         ),
         (
@@ -397,7 +391,7 @@ def main() -> None:
             "vyper:0.4.3",
             "vyper-json",
             # The chain is ordered: LP/reUSD, reUSD/crvUSD, crvUSD/USD.
-            encode(["address[]"], [[lp_oracle_addr, bridge_oracle_addr, agg]]).hex(),
+            encode(["address[]"], [[lp_oracle_addr, reusd_adapter_addr, agg]]).hex(),
             "1",
         ),
         (
