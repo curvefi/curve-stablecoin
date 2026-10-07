@@ -30,7 +30,9 @@
     debt_ceiling_residual until crvUSD is returned to the keeper and burned via rug. Owner can at
     any time move out donated paired coin via recover_donation() and crvUSD above what the factory
     minted via recover_excess().
-@custom:security Pool is trusted (Curve StableSwap). Regulator is trusted and set by owner.
+@custom:security Pool is trusted (Curve StableSwap), including its rate oracle: profit is valued
+    at the pool virtual price, so a rate that can be inflated within one transaction would let
+    withdraw_profit() pay crvUSD the LP does not back. Regulator is trusted and set by owner.
     Caller reward is paid in LP tokens valued at the pool virtual price.
     Ownership is two-step (snekmate ownable_2step); renounce_ownership is not exported.
 @custom:version 3.0.0
@@ -717,7 +719,9 @@ def offload_lp(_receiver: address) -> uint256:
         and withdrawing crvUSD from the pool is not an option. Only transfers LP, does not swap it.
         Only after the DAO has cut the debt ceiling to 0, i.e. decommissioned this keeper
     @dev debt is reset: the hole is tracked by the factory as debt_ceiling_residual until crvUSD
-        is sent back to the keeper and burned via rug, so crvUSD sent back can not be provided again
+        is sent back to the keeper and burned via rug, so crvUSD sent back can not be provided
+        again. Raising the debt ceiling before the hole is closed mints only the part above the
+        residual and leaves the hole unbacked, so close it first
     @param _receiver Receiver of LP tokens
     @return Amount of LP tokens transferred
     """
