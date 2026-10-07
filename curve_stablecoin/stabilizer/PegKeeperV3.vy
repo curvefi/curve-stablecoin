@@ -14,9 +14,9 @@
        from the profit above that minimum.
     4. withdraw_profit() pays crvUSD from the idle balance and converts the paid amount into debt
        backed by LP tokens, instead of transferring surplus LP tokens.
-    5. Debt ceiling cuts are applied the way FastBridgeVault does: anyone can schedule_rug(), idle
-       crvUSD is returned to the factory before being used, and provide / withdraw_profit are
-       blocked until the cut is fully honored.
+    5. Debt ceiling cuts are applied by the keeper itself: before idle crvUSD is used, it is
+       returned to the factory, and provide / withdraw_profit are blocked until the cut is fully
+       honored.
     6. Donated paired coin is deposited into the pool: 50/50 by value with idle crvUSD while crvUSD
        is scarce (subject to provide_allowed()), paired coin only while crvUSD is abundant (subject to
        withdraw_allowed()). LP minted above the crvUSD part is Peg Keeper's profit.
@@ -125,10 +125,6 @@ event SetNewRegulator:
     regulator: address
 
 
-event RugScheduled:
-    status: bool
-
-
 event DepositDonation:
     paired_amount: uint256
     pegged_amount: uint256
@@ -175,7 +171,6 @@ regulator: public(Regulator)
 action_delay: public(uint256)  # Time between providing / withdrawing coins
 last_change: public(uint256)
 debt: public(uint256)  # crvUSD provided into the pool and not yet withdrawn
-rug_scheduled: public(bool)  # Debt ceiling was cut and idle crvUSD must be returned to factory
 
 # Profit
 SHARE_PRECISION: constant(uint256) = 10**5  # 100% = 10 ** 5
@@ -348,45 +343,28 @@ def _need_to_rug() -> bool:
 @view
 def _calc_balance() -> uint256:
     """
-    @notice Idle crvUSD balance left after the scheduled debt ceiling cut is applied
+    @notice Idle crvUSD balance left after a debt ceiling cut is applied
     @return 0 while the cut can not be fully honored
     """
     balance: uint256 = staticcall PEGGED.balanceOf(self)
-    if self.rug_scheduled:
-        residual: uint256 = staticcall FACTORY.debt_ceiling_residual(self)
-        to_rug: uint256 = residual - min(residual, staticcall FACTORY.debt_ceiling(self))
-        if to_rug >= balance:
-            return 0
-        balance -= to_rug
-    return balance
+    residual: uint256 = staticcall FACTORY.debt_ceiling_residual(self)
+    to_rug: uint256 = residual - min(residual, staticcall FACTORY.debt_ceiling(self))
+    if to_rug >= balance:
+        return 0
+    return balance - to_rug
 
 
 @internal
-def _get_balance(_rug: bool = False) -> uint256:
+def _get_balance() -> uint256:
     """
     @notice Get idle crvUSD balance after rugging debt ceiling
-    @param _rug Rug even if not scheduled yet
     @return Amount of crvUSD available to use, 0 while the cut can not be fully honored
     """
-    if self.rug_scheduled or _rug:
+    if self._need_to_rug():
         extcall FACTORY.rug_debt_ceiling(self)
-        rug_scheduled: bool = self._need_to_rug()
-        if rug_scheduled != self.rug_scheduled:
-            self.rug_scheduled = rug_scheduled
-            log RugScheduled(status=rug_scheduled)
-        if rug_scheduled:
+        if self._need_to_rug():
             return 0
     return staticcall PEGGED.balanceOf(self)
-
-
-@external
-def schedule_rug() -> bool:
-    """
-    @notice Rug debt ceiling and keep rugging if the cut is not fully honored yet. Callable by anyone
-    @return Boolean whether need to rug or not
-    """
-    self._get_balance(True)
-    return self.rug_scheduled
 
 
 # ------------------------------------- Pool ------------------------------------
@@ -582,7 +560,7 @@ def update(_beneficiary: address = msg.sender) -> uint256:
     lp_value: uint256 = self._lp_value()
     debt: uint256 = self.debt
 
-    balance: uint256 = self._get_balance()  # rug first, so the regulator sees the real balance
+    balance: uint256 = self._get_balance()  # apply a debt ceiling cut first
     allowed: uint256 = self._allowed(diff.deficit)
     assert allowed > 0, "Regulator ban"
     amount: uint256 = min(diff.amount // 5, allowed)
@@ -620,7 +598,7 @@ def _deposit_donation() -> uint256:
         direction, or the pool would mint less than MAX_DONATION_LOSS tolerates
     @dev Both branches move the pool towards balance and earn the scarce coin premium;
         the loss in a balanced pool is bounded by fee / 2 on the deposit.
-        A scheduled debt ceiling cut is applied before the regulator is asked
+        A debt ceiling cut is applied before the regulator is asked
     @return Amount of LP tokens minted
     """
     paired: uint256 = staticcall PAIRED.balanceOf(self)
@@ -629,7 +607,7 @@ def _deposit_donation() -> uint256:
 
     rates: uint256[2] = self._rates()
     diff: BalanceDiff = self._balance_diff()
-    balance: uint256 = self._get_balance()  # rug first, so the regulator sees the real balance
+    balance: uint256 = self._get_balance()  # apply a debt ceiling cut first
     allowed: uint256 = self._allowed(diff.deficit)
     pegged: uint256 = 0
     if diff.deficit:
@@ -683,7 +661,7 @@ def withdraw_profit(_deposit_donation: bool = True) -> uint256:
     @dev Profit is paid from the idle crvUSD balance and the same amount is added to debt,
         so LP tokens keep backing the whole debt and (debt + idle balance) does not change.
         Limited by the idle balance; the rest can be withdrawn after the next withdraw.
-        Scheduled debt ceiling cut is applied first.
+        A debt ceiling cut is applied first.
     @param _deposit_donation Deposit donated paired coin first (skipped silently if not possible)
     @return Amount of crvUSD sent to fee receiver
     """
@@ -714,15 +692,14 @@ def offload_lp(_receiver: address) -> uint256:
         and withdrawing crvUSD from the pool is not an option. Only transfers LP, does not swap it.
         Only after the DAO has cut the debt ceiling to 0, i.e. decommissioned this keeper
     @dev debt is reset: the hole is tracked by the factory as debt_ceiling_residual until crvUSD
-        is sent back to the keeper and burned via rug, which is kept scheduled so crvUSD sent back
-        can not be provided again
+        is sent back to the keeper and burned via rug, so crvUSD sent back can not be provided again
     @param _receiver Receiver of LP tokens
     @return Amount of LP tokens transferred
     """
     ownable._check_owner()
     assert staticcall FACTORY.debt_ceiling(self) == 0  # dev: debt ceiling is not zero
     assert _receiver != empty(address)  # dev: bad receiver
-    self._get_balance(True)  # burn idle crvUSD now, keep rugging returns while the hole is open
+    self._get_balance()  # burn idle crvUSD now
 
     debt: uint256 = self.debt
     self.debt = 0
@@ -766,7 +743,7 @@ def recover_excess(_receiver: address) -> uint256:
     assert staticcall FACTORY.debt_ceiling(self) == 0  # dev: debt ceiling is not zero
     assert _receiver != empty(address)  # dev: bad receiver
 
-    amount: uint256 = self._get_balance(True)  # 0 while the factory still has crvUSD to burn
+    amount: uint256 = self._get_balance()  # 0 while the factory still has crvUSD to burn
     if amount > 0:
         assert extcall PEGGED.transfer(_receiver, amount, default_return_value=True)
         log RecoverExcess(receiver=_receiver, amount=amount)
