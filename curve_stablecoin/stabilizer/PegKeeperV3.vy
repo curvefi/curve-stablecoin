@@ -10,7 +10,8 @@
        Legacy pools (no rate oracle) use constant rates derived from coin decimals.
     2. Profit is accounted in crvUSD: lp_balance * virtual_price - debt.
     3. Every provide / withdraw must earn at least a minimal profit relative to the moved amount
-       (separate entry and exit thresholds), otherwise update() reverts.
+       (separate entry and exit thresholds), otherwise update() reverts. Caller's share is paid
+       from the profit above that minimum.
     4. withdraw_profit() pays crvUSD from the idle balance and converts the paid amount into debt
        backed by LP tokens, instead of transferring surplus LP tokens.
     5. Debt ceiling cuts are applied the way FastBridgeVault does: anyone can schedule_rug(), after which
@@ -289,12 +290,13 @@ def _calc_profit() -> uint256:
 
 @internal
 @view
-def _meets_min_profit(_profit: uint256, _amount: uint256, _is_deposit: bool) -> bool:
+def _min_profit(_amount: uint256, _is_deposit: bool) -> uint256:
     """
-    @notice Check that profit per moved crvUSD is above entry (provide) or exit (withdraw) threshold
+    @notice Min profit required for moving _amount: entry (provide) or exit (withdraw) threshold
+    @dev Rounded down
     """
     min_profit: uint256 = self.provide_min_profit if _is_deposit else self.withdraw_min_profit
-    return _profit * PRECISION >= _amount * min_profit
+    return _amount * min_profit // PRECISION
 
 
 @external
@@ -443,7 +445,7 @@ def _balance_diff() -> BalanceDiff:
 @view
 def _calc_call_profit(_amount: uint256, _is_deposit: bool) -> uint256:
     """
-    @notice Calculate overall profit in crvUSD from calling update()
+    @notice Calculate profit in crvUSD from calling update() above the min profit threshold
     @dev Returns 0 if the min profit threshold is not met
     """
     lp_balance: uint256 = staticcall POOL.balanceOf(self)
@@ -472,9 +474,10 @@ def _calc_call_profit(_amount: uint256, _is_deposit: bool) -> uint256:
     if new_profit <= initial_profit:
         return 0
     profit: uint256 = new_profit - initial_profit
-    if not self._meets_min_profit(profit, amount, _is_deposit):
+    min_profit: uint256 = self._min_profit(amount, _is_deposit)
+    if profit < min_profit:
         return 0
-    return profit
+    return profit - min_profit
 
 
 @external
@@ -548,7 +551,8 @@ def _withdraw(_amount: uint256) -> uint256:
 def update(_beneficiary: address = msg.sender) -> uint256:
     """
     @notice Provide or withdraw coins from the pool to stabilize it
-    @dev Reverts if the action is unprofitable or profit per moved crvUSD is below threshold
+    @dev Reverts if the action is unprofitable or profit per moved crvUSD is below threshold.
+        Beneficiary gets caller_share of the profit above the threshold
     @param _beneficiary Beneficiary address
     @return Profit in crvUSD received by beneficiary (paid in LP tokens at virtual price)
     """
@@ -571,10 +575,11 @@ def update(_beneficiary: address = msg.sender) -> uint256:
     new_profit: uint256 = self._calc_profit()
     assert new_profit > initial_profit, "peg unprofitable"
     profit: uint256 = new_profit - initial_profit
-    assert self._meets_min_profit(profit, amount, diff.deficit), "profit below min"
+    min_profit: uint256 = self._min_profit(amount, diff.deficit)
+    assert profit >= min_profit, "profit below min"
 
-    # Send caller's share of generated profit
-    caller_profit: uint256 = profit * self.caller_share // SHARE_PRECISION
+    # Send caller's share of profit above the min
+    caller_profit: uint256 = (profit - min_profit) * self.caller_share // SHARE_PRECISION
     if caller_profit > 0:
         lp_amount: uint256 = caller_profit * PRECISION // staticcall POOL.get_virtual_price()
         assert extcall POOL.transfer(_beneficiary, lp_amount)
