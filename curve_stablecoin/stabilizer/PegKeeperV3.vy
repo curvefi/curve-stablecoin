@@ -3,7 +3,7 @@
 @title Peg Keeper V3
 @author Curve.Fi
 @license MIT
-@notice Stabilizes crvUSD price in a 2-coin StableSwap-NG pool by providing or withdrawing crvUSD
+@notice Stabilizes crvUSD price in a 2-coin StableSwap pool by providing or withdrawing crvUSD
 @dev Diff from PegKeeper V2:
     1. Pool imbalance is measured in rate-normalized units via `stored_rates()`,
        so yield-bearing / oraclized StableSwap-NG pools are supported.
@@ -14,8 +14,8 @@
        from the profit above that minimum.
     4. withdraw_profit() pays crvUSD from the idle balance and converts the paid amount into debt
        backed by LP tokens, instead of transferring surplus LP tokens.
-    5. Debt ceiling cuts are applied the way FastBridgeVault does: anyone can schedule_rug(), after which
-       idle crvUSD is returned to the factory before being used, and provide / withdraw_profit are
+    5. Debt ceiling cuts are applied the way FastBridgeVault does: anyone can schedule_rug(), idle
+       crvUSD is returned to the factory before being used, and provide / withdraw_profit are
        blocked until the cut is fully honored.
     6. Donated paired coin is deposited into the pool: 50/50 by value with idle crvUSD while crvUSD
        is scarce (subject to provide_allowed()), paired coin only while crvUSD is abundant (subject to
@@ -154,9 +154,7 @@ struct BalanceDiff:
 
 PRECISION: constant(uint256) = 10**18
 MAX_COINS: constant(uint256) = 8
-MAX_DONATION_LOSS: constant(uint256) = (
-    10**14
-)  # 1bp of deposited value; balanced pool charges fee / 2
+MAX_DONATION_LOSS: constant(uint256) = 10**14  # 1bp of deposited value
 
 # Pool
 POOL: immutable(CurvePool)
@@ -389,7 +387,7 @@ def schedule_rug() -> bool:
     return self.rug_scheduled
 
 
-# ------------------------------------ Update -----------------------------------
+# ------------------------------------- Pool ------------------------------------
 
 
 @internal
@@ -436,6 +434,9 @@ def _remove_liquidity_imbalance(_amount: uint256):
         extcall CurvePoolOld(POOL.address).remove_liquidity_imbalance(amounts, max_value(uint256))
 
 
+# ------------------------------------ Update -----------------------------------
+
+
 @internal
 @view
 def _balance_diff() -> BalanceDiff:
@@ -457,6 +458,17 @@ def _balance_diff() -> BalanceDiff:
         amount=unsafe_sub(normalized_other, normalized_pegged) * PRECISION // rates[I],
         deficit=True,
     )
+
+
+@internal
+@view
+def _allowed(_is_deposit: bool) -> uint256:
+    """
+    @notice Amount of crvUSD the regulator allows to provide or withdraw
+    """
+    if _is_deposit:
+        return staticcall self.regulator.provide_allowed()
+    return staticcall self.regulator.withdraw_allowed()
 
 
 @internal
@@ -512,20 +524,8 @@ def estimate_caller_profit() -> uint256:
         return 0
 
     diff: BalanceDiff = self._balance_diff()
-
-    call_profit: uint256 = 0
-    if diff.deficit:
-        allowed: uint256 = staticcall self.regulator.provide_allowed()
-        call_profit = self._calc_call_profit(
-            min(diff.amount // 5, allowed), True
-        )  # this dumps stablecoin
-    else:
-        allowed: uint256 = staticcall self.regulator.withdraw_allowed()
-        call_profit = self._calc_call_profit(
-            min(diff.amount // 5, allowed), False
-        )  # this pumps stablecoin
-
-    return call_profit * self.caller_share // SHARE_PRECISION
+    amount: uint256 = min(diff.amount // 5, self._allowed(diff.deficit))
+    return self._calc_call_profit(amount, diff.deficit) * self.caller_share // SHARE_PRECISION
 
 
 @internal
@@ -584,15 +584,13 @@ def update(_beneficiary: address = msg.sender) -> uint256:
     diff: BalanceDiff = self._balance_diff()
     initial_profit: uint256 = self._calc_profit()
 
-    amount: uint256 = 0
+    allowed: uint256 = self._allowed(diff.deficit)
+    assert allowed > 0, "Regulator ban"
+    amount: uint256 = min(diff.amount // 5, allowed)
     if diff.deficit:
-        allowed: uint256 = staticcall self.regulator.provide_allowed()
-        assert allowed > 0, "Regulator ban"
-        amount = self._provide(min(diff.amount // 5, allowed))  # this dumps stablecoin
+        amount = self._provide(amount)  # this dumps stablecoin
     else:
-        allowed: uint256 = staticcall self.regulator.withdraw_allowed()
-        assert allowed > 0, "Regulator ban"
-        amount = self._withdraw(min(diff.amount // 5, allowed))  # this pumps stablecoin
+        amount = self._withdraw(amount)  # this pumps stablecoin
 
     new_profit: uint256 = self._calc_profit()
     assert new_profit > initial_profit, "peg unprofitable"
@@ -630,17 +628,18 @@ def _deposit_donation() -> uint256:
 
     rates: uint256[2] = self._rates()
     diff: BalanceDiff = self._balance_diff()
+    allowed: uint256 = self._allowed(diff.deficit)
     pegged: uint256 = 0
     if diff.deficit:
         # crvUSD is scarce: 50/50 by value, crvUSD part is a provide
         pegged = min(paired * rates[1 - I] // rates[I], self._get_balance())
-        pegged = min(pegged, staticcall self.regulator.provide_allowed())
+        pegged = min(pegged, allowed)
         if pegged == 0:
             return 0
         paired = pegged * rates[I] // rates[1 - I]
     else:
         # crvUSD is abundant: paired coin only, like a withdraw for the pool price
-        if staticcall self.regulator.withdraw_allowed() == 0:
+        if allowed == 0:
             return 0
         paired = min(paired, diff.amount // 5 * rates[I] // rates[1 - I])
         if paired == 0:
