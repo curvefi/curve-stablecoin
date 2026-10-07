@@ -17,7 +17,7 @@
        backed by LP tokens, instead of transferring surplus LP tokens.
     5. Debt ceiling cuts are applied by the keeper itself: before idle crvUSD is used, it is
        returned to the factory, and provide / withdraw_profit are blocked until the cut is fully
-       honored. calc_balance() reports the idle crvUSD the regulator should count, 0 once the
+       honored. idle() reports the idle crvUSD the regulator should count, 0 once the
        ceiling is 0.
     6. Donated paired coin is deposited into the pool: 50/50 by value with idle crvUSD while crvUSD
        is scarce (subject to provide_allowed()), paired coin only while crvUSD is abundant (subject to
@@ -154,6 +154,7 @@ PRECISION: constant(uint256) = 10**18
 MAX_COINS: constant(uint256) = 8
 IMBALANCE_FRACTION: constant(uint256) = 5  # move 1/5 of the pool imbalance per call
 MAX_DONATION_LOSS: constant(uint256) = 10**14  # 1bp of deposited value
+LP_VALUE_MARGIN: constant(uint256) = 1000  # withdraw at most lp_value - lp_value / 1000
 
 # Pool
 POOL: immutable(CurvePool)
@@ -353,7 +354,7 @@ def _calc_balance() -> uint256:
 
 @external
 @view
-def calc_balance() -> uint256:
+def idle() -> uint256:
     """
     @notice Idle crvUSD the keeper may provide, as the regulator should count it
     """
@@ -491,7 +492,8 @@ def _calc_caller_profit(_amount: uint256, _deficit: bool) -> uint256:
     if _deficit:
         amount = min(_amount, self._calc_balance())
     else:
-        amount = min(_amount, debt)
+        lp_value: uint256 = lp_balance * virtual_price // PRECISION
+        amount = min(min(_amount, debt), lp_value - lp_value // LP_VALUE_MARGIN)
 
     amounts: uint256[2] = empty(uint256[2])
     amounts[I] = amount
@@ -594,6 +596,8 @@ def update(_beneficiary: address = msg.sender) -> uint256:
     if diff.deficit:
         amount = self._provide(min(amount, balance))  # this dumps stablecoin
     else:
+        # Fees make a withdraw of the full LP value need more LP than held, so keep a margin
+        amount = min(amount, lp_value - lp_value // LP_VALUE_MARGIN)
         amount = self._withdraw(amount)  # this pumps stablecoin
 
     virtual_price: uint256 = staticcall POOL.get_virtual_price()
