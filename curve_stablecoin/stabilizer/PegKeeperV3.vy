@@ -17,6 +17,8 @@
     5. Debt ceiling cuts are applied the way FastBridgeVault does: anyone can schedule_rug(), after which
        idle crvUSD is returned to the factory before being used, and provide / withdraw_profit are
        blocked until the cut is fully honored.
+    6. Donated paired coin is deposited 50/50 by value together with idle crvUSD (subject to
+       provide_allowed()); LP minted above the crvUSD part is Peg Keeper's profit.
 @custom:kill Regulator can ban provide and / or withdraw via provide_allowed() / withdraw_allowed().
     Owner can switch the regulator (e.g. to PegKeeperOffboarding to leave only withdrawals).
     Factory can always pull idle crvUSD back by cutting the debt ceiling; with the ceiling at 0 the
@@ -124,6 +126,12 @@ event RugScheduled:
     status: bool
 
 
+event DepositDonation:
+    paired_amount: uint256
+    pegged_amount: uint256
+    lp_amount: uint256
+
+
 event OffloadLP:
     receiver: indexed(address)
     lp_amount: uint256
@@ -137,11 +145,15 @@ struct BalanceDiff:
 
 PRECISION: constant(uint256) = 10**18
 MAX_COINS: constant(uint256) = 8
+MAX_DONATION_LOSS: constant(uint256) = (
+    10**14
+)  # 0.01% of deposited value, measured worst case is ~0.001%
 
 # Pool
 POOL: immutable(CurvePool)
 I: immutable(uint256)  # index of pegged in pool
 PEGGED: immutable(ERC20)
+PAIRED: immutable(ERC20)  # the other coin of the pool
 IS_INVERSE: public(immutable(bool))
 IS_NG: public(immutable(bool))  # Interface for CurveStableSwapNG
 RATES: immutable(uint256[2])  # Constant rates for legacy pools: 10 ** (36 - decimals)
@@ -201,6 +213,8 @@ def __init__(
         i = 0
     I = i
     IS_INVERSE = i == 0
+    PAIRED = coins[1 - i]
+    extcall coins[1 - i].approve(_pool.address, max_value(uint256))  # for donations
     RATES = [
         10**(36 - staticcall coins[0].decimals()),
         10**(36 - staticcall coins[1].decimals()),
@@ -383,27 +397,21 @@ def _rates() -> uint256[2]:
 
 @internal
 @view
-def _calc_token_amount(_amount: uint256, _is_deposit: bool) -> uint256:
+def _calc_token_amount(_amounts: uint256[2], _is_deposit: bool) -> uint256:
     if IS_NG:
-        amounts: DynArray[uint256, 2] = [0, 0]
-        amounts[I] = _amount
-        return staticcall CurvePoolNG(POOL.address).calc_token_amount(amounts, _is_deposit)
-    else:
-        amounts: uint256[2] = empty(uint256[2])
-        amounts[I] = _amount
-        return staticcall CurvePoolOld(POOL.address).calc_token_amount(amounts, _is_deposit)
+        return staticcall CurvePoolNG(POOL.address).calc_token_amount(
+            [_amounts[0], _amounts[1]], _is_deposit
+        )
+    return staticcall CurvePoolOld(POOL.address).calc_token_amount(_amounts, _is_deposit)
 
 
 @internal
-def _add_liquidity(_amount: uint256):
+def _add_liquidity(_amounts: uint256[2], _min_mint_amount: uint256) -> uint256:
     if IS_NG:
-        amounts: DynArray[uint256, 2] = [0, 0]
-        amounts[I] = _amount
-        extcall CurvePoolNG(POOL.address).add_liquidity(amounts, 0)
-    else:
-        amounts: uint256[2] = empty(uint256[2])
-        amounts[I] = _amount
-        extcall CurvePoolOld(POOL.address).add_liquidity(amounts, 0)
+        return extcall CurvePoolNG(POOL.address).add_liquidity(
+            [_amounts[0], _amounts[1]], _min_mint_amount
+        )
+    return extcall CurvePoolOld(POOL.address).add_liquidity(_amounts, _min_mint_amount)
 
 
 @internal
@@ -459,7 +467,9 @@ def _calc_call_profit(_amount: uint256, _is_deposit: bool) -> uint256:
     else:
         amount = min(_amount, debt)
 
-    lp_balance_diff: uint256 = self._calc_token_amount(amount, _is_deposit)
+    amounts: uint256[2] = empty(uint256[2])
+    amounts[I] = amount
+    lp_balance_diff: uint256 = self._calc_token_amount(amounts, _is_deposit)
 
     if _is_deposit:
         lp_balance += lp_balance_diff
@@ -519,7 +529,9 @@ def _provide(_amount: uint256) -> uint256:
     if amount == 0:
         return 0
 
-    self._add_liquidity(amount)
+    amounts: uint256[2] = empty(uint256[2])
+    amounts[I] = amount
+    self._add_liquidity(amounts, 0)
 
     self.last_change = block.timestamp
     self.debt += amount
@@ -587,20 +599,73 @@ def update(_beneficiary: address = msg.sender) -> uint256:
     return caller_profit
 
 
+# ---------------------------------- Donations ----------------------------------
+
+
+@internal
+def _deposit_donation() -> uint256:
+    """
+    @notice Deposit donated paired coin 50/50 by value together with idle crvUSD.
+        Silently does nothing if there is nothing to deposit, crvUSD is not available or not
+        allowed by the regulator, or the pool would mint less than MAX_DONATION_LOSS tolerates
+    @dev The crvUSD part is accounted as debt, LP minted above it is profit.
+        Depositing both coins moves the pool towards balance; the scarce coin premium covers
+        the imbalance fee in all but nearly balanced pools, where the loss is bounded by fee / 2
+    @return Amount of LP tokens minted
+    """
+    paired: uint256 = staticcall PAIRED.balanceOf(self)
+    if paired == 0:
+        return 0
+
+    rates: uint256[2] = self._rates()
+    pegged: uint256 = min(paired * rates[1 - I] // rates[I], self._get_balance())
+    pegged = min(pegged, staticcall self.regulator.provide_allowed())
+    if pegged == 0:
+        return 0
+    paired = pegged * rates[I] // rates[1 - I]  # keep 50/50 by value
+
+    amounts: uint256[2] = empty(uint256[2])
+    amounts[I] = pegged
+    amounts[1 - I] = paired
+    virtual_price: uint256 = staticcall POOL.get_virtual_price()
+    min_mint_amount: uint256 = 2 * pegged * (PRECISION - MAX_DONATION_LOSS) // virtual_price
+    if self._calc_token_amount(amounts, True) < min_mint_amount:
+        return 0
+
+    lp_amount: uint256 = self._add_liquidity(amounts, min_mint_amount)
+    self.debt += pegged
+    log DepositDonation(paired_amount=paired, pegged_amount=pegged, lp_amount=lp_amount)
+    return lp_amount
+
+
+@external
+@nonreentrant
+def deposit_donation() -> uint256:
+    """
+    @notice Deposit donated paired coin 50/50 by value together with idle crvUSD. Callable by anyone
+    @return Amount of LP tokens minted, 0 if nothing was deposited
+    """
+    return self._deposit_donation()
+
+
 # ------------------------------- Withdraw profit -------------------------------
 
 
 @external
 @nonreentrant
-def withdraw_profit() -> uint256:
+def withdraw_profit(_deposit_donation: bool = True) -> uint256:
     """
     @notice Withdraw profit generated by Peg Keeper in crvUSD
     @dev Profit is paid from the idle crvUSD balance and the same amount is added to debt,
         so LP tokens keep backing the whole debt and (debt + idle balance) does not change.
         Limited by the idle balance; the rest can be withdrawn after the next withdraw.
         Scheduled debt ceiling cut is applied first.
+    @param _deposit_donation Deposit donated paired coin first (skipped silently if not possible)
     @return Amount of crvUSD sent to fee receiver
     """
+    if _deposit_donation:
+        self._deposit_donation()
+
     amount: uint256 = min(self._calc_profit(), self._get_balance())
     if amount == 0:
         return 0
