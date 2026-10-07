@@ -286,16 +286,12 @@ def pool() -> CurvePool:
 
 
 @internal
-@pure
-def _calc_profit_from(_lp_balance: uint256, _virtual_price: uint256, _debt: uint256) -> uint256:
+@view
+def _lp_value() -> uint256:
     """
-    @notice PegKeeper's profit formula in crvUSD
-    @dev LP value is rounded down, so profit is conservative
+    @notice Value of LP tokens held, in crvUSD at the pool virtual price (rounded down)
     """
-    lp_value: uint256 = _lp_balance * _virtual_price // PRECISION
-    if lp_value <= _debt:
-        return 0
-    return lp_value - _debt
+    return staticcall POOL.balanceOf(self) * staticcall POOL.get_virtual_price() // PRECISION
 
 
 @internal
@@ -304,9 +300,10 @@ def _calc_profit() -> uint256:
     """
     @notice Calculate PegKeeper's profit using current values
     """
-    return self._calc_profit_from(
-        staticcall POOL.balanceOf(self), staticcall POOL.get_virtual_price(), self.debt
-    )
+    lp_value: uint256 = self._lp_value()
+    if lp_value <= self.debt:
+        return 0
+    return lp_value - self.debt
 
 
 @internal
@@ -481,7 +478,6 @@ def _calc_call_profit(_amount: uint256, _deficit: bool) -> uint256:
     lp_balance: uint256 = staticcall POOL.balanceOf(self)
     virtual_price: uint256 = staticcall POOL.get_virtual_price()
     debt: uint256 = self.debt
-    initial_profit: uint256 = self._calc_profit_from(lp_balance, virtual_price, debt)
 
     amount: uint256 = 0
     if _deficit:
@@ -493,19 +489,24 @@ def _calc_call_profit(_amount: uint256, _deficit: bool) -> uint256:
     amounts[I] = amount
     lp_balance_diff: uint256 = self._calc_token_amount(amounts, _deficit)
 
+    lp_balance_after: uint256 = 0
+    debt_after: uint256 = 0
     if _deficit:
-        lp_balance += lp_balance_diff
-        debt += amount
+        lp_balance_after = lp_balance + lp_balance_diff
+        debt_after = debt + amount
     else:
         if lp_balance_diff > lp_balance:
             return 0  # not enough LP to withdraw, update() would revert
-        lp_balance -= lp_balance_diff
-        debt -= amount
+        lp_balance_after = lp_balance - lp_balance_diff
+        debt_after = debt - amount
 
-    new_profit: uint256 = self._calc_profit_from(lp_balance, virtual_price, debt)
-    if new_profit <= initial_profit:
+
+    # (lp_value_after - debt_after) - (lp_value - debt), without clamping at zero
+    gain: uint256 = lp_balance_after * virtual_price // PRECISION + debt
+    loss: uint256 = lp_balance * virtual_price // PRECISION + debt_after
+    if gain <= loss:
         return 0
-    profit: uint256 = new_profit - initial_profit
+    profit: uint256 = gain - loss
     min_profit: uint256 = self._min_profit(amount, _deficit)
     if profit < min_profit:
         return 0
@@ -582,8 +583,10 @@ def update(_beneficiary: address = msg.sender) -> uint256:
         return 0
 
     diff: BalanceDiff = self._balance_diff()
-    initial_profit: uint256 = self._calc_profit()
+    lp_value: uint256 = self._lp_value()
+    debt: uint256 = self.debt
 
+    self._get_balance()  # apply a scheduled debt ceiling cut before the regulator reads the balance
     allowed: uint256 = self._allowed(diff.deficit)
     assert allowed > 0, "Regulator ban"
     amount: uint256 = min(diff.amount // 5, allowed)
@@ -592,9 +595,12 @@ def update(_beneficiary: address = msg.sender) -> uint256:
     else:
         amount = self._withdraw(amount)  # this pumps stablecoin
 
-    new_profit: uint256 = self._calc_profit()
-    assert new_profit > initial_profit, "peg unprofitable"
-    profit: uint256 = new_profit - initial_profit
+
+    # (lp_value_after - debt_after) - (lp_value - debt), without clamping at zero
+    gain: uint256 = self._lp_value() + debt
+    loss: uint256 = lp_value + self.debt
+    assert gain > loss, "peg unprofitable"
+    profit: uint256 = gain - loss
     min_profit: uint256 = self._min_profit(amount, diff.deficit)
     assert profit >= min_profit, "profit below min"
 
@@ -628,11 +634,12 @@ def _deposit_donation() -> uint256:
 
     rates: uint256[2] = self._rates()
     diff: BalanceDiff = self._balance_diff()
+    balance: uint256 = self._get_balance()  # rug first, so the regulator sees the real balance
     allowed: uint256 = self._allowed(diff.deficit)
     pegged: uint256 = 0
     if diff.deficit:
         # crvUSD is scarce: 50/50 by value, crvUSD part is a provide
-        pegged = min(paired * rates[1 - I] // rates[I], self._get_balance())
+        pegged = min(paired * rates[1 - I] // rates[I], balance)
         pegged = min(pegged, allowed)
         if pegged == 0:
             return 0
