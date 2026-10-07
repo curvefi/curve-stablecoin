@@ -17,7 +17,7 @@
        backed by LP tokens, instead of transferring surplus LP tokens.
     5. Debt ceiling cuts are applied by the keeper itself: before idle crvUSD is used, it is
        returned to the factory, and provide / withdraw_profit are blocked until the cut is fully
-       honored. idle() reports the idle crvUSD the regulator should count, 0 once the
+       honored. undrawn() reports the idle crvUSD the regulator should count, 0 once the
        ceiling is 0.
     6. Donated paired coin is deposited into the pool: 50/50 by value with idle crvUSD while crvUSD
        is scarce (subject to provide_allowed()), paired coin only while crvUSD is abundant (subject to
@@ -354,9 +354,9 @@ def _calc_balance() -> uint256:
 
 @external
 @view
-def idle() -> uint256:
+def undrawn() -> uint256:
     """
-    @notice Idle crvUSD the keeper may provide, as the regulator should count it
+    @notice crvUSD the keeper may still provide, i.e. turn into debt, as the regulator counts it
     """
     return self._calc_balance()
 

@@ -8,7 +8,7 @@ If you see it on mainnet - it won't be used for anything except testing the actu
 pool: public(immutable(address))
 IS_INVERSE: public(bool)
 debt: public(uint256)
-idle: public(uint256)  # idle stablecoin the keeper may provide
+undrawn: public(uint256)  # stablecoin the keeper may still provide
 
 coins: public(address[2])
 get_virtual_price: public(uint256)
@@ -53,5 +53,5 @@ def set_debt(debt: uint256):
 
 
 @external
-def set_balance(_balance: uint256):
-    self.idle = _balance
+def set_undrawn(_undrawn: uint256):
+    self.undrawn = _undrawn
