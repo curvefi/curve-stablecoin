@@ -362,30 +362,31 @@ def _calc_balance() -> uint256:
 
 
 @internal
-def _get_balance() -> uint256:
+def _get_balance(_rug: bool = False) -> uint256:
     """
     @notice Get idle crvUSD balance after rugging debt ceiling
+    @param _rug Rug even if not scheduled yet
     @return Amount of crvUSD available to use, 0 while the cut can not be fully honored
     """
-    if self.rug_scheduled:
+    if self.rug_scheduled or _rug:
         extcall FACTORY.rug_debt_ceiling(self)
-        if self._need_to_rug():
+        rug_scheduled: bool = self._need_to_rug()
+        if rug_scheduled != self.rug_scheduled:
+            self.rug_scheduled = rug_scheduled
+            log RugScheduled(status=rug_scheduled)
+        if rug_scheduled:
             return 0
-        self.rug_scheduled = False
-        log RugScheduled(status=False)
     return staticcall PEGGED.balanceOf(self)
 
 
 @external
 def schedule_rug() -> bool:
     """
-    @notice Schedule rugging debt ceiling if necessary. Callable by anyone
+    @notice Rug debt ceiling and keep rugging if the cut is not fully honored yet. Callable by anyone
     @return Boolean whether need to rug or not
     """
-    rug_scheduled: bool = self._need_to_rug()
-    self.rug_scheduled = rug_scheduled
-    log RugScheduled(status=rug_scheduled)
-    return rug_scheduled
+    self._get_balance(True)
+    return self.rug_scheduled
 
 
 # ------------------------------------ Update -----------------------------------
@@ -713,18 +714,15 @@ def offload(_receiver: address) -> uint256:
         option. Only transfers, does not swap. Only after the DAO has cut the debt ceiling to 0,
         i.e. decommissioned this keeper
     @dev debt is reset: the hole is tracked by the factory as debt_ceiling_residual until crvUSD
-        is sent back to the keeper and burned via rug. Schedules the rug if not scheduled yet, so
-        crvUSD sent back can not be provided again
+        is sent back to the keeper and burned via rug, which is kept scheduled so crvUSD sent back
+        can not be provided again
     @param _receiver Receiver of LP tokens and paired coin
     @return Amount of LP tokens transferred
     """
     ownable._check_owner()
     assert staticcall FACTORY.debt_ceiling(self) == 0  # dev: debt ceiling is not zero
     assert _receiver != empty(address)  # dev: bad receiver
-
-    if not self.rug_scheduled:
-        self.rug_scheduled = True
-        log RugScheduled(status=True)
+    self._get_balance(True)  # burn idle crvUSD now, keep rugging returns while the hole is open
 
     debt: uint256 = self.debt
     self.debt = 0
@@ -751,11 +749,7 @@ def recover_excess(_receiver: address) -> uint256:
     assert staticcall FACTORY.debt_ceiling(self) == 0  # dev: debt ceiling is not zero
     assert _receiver != empty(address)  # dev: bad receiver
 
-    if not self.rug_scheduled:
-        self.rug_scheduled = True
-        log RugScheduled(status=True)
-
-    amount: uint256 = self._get_balance()  # 0 while the factory still has crvUSD to burn
+    amount: uint256 = self._get_balance(True)  # 0 while the factory still has crvUSD to burn
     if amount > 0:
         assert extcall PEGGED.transfer(_receiver, amount, default_return_value=True)
         log RecoverExcess(receiver=_receiver, amount=amount)
