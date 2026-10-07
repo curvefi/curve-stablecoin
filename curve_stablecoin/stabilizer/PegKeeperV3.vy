@@ -8,6 +8,7 @@
     1. Pool imbalance is measured in rate-normalized units via `stored_rates()`,
        so yield-bearing / oraclized StableSwap-NG pools are supported.
        Legacy pools (no rate oracle) use constant rates derived from coin decimals.
+       MetaNG pools are not supported: they pass the NG probe but take uint256[2] arrays.
     2. Profit is accounted in crvUSD: lp_balance * virtual_price - debt.
     3. Every provide / withdraw must earn at least a minimal profit relative to the moved amount
        (separate entry and exit thresholds), otherwise update() reverts. Caller's share is paid
