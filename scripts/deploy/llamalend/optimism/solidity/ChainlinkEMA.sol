@@ -104,6 +104,12 @@ contract ChainlinkEMA {
             return (currentPrice, latestResponse, false);
         }
 
+        // a new phase aggregator carries rounds from before the switch, walking them forward is unbounded
+        if ((latestResponse.roundId >> 64) != (response.roundId >> 64)) {
+            (currentPrice, latestResponse) = _calculateNewEMA(currentObservation);
+            return (currentPrice, latestResponse, true);
+        }
+
         bool isLatestResponse;
         ChainlinkResponse memory nextResponse;
         if (latestResponse.roundId > response.roundId + 1) {
