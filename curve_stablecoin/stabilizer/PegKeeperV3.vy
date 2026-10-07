@@ -6,7 +6,8 @@
 @notice Stabilizes crvUSD price in a 2-coin StableSwap-NG pool by providing or withdrawing crvUSD
 @dev Diff from PegKeeper V2:
     1. Pool imbalance is measured in rate-normalized units via `stored_rates()`,
-       so yield-bearing / oraclized pools are supported. Only StableSwap-NG pools are supported.
+       so yield-bearing / oraclized StableSwap-NG pools are supported.
+       Legacy pools (no rate oracle) use constant rates derived from coin decimals.
     2. Profit is accounted in crvUSD: lp_balance * virtual_price - debt.
     3. Every provide / withdraw must earn at least a minimal profit relative to the moved amount
        (separate entry and exit thresholds), otherwise update() reverts.
@@ -32,12 +33,23 @@ interface Regulator:
 
 
 interface CurvePool:
+    def balances(_i: uint256) -> uint256: view
     def coins(_i: uint256) -> address: view
-    def get_balances() -> DynArray[uint256, MAX_COINS]: view
     def stored_rates() -> DynArray[uint256, MAX_COINS]: view
     def get_virtual_price() -> uint256: view
     def balanceOf(_owner: address) -> uint256: view
     def transfer(_to: address, _value: uint256) -> bool: nonpayable
+
+
+interface CurvePoolOld:
+    def calc_token_amount(_amounts: uint256[2], _is_deposit: bool) -> uint256: view
+    def add_liquidity(_amounts: uint256[2], _min_mint_amount: uint256) -> uint256: nonpayable
+    def remove_liquidity_imbalance(
+        _amounts: uint256[2], _max_burn_amount: uint256
+    ) -> uint256: nonpayable
+
+
+interface CurvePoolNG:
     def calc_token_amount(
         _amounts: DynArray[uint256, MAX_COINS], _is_deposit: bool
     ) -> uint256: view
@@ -59,6 +71,7 @@ interface ERC20:
     def approve(_spender: address, _amount: uint256): nonpayable
     def transfer(_to: address, _value: uint256) -> bool: nonpayable
     def balanceOf(_owner: address) -> uint256: view
+    def decimals() -> uint256: view
 
 
 event Provide:
@@ -115,6 +128,8 @@ POOL: immutable(CurvePool)
 I: immutable(uint256)  # index of pegged in pool
 PEGGED: immutable(ERC20)
 IS_INVERSE: public(immutable(bool))
+IS_NG: public(immutable(bool))  # Interface for CurveStableSwapNG
+RATES: immutable(uint256[2])  # Constant rates for legacy pools: 10 ** (36 - decimals)
 FACTORY: immutable(Factory)
 
 # Accounting
@@ -150,7 +165,7 @@ def __init__(
 ):
     """
     @notice Contract constructor
-    @param _pool StableSwap-NG pool with 2 coins, one of them is the stablecoin being pegged
+    @param _pool StableSwap pool with 2 coins, one of them is the stablecoin being pegged
     @param _caller_share Caller's share of profit, with SHARE_PRECISION
     @param _provide_min_profit Min profit per provided crvUSD, with PRECISION
     @param _withdraw_min_profit Min profit per withdrawn crvUSD, with PRECISION
@@ -161,7 +176,6 @@ def __init__(
     assert _factory.address != empty(address)  # dev: bad factory
     assert _regulator.address != empty(address)  # dev: bad regulator
     assert _admin != empty(address)  # dev: bad admin
-    assert len(staticcall _pool.stored_rates()) == 2  # dev: not a 2-coin NG pool
 
     POOL = _pool
     FACTORY = _factory
@@ -171,13 +185,25 @@ def __init__(
     # Allow factory to rug debt ceiling
     extcall pegged.approve(_factory.address, max_value(uint256))
 
+    coins: ERC20[2] = [ERC20(staticcall _pool.coins(0)), ERC20(staticcall _pool.coins(1))]
+    assert pegged in coins  # dev: pegged not in pool
     i: uint256 = 1
-    if staticcall _pool.coins(0) == pegged.address:
+    if coins[0] == pegged:
         i = 0
-    else:
-        assert staticcall _pool.coins(1) == pegged.address  # dev: pegged not in pool
     I = i
     IS_INVERSE = i == 0
+    RATES = [
+        10**(36 - staticcall coins[0].decimals()),
+        10**(36 - staticcall coins[1].decimals()),
+    ]
+
+    IS_NG = raw_call(
+        _pool.address,
+        abi_encode(convert(0, uint256), method_id=method_id("price_oracle(uint256)")),
+        revert_on_failure=False,
+    )
+    if IS_NG:
+        assert len(staticcall _pool.stored_rates()) == 2  # dev: not a 2-coin pool
 
     self.admin = _admin
     log ApplyNewAdmin(admin=_admin)
@@ -333,16 +359,65 @@ def schedule_rug() -> bool:
 
 @internal
 @view
+def _rates() -> uint256[2]:
+    """
+    @notice Rates to normalize pool balances to 18 decimals: `stored_rates()` for NG pools
+        (includes rate oracle), constant for legacy pools
+    """
+    if IS_NG:
+        rates: DynArray[uint256, MAX_COINS] = staticcall POOL.stored_rates()
+        return [rates[0], rates[1]]
+    return RATES
+
+
+@internal
+@view
+def _calc_token_amount(_amount: uint256, _is_deposit: bool) -> uint256:
+    if IS_NG:
+        amounts: DynArray[uint256, 2] = [0, 0]
+        amounts[I] = _amount
+        return staticcall CurvePoolNG(POOL.address).calc_token_amount(amounts, _is_deposit)
+    else:
+        amounts: uint256[2] = empty(uint256[2])
+        amounts[I] = _amount
+        return staticcall CurvePoolOld(POOL.address).calc_token_amount(amounts, _is_deposit)
+
+
+@internal
+def _add_liquidity(_amount: uint256):
+    if IS_NG:
+        amounts: DynArray[uint256, 2] = [0, 0]
+        amounts[I] = _amount
+        extcall CurvePoolNG(POOL.address).add_liquidity(amounts, 0)
+    else:
+        amounts: uint256[2] = empty(uint256[2])
+        amounts[I] = _amount
+        extcall CurvePoolOld(POOL.address).add_liquidity(amounts, 0)
+
+
+@internal
+def _remove_liquidity_imbalance(_amount: uint256):
+    if IS_NG:
+        amounts: DynArray[uint256, 2] = [0, 0]
+        amounts[I] = _amount
+        extcall CurvePoolNG(POOL.address).remove_liquidity_imbalance(amounts, max_value(uint256))
+    else:
+        amounts: uint256[2] = empty(uint256[2])
+        amounts[I] = _amount
+        extcall CurvePoolOld(POOL.address).remove_liquidity_imbalance(amounts, max_value(uint256))
+
+
+@internal
+@view
 def _balance_diff() -> BalanceDiff:
     """
     @notice Pool imbalance measured in rate-normalized units (supports yield-bearing coins)
     @dev Returned in raw units of the pegged coin because PK always moves coin I.
         Rounded down so we never try to move more value than the observed imbalance.
     """
-    balances: DynArray[uint256, MAX_COINS] = staticcall POOL.get_balances()
-    rates: DynArray[uint256, MAX_COINS] = staticcall POOL.stored_rates()
-    normalized_pegged: uint256 = balances[I] * rates[I] // PRECISION
-    normalized_other: uint256 = balances[1 - I] * rates[1 - I] // PRECISION
+    rates: uint256[2] = self._rates()
+    normalized_pegged: uint256 = staticcall POOL.balances(I) * rates[I] // PRECISION
+    normalized_other: uint256 = staticcall POOL.balances(1 - I) * rates[1 - I] // PRECISION
 
     if normalized_pegged >= normalized_other:
         return BalanceDiff(
@@ -373,9 +448,7 @@ def _calc_call_profit(_amount: uint256, _is_deposit: bool) -> uint256:
     else:
         amount = min(_amount, debt)
 
-    amounts: DynArray[uint256, 2] = [0, 0]
-    amounts[I] = amount
-    lp_balance_diff: uint256 = staticcall POOL.calc_token_amount(amounts, _is_deposit)
+    lp_balance_diff: uint256 = self._calc_token_amount(amount, _is_deposit)
 
     if _is_deposit:
         lp_balance += lp_balance_diff
@@ -434,9 +507,7 @@ def _provide(_amount: uint256) -> uint256:
     if amount == 0:
         return 0
 
-    amounts: DynArray[uint256, 2] = [0, 0]
-    amounts[I] = amount
-    extcall POOL.add_liquidity(amounts, 0)
+    self._add_liquidity(amount)
 
     self.last_change = block.timestamp
     self.debt += amount
@@ -455,9 +526,7 @@ def _withdraw(_amount: uint256) -> uint256:
     if amount == 0:
         return 0
 
-    amounts: DynArray[uint256, 2] = [0, 0]
-    amounts[I] = amount
-    extcall POOL.remove_liquidity_imbalance(amounts, max_value(uint256))
+    self._remove_liquidity_imbalance(amount)
 
     self.last_change = block.timestamp
     self.debt = debt - amount
