@@ -26,6 +26,8 @@
     keeper can only withdraw, and owner can move all LP tokens and paired coin out via offload()
     to unwind them elsewhere (e.g. paired coin depeg); debt is reset and the hole is tracked by the
     factory as debt_ceiling_residual until crvUSD is returned to the keeper and burned via rug.
+    Once the hole is closed, owner can move crvUSD above what the factory minted out via
+    recover_excess().
 @custom:security Pool is trusted (Curve StableSwap). Regulator is trusted and set by owner.
     Caller reward is paid in LP tokens valued at the pool virtual price.
     Ownership is two-step (snekmate ownable_2step); renounce_ownership is not exported.
@@ -138,6 +140,11 @@ event Offload:
     lp_amount: uint256
     paired_amount: uint256
     debt: uint256
+
+
+event RecoverExcess:
+    receiver: indexed(address)
+    amount: uint256
 
 
 struct BalanceDiff:
@@ -728,6 +735,31 @@ def offload(_receiver: address) -> uint256:
         assert extcall PAIRED.transfer(_receiver, paired_amount, default_return_value=True)
     log Offload(receiver=_receiver, lp_amount=lp_amount, paired_amount=paired_amount, debt=debt)
     return lp_amount
+
+
+@external
+@nonreentrant
+def recover_excess(_receiver: address) -> uint256:
+    """
+    @notice Move out crvUSD held above what the factory minted (donations, offloaded LP proceeds
+        above the hole). Only after the DAO has cut the debt ceiling to 0: the rug burns idle
+        crvUSD up to the residual first, whatever is left is the excess
+    @param _receiver Receiver of crvUSD
+    @return Amount of crvUSD transferred, 0 while the residual is not covered yet
+    """
+    ownable._check_owner()
+    assert staticcall FACTORY.debt_ceiling(self) == 0  # dev: debt ceiling is not zero
+    assert _receiver != empty(address)  # dev: bad receiver
+
+    if not self.rug_scheduled:
+        self.rug_scheduled = True
+        log RugScheduled(status=True)
+
+    amount: uint256 = self._get_balance()  # 0 while the factory still has crvUSD to burn
+    if amount > 0:
+        assert extcall PEGGED.transfer(_receiver, amount, default_return_value=True)
+        log RecoverExcess(receiver=_receiver, amount=amount)
+    return amount
 
 
 # ------------------------------- Owner methods --------------------------------
