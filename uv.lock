@@ -544,9 +544,9 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "boa-solidity", git = "https://github.com/z80dev/boa-solidity?rev=main" },
-    { name = "curve-std", git = "https://github.com/curvefi/curve-std?rev=main" },
+    { name = "curve-std", git = "https://github.com/curvefi/curve-std?rev=68a13eb2ee80bd704fc259a3aed0a6ce53d59b72" },
     { name = "snekmate", specifier = ">=0.1.1" },
-    { name = "stableswap-ng", git = "https://github.com/curvefi/stableswap-ng?rev=7a9f6f11fb67e4778fb2496e65a09ec2939e339c" },
+    { name = "stableswap-ng", git = "https://github.com/curvefi/stableswap-ng?rev=3332cd44656ec64b3c048885e1dd71955254b262" },
     { name = "vyper", specifier = "==0.4.3" },
 ]
 
@@ -567,7 +567,7 @@ dev = [
 [[package]]
 name = "curve-std"
 version = "0.1.0"
-source = { git = "https://github.com/curvefi/curve-std?rev=main#048cb23d0ed4c48768815ea5c46d4a676da8de35" }
+source = { git = "https://github.com/curvefi/curve-std?rev=68a13eb2ee80bd704fc259a3aed0a6ce53d59b72#68a13eb2ee80bd704fc259a3aed0a6ce53d59b72" }
 dependencies = [
     { name = "snekmate" },
     { name = "titanoboa" },
@@ -2000,7 +2000,7 @@ wheels = [
 [[package]]
 name = "stableswap-ng"
 version = "0.0.1"
-source = { git = "https://github.com/curvefi/stableswap-ng?rev=7a9f6f11fb67e4778fb2496e65a09ec2939e339c#7a9f6f11fb67e4778fb2496e65a09ec2939e339c" }
+source = { git = "https://github.com/curvefi/stableswap-ng?rev=3332cd44656ec64b3c048885e1dd71955254b262#3332cd44656ec64b3c048885e1dd71955254b262" }
 dependencies = [
     { name = "curve-std" },
     { name = "snekmate" },
