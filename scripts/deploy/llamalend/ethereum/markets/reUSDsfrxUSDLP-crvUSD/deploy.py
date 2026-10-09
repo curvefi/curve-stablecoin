@@ -512,7 +512,9 @@ def _deploy(
             assert admin_fee == ADMIN_FEE, "admin fee not set by vote"
             assert callback_attached, "LM callback not attached by vote"
             assert gauge_type == 0, "vault gauge not added with type 0"
-            assert lm_callback_gauge_type == 0, "LM callback gauge not added with type 0"
+            assert lm_callback_gauge_type == 0, (
+                "LM callback gauge not added with type 0"
+            )
 
             report["post_vote"] = {
                 "borrow_cap": borrow_cap,
