@@ -61,7 +61,12 @@ class Llamalend:
     Handles deployment of core infrastructure and creation of markets.
     """
 
-    def __init__(self, initial_price: int = 3000 * 10**18):
+    def __init__(
+        self,
+        initial_price: int = 3000 * 10**18,
+        deploy_mint: bool = True,
+        deploy_lending: bool = True,
+    ):
         """
         Deploy the complete llamalend protocol suite.
 
@@ -73,61 +78,71 @@ class Llamalend:
         self.fee_receiver = boa.env.generate_address("fee_receiver")
         self.configurator = CONFIGURATOR_DEPLOYER.deploy(self.admin)
 
-        controller_view_blueprint = CONTROLLER_VIEW_DEPLOYER.deploy_as_blueprint()
+        blueprints = {
+            "amm": AMM_DEPLOYER,
+        }
 
-        with open("curve_stablecoin/MintController.vy", "r") as f:
-            mint_controller_code = f.read()
-        mint_controller_code = mint_controller_code.replace(
-            "empty(address),  # to replace at deployment with view blueprint",
-            f"{controller_view_blueprint.address},",
-            1,
-        )
-        mint_controller_code = mint_controller_code.replace(
-            "core.IConfigurator(empty(address)),  # to replace at deployment with configurator",
-            f"core.IConfigurator({self.configurator.address}),",
-            1,
-        )
-        assert f"{controller_view_blueprint.address}," in mint_controller_code
-        assert (
-            f"core.IConfigurator({self.configurator.address})," in mint_controller_code
-        )
+        if deploy_mint:
+            controller_view_blueprint = CONTROLLER_VIEW_DEPLOYER.deploy_as_blueprint()
 
-        # This is a bit of a special case that breaks our current conventions around
-        # deployers. The only reason why this was done is because since we can't change
-        # the constructor arguments of the MintController contract, we have to
-        # manually patch the code to insert the correct address of the controller view
-        # which is only known at runtime.
-        self._mint_controller_deployer = boa.loads_partial(
-            mint_controller_code, compiler_args=compiler_args_codesize
-        )
+            with open("curve_stablecoin/MintController.vy", "r") as f:
+                mint_controller_code = f.read()
+            mint_controller_code = mint_controller_code.replace(
+                "empty(address),  # to replace at deployment with view blueprint",
+                f"{controller_view_blueprint.address},",
+                1,
+            )
+            mint_controller_code = mint_controller_code.replace(
+                "core.IConfigurator(empty(address)),  # to replace at deployment with configurator",
+                f"core.IConfigurator({self.configurator.address}),",
+                1,
+            )
+            assert f"{controller_view_blueprint.address}," in mint_controller_code
+            assert (
+                f"core.IConfigurator({self.configurator.address}),"
+                in mint_controller_code
+            )
+
+            # This is a bit of a special case that breaks our current conventions around
+            # deployers. The only reason why this was done is because since we can't change
+            # the constructor arguments of the MintController contract, we have to
+            # manually patch the code to insert the correct address of the controller view
+            # which is only known at runtime.
+            self._mint_controller_deployer = boa.loads_partial(
+                mint_controller_code, compiler_args=compiler_args_codesize
+            )
+            blueprints.update(
+                mint_controller=self._mint_controller_deployer,
+                mint_controller_view=CONTROLLER_VIEW_DEPLOYER,
+                price_oracle=CRYPTO_FROM_POOL_DEPLOYER,
+                mpolicy=CONSTANT_MONETARY_POLICY_LENDING_DEPLOYER,
+            )
+
+        if deploy_lending:
+            blueprints.update(
+                lend_controller=LEND_CONTROLLER_DEPLOYER,
+                lend_controller_view=LEND_CONTROLLER_VIEW_DEPLOYER,
+                vault=VAULT_DEPLOYER,
+            )
 
         # Deploy all blueprints
-        self.blueprints = Blueprints(
-            amm=AMM_DEPLOYER,
-            mint_controller=self._mint_controller_deployer,
-            mint_controller_view=CONTROLLER_VIEW_DEPLOYER,
-            lend_controller=LEND_CONTROLLER_DEPLOYER,
-            lend_controller_view=LEND_CONTROLLER_VIEW_DEPLOYER,
-            price_oracle=CRYPTO_FROM_POOL_DEPLOYER,
-            mpolicy=CONSTANT_MONETARY_POLICY_LENDING_DEPLOYER,
-            vault=VAULT_DEPLOYER,
-        )
+        self.blueprints = Blueprints(**blueprints)
 
         # Deploy core infrastructure
         with boa.env.prank(self.admin):
-            # Deploy stablecoin
-            self.crvUSD = STABLECOIN_DEPLOYER.deploy("Curve USD", "crvUSD")
-            self.__init_mint_markets(initial_price)
-            self.__init_lend_markets()
+            self.price_oracle = DUMMY_PRICE_ORACLE_DEPLOYER.deploy(
+                self.admin, initial_price
+            )
+            if deploy_mint:
+                # Deploy stablecoin
+                self.crvUSD = STABLECOIN_DEPLOYER.deploy("Curve USD", "crvUSD")
+                self.__init_mint_markets()
+            if deploy_lending:
+                self.__init_lend_markets()
 
-    def __init_mint_markets(self, initial_price):
+    def __init_mint_markets(self):
         # Deploy WETH
         self.weth = WETH_DEPLOYER.deploy()
-
-        # Deploy a dummy price oracle for testing
-        self.price_oracle = DUMMY_PRICE_ORACLE_DEPLOYER.deploy(
-            self.admin, initial_price
-        )
 
         # Deploy Mint Protocol
         # Deploy controller factory
@@ -285,6 +300,8 @@ class Llamalend:
             "vault": vault,
             "controller": controller,
             "amm": amm,
+            "price_oracle": price_oracle,
+            "admin": self.admin,
         }
 
 
