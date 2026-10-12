@@ -188,8 +188,8 @@ contract ChainlinkEMA {
     }
 
     function _getRoundData(uint80 roundId) internal view returns (ChainlinkResponse memory) {
-        (uint80 roundId, int256 answer,, uint256 updatedAt,) = chainlinkFeed.getRoundData(roundId);
-        return _validateAndFormatResponse(roundId, answer, updatedAt);
+        (uint80 round, int256 answer,, uint256 updatedAt,) = chainlinkFeed.getRoundData(roundId);
+        return _validateAndFormatResponse(round, answer, updatedAt);
     }
 
     function _getNextRoundData(uint80 roundId) internal view returns (ChainlinkResponse memory) {
