@@ -16,7 +16,7 @@ PRECISION_MUL = 10 ** (18 - FEED_DECIMALS)
 solcx.install_solc("0.8.25")
 # solc reports sources relative to the cwd, so pick the contract by name rather than path
 _compiled = solcx.compile_files(
-    [PRICE_ORACLES_CONTRACT_PATH / "ChainlinkEMA.sol"],
+    [PRICE_ORACLES_CONTRACT_PATH / "v2" / "ChainlinkEMA.sol"],
     output_values=["abi", "bin"],
     solc_version="0.8.25",
 )
