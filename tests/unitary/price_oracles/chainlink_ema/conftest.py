@@ -61,6 +61,11 @@ def set_phase(_phase: uint16):
     self.phaseId = _phase
 
 
+@external
+def set_decimals(_decimals: uint8):
+    self.decimals = _decimals
+
+
 @internal
 @view
 def _round_data(_phase: uint16, _round: uint256) -> (uint80, int256, uint256, uint256, uint80):

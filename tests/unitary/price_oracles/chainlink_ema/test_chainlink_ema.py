@@ -1,4 +1,5 @@
 import boa
+import pytest
 
 from tests.unitary.price_oracles.chainlink_ema.conftest import (
     INTERVAL,
@@ -103,3 +104,21 @@ def test_phase_switch_without_new_aggregator_history(feed, deploy_oracle):
 
     # with no rounds before the current observation the reseed falls back to the latest answer
     assert oracle.price_w() == (PRICE + 10**10) * PRECISION_MUL
+
+
+# 600 goes through the phase check in the incremental path, 1500 through the idle reseed
+@pytest.mark.parametrize("idle", [600, 1500])
+def test_phase_switch_with_changed_decimals_reverts(feed, deploy_oracle, idle):
+    feed.add_rounds(1, PRICE, now() - 7200, 600, 12)
+    oracle = deploy_oracle()
+    oracle.price_w()
+
+    boa.env.time_travel(seconds=idle)
+    feed.set_phase(2)
+    feed.set_decimals(18)
+    feed.add_rounds(2, PRICE * 10**10, now() - 60, 1, 1)
+
+    with boa.reverts("DFM: Chainlink decimals changed"):
+        oracle.price()
+    with boa.reverts("DFM: Chainlink decimals changed"):
+        oracle.price_w()

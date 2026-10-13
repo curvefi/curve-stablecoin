@@ -30,6 +30,7 @@ contract ChainlinkEMA {
     uint256 public immutable SMOOTHING_FACTOR;
 
     uint256 private immutable MAX_LOOKBACK;
+    uint256 private immutable FEED_DECIMALS;
     uint256 private immutable PRECISION_MUL;
 
     uint256 public storedPrice;
@@ -48,7 +49,9 @@ contract ChainlinkEMA {
         INTERVAL = _interval;
         SMOOTHING_FACTOR = 2e18 / (_observations + 1);
         MAX_LOOKBACK = _observations * 2;
-        PRECISION_MUL = 10 ** (18 - _chainlink.decimals());
+        uint256 feedDecimals = _chainlink.decimals();
+        FEED_DECIMALS = feedDecimals;
+        PRECISION_MUL = 10 ** (18 - feedDecimals);
 
         uint256 currentObservation = _getCurrentObservationTimestamp();
         (storedPrice, storedResponse) = _calculateNewEMA(currentObservation);
@@ -140,6 +143,10 @@ contract ChainlinkEMA {
         returns (uint256 currentPrice, ChainlinkResponse memory latestResponse)
     {
         latestResponse = _getLatestRoundData();
+        // PRECISION_MUL is fixed at deployment, a new phase aggregator must report in the same decimals
+        if ((latestResponse.roundId >> 64) != (storedResponse.roundId >> 64)) {
+            require(chainlinkFeed.decimals() == FEED_DECIMALS, "DFM: Chainlink decimals changed");
+        }
         ChainlinkResponse memory response = latestResponse;
 
         uint256[] memory oracleResponses = new uint256[](MAX_LOOKBACK);
