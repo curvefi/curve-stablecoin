@@ -6,7 +6,7 @@
 @notice Regulations for Peg Keeper
 @dev Diff from the previous version: optional per-keeper coin oracle blocks provide while the paired
     coin is depegged; provide_allowed() returns 0 instead of reverting when debt is above the limit;
-    withdraw_allowed() no longer requires the spot price to be in range of the EMA.
+    the spot-vs-EMA range check (price_deviation) is removed from both allowances.
 @custom:kill admin or emergency_admin can pause provide and / or withdraw for all Peg Keepers
     via set_killed(); only admin can unpause. Keepers can be detached from this regulator by
     their owners.
@@ -19,7 +19,6 @@ interface ERC20:
 
 
 interface StableSwap:
-    def get_p(_i: uint256 = 0) -> uint256: view
     def price_oracle(_i: uint256 = 0) -> uint256: view
 
 
@@ -51,10 +50,6 @@ event RemovePegKeeper:
 
 event WorstPriceThreshold:
     threshold: uint256
-
-
-event PriceDeviation:
-    price_deviation: uint256
 
 
 event DebtParameters:
@@ -109,7 +104,6 @@ MAX_LEN: constant(uint256) = 8
 ONE: constant(uint256) = 10**18
 
 worst_price_threshold: public(uint256)
-price_deviation: public(uint256)
 alpha: public(uint256)  # Initial boundary
 beta: public(uint256)  # Each PegKeeper's impact
 
@@ -149,11 +143,9 @@ def __init__(
     log SetEmergencyAdmin(admin=_emergency_admin)
 
     self.worst_price_threshold = 3 * 10**(18 - 4)  # 0.0003
-    self.price_deviation = 5 * 10**(18 - 4)  # 0.0005 = 0.05%
     self.alpha = ONE // 2  # 1/2
     self.beta = ONE // 4  # 1/4
     log WorstPriceThreshold(threshold=self.worst_price_threshold)
-    log PriceDeviation(price_deviation=self.price_deviation)
     log DebtParameters(alpha=self.alpha, beta=self.beta)
 
 
@@ -164,22 +156,6 @@ def stablecoin() -> ERC20:
 
 
 # ----------------------------------- Allowance ----------------------------------
-
-
-@internal
-@view
-def _get_price(_info: PegKeeperInfo) -> uint256:
-    """
-    @return Price of the coin in STABLECOIN
-    """
-    price: uint256 = 0
-    if _info.include_index:
-        price = staticcall _info.pool.get_p(0)
-    else:
-        price = staticcall _info.pool.get_p()
-    if _info.is_inverse:
-        price = 10**36 // price
-    return price
 
 
 @internal
@@ -196,21 +172,6 @@ def _get_price_oracle(_info: PegKeeperInfo) -> uint256:
     if _info.is_inverse:
         price = 10**36 // price
     return price
-
-
-@internal
-@view
-def _price_in_range(_p0: uint256, _p1: uint256) -> bool:
-    """
-    @notice Check that the price is in accepted range using absolute error
-    @dev Needed for spam-attack protection
-    """
-    # |p1 - p0| <= deviation
-    # -deviation <= p1 - p0 <= deviation
-    # 0 < deviation + p1 - p0 <= 2 * deviation
-    # can use unsafe
-    deviation: uint256 = self.price_deviation
-    return unsafe_sub(unsafe_add(deviation, _p0), _p1) < deviation << 1
 
 
 @internal
@@ -236,9 +197,8 @@ def _get_max_ratio(_debt_ratios: DynArray[uint256, MAX_LEN]) -> uint256:
 @view
 def _scan_peg_keepers(_pk: address) -> (uint256, uint256, DynArray[uint256, MAX_LEN]):
     """
-    @return EMA price of the _pk pool, or max_value if _pk is not registered or its spot price
-        is out of range of the EMA; largest EMA price among the other pools; debt ratios of the
-        other keepers
+    @return EMA price of the _pk pool, or max_value if _pk is not registered; largest EMA price
+        among the other pools; debt ratios of the other keepers
     """
     price: uint256 = max_value(uint256)
     largest_price: uint256 = 0
@@ -246,8 +206,7 @@ def _scan_peg_keepers(_pk: address) -> (uint256, uint256, DynArray[uint256, MAX_
     for info: PegKeeperInfo in self.peg_keepers:
         price_oracle: uint256 = self._get_price_oracle(info)
         if info.peg_keeper.address == _pk:
-            if self._price_in_range(price_oracle, self._get_price(info)):
-                price = price_oracle
+            price = price_oracle
             continue
         largest_price = max(largest_price, price_oracle)
         debt_ratios.append(self._get_ratio(info.peg_keeper))
@@ -261,11 +220,10 @@ def provide_allowed(_pk: address = msg.sender) -> uint256:
     @notice Allow PegKeeper to provide stablecoin into the pool
     @dev Can return more amount than available
     @custom:dev Checks
-        1) current price in range of oracle in case of spam-attack
-        2) current price location among other pools in case of contrary coin depeg
-        3) stablecoin price is above 1
-        4) paired coin price from the optional coin oracle is above its min price
-        5) debt is below the alpha / beta limit given other keepers' debt ratios
+        1) current price location among other pools in case of contrary coin depeg
+        2) stablecoin price is above 1
+        3) paired coin price from the optional coin oracle is above its min price
+        4) debt is below the alpha / beta limit given other keepers' debt ratios
     @return Amount of stablecoin allowed to provide
     """
     if Killed.Provide in self.is_killed:
@@ -283,7 +241,7 @@ def provide_allowed(_pk: address = msg.sender) -> uint256:
     debt_ratios: DynArray[uint256, MAX_LEN] = []
     price, largest_price, debt_ratios = self._scan_peg_keepers(_pk)
     if price == max_value(uint256):
-        return 0  # not registered, or spot price out of range of the EMA
+        return 0  # not registered
     # A keeper without peers has nothing to compare with
     if len(debt_ratios) > 0 and largest_price < unsafe_sub(price, self.worst_price_threshold):
         return 0
@@ -399,18 +357,6 @@ def set_worst_price_threshold(_threshold: uint256):
     assert _threshold <= 10**(18 - 2)  # 0.01
     self.worst_price_threshold = _threshold
     log WorstPriceThreshold(threshold=_threshold)
-
-
-@external
-def set_price_deviation(_deviation: uint256):
-    """
-    @notice Set acceptable deviation of current price from oracle's
-    @param _deviation Deviation of price with base 10 ** 18 (1.0 = 10 ** 18)
-    """
-    assert msg.sender == self.admin
-    assert _deviation <= 10**20
-    self.price_deviation = _deviation
-    log PriceDeviation(price_deviation=_deviation)
 
 
 @external

@@ -6,34 +6,6 @@ from tests.utils.deployers import MOCK_PEG_KEEPER_DEPLOYER
 ADMIN_ACTIONS_DEADLINE = 3 * 86400
 
 
-def test_price_range(peg_keepers, swaps, stablecoin, admin, receiver, reg, rate_oracle):
-    with boa.env.prank(admin):
-        reg.set_price_deviation(10**17)
-        for peg_keeper in peg_keepers:
-            stablecoin.eval(f"self.balanceOf[{peg_keeper.address}] += {10**18}")
-
-    for peg_keeper, swap in zip(peg_keepers, swaps):
-        assert reg.provide_allowed(peg_keeper)
-        assert reg.withdraw_allowed(peg_keeper)
-
-        # Move current price (get_p) a little
-        try:
-            swap.eval("self.rate_multipliers[0] *= 2")
-        except:
-            rate_oracle.set(1, 2 * 10**18)
-        assert reg.provide_allowed(peg_keeper)
-        assert reg.withdraw_allowed(peg_keeper)
-
-        # Move further
-        try:
-            swap.eval("self.rate_multipliers[0] *= 5")
-        except:
-            rate_oracle.set(1, 10**19)
-
-        assert not reg.provide_allowed(peg_keeper)
-        assert not reg.withdraw_allowed(peg_keeper)
-
-
 def test_price_order(
     peg_keepers,
     mock_peg_keepers,
@@ -170,7 +142,6 @@ def test_set_killed(reg, peg_keepers, admin, stablecoin):
 def test_admin(reg, admin, alice, agg, receiver):
     # initial parameters
     assert reg.worst_price_threshold() == 3 * 10 ** (18 - 4)
-    assert reg.price_deviation() == 100 * 10**18
     assert (reg.alpha(), reg.beta()) == (10**18, 10**18)
     assert reg.aggregator() == agg.address
     assert reg.fee_receiver() == receiver
@@ -182,8 +153,6 @@ def test_admin(reg, admin, alice, agg, receiver):
     with boa.env.prank(alice):
         with boa.reverts():
             reg.set_worst_price_threshold(10 ** (18 - 3))
-        with boa.reverts():
-            reg.set_price_deviation(10**17)
         with boa.reverts():
             reg.set_debt_parameters(10**18 // 2, 10**18 // 5)
         with boa.reverts():
@@ -201,9 +170,6 @@ def test_admin(reg, admin, alice, agg, receiver):
     with boa.env.prank(admin):
         reg.set_worst_price_threshold(10 ** (18 - 3))
         assert reg.worst_price_threshold() == 10 ** (18 - 3)
-
-        reg.set_price_deviation(10**17)
-        assert reg.price_deviation() == 10**17
 
         reg.set_debt_parameters(10**18 // 2, 10**18 // 5)
         assert (reg.alpha(), reg.beta()) == (10**18 // 2, 10**18 // 5)
