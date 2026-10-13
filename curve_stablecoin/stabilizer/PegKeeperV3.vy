@@ -29,10 +29,10 @@
     the profit stays in LP until offload_lp().
     Factory can always pull idle crvUSD back by cutting the debt ceiling; with the ceiling at 0 the
     keeper can only withdraw, and owner can move all LP tokens out via offload_lp() to unwind them
-    elsewhere (e.g. paired coin depeg); debt is reset and the hole is tracked by the factory as
-    debt_ceiling_residual until crvUSD is returned to the keeper and burned via rug. Owner can at
-    any time move out donated paired coin via recover_donation() and crvUSD above what the factory
-    minted via recover_excess().
+    elsewhere (e.g. paired coin depeg); the hole stays in debt and is tracked by the factory as
+    debt_ceiling_residual until crvUSD is returned to the keeper and burned via rug; anyone books
+    the burn via sync_debt(). Owner can at any time move out donated paired coin via
+    recover_donation() and crvUSD above what the factory minted via recover_excess().
 @custom:security Pool is trusted (Curve StableSwap), including its rate oracle: profit is valued
     at the pool virtual price, so a rate that can be inflated within one transaction would let
     withdraw_profit() pay crvUSD the LP does not back. Regulator is trusted and set by owner.
@@ -93,6 +93,7 @@ interface CurvePoolNG:
 interface Factory:  # ControllerFactory
     def debt_ceiling(_of: address) -> uint256: view
     def debt_ceiling_residual(_of: address) -> uint256: view
+    def rug_debt_ceiling(_to: address): nonpayable
 
 
 interface ERC20:
@@ -140,6 +141,10 @@ event DepositDonation:
 event OffloadLP:
     receiver: indexed(address)
     lp_amount: uint256
+    debt: uint256
+
+
+event SyncDebt:
     debt: uint256
 
 
@@ -699,10 +704,10 @@ def offload_lp(_receiver: address) -> uint256:
     @notice Move all LP tokens out to unwind them elsewhere, e.g. when the paired coin is depegged
         and withdrawing crvUSD from the pool is not an option. Only transfers LP, does not swap it.
         Only after the DAO has cut the debt ceiling to 0, i.e. decommissioned this keeper
-    @dev debt is reset: the hole is tracked by the factory as debt_ceiling_residual until crvUSD
-        is sent back to the keeper and burned via rug, so crvUSD sent back can not be provided
-        again. Raising the debt ceiling before the hole is closed mints only the part above the
-        residual and leaves the hole unbacked, so close it first
+    @dev debt is kept: it is the hole the factory tracks as debt_ceiling_residual until crvUSD
+        is sent back to the keeper and burned via rug, booked by sync_debt(). crvUSD sent back
+        can not be provided again. Raising the debt ceiling before the hole is closed mints only
+        the part above the residual and leaves the hole unbacked, so close it first
     @param _receiver Receiver of LP tokens
     @return Amount of LP tokens transferred
     """
@@ -710,12 +715,30 @@ def offload_lp(_receiver: address) -> uint256:
     assert staticcall FACTORY.debt_ceiling(self) == 0  # dev: debt ceiling is not zero
     assert _receiver != empty(address)  # dev: bad receiver
 
-    debt: uint256 = self.debt
-    self.debt = 0
     lp_amount: uint256 = staticcall POOL.balanceOf(self)
     assert extcall POOL.transfer(_receiver, lp_amount)
-    log OffloadLP(receiver=_receiver, lp_amount=lp_amount, debt=debt)
+    log OffloadLP(receiver=_receiver, lp_amount=lp_amount, debt=self.debt)
     return lp_amount
+
+
+@external
+@nonreentrant
+def sync_debt() -> uint256:
+    """
+    @notice Burn idle crvUSD via the factory rug and set debt to what the factory still misses.
+        Only with the debt ceiling at 0: the factory then burns up to the residual and mints
+        nothing, so the residual left is exactly the crvUSD the keeper put in circulation and
+        has not returned (the hole after offload_lp(), or debt still backed by LP). crvUSD
+        donated to the keeper is burned too and shrinks the debt
+    @return Debt after the sync
+    """
+    assert staticcall FACTORY.debt_ceiling(self) == 0  # dev: debt ceiling is not zero
+
+    extcall FACTORY.rug_debt_ceiling(self)
+    debt: uint256 = staticcall FACTORY.debt_ceiling_residual(self)
+    self.debt = debt
+    log SyncDebt(debt=debt)
+    return debt
 
 
 # ----------------------------------- Recover -----------------------------------
@@ -753,17 +776,17 @@ def recover_excess(_receiver: address) -> uint256:
         allocated): crvUSD in the pool is still the factory's and counts only as far as LP covers
         it, so a hole is closed before anything is excess. Only the part of the excess that is
         idle can leave now.
-        The pool is not touched once debt is 0 (after offload_lp), so a broken rate oracle does
-        not block the recovery
+        The pool is not touched once no LP is held (after offload_lp), so a broken rate oracle
+        does not block the recovery
     @param _receiver Receiver of crvUSD
     @return Amount of crvUSD transferred
     """
     ownable._check_owner()
     ceiling: uint256 = staticcall FACTORY.debt_ceiling(self)
     idle: uint256 = self._idle(ceiling)
-    backed: uint256 = self.debt
-    if backed > 0:
-        backed = min(backed, self._lp_value(staticcall POOL.get_virtual_price()))
+    backed: uint256 = 0
+    if self.debt > 0 and staticcall POOL.balanceOf(self) > 0:
+        backed = min(self.debt, self._lp_value(staticcall POOL.get_virtual_price()))
     total: uint256 = idle + backed
     excess: uint256 = total - min(total, ceiling)
     return self._recover(PEGGED, _receiver, min(excess, idle))
