@@ -108,17 +108,40 @@ def test_phase_switch_without_new_aggregator_history(feed, deploy_oracle):
 
 # 600 goes through the phase check in the incremental path, 1500 through the idle reseed
 @pytest.mark.parametrize("idle", [600, 1500])
-def test_phase_switch_with_changed_decimals_reverts(feed, deploy_oracle, idle):
+def test_phase_switch_with_changed_decimals(feed, deploy_oracle, idle):
+    new_price = 3100 * 10**18
     feed.add_rounds(1, PRICE, now() - 7200, 600, 12)
+    # the next aggregator reports in 18 decimals and posts in parallel before the switch
+    feed.add_rounds(2, new_price, now() - 7200, 600, 12)
     oracle = deploy_oracle()
     oracle.price_w()
 
     boa.env.time_travel(seconds=idle)
     feed.set_phase(2)
     feed.set_decimals(18)
-    feed.add_rounds(2, PRICE * 10**10, now() - 60, 1, 1)
 
-    with boa.reverts("DFM: Chainlink decimals changed"):
+    # every reseed sample comes from the new phase, scaled by the new decimals
+    assert oracle.price() == new_price
+    assert oracle.price_w() == new_price
+    assert oracle.storedResponse()[2] == 18
+
+    # later rounds of the new phase keep the stored decimals
+    feed.add_rounds(2, new_price, now(), 1, 1)
+    boa.env.time_travel(seconds=INTERVAL * 3)
+    assert oracle.price() == new_price
+    assert oracle.price_w() == new_price
+
+
+def test_phase_switch_to_more_than_18_decimals_reverts(feed, deploy_oracle):
+    feed.add_rounds(1, PRICE, now() - 7200, 600, 12)
+    oracle = deploy_oracle()
+
+    boa.env.time_travel(seconds=600)
+    feed.set_phase(2)
+    feed.set_decimals(19)
+    feed.add_rounds(2, PRICE * 10**11, now() - 60, 1, 1)
+
+    with boa.reverts("DFM: Chainlink decimals too high"):
         oracle.price()
-    with boa.reverts("DFM: Chainlink decimals changed"):
+    with boa.reverts("DFM: Chainlink decimals too high"):
         oracle.price_w()
