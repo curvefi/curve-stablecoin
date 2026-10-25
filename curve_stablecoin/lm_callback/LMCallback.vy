@@ -131,6 +131,15 @@ def factory() -> address:
 
 @external
 @view
+def lp_token() -> address:
+    """
+    @notice Collateral token rewarded through the AMM callback
+    """
+    return COLLATERAL_TOKEN.address
+
+
+@external
+@view
 def is_killed() -> bool:
     """
     @notice Whether this callback is retired from earning new CRV
