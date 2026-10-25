@@ -128,6 +128,18 @@ def factory() -> address:
     return _FACTORY
 
 
+@external
+@view
+def is_killed() -> bool:
+    """
+    @notice Gauge-compatible flag indicating whether CRV accrual is disabled
+    @dev True before attachment, while disconnected (even before a checkpoint
+         latches `detached`), and permanently after `detached` is latched.
+         This view does not arm the detach latch.
+    """
+    return self.detached or (staticcall AMM.liquidity_mining_callback()).address != self
+
+
 @internal
 def _attached() -> bool:
     """

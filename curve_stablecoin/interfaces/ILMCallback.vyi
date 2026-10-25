@@ -81,6 +81,12 @@ def detached() -> bool:
 
 @view
 @external
+def is_killed() -> bool:
+    ...
+
+
+@view
+@external
 def collateral_per_share(_n: int256) -> uint256:
     ...
 
