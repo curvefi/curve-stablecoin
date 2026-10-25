@@ -15,7 +15,8 @@
                 lost otherwise.
              2. In the same transaction as the detach, call user_checkpoint on
                 this contract (the address argument is irrelevant - use the zero
-                address) to arm the latch immediately. Until it is armed, a
+                address) to arm the latch immediately. `is_killed()` is a view
+                and cannot arm it. Until it is armed, a
                 deposit landing in the AMM gets no I_rpu baseline, and could
                 claim the band's entire banked I_rps if the callback were later
                 re-attached. Anyone may arm it, but do not rely on that.
@@ -57,6 +58,7 @@ AMM: public(immutable(IAMM))
 COLLATERAL_TOKEN: public(immutable(IERC20))
 
 # Set the first time this contract is seen as the AMM's configured callback
+# Historical attachment does not establish current attachment or initialization.
 attached: public(bool)
 # Latched when a callback that had gone live is no longer the AMM's configured
 # callback. A detached callback reads `attached == True` and `detached == True`.
@@ -132,12 +134,15 @@ def factory() -> address:
 @view
 def is_killed() -> bool:
     """
-    @notice Gauge-compatible flag indicating whether CRV accrual is disabled
-    @dev True before attachment, while disconnected (even before a checkpoint
-         latches `detached`), and permanently after `detached` is latched.
-         This view does not arm the detach latch.
+    @notice Whether this callback is retired from earning new CRV
+    @dev False does not imply attachment, initialization, or a positive emission rate.
+         A checkpoint during disconnection must persist the retirement latch.
     """
-    return self.detached or (staticcall AMM.liquidity_mining_callback()).address != self
+    # Pending activation is not retirement; `attached` records a past observation.
+    # The live AMM read reports removal before a checkpoint latches `detached`.
+    return self.detached or (
+        self.attached and (staticcall AMM.liquidity_mining_callback()).address != self
+    )
 
 
 @internal
