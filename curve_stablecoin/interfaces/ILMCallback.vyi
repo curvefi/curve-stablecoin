@@ -79,7 +79,6 @@ def detached() -> bool:
     ...
 
 
-# Standard gauge retirement status, separate from attachment and readiness.
 @view
 @external
 def is_killed() -> bool:
