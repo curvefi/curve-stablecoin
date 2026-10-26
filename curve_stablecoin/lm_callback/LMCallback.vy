@@ -6,25 +6,22 @@
 @notice LM callback works like a gauge for collateral in LlamaLend/crvUSD AMMs
 @dev Use this contract only on Ethereum Mainnet since CRV, GAUGE_CONTROLLER and MINTER addresses are hardcoded
 @custom:security security@curve.finance
-@custom:kill Detach via the Controller's Configurator (set_callback to any other
-             address). The callback latches `detached` on the next call that
-             observes the detach, and is permanently inert from then on - CRV
-             emissions stop and cannot be resumed. Recommended procedure:
-             1. Checkpoint every borrower first. Crediting stops once detached,
-                so whatever a borrower accrued since their last checkpoint is
-                lost otherwise.
-             2. In the same transaction as the detach, call user_checkpoint on
-                this contract (the address argument is irrelevant - use the zero
-                address) to arm the latch immediately. Until it is armed, a
-                deposit landing in the AMM gets no I_rpu baseline, and could
-                claim the band's entire banked I_rps if the callback were later
-                re-attached. Anyone may arm it, but do not rely on that.
+@custom:kill The factory owner can pause CRV rewards with set_killed(True);
+             accounting and earned reward claims continue. False resumes rewards
+             while attached but cannot clear permanent retirement. To retire:
+             1. Checkpoint every borrower before detaching, or unsettled rewards
+                will be lost.
+             2. Detach via Configurator.set_callback, then call
+                user_checkpoint(empty(address)) on this callback in the same
+                transaction to record permanent retirement.
+             Never reattach after missed AMM updates. is_killed() is only a view.
 """
 
 from curve_std.interfaces import IERC20
 from curve_stablecoin import constants as c
 from curve_stablecoin.interfaces import IAMM
 from curve_stablecoin.interfaces import ILMCallback
+from curve_stablecoin.interfaces import ILMCallbackFactory
 
 version: public(constant(String[5])) = "1.0.0"
 
@@ -61,6 +58,7 @@ attached: public(bool)
 # Latched when a callback that had gone live is no longer the AMM's configured
 # callback. A detached callback reads `attached == True` and `detached == True`.
 detached: public(bool)
+rewards_killed: bool
 collateral_per_share: public(HashMap[int256, uint256])
 
 # Tracking of mining period
@@ -128,6 +126,43 @@ def factory() -> address:
     return _FACTORY
 
 
+@external
+@view
+def lp_token() -> address:
+    """
+    @notice Collateral token rewarded through the AMM callback
+    """
+    return COLLATERAL_TOKEN.address
+
+
+@external
+@view
+def is_killed() -> bool:
+    """
+    @notice Whether new CRV accrual is paused or the callback is retired
+    @dev False does not imply attachment, initialization, or positive emissions.
+    """
+    return self.rewards_killed or self.detached or (
+        self.attached and (staticcall AMM.liquidity_mining_callback()).address != self
+    )
+
+
+@external
+def set_killed(killed: bool):
+    """
+    @notice Pause or resume new CRV accrual without detaching the callback
+    @param killed True to pause rewards; False to resume while still attached
+    """
+    assert msg.sender == staticcall ILMCallbackFactory(_FACTORY).owner(), "only owner"
+    if not killed:
+        assert self._attached(), "not attached"
+
+    # Checkpoint under the old flag so resuming cannot backpay paused time.
+    self._checkpoint_collateral_shares(0, [], 0)
+    self.rewards_killed = killed
+    log ILMCallback.SetKilled(killed=killed)
+
+
 @internal
 def _attached() -> bool:
     """
@@ -150,7 +185,7 @@ def _attached() -> bool:
         return True
 
     # Not the AMM's callback. Before going live that is just the deployment
-    # window and must not arm the latch; after going live it is a detach.
+    # window and must not set `detached`; after going live it is a detach.
     if self.attached:
         self.detached = True
         log ILMCallback.Detached()
@@ -180,6 +215,11 @@ def _checkpoint_collateral_shares(n_start: int256, collateral_per_share: DynArra
         new_rate = staticcall CRV.rate()
         self.inflation_rate = new_rate
         log ILMCallback.UpdateInflationRate(new_rate=new_rate, future_epoch_time=self.future_epoch_time)
+
+    # Keep rate caching and AMM accounting live; zero only effective rates.
+    if self.rewards_killed:
+        rate = 0
+        new_rate = 0
 
     # Transfers from/to AMM always happen after LM Callback calls, so this value is taken BEFORE the action
     total_collateral: uint256 = staticcall COLLATERAL_TOKEN.balanceOf(AMM.address)
