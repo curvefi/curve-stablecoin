@@ -70,6 +70,10 @@ CALLBACK_LIQUIDATE: constant(bytes4) = method_id(
     output_type=bytes4,
 )  # active_band=0
 MAX_RATE: public(constant(uint256)) = 43959106799  # 300% APY
+TARGET_HEALTH: constant(uint256) = 20 * 10**17  # 10**18 + health after a liquidation
+MAX_BONUS_HEALTH: constant(uint256) = 95 * 10**16  # Full bonus when 10**18 + health is below this
+MAX_BONUS: constant(uint256) = 15 * 10**15  # Liquidator's bonus when 10**18 + health <= MAX_BONUS_HEALTH
+MIN_BONUS: constant(uint256) = 5 * 10**15  # Liquidator's bonus when health >= 0
 
 ################################################################
 #                           STORAGE                            #
@@ -738,7 +742,15 @@ def _add_collateral_borrow(
     debt += _d_debt
 
     xy: uint256[2] = extcall AMM.withdraw(_for, WAD)
-    assert xy[0] == 0, "Underwater"
+    if xy[0] != 0:
+        # Borrowed tokens held in the bands repay debt before the bands move
+        debt -= xy[0]  # dev: Borrowed tokens exceed the debt - repay closes the loan
+        tkn.transfer_from(BORROWED_TOKEN, AMM.address, self, xy[0])
+        self._update_total_debt(xy[0], rate_mul, False)
+        self.repaid += xy[0]
+        log IController.Repay(
+            caller=msg.sender, user=_for, collateral_decrease=0, loan_decrease=xy[0]
+        )
     if _remove_collateral:
         xy[1] -= _d_collateral
     else:
@@ -1015,15 +1027,13 @@ def _repay_partial(
     new_debt: uint256 = unsafe_sub(_debt, unsafe_add(_cb.borrowed, _wallet_d_debt))
     new_borrowed: uint256 = _xy[0]
 
-    if ns[0] > active_band or _shrink:
+    if (ns[0] > active_band and _xy[0] == 0) or _shrink:
         # Not underwater or shrink mode - can move bands
         if _callbacker == empty(address):
             _xy = extcall AMM.withdraw(_for, WAD)
             new_collateral = _xy[1]
         if _shrink:
             new_debt -= _xy[0]
-        else:
-            assert _xy[0] == 0
         new_borrowed = 0
 
         ns[0] = self._calculate_debt_n1(
@@ -1196,15 +1206,17 @@ def _health(
             p: uint256 = staticcall AMM.price_oracle()
             p_up: uint256 = staticcall AMM.p_oracle_up(ns0)
             if p > p_up:
-                health += convert(
-                    unsafe_div(
-                        unsafe_sub(p, p_up)
-                        * (staticcall AMM.get_sum_xy(_user))[1]
-                        * COLLATERAL_PRECISION,
-                        _debt * BORROWED_PRECISION,
-                    ),
-                    int256,
-                )
+                xy: uint256[2] = staticcall AMM.get_sum_xy(_user)
+                if xy[0] == 0:  # Bands holding x stay in liquidation mode
+                    health += convert(
+                        unsafe_div(
+                            unsafe_sub(p, p_up)
+                            * xy[1]
+                            * COLLATERAL_PRECISION,
+                            _debt * BORROWED_PRECISION,
+                        ),
+                        int256,
+                    )
     return health
 
 
@@ -1228,6 +1240,83 @@ def _get_f_remove(_frac: uint256, _health_limit: uint256) -> uint256:
     return unsafe_div(unsafe_mul(unsafe_add(f_remove, _frac), _frac), WAD)
 
 
+@internal
+@view
+def _calculate_debt_f_remove(
+    _user: address,
+    _debt: uint256,
+    _frac: uint256,
+    _health_limit: uint256,
+    _AMM: IAMM,
+    _COLLATERAL_PRECISION: uint256,
+    _BORROWED_PRECISION: uint256,
+) -> uint256[2]:
+    """
+    @notice Calculate the debt to repay in a liquidation and the fraction of the position withdrawn for it.
+            A liquidator repays at most enough to bring health up to TARGET_HEALTH - 10**18
+            and gets a bonus which is larger for worse loans. Otherwise (self-liquidation,
+            or the loan is too bad to cap) the position is withdrawn in the same fraction
+            as the debt is repaid
+    @param _user Address of the user to liquidate
+    @param _debt Current debt of the user
+    @param _frac Fraction to liquidate; 100% = 10**18
+    @param _health_limit Liquidation discount of the user (0 for self-liquidation)
+    @param _AMM AMM of the market
+    @param _COLLATERAL_PRECISION Precision of the collateral token
+    @param _BORROWED_PRECISION Precision of the borrowed token
+    @return (debt to repay, fraction of the position to withdraw; 100% = 10**18)
+    """
+    assert _frac <= WAD, "frac>100%"
+    frac_max: uint256 = WAD
+    f_remove: uint256 = WAD
+    if _health_limit != 0:
+        # Amounts are bounded by the AMM math (amounts * 1e18-based prices), so most ops can be unsafe
+        xy: uint256[2] = staticcall _AMM.get_sum_xy(_user)
+        value: uint256 = unsafe_add(
+            xy[0],
+            unsafe_div(
+                unsafe_mul(xy[1], _COLLATERAL_PRECISION) * staticcall _AMM.price_oracle(),
+                unsafe_mul(WAD, _BORROWED_PRECISION),
+            ),
+        )
+        x_down: uint256 = unsafe_div(
+            unsafe_mul(staticcall _AMM.get_x_down(_user), unsafe_sub(WAD, _health_limit)), WAD
+        )
+        health: uint256 = unsafe_div(unsafe_mul(x_down, WAD), _debt)  # 10**18 + health of _health(full=False)
+        bonus: uint256 = WAD + MAX_BONUS
+        if health > MAX_BONUS_HEALTH:
+            bonus = unsafe_sub(
+                bonus,
+                # (MAX_BONUS - MIN_BONUS) / (WAD - MAX_BONUS_HEALTH) == 1 / 5 exactly
+                unsafe_div(
+                    unsafe_sub(min(health, WAD), MAX_BONUS_HEALTH),
+                    (WAD - MAX_BONUS_HEALTH) // (MAX_BONUS - MIN_BONUS),
+                ),
+            )
+
+        # Repay so that the remaining position has health TARGET_HEALTH - 10**18:
+        # repay = (TARGET_HEALTH * debt - x_down) / (TARGET_HEALTH - bonus * x_down / value)
+        # TARGET_HEALTH * debt / WAD with smaller constants (TARGET_HEALTH is a multiple of 10**17)
+        num: uint256 = unsafe_div(_debt * (TARGET_HEALTH // 10**17), 10)
+        den: uint256 = unsafe_div(unsafe_mul(bonus, x_down), value)
+        if num > x_down:
+            if den < TARGET_HEALTH:
+                repay: uint256 = unsafe_div(
+                    unsafe_mul(unsafe_sub(num, x_down), WAD), unsafe_sub(TARGET_HEALTH, den)
+                )
+                # No cap if the bonus would exceed the position
+                if repay < _debt and unsafe_div(unsafe_mul(repay, bonus), WAD) < value:
+                    frac_max = unsafe_div(unsafe_mul(repay, WAD), _debt)
+                    f_remove = unsafe_div(unsafe_mul(repay, bonus), value)
+
+    if _frac < frac_max:
+        f_remove = unsafe_div(unsafe_mul(f_remove, _frac), frac_max)
+        frac_max = _frac
+    # frac_max <= WAD and _debt * WAD <= initial_debt * rate_mul + WAD (checked in _debt): no overflow
+    # unless initial_debt * rate_mul is within 2 * WAD of 2**256
+    return [unsafe_div(unsafe_add(unsafe_mul(_debt, frac_max), WAD - 1), WAD), f_remove]
+
+
 @external
 @view
 def liquidate_health_preview(
@@ -1241,7 +1330,7 @@ def liquidate_health_preview(
     @param _user User to liquidate
     @param _caller Address from which liquidate tx is going to be sent.
            Depending on this address liquidation_discount will be changed or not.
-    @param _frac Fraction to liquidate; 100% = 10**18
+    @param _frac Fraction to liquidate; 100% = 10**18 (capped for liquidators)
     @param _full Whether it's a 'full' health or not
     @return Signed health value
     """
@@ -1262,7 +1351,7 @@ def liquidate(
     @notice Perform a bad liquidation (or self-liquidation) of user if health is not good
     @param _user Address of the user to liquidate
     @param _min_x Minimal amount of borrowed asset to receive (to avoid liquidators being sandwiched)
-    @param _frac Fraction to liquidate; 100% = 10**18
+    @param _frac Fraction to liquidate; 100% = 10**18 (capped for liquidators)
     @param _callbacker Address of the callback contract
     @param _calldata Any data for callbacker
     """
@@ -1279,21 +1368,20 @@ def liquidate(
         health_limit = liquidation_discount
 
     final_debt: uint256 = debt
-    assert _frac <= WAD, "frac>100%"
-    debt = unsafe_div(debt * _frac + (WAD - 1), WAD)
+    # Debt to repay (capped for liquidators) and fraction of the position withdrawn for it
+    debt_f_remove: uint256[2] = self._calculate_debt_f_remove(
+        _user, debt, _frac, health_limit, AMM, COLLATERAL_PRECISION, BORROWED_PRECISION
+    )
+    debt = debt_f_remove[0]
     assert debt > 0
     final_debt = unsafe_sub(final_debt, debt)
 
     # If liquidating entire debt, ensure full collateral withdrawal
-    f_remove: uint256 = self._get_f_remove(_frac, health_limit)
+    f_remove: uint256 = debt_f_remove[1]
     if final_debt == 0:
         f_remove = WAD
 
     # Withdraw sender's borrowed and collateral to our contract
-    # When frac is set - we withdraw a bit less for the same debt fraction
-    # f_remove = ((1 + h/2) / (1 + h) * (1 - frac) + frac) * frac
-    # where h is health limit.
-    # This is less than full h discount but more than no discount
     xy: uint256[2] = extcall AMM.withdraw(_user, f_remove)  # [stable, collateral]
 
     # x increase in same block -> price up -> good
@@ -1383,21 +1471,23 @@ def tokens_to_liquidate(_user: address, _frac: uint256 = WAD) -> uint256:
     """
     @notice Calculate the amount of borrowed asset to have in liquidator's wallet to liquidate a user
     @param _user Address of the user to liquidate
-    @param _frac Fraction to liquidate; 100% = 10**18
+    @param _frac Fraction to liquidate; 100% = 10**18 (capped for liquidators)
     @return The amount of borrowed asset needed
     """
-    assert _frac <= WAD, "frac>100%"
     health_limit: uint256 = 0
     if not self._has_approval(_user):
         health_limit = self.liquidation_discounts[_user]
+    debt: uint256 = self._debt(_user)[0]
+    debt_f_remove: uint256[2] = self._calculate_debt_f_remove(
+        _user, debt, _frac, health_limit, AMM, COLLATERAL_PRECISION, BORROWED_PRECISION
+    )
     borrowed: uint256 = unsafe_div(
         (staticcall AMM.get_sum_xy(_user))[0]
-        * self._get_f_remove(_frac, health_limit),
+        * debt_f_remove[1],
         WAD,
     )
-    debt: uint256 = unsafe_div(self._debt(_user)[0] * _frac + (WAD - 1), WAD)
 
-    return crv_math.sub_or_zero(debt, borrowed)
+    return crv_math.sub_or_zero(debt_f_remove[0], borrowed)
 
 
 @external
