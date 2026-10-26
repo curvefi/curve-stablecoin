@@ -8,6 +8,9 @@ event Attached:
 event Detached:
     pass
 
+event SetKilled:
+    killed: bool
+
 event UpdateInflationRate:
     new_rate: uint256
     future_epoch_time: uint256
@@ -88,6 +91,11 @@ def detached() -> bool:
 @view
 @external
 def is_killed() -> bool:
+    ...
+
+
+@external
+def set_killed(killed: bool):
     ...
 
 
