@@ -358,7 +358,11 @@ def _paired_discount() -> uint256:
     @dev Paired coin price = aggregated crvUSD price (regulator's aggregator) divided by the
         pool EMA price of crvUSD in the paired coin
     """
-    pool_price: uint256 = staticcall CurvePoolNG(POOL.address).price_oracle(0) if IS_NG else staticcall CurvePoolOld(POOL.address).price_oracle()
+    pool_price: uint256 = (
+        staticcall CurvePoolNG(POOL.address).price_oracle(0)
+        if IS_NG
+        else staticcall CurvePoolOld(POOL.address).price_oracle()
+    )
     price: uint256 = staticcall (staticcall self.regulator.aggregator()).price()
 
     if IS_INVERSE:
@@ -377,7 +381,9 @@ def _min_profit(_amount: uint256, _deficit: bool) -> uint256:
         Entry adds the paired coin discount to the aggregated price
     @dev Rounded down
     """
-    min_profit: uint256 = self.provide_min_profit + self._paired_discount() if _deficit else self.withdraw_min_profit
+    min_profit: uint256 = (
+        self.provide_min_profit + self._paired_discount() if _deficit else self.withdraw_min_profit
+    )
     return _amount * min_profit // PRECISION
 
 
