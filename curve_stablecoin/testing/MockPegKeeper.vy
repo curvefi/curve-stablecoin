@@ -9,6 +9,7 @@ pool: public(immutable(address))
 IS_INVERSE: public(bool)
 debt: public(uint256)
 undrawn: public(uint256)  # stablecoin the keeper may still provide
+rolling_delta: public(int256)  # stablecoin provided minus withdrawn in the delta window
 
 coins: public(address[2])
 get_virtual_price: public(uint256)
@@ -55,3 +56,8 @@ def set_debt(debt: uint256):
 @external
 def set_undrawn(_undrawn: uint256):
     self.undrawn = _undrawn
+
+
+@external
+def set_rolling_delta(_delta: int256):
+    self.rolling_delta = _delta

@@ -5,8 +5,12 @@
 @license MIT
 @notice Regulations for Peg Keeper
 @dev Diff from the previous version: optional per-keeper coin oracle blocks provide while the paired
-    coin is depegged; provide_allowed() returns 0 instead of reverting when debt is above the limit;
-    the spot-vs-EMA range check (price_deviation) is removed from both allowances.
+    coin is depegged; the worst price check and the alpha / beta debt limits are replaced by a rate
+    limit: per its delta_window a keeper may provide up to the larger of debt_delta_share of the
+    total debt of all keepers and ceiling_delta_share of its own debt ceiling, net of what it has
+    provided in the window (rolling_delta()); provide_allowed() returns 0 instead of reverting when
+    nothing is allowed; the spot-vs-EMA range check (price_deviation) is removed from both
+    allowances.
 @custom:kill admin or emergency_admin can pause provide and / or withdraw for all Peg Keepers
     via set_killed(); only admin can unpause. Keepers can be detached from this regulator by
     their owners.
@@ -26,6 +30,7 @@ interface PegKeeper:
     def pool() -> StableSwap: view
     def debt() -> uint256: view
     def undrawn() -> uint256: view
+    def rolling_delta() -> int256: view
     def IS_INVERSE() -> bool: view
 
 
@@ -48,13 +53,9 @@ event RemovePegKeeper:
     peg_keeper: PegKeeper
 
 
-event WorstPriceThreshold:
-    threshold: uint256
-
-
-event DebtParameters:
-    alpha: uint256
-    beta: uint256
+event DeltaShares:
+    debt_share: uint256
+    ceiling_share: uint256
 
 
 event SetAggregator:
@@ -103,9 +104,9 @@ flag Killed:
 MAX_LEN: constant(uint256) = 8
 ONE: constant(uint256) = 10**18
 
-worst_price_threshold: public(uint256)
-alpha: public(uint256)  # Initial boundary
-beta: public(uint256)  # Each PegKeeper's impact
+# Per delta_window a keeper may provide max(debt_delta_share * total debt, ceiling_delta_share * ceiling)
+debt_delta_share: public(uint256)  # Share of the total debt of all keepers
+ceiling_delta_share: public(uint256)  # Share of the keeper's own debt ceiling
 
 STABLECOIN: immutable(ERC20)
 aggregator: public(Aggregator)
@@ -142,11 +143,9 @@ def __init__(
     log SetAdmin(admin=_admin)
     log SetEmergencyAdmin(admin=_emergency_admin)
 
-    self.worst_price_threshold = 3 * 10**(18 - 4)  # 0.0003
-    self.alpha = ONE // 2  # 1/2
-    self.beta = ONE // 4  # 1/4
-    log WorstPriceThreshold(threshold=self.worst_price_threshold)
-    log DebtParameters(alpha=self.alpha, beta=self.beta)
+    self.debt_delta_share = ONE // 10  # 10%
+    self.ceiling_delta_share = ONE // 20  # 5%
+    log DeltaShares(debt_share=self.debt_delta_share, ceiling_share=self.ceiling_delta_share)
 
 
 @external
@@ -160,57 +159,35 @@ def stablecoin() -> ERC20:
 
 @internal
 @view
-def _get_price_oracle(_info: PegKeeperInfo) -> uint256:
+def _total_debt() -> uint256:
     """
-    @return Price of the coin in STABLECOIN
+    @return Debt of all registered Peg Keepers
     """
-    price: uint256 = 0
-    if _info.include_index:
-        price = staticcall _info.pool.price_oracle(0)
-    else:
-        price = staticcall _info.pool.price_oracle()
-    if _info.is_inverse:
-        price = 10**36 // price
-    return price
-
-
-@internal
-@view
-def _get_ratio(_peg_keeper: PegKeeper) -> uint256:
-    """
-    @return debt ratio limited up to 1
-    """
-    debt: uint256 = staticcall _peg_keeper.debt()
-    return debt * ONE // (1 + debt + staticcall _peg_keeper.undrawn())
-
-
-@internal
-@view
-def _get_max_ratio(_debt_ratios: DynArray[uint256, MAX_LEN]) -> uint256:
-    rsum: uint256 = 0
-    for r: uint256 in _debt_ratios:
-        rsum += isqrt(r * ONE)
-    return (self.alpha + self.beta * rsum // ONE)**2 // ONE
-
-
-@internal
-@view
-def _scan_peg_keepers(_pk: address) -> (uint256, uint256, DynArray[uint256, MAX_LEN]):
-    """
-    @return EMA price of the _pk pool, or max_value if _pk is not registered; largest EMA price
-        among the other pools; debt ratios of the other keepers
-    """
-    price: uint256 = max_value(uint256)
-    largest_price: uint256 = 0
-    debt_ratios: DynArray[uint256, MAX_LEN] = []
+    total: uint256 = 0
     for info: PegKeeperInfo in self.peg_keepers:
-        price_oracle: uint256 = self._get_price_oracle(info)
-        if info.peg_keeper.address == _pk:
-            price = price_oracle
-            continue
-        largest_price = max(largest_price, price_oracle)
-        debt_ratios.append(self._get_ratio(info.peg_keeper))
-    return price, largest_price, debt_ratios
+        total += staticcall info.peg_keeper.debt()
+    return total
+
+
+@internal
+@view
+def _delta_limit(_pk: PegKeeper) -> uint256:
+    """
+    @notice crvUSD the keeper may still provide in its delta window: the larger of debt_delta_share
+        of the total debt and ceiling_delta_share of the keeper's debt ceiling (debt + undrawn),
+        minus what it has provided net of withdrawn in the window
+    """
+    limit: int256 = convert(
+        max(
+            self.debt_delta_share * self._total_debt(),
+            self.ceiling_delta_share * (staticcall _pk.debt() + staticcall _pk.undrawn()),
+        ) // ONE,
+        int256,
+    )
+    delta: int256 = staticcall _pk.rolling_delta()
+    if delta >= limit:
+        return 0
+    return convert(limit - delta, uint256)
 
 
 @external
@@ -220,10 +197,10 @@ def provide_allowed(_pk: address = msg.sender) -> uint256:
     @notice Allow PegKeeper to provide stablecoin into the pool
     @dev Can return more amount than available
     @custom:dev Checks
-        1) current price location among other pools in case of contrary coin depeg
-        2) stablecoin price is above 1
-        3) paired coin price from the optional coin oracle is above its min price
-        4) debt is below the alpha / beta limit given other keepers' debt ratios
+        1) stablecoin price is above 1
+        2) paired coin price from the optional coin oracle is above its min price
+        3) Peg Keeper is registered
+        4) provided in the keeper's delta window is below its delta limit
     @return Amount of stablecoin allowed to provide
     """
     if Killed.Provide in self.is_killed:
@@ -236,22 +213,9 @@ def provide_allowed(_pk: address = msg.sender) -> uint256:
     if coin_oracle.oracle.address != empty(address):
         if staticcall coin_oracle.oracle.price() < coin_oracle.min_price:
             return 0
-    price: uint256 = 0
-    largest_price: uint256 = 0
-    debt_ratios: DynArray[uint256, MAX_LEN] = []
-    price, largest_price, debt_ratios = self._scan_peg_keepers(_pk)
-    if price == max_value(uint256):
-        return 0  # not registered
-    # A keeper without peers has nothing to compare with
-    if len(debt_ratios) > 0 and largest_price < unsafe_sub(price, self.worst_price_threshold):
+    if self.peg_keeper_i[PegKeeper(_pk)] == 0:
         return 0
-
-    debt: uint256 = staticcall PegKeeper(_pk).debt()
-    total: uint256 = debt + staticcall PegKeeper(_pk).undrawn()
-    limit: uint256 = self._get_max_ratio(debt_ratios) * total // ONE
-    if limit <= debt:
-        return 0
-    return limit - debt
+    return self._delta_limit(PegKeeper(_pk))
 
 
 @external
@@ -348,30 +312,20 @@ def set_coin_oracle(_pk: PegKeeper, _oracle: PriceOracle, _min_price: uint256):
 
 
 @external
-def set_worst_price_threshold(_threshold: uint256):
+def set_delta_shares(_debt_share: uint256, _ceiling_share: uint256):
     """
-    @notice Set threshold for the worst price that is still accepted
-    @param _threshold Price threshold with base 10 ** 18 (1.0 = 10 ** 18)
-    """
-    assert msg.sender == self.admin
-    assert _threshold <= 10**(18 - 2)  # 0.01
-    self.worst_price_threshold = _threshold
-    log WorstPriceThreshold(threshold=_threshold)
-
-
-@external
-def set_debt_parameters(_alpha: uint256, _beta: uint256):
-    """
-    @notice Set parameters for calculation of debt limits
-    @dev 10 ** 18 precision
+    @notice Set the shares defining what a keeper may provide per its delta_window:
+        the larger of _debt_share of the total debt and _ceiling_share of its own debt ceiling
+    @param _debt_share Share of the total debt of all keepers, base 10 ** 18
+    @param _ceiling_share Share of the keeper's debt ceiling, base 10 ** 18
     """
     assert msg.sender == self.admin
-    assert _alpha <= ONE
-    assert _beta <= ONE
+    assert _debt_share <= ONE  # dev: bad share
+    assert _ceiling_share <= ONE  # dev: bad share
 
-    self.alpha = _alpha
-    self.beta = _beta
-    log DebtParameters(alpha=_alpha, beta=_beta)
+    self.debt_delta_share = _debt_share
+    self.ceiling_delta_share = _ceiling_share
+    log DeltaShares(debt_share=_debt_share, ceiling_share=_ceiling_share)
 
 
 @external

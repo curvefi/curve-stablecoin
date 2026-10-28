@@ -241,7 +241,6 @@ def reg(agg, stablecoin, mock_peg_keepers, receiver, admin):
         stablecoin, agg, receiver, admin, admin
     )
     with boa.env.prank(admin):
-        regulator.set_debt_parameters(10**18, 10**18)
         regulator.add_peg_keepers([mock.address for mock in mock_peg_keepers])
     return regulator
 

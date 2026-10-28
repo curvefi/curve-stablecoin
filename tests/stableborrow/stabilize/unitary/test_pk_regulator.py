@@ -6,45 +6,6 @@ from tests.utils.deployers import MOCK_PEG_KEEPER_DEPLOYER
 ADMIN_ACTIONS_DEADLINE = 3 * 86400
 
 
-def test_price_order(
-    peg_keepers,
-    mock_peg_keepers,
-    swaps,
-    initial_amounts,
-    stablecoin,
-    admin,
-    alice,
-    mint_alice,
-    reg,
-    agg,
-):
-    with boa.env.prank(admin):
-        reg.remove_peg_keepers([mock.address for mock in mock_peg_keepers])
-
-    # note: assuming swaps' prices are close enough
-    for i, (peg_keeper, swap, (initial_amount, _)) in enumerate(
-        zip(peg_keepers, swaps, initial_amounts)
-    ):
-        with boa.env.anchor():
-            with boa.env.prank(admin):
-                # Price change break aggregator.price() check
-                agg.remove_price_pair(i)
-
-            with boa.env.prank(alice):
-                amount = 7 * initial_amount // 1000  # Just in
-                # Make sure small decline still works
-                swap.exchange(0, 1, amount, 0)
-                boa.env.time_travel(seconds=6000)  # Update EMA
-                assert reg.provide_allowed(peg_keeper)
-                assert reg.withdraw_allowed(peg_keeper)  # no such check for withdraw
-
-                # and a bigger one
-                swap.exchange(0, 1, amount, 0)
-                boa.env.time_travel(seconds=6000)  # Update EMA
-                assert not reg.provide_allowed(peg_keeper)
-                assert reg.withdraw_allowed(peg_keeper)
-
-
 def test_aggregator_price(peg_keepers, mock_peg_keepers, reg, agg, admin, stablecoin):
     mock_peg_keeper = MOCK_PEG_KEEPER_DEPLOYER.deploy(10**18, stablecoin)
     for peg_keeper in peg_keepers:
@@ -59,56 +20,52 @@ def test_aggregator_price(peg_keepers, mock_peg_keepers, reg, agg, admin, stable
                 assert (reg.withdraw_allowed(peg_keeper) > 0) == (price < 1)
 
 
-def test_debt_limit(peg_keepers, mock_peg_keepers, reg, agg, admin, stablecoin):
-    alpha, beta = 10**18 // 2, 10**18 // 4
-    with boa.env.prank(admin):
-        reg.set_debt_parameters(alpha, beta)
-        for mock in mock_peg_keepers:
-            mock.set_price(10**18)
+def test_delta_limit(peg_keepers, mock_peg_keepers, reg, admin, stablecoin):
     all_pks = mock_peg_keepers + peg_keepers
-
-    # First peg keeper debt limit
     for pk in all_pks:
         pk.eval("self.debt = 0")
-        stablecoin.eval(f"self.balanceOf[{pk.address}] = {10**18}")
-    for pk in all_pks:
-        assert reg.provide_allowed(pk.address) == alpha**2 // 10**18
+    debt_share, ceiling_share = reg.debt_delta_share(), reg.ceiling_delta_share()
+    pk = peg_keepers[-1]
+    pk.eval("self.debt = 10 ** 18")
+    stablecoin.eval(f"self.balanceOf[{pk.address}] = {3 * 10**18}")
+    ceiling = pk.debt() + pk.undrawn()
+    total_debt = sum(p.debt() for p in all_pks)
+    limit = max(debt_share * total_debt, ceiling_share * ceiling) // 10**18
+    assert limit == ceiling_share * ceiling // 10**18  # own ceiling floor binds with little debt
 
-    # Three peg keepers debt limits
-    for pk in all_pks[:2]:
-        pk.eval("self.debt = 10 ** 18")
-        stablecoin.eval(f"self.balanceOf[{pk.address}] = 0")
-    for pk in all_pks[2:]:
-        assert reg.provide_allowed(pk.address) == pytest.approx(10**18, abs=5)
+    # nothing provided in the window: the whole limit is allowed
+    pk.eval("self.recorded_delta = 0")
+    assert reg.provide_allowed(pk.address) == limit
 
+    # provided in the window is subtracted, withdrawn is credited
+    for delta in (limit // 3, limit, 2 * limit, -limit):
+        pk.eval(f"self.recorded_delta = {delta}")
+        pk.eval("self.last_change = block.timestamp")
+        assert reg.provide_allowed(pk.address) == max(0, limit - delta)
 
-@given(
-    a=st.integers(min_value=0, max_value=10**18),
-    b=st.integers(min_value=0, max_value=10**18 // 2),
-    debts=st.lists(st.integers(min_value=0, max_value=10**18), min_size=3, max_size=3),
-)
-def test_debt_limit_formula(
-    peg_keepers, mock_peg_keepers, reg, admin, stablecoin, a, b, debts
-):
-    def sqrt(_debt):
-        return int((_debt * 10**18) ** 0.5)
+    # forgotten linearly over the delta window
+    pk.eval(f"self.recorded_delta = {limit}")
+    pk.eval("self.last_change = block.timestamp")
+    boa.env.time_travel(seconds=pk.delta_window() // 2)
+    assert reg.provide_allowed(pk.address) == pytest.approx(limit // 2, abs=1)
+    boa.env.time_travel(seconds=pk.delta_window())
+    assert reg.provide_allowed(pk.address) == limit
 
-    a = min(a, 10**18 - b)
-    alpha, beta = a * 10**18 // (10**18 - b), b * 10**18 // (10**18 - b)
+    # total debt of all keepers lifts the limit above the own ceiling floor
+    for mock in mock_peg_keepers:
+        mock.set_debt(50 * 10**18)
+    total_debt = sum(p.debt() for p in all_pks)
+    assert reg.provide_allowed(pk.address) == debt_share * total_debt // 10**18
+    for mock in mock_peg_keepers:
+        mock.set_debt(0)
+
+    # shares 0 ban provide, ceiling share 1 allows the whole ceiling
     with boa.env.prank(admin):
-        reg.set_debt_parameters(alpha, beta)
-    for peg_keeper, debt in zip((mock_peg_keepers + peg_keepers)[:3], debts):
-        peg_keeper.eval(f"self.debt = {debt}")
-        stablecoin.eval(f"self.balanceOf[{peg_keeper.address}] = {10**18 - debt}")
-
-    peg_keeper = peg_keepers[-1]
-    peg_keeper.eval("self.debt = 0")
-    stablecoin.eval(f"self.balanceOf[{peg_keeper.address}] = {10**18}")
-    sqrt_new_debt = sqrt(reg.provide_allowed(peg_keeper))
-    assert sqrt_new_debt == pytest.approx(
-        a + b * sum([sqrt(debt) for debt in debts] + [sqrt_new_debt]) // 10**18,
-        abs=10**9,
-    )
+        reg.set_delta_shares(0, 0)
+        assert reg.provide_allowed(pk.address) == 0
+        reg.set_delta_shares(0, 10**18)
+        assert reg.provide_allowed(pk.address) == ceiling
+        reg.set_delta_shares(debt_share, ceiling_share)
 
 
 def test_set_killed(reg, peg_keepers, admin, stablecoin):
@@ -141,8 +98,7 @@ def test_set_killed(reg, peg_keepers, admin, stablecoin):
 
 def test_admin(reg, admin, alice, agg, receiver):
     # initial parameters
-    assert reg.worst_price_threshold() == 3 * 10 ** (18 - 4)
-    assert (reg.alpha(), reg.beta()) == (10**18, 10**18)
+    assert (reg.debt_delta_share(), reg.ceiling_delta_share()) == (10**18 // 10, 10**18 // 20)
     assert reg.aggregator() == agg.address
     assert reg.fee_receiver() == receiver
     assert reg.emergency_admin() == admin
@@ -152,9 +108,7 @@ def test_admin(reg, admin, alice, agg, receiver):
     # third party has no access
     with boa.env.prank(alice):
         with boa.reverts():
-            reg.set_worst_price_threshold(10 ** (18 - 3))
-        with boa.reverts():
-            reg.set_debt_parameters(10**18 // 2, 10**18 // 5)
+            reg.set_delta_shares(10**18 // 5, 10**18 // 5)
         with boa.reverts():
             reg.set_aggregator(alice)
         with boa.reverts():
@@ -168,11 +122,12 @@ def test_admin(reg, admin, alice, agg, receiver):
 
     # admin has access
     with boa.env.prank(admin):
-        reg.set_worst_price_threshold(10 ** (18 - 3))
-        assert reg.worst_price_threshold() == 10 ** (18 - 3)
-
-        reg.set_debt_parameters(10**18 // 2, 10**18 // 5)
-        assert (reg.alpha(), reg.beta()) == (10**18 // 2, 10**18 // 5)
+        reg.set_delta_shares(10**18 // 5, 10**18 // 10)
+        assert (reg.debt_delta_share(), reg.ceiling_delta_share()) == (10**18 // 5, 10**18 // 10)
+        with boa.reverts():
+            reg.set_delta_shares(10**18 + 1, 0)
+        with boa.reverts():
+            reg.set_delta_shares(0, 10**18 + 1)
 
         reg.set_aggregator(alice)
         assert reg.aggregator() == alice
