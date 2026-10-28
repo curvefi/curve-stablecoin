@@ -21,6 +21,8 @@
     6. Donated paired coin is deposited into the pool: 50/50 by value with idle crvUSD while crvUSD
        is scarce (subject to provide_allowed()), paired coin only while crvUSD is abundant.
        LP minted above the crvUSD part is Peg Keeper's profit.
+    7. rolling_delta() reports crvUSD provided minus withdrawn over the last delta_window
+       seconds, forgotten linearly since the last action, so the regulator can cap the rate.
 @custom:kill Regulator can ban provide and / or withdraw via provide_allowed() / withdraw_allowed().
     Owner can switch the regulator (e.g. to PegKeeperOffboarding to leave only withdrawals).
     To retire a keeper, ban provide first and keep the debt ceiling: update() and withdraw_profit()
@@ -132,6 +134,10 @@ event SetNewRegulator:
     regulator: address
 
 
+event SetNewDeltaWindow:
+    delta_window: uint256
+
+
 event DepositDonation:
     paired_amount: uint256
     pegged_amount: uint256
@@ -179,6 +185,11 @@ regulator: public(Regulator)
 action_delay: public(uint256)  # Time between providing / withdrawing coins
 last_change: public(uint256)
 debt: public(uint256)  # crvUSD provided into the pool and not yet withdrawn
+
+# Rolling delta
+MAX_DELTA_WINDOW: constant(uint256) = 86400  # 1 day
+delta_window: public(uint256)  # seconds over which moved crvUSD is remembered, 0 = off
+recorded_delta: int256  # crvUSD provided minus withdrawn, as of last_change
 
 # Profit
 SHARE_PRECISION: constant(uint256) = 10**5  # 100% = 10 ** 5
@@ -261,6 +272,9 @@ def __init__(
     self.action_delay = 12  # 1 block
     log SetNewActionDelay(action_delay=12)
 
+    self.delta_window = 600  # 10 minutes
+    log SetNewDeltaWindow(delta_window=600)
+
 
 @external
 @view
@@ -330,6 +344,48 @@ def calc_profit() -> uint256:
     @return Amount of generated profit
     """
     return self._calc_profit()
+
+
+# ------------------------------- Rolling delta ---------------------------------
+
+
+@internal
+@view
+def _rolling_delta() -> int256:
+    """
+    @notice crvUSD provided minus withdrawn over the last delta_window seconds
+    @dev The whole sum is forgotten linearly since last_change, so each action restarts the
+        clock for everything recorded before: the error is bounded by one action
+    """
+    window: uint256 = self.delta_window
+    elapsed: uint256 = block.timestamp - self.last_change
+    if elapsed >= window:
+        return 0
+    return self.recorded_delta * convert(window - elapsed, int256) // convert(window, int256)
+
+
+@internal
+def _record_delta(_amount: uint256, _provided: bool):
+    """
+    @notice Add provided or subtract withdrawn crvUSD to the rolling delta and mark the action time
+    """
+    change: int256 = self._rolling_delta()
+    if _provided:
+        change += convert(_amount, int256)
+    else:
+        change -= convert(_amount, int256)
+    self.recorded_delta = change
+    self.last_change = block.timestamp
+
+
+@external
+@view
+def rolling_delta() -> int256:
+    """
+    @notice crvUSD provided minus withdrawn over the last delta_window seconds, forgotten linearly
+    @return Signed amount of crvUSD, provided minus withdrawn
+    """
+    return self._rolling_delta()
 
 
 # -------------------------------- Debt ceiling ---------------------------------
@@ -534,7 +590,7 @@ def _provide(_amount: uint256) -> uint256:
     amounts[I] = _amount
     self._add_liquidity(amounts, 0)
 
-    self.last_change = block.timestamp
+    self._record_delta(_amount, True)
     self.debt += _amount
     log Provide(amount=_amount)
     return _amount
@@ -553,7 +609,7 @@ def _withdraw(_amount: uint256) -> uint256:
 
     self._remove_liquidity_imbalance(amount)
 
-    self.last_change = block.timestamp
+    self._record_delta(amount, False)
     self.debt = debt - amount
     log Withdraw(amount=amount)
     return amount
@@ -806,6 +862,20 @@ def set_new_action_delay(_new_action_delay: uint256):
     self.action_delay = _new_action_delay
 
     log SetNewActionDelay(action_delay=_new_action_delay)
+
+
+@external
+def set_new_delta_window(_new_delta_window: uint256):
+    """
+    @notice Set new window over which moved crvUSD is remembered
+    @dev The sum remembered so far is carried over as of now and forgotten over the new window;
+        like a donation deposit, the change counts as an action for action_delay
+    @param _new_delta_window Window in seconds, 0 disables the memory
+    """
+    ownable._check_owner()
+    assert _new_delta_window <= MAX_DELTA_WINDOW  # dev: bad window
+    self.delta_window = _new_delta_window
+    log SetNewDeltaWindow(delta_window=_new_delta_window)
 
 
 @external
