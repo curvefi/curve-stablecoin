@@ -23,6 +23,12 @@
        LP minted above the crvUSD part is Peg Keeper's profit.
     7. rolling_delta() reports crvUSD provided minus withdrawn over the last delta_window
        seconds, forgotten linearly since the last action, so the regulator can cap the rate.
+    8. The provide threshold is raised by the discount of the paired coin to the aggregated
+       crvUSD price of the regulator's aggregator (aggregated price over the pool EMA price)
+       beyond discount_tolerance: the keeper does not buy a coin cheaper than the other stables
+       unless the pool pays for the discount. The aggregate includes this pool, so the discount
+       is read at (1 - pool weight) of its full size, about the paired coin share of the LP
+       taken.
 @custom:kill Regulator can ban provide and / or withdraw via provide_allowed() / withdraw_allowed().
     Owner can switch the regulator (e.g. to PegKeeperOffboarding to leave only withdrawals).
     To retire a keeper, ban provide first and keep the debt ceiling: update() and withdraw_profit()
@@ -37,7 +43,8 @@
     recover_donation() and crvUSD above what the factory minted via recover_excess().
 @custom:security Pool is trusted (Curve StableSwap), including its rate oracle: profit is valued
     at the pool virtual price, so a rate that can be inflated within one transaction would let
-    withdraw_profit() pay crvUSD the LP does not back. Regulator is trusted and set by owner.
+    withdraw_profit() pay crvUSD the LP does not back. Regulator is trusted and set by owner,
+    and so is its aggregator, which prices the paired coin discount.
     Caller reward is paid in LP tokens valued at the pool virtual price.
     Ownership is two-step (snekmate ownable_2step); renounce_ownership is not exported.
 @custom:version 3.0.0
@@ -56,8 +63,13 @@ exports: (
 )
 
 
+interface Aggregator:
+    def price() -> uint256: view
+
+
 interface Regulator:
     def stablecoin() -> address: view
+    def aggregator() -> Aggregator: view
     def provide_allowed(_pk: address = msg.sender) -> uint256: view
     def withdraw_allowed(_pk: address = msg.sender) -> uint256: view
     def fee_receiver() -> address: view
@@ -73,6 +85,7 @@ interface CurvePool:
 
 
 interface CurvePoolOld:
+    def price_oracle() -> uint256: view
     def calc_token_amount(_amounts: uint256[2], _is_deposit: bool) -> uint256: view
     def add_liquidity(_amounts: uint256[2], _min_mint_amount: uint256) -> uint256: nonpayable
     def remove_liquidity_imbalance(
@@ -81,6 +94,7 @@ interface CurvePoolOld:
 
 
 interface CurvePoolNG:
+    def price_oracle(_i: uint256) -> uint256: view
     def calc_token_amount(
         _amounts: DynArray[uint256, MAX_COINS], _is_deposit: bool
     ) -> uint256: view
@@ -128,6 +142,10 @@ event SetNewCallerShare:
 event SetNewMinProfit:
     provide_min_profit: uint256
     withdraw_min_profit: uint256
+
+
+event SetNewDiscountTolerance:
+    discount_tolerance: uint256
 
 
 event SetNewRegulator:
@@ -197,6 +215,10 @@ MAX_MIN_PROFIT: constant(uint256) = PRECISION // 100  # 1% of the moved amount
 caller_share: public(uint256)
 provide_min_profit: public(uint256)  # min profit per provided crvUSD, with PRECISION
 withdraw_min_profit: public(uint256)  # min profit per withdrawn crvUSD, with PRECISION
+MAX_DISCOUNT_TOLERANCE: constant(uint256) = PRECISION // 100  # 1%
+discount_tolerance: public(
+    uint256
+)  # paired coin discount to the aggregated price ignored as noise, with PRECISION
 
 
 @deploy
@@ -268,6 +290,8 @@ def __init__(
     log SetNewMinProfit(
         provide_min_profit=_provide_min_profit, withdraw_min_profit=_withdraw_min_profit
     )
+    self.discount_tolerance = 10**14  # 1 bp
+    log SetNewDiscountTolerance(discount_tolerance=10**14)
 
     self.action_delay = 12  # 1 block
     log SetNewActionDelay(action_delay=12)
@@ -327,12 +351,33 @@ def _calc_profit() -> uint256:
 
 @internal
 @view
+def _paired_discount() -> uint256:
+    """
+    @notice Discount of the paired coin to the aggregated crvUSD price beyond discount_tolerance,
+        with PRECISION
+    @dev Paired coin price = aggregated crvUSD price (regulator's aggregator) divided by the
+        pool EMA price of crvUSD in the paired coin
+    """
+    pool_price: uint256 = staticcall CurvePoolNG(POOL.address).price_oracle(0) if IS_NG else staticcall CurvePoolOld(POOL.address).price_oracle()
+    price: uint256 = staticcall (staticcall self.regulator.aggregator()).price()
+
+    if IS_INVERSE:
+        price = price * pool_price // PRECISION
+    else:
+        price = price * PRECISION // pool_price
+    discount: uint256 = PRECISION - min(PRECISION, price)
+    return discount - min(discount, self.discount_tolerance)
+
+
+@internal
+@view
 def _min_profit(_amount: uint256, _deficit: bool) -> uint256:
     """
-    @notice Min profit required for moving _amount: entry (provide) or exit (withdraw) threshold
+    @notice Min profit required for moving _amount: entry (provide) or exit (withdraw) threshold.
+        Entry adds the paired coin discount to the aggregated price
     @dev Rounded down
     """
-    min_profit: uint256 = self.provide_min_profit if _deficit else self.withdraw_min_profit
+    min_profit: uint256 = self.provide_min_profit + self._paired_discount() if _deficit else self.withdraw_min_profit
     return _amount * min_profit // PRECISION
 
 
@@ -874,7 +919,9 @@ def set_new_delta_window(_new_delta_window: uint256):
     """
     ownable._check_owner()
     assert _new_delta_window <= MAX_DELTA_WINDOW  # dev: bad window
+
     self.delta_window = _new_delta_window
+
     log SetNewDeltaWindow(delta_window=_new_delta_window)
 
 
@@ -890,6 +937,20 @@ def set_new_caller_share(_new_caller_share: uint256):
     self.caller_share = _new_caller_share
 
     log SetNewCallerShare(caller_share=_new_caller_share)
+
+
+@external
+def set_new_discount_tolerance(_new_discount_tolerance: uint256):
+    """
+    @notice Set the paired coin discount to the aggregated price that is ignored as noise
+    @param _new_discount_tolerance Discount with PRECISION
+    """
+    ownable._check_owner()
+    assert _new_discount_tolerance <= MAX_DISCOUNT_TOLERANCE  # dev: bad tolerance
+
+    self.discount_tolerance = _new_discount_tolerance
+
+    log SetNewDiscountTolerance(discount_tolerance=_new_discount_tolerance)
 
 
 @external
