@@ -56,7 +56,6 @@ from pathlib import Path
 
 import boa
 import boa_solidity
-import requests
 import solcx
 from boa.network import NetworkEnv
 from boa.rpc import EthereumRPC
@@ -137,25 +136,6 @@ def _load_account(fname: str) -> account.LocalAccount:
     with open(path, "r") as f:
         pkey = account.decode_keyfile_json(json.load(f), getpass())
         return account.Account.from_key(pkey)
-
-
-class RetryRPC(EthereumRPC):
-    def fetch(self, method, params):
-        delay = 1.0
-        for attempt in range(6):
-            try:
-                result = super().fetch(method, params)
-                if result is None and method == "eth_getBlockByNumber" and attempt < 5:
-                    time.sleep(delay)
-                    delay *= 1.5
-                    continue
-                return result
-            except requests.exceptions.HTTPError as exc:
-                status = getattr(exc.response, "status_code", None)
-                if status != 503 or attempt == 5:
-                    raise
-                time.sleep(delay)
-                delay *= 1.5
 
 
 def _factory_nonce(factory_addr: str) -> int:
@@ -415,7 +395,7 @@ def main() -> None:
             )
     else:
         acct = _load_account(args.account_name)
-        with boa.set_env(NetworkEnv(RetryRPC(args.rpc_url))):
+        with boa.set_env(NetworkEnv(EthereumRPC(args.rpc_url))):
             boa.env.add_account(acct, force_eoa=True)
             _deploy(
                 acct.address,
