@@ -34,7 +34,10 @@ def test_wousd_market_deployment(tmp_path):
         amm = boa.load_partial(deploy.AMM_SRC).at(report["amm"])
         policy = boa.load_partial(deploy.HYPERBOLIC_MP).at(report["monetary_policy"])
         pool = boa.loads_abi(
-            '[{"name":"price_oracle","inputs":[{"type":"uint256"}],'
+            '[{"name":"coins","inputs":[{"type":"uint256"}],'
+            '"outputs":[{"type":"address"}],"stateMutability":"view",'
+            '"type":"function"},'
+            '{"name":"price_oracle","inputs":[{"type":"uint256"}],'
             '"outputs":[{"type":"uint256"}],"stateMutability":"view",'
             '"type":"function"},'
             '{"name":"ma_exp_time","inputs":[],"outputs":[{"type":"uint256"}],'
@@ -47,6 +50,12 @@ def test_wousd_market_deployment(tmp_path):
         ).at(deploy.WOUSD)
 
         assert pool_oracle.POOLS(0) == deploy.POOL
+        assert (
+            str(pool.coins(0)).lower() == "0x2a8e1e676ec238d8a992307b495b45b3feaa5e86"
+        )
+        assert (
+            str(pool.coins(1)).lower() == "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48"
+        )
         assert pool.ma_exp_time() == 866
         assert pool_oracle.BORROWED_IXS(0) == 1
         assert pool_oracle.COLLATERAL_IXS(0) == 0

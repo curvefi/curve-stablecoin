@@ -23,8 +23,7 @@ Both liquidity-mining factories are permissionless. The market starts with a
 zero borrow cap and unattached callback. Governance must activate it separately.
 
 The OUSD/USDC pool has coin 0 = OUSD, coin 1 = USDC. Its price_oracle(0)
-returns USDC in OUSD, so OracleFromCurvePools inverts it. The coin order is
-checked before deploying anything.
+returns USDC in OUSD, so OracleFromCurvePools inverts it.
 
 HyperbolicMP binds its Controller as an immutable set in the constructor, but
 the Controller is only created inside factory.create() (which itself needs the
@@ -57,7 +56,6 @@ from getpass import getpass
 from pathlib import Path
 
 import boa
-import requests
 from boa.network import NetworkEnv
 from boa.rpc import EthereumRPC
 from eth_account import account
@@ -70,12 +68,8 @@ CHAIN_ID = 1
 # --- Tokens ---
 CRVUSD = "0xf939E0A03FB07F59A73314E73794Be0E57ac1b4E"  # borrowed
 WOUSD = "0xD2af830E8CBdFed6CC11Bab697bB25496ed6FA62"  # collateral
-OUSD = "0x2A8E1E676Ec238d8A992307B495B45B3FEAA5e86"
-USDC = "0xA0b86991c6218b36c1d19d4a2e9eb0ce3606eb48"
-
 # --- Pool and oracle config ---
 POOL = "0x6d18E1a7faeB1F0467A77C0d293872ab685426dc"  # OUSD/USDC NG
-POOL_COINS = {0: OUSD, 1: USDC}
 POOL_BORROWED_IDX = 1  # USDC = $1
 POOL_COLLATERAL_IDX = 0  # OUSD
 
@@ -113,20 +107,6 @@ LOAN_DISCOUNT = 13 * 10**15  # 1.3%
 LIQUIDATION_DISCOUNT = 8 * 10**15  # 0.8%
 SUPPLY_LIMIT = 2**256 - 1  # unlimited; borrow cap set separately
 
-# Minimal ABI for reading pool coins.
-POOL_ABI = json.dumps(
-    [
-        {
-            "name": "coins",
-            "type": "function",
-            "stateMutability": "view",
-            "inputs": [{"name": "arg0", "type": "uint256"}],
-            "outputs": [{"name": "", "type": "address"}],
-        }
-    ]
-)
-
-
 # Minimal ABI for the gauge factory (only the two entry points used here).
 GAUGE_FACTORY_ABI = json.dumps(
     [
@@ -157,25 +137,6 @@ def _load_account(fname: str) -> account.LocalAccount:
         return account.Account.from_key(pkey)
 
 
-class RetryRPC(EthereumRPC):
-    def fetch(self, method, params):
-        delay = 1.0
-        for attempt in range(6):
-            try:
-                result = super().fetch(method, params)
-                if result is None and method == "eth_getBlockByNumber" and attempt < 5:
-                    time.sleep(delay)
-                    delay *= 1.5
-                    continue
-                return result
-            except requests.exceptions.HTTPError as exc:
-                status = getattr(exc.response, "status_code", None)
-                if status != 503 or attempt == 5:
-                    raise
-                time.sleep(delay)
-                delay *= 1.5
-
-
 def _factory_nonce(factory_addr: str) -> int:
     """Current nonce of the factory account (works on fork and network envs)."""
     getter = getattr(boa.env, "_get_nonce", None)  # NetworkEnv
@@ -193,17 +154,6 @@ def _predict_controller(factory_addr: str) -> str:
     return to_checksum_address(
         generate_contract_address(to_canonical_address(factory_addr), nonce + 2)
     )
-
-
-def _check_pool_coins(pool_addr: str, expected: dict[int, str], label: str) -> None:
-    """Assert the OUSD/USDC coin order used by the pool oracle."""
-    pool = boa.loads_abi(POOL_ABI).at(pool_addr)
-    for idx, token in expected.items():
-        actual = to_checksum_address(str(pool.coins(idx)))
-        assert actual == to_checksum_address(token), (
-            f"{label} ({pool_addr}) coin {idx} is {actual}, expected {token}"
-        )
-    print(f"{label} coins verified:", {i: t for i, t in expected.items()})
 
 
 def _deploy(
@@ -240,10 +190,6 @@ def _deploy(
     assert lm_callback_factory.version() == "1.0.0"
     assert not lm_callback_factory.paused(), "LM callback factory is paused"
     assert lm_callback_factory.lm_callback_blueprint() == LM_CALLBACK_BLUEPRINT
-
-    # 0. Verify the hardcoded coin layout against the live pool before
-    #    deploying anything.
-    _check_pool_coins(POOL, POOL_COINS, "OUSD/USDC pool")
 
     # 1. Pool OUSD/USDC EMA -> wOUSD share-price EMA. USDC is counted as $1.
     pool_oracle = boa.load_partial(ORACLE_FROM_CURVE_POOLS).deploy(
@@ -445,7 +391,7 @@ def main() -> None:
             )
     else:
         acct = _load_account(args.account_name)
-        with boa.set_env(NetworkEnv(RetryRPC(args.rpc_url))):
+        with boa.set_env(NetworkEnv(EthereumRPC(args.rpc_url))):
             boa.env.add_account(acct, force_eoa=True)
             _deploy(
                 acct.address,
