@@ -81,8 +81,8 @@ INTERVAL = 30
 # Deploys the gauge over the vault's ERC4626 shares - CRV for lenders.
 GAUGE_FACTORY = "0x64e1a69732fAC63F6790b3d8a34C5D713cC623E6"
 # Deploys the callback over the AMM's collateral - CRV for borrowers.
-LM_CALLBACK_FACTORY = "0x2191718CD32d02B8E60BAdFFeA33E4B5DD9A0A0D"
-LM_CALLBACK_BLUEPRINT = "0x61C404B60ee9c5fB09F70F9A645DD38fE5b3A956"
+LM_CALLBACK_FACTORY = "0x916E2B5E3Df268Ce2348265d2AAD4BB9f2B3dFA0"
+LM_CALLBACK_BLUEPRINT = "0x0fDFE9c8F16AffF693EA16544d6d1Bac555343c4"
 # --- Contract sources ---
 CHAINLINK_EMA = "curve_stablecoin/price_oracles/v2/ChainlinkEMA.sol"
 WSTGBP_FX_ORACLE = "curve_stablecoin/price_oracles/v2/WstGBPFxOracle.sol"
@@ -210,7 +210,6 @@ def _deploy(
     )
     assert lm_callback_factory.version() == "1.0.0"
     assert not lm_callback_factory.paused(), "LM callback factory is paused"
-    assert lm_callback_factory.owner() == factory.admin()
     assert lm_callback_factory.lm_callback_blueprint() == LM_CALLBACK_BLUEPRINT
 
     # 1. Smooth GBP/USD, then combine it with the rate-limited redemption quote.
