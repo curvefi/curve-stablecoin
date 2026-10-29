@@ -3,6 +3,11 @@ import boa_solidity
 import pytest
 import solcx
 
+from tests.unitary.price_oracles.chainlink_ema.conftest import (
+    CHAINLINK_EMA_DEPLOYER,
+    FEED_DEPLOYER,
+)
+
 
 WAD = 10**18
 ORACLE_SRC = "curve_stablecoin/price_oracles/v2/WstGBPFxOracle.sol"
@@ -235,3 +240,25 @@ def test_future_or_reverting_round_freezes(market):
     assert oracle.price() == oracle.price_w() == held
     feed.set_fail(True)
     assert oracle.price() == oracle.price_w() == held
+
+
+def test_real_chainlink_ema_smooths_fx_round():
+    with boa.env.anchor():
+        solcx.set_solc_version("0.8.25")
+        pip = PIP.deploy()
+        gem = GEM.deploy()
+        wrapper = WRAPPER.deploy(pip.address, gem.address)
+        feed = FEED_DEPLOYER.deploy(8)
+        now = boa.env.evm.patch.timestamp
+        feed.add_rounds(1, 130000000, now - 7200, 600, 12)
+        ema = CHAINLINK_EMA_DEPLOYER.deploy(feed.address, 20, 30)
+        oracle = boa.load_partial_solc(ORACLE_SRC).deploy(
+            wrapper.address, feed.address, ema.address
+        )
+        old_price = oracle.price_w()
+
+        feed.add_rounds(1, 140000000, now, 1, 1)
+        boa.env.time_travel(seconds=31)
+        smoothed = oracle.price()
+        assert old_price < smoothed < 14 * 10**17
+        assert oracle.price_w() == oracle.price() == smoothed
