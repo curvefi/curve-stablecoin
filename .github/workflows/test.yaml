@@ -106,6 +106,8 @@ jobs:
             runs-on: "ubuntu-latest"
           - folder: "tests/forked/mint_factory_new_implementations"
             runs-on: "ubuntu-latest"
+          - folder: "tests/forked/wousd_market"
+            runs-on: "ubuntu-latest"
     steps:
       - name: Checkout repo
         uses: actions/checkout@v5
