@@ -40,11 +40,13 @@ struct PricePair:
 
 event AddPricePair:
     n: uint256
-    pool: Stableswap
+    pool: indexed(Stableswap)
     is_inverse: bool
+    is_ng: bool
 
 event RemovePricePair:
     n: uint256
+    pool: indexed(Stableswap)
 
 event MovePricePair:
     n_from: uint256
@@ -66,7 +68,7 @@ WAD: constant(uint256) = 10**18
 
 STABLECOIN: immutable(address)
 price_pairs: public(PricePair[MAX_PAIRS])
-n_price_pairs: uint256
+n_price_pairs: public(uint256)
 
 last_timestamp: public(uint256)
 last_tvl: public(uint256[MAX_PAIRS])
@@ -134,8 +136,8 @@ def _ema_tvl() -> DynArray[uint256, MAX_PAIRS]:
         else:
             tvl = self.last_tvl[i]
             if alpha != WAD:
-                new_tvl: uint256 = (staticcall price_pair.pool.totalSupply()) *\
-                    (staticcall price_pair.pool.get_virtual_price()) // WAD
+                supply: uint256 = staticcall price_pair.pool.totalSupply()
+                new_tvl: uint256 = 0 if supply == 0 else supply * (staticcall price_pair.pool.get_virtual_price()) // WAD
                 tvl = (new_tvl * (WAD - alpha) + tvl * alpha) // WAD
         tvls.append(tvl)
 
@@ -273,27 +275,43 @@ def price_w() -> uint256:
 def add_price_pair(_pool: Stableswap):
     """
     @notice Add a pool as a price source.
+    @dev The pool is expected to be a two-coin StableSwap pool pairing the
+         stablecoin with a redeemable asset: only `coins(0)` and `coins(1)`
+         are inspected and NG pools are read via `price_oracle(0)`.
+         The pool is classified as NG when `price_oracle(uint256)` returns a
+         word; the price and TVL read paths used later by `price()` are then
+         exercised here so that an incompatible or misclassified pool reverts
+         at registration instead of breaking aggregate reads. A pool without
+         liquidity can be registered and stays inactive until its TVL reaches
+         `MIN_LIQUIDITY`.
     @param _pool StableSwap pool containing the configured stablecoin.
     """
     assert msg.sender == self.admin, "only admin"
+    n: uint256 = self.n_price_pairs
+    for i: uint256 in range(n, bound=MAX_PAIRS):
+        assert self.price_pairs[i].pool != _pool, "pool already added"
+
     price_pair: PricePair = empty(PricePair)
     price_pair.pool = _pool
-    success: bool = raw_call(
+    success: bool = False
+    response: Bytes[32] = b""
+    success, response = raw_call(
         _pool.address, abi_encode(convert(0, uint256), method_id=method_id("price_oracle(uint256)")),
-        revert_on_failure=False
+        max_outsize=32, revert_on_failure=False
     )
-    if success:
+    if success and len(response) == 32:
         price_pair.is_ng = True
     coins: address[2] = [staticcall _pool.coins(0), staticcall _pool.coins(1)]
     if coins[0] == STABLECOIN:
         price_pair.is_inverse = True
     else:
         assert coins[1] == STABLECOIN, "not stablecoin pair"
-    n: uint256 = self.n_price_pairs
+    # Exercise the same read paths as `price()` before storing the source.
+    assert self._get_p(price_pair) > 0, "bad price"
     self.price_pairs[n] = price_pair  # dev: too many pairs
-    self.last_tvl[n] = staticcall _pool.totalSupply()
+    self.last_tvl[n] = self._pool_tvl(price_pair)
     self.n_price_pairs = n + 1
-    log AddPricePair(n=n, pool=_pool, is_inverse=price_pair.is_inverse)
+    log AddPricePair(n=n, pool=_pool, is_inverse=price_pair.is_inverse, is_ng=price_pair.is_ng)
 
 
 @external
@@ -314,12 +332,16 @@ def remove_price_pair(n: uint256):
     n_max: uint256 = self.n_price_pairs - 1  # dev: no pairs to remove
     assert n <= n_max, "bad pair index"
 
+    pool: Stableswap = self.price_pairs[n].pool
     if n < n_max:
         self.price_pairs[n] = self.price_pairs[n_max]
         self.last_tvl[n] = self.last_tvl[n_max]
         log MovePricePair(n_from=n_max, n_to=n)
+    # Clear the vacated tail slot so public getters do not expose stale data.
+    self.price_pairs[n_max] = empty(PricePair)
+    self.last_tvl[n_max] = 0
     self.n_price_pairs = n_max
-    log RemovePricePair(n=n)
+    log RemovePricePair(n=n, pool=pool)
 
 
 @external

@@ -11,6 +11,9 @@ from snekmate.utils import math
 MAX_N: constant(uint256) = 64
 WAD: constant(uint256) = 10**18
 
+MIN_SIGMA: constant(uint256) = 10**9
+MAX_SIGMA: constant(uint256) = WAD
+
 SIGMA: immutable(uint256)
 
 
@@ -18,9 +21,10 @@ SIGMA: immutable(uint256)
 def __init__(_sigma: uint256):
     """
     @notice Module constructor.
-    @param _sigma Width parameter for exponential price-source penalty.
+    @param _sigma Width parameter for exponential price-source penalty,
+           WAD-scaled, within `[MIN_SIGMA, MAX_SIGMA]`.
     """
-    assert 10 ** 9 <= _sigma and _sigma <= WAD, "bad sigma value"
+    assert MIN_SIGMA <= _sigma and _sigma <= MAX_SIGMA, "bad sigma value"
     SIGMA = _sigma
 
 
