@@ -232,6 +232,11 @@ def __init__(_sigma: uint256):
 
 
 @external
+def set_sigma(_sigma: uint256):
+    weighted_price.set_sigma(_sigma)
+
+
+@external
 @pure
 def weighted_avg(
     prices: DynArray[uint256, 64],
@@ -254,9 +259,9 @@ def exp_penalized_price(
 
 
 def warm_up(agg):
-    """Phase registered legacy sources in: after 50 * TVL_MA_TIME the EMA weight
+    """Phase registered legacy sources in: after 50 * tvl_ma_time the EMA weight
     of the stored value is exactly zero, so the checkpoint equals current TVL."""
-    boa.env.time_travel(50 * agg.TVL_MA_TIME())
+    boa.env.time_travel(50 * agg.tvl_ma_time())
     agg.price_w()
 
 

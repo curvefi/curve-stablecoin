@@ -14,6 +14,21 @@ def test_constructor_validates_sigma(weighted_price_deployer):
     assert contract.sigma() == WAD
 
 
+def test_set_sigma_validates_and_emits(weighted_price):
+    with boa.reverts("bad sigma value"):
+        weighted_price.set_sigma(10**9 - 1)
+    with boa.reverts("bad sigma value"):
+        weighted_price.set_sigma(WAD + 1)
+
+    weighted_price.set_sigma(10**15)
+    logs = [
+        log for log in weighted_price.get_logs() if type(log).__name__ == "SetSigma"
+    ]
+    assert len(logs) == 1
+    assert logs[0].sigma == 10**15
+    assert weighted_price.sigma() == 10**15
+
+
 def test_weighted_avg_simple_cases(weighted_price):
     assert weighted_price.weighted_avg([WAD, 2 * WAD], [WAD, WAD]) == 3 * WAD // 2
     assert weighted_price.weighted_avg([WAD, 2 * WAD], [3 * WAD, WAD]) == 5 * WAD // 4

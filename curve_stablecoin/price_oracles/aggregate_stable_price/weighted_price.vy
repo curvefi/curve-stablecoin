@@ -11,11 +11,16 @@ from snekmate.utils import math
 MAX_N: constant(uint256) = 64
 WAD: constant(uint256) = 10**18
 
-# Smallest value keeping the penalty denominator `SIGMA**2 // WAD` non-zero.
+# Smallest value keeping the penalty denominator `sigma**2 // WAD` non-zero.
 MIN_SIGMA: constant(uint256) = 10**9
 MAX_SIGMA: constant(uint256) = WAD
 
-SIGMA: immutable(uint256)
+
+event SetSigma:
+    sigma: uint256
+
+
+sigma: public(uint256)
 
 
 @deploy
@@ -25,18 +30,7 @@ def __init__(_sigma: uint256):
     @param _sigma Width parameter for exponential price-source penalty,
            WAD-scaled, within `[MIN_SIGMA, MAX_SIGMA]`.
     """
-    assert MIN_SIGMA <= _sigma and _sigma <= MAX_SIGMA, "bad sigma value"
-    SIGMA = _sigma
-
-
-@external
-@view
-def sigma() -> uint256:
-    """
-    @notice Return the configured penalty width.
-    @return WAD-scaled sigma value.
-    """
-    return SIGMA
+    self.set_sigma(_sigma)
 
 
 @internal
@@ -77,12 +71,13 @@ def exp_penalized_price(
     #   exp_weight[i] = weight[i] * exp(-(e[i] - min(e)))
     # Subtracting min(e) keeps the largest exponential at 1.0 and avoids
     # underweighting every source when all prices are far from p_ref.
+    sigma_sq: uint256 = self.sigma**2 // WAD
     e: DynArray[uint256, MAX_N] = []
     e_min: uint256 = max_value(uint256)
     for i: uint256 in range(len(prices), bound=MAX_N):
         p: uint256 = prices[i]
         price_delta: uint256 = max(p, p_ref) - min(p, p_ref)
-        e.append(price_delta**2 // (SIGMA**2 // WAD))
+        e.append(price_delta**2 // sigma_sq)
         e_min = min(e[i], e_min)
 
     exp_weights: DynArray[uint256, MAX_N] = []
@@ -91,3 +86,14 @@ def exp_penalized_price(
             weights[i] * convert(math._wad_exp(-convert(e[i] - e_min, int256)), uint256) // WAD
         )
     return self.weighted_avg(prices, exp_weights)
+
+
+@internal
+def set_sigma(_sigma: uint256):
+    """
+    @dev Persist the penalty width and emit the module event.
+    @param _sigma WAD-scaled sigma value within `[MIN_SIGMA, MAX_SIGMA]`.
+    """
+    assert MIN_SIGMA <= _sigma and _sigma <= MAX_SIGMA, "bad sigma value"
+    self.sigma = _sigma
+    log SetSigma(sigma=_sigma)

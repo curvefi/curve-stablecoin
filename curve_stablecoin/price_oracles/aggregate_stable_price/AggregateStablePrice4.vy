@@ -10,7 +10,7 @@
 # Recommended to use 3+ price sources
 # Version3: Works with -ng pools
 # Version4: Caps relative TVL weights before computing the aggregate price,
-#           and adds emergency_admin limited price pair removal
+#           adds emergency_admin limited price pair removal and adjustable sigma
 
 from snekmate.utils import math
 
@@ -69,19 +69,27 @@ event SetEmergencyRemoveCount:
     emergency_remove_count: uint256
 
 
+event SetMinLiquidity:
+    min_liquidity: uint256
+
+
+event SetTvlMaTime:
+    tvl_ma_time: uint256
+
+
 MAX_PAIRS: constant(uint256) = 20
 MAX_N: constant(uint256) = 64
-# Only take into account pools with enough liquidity
-MIN_LIQUIDITY: constant(uint256) = 100_000 * 10**18
 WAD: constant(uint256) = 10**18
 
 STABLECOIN: immutable(address)
 price_pairs: public(PricePair[MAX_PAIRS])
 n_price_pairs: public(uint256)
+# Only take into account pools with enough liquidity
+min_liquidity: public(uint256)
 
 last_timestamp: public(uint256)
 last_tvl: public(uint256[MAX_PAIRS])
-TVL_MA_TIME: public(constant(uint256)) = 50000  # s
+tvl_ma_time: public(uint256)  # s, EMA window of legacy pool TVL
 last_price: public(uint256)
 
 admin: public(address)
@@ -110,6 +118,8 @@ def __init__(
     self.admin = _admin
     self.emergency_admin = _emergency_admin
 
+    self.min_liquidity = 100_000 * WAD
+    self.tvl_ma_time = 50_000  # ~13.88h
     self.last_price = WAD
     self.last_timestamp = block.timestamp
 
@@ -150,12 +160,12 @@ def _ema_tvl() -> DynArray[uint256, MAX_PAIRS]:
     tvls: DynArray[uint256, MAX_PAIRS] = []
     last_timestamp: uint256 = self.last_timestamp
 
-    # alpha = exp(-dt / TVL_MA_TIME), WAD-scaled.
+    # alpha = exp(-dt / tvl_ma_time), WAD-scaled.
     # EMA = current_tvl * (1 - alpha) + last_tvl * alpha.
     alpha: uint256 = WAD
     if last_timestamp < block.timestamp:
         dt: uint256 = block.timestamp - last_timestamp
-        alpha = convert(math._wad_exp(-convert(dt * WAD // TVL_MA_TIME, int256)), uint256)
+        alpha = convert(math._wad_exp(-convert(dt * WAD // self.tvl_ma_time, int256)), uint256)
     n_price_pairs: uint256 = self.n_price_pairs
 
     for i: uint256 in range(n_price_pairs, bound=MAX_PAIRS):
@@ -192,16 +202,17 @@ def _get_p(price_pair: PricePair) -> uint256:
 
 
 @internal
-@pure
+@view
 def _n_active_sources(tvls: DynArray[uint256, MAX_PAIRS]) -> uint256:
     """
     @dev Count TVL entries above the minimum liquidity threshold.
     @param tvls TVL values aligned to configured price-pair slots.
     @return Number of active sources.
     """
+    min_liquidity: uint256 = self.min_liquidity
     n_active: uint256 = 0
     for tvl: uint256 in tvls:
-        if tvl >= MIN_LIQUIDITY:
+        if tvl >= min_liquidity:
             n_active += 1
     return n_active
 
@@ -217,11 +228,12 @@ def _active_sources(
     @return Active source prices.
     @return Active source TVLs.
     """
+    min_liquidity: uint256 = self.min_liquidity
     prices: DynArray[uint256, MAX_PAIRS] = []
     D: DynArray[uint256, MAX_PAIRS] = []
     for i: uint256 in range(len(tvls), bound=MAX_PAIRS):
         # Only sufficiently deep pools participate in price aggregation.
-        if tvls[i] >= MIN_LIQUIDITY:
+        if tvls[i] >= min_liquidity:
             prices.append(self._get_p(self.price_pairs[i]))
             D.append(tvls[i])
 
@@ -311,7 +323,7 @@ def add_price_pair(_pool: Stableswap):
          exercised here so that an incompatible or misclassified pool reverts
          at registration instead of breaking aggregate reads. A legacy source
          starts from zero stored TVL and phases in through the EMA; any source
-         stays inactive until its TVL reaches `MIN_LIQUIDITY`.
+         stays inactive until its TVL reaches `min_liquidity`.
     @param _pool StableSwap pool containing the configured stablecoin.
     """
     assert msg.sender == self.admin, "only admin"
@@ -390,6 +402,41 @@ def set_share_cap(_share_cap: uint256):
     """
     assert msg.sender == self.admin, "only admin"
     capped_share.set_custom_share_cap(_share_cap)
+
+
+@external
+def set_sigma(_sigma: uint256):
+    """
+    @notice Set the width of the exponential price-source penalty.
+    @param _sigma WAD-scaled sigma value.
+    """
+    assert msg.sender == self.admin, "only admin"
+    weighted_price.set_sigma(_sigma)
+
+
+@external
+def set_min_liquidity(_min_liquidity: uint256):
+    """
+    @notice Set the TVL below which a source is inactive.
+    @param _min_liquidity WAD-scaled TVL threshold.
+    """
+    assert msg.sender == self.admin, "only admin"
+    # A zero threshold would activate empty sources and break the weighted average.
+    assert _min_liquidity > 0, "zero min liquidity"
+    self.min_liquidity = _min_liquidity
+    log SetMinLiquidity(min_liquidity=_min_liquidity)
+
+
+@external
+def set_tvl_ma_time(_tvl_ma_time: uint256):
+    """
+    @notice Set the EMA window of legacy pool TVL.
+    @param _tvl_ma_time Window in seconds.
+    """
+    assert msg.sender == self.admin, "only admin"
+    assert _tvl_ma_time > 0, "zero ma time"
+    self.tvl_ma_time = _tvl_ma_time
+    log SetTvlMaTime(tvl_ma_time=_tvl_ma_time)
 
 
 @external

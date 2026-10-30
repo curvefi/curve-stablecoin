@@ -176,7 +176,7 @@ def test_empty_pools_can_be_registered_and_stay_inactive(
     assert agg.ema_tvl() == [0, 0, MIN_LIQUIDITY * 2]
     assert agg.price() == 11 * WAD // 10
 
-    boa.env.time_travel(agg.TVL_MA_TIME())
+    boa.env.time_travel(agg.tvl_ma_time())
     assert agg.ema_tvl() == [0, 0, MIN_LIQUIDITY * 2]
     assert agg.price_w() == 11 * WAD // 10
 
@@ -195,7 +195,7 @@ def test_zero_supply_legacy_pool_does_not_block_price(agg, old_pool_factory, adm
     with boa.reverts(dev="zero supply"):
         drained_pool.get_virtual_price()
 
-    boa.env.time_travel(agg.TVL_MA_TIME())
+    boa.env.time_travel(agg.tvl_ma_time())
 
     # The drained source decays towards zero instead of reverting every read.
     assert agg.ema_tvl()[0] < MIN_LIQUIDITY * 2
@@ -203,7 +203,7 @@ def test_zero_supply_legacy_pool_does_not_block_price(agg, old_pool_factory, adm
     assert agg.price_w() == 12 * WAD // 10
     assert agg.share_cap() == WAD
 
-    boa.env.time_travel(agg.TVL_MA_TIME() * 20)
+    boa.env.time_travel(agg.tvl_ma_time() * 20)
     agg.price_w()
     assert agg.last_tvl(0) < WAD  # exp(-20) dust of the initial TVL
 
@@ -225,7 +225,7 @@ def test_legacy_source_phases_in_from_zero(agg, old_pool_factory, admin):
     assert agg.price() == WAD
 
     # The EMA observation is totalSupply * virtual_price and phases in over time.
-    boa.env.time_travel(agg.TVL_MA_TIME())
+    boa.env.time_travel(agg.tvl_ma_time())
     assert agg.ema_tvl()[0] == pytest.approx(tvl * (1 - math.exp(-1)), rel=1e-9)
     assert agg.price() == 12 * WAD // 10
 
@@ -261,7 +261,7 @@ def test_price_w_checkpoints_tvl_and_caches_same_block(agg, old_pool_factory, ad
     assert agg.price() == 12 * WAD // 10
     assert agg.price_w() == WAD
 
-    boa.env.time_travel(agg.TVL_MA_TIME())
+    boa.env.time_travel(agg.tvl_ma_time())
     assert agg.price_w() == 12 * WAD // 10
     assert agg.last_tvl(0) > MIN_LIQUIDITY * 2
 
@@ -296,6 +296,88 @@ def test_share_cap_admin_flow(agg, old_pool_factory, admin, new_emergency_admin)
         agg.set_share_cap(0)
     assert agg.custom_share_cap() == 0
     assert agg.share_cap() == 70 * WAD // 100
+
+
+def test_set_sigma_admin_flow(agg, old_pool_factory, admin, new_emergency_admin):
+    with boa.reverts("only admin"):
+        with boa.env.prank(new_emergency_admin):
+            agg.set_sigma(10**15)
+    with boa.reverts("bad sigma value"):
+        with boa.env.prank(admin):
+            agg.set_sigma(WAD + 1)
+
+    deep_pool = old_pool_factory(price=WAD, tvl=MIN_LIQUIDITY * 4)
+    outlier_pool = old_pool_factory(price=12 * WAD // 10, tvl=MIN_LIQUIDITY)
+    with boa.env.prank(admin):
+        agg.add_price_pair(deep_pool.address)
+        agg.add_price_pair(outlier_pool.address)
+    warm_up(agg)
+
+    # sigma = 1%: the outlier is 14% away from the capped reference and is penalized out.
+    assert agg.price() == pytest.approx(WAD, rel=1e-12)
+
+    # sigma = 100%: the penalty is nearly off and the capped 70/30 reference (1.06) is reported.
+    with boa.env.prank(admin):
+        agg.set_sigma(WAD)
+    logs = _logs(agg, "SetSigma")
+    assert len(logs) == 1
+    assert logs[0].sigma == WAD
+    assert agg.sigma() == WAD
+    assert agg.price() == pytest.approx(106 * WAD // 100, rel=1e-3)
+
+
+def test_set_min_liquidity_admin_flow(
+    agg, old_pool_factory, admin, new_emergency_admin
+):
+    with boa.reverts("only admin"):
+        with boa.env.prank(new_emergency_admin):
+            agg.set_min_liquidity(1)
+    with boa.reverts("zero min liquidity"):
+        with boa.env.prank(admin):
+            agg.set_min_liquidity(0)
+
+    thin_pool = old_pool_factory(price=105 * WAD // 100, tvl=MIN_LIQUIDITY // 2)
+    active_pool = old_pool_factory(price=11 * WAD // 10, tvl=MIN_LIQUIDITY)
+    with boa.env.prank(admin):
+        agg.add_price_pair(thin_pool.address)
+        agg.add_price_pair(active_pool.address)
+    warm_up(agg)
+    assert agg.share_cap() == WAD
+    assert agg.price() == 11 * WAD // 10
+
+    # Lowering the floor activates the thin source.
+    with boa.env.prank(admin):
+        agg.set_min_liquidity(MIN_LIQUIDITY // 2)
+    logs = _logs(agg, "SetMinLiquidity")
+    assert len(logs) == 1
+    assert logs[0].min_liquidity == MIN_LIQUIDITY // 2
+    assert agg.min_liquidity() == MIN_LIQUIDITY // 2
+    assert agg.share_cap() == 70 * WAD // 100
+    assert 105 * WAD // 100 < agg.price() < 11 * WAD // 10
+
+
+def test_set_tvl_ma_time_admin_flow(agg, old_pool_factory, admin, new_emergency_admin):
+    with boa.reverts("only admin"):
+        with boa.env.prank(new_emergency_admin):
+            agg.set_tvl_ma_time(1)
+    with boa.reverts("zero ma time"):
+        with boa.env.prank(admin):
+            agg.set_tvl_ma_time(0)
+
+    window = agg.tvl_ma_time()
+    pool = old_pool_factory(tvl=MIN_LIQUIDITY * 2)
+    with boa.env.prank(admin):
+        agg.add_price_pair(pool.address)
+        agg.set_tvl_ma_time(window // 10)
+    logs = _logs(agg, "SetTvlMaTime")
+    assert len(logs) == 1
+    assert logs[0].tvl_ma_time == window // 10
+    assert agg.tvl_ma_time() == window // 10
+
+    # Phase-in is ten times faster: one old window is now ten new ones.
+    boa.env.time_travel(window)
+    expected = MIN_LIQUIDITY * 2 * (1 - math.exp(-10))
+    assert agg.ema_tvl()[0] == pytest.approx(expected, rel=1e-9)
 
 
 def test_remove_price_pair_admin_and_emergency_flow(

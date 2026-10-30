@@ -64,7 +64,7 @@ def test_oracle_handles_pool_lifecycle_and_price_updates(
         old_pool.set_price(105 * WAD // 100)
         inverse_pool.set_tvl(MIN_LIQUIDITY - 1)
 
-    boa.env.time_travel(agg.TVL_MA_TIME() * 2)
+    boa.env.time_travel(agg.tvl_ma_time() * 2)
 
     assert agg.price_w() == 105 * WAD // 100
 
