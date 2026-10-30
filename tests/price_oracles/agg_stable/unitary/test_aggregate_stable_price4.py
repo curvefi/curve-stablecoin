@@ -2,6 +2,9 @@ import boa
 import pytest
 
 from tests.price_oracles.agg_stable.conftest import (
+    BROKEN_NG_POOL_DEPLOYER,
+    BROKEN_OLD_POOL_DEPLOYER,
+    EMPTY_PROBE_POOL_DEPLOYER,
     MIN_LIQUIDITY,
     OLD_POOL_DEPLOYER,
     WAD,
@@ -34,7 +37,7 @@ def test_constructor_rejects_bad_parameters(
     with boa.reverts("zero admin"):
         agg_deployer.deploy(stablecoin.address, 10**16, ZERO_ADDRESS, emergency_admin)
     with boa.reverts("bad sigma value"):
-        agg_deployer.deploy(stablecoin.address, 10**9 - 1, admin, emergency_admin)
+        agg_deployer.deploy(stablecoin.address, 10**14 - 1, admin, emergency_admin)
     with boa.reverts("bad sigma value"):
         agg_deployer.deploy(stablecoin.address, WAD + 1, admin, emergency_admin)
 
@@ -57,6 +60,7 @@ def test_add_price_pair_detects_old_ng_and_inverse(
     assert agg.price_pairs(1)[1] is True
     assert agg.price_pairs(1)[2] is True
 
+    assert agg.n_price_pairs() == 2
     assert agg.ema_tvl() == [MIN_LIQUIDITY * 2, MIN_LIQUIDITY * 2]
     assert agg.price() == pytest.approx(5 * WAD // 4, rel=1e-12)
 
@@ -73,6 +77,7 @@ def test_add_price_pair_emits_event_and_rejects_too_many_sources(
     assert logs[0].n == 0
     assert logs[0].pool == first_pool.address
     assert logs[0].is_inverse is False
+    assert logs[0].is_ng is False
 
     with boa.env.prank(admin):
         for _ in range(19):
@@ -105,14 +110,107 @@ def test_add_price_pair_permissions_and_pair_validation(
             agg.add_price_pair(invalid_pool.address)
 
 
-def test_inverse_pair_with_zero_pool_price_reverts(agg, old_pool_factory, admin):
-    pool = old_pool_factory(price=0, stable_ix=0)
+def test_add_price_pair_rejects_zero_pool_price(agg, old_pool_factory, admin):
+    direct_pool = old_pool_factory(price=0, stable_ix=1)
+    inverse_pool = old_pool_factory(price=0, stable_ix=0)
+
+    with boa.reverts("bad price"):
+        with boa.env.prank(admin):
+            agg.add_price_pair(direct_pool.address)
+
+    with boa.reverts():
+        with boa.env.prank(admin):
+            agg.add_price_pair(inverse_pool.address)
+
+    assert agg.n_price_pairs() == 0
+
+
+def test_add_price_pair_rejects_incompatible_pools(agg, admin, stablecoin, redeemable):
+    coins = (redeemable.address, stablecoin.address)
+    broken_ng = BROKEN_NG_POOL_DEPLOYER.deploy(*coins)
+    broken_old = BROKEN_OLD_POOL_DEPLOYER.deploy(*coins)
+    empty_probe = EMPTY_PROBE_POOL_DEPLOYER.deploy(*coins)
+
+    for pool in (broken_ng, broken_old, empty_probe):
+        with boa.reverts():
+            with boa.env.prank(admin):
+                agg.add_price_pair(pool.address)
+
+    assert agg.n_price_pairs() == 0
+
+
+def test_add_price_pair_rejects_duplicate_pool(agg, old_pool_factory, admin):
+    pool = old_pool_factory()
+    other_pool = old_pool_factory()
+
+    with boa.env.prank(admin):
+        agg.add_price_pair(pool.address)
+        agg.add_price_pair(other_pool.address)
+
+    with boa.reverts("pool already added"):
+        with boa.env.prank(admin):
+            agg.add_price_pair(pool.address)
+
+    assert agg.n_price_pairs() == 2
+
+
+def test_empty_pools_can_be_registered_and_stay_inactive(
+    agg, old_pool_factory, ng_pool_factory, admin
+):
+    empty_old = old_pool_factory(price=WAD, tvl=0)
+    empty_ng = ng_pool_factory(price=WAD, tvl=0)
+    active_pool = old_pool_factory(price=11 * WAD // 10)
+
+    with boa.env.prank(admin):
+        agg.add_price_pair(empty_old.address)
+        agg.add_price_pair(empty_ng.address)
+        agg.add_price_pair(active_pool.address)
+
+    assert agg.last_tvl(0) == 0
+    assert agg.last_tvl(1) == 0
+    assert agg.ema_tvl() == [0, 0, MIN_LIQUIDITY * 2]
+    assert agg.price() == 11 * WAD // 10
+
+    boa.env.time_travel(agg.TVL_MA_TIME())
+    assert agg.ema_tvl() == [0, 0, MIN_LIQUIDITY * 2]
+    assert agg.price_w() == 11 * WAD // 10
+
+
+def test_zero_supply_legacy_pool_does_not_block_price(agg, old_pool_factory, admin):
+    drained_pool = old_pool_factory(price=WAD)
+    active_pool = old_pool_factory(price=12 * WAD // 10)
+
+    with boa.env.prank(admin):
+        agg.add_price_pair(drained_pool.address)
+        agg.add_price_pair(active_pool.address)
+        drained_pool.set_tvl(0, WAD)
+
+    with boa.reverts(dev="zero supply"):
+        drained_pool.get_virtual_price()
+
+    boa.env.time_travel(agg.TVL_MA_TIME())
+
+    # The drained source decays towards zero instead of reverting every read.
+    assert agg.ema_tvl()[0] < MIN_LIQUIDITY * 2
+    assert agg.price() == 12 * WAD // 10
+    assert agg.price_w() == 12 * WAD // 10
+    assert agg.share_cap() == WAD
+
+    boa.env.time_travel(agg.TVL_MA_TIME() * 20)
+    agg.price_w()
+    assert agg.last_tvl(0) < WAD  # exp(-20) dust of the initial TVL
+
+
+def test_legacy_seed_uses_virtual_price(agg, old_pool_factory, admin):
+    supply = MIN_LIQUIDITY
+    virtual_price = 11 * WAD // 10
+    pool = old_pool_factory(tvl=supply, virtual_price=virtual_price)
 
     with boa.env.prank(admin):
         agg.add_price_pair(pool.address)
 
-    with boa.reverts():
-        agg.price()
+    assert agg.last_tvl(0) == supply * virtual_price // WAD
+    assert agg.ema_tvl() == [supply * virtual_price // WAD]
 
 
 def test_only_active_sources_are_used(agg, old_pool_factory, admin):
@@ -205,7 +303,38 @@ def test_remove_price_pair_admin_and_emergency_flow(
         agg.remove_price_pair(1)
         agg.remove_price_pair(0)
 
+    assert agg.n_price_pairs() == 0
     assert agg.price() == WAD
+
+
+def test_remove_price_pair_clears_tail_slot(agg, old_pool_factory, admin):
+    pools = [old_pool_factory(price=(i + 1) * WAD) for i in range(3)]
+    with boa.env.prank(admin):
+        for pool in pools:
+            agg.add_price_pair(pool.address)
+
+    with boa.env.prank(admin):
+        agg.remove_price_pair(0)
+
+    logs = _logs(agg, "RemovePricePair")
+    assert len(logs) == 1
+    assert logs[0].n == 0
+    assert logs[0].pool == pools[0].address
+    move_logs = _logs(agg, "MovePricePair")
+    assert len(move_logs) == 1
+    assert (move_logs[0].n_from, move_logs[0].n_to) == (2, 0)
+
+    assert agg.n_price_pairs() == 2
+    assert agg.price_pairs(0)[0] == pools[2].address
+    assert agg.price_pairs(1)[0] == pools[1].address
+    assert agg.price_pairs(2) == (ZERO_ADDRESS, False, False)
+    assert agg.last_tvl(2) == 0
+    assert agg.ema_tvl() == [MIN_LIQUIDITY * 2, MIN_LIQUIDITY * 2]
+
+    # Removed pool can be registered again.
+    with boa.env.prank(admin):
+        agg.add_price_pair(pools[0].address)
+    assert agg.price_pairs(2)[0] == pools[0].address
 
 
 def test_remove_price_pair_rejects_empty_and_bad_index(agg, old_pool_factory, admin):

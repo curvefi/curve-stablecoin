@@ -114,6 +114,7 @@ def test_admin_configures_oracle_and_events_match_state(
         remove_logs = _logs(agg, "RemovePricePair")
         assert len(remove_logs) == 1
         assert remove_logs[0].n == 1
+        assert remove_logs[0].pool == ng_pool.address
 
     assert agg.emergency_remove_count() == 0
     assert agg.price_pairs(0)[0] == old_pool.address

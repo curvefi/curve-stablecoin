@@ -27,7 +27,7 @@ OLD_POOL_DEPLOYER = boa.loads_partial(
 ADMIN: immutable(address)
 coins: public(immutable(address[2]))
 price_oracle: public(uint256)
-get_virtual_price: public(uint256)
+virtual_price: uint256
 totalSupply: public(uint256)
 
 @deploy
@@ -43,7 +43,14 @@ def __init__(
     coins = [_coin0, _coin1]
     self.price_oracle = _price
     self.totalSupply = _total_supply
-    self.get_virtual_price = _virtual_price
+    self.virtual_price = _virtual_price
+
+@external
+@view
+def get_virtual_price() -> uint256:
+    # Legacy StableSwap divides D by LP supply and reverts on zero supply.
+    assert self.totalSupply > 0  # dev: zero supply
+    return self.virtual_price
 
 @external
 def set_price(_price: uint256):
@@ -54,9 +61,74 @@ def set_price(_price: uint256):
 def set_tvl(_total_supply: uint256, _virtual_price: uint256):
     assert msg.sender == ADMIN
     self.totalSupply = _total_supply
-    self.get_virtual_price = _virtual_price
+    self.virtual_price = _virtual_price
     """,
     name="AggStableOldPoolMock",
+)
+
+# NG-like pool without `D_oracle()`: classified as NG, but its TVL read path is missing.
+BROKEN_NG_POOL_DEPLOYER = boa.loads_partial(
+    """
+# pragma version 0.4.3
+
+coins: public(immutable(address[2]))
+totalSupply: public(uint256)
+
+@deploy
+def __init__(_coin0: address, _coin1: address):
+    coins = [_coin0, _coin1]
+    self.totalSupply = 10**24
+
+@external
+@view
+def price_oracle(i: uint256=0) -> uint256:
+    return 10**18
+    """,
+    name="AggStableBrokenNGPoolMock",
+)
+
+# Legacy-like pool without `get_virtual_price()`: classified as legacy, but its TVL read path is missing.
+BROKEN_OLD_POOL_DEPLOYER = boa.loads_partial(
+    """
+# pragma version 0.4.3
+
+coins: public(immutable(address[2]))
+totalSupply: public(uint256)
+
+@deploy
+def __init__(_coin0: address, _coin1: address):
+    coins = [_coin0, _coin1]
+    self.totalSupply = 10**24
+
+@external
+@view
+def price_oracle() -> uint256:
+    return 10**18
+    """,
+    name="AggStableBrokenOldPoolMock",
+)
+
+# Pool whose `price_oracle(uint256)` probe succeeds but returns no data.
+EMPTY_PROBE_POOL_DEPLOYER = boa.loads_partial(
+    """
+# pragma version 0.4.3
+
+coins: public(immutable(address[2]))
+totalSupply: public(uint256)
+get_virtual_price: public(uint256)
+
+@deploy
+def __init__(_coin0: address, _coin1: address):
+    coins = [_coin0, _coin1]
+    self.totalSupply = 10**24
+    self.get_virtual_price = 10**18
+
+@external
+@view
+def price_oracle(i: uint256=0):
+    pass
+    """,
+    name="AggStableEmptyProbePoolMock",
 )
 
 NG_POOL_DEPLOYER = boa.loads_partial(
