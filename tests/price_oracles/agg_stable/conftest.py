@@ -253,6 +253,13 @@ def exp_penalized_price(
 )
 
 
+def warm_up(agg):
+    """Phase registered legacy sources in: after 50 * TVL_MA_TIME the EMA weight
+    of the stored value is exactly zero, so the checkpoint equals current TVL."""
+    boa.env.time_travel(50 * agg.TVL_MA_TIME())
+    agg.price_w()
+
+
 @pytest.fixture(scope="module")
 def agg_deployer():
     return AGGREGATE_STABLE_PRICE4_DEPLOYER

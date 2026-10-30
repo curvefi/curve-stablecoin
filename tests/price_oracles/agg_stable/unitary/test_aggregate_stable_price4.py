@@ -1,3 +1,5 @@
+import math
+
 import boa
 import pytest
 
@@ -8,6 +10,7 @@ from tests.price_oracles.agg_stable.conftest import (
     MIN_LIQUIDITY,
     OLD_POOL_DEPLOYER,
     WAD,
+    warm_up,
 )
 from tests.utils.constants import ZERO_ADDRESS
 
@@ -51,6 +54,7 @@ def test_add_price_pair_detects_old_ng_and_inverse(
     with boa.env.prank(admin):
         agg.add_price_pair(old_pool.address)
         agg.add_price_pair(inverse_ng_pool.address)
+    warm_up(agg)
 
     assert agg.price_pairs(0)[0] == old_pool.address
     assert agg.price_pairs(0)[1] is False
@@ -165,6 +169,7 @@ def test_empty_pools_can_be_registered_and_stay_inactive(
         agg.add_price_pair(empty_old.address)
         agg.add_price_pair(empty_ng.address)
         agg.add_price_pair(active_pool.address)
+    warm_up(agg)
 
     assert agg.last_tvl(0) == 0
     assert agg.last_tvl(1) == 0
@@ -183,6 +188,8 @@ def test_zero_supply_legacy_pool_does_not_block_price(agg, old_pool_factory, adm
     with boa.env.prank(admin):
         agg.add_price_pair(drained_pool.address)
         agg.add_price_pair(active_pool.address)
+    warm_up(agg)
+    with boa.env.prank(admin):
         drained_pool.set_tvl(0, WAD)
 
     with boa.reverts(dev="zero supply"):
@@ -201,16 +208,29 @@ def test_zero_supply_legacy_pool_does_not_block_price(agg, old_pool_factory, adm
     assert agg.last_tvl(0) < WAD  # exp(-20) dust of the initial TVL
 
 
-def test_legacy_seed_uses_virtual_price(agg, old_pool_factory, admin):
-    supply = MIN_LIQUIDITY
+def test_legacy_source_phases_in_from_zero(agg, old_pool_factory, admin):
+    supply = MIN_LIQUIDITY * 2
     virtual_price = 11 * WAD // 10
-    pool = old_pool_factory(tvl=supply, virtual_price=virtual_price)
+    tvl = supply * virtual_price // WAD
+    pool = old_pool_factory(
+        price=12 * WAD // 10, tvl=supply, virtual_price=virtual_price
+    )
 
     with boa.env.prank(admin):
         agg.add_price_pair(pool.address)
 
-    assert agg.last_tvl(0) == supply * virtual_price // WAD
-    assert agg.ema_tvl() == [supply * virtual_price // WAD]
+    # Liquidity present at registration does not seed the source's weight.
+    assert agg.last_tvl(0) == 0
+    assert agg.ema_tvl() == [0]
+    assert agg.price() == WAD
+
+    # The EMA observation is totalSupply * virtual_price and phases in over time.
+    boa.env.time_travel(agg.TVL_MA_TIME())
+    assert agg.ema_tvl()[0] == pytest.approx(tvl * (1 - math.exp(-1)), rel=1e-9)
+    assert agg.price() == 12 * WAD // 10
+
+    warm_up(agg)
+    assert agg.last_tvl(0) == tvl
 
 
 def test_only_active_sources_are_used(agg, old_pool_factory, admin):
@@ -220,6 +240,7 @@ def test_only_active_sources_are_used(agg, old_pool_factory, admin):
     with boa.env.prank(admin):
         agg.add_price_pair(thin_pool.address)
         agg.add_price_pair(active_pool.address)
+    warm_up(agg)
 
     assert agg.share_cap() == WAD
     assert agg.price() == 11 * WAD // 10
@@ -229,6 +250,7 @@ def test_price_w_checkpoints_tvl_and_caches_same_block(agg, old_pool_factory, ad
     pool = old_pool_factory(price=WAD, tvl=MIN_LIQUIDITY * 2)
     with boa.env.prank(admin):
         agg.add_price_pair(pool.address)
+    warm_up(agg)
 
     assert agg.price_w() == WAD
 
@@ -263,6 +285,8 @@ def test_share_cap_admin_flow(agg, old_pool_factory, admin, new_emergency_admin)
     with boa.env.prank(admin):
         agg.add_price_pair(pool_a.address)
         agg.add_price_pair(pool_b.address)
+    warm_up(agg)
+    with boa.env.prank(admin):
         agg.set_share_cap(55 * WAD // 100)
 
     assert agg.custom_share_cap() == 55 * WAD // 100
@@ -312,6 +336,7 @@ def test_remove_price_pair_clears_tail_slot(agg, old_pool_factory, admin):
     with boa.env.prank(admin):
         for pool in pools:
             agg.add_price_pair(pool.address)
+    warm_up(agg)
 
     with boa.env.prank(admin):
         agg.remove_price_pair(0)

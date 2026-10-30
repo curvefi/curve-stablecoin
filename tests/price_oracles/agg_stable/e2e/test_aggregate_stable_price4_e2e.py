@@ -1,6 +1,6 @@
 import boa
 
-from tests.price_oracles.agg_stable.conftest import MIN_LIQUIDITY, WAD
+from tests.price_oracles.agg_stable.conftest import MIN_LIQUIDITY, WAD, warm_up
 
 
 def _logs(contract, event_name):
@@ -18,6 +18,7 @@ def test_admin_recovers_from_bad_dominant_source_with_emergency_removal(
         agg.add_price_pair(dominant_bad.address)
         agg.add_price_pair(honest_old.address)
         agg.add_price_pair(honest_ng.address)
+    warm_up(agg)
 
     capped_price = agg.price()
     naive_liquidity_price = (
@@ -48,11 +49,13 @@ def test_oracle_handles_pool_lifecycle_and_price_updates(
     with boa.env.prank(admin):
         agg.add_price_pair(old_pool.address)
         agg.add_price_pair(inverse_pool.address)
+    warm_up(agg)
 
     assert agg.price() < WAD
 
     with boa.env.prank(admin):
         inverse_pool.set_price(WAD)
+    boa.env.time_travel(1)
 
     assert agg.price() == WAD
     assert agg.price_w() == WAD
@@ -103,6 +106,7 @@ def test_admin_configures_oracle_and_events_match_state(
         assert len(count_logs) == 1
         assert count_logs[0].emergency_remove_count == 1
 
+    warm_up(agg)
     assert agg.custom_share_cap() == 45 * WAD // 100
     assert agg.share_cap() == 45 * WAD // 100
     assert agg.emergency_admin() == new_emergency_admin

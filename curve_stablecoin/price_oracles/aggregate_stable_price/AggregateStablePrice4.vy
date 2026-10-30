@@ -309,9 +309,9 @@ def add_price_pair(_pool: Stableswap):
          The pool is classified as NG when `price_oracle(uint256)` returns a
          word; the price and TVL read paths used later by `price()` are then
          exercised here so that an incompatible or misclassified pool reverts
-         at registration instead of breaking aggregate reads. A pool without
-         liquidity can be registered and stays inactive until its TVL reaches
-         `MIN_LIQUIDITY`.
+         at registration instead of breaking aggregate reads. A legacy source
+         starts from zero stored TVL and phases in through the EMA; any source
+         stays inactive until its TVL reaches `MIN_LIQUIDITY`.
     @param _pool StableSwap pool containing the configured stablecoin.
     """
     assert msg.sender == self.admin, "only admin"
@@ -338,10 +338,11 @@ def add_price_pair(_pool: Stableswap):
         assert coins[1] == STABLECOIN, "not stablecoin pair"
     # Exercise the same read paths as `price()` before storing the source.
     assert self._get_p(price_pair) > 0, "bad price"
+    tvl: uint256 = staticcall _pool.D_oracle() if price_pair.is_ng else self._legacy_tvl(_pool)
+    # `tvl` is read only to validate the interface. A legacy source starts from
+    # zero stored TVL and phases in through the EMA, so liquidity supplied around
+    # registration cannot seed its weight; NG sources read `D_oracle()` directly.
     self.price_pairs[n] = price_pair  # dev: too many pairs
-    self.last_tvl[n] = (
-        staticcall _pool.D_oracle() if price_pair.is_ng else self._legacy_tvl(_pool)
-    )
     self.n_price_pairs = n + 1
     log AddPricePair(
         n=n,

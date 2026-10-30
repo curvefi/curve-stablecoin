@@ -2,7 +2,7 @@ import boa
 from hypothesis import HealthCheck, given, settings
 from hypothesis import strategies as st
 
-from tests.price_oracles.agg_stable.conftest import MIN_LIQUIDITY, WAD
+from tests.price_oracles.agg_stable.conftest import MIN_LIQUIDITY, WAD, warm_up
 
 
 FUZZ_SETTINGS = settings(
@@ -32,6 +32,7 @@ def test_inverse_pair_returns_reciprocal_price(
 
         with boa.env.prank(admin):
             agg.add_price_pair(pool.address)
+        warm_up(agg)
 
         assert agg.price() == 10**36 // price
 
@@ -68,6 +69,7 @@ def test_aggregate_price_stays_inside_active_source_range(
         with boa.env.prank(admin):
             agg.add_price_pair(low_pool.address)
             agg.add_price_pair(high_pool.address)
+        warm_up(agg)
 
         price = agg.price()
 
@@ -99,5 +101,6 @@ def test_sources_below_min_liquidity_do_not_affect_price(
         with boa.env.prank(admin):
             agg.add_price_pair(thin_pool.address)
             agg.add_price_pair(active_pool.address)
+        warm_up(agg)
 
         assert agg.price() == active_price
