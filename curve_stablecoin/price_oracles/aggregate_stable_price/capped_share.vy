@@ -63,6 +63,12 @@ def share_cap(n_active: uint256) -> uint256:
 def set_custom_share_cap(_share_cap: uint256):
     """
     @dev Persist a custom share cap and emit the module event.
+         A cap at or below `WAD / n_active` cannot be satisfied by weights
+         summing to WAD: every active source is then capped and the base
+         weights become equal regardless of TVL. This is a valid setting
+         (an equal-weighted reference price) but it is the admin's
+         responsibility to pick a cap consistent with the expected number of
+         active sources.
     @param _share_cap WAD-scaled custom cap.
     """
     assert _share_cap == 0 or _share_cap >= MIN_SHARE, "share cap too low"
@@ -80,7 +86,8 @@ def capped_weights(
     @notice Calculate TVL weights with an upper per-source relative share cap.
     @param D Active source TVLs.
     @return Relative WAD-scaled capped weights aligned to `D`; the sum is
-            not guaranteed to equal WAD.
+            not guaranteed to equal WAD. When `max_share * len(D) <= WAD`
+            all weights equal `max_share`.
     """
     n_sources: uint256 = len(D)
     max_share: uint256 = self.share_cap(n_sources)
