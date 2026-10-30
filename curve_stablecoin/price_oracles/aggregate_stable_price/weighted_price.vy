@@ -40,10 +40,7 @@ def sigma() -> uint256:
 
 @internal
 @pure
-def weighted_avg(
-    prices: DynArray[uint256, MAX_N],
-    weights: DynArray[uint256, MAX_N]
-) -> uint256:
+def weighted_avg(prices: DynArray[uint256, MAX_N], weights: DynArray[uint256, MAX_N]) -> uint256:
     """
     @dev Compute sum(weights[i] * prices[i]) / sum(weights[i]).
     @param prices Source prices.
@@ -65,7 +62,7 @@ def weighted_avg(
 def exp_penalized_price(
     prices: DynArray[uint256, MAX_N],
     weights: DynArray[uint256, MAX_N],
-    p_ref: uint256
+    p_ref: uint256,
 ) -> uint256:
     """
     @dev Reweight sources by exponential penalty around a reference price.
@@ -90,9 +87,6 @@ def exp_penalized_price(
     exp_weights: DynArray[uint256, MAX_N] = []
     for i: uint256 in range(len(prices), bound=MAX_N):
         exp_weights.append(
-            weights[i] * convert(
-                math._wad_exp(-convert(e[i] - e_min, int256)),
-                uint256
-            ) // WAD
+            weights[i] * convert(math._wad_exp(-convert(e[i] - e_min, int256)), uint256) // WAD
         )
     return self.weighted_avg(prices, exp_weights)

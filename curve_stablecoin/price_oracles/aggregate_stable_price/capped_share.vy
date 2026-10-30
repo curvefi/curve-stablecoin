@@ -12,6 +12,7 @@ MIN_SHARE: constant(uint256) = WAD // 100  # 1%
 
 custom_share_cap: public(uint256)
 
+
 event SetShareCap:
     share_cap: uint256
 
@@ -79,9 +80,7 @@ def set_custom_share_cap(_share_cap: uint256):
 
 @internal
 @view
-def capped_weights(
-    D: DynArray[uint256, MAX_N]
-) -> DynArray[uint256, MAX_N]:
+def capped_weights(D: DynArray[uint256, MAX_N]) -> DynArray[uint256, MAX_N]:
     """
     @notice Calculate TVL weights with an upper per-source relative share cap.
     @param D Active source TVLs.

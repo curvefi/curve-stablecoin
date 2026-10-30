@@ -16,6 +16,7 @@ from snekmate.utils import math
 
 from curve_stablecoin.price_oracles.aggregate_stable_price import capped_share
 from curve_stablecoin.price_oracles.aggregate_stable_price import weighted_price
+
 initializes: capped_share
 initializes: weighted_price
 exports: (
@@ -24,8 +25,9 @@ exports: (
     weighted_price.sigma,
 )
 
+
 interface Stableswap:
-    def price_oracle(i: uint256=0) -> uint256: view
+    def price_oracle(i: uint256 = 0) -> uint256: view
     def coins(i: uint256) -> address: view
     def get_virtual_price() -> uint256: view
     def totalSupply() -> uint256: view
@@ -44,26 +46,33 @@ event AddPricePair:
     is_inverse: bool
     is_ng: bool
 
+
 event RemovePricePair:
     n: uint256
     pool: indexed(Stableswap)
+
 
 event MovePricePair:
     n_from: uint256
     n_to: uint256
 
+
 event SetAdmin:
     admin: address
+
 
 event SetEmergencyAdmin:
     emergency_admin: address
 
+
 event SetEmergencyRemoveCount:
     emergency_remove_count: uint256
 
+
 MAX_PAIRS: constant(uint256) = 20
 MAX_N: constant(uint256) = 64
-MIN_LIQUIDITY: constant(uint256) = 100_000 * 10**18  # Only take into account pools with enough liquidity
+# Only take into account pools with enough liquidity
+MIN_LIQUIDITY: constant(uint256) = 100_000 * 10**18
 WAD: constant(uint256) = 10**18
 
 STABLECOIN: immutable(address)
@@ -81,7 +90,12 @@ emergency_remove_count: public(uint256)
 
 
 @deploy
-def __init__(_stablecoin: address, _sigma: uint256, _admin: address, _emergency_admin: address):
+def __init__(
+    _stablecoin: address,
+    _sigma: uint256,
+    _admin: address,
+    _emergency_admin: address,
+):
     """
     @notice Contract constructor.
     @param _stablecoin Stablecoin whose price is aggregated by this oracle.
@@ -137,7 +151,11 @@ def _ema_tvl() -> DynArray[uint256, MAX_PAIRS]:
             tvl = self.last_tvl[i]
             if alpha != WAD:
                 supply: uint256 = staticcall price_pair.pool.totalSupply()
-                new_tvl: uint256 = 0 if supply == 0 else supply * (staticcall price_pair.pool.get_virtual_price()) // WAD
+                new_tvl: uint256 = (
+                    0
+                    if supply == 0
+                    else supply * (staticcall price_pair.pool.get_virtual_price()) // WAD
+                )
                 tvl = (new_tvl * (WAD - alpha) + tvl * alpha) // WAD
         tvls.append(tvl)
 
@@ -179,10 +197,9 @@ def _n_active_sources(tvls: DynArray[uint256, MAX_PAIRS]) -> uint256:
 
 @internal
 @view
-def _active_sources(tvls: DynArray[uint256, MAX_PAIRS]) -> (
-    DynArray[uint256, MAX_PAIRS],
-    DynArray[uint256, MAX_PAIRS]
-):
+def _active_sources(
+    tvls: DynArray[uint256, MAX_PAIRS]
+) -> (DynArray[uint256, MAX_PAIRS], DynArray[uint256, MAX_PAIRS]):
     """
     @dev Collect compact arrays of prices and TVLs for active sources only.
     @param tvls TVL values aligned to price-pair slots.
@@ -296,8 +313,10 @@ def add_price_pair(_pool: Stableswap):
     success: bool = False
     response: Bytes[32] = b""
     success, response = raw_call(
-        _pool.address, abi_encode(convert(0, uint256), method_id=method_id("price_oracle(uint256)")),
-        max_outsize=32, revert_on_failure=False
+        _pool.address,
+        abi_encode(convert(0, uint256), method_id=method_id("price_oracle(uint256)")),
+        max_outsize=32,
+        revert_on_failure=False,
     )
     if success and len(response) == 32:
         price_pair.is_ng = True
@@ -311,7 +330,12 @@ def add_price_pair(_pool: Stableswap):
     self.price_pairs[n] = price_pair  # dev: too many pairs
     self.last_tvl[n] = self._pool_tvl(price_pair)
     self.n_price_pairs = n + 1
-    log AddPricePair(n=n, pool=_pool, is_inverse=price_pair.is_inverse, is_ng=price_pair.is_ng)
+    log AddPricePair(
+        n=n,
+        pool=_pool,
+        is_inverse=price_pair.is_inverse,
+        is_ng=price_pair.is_ng,
+    )
 
 
 @external
