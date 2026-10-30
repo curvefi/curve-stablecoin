@@ -126,6 +126,22 @@ def stablecoin() -> address:
 
 @internal
 @view
+def _legacy_tvl(pool: Stableswap) -> uint256:
+    """
+    @dev Legacy pool TVL as `totalSupply * virtual_price`. A pool with zero
+         LP supply has zero TVL; `get_virtual_price()` is not called because
+         legacy StableSwap reverts on division by zero supply.
+    @param pool Legacy StableSwap pool.
+    @return WAD-scaled TVL observation.
+    """
+    supply: uint256 = staticcall pool.totalSupply()
+    if supply == 0:
+        return 0
+    return supply * (staticcall pool.get_virtual_price()) // WAD
+
+
+@internal
+@view
 def _ema_tvl() -> DynArray[uint256, MAX_PAIRS]:
     """
     @dev Compute current TVL values with EMA smoothing for non-NG pools.
@@ -150,12 +166,7 @@ def _ema_tvl() -> DynArray[uint256, MAX_PAIRS]:
         else:
             tvl = self.last_tvl[i]
             if alpha != WAD:
-                supply: uint256 = staticcall price_pair.pool.totalSupply()
-                new_tvl: uint256 = (
-                    0
-                    if supply == 0
-                    else supply * (staticcall price_pair.pool.get_virtual_price()) // WAD
-                )
+                new_tvl: uint256 = self._legacy_tvl(price_pair.pool)
                 tvl = (new_tvl * (WAD - alpha) + tvl * alpha) // WAD
         tvls.append(tvl)
 
@@ -328,7 +339,9 @@ def add_price_pair(_pool: Stableswap):
     # Exercise the same read paths as `price()` before storing the source.
     assert self._get_p(price_pair) > 0, "bad price"
     self.price_pairs[n] = price_pair  # dev: too many pairs
-    self.last_tvl[n] = self._pool_tvl(price_pair)
+    self.last_tvl[n] = (
+        staticcall _pool.D_oracle() if price_pair.is_ng else self._legacy_tvl(_pool)
+    )
     self.n_price_pairs = n + 1
     log AddPricePair(
         n=n,

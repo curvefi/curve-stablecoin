@@ -11,6 +11,7 @@ from snekmate.utils import math
 MAX_N: constant(uint256) = 64
 WAD: constant(uint256) = 10**18
 
+# Smallest value keeping the penalty denominator `SIGMA**2 // WAD` non-zero.
 MIN_SIGMA: constant(uint256) = 10**9
 MAX_SIGMA: constant(uint256) = WAD
 

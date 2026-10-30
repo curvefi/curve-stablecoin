@@ -37,7 +37,7 @@ def test_constructor_rejects_bad_parameters(
     with boa.reverts("zero admin"):
         agg_deployer.deploy(stablecoin.address, 10**16, ZERO_ADDRESS, emergency_admin)
     with boa.reverts("bad sigma value"):
-        agg_deployer.deploy(stablecoin.address, 10**14 - 1, admin, emergency_admin)
+        agg_deployer.deploy(stablecoin.address, 10**9 - 1, admin, emergency_admin)
     with boa.reverts("bad sigma value"):
         agg_deployer.deploy(stablecoin.address, WAD + 1, admin, emergency_admin)
 
