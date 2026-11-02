@@ -89,6 +89,7 @@ HYPERBOLIC_MP = "curve_stablecoin/mpolicies/v2/HyperbolicMP.vy"
 LEND_FACTORY = "curve_stablecoin/lending/LendFactory.vy"
 CONFIGURATOR = "curve_stablecoin/Configurator.vy"
 LEND_CONTROLLER = "curve_stablecoin/lending/LendController.vy"
+GAUGE_FACTORY_INTERFACE = "curve_stablecoin/interfaces/IGaugeFactory.vyi"
 LM_CALLBACK_FACTORY_SRC = "curve_stablecoin/lm_callback/LMCallbackFactory.vy"
 LM_CALLBACK_SRC = "curve_stablecoin/lm_callback/LMCallback.vy"
 AMM_SRC = "curve_stablecoin/AMM.vy"
@@ -106,26 +107,6 @@ FEE = 39 * 10**14  # 0.39%; below the AMM's 4/A cap
 LOAN_DISCOUNT = 13 * 10**15  # 1.3%
 LIQUIDATION_DISCOUNT = 8 * 10**15  # 0.8%
 SUPPLY_LIMIT = 2**256 - 1  # unlimited; borrow cap set separately
-
-# Minimal ABI for the gauge factory (only the two entry points used here).
-GAUGE_FACTORY_ABI = json.dumps(
-    [
-        {
-            "name": "deploy_gauge",
-            "type": "function",
-            "stateMutability": "nonpayable",
-            "inputs": [{"name": "_lp_token", "type": "address"}],
-            "outputs": [{"name": "", "type": "address"}],
-        },
-        {
-            "name": "get_gauge_from_lp_token",
-            "type": "function",
-            "stateMutability": "view",
-            "inputs": [{"name": "arg0", "type": "address"}],
-            "outputs": [{"name": "", "type": "address"}],
-        },
-    ]
-)
 
 
 def _load_account(fname: str) -> account.LocalAccount:
@@ -242,7 +223,7 @@ def _deploy(
     )
 
     # 4. Deploy the liquidity gauge and LM callback permissionlessly.
-    gauge_factory = boa.loads_abi(GAUGE_FACTORY_ABI).at(GAUGE_FACTORY)
+    gauge_factory = boa.load_vyi(GAUGE_FACTORY_INTERFACE).at(GAUGE_FACTORY)
     gauge_addr = to_checksum_address(
         str(gauge_factory.deploy_gauge(vault_addr, sender=deployer))
     )
