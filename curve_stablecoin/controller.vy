@@ -111,8 +111,6 @@ loan: HashMap[address, IController.Loan]
 liquidation_discounts: public(HashMap[address, uint256])
 _total_debt: IController.Loan
 
-# Enumerate existing loans
-loans: public(address[2**64 - 1])
 # Position of the loan in the list
 loan_ix: public(HashMap[address, uint256])
 # Number of nonzero loans
@@ -130,6 +128,9 @@ collected: uint256
 # Admin fees yet to be collected. Goes to zero when collected.
 _stored_admin_fees: uint256
 admin_percentage: public(uint256)
+
+# Enumerate existing loans
+loans: public(address[2**64 - 1])
 
 # DANGER DO NOT RELY ON MSG.SENDER IN VIRTUAL METHODS
 interface VirtualMethods:
