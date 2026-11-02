@@ -1,7 +1,5 @@
 import boa
-import boa_solidity
 import pytest
-import solcx
 
 from tests.unitary.price_oracles.chainlink_ema.conftest import (
     CHAINLINK_EMA_DEPLOYER,
@@ -10,7 +8,7 @@ from tests.unitary.price_oracles.chainlink_ema.conftest import (
 
 
 WAD = 10**18
-ORACLE_SRC = "curve_stablecoin/price_oracles/v2/WstGBPFxOracle.sol"
+ORACLE_SRC = "curve_stablecoin/price_oracles/v2/WstGBPFxOracle.vy"
 
 PIP = boa.loads_partial(
     """
@@ -123,6 +121,7 @@ EMA = boa.loads_partial(
 chainlinkFeed: public(address)
 fx: public(uint256)
 fail: public(bool)
+write_fail: public(bool)
 
 @deploy
 def __init__(feed_: address):
@@ -136,6 +135,10 @@ def set_price(x: uint256):
 @external
 def set_fail(x: bool):
     self.fail = x
+
+@external
+def set_write_fail(x: bool):
+    self.write_fail = x
 
 @external
 @pure
@@ -155,7 +158,7 @@ def price() -> uint256:
 
 @external
 def price_w() -> uint256:
-    assert not self.fail
+    assert not self.fail and not self.write_fail
     return self.fx
 """
 )
@@ -164,13 +167,12 @@ def price_w() -> uint256:
 @pytest.fixture
 def market():
     with boa.env.anchor():
-        solcx.set_solc_version("0.8.25")
         pip = PIP.deploy()
         gem = GEM.deploy()
         wrapper = WRAPPER.deploy(pip.address, gem.address)
         feed = FEED.deploy()
         ema = EMA.deploy(feed.address)
-        oracle = boa.load_partial_solc(ORACLE_SRC).deploy(
+        oracle = boa.load_partial(ORACLE_SRC).deploy(
             wrapper.address, feed.address, ema.address
         )
         yield oracle, pip, wrapper, feed, ema
@@ -242,9 +244,46 @@ def test_future_or_reverting_round_freezes(market):
     assert oracle.price() == oracle.price_w() == held
 
 
+def test_nav_failures_freeze_and_recovery_resets_the_cap_anchor(market):
+    oracle, pip, wrapper, feed, _ = market
+    held = oracle.price_w()
+    for source in (pip, wrapper):
+        source.set_fail(True)
+        boa.env.time_travel(seconds=86400)
+        assert oracle.frozen() and not oracle.fxFrozen()
+        assert oracle.price() == oracle.price_w() == held
+        source.set_fail(False)
+    wrapper.set_quote(2 * WAD)
+    feed.set_round(130000000, boa.env.evm.patch.timestamp)
+    assert oracle.price() == oracle.price_w() == held
+    assert oracle.cachedQuote() == WAD
+
+
+def test_ema_write_failure_preserves_quote_and_exact_nav_anchor(market):
+    oracle, _, wrapper, _, ema = market
+    wrapper.set_quote(WAD // 2 + 123)
+    ema.set_price(1323456789012345678)
+    ema.set_write_fail(True)
+    expected = wrapper.burncost() * ema.price() // WAD
+    assert oracle.price() == oracle.price_w() == expected
+    assert oracle.cachedQuote() == wrapper.burncost()
+    assert oracle.price() == expected
+
+
+def test_constructor_rejects_unusable_inputs_and_wrong_ema_feed(market):
+    _, pip, wrapper, feed, ema = market
+    deployer = boa.load_partial(ORACLE_SRC)
+    pip.set_value(0)
+    with boa.reverts("unusable initial price"):
+        deployer.deploy(wrapper.address, feed.address, ema.address)
+    pip.set_value(1)
+    other_feed = FEED.deploy()
+    with boa.reverts():
+        deployer.deploy(wrapper.address, other_feed.address, ema.address)
+
+
 def test_real_chainlink_ema_smooths_fx_round():
     with boa.env.anchor():
-        solcx.set_solc_version("0.8.25")
         pip = PIP.deploy()
         gem = GEM.deploy()
         wrapper = WRAPPER.deploy(pip.address, gem.address)
@@ -252,7 +291,7 @@ def test_real_chainlink_ema_smooths_fx_round():
         now = boa.env.evm.patch.timestamp
         feed.add_rounds(1, 130000000, now - 7200, 600, 12)
         ema = CHAINLINK_EMA_DEPLOYER.deploy(feed.address, 20, 30)
-        oracle = boa.load_partial_solc(ORACLE_SRC).deploy(
+        oracle = boa.load_partial(ORACLE_SRC).deploy(
             wrapper.address, feed.address, ema.address
         )
         old_price = oracle.price_w()

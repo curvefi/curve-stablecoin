@@ -26,10 +26,8 @@ def test_wstgbp_market_deployment(tmp_path):
         deploy._deploy(boa.env.generate_address("deployer"), True, path, FACTORY_REPORT)
         report = json.loads(path.read_text())
 
-        oracle = boa.load_partial_solc(deploy.WSTGBP_FX_ORACLE).at(
-            report["price_oracle"]
-        )
-        fx_ema = boa.load_partial_solc(deploy.CHAINLINK_EMA).at(report["fx_ema"])
+        oracle = boa.load_partial(deploy.WSTGBP_FX_ORACLE).at(report["price_oracle"])
+        fx_ema = boa.load_partial(deploy.CHAINLINK_EMA).at(report["fx_ema"])
         wrapper = boa.loads_abi(
             '[{"name":"burncost","inputs":[],"outputs":[{"type":"uint256"}],'
             '"stateMutability":"view","type":"function"}]'

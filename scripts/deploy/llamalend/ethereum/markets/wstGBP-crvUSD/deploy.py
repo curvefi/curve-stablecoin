@@ -55,8 +55,6 @@ from getpass import getpass
 from pathlib import Path
 
 import boa
-import boa_solidity
-import solcx
 from boa.network import NetworkEnv
 from boa.rpc import EthereumRPC
 from eth_account import account
@@ -83,8 +81,8 @@ GAUGE_FACTORY = "0x64e1a69732fAC63F6790b3d8a34C5D713cC623E6"
 LM_CALLBACK_FACTORY = "0x916E2B5E3Df268Ce2348265d2AAD4BB9f2B3dFA0"
 LM_CALLBACK_BLUEPRINT = "0x0fDFE9c8F16AffF693EA16544d6d1Bac555343c4"
 # --- Contract sources ---
-CHAINLINK_EMA = "curve_stablecoin/price_oracles/v2/ChainlinkEMA.sol"
-WSTGBP_FX_ORACLE = "curve_stablecoin/price_oracles/v2/WstGBPFxOracle.sol"
+CHAINLINK_EMA = "curve_stablecoin/price_oracles/v2/ChainlinkEMA.vy"
+WSTGBP_FX_ORACLE = "curve_stablecoin/price_oracles/v2/WstGBPFxOracle.vy"
 HYPERBOLIC_MP = "curve_stablecoin/mpolicies/v2/HyperbolicMP.vy"
 LEND_FACTORY = "curve_stablecoin/lending/LendFactory.vy"
 CONFIGURATOR = "curve_stablecoin/Configurator.vy"
@@ -193,12 +191,10 @@ def _deploy(
     assert lm_callback_factory.lm_callback_blueprint() == LM_CALLBACK_BLUEPRINT
 
     # 1. Smooth GBP/USD, then combine it with the rate-limited redemption quote.
-    solcx.install_solc("0.8.25")
-    solcx.set_solc_version("0.8.25")
-    fx_ema = boa.load_partial_solc(CHAINLINK_EMA).deploy(
+    fx_ema = boa.load_partial(CHAINLINK_EMA).deploy(
         GBP_USD_FEED, OBSERVATIONS, INTERVAL
     )
-    oracle = boa.load_partial_solc(WSTGBP_FX_ORACLE).deploy(
+    oracle = boa.load_partial(WSTGBP_FX_ORACLE).deploy(
         WSTGBP, GBP_USD_FEED, fx_ema.address
     )
 
