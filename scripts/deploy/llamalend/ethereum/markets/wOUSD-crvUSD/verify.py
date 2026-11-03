@@ -7,9 +7,9 @@ Reads the deployment report written by
 and submits source + constructor args for each contract that script deploys
 directly:
     1. OracleFromCurvePools (pool_oracle)    -- ctor: ([pool], [USDC idx], [OUSD idx])
-    2. ERC4626EMAWrapper   (wousd_oracle)    -- ctor: (pool_oracle, wOUSD, ema_time)
-    3. ChainlinkPriceOracle (usdc_oracle)    -- ctor: (USDC/USD feed, max_age)
-    4. ChainOracle        (price_oracle)    -- ctor: ([wousd_oracle, usdc_oracle])
+    2. ChainlinkEMA       (usdc_ema)        -- ctor: (USDC/USD feed, 20, 30)
+    3. ChainOracle        (base_oracle)     -- ctor: ([pool_oracle, usdc_ema])
+    4. ERC4626EMAWrapper  (price_oracle)    -- ctor: (base_oracle, wOUSD, ema_time)
     5. HyperbolicMP        (monetary_policy) -- ctor: (controller, target_util,
                                                 target_rate, low, high, rate_shift)
 
@@ -46,7 +46,7 @@ ORACLE_FROM_CURVE_POOLS_SRC = (
     "curve_stablecoin/price_oracles/v2/OracleFromCurvePools.vy"
 )
 ERC4626_EMA_WRAPPER_SRC = "curve_stablecoin/price_oracles/v2/ERC4626EMAWrapper.vy"
-CHAINLINK_PRICE_ORACLE_SRC = "curve_stablecoin/price_oracles/v2/ChainlinkPriceOracle.vy"
+CHAINLINK_EMA_SRC = "curve_stablecoin/price_oracles/v2/ChainlinkEMA.vy"
 CHAIN_ORACLE_SRC = "curve_stablecoin/price_oracles/v2/ChainOracle.vy"
 HYPERBOLIC_MP_SRC = "curve_stablecoin/mpolicies/v2/HyperbolicMP.vy"
 
@@ -334,8 +334,8 @@ def main() -> None:
     params = deployment["params"]
 
     pool_oracle_addr = deployment["pool_oracle"]
-    wousd_oracle_addr = deployment["wousd_oracle"]
-    usdc_oracle_addr = deployment["usdc_oracle"]
+    usdc_ema_addr = deployment["usdc_ema"]
+    base_oracle_addr = deployment["base_oracle"]
     oracle_addr = deployment["price_oracle"]
     monetary_policy_addr = deployment["monetary_policy"]
     controller_addr = deployment["controller"]
@@ -346,7 +346,8 @@ def main() -> None:
     collateral = params["collateral_token"]
     ema_time = params["ema_time"]
     usdc_usd_feed = params["usdc_usd_feed"]
-    usdc_max_age = params["usdc_max_age"]
+    observations = params["observations"]
+    interval = params["interval"]
     target_utilization = params["target_utilization"]
     target_rate = params["target_rate"]
     low_ratio = params["low_ratio"]
@@ -371,7 +372,30 @@ def main() -> None:
             "1",
         ),
         (
-            wousd_oracle_addr,
+            usdc_ema_addr,
+            "ChainlinkEMA (Vyper 0.4.3)",
+            f"{CHAINLINK_EMA_SRC}:ChainlinkEMA",
+            vy_json(CHAINLINK_EMA_SRC),
+            "vyper:0.4.3",
+            "vyper-json",
+            encode(
+                ["address", "uint256", "uint256"],
+                [usdc_usd_feed, observations, interval],
+            ).hex(),
+            "1",
+        ),
+        (
+            base_oracle_addr,
+            "ChainOracle (Vyper 0.4.3)",
+            f"{CHAIN_ORACLE_SRC}:ChainOracle",
+            vy_json(CHAIN_ORACLE_SRC),
+            "vyper:0.4.3",
+            "vyper-json",
+            encode(["address[]"], [[pool_oracle_addr, usdc_ema_addr]]).hex(),
+            "1",
+        ),
+        (
+            oracle_addr,
             "ERC4626EMAWrapper (Vyper 0.4.3)",
             f"{ERC4626_EMA_WRAPPER_SRC}:ERC4626EMAWrapper",
             vy_json(ERC4626_EMA_WRAPPER_SRC),
@@ -379,28 +403,8 @@ def main() -> None:
             "vyper-json",
             encode(
                 ["address", "address", "uint256"],
-                [pool_oracle_addr, collateral, ema_time],
+                [base_oracle_addr, collateral, ema_time],
             ).hex(),
-            "1",
-        ),
-        (
-            usdc_oracle_addr,
-            "ChainlinkPriceOracle (Vyper 0.4.3)",
-            f"{CHAINLINK_PRICE_ORACLE_SRC}:ChainlinkPriceOracle",
-            vy_json(CHAINLINK_PRICE_ORACLE_SRC),
-            "vyper:0.4.3",
-            "vyper-json",
-            encode(["address", "uint256"], [usdc_usd_feed, usdc_max_age]).hex(),
-            "1",
-        ),
-        (
-            oracle_addr,
-            "ChainOracle (Vyper 0.4.3)",
-            f"{CHAIN_ORACLE_SRC}:ChainOracle",
-            vy_json(CHAIN_ORACLE_SRC),
-            "vyper:0.4.3",
-            "vyper-json",
-            encode(["address[]"], [[wousd_oracle_addr, usdc_oracle_addr]]).hex(),
             "1",
         ),
         (

@@ -21,8 +21,12 @@ _compiled = solcx.compile_files(
     solc_version="0.8.25",
 )
 _chainlink_ema = next(v for k, v in _compiled.items() if k.endswith(":ChainlinkEMA"))
-CHAINLINK_EMA_DEPLOYER = SolDeployer(
+SOLIDITY_EMA_DEPLOYER = SolDeployer(
     _chainlink_ema["abi"], bytes.fromhex(_chainlink_ema["bin"])
+)
+
+CHAINLINK_EMA_DEPLOYER = boa.load_partial(
+    str(PRICE_ORACLES_CONTRACT_PATH / "v2" / "ChainlinkEMA.vy")
 )
 
 # Models an EACAggregatorProxy whose aggregators can run in parallel before the proxy
@@ -109,9 +113,11 @@ def feed():
     return FEED_DEPLOYER.deploy(FEED_DECIMALS)
 
 
-@pytest.fixture
-def deploy_oracle(feed):
+@pytest.fixture(
+    params=[CHAINLINK_EMA_DEPLOYER, SOLIDITY_EMA_DEPLOYER], ids=["vyper", "solidity"]
+)
+def deploy_oracle(feed, request):
     def f():
-        return CHAINLINK_EMA_DEPLOYER.deploy(feed.address, OBSERVATIONS, INTERVAL)
+        return request.param.deploy(feed.address, OBSERVATIONS, INTERVAL)
 
     return f

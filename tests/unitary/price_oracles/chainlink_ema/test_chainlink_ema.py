@@ -2,6 +2,7 @@ import boa
 import pytest
 
 from tests.unitary.price_oracles.chainlink_ema.conftest import (
+    CHAINLINK_EMA_DEPLOYER,
     INTERVAL,
     MAX_LOOKBACK,
     PRECISION_MUL,
@@ -145,3 +146,28 @@ def test_phase_switch_to_more_than_18_decimals_reverts(feed, deploy_oracle):
         oracle.price()
     with boa.reverts("DFM: Chainlink decimals too high"):
         oracle.price_w()
+
+
+@pytest.mark.parametrize("observations,interval", [(0, 30), (129, 30), (20, 0)])
+def test_vyper_rejects_invalid_sampling_config(feed, observations, interval):
+    with boa.reverts():
+        CHAINLINK_EMA_DEPLOYER.deploy(feed.address, observations, interval)
+
+
+def test_vyper_history_limit_reverts_instead_of_returning_partial_ema(feed):
+    feed.add_rounds(1, PRICE, now() - 7200, 600, 12)
+    oracle = CHAINLINK_EMA_DEPLOYER.deploy(feed.address, 20, 30)
+    feed.add_rounds(1, PRICE + 10**10, observation(now()) + INTERVAL, 0, 1025)
+    boa.env.time_travel(seconds=INTERVAL)
+    with boa.reverts("round history too long"):
+        oracle.price()
+    with boa.reverts("round history too long"):
+        oracle.price_w()
+
+
+def test_initial_observation_zero_still_initializes(feed, deploy_oracle):
+    with boa.env.anchor():
+        boa.env.timestamp = INTERVAL - 1
+        feed.add_rounds(1, PRICE, 1, 1, 1)
+        oracle = deploy_oracle()
+        assert oracle.price() == oracle.price_w() == PRICE * PRECISION_MUL

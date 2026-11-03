@@ -8,13 +8,12 @@ Per market this deploys, in order:
     1. Oracle stack (prices wOUSD in USD):
          a. OracleFromCurvePools(OUSD/USDC pool, USDC idx, OUSD idx)
               -> OUSD/USDC, using the pool's own EMA.
-         b. ERC4626EMAWrapper(pool oracle, wOUSD, 866)
-              -> OUSD/USDC x wOUSD share price. Share-price increases are
-                 smoothed; falls pass through immediately.
-         c. ChainlinkPriceOracle(USDC/USD feed, 24-hour max age)
-              -> raw USDC/USD; stale or invalid rounds revert.
-         d. ChainOracle([wOUSD/USDC oracle, USDC/USD oracle])
-              -> wOUSD/USD. crvUSD debt is counted at $1.
+         b. ChainlinkEMA(USDC/USD, 20 observations, 30-second interval)
+              -> smoothed USDC/USD; no extra staleness check or freeze wrapper.
+         c. ChainOracle([pool oracle, USDC/USD EMA]) -> OUSD/USD.
+         d. ERC4626EMAWrapper(chain oracle, wOUSD, 866) -> wOUSD/USD.
+              Share-price increases are smoothed; falls pass through immediately.
+              crvUSD debt is counted at $1.
     2. HyperbolicMP(controller, curve params...) - fixed target rate, for
        like-kind (stable collateral / stable debt) markets.
     3. factory.create(crvUSD, wOUSD, ... oracle, monetary_policy, supply_limit).
@@ -23,8 +22,10 @@ Per market this deploys, in order:
     5. LMCallbackFactory.deploy_lm_callback(amm) - gauge-like callback over the
        AMM's collateral, i.e. the borrower side.
 
-Both liquidity-mining factories are permissionless. The market starts with a
-zero borrow cap and unattached callback. Governance must activate it separately.
+Both liquidity-mining factories are permissionless. With --create-vote, the
+same deploying account proposes an Ownership DAO vote to set the borrow cap
+and admin fee, attach the callback, and register both gauges (type 0, zero weight).
+Activation requires governance to pass and execute the vote.
 
 The OUSD/USDC pool has coin 0 = OUSD, coin 1 = USDC. Its price_oracle(0)
 returns USDC in OUSD, so OracleFromCurvePools inverts it.
@@ -39,8 +40,10 @@ The constructor only stores the controller (it does not call it), so a
 precomputed address is safe; a wrong prediction makes create() revert (fail
 safe) rather than silently misconfigure.
 
-The deployment report records deployed addresses and initial market settings.
-Existing reports are never overwritten. Use a separate --report-path for dry runs.
+The deployment report is saved before proposing, then updated with the vote ID.
+Existing reports are never overwritten by another deployment. Use a separate
+--report-path for dry runs. --create-vote requires ETHERSCAN_API_KEY (or ETHERSCAN_KEY)
+and, for live proposals, PINATA_TOKEN. Dry runs propose only on the fork.
 
 Run:
     # dry-run against a fork
@@ -60,6 +63,7 @@ from getpass import getpass
 from pathlib import Path
 
 import boa
+import curve_dao
 from boa.network import NetworkEnv
 from boa.rpc import EthereumRPC
 from eth_account import account
@@ -77,7 +81,8 @@ POOL = "0x6d18E1a7faeB1F0467A77C0d293872ab685426dc"  # OUSD/USDC NG
 POOL_BORROWED_IDX = 1  # USDC quote
 POOL_COLLATERAL_IDX = 0  # OUSD
 USDC_USD_FEED = "0x8fFfFfd4AfB6115b954Bd326cbe7B4BA576818f6"
-USDC_MAX_AGE = 24 * 3600  # 23-hour heartbeat plus one hour of grace
+OBSERVATIONS = 20
+INTERVAL = 30
 
 # --- Liquidity-mining factories and callback blueprint ---
 # Deploys the gauge over the vault's ERC4626 shares - CRV for lenders.
@@ -91,7 +96,7 @@ EMA_TIME = 866
 # --- Contract sources ---
 ORACLE_FROM_CURVE_POOLS = "curve_stablecoin/price_oracles/v2/OracleFromCurvePools.vy"
 ERC4626_EMA_WRAPPER = "curve_stablecoin/price_oracles/v2/ERC4626EMAWrapper.vy"
-CHAINLINK_PRICE_ORACLE = "curve_stablecoin/price_oracles/v2/ChainlinkPriceOracle.vy"
+CHAINLINK_EMA = "curve_stablecoin/price_oracles/v2/ChainlinkEMA.vy"
 CHAIN_ORACLE = "curve_stablecoin/price_oracles/v2/ChainOracle.vy"
 HYPERBOLIC_MP = "curve_stablecoin/mpolicies/v2/HyperbolicMP.vy"
 LEND_FACTORY = "curve_stablecoin/lending/LendFactory.vy"
@@ -115,6 +120,12 @@ FEE = 39 * 10**14  # 0.39%; below the AMM's 4/A cap
 LOAN_DISCOUNT = 13 * 10**15  # 1.3%
 LIQUIDATION_DISCOUNT = 8 * 10**15  # 0.8%
 SUPPLY_LIMIT = 2**256 - 1  # unlimited; borrow cap set separately
+
+# --- Activation proposal (Ownership DAO) ---
+BORROW_CAP = 950_000 * 10**18  # crvUSD
+ADMIN_FEE = 10**17  # 10%
+GAUGE_CONTROLLER = "0x2F50D538606Fa9EDD2B11E2446BEb18C9D5846bB"
+VOTE_DAO = curve_dao.DAO.OWNERSHIP
 
 
 def _load_account(fname: str) -> account.LocalAccount:
@@ -145,11 +156,47 @@ def _predict_controller(factory_addr: str) -> str:
     )
 
 
+def _create_activation_vote(
+    configurator_addr: str,
+    controller_addr: str,
+    gauge_addr: str,
+    lm_callback_addr: str,
+    dry_run: bool,
+    etherscan_api_key: str,
+    pinata_token: str | None,
+) -> int:
+    # Register both gauges with type 0 and zero initial weight.
+    actions = [
+        (configurator_addr, "set_borrow_cap", controller_addr, BORROW_CAP),
+        (configurator_addr, "set_admin_percentage", controller_addr, ADMIN_FEE),
+        (GAUGE_CONTROLLER, "add_gauge", gauge_addr, 0, 0),
+        (configurator_addr, "set_callback", controller_addr, lm_callback_addr),
+        (GAUGE_CONTROLLER, "add_gauge", lm_callback_addr, 0, 0),
+    ]
+    description = (
+        "Activate wOUSD/crvUSD LlamaLend V2 on Ethereum: "
+        f"set a {BORROW_CAP // 10**18:,} crvUSD borrow cap and "
+        f"{ADMIN_FEE / 10**16:g}% admin fee, attach the LM callback and "
+        "register the vault and callback gauges with type 0 and zero initial weight."
+    )
+    return curve_dao.create_vote(
+        VOTE_DAO,
+        actions,
+        description,
+        etherscan_api_key=etherscan_api_key,
+        pinata_token=pinata_token,
+        is_simulation=dry_run,
+    )
+
+
 def _deploy(
     deployer: str,
     dry_run: bool,
     report_path: Path,
     factory_deployment: Path,
+    create_vote: bool = False,
+    etherscan_api_key: str | None = None,
+    pinata_token: str | None = None,
 ) -> None:
     if report_path.exists():
         raise SystemExit(f"Deployment report already exists: {report_path}")
@@ -180,34 +227,41 @@ def _deploy(
     assert not lm_callback_factory.paused(), "LM callback factory is paused"
     assert lm_callback_factory.lm_callback_blueprint() == LM_CALLBACK_BLUEPRINT
 
-    # 1. Price wOUSD in USDC, then convert to USD with the validated Chainlink leg.
+    if create_vote:
+        assert boa.env.eoa == deployer, "Proposer must be the deploying account"
+        dao = curve_dao.get_dao_parameters(VOTE_DAO)
+        assert factory.admin() == dao["agent"], (
+            "Factory admin must be the Ownership DAO"
+        )
+        voting = boa.from_etherscan(dao["voting"], api_key=etherscan_api_key)
+        assert voting.canCreateNewVote(deployer), "Deployer is not eligible to propose"
+
+    # 1. Convert the pool's USDC quote to USD, then apply wOUSD's share-price EMA.
     pool_oracle = boa.load_partial(ORACLE_FROM_CURVE_POOLS).deploy(
         [POOL], [POOL_BORROWED_IDX], [POOL_COLLATERAL_IDX]
     )
-    wousd_oracle = boa.load_partial(ERC4626_EMA_WRAPPER).deploy(
-        pool_oracle.address, WOUSD, EMA_TIME
+    usdc_ema = boa.load_partial(CHAINLINK_EMA).deploy(
+        USDC_USD_FEED, OBSERVATIONS, INTERVAL
     )
-    usdc_oracle = boa.load_partial(CHAINLINK_PRICE_ORACLE).deploy(
-        USDC_USD_FEED, USDC_MAX_AGE
+    base_oracle = boa.load_partial(CHAIN_ORACLE).deploy(
+        [pool_oracle.address, usdc_ema.address]
     )
-    oracle = boa.load_partial(CHAIN_ORACLE).deploy(
-        [wousd_oracle.address, usdc_oracle.address]
+    oracle = boa.load_partial(ERC4626_EMA_WRAPPER).deploy(
+        base_oracle.address, WOUSD, EMA_TIME
     )
 
     ousd_price = pool_oracle.price()
-    usdc_price = usdc_oracle.price()
+    usdc_price = usdc_ema.price()
     price = oracle.price()
     print(f"  OUSD/USDC: {ousd_price / 10**18:.6f}")
     print(f"  USDC/USD : {usdc_price / 10**18:.6f}")
-    print(f"  wOUSD/USD : {price / 10**18:.6f}")
-    assert ousd_price > 0
+    print(f"  wOUSD/USD: {price / 10**18:.6f}")
     assert price > 0
-    assert wousd_oracle.ORACLE() == pool_oracle.address
-    assert wousd_oracle.VAULT() == WOUSD
-    assert usdc_oracle.FEED() == USDC_USD_FEED
-    assert usdc_oracle.MAX_AGE() == USDC_MAX_AGE
-    assert oracle.ORACLES(0) == wousd_oracle.address
-    assert oracle.ORACLES(1) == usdc_oracle.address
+    assert oracle.ORACLE() == base_oracle.address
+    assert oracle.VAULT() == WOUSD
+    assert usdc_ema.chainlinkFeed() == USDC_USD_FEED
+    assert base_oracle.ORACLES(0) == pool_oracle.address
+    assert base_oracle.ORACLES(1) == usdc_ema.address
 
     # 2. Monetary policy, bound to the (precomputed) controller create() will deploy.
     predicted_controller = _predict_controller(factory.address)
@@ -290,8 +344,8 @@ def _deploy(
         "factory": factory.address,
         "configurator": configurator.address,
         "pool_oracle": pool_oracle.address,
-        "wousd_oracle": wousd_oracle.address,
-        "usdc_oracle": usdc_oracle.address,
+        "usdc_ema": usdc_ema.address,
+        "base_oracle": base_oracle.address,
         "price_oracle": oracle.address,
         "monetary_policy": monetary_policy.address,
         "vault": vault_addr,
@@ -308,7 +362,8 @@ def _deploy(
             "pool_collateral_idx": POOL_COLLATERAL_IDX,
             "ema_time": EMA_TIME,
             "usdc_usd_feed": USDC_USD_FEED,
-            "usdc_max_age": USDC_MAX_AGE,
+            "observations": OBSERVATIONS,
+            "interval": INTERVAL,
             "A": A,
             "fee": FEE,
             "loan_discount": LOAN_DISCOUNT,
@@ -333,11 +388,27 @@ def _deploy(
     with report_path.open("x") as f:
         f.write(json.dumps(report, indent=2) + "\n")
 
+    if create_vote:
+        vote_id = _create_activation_vote(
+            configurator.address,
+            controller_addr,
+            gauge_addr,
+            lm_callback_addr,
+            dry_run,
+            etherscan_api_key,
+            pinata_token,
+        )
+        report["activation_vote_id"] = vote_id
+        report_path.write_text(json.dumps(report, indent=2) + "\n")
+        print("Activation vote:", vote_id)
+
     print(f"Controller borrow cap    : {borrow_cap / 10**18:,.0f} crvUSD")
     print(f"Controller admin fee     : {admin_fee / 10**16:g}%")
     print(f"AMM callback             : {amm.liquidity_mining_callback()}")
     print("Market:", report["market"])
     print("Pool Oracle:", pool_oracle.address)
+    print("USDC EMA:", usdc_ema.address)
+    print("Base Oracle:", base_oracle.address)
     print("Price Oracle:", oracle.address, f"(price={price / 10**18:.6f})")
     print("Monetary Policy:", monetary_policy.address)
     print("Vault:", vault_addr)
@@ -358,6 +429,16 @@ def main() -> None:
     )
     parser.add_argument("--rpc-url", default=os.environ.get("MAINNET_RPC_URL"))
     parser.add_argument("--dry-run", action="store_true")
+    parser.add_argument(
+        "--create-vote",
+        action="store_true",
+        help="Propose market activation from the deploying account after deployment",
+    )
+    parser.add_argument(
+        "--etherscan-api-key",
+        default=os.environ.get("ETHERSCAN_API_KEY") or os.environ.get("ETHERSCAN_KEY"),
+    )
+    parser.add_argument("--pinata-token", default=os.environ.get("PINATA_TOKEN"))
     parser.add_argument(
         "--account-name",
         default=os.environ.get("ACCOUNT_NAME"),
@@ -386,6 +467,14 @@ def main() -> None:
     if not args.account_name:
         raise SystemExit("Missing --account-name or ACCOUNT_NAME")
 
+    if args.create_vote:
+        if not args.etherscan_api_key:
+            raise SystemExit(
+                "--create-vote needs --etherscan-api-key or ETHERSCAN_API_KEY"
+            )
+        if not args.dry_run and not args.pinata_token:
+            raise SystemExit("--create-vote needs --pinata-token or PINATA_TOKEN")
+
     if args.dry_run:
         deployer = _load_account(args.account_name).address
         with boa.fork(args.rpc_url):
@@ -394,6 +483,9 @@ def main() -> None:
                 dry_run=True,
                 report_path=report_path,
                 factory_deployment=factory_deployment,
+                create_vote=args.create_vote,
+                etherscan_api_key=args.etherscan_api_key,
+                pinata_token=args.pinata_token,
             )
     else:
         acct = _load_account(args.account_name)
@@ -404,6 +496,9 @@ def main() -> None:
                 dry_run=False,
                 report_path=report_path,
                 factory_deployment=factory_deployment,
+                create_vote=args.create_vote,
+                etherscan_api_key=args.etherscan_api_key,
+                pinata_token=args.pinata_token,
             )
 
 
