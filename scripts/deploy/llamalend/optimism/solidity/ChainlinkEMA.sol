@@ -30,7 +30,6 @@ contract ChainlinkEMA {
     uint256 public immutable SMOOTHING_FACTOR;
 
     uint256 private immutable MAX_LOOKBACK;
-    uint256 private immutable PRECISION_MUL;
 
     uint256 public storedPrice;
     uint256 public storedObservationTimestamp;
@@ -39,17 +38,20 @@ contract ChainlinkEMA {
     struct ChainlinkResponse {
         uint80 roundId;
         uint128 updatedAt;
+        uint8 decimals;
         uint256 answer;
     }
 
     constructor(IChainlinkAggregator _chainlink, uint256 _observations, uint256 _interval) {
+        require(_observations > 0 && _interval > 0, "DFM: invalid observations or interval");
         chainlinkFeed = _chainlink;
         OBSERVATIONS = _observations;
         INTERVAL = _interval;
         SMOOTHING_FACTOR = 2e18 / (_observations + 1);
         MAX_LOOKBACK = _observations * 2;
-        PRECISION_MUL = 10 ** (18 - _chainlink.decimals());
 
+        // round ids without phase bits never trigger the phase check, so load decimals up front
+        storedResponse.decimals = _getFeedDecimals();
         uint256 currentObservation = _getCurrentObservationTimestamp();
         (storedPrice, storedResponse) = _calculateNewEMA(currentObservation);
         storedObservationTimestamp = currentObservation;
@@ -104,10 +106,16 @@ contract ChainlinkEMA {
             return (currentPrice, latestResponse, false);
         }
 
+        // a new phase aggregator carries rounds from before the switch, walking them forward is unbounded
+        if ((latestResponse.roundId >> 64) != (response.roundId >> 64)) {
+            (currentPrice, latestResponse) = _calculateNewEMA(currentObservation);
+            return (currentPrice, latestResponse, true);
+        }
+
         bool isLatestResponse;
         ChainlinkResponse memory nextResponse;
         if (latestResponse.roundId > response.roundId + 1) {
-            nextResponse = _getNextRoundData(response.roundId);
+            nextResponse = _getRoundData(response.roundId + 1, latestResponse.decimals);
         } else {
             nextResponse = latestResponse;
         }
@@ -119,7 +127,7 @@ contract ChainlinkEMA {
                 if (nextResponse.roundId == latestResponse.roundId) {
                     isLatestResponse = true;
                 } else {
-                    nextResponse = _getNextRoundData(nextResponse.roundId);
+                    nextResponse = _getRoundData(nextResponse.roundId + 1, latestResponse.decimals);
                 }
             }
             currentPrice = _getNextEMA(response.answer, currentPrice);
@@ -144,7 +152,7 @@ contract ChainlinkEMA {
                 if (response.roundId & type(uint64).max == 1) {
                     break;
                 }
-                response = _getRoundData(response.roundId - 1);
+                response = _getRoundData(response.roundId - 1, latestResponse.decimals);
             }
             if (response.updatedAt >= observationTimestamp) {
                 if (idx == MAX_LOOKBACK) {
@@ -178,33 +186,38 @@ contract ChainlinkEMA {
 
     function _getLatestRoundData() internal view returns (ChainlinkResponse memory) {
         (uint80 roundId, int256 answer,, uint256 updatedAt,) = chainlinkFeed.latestRoundData();
-        return _validateAndFormatResponse(roundId, answer, updatedAt);
+        // the proxy reports the current aggregator's decimals, so they only change with the phase.
+        // Rounds are only ever read from the latest phase, so its decimals apply to all of them
+        uint8 decimals = storedResponse.decimals;
+        if ((roundId >> 64) != (storedResponse.roundId >> 64)) {
+            decimals = _getFeedDecimals();
+        }
+        return _validateAndFormatResponse(roundId, answer, updatedAt, decimals);
     }
 
-    function _getRoundData(uint80 roundId) internal view returns (ChainlinkResponse memory) {
-        (uint80 roundId, int256 answer,, uint256 updatedAt,) = chainlinkFeed.getRoundData(roundId);
-        return _validateAndFormatResponse(roundId, answer, updatedAt);
+    function _getRoundData(uint80 roundId, uint8 decimals) internal view returns (ChainlinkResponse memory) {
+        (uint80 round, int256 answer,, uint256 updatedAt,) = chainlinkFeed.getRoundData(roundId);
+        return _validateAndFormatResponse(round, answer, updatedAt, decimals);
     }
 
-    function _getNextRoundData(uint80 roundId) internal view returns (ChainlinkResponse memory) {
-        try chainlinkFeed.getRoundData(roundId + 1) returns (
-            uint80 round, int256 answer, uint256, uint256 updatedAt, uint80
-        ) {
-            if (updatedAt > 0) return _validateAndFormatResponse(round, answer, updatedAt);
-        } catch {}
-        uint80 nextRoundId = (((roundId >> 64) + 1) << 64) + 1;
-        return _getRoundData(nextRoundId);
+    function _getFeedDecimals() internal view returns (uint8) {
+        uint256 feedDecimals = chainlinkFeed.decimals();
+        require(feedDecimals <= 18, "DFM: Chainlink decimals too high");
+        return uint8(feedDecimals);
     }
 
-    function _validateAndFormatResponse(uint80 roundId, int256 answer, uint256 updatedAt)
+    function _validateAndFormatResponse(uint80 roundId, int256 answer, uint256 updatedAt, uint8 decimals)
         internal
-        view
+        pure
         returns (ChainlinkResponse memory)
     {
         require(answer > 0, "DFM: Chainlink answer too low");
         return
             ChainlinkResponse({
-                roundId: roundId, updatedAt: uint128(updatedAt), answer: uint256(answer) * PRECISION_MUL
+                roundId: roundId,
+                updatedAt: uint128(updatedAt),
+                decimals: decimals,
+                answer: uint256(answer) * 10 ** (18 - decimals)
             });
     }
 }
