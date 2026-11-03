@@ -44,8 +44,7 @@ def __init__(feed: Feed, max_age: uint256):
 def _price() -> uint256:
     data: ChainlinkAnswer = staticcall FEED.latestRoundData()
     assert data.answer > 0, "Invalid answer"
-    assert data.updated_at > 0 and data.updated_at <= block.timestamp, "Invalid timestamp"
-    assert block.timestamp - data.updated_at <= MAX_AGE, "Stale price"
+    assert data.updated_at > 0 and block.timestamp - data.updated_at <= MAX_AGE, "Stale price"
     return convert(data.answer, uint256) * DECIMAL_MUL
 
 

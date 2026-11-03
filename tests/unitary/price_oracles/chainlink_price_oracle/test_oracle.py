@@ -71,7 +71,7 @@ def test_invalid_timestamps_revert(market, timestamp):
     feed, oracle = market
     feed.set_round(100_000_000, boa.env.timestamp + 1 if timestamp == "future" else 0)
     for entrypoint in (oracle.price, oracle.price_w):
-        with boa.reverts("Invalid timestamp"):
+        with boa.reverts():
             entrypoint()
 
 
