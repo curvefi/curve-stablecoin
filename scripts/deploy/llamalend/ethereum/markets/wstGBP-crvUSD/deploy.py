@@ -18,8 +18,10 @@ Per market this deploys, in order:
     5. LMCallbackFactory.deploy_lm_callback(amm) - gauge-like callback over the
        AMM's collateral, i.e. the borrower side.
 
-Both liquidity-mining factories are permissionless. The market starts with a
-zero borrow cap and unattached callback. Governance must activate it separately.
+Both liquidity-mining factories are permissionless. With --create-vote, the
+same deploying account proposes an Ownership DAO vote to set the borrow cap
+and admin fee, attach the callback, and register both gauges (type 0, zero weight).
+Activation requires governance to pass and execute the vote.
 
 The oracle checks that the wrapper uses an 18-decimal gem and the EMA is built
 over the 8-decimal GBP/USD feed with 20 observations at 30-second intervals.
@@ -34,8 +36,10 @@ The constructor only stores the controller (it does not call it), so a
 precomputed address is safe; a wrong prediction makes create() revert (fail
 safe) rather than silently misconfigure.
 
-The deployment report records deployed addresses and initial market settings.
-Existing reports are never overwritten. Use a separate --report-path for dry runs.
+The deployment report is saved before proposing, then updated with the vote ID.
+Existing reports are never overwritten by another deployment. Use a separate
+--report-path for dry runs. --create-vote requires ETHERSCAN_API_KEY (or ETHERSCAN_KEY)
+and, for live proposals, PINATA_TOKEN. Dry runs propose only on the fork.
 
 Run:
     # dry-run against a fork
@@ -55,6 +59,7 @@ from getpass import getpass
 from pathlib import Path
 
 import boa
+import curve_dao
 from boa.network import NetworkEnv
 from boa.rpc import EthereumRPC
 from eth_account import account
@@ -98,12 +103,18 @@ LOW_RATIO = 5 * 10**17  # 0.5x base at 0% utilization
 HIGH_RATIO = 5 * 10**18  # 5x base at 100% utilization
 RATE_SHIFT = 0  # no flat shift
 
-# --- Market risk parameters — subject to governance review ---
-A = 180
-FEE = 6 * 10**15  # 0.6%
-LOAN_DISCOUNT = 43 * 10**15  # 4.3%
-LIQUIDATION_DISCOUNT = 23 * 10**15  # 2.3%
+# --- Final market parameters (spec revision 2) ---
+A = 150
+FEE = 4 * 10**15  # 0.4%
+LOAN_DISCOUNT = 41 * 10**15  # 4.1%
+LIQUIDATION_DISCOUNT = 21 * 10**15  # 2.1%
 SUPPLY_LIMIT = 2**256 - 1  # unlimited; borrow cap set separately
+
+# --- Activation proposal (Ownership DAO) ---
+BORROW_CAP = 80_000 * 10**18  # crvUSD
+ADMIN_FEE = 10**17  # 10%
+GAUGE_CONTROLLER = "0x2F50D538606Fa9EDD2B11E2446BEb18C9D5846bB"
+VOTE_DAO = curve_dao.DAO.OWNERSHIP
 
 
 # Minimal ABI for the gauge factory (only the two entry points used here).
@@ -155,11 +166,47 @@ def _predict_controller(factory_addr: str) -> str:
     )
 
 
+def _create_activation_vote(
+    configurator_addr: str,
+    controller_addr: str,
+    gauge_addr: str,
+    lm_callback_addr: str,
+    dry_run: bool,
+    etherscan_api_key: str,
+    pinata_token: str | None,
+) -> int:
+    # Register both gauges with type 0 and zero initial weight.
+    actions = [
+        (configurator_addr, "set_borrow_cap", controller_addr, BORROW_CAP),
+        (configurator_addr, "set_admin_percentage", controller_addr, ADMIN_FEE),
+        (GAUGE_CONTROLLER, "add_gauge", gauge_addr, 0, 0),
+        (configurator_addr, "set_callback", controller_addr, lm_callback_addr),
+        (GAUGE_CONTROLLER, "add_gauge", lm_callback_addr, 0, 0),
+    ]
+    description = (
+        "Activate wstGBP/crvUSD LlamaLend V2 on Ethereum: "
+        f"set a {BORROW_CAP // 10**18:,} crvUSD borrow cap and "
+        f"{ADMIN_FEE / 10**16:g}% admin fee, attach the LM callback and "
+        "register the vault and callback gauges with type 0 and zero initial weight."
+    )
+    return curve_dao.create_vote(
+        VOTE_DAO,
+        actions,
+        description,
+        etherscan_api_key=etherscan_api_key,
+        pinata_token=pinata_token,
+        is_simulation=dry_run,
+    )
+
+
 def _deploy(
     deployer: str,
     dry_run: bool,
     report_path: Path,
     factory_deployment: Path,
+    create_vote: bool = False,
+    etherscan_api_key: str | None = None,
+    pinata_token: str | None = None,
 ) -> None:
     if report_path.exists():
         raise SystemExit(f"Deployment report already exists: {report_path}")
@@ -189,6 +236,15 @@ def _deploy(
     assert lm_callback_factory.version() == "1.0.0"
     assert not lm_callback_factory.paused(), "LM callback factory is paused"
     assert lm_callback_factory.lm_callback_blueprint() == LM_CALLBACK_BLUEPRINT
+
+    if create_vote:
+        assert boa.env.eoa == deployer, "Proposer must be the deploying account"
+        dao = curve_dao.get_dao_parameters(VOTE_DAO)
+        assert factory.admin() == dao["agent"], (
+            "Factory admin must be the Ownership DAO"
+        )
+        voting = boa.from_etherscan(dao["voting"], api_key=etherscan_api_key)
+        assert voting.canCreateNewVote(deployer), "Deployer is not eligible to propose"
 
     # 1. Smooth GBP/USD, then combine it with the rate-limited redemption quote.
     fx_ema = boa.load_partial(CHAINLINK_EMA).deploy(
@@ -327,6 +383,20 @@ def _deploy(
     with report_path.open("x") as f:
         f.write(json.dumps(report, indent=2) + "\n")
 
+    if create_vote:
+        vote_id = _create_activation_vote(
+            configurator.address,
+            controller_addr,
+            gauge_addr,
+            lm_callback_addr,
+            dry_run,
+            etherscan_api_key,
+            pinata_token,
+        )
+        report["activation_vote_id"] = vote_id
+        report_path.write_text(json.dumps(report, indent=2) + "\n")
+        print("Activation vote:", vote_id)
+
     print(f"Controller borrow cap    : {borrow_cap / 10**18:,.0f} crvUSD")
     print(f"Controller admin fee     : {admin_fee / 10**16:g}%")
     print(f"AMM callback             : {amm.liquidity_mining_callback()}")
@@ -352,6 +422,16 @@ def main() -> None:
     )
     parser.add_argument("--rpc-url", default=os.environ.get("MAINNET_RPC_URL"))
     parser.add_argument("--dry-run", action="store_true")
+    parser.add_argument(
+        "--create-vote",
+        action="store_true",
+        help="Propose market activation from the deploying account after deployment",
+    )
+    parser.add_argument(
+        "--etherscan-api-key",
+        default=os.environ.get("ETHERSCAN_API_KEY") or os.environ.get("ETHERSCAN_KEY"),
+    )
+    parser.add_argument("--pinata-token", default=os.environ.get("PINATA_TOKEN"))
     parser.add_argument(
         "--account-name",
         default=os.environ.get("ACCOUNT_NAME"),
@@ -380,6 +460,14 @@ def main() -> None:
     if not args.account_name:
         raise SystemExit("Missing --account-name or ACCOUNT_NAME")
 
+    if args.create_vote:
+        if not args.etherscan_api_key:
+            raise SystemExit(
+                "--create-vote needs --etherscan-api-key or ETHERSCAN_API_KEY"
+            )
+        if not args.dry_run and not args.pinata_token:
+            raise SystemExit("--create-vote needs --pinata-token or PINATA_TOKEN")
+
     if args.dry_run:
         deployer = _load_account(args.account_name).address
         with boa.fork(args.rpc_url):
@@ -388,6 +476,9 @@ def main() -> None:
                 dry_run=True,
                 report_path=report_path,
                 factory_deployment=factory_deployment,
+                create_vote=args.create_vote,
+                etherscan_api_key=args.etherscan_api_key,
+                pinata_token=args.pinata_token,
             )
     else:
         acct = _load_account(args.account_name)
@@ -398,6 +489,9 @@ def main() -> None:
                 dry_run=False,
                 report_path=report_path,
                 factory_deployment=factory_deployment,
+                create_vote=args.create_vote,
+                etherscan_api_key=args.etherscan_api_key,
+                pinata_token=args.pinata_token,
             )
 
 
