@@ -23,10 +23,6 @@ def set_round(answer: int256, updated_at: uint256):
     self.updated_at = updated_at
 
 @external
-def set_decimals(decimals: uint8):
-    self.decimals = decimals
-
-@external
 def set_fail(fail: bool):
     self.fail = fail
 
@@ -99,22 +95,11 @@ def test_upstream_failure_propagates(market):
             entrypoint()
 
 
-def test_feed_decimal_change_preserves_units(market):
-    feed, oracle = market
-    feed.set_decimals(18)
-    feed.set_round(99 * 10**16, boa.env.timestamp)
-    assert oracle.price() == oracle.price_w() == 99 * 10**16
-    feed.set_decimals(19)
-    for entrypoint in (oracle.price, oracle.price_w):
-        with boa.reverts("Invalid decimals"):
-            entrypoint()
-
-
 def test_invalid_deployment_config(market):
     feed, _ = market
     for address, max_age in [(boa.env.generate_address(), MAX_AGE), (feed.address, 0)]:
         with boa.reverts():
             boa.load(SOURCE, address, max_age)
-    feed.set_decimals(19)
-    with boa.reverts("Invalid decimals"):
-        boa.load(SOURCE, feed.address, MAX_AGE)
+    invalid_feed = FEED_DEPLOYER.deploy(19)
+    with boa.reverts():
+        boa.load(SOURCE, invalid_feed.address, MAX_AGE)
