@@ -2,9 +2,12 @@
 # @license MIT
 """
 @title wstETH Rate Calculator
+@author Curve.Finance
+@license Copyright (c) Curve.Finance, 2020-2026 - all rights reserved
 @notice Computes per-second yield rate for wstETH on Optimism
 @dev Converts wstETH exchange rate changes to yield rates for HyperbolicDynamicMP
      Uses 2-point calculation: latest rate vs rate from avg_window ago
+@custom:security security@curve.finance
 @custom:kill There is no need to kill this contract, just kill the underlying market
 """
 
