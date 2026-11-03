@@ -7,10 +7,14 @@ Borrowed token: crvUSD. Collateral: wOUSD (OUSD ERC4626 wrapper).
 Per market this deploys, in order:
     1. Oracle stack (prices wOUSD in USD):
          a. OracleFromCurvePools(OUSD/USDC pool, USDC idx, OUSD idx)
-              -> OUSD/USDC, using the pool's own EMA. USDC is $1.
+              -> OUSD/USDC, using the pool's own EMA.
          b. ERC4626EMAWrapper(pool oracle, wOUSD, 866)
               -> OUSD/USDC x wOUSD share price. Share-price increases are
                  smoothed; falls pass through immediately.
+         c. ChainlinkPriceOracle(USDC/USD feed, 24-hour max age)
+              -> raw USDC/USD; stale or invalid rounds revert.
+         d. ChainOracle([wOUSD/USDC oracle, USDC/USD oracle])
+              -> wOUSD/USD. crvUSD debt is counted at $1.
     2. HyperbolicMP(controller, curve params...) - fixed target rate, for
        like-kind (stable collateral / stable debt) markets.
     3. factory.create(crvUSD, wOUSD, ... oracle, monetary_policy, supply_limit).
@@ -70,8 +74,10 @@ CRVUSD = "0xf939E0A03FB07F59A73314E73794Be0E57ac1b4E"  # borrowed
 WOUSD = "0xD2af830E8CBdFed6CC11Bab697bB25496ed6FA62"  # collateral
 # --- Pool and oracle config ---
 POOL = "0x6d18E1a7faeB1F0467A77C0d293872ab685426dc"  # OUSD/USDC NG
-POOL_BORROWED_IDX = 1  # USDC = $1
+POOL_BORROWED_IDX = 1  # USDC quote
 POOL_COLLATERAL_IDX = 0  # OUSD
+USDC_USD_FEED = "0x8fFfFfd4AfB6115b954Bd326cbe7B4BA576818f6"
+USDC_MAX_AGE = 24 * 3600  # 23-hour heartbeat plus one hour of grace
 
 # --- Liquidity-mining factories and callback blueprint ---
 # Deploys the gauge over the vault's ERC4626 shares - CRV for lenders.
@@ -85,6 +91,8 @@ EMA_TIME = 866
 # --- Contract sources ---
 ORACLE_FROM_CURVE_POOLS = "curve_stablecoin/price_oracles/v2/OracleFromCurvePools.vy"
 ERC4626_EMA_WRAPPER = "curve_stablecoin/price_oracles/v2/ERC4626EMAWrapper.vy"
+CHAINLINK_PRICE_ORACLE = "curve_stablecoin/price_oracles/v2/ChainlinkPriceOracle.vy"
+CHAIN_ORACLE = "curve_stablecoin/price_oracles/v2/ChainOracle.vy"
 HYPERBOLIC_MP = "curve_stablecoin/mpolicies/v2/HyperbolicMP.vy"
 LEND_FACTORY = "curve_stablecoin/lending/LendFactory.vy"
 CONFIGURATOR = "curve_stablecoin/Configurator.vy"
@@ -172,22 +180,34 @@ def _deploy(
     assert not lm_callback_factory.paused(), "LM callback factory is paused"
     assert lm_callback_factory.lm_callback_blueprint() == LM_CALLBACK_BLUEPRINT
 
-    # 1. Pool OUSD/USDC EMA -> wOUSD share-price EMA. USDC is counted as $1.
+    # 1. Price wOUSD in USDC, then convert to USD with the validated Chainlink leg.
     pool_oracle = boa.load_partial(ORACLE_FROM_CURVE_POOLS).deploy(
         [POOL], [POOL_BORROWED_IDX], [POOL_COLLATERAL_IDX]
     )
-    oracle = boa.load_partial(ERC4626_EMA_WRAPPER).deploy(
+    wousd_oracle = boa.load_partial(ERC4626_EMA_WRAPPER).deploy(
         pool_oracle.address, WOUSD, EMA_TIME
+    )
+    usdc_oracle = boa.load_partial(CHAINLINK_PRICE_ORACLE).deploy(
+        USDC_USD_FEED, USDC_MAX_AGE
+    )
+    oracle = boa.load_partial(CHAIN_ORACLE).deploy(
+        [wousd_oracle.address, usdc_oracle.address]
     )
 
     ousd_price = pool_oracle.price()
+    usdc_price = usdc_oracle.price()
     price = oracle.price()
     print(f"  OUSD/USDC: {ousd_price / 10**18:.6f}")
+    print(f"  USDC/USD : {usdc_price / 10**18:.6f}")
     print(f"  wOUSD/USD : {price / 10**18:.6f}")
     assert ousd_price > 0
     assert price > 0
-    assert oracle.ORACLE() == pool_oracle.address
-    assert oracle.VAULT() == WOUSD
+    assert wousd_oracle.ORACLE() == pool_oracle.address
+    assert wousd_oracle.VAULT() == WOUSD
+    assert usdc_oracle.FEED() == USDC_USD_FEED
+    assert usdc_oracle.MAX_AGE() == USDC_MAX_AGE
+    assert oracle.ORACLES(0) == wousd_oracle.address
+    assert oracle.ORACLES(1) == usdc_oracle.address
 
     # 2. Monetary policy, bound to the (precomputed) controller create() will deploy.
     predicted_controller = _predict_controller(factory.address)
@@ -270,6 +290,8 @@ def _deploy(
         "factory": factory.address,
         "configurator": configurator.address,
         "pool_oracle": pool_oracle.address,
+        "wousd_oracle": wousd_oracle.address,
+        "usdc_oracle": usdc_oracle.address,
         "price_oracle": oracle.address,
         "monetary_policy": monetary_policy.address,
         "vault": vault_addr,
@@ -285,6 +307,8 @@ def _deploy(
             "pool_borrowed_idx": POOL_BORROWED_IDX,
             "pool_collateral_idx": POOL_COLLATERAL_IDX,
             "ema_time": EMA_TIME,
+            "usdc_usd_feed": USDC_USD_FEED,
+            "usdc_max_age": USDC_MAX_AGE,
             "A": A,
             "fee": FEE,
             "loan_discount": LOAN_DISCOUNT,
@@ -301,6 +325,7 @@ def _deploy(
             "lm_callback_factory": LM_CALLBACK_FACTORY,
             "initial_price": price,
             "initial_ousd_price": ousd_price,
+            "initial_usdc_price": usdc_price,
         },
     }
 

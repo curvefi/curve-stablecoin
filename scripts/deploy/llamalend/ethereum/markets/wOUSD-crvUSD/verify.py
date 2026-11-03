@@ -7,8 +7,10 @@ Reads the deployment report written by
 and submits source + constructor args for each contract that script deploys
 directly:
     1. OracleFromCurvePools (pool_oracle)    -- ctor: ([pool], [USDC idx], [OUSD idx])
-    2. ERC4626EMAWrapper   (price_oracle)    -- ctor: (pool_oracle, wOUSD, ema_time)
-    3. HyperbolicMP        (monetary_policy) -- ctor: (controller, target_util,
+    2. ERC4626EMAWrapper   (wousd_oracle)    -- ctor: (pool_oracle, wOUSD, ema_time)
+    3. ChainlinkPriceOracle (usdc_oracle)    -- ctor: (USDC/USD feed, max_age)
+    4. ChainOracle        (price_oracle)    -- ctor: ([wousd_oracle, usdc_oracle])
+    5. HyperbolicMP        (monetary_policy) -- ctor: (controller, target_util,
                                                 target_rate, low, high, rate_shift)
 
 Deliberately not submitted - everything deployed from a blueprint, whose
@@ -44,6 +46,8 @@ ORACLE_FROM_CURVE_POOLS_SRC = (
     "curve_stablecoin/price_oracles/v2/OracleFromCurvePools.vy"
 )
 ERC4626_EMA_WRAPPER_SRC = "curve_stablecoin/price_oracles/v2/ERC4626EMAWrapper.vy"
+CHAINLINK_PRICE_ORACLE_SRC = "curve_stablecoin/price_oracles/v2/ChainlinkPriceOracle.vy"
+CHAIN_ORACLE_SRC = "curve_stablecoin/price_oracles/v2/ChainOracle.vy"
 HYPERBOLIC_MP_SRC = "curve_stablecoin/mpolicies/v2/HyperbolicMP.vy"
 
 DEFAULT_DEPLOYMENT = "deployments/llamalend/ethereum/markets/wOUSD-crvUSD.jsonc"
@@ -136,9 +140,9 @@ def _decollide(sources: dict[str, str]) -> dict[str, str]:
 
     Rename all-but-one file of each colliding group to a unique stem and rewrite
     the `from <pkg> import <name>` statements that reference them, aliasing back
-    to the original bound name.  Renaming a module file and aliasing its import
-    does not change Vyper's compiled bytecode, so the result still matches the
-    on-chain code.  The main contract's stem is unique, so it is never renamed.
+    to the original bound name. Executable bytecode is unchanged; Vyper's source
+    integrity hash in the deployment metadata changes. The main contract's stem
+    is unique, so it is never renamed.
     """
     groups: dict[str, list[str]] = {}
     for key in sources:
@@ -330,6 +334,8 @@ def main() -> None:
     params = deployment["params"]
 
     pool_oracle_addr = deployment["pool_oracle"]
+    wousd_oracle_addr = deployment["wousd_oracle"]
+    usdc_oracle_addr = deployment["usdc_oracle"]
     oracle_addr = deployment["price_oracle"]
     monetary_policy_addr = deployment["monetary_policy"]
     controller_addr = deployment["controller"]
@@ -339,6 +345,8 @@ def main() -> None:
     pool_collateral_idx = params["pool_collateral_idx"]
     collateral = params["collateral_token"]
     ema_time = params["ema_time"]
+    usdc_usd_feed = params["usdc_usd_feed"]
+    usdc_max_age = params["usdc_max_age"]
     target_utilization = params["target_utilization"]
     target_rate = params["target_rate"]
     low_ratio = params["low_ratio"]
@@ -363,7 +371,7 @@ def main() -> None:
             "1",
         ),
         (
-            oracle_addr,
+            wousd_oracle_addr,
             "ERC4626EMAWrapper (Vyper 0.4.3)",
             f"{ERC4626_EMA_WRAPPER_SRC}:ERC4626EMAWrapper",
             vy_json(ERC4626_EMA_WRAPPER_SRC),
@@ -373,6 +381,26 @@ def main() -> None:
                 ["address", "address", "uint256"],
                 [pool_oracle_addr, collateral, ema_time],
             ).hex(),
+            "1",
+        ),
+        (
+            usdc_oracle_addr,
+            "ChainlinkPriceOracle (Vyper 0.4.3)",
+            f"{CHAINLINK_PRICE_ORACLE_SRC}:ChainlinkPriceOracle",
+            vy_json(CHAINLINK_PRICE_ORACLE_SRC),
+            "vyper:0.4.3",
+            "vyper-json",
+            encode(["address", "uint256"], [usdc_usd_feed, usdc_max_age]).hex(),
+            "1",
+        ),
+        (
+            oracle_addr,
+            "ChainOracle (Vyper 0.4.3)",
+            f"{CHAIN_ORACLE_SRC}:ChainOracle",
+            vy_json(CHAIN_ORACLE_SRC),
+            "vyper:0.4.3",
+            "vyper-json",
+            encode(["address[]"], [[wousd_oracle_addr, usdc_oracle_addr]]).hex(),
             "1",
         ),
         (
