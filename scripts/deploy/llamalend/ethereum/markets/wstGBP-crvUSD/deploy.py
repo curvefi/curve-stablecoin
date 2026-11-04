@@ -120,27 +120,6 @@ GAUGE_CONTROLLER = "0x2F50D538606Fa9EDD2B11E2446BEb18C9D5846bB"
 VOTE_DAO = curve_dao.DAO.OWNERSHIP
 
 
-# Minimal ABI for the gauge factory (only the two entry points used here).
-GAUGE_FACTORY_ABI = json.dumps(
-    [
-        {
-            "name": "deploy_gauge",
-            "type": "function",
-            "stateMutability": "nonpayable",
-            "inputs": [{"name": "_lp_token", "type": "address"}],
-            "outputs": [{"name": "", "type": "address"}],
-        },
-        {
-            "name": "get_gauge_from_lp_token",
-            "type": "function",
-            "stateMutability": "view",
-            "inputs": [{"name": "arg0", "type": "address"}],
-            "outputs": [{"name": "", "type": "address"}],
-        },
-    ]
-)
-
-
 def _load_account(fname: str) -> account.LocalAccount:
     path = os.path.expanduser(
         os.path.join("~", ".brownie", "accounts", fname + ".json")
@@ -313,7 +292,9 @@ def _deploy(
     )
 
     # 4. Deploy the liquidity gauge and LM callback permissionlessly.
-    gauge_factory = boa.loads_abi(GAUGE_FACTORY_ABI).at(GAUGE_FACTORY)
+    gauge_factory = boa.load_vyi("curve_stablecoin/interfaces/IGaugeFactory.vyi").at(
+        GAUGE_FACTORY
+    )
     gauge_addr = to_checksum_address(
         str(gauge_factory.deploy_gauge(vault_addr, sender=deployer))
     )
