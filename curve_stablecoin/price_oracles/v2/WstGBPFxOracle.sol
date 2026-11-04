@@ -39,7 +39,7 @@ contract WstGBPFxOracle is IPriceOracle {
         require(wrapper.decimals() == 18 && IWstGBP(redemptionToken).decimals() == 18, "invalid decimals");
         require(feed.decimals() == 8 && address(adapter.chainlinkFeed()) == address(feed), "invalid feed");
         require(adapter.OBSERVATIONS() == 20 && adapter.INTERVAL() == 30, "invalid EMA");
-        (uint256 quote, bool useCachedPrice) = _quote();
+        (uint256 quote, bool useCachedPrice) = _readNavQuote();
         require(!useCachedPrice && quote > 0, "unusable initial price");
         cachedQuote = quote;
         uint256 conversionRate = adapter.price();
@@ -49,7 +49,7 @@ contract WstGBPFxOracle is IPriceOracle {
 
     /// @notice Read USD per wstGBP, scaled by 1e18, without updating checkpoints.
     function price() external view returns (uint256) {
-        (uint256 quote, bool useCachedPrice) = _quote();
+        (uint256 quote, bool useCachedPrice) = _readNavQuote();
         if (useCachedPrice) return cachedPrice;
         if (quote == 0) return 1;
         quote = _min(quote, quoteCeiling());
@@ -60,7 +60,7 @@ contract WstGBPFxOracle is IPriceOracle {
     /// @notice Return USD per wstGBP, scaled by 1e18, and save the pricing checkpoints.
     // EMA state lives in its adapter; the NAV cap and last USD price live here.
     function price_w() external returns (uint256 result) {
-        (uint256 quote, bool useCachedPrice) = _quote();
+        (uint256 quote, bool useCachedPrice) = _readNavQuote();
         if (useCachedPrice) {
             result = cachedPrice;
         } else if (quote == 0) {
@@ -78,7 +78,7 @@ contract WstGBPFxOracle is IPriceOracle {
 
     /// @notice Whether pricing uses the cached price due to a NAV pause or stale GBP/USD.
     function frozen() external view returns (bool useCachedPrice) {
-        (, useCachedPrice) = _quote();
+        (, useCachedPrice) = _readNavQuote();
     }
 
     /// @notice Maximum NAV in GBP per wstGBP allowed by the upside cap, scaled by 1e18.
@@ -87,8 +87,8 @@ contract WstGBPFxOracle is IPriceOracle {
         return cachedQuote * (WAD + MAX_UPSIDE_SPEED * elapsed) / WAD;
     }
 
-    // Read redemption NAV and check for a NAV pause or stale GBP/USD.
-    function _quote() private view returns (uint256 quote, bool useCachedPrice) {
+    // Read fee-adjusted NAV; use the cached USD price on a NAV pause or stale GBP/USD.
+    function _readNavQuote() private view returns (uint256 quote, bool useCachedPrice) {
         if (WSGEM.navprice() == 0) return (0, true);
         quote = WSGEM.burncost();
         if (quote == 0) return (0, false);
