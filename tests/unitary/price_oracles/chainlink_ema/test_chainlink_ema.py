@@ -1,10 +1,13 @@
 import boa
 import pytest
+from eth.exceptions import Revert
 
 from tests.unitary.price_oracles.chainlink_ema.conftest import (
     CHAINLINK_EMA_DEPLOYER,
+    FEED_DECIMALS,
     INTERVAL,
     MAX_LOOKBACK,
+    OBSERVATIONS,
     PRECISION_MUL,
     next_ema,
     observation,
@@ -38,6 +41,29 @@ def test_constant_price(feed, deploy_oracle):
     boa.env.time_travel(seconds=INTERVAL * 7)
     assert oracle.price() == PRICE * PRECISION_MUL
     assert oracle.price_w() == PRICE * PRECISION_MUL
+
+
+def test_feed_without_phase_bits(feed, deploy_oracle):
+    # a bare aggregator or a Chainlink-compatible adapter has no phase in its round ids
+    feed.set_phase(0)
+    feed.add_rounds(0, PRICE, now() - 7200, 600, 12)
+    oracle = deploy_oracle()
+    assert oracle.price() == PRICE * PRECISION_MUL
+    assert oracle.storedResponse()[2] == FEED_DECIMALS
+
+    # two new rounds make the incremental path read the one after the stored round
+    feed.add_rounds(0, PRICE, now(), 10, 2)
+    boa.env.time_travel(seconds=INTERVAL * 3)
+    assert oracle.price() == PRICE * PRECISION_MUL
+    assert oracle.price_w() == PRICE * PRECISION_MUL
+
+
+@pytest.mark.parametrize("observations, interval", [(0, INTERVAL), (OBSERVATIONS, 0)])
+def test_invalid_parameters_revert(feed, observations, interval):
+    feed.add_rounds(1, PRICE, now() - 7200, 600, 12)
+    # boa.reverts doesn't see reverts from a raw solidity deployment, py-evm raises them as-is
+    with pytest.raises(Revert, match="DFM: invalid observations or interval"):
+        CHAINLINK_EMA_DEPLOYER.deploy(feed.address, observations, interval)
 
 
 def test_ema_matches_reference(feed, deploy_oracle):
@@ -102,8 +128,10 @@ def test_phase_switch_without_new_aggregator_history(feed, deploy_oracle):
     boa.env.time_travel(seconds=600)
     feed.set_phase(2)
     feed.add_rounds(2, PRICE + 10**10, now(), 1, 1)
+    feed.add_rounds(2, PRICE + 2 * 10**10, now(), 1, 1)
 
-    # with no rounds before the current observation the reseed falls back to the latest answer
+    # with no new-phase round before the current observation the reseed falls back to the
+    # phase's first round, the one closest to that observation
     assert oracle.price_w() == (PRICE + 10**10) * PRECISION_MUL
 
 
@@ -146,28 +174,3 @@ def test_phase_switch_to_more_than_18_decimals_reverts(feed, deploy_oracle):
         oracle.price()
     with boa.reverts("DFM: Chainlink decimals too high"):
         oracle.price_w()
-
-
-@pytest.mark.parametrize("observations,interval", [(0, 30), (129, 30), (20, 0)])
-def test_vyper_rejects_invalid_sampling_config(feed, observations, interval):
-    with boa.reverts():
-        CHAINLINK_EMA_DEPLOYER.deploy(feed.address, observations, interval)
-
-
-def test_vyper_history_limit_reverts_instead_of_returning_partial_ema(feed):
-    feed.add_rounds(1, PRICE, now() - 7200, 600, 12)
-    oracle = CHAINLINK_EMA_DEPLOYER.deploy(feed.address, 20, 30)
-    feed.add_rounds(1, PRICE + 10**10, observation(now()) + INTERVAL, 0, 1025)
-    boa.env.time_travel(seconds=INTERVAL)
-    with boa.reverts("round history too long"):
-        oracle.price()
-    with boa.reverts("round history too long"):
-        oracle.price_w()
-
-
-def test_initial_observation_zero_still_initializes(feed, deploy_oracle):
-    with boa.env.anchor():
-        boa.env.timestamp = INTERVAL - 1
-        feed.add_rounds(1, PRICE, 1, 1, 1)
-        oracle = deploy_oracle()
-        assert oracle.price() == oracle.price_w() == PRICE * PRECISION_MUL

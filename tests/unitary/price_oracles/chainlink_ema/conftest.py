@@ -21,17 +21,14 @@ _compiled = solcx.compile_files(
     solc_version="0.8.25",
 )
 _chainlink_ema = next(v for k, v in _compiled.items() if k.endswith(":ChainlinkEMA"))
-SOLIDITY_EMA_DEPLOYER = SolDeployer(
+CHAINLINK_EMA_DEPLOYER = SolDeployer(
     _chainlink_ema["abi"], bytes.fromhex(_chainlink_ema["bin"])
-)
-
-CHAINLINK_EMA_DEPLOYER = boa.load_partial(
-    str(PRICE_ORACLES_CONTRACT_PATH / "v2" / "ChainlinkEMA.vy")
 )
 
 # Models an EACAggregatorProxy whose aggregators can run in parallel before the proxy
 # switches phase. Matches what the real proxy returns on Optimism: a round past the end
-# of an existing phase comes back zeroed, a phase with no aggregator reverts.
+# of an existing phase comes back zeroed, a phase with no aggregator reverts. Phase 0
+# models a bare aggregator, whose round ids carry no phase.
 FEED_DEPLOYER = boa.loads_partial("""
 # pragma version 0.4.3
 
@@ -90,7 +87,7 @@ def latestRoundData() -> (uint80, int256, uint256, uint256, uint80):
 @view
 def getRoundData(_round_id: uint80) -> (uint80, int256, uint256, uint256, uint80):
     phase: uint16 = convert(convert(_round_id, uint256) >> 64, uint16)
-    assert phase != 0 and phase <= self.phaseId, "no aggregator"
+    assert phase <= self.phaseId and (phase != 0 or self.phaseId == 0), "no aggregator"
     return self._round_data(phase, convert(_round_id, uint256) & convert(max_value(uint64), uint256))
 """)
 
@@ -113,11 +110,9 @@ def feed():
     return FEED_DEPLOYER.deploy(FEED_DECIMALS)
 
 
-@pytest.fixture(
-    params=[CHAINLINK_EMA_DEPLOYER, SOLIDITY_EMA_DEPLOYER], ids=["vyper", "solidity"]
-)
-def deploy_oracle(feed, request):
+@pytest.fixture
+def deploy_oracle(feed):
     def f():
-        return request.param.deploy(feed.address, OBSERVATIONS, INTERVAL)
+        return CHAINLINK_EMA_DEPLOYER.deploy(feed.address, OBSERVATIONS, INTERVAL)
 
     return f
