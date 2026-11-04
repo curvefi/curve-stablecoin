@@ -133,18 +133,18 @@ EMA = boa.loads_partial(
     """
 # pragma version 0.4.3
 chainlinkFeed: public(address)
-fx: public(uint256)
+gbp_usd_price: public(uint256)
 fail: public(bool)
 write_fail: public(bool)
 
 @deploy
 def __init__(feed_: address):
     self.chainlinkFeed = feed_
-    self.fx = 13 * 10**17
+    self.gbp_usd_price = 13 * 10**17
 
 @external
 def set_price(x: uint256):
-    self.fx = x
+    self.gbp_usd_price = x
 
 @external
 def set_fail(x: bool):
@@ -168,12 +168,12 @@ def INTERVAL() -> uint256:
 @view
 def price() -> uint256:
     assert not self.fail
-    return self.fx
+    return self.gbp_usd_price
 
 @external
 def price_w() -> uint256:
     assert not self.fail and not self.write_fail
-    return self.fx
+    return self.gbp_usd_price
 """
 )
 
@@ -192,7 +192,7 @@ def market():
         yield oracle, pip, wrapper, feed, ema
 
 
-def test_nav_cap_downside_and_fx_leg(market):
+def test_nav_cap_downside_and_gbp_usd_leg(market):
     oracle, _, wrapper, feed, ema = market
     assert oracle.price() == oracle.price_w() == 13 * 10**17
 
@@ -220,7 +220,7 @@ def test_nav_cap_downside_and_fx_leg(market):
     assert oracle.price() == oracle.price_w() == 7 * 10**17
 
 
-def test_pause_and_stale_fx_hold_last_price(market):
+def test_pause_and_stale_gbp_usd_hold_last_price(market):
     oracle, pip, wrapper, feed, _ = market
     held = oracle.price_w()
     wrapper.set_quote(2 * WAD)
@@ -241,8 +241,9 @@ def test_pause_and_stale_fx_hold_last_price(market):
     assert oracle.price() == oracle.price_w() == held
 
 
-def test_fx_freshness_boundary(market):
+def test_gbp_usd_freshness_boundary(market):
     oracle, _, _, feed, _ = market
+    assert oracle.GBP_USD_STALENESS_LIMIT() == 30 * 3600
     boa.env.time_travel(seconds=30 * 3600)
     assert not oracle.frozen()
     assert oracle.price() == oracle.price_w()
@@ -253,14 +254,14 @@ def test_fx_freshness_boundary(market):
 
 
 @pytest.mark.parametrize("answer, offset", [(0, 0), (-1, 0), (130000000, 1)])
-def test_invalid_fx_round_reverts(market, answer, offset):
+def test_invalid_gbp_usd_round_reverts(market, answer, offset):
     oracle, _, _, feed, _ = market
     feed.set_round(answer, boa.env.timestamp + offset)
     for entrypoint in (oracle.price, oracle.price_w):
-        with boa.reverts("invalid FX round"):
+        with boa.reverts("invalid GBP/USD round"):
             entrypoint()
     feed.set_round(130000000, 0)
-    with boa.reverts("invalid FX round"):
+    with boa.reverts("invalid GBP/USD round"):
         oracle.price_w()
 
 
@@ -324,7 +325,7 @@ def test_constructor_rejects_unusable_inputs_and_wrong_ema_feed(market):
         deployer.deploy(wrapper.address, other_feed.address, ema.address)
 
 
-def test_real_chainlink_ema_smooths_fx_round():
+def test_real_chainlink_ema_smooths_gbp_usd_round():
     with boa.env.anchor():
         pip = PIP.deploy()
         gem = GEM.deploy()
@@ -367,7 +368,7 @@ def test_zero_nav_stays_zero_during_hold_and_recovers(market, failure):
     assert oracle.cachedQuote() == anchor
 
 
-def test_zero_nav_does_not_need_fx(market):
+def test_zero_nav_does_not_need_gbp_usd(market):
     oracle, _, wrapper, feed, ema = market
     wrapper.set_quote(0)
     feed.set_fail(True)

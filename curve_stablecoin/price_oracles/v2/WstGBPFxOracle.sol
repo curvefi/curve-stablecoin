@@ -13,17 +13,17 @@ interface IWstGBP {
 }
 
 /// @notice USD per wstGBP: capped redemption NAV times smoothed GBP/USD. crvUSD is $1.
-/// @dev Hold the last price on a NAV pause or stale FX. Contract-call failures revert normally.
+/// @dev Hold the last price on a NAV pause or stale GBP/USD. Contract-call failures revert normally.
 contract WstGBPFxOracle is IPriceOracle {
     uint256 private constant WAD = 1e18; // 18-decimal price scale: 1e18 represents one unit.
     uint256 public constant MAX_ELAPSED = 7 days; // Maximum time credited to NAV growth.
     uint256 public constant MAX_UPSIDE_SPEED = 28_935_185_185; // 0.25% per day
-    uint256 public constant MAX_FX_AGE = 30 hours; // Hold the saved price once FX is older than this.
+    uint256 public constant GBP_USD_STALENESS_LIMIT = 30 hours; // Maximum age of the raw GBP/USD round.
 
     // These addresses are readable by anyone (public) and fixed at deployment (immutable).
     IWstGBP public immutable WSGEM; // wstGBP collateral wrapper.
     IChainlinkAggregator public immutable CHAINLINK_GBP_USD_FEED; // Raw GBP/USD feed, checked for freshness.
-    ChainlinkEMA public immutable FX_EMA; // Smoothed GBP/USD price used for conversion to USD.
+    ChainlinkEMA public immutable CHAINLINK_GBP_USD_EMA; // Smoothed GBP/USD price used for conversion to USD.
 
     uint256 public cachedQuote; // Saved capped NAV: tGBP per wstGBP, scaled by 1e18.
     uint256 public cachedTimestamp; // Last price_w() checkpoint time, in Unix seconds.
@@ -34,7 +34,7 @@ contract WstGBPFxOracle is IPriceOracle {
         WSGEM = wrapper;
         address redemptionToken = wrapper.gem();
         CHAINLINK_GBP_USD_FEED = feed;
-        FX_EMA = ema;
+        CHAINLINK_GBP_USD_EMA = ema;
         require(redemptionToken != address(0), "invalid wrapper");
         require(wrapper.decimals() == 18 && IWstGBP(redemptionToken).decimals() == 18, "invalid decimals");
         require(feed.decimals() == 8 && address(ema.chainlinkFeed()) == address(feed), "invalid feed");
@@ -50,7 +50,7 @@ contract WstGBPFxOracle is IPriceOracle {
     function price() external view returns (uint256) {
         (uint256 quote, bool useCachedPrice) = _quote();
         if (useCachedPrice) return cachedPrice;
-        return quote == 0 ? 1 : _compose(_min(quote, quoteCeiling()), FX_EMA.price());
+        return quote == 0 ? 1 : _compose(_min(quote, quoteCeiling()), CHAINLINK_GBP_USD_EMA.price());
     }
 
     /// @notice Return USD per wstGBP, scaled by 1e18, and save the pricing checkpoints.
@@ -62,7 +62,7 @@ contract WstGBPFxOracle is IPriceOracle {
             result = 1;
         } else {
             quote = _min(quote, quoteCeiling());
-            result = _compose(quote, FX_EMA.price_w());
+            result = _compose(quote, CHAINLINK_GBP_USD_EMA.price_w());
             cachedQuote = quote;
         }
         // Each checkpoint resets the cap clock; a zero quote leaves its NAV anchor intact.
@@ -87,14 +87,14 @@ contract WstGBPFxOracle is IPriceOracle {
         quote = WSGEM.burncost();
         if (quote == 0) return (0, false);
         (, int256 answer,, uint256 updatedAt,) = CHAINLINK_GBP_USD_FEED.latestRoundData();
-        require(answer > 0 && updatedAt > 0 && updatedAt <= block.timestamp, "invalid FX round");
-        useCachedPrice = block.timestamp - updatedAt > MAX_FX_AGE;
+        require(answer > 0 && updatedAt > 0 && updatedAt <= block.timestamp, "invalid GBP/USD round");
+        useCachedPrice = block.timestamp - updatedAt > GBP_USD_STALENESS_LIMIT;
     }
 
     // USD per wstGBP = GBP NAV * GBP/USD; divide by WAD to keep 18 decimals.
     // Floor at one wei so the oracle never returns zero.
-    function _compose(uint256 quote, uint256 fx) private pure returns (uint256) {
-        uint256 result = quote * fx / WAD;
+    function _compose(uint256 quote, uint256 gbpUsdPrice) private pure returns (uint256) {
+        uint256 result = quote * gbpUsdPrice / WAD;
         return result == 0 ? 1 : result;
     }
 

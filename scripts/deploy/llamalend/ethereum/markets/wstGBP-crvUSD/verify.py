@@ -6,8 +6,8 @@ Reads the deployment report written by
     deploy.py
 and submits source + constructor args for each contract that script deploys
 directly:
-    1. ChainlinkEMA        (fx_ema)          -- ctor: (GBP/USD feed, 20, 30)
-    2. WstGBPFxOracle     (price_oracle)    -- ctor: (wstGBP, feed, fx_ema)
+    1. ChainlinkEMA        (gbp_usd_ema)          -- ctor: (GBP/USD feed, 20, 30)
+    2. WstGBPFxOracle     (price_oracle)    -- ctor: (wstGBP, feed, gbp_usd_ema)
     3. HyperbolicMP        (monetary_policy) -- ctor: (controller, target_util,
                                                 target_rate, low, high, rate_shift)
 
@@ -343,7 +343,7 @@ def main() -> None:
         raise SystemExit(f"{deployment_path} is a dry-run report (fork addresses)")
     params = deployment["params"]
 
-    fx_ema_addr = deployment["fx_ema"]
+    gbp_usd_ema_addr = deployment["gbp_usd_ema"]
     oracle_addr = deployment["price_oracle"]
     monetary_policy_addr = deployment["monetary_policy"]
     controller_addr = deployment["controller"]
@@ -363,7 +363,7 @@ def main() -> None:
 
     contracts = [
         (
-            fx_ema_addr,
+            gbp_usd_ema_addr,
             "ChainlinkEMA (Solidity 0.8.25)",
             f"{CHAINLINK_EMA_SRC}:ChainlinkEMA",
             _build_solidity_json(CHAINLINK_EMA_SRC),
@@ -384,7 +384,7 @@ def main() -> None:
             "solidity-standard-json-input",
             encode(
                 ["address", "address", "address"],
-                [collateral, gbp_usd_feed, fx_ema_addr],
+                [collateral, gbp_usd_feed, gbp_usd_ema_addr],
             ).hex(),
             "0",
         ),
