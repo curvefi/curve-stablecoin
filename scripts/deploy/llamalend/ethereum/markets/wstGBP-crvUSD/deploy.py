@@ -10,6 +10,7 @@ Per market this deploys, in order:
          b. WstGBPFxOracle(wstGBP, ChainlinkEMA)
               -> capped burncost() in tGBP x smoothed GBP/USD; crvUSD is $1.
                  FX pricing uses only the EMA adapter, without a feed-age cutoff.
+                 A NAV pause reuses the saved NAV while FX keeps updating.
     2. HyperbolicMP(controller, curve params...) - fixed target rate, for
        stable collateral / stable debt markets.
     3. factory.create(crvUSD, wstGBP, ... oracle, monetary_policy, supply_limit).

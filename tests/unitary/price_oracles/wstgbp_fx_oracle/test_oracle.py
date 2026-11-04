@@ -218,18 +218,23 @@ def test_nav_cap_downside_and_gbp_usd_leg(market):
     assert oracle.price() == oracle.price_w() == 7 * 10**17
 
 
-def test_nav_pause_holds_last_price(market):
-    oracle, pip, wrapper, _, _ = market
-    held = oracle.price_w()
+def test_nav_pause_holds_nav_while_fx_keeps_updating(market):
+    oracle, pip, wrapper, _, ema = market
+    oracle.price_w()
     wrapper.set_quote(2 * WAD)
     pip.set_value(0)
+    wrapper.set_fail(True)
     boa.env.time_travel(seconds=86400)
-    assert oracle.frozen()
-    assert oracle.price() == oracle.price_w() == held
+    assert oracle.navPaused()
+    for rate in (14 * 10**17, 12 * 10**17):
+        ema.set_price(rate)
+        assert oracle.price() == oracle.price_w() == rate
+        assert oracle.cachedNav() == WAD
     assert oracle.cachedQuote() == WAD
+    wrapper.set_fail(False)
     pip.set_value(1)
-    assert not oracle.frozen()
-    assert oracle.price() == oracle.price_w() == held
+    assert not oracle.navPaused()
+    assert oracle.price() == oracle.price_w() == 12 * 10**17
 
 
 def test_fx_uses_adapter_without_reading_feed(market):
@@ -240,39 +245,52 @@ def test_fx_uses_adapter_without_reading_feed(market):
     assert oracle.price() == oracle.price_w() == 7 * 10**17
 
 
+def test_paused_nav_does_not_hide_ema_read_failure(market):
+    oracle, pip, _, _, ema = market
+    pip.set_value(0)
+    ema.set_fail(True)
+    for entrypoint in (oracle.price, oracle.price_w):
+        with boa.reverts():
+            entrypoint()
+
+
 @pytest.mark.parametrize("source", [1, 2, 4], ids=["pip", "wrapper", "ema"])
 def test_failed_reads_revert(market, source):
     oracle = market[0]
-    saved = oracle.cachedQuote(), oracle.cachedPrice(), oracle.cachedTimestamp()
+    saved = oracle.cachedQuote(), oracle.cachedNav(), oracle.cachedTimestamp()
     market[source].set_fail(True)
     for entrypoint in (oracle.price, oracle.price_w):
         with boa.reverts():
             entrypoint()
     assert (
         oracle.cachedQuote(),
-        oracle.cachedPrice(),
+        oracle.cachedNav(),
         oracle.cachedTimestamp(),
     ) == saved
 
 
-def test_failed_ema_write_reverts_atomically(market):
-    oracle, _, wrapper, _, ema = market
-    saved = oracle.cachedQuote(), oracle.cachedPrice(), oracle.cachedTimestamp()
+@pytest.mark.parametrize("paused", [False, True])
+def test_failed_ema_write_reverts_atomically(market, paused):
+    oracle, pip, wrapper, _, ema = market
+    saved = oracle.cachedQuote(), oracle.cachedNav(), oracle.cachedTimestamp()
     boa.env.time_travel(seconds=60)
+    if paused:
+        pip.set_value(0)
     wrapper.set_quote(WAD // 2)
     ema.set_price(14 * 10**17)
     ema.set_write_fail(True)
-    assert oracle.price() == 7 * 10**17
+    expected_price = 14 * 10**17 if paused else 7 * 10**17
+    assert oracle.price() == expected_price
     with boa.reverts():
         oracle.price_w()
     assert (
         oracle.cachedQuote(),
-        oracle.cachedPrice(),
+        oracle.cachedNav(),
         oracle.cachedTimestamp(),
     ) == saved
     ema.set_write_fail(False)
-    assert oracle.price() == oracle.price_w() == 7 * 10**17
-    assert oracle.cachedQuote() == WAD // 2
+    assert oracle.price() == oracle.price_w() == expected_price
+    assert oracle.cachedQuote() == (WAD if paused else WAD // 2)
 
 
 @pytest.mark.parametrize("source", [1, 2, 4], ids=["pip", "wrapper", "ema"])
@@ -296,7 +314,8 @@ def test_constructor_rejects_unusable_initial_nav(market):
         deployer.deploy(wrapper.address, ema.address)
 
 
-def test_real_chainlink_ema_smooths_gbp_usd_round():
+@pytest.mark.parametrize("paused", [False, True])
+def test_real_chainlink_ema_smooths_gbp_usd_round(paused):
     with boa.env.anchor():
         pip = PIP.deploy()
         gem = GEM.deploy()
@@ -306,6 +325,9 @@ def test_real_chainlink_ema_smooths_gbp_usd_round():
         feed.add_rounds(1, 130000000, now - 7200, 600, 12)
         ema = CHAINLINK_EMA_DEPLOYER.deploy(feed.address, 20, 30)
         oracle = boa.load_partial_solc(ORACLE_SRC).deploy(wrapper.address, ema.address)
+        if paused:
+            pip.set_value(0)
+            wrapper.set_quote(2 * WAD)
         old_price = oracle.price_w()
         for answer in (140000000, 120000000):
             feed.add_rounds(1, answer, boa.env.timestamp, 1, 1)
@@ -314,6 +336,7 @@ def test_real_chainlink_ema_smooths_gbp_usd_round():
             target = answer * 10**10
             assert min(old_price, target) < smoothed < max(old_price, target)
             assert oracle.price_w() == oracle.price() == smoothed
+            assert ema.storedPrice() == smoothed
             old_price = smoothed
 
 
@@ -326,7 +349,7 @@ def test_old_chainlink_round_updates_price_instead_of_holding_older_cache():
         feed.add_rounds(1, 130000000, boa.env.timestamp - 7200, 600, 12)
         ema = CHAINLINK_EMA_DEPLOYER.deploy(feed.address, 20, 30)
         oracle = boa.load_partial_solc(ORACLE_SRC).deploy(wrapper.address, ema.address)
-        cached = oracle.cachedPrice()
+        old_price = oracle.price()
 
         boa.env.time_travel(seconds=3600)
         feed.add_rounds(1, 140000000, boa.env.timestamp, 1, 1)
@@ -334,8 +357,8 @@ def test_old_chainlink_round_updates_price_instead_of_holding_older_cache():
         wrapper.set_quote(WAD // 2)
 
         # The latest FX round is 31 hours old; our cached valuation is 32 hours old.
-        assert cached == 13 * 10**17
-        assert not oracle.frozen()
+        assert old_price == 13 * 10**17
+        assert not oracle.navPaused()
         assert oracle.price() == oracle.price_w() == 7 * 10**17
         assert oracle.cachedQuote() == WAD // 2
 
@@ -362,12 +385,12 @@ def test_zero_nav_stays_zero_during_pause_and_recovers(market):
     anchor = oracle.cachedQuote()
     wrapper.set_quote(0)
     assert oracle.price() == oracle.price_w() == 1
-    assert oracle.cachedPrice() == 1
+    assert oracle.cachedNav() == 0
     assert oracle.cachedQuote() == anchor
     wrapper.set_quote(2 * WAD)
     pip.set_value(0)
     boa.env.time_travel(seconds=30 * 3600 + 1)
-    assert oracle.frozen()
+    assert oracle.navPaused()
     assert oracle.price() == oracle.price_w() == 1
     pip.set_value(1)
     assert oracle.price() == oracle.price_w() == anchor * 13 // 10
