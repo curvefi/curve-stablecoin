@@ -243,7 +243,7 @@ def test_pause_and_stale_gbp_usd_hold_last_price(market):
 
 def test_gbp_usd_freshness_boundary(market):
     oracle, _, _, feed, _ = market
-    assert oracle.GBP_USD_STALENESS_LIMIT() == 30 * 3600
+    assert oracle.CHAINLINK_GBP_USD_STALENESS_LIMIT() == 30 * 3600
     boa.env.time_travel(seconds=30 * 3600)
     assert not oracle.frozen()
     assert oracle.price() == oracle.price_w()

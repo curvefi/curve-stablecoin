@@ -18,7 +18,7 @@ contract WstGBPFxOracle is IPriceOracle {
     uint256 private constant WAD = 1e18; // 18-decimal price scale: 1e18 represents one unit.
     uint256 public constant MAX_ELAPSED = 7 days; // Maximum time credited to NAV growth.
     uint256 public constant MAX_UPSIDE_SPEED = 28_935_185_185; // 0.25% per day
-    uint256 public constant GBP_USD_STALENESS_LIMIT = 30 hours; // Maximum age of the raw GBP/USD round.
+    uint256 public constant CHAINLINK_GBP_USD_STALENESS_LIMIT = 30 hours; // Maximum age of the raw GBP/USD round.
 
     // These addresses are readable by anyone (public) and fixed at deployment (immutable).
     IWstGBP public immutable WSGEM; // wstGBP collateral wrapper.
@@ -88,7 +88,7 @@ contract WstGBPFxOracle is IPriceOracle {
         if (quote == 0) return (0, false);
         (, int256 answer,, uint256 updatedAt,) = CHAINLINK_GBP_USD_FEED.latestRoundData();
         require(answer > 0 && updatedAt > 0 && updatedAt <= block.timestamp, "invalid GBP/USD round");
-        useCachedPrice = block.timestamp - updatedAt > GBP_USD_STALENESS_LIMIT;
+        useCachedPrice = block.timestamp - updatedAt > CHAINLINK_GBP_USD_STALENESS_LIMIT;
     }
 
     // USD per wstGBP = GBP NAV * GBP/USD; divide by WAD to keep 18 decimals.
