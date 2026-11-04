@@ -6,8 +6,8 @@ Reads the deployment report written by
     deploy.py
 and submits source + constructor args for each contract that script deploys
 directly:
-    1. ChainlinkEMA        (gbp_usd_ema)          -- ctor: (GBP/USD feed, 20, 30)
-    2. WstGBPFxOracle     (price_oracle)    -- ctor: (wstGBP, feed, gbp_usd_ema)
+    1. ChainlinkEMA        (chainlink_adapter)          -- ctor: (GBP/USD feed, 20, 30)
+    2. WstGBPFxOracle     (price_oracle)    -- ctor: (wstGBP, feed, chainlink_adapter)
     3. HyperbolicMP        (monetary_policy) -- ctor: (controller, target_util,
                                                 target_rate, low, high, rate_shift)
 
@@ -343,13 +343,13 @@ def main() -> None:
         raise SystemExit(f"{deployment_path} is a dry-run report (fork addresses)")
     params = deployment["params"]
 
-    gbp_usd_ema_addr = deployment["gbp_usd_ema"]
+    chainlink_adapter_addr = deployment["chainlink_adapter"]
     oracle_addr = deployment["price_oracle"]
     monetary_policy_addr = deployment["monetary_policy"]
     controller_addr = deployment["controller"]
 
     collateral = params["collateral_token"]
-    gbp_usd_feed = params["gbp_usd_feed"]
+    chainlink_feed = params["chainlink_feed"]
     observations = params["observations"]
     interval = params["interval"]
     target_utilization = params["target_utilization"]
@@ -363,7 +363,7 @@ def main() -> None:
 
     contracts = [
         (
-            gbp_usd_ema_addr,
+            chainlink_adapter_addr,
             "ChainlinkEMA (Solidity 0.8.25)",
             f"{CHAINLINK_EMA_SRC}:ChainlinkEMA",
             _build_solidity_json(CHAINLINK_EMA_SRC),
@@ -371,7 +371,7 @@ def main() -> None:
             "solidity-standard-json-input",
             encode(
                 ["address", "uint256", "uint256"],
-                [gbp_usd_feed, observations, interval],
+                [chainlink_feed, observations, interval],
             ).hex(),
             "0",
         ),
@@ -384,7 +384,7 @@ def main() -> None:
             "solidity-standard-json-input",
             encode(
                 ["address", "address", "address"],
-                [collateral, gbp_usd_feed, gbp_usd_ema_addr],
+                [collateral, chainlink_feed, chainlink_adapter_addr],
             ).hex(),
             "0",
         ),

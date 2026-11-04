@@ -77,7 +77,7 @@ WSTGBP = "0x57c3571f10767e49c9d7b60feb6c67804783b7ae"  # collateral
 TGBP = "0x27f6c8289550fCE67f6B50BeD1F519966aFE5287"
 
 # --- Oracle config ---
-CHAINLINK_GBP_USD_FEED = "0x5c0Ab2d9b5a7ed9f470386e82BB36A3613cDd4b5"
+CHAINLINK_FEED = "0x5c0Ab2d9b5a7ed9f470386e82BB36A3613cDd4b5"
 OBSERVATIONS = 20
 INTERVAL = 30
 
@@ -251,11 +251,11 @@ def _deploy(
     # 1. Smooth GBP/USD, then combine it with the rate-limited redemption quote.
     solcx.install_solc("0.8.25")
     solcx.set_solc_version("0.8.25")
-    gbp_usd_ema = boa.load_partial_solc(CHAINLINK_EMA).deploy(
-        CHAINLINK_GBP_USD_FEED, OBSERVATIONS, INTERVAL
+    chainlink_adapter = boa.load_partial_solc(CHAINLINK_EMA).deploy(
+        CHAINLINK_FEED, OBSERVATIONS, INTERVAL
     )
     oracle = boa.load_partial_solc(WSTGBP_FX_ORACLE).deploy(
-        WSTGBP, CHAINLINK_GBP_USD_FEED, gbp_usd_ema.address
+        WSTGBP, CHAINLINK_FEED, chainlink_adapter.address
     )
 
     price = oracle.price()
@@ -267,11 +267,12 @@ def _deploy(
     )
     assert to_checksum_address(str(wrapper.gem())) == to_checksum_address(TGBP)
     assert (
-        to_checksum_address(str(oracle.CHAINLINK_GBP_USD_EMA())) == gbp_usd_ema.address
+        to_checksum_address(str(oracle.CHAINLINK_ADAPTER()))
+        == chainlink_adapter.address
     )
-    assert to_checksum_address(str(gbp_usd_ema.chainlinkFeed())) == to_checksum_address(
-        CHAINLINK_GBP_USD_FEED
-    )
+    assert to_checksum_address(
+        str(chainlink_adapter.chainlinkFeed())
+    ) == to_checksum_address(CHAINLINK_FEED)
 
     # 2. Monetary policy, bound to the (precomputed) controller create() will deploy.
     predicted_controller = _predict_controller(factory.address)
@@ -353,7 +354,7 @@ def _deploy(
         "market": "wstGBP/crvUSD",
         "factory": factory.address,
         "configurator": configurator.address,
-        "gbp_usd_ema": gbp_usd_ema.address,
+        "chainlink_adapter": chainlink_adapter.address,
         "price_oracle": oracle.address,
         "monetary_policy": monetary_policy.address,
         "vault": vault_addr,
@@ -366,7 +367,7 @@ def _deploy(
             "borrowed_token": CRVUSD,
             "collateral_token": WSTGBP,
             "gem": TGBP,
-            "gbp_usd_feed": CHAINLINK_GBP_USD_FEED,
+            "chainlink_feed": CHAINLINK_FEED,
             "observations": OBSERVATIONS,
             "interval": INTERVAL,
             "A": A,
@@ -384,7 +385,7 @@ def _deploy(
             "gauge_factory": GAUGE_FACTORY,
             "lm_callback_factory": LM_CALLBACK_FACTORY,
             "initial_price": price,
-            "initial_gbp_usd_price": gbp_usd_ema.price(),
+            "initial_adapter_price": chainlink_adapter.price(),
         },
     }
 
@@ -410,7 +411,7 @@ def _deploy(
     print(f"Controller admin fee     : {admin_fee / 10**16:g}%")
     print(f"AMM callback             : {amm.liquidity_mining_callback()}")
     print("Market:", report["market"])
-    print("GBP/USD EMA:", gbp_usd_ema.address)
+    print("GBP/USD EMA:", chainlink_adapter.address)
     print("Price Oracle:", oracle.address, f"(price={price / 10**18:.6f})")
     print("Monetary Policy:", monetary_policy.address)
     print("Vault:", vault_addr)
