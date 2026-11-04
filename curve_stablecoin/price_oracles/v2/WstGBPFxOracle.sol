@@ -33,6 +33,7 @@ contract WstGBPFxOracle is IPriceOracle {
     uint256 public cachedTimestamp;
     uint256 public cachedPrice;
 
+    /// @notice Configure the wrapper and GBP/USD sources and initialize the price.
     constructor(IWstGBP wrapper, IChainlinkAggregator feed, ChainlinkEMA ema) {
         WSGEM = wrapper;
         GEM = wrapper.gem();
@@ -43,22 +44,24 @@ contract WstGBPFxOracle is IPriceOracle {
         require(wrapper.decimals() == 18 && IWstGBP(GEM).decimals() == 18, "invalid decimals");
         require(feed.decimals() == 8 && address(ema.chainlinkFeed()) == address(feed), "invalid feed");
         require(ema.OBSERVATIONS() == 20 && ema.INTERVAL() == 30, "invalid EMA");
-        (uint256 quote, bool held) = _quote();
-        require(!held && quote > 0, "unusable initial price");
+        (uint256 quote, bool useCachedPrice) = _quote();
+        require(!useCachedPrice && quote > 0, "unusable initial price");
         cachedQuote = quote;
         cachedPrice = _compose(quote, ema.price());
         cachedTimestamp = block.timestamp;
     }
 
+    /// @notice Read USD per wstGBP, scaled by 1e18, without updating checkpoints.
     function price() external view returns (uint256) {
-        (uint256 quote, bool held) = _quote();
-        if (held) return cachedPrice;
+        (uint256 quote, bool useCachedPrice) = _quote();
+        if (useCachedPrice) return cachedPrice;
         return quote == 0 ? 1 : _compose(_min(quote, quoteCeiling()), FX_EMA.price());
     }
 
+    /// @notice Return USD per wstGBP, scaled by 1e18, and save the pricing checkpoints.
     function price_w() external returns (uint256 result) {
-        (uint256 quote, bool held) = _quote();
-        if (held) {
+        (uint256 quote, bool useCachedPrice) = _quote();
+        if (useCachedPrice) {
             result = cachedPrice;
         } else if (quote == 0) {
             result = 1;
@@ -72,22 +75,24 @@ contract WstGBPFxOracle is IPriceOracle {
         cachedPrice = result;
     }
 
-    function frozen() external view returns (bool held) {
-        (, held) = _quote();
+    /// @notice Whether pricing uses the cached price due to a NAV pause or stale GBP/USD.
+    function frozen() external view returns (bool useCachedPrice) {
+        (, useCachedPrice) = _quote();
     }
 
+    /// @notice Maximum NAV in GBP per wstGBP allowed by the upside cap, scaled by 1e18.
     function quoteCeiling() public view returns (uint256) {
         uint256 elapsed = _min(block.timestamp - cachedTimestamp, MAX_ELAPSED);
         return cachedQuote * (WAD + MAX_UPSIDE_SPEED * elapsed) / WAD;
     }
 
-    function _quote() private view returns (uint256 quote, bool held) {
+    function _quote() private view returns (uint256 quote, bool useCachedPrice) {
         if (PIP.read() == 0) return (0, true);
         quote = WSGEM.burncost();
         if (quote == 0) return (0, false);
         (, int256 answer,, uint256 updatedAt,) = FX_FEED.latestRoundData();
         require(answer > 0 && updatedAt > 0 && updatedAt <= block.timestamp, "invalid FX round");
-        held = block.timestamp - updatedAt > MAX_FX_AGE;
+        useCachedPrice = block.timestamp - updatedAt > MAX_FX_AGE;
     }
 
     function _compose(uint256 quote, uint256 fx) private pure returns (uint256) {
