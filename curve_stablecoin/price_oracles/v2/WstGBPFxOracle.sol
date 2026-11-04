@@ -19,19 +19,21 @@ interface IPip {
 /// @notice USD per wstGBP: capped redemption NAV times smoothed GBP/USD. crvUSD is $1.
 /// @dev Hold the last price on a NAV pause or stale FX. Contract-call failures revert normally.
 contract WstGBPFxOracle is IPriceOracle {
-    uint256 private constant WAD = 1e18;
-    uint256 public constant MAX_ELAPSED = 7 days;
+    uint256 private constant WAD = 1e18; // 18-decimal price scale: 1e18 represents one unit.
+    uint256 public constant MAX_ELAPSED = 7 days; // Maximum time credited to NAV growth.
     uint256 public constant MAX_UPSIDE_SPEED = 28_935_185_185; // 0.25% per day
-    uint256 public constant MAX_FX_AGE = 30 hours;
+    uint256 public constant MAX_FX_AGE = 30 hours; // Hold the saved price once FX is older than this.
 
-    IWstGBP public immutable WSGEM;
-    address public immutable GEM;
-    IPip public immutable PIP;
-    IChainlinkAggregator public immutable FX_FEED;
-    ChainlinkEMA public immutable FX_EMA;
-    uint256 public cachedQuote;
-    uint256 public cachedTimestamp;
-    uint256 public cachedPrice;
+    // These addresses are readable by anyone (public) and fixed at deployment (immutable).
+    IWstGBP public immutable WSGEM; // wstGBP collateral wrapper.
+    address public immutable GEM; // tGBP token the wrapper redeems into.
+    IPip public immutable PIP; // Wrapper's NAV feed; read() == 0 signals a pause.
+    IChainlinkAggregator public immutable FX_FEED; // Raw Chainlink GBP/USD feed, checked for freshness.
+    ChainlinkEMA public immutable FX_EMA; // Smoothed GBP/USD price used for conversion to USD.
+
+    uint256 public cachedQuote; // Saved capped NAV: tGBP per wstGBP, scaled by 1e18.
+    uint256 public cachedTimestamp; // Last price_w() checkpoint time, in Unix seconds.
+    uint256 public cachedPrice; // Saved USD price, including the one-wei zero-NAV floor.
 
     /// @notice Configure the wrapper and GBP/USD sources and initialize the price.
     constructor(IWstGBP wrapper, IChainlinkAggregator feed, ChainlinkEMA ema) {
@@ -86,6 +88,7 @@ contract WstGBPFxOracle is IPriceOracle {
         return cachedQuote * (WAD + MAX_UPSIDE_SPEED * elapsed) / WAD;
     }
 
+    // Read redemption NAV and check for a NAV pause or stale GBP/USD.
     function _quote() private view returns (uint256 quote, bool useCachedPrice) {
         if (PIP.read() == 0) return (0, true);
         quote = WSGEM.burncost();
@@ -95,6 +98,8 @@ contract WstGBPFxOracle is IPriceOracle {
         useCachedPrice = block.timestamp - updatedAt > MAX_FX_AGE;
     }
 
+    // USD per wstGBP = GBP NAV * GBP/USD; divide by WAD to keep 18 decimals.
+    // Floor at one wei so the oracle never returns zero.
     function _compose(uint256 quote, uint256 fx) private pure returns (uint256) {
         uint256 result = quote * fx / WAD;
         return result == 0 ? 1 : result;
