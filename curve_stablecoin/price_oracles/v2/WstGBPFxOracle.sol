@@ -42,7 +42,8 @@ contract WstGBPFxOracle is IPriceOracle {
         (uint256 quote, bool useCachedPrice) = _quote();
         require(!useCachedPrice && quote > 0, "unusable initial price");
         cachedQuote = quote;
-        cachedPrice = _compose(quote, ema.price());
+        uint256 gbpUsdPrice = ema.price();
+        cachedPrice = _toUsdPrice(quote, gbpUsdPrice);
         cachedTimestamp = block.timestamp;
     }
 
@@ -50,7 +51,10 @@ contract WstGBPFxOracle is IPriceOracle {
     function price() external view returns (uint256) {
         (uint256 quote, bool useCachedPrice) = _quote();
         if (useCachedPrice) return cachedPrice;
-        return quote == 0 ? 1 : _compose(_min(quote, quoteCeiling()), CHAINLINK_GBP_USD_EMA.price());
+        if (quote == 0) return 1;
+        quote = _min(quote, quoteCeiling());
+        uint256 gbpUsdPrice = CHAINLINK_GBP_USD_EMA.price();
+        return _toUsdPrice(quote, gbpUsdPrice);
     }
 
     /// @notice Return USD per wstGBP, scaled by 1e18, and save the pricing checkpoints.
@@ -62,7 +66,8 @@ contract WstGBPFxOracle is IPriceOracle {
             result = 1;
         } else {
             quote = _min(quote, quoteCeiling());
-            result = _compose(quote, CHAINLINK_GBP_USD_EMA.price_w());
+            uint256 gbpUsdPrice = CHAINLINK_GBP_USD_EMA.price_w();
+            result = _toUsdPrice(quote, gbpUsdPrice);
             cachedQuote = quote;
         }
         // Each checkpoint resets the cap clock; a zero quote leaves its NAV anchor intact.
@@ -93,7 +98,7 @@ contract WstGBPFxOracle is IPriceOracle {
 
     // USD per wstGBP = GBP NAV * GBP/USD; divide by WAD to keep 18 decimals.
     // Floor at one wei so the oracle never returns zero.
-    function _compose(uint256 quote, uint256 gbpUsdPrice) private pure returns (uint256) {
+    function _toUsdPrice(uint256 quote, uint256 gbpUsdPrice) private pure returns (uint256) {
         uint256 result = quote * gbpUsdPrice / WAD;
         return result == 0 ? 1 : result;
     }
