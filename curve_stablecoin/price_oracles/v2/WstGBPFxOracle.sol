@@ -3,7 +3,7 @@
 // https://github.com/Arb-Capital/wsgem-llamalend/blob/8596dfa09fb94a832017c65dab536a2e480dbc03/src/WsgemFxLlamalendOracle.sol
 pragma solidity 0.8.25;
 
-import {ChainlinkEMA, IPriceOracle} from "./ChainlinkEMA.sol";
+import {IPriceOracle} from "./ChainlinkEMA.sol";
 
 interface IWstGBP {
     function navprice() external view returns (uint256); // Raw NAV; zero means paused.
@@ -21,20 +21,19 @@ contract WstGBPFxOracle is IPriceOracle {
 
     // These addresses are readable by anyone (public) and fixed at deployment (immutable).
     IWstGBP public immutable WSGEM; // wstGBP collateral wrapper.
-    ChainlinkEMA public immutable CHAINLINK_ADAPTER; // Curve's stateful EMA adapter over the GBP/USD feed.
+    IPriceOracle public immutable CHAINLINK_ADAPTER; // Curve's stateful EMA adapter over the GBP/USD feed.
 
     uint256 public redemptionRateAnchor; // Positive redemption rate used by the upside cap, scaled by 1e18.
     uint256 public cachedTimestamp; // Last price_w() checkpoint time, in Unix seconds.
     uint256 public cachedRedemptionRate; // Last capped tGBP per wstGBP, including zero, scaled by 1e18.
 
     /// @notice Configure the wrapper and Chainlink EMA adapter and initialize the price.
-    constructor(IWstGBP wrapper, ChainlinkEMA adapter) {
+    constructor(IWstGBP wrapper, IPriceOracle adapter) {
         WSGEM = wrapper;
         address redemptionToken = wrapper.gem();
         CHAINLINK_ADAPTER = adapter;
         require(redemptionToken != address(0), "invalid wrapper");
         require(wrapper.decimals() == 18 && IWstGBP(redemptionToken).decimals() == 18, "invalid decimals");
-        require(adapter.OBSERVATIONS() == 20 && adapter.INTERVAL() == 30, "invalid EMA");
         uint256 redemptionRate = _getRedemptionRate();
         require(redemptionRate > 0 && adapter.price() > 0, "unusable initial price");
         redemptionRateAnchor = redemptionRate;

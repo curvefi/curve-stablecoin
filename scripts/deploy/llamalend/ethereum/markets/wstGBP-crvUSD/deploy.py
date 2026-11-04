@@ -24,8 +24,8 @@ same deploying account proposes an Ownership DAO vote to set the borrow cap
 and admin fee, attach the callback, and register both gauges (type 0, zero weight).
 Activation requires governance to pass and execute the vote.
 
-The oracle checks that the wrapper uses an 18-decimal gem and the EMA uses
-20 observations at 30-second intervals. Deployment checks the adapter's feed.
+The oracle checks the wrapper's gem and both token decimals. Deployment checks
+the expected gem and adapter feed, plus 20 observations at 30-second intervals.
 
 HyperbolicMP binds its Controller as an immutable set in the constructor, but
 the Controller is only created inside factory.create() (which itself needs the
@@ -254,6 +254,10 @@ def _deploy(
     solcx.set_solc_version("0.8.25")
     chainlink_adapter = boa.load_partial_solc(CHAINLINK_EMA).deploy(
         CHAINLINK_FEED, OBSERVATIONS, INTERVAL
+    )
+    assert (
+        chainlink_adapter.OBSERVATIONS() == OBSERVATIONS
+        and chainlink_adapter.INTERVAL() == INTERVAL
     )
     oracle = boa.load_partial_solc(WSTGBP_FX_ORACLE).deploy(
         WSTGBP, chainlink_adapter.address

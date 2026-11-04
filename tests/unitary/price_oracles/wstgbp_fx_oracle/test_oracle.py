@@ -155,16 +155,6 @@ def set_write_fail(x: bool):
     self.write_fail = x
 
 @external
-@pure
-def OBSERVATIONS() -> uint256:
-    return 20
-
-@external
-@pure
-def INTERVAL() -> uint256:
-    return 30
-
-@external
 @view
 def price() -> uint256:
     assert not self.fail
