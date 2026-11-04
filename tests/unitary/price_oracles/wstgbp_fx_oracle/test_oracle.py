@@ -54,7 +54,11 @@ def decimals() -> uint8:
 WRAPPER = boa.loads_partial(
     """
 # pragma version 0.4.3
-pip: public(address)
+
+interface Pip:
+    def read() -> uint256: view
+
+pip: address
 gem: public(address)
 quote: public(uint256)
 fail: public(bool)
@@ -77,6 +81,11 @@ def set_fail(x: bool):
 @pure
 def decimals() -> uint8:
     return 18
+
+@external
+@view
+def navprice() -> uint256:
+    return staticcall Pip(self.pip).read()
 
 @external
 @view

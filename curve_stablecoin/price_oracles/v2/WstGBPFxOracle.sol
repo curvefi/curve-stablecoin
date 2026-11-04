@@ -6,14 +6,10 @@ pragma solidity 0.8.25;
 import {ChainlinkEMA, IChainlinkAggregator, IPriceOracle} from "./ChainlinkEMA.sol";
 
 interface IWstGBP {
+    function navprice() external view returns (uint256); // Raw NAV; zero means paused.
     function burncost() external view returns (uint256);
-    function pip() external view returns (address);
     function gem() external view returns (address);
     function decimals() external view returns (uint8);
-}
-
-interface IPip {
-    function read() external view returns (uint256);
 }
 
 /// @notice USD per wstGBP: capped redemption NAV times smoothed GBP/USD. crvUSD is $1.
@@ -27,7 +23,6 @@ contract WstGBPFxOracle is IPriceOracle {
     // These addresses are readable by anyone (public) and fixed at deployment (immutable).
     IWstGBP public immutable WSGEM; // wstGBP collateral wrapper.
     address public immutable GEM; // tGBP token the wrapper redeems into.
-    IPip public immutable PIP; // Wrapper's NAV feed; read() == 0 signals a pause.
     IChainlinkAggregator public immutable FX_FEED; // Raw Chainlink GBP/USD feed, checked for freshness.
     ChainlinkEMA public immutable FX_EMA; // Smoothed GBP/USD price used for conversion to USD.
 
@@ -39,10 +34,9 @@ contract WstGBPFxOracle is IPriceOracle {
     constructor(IWstGBP wrapper, IChainlinkAggregator feed, ChainlinkEMA ema) {
         WSGEM = wrapper;
         GEM = wrapper.gem();
-        PIP = IPip(wrapper.pip());
         FX_FEED = feed;
         FX_EMA = ema;
-        require(GEM != address(0) && address(PIP) != address(0), "invalid wrapper");
+        require(GEM != address(0), "invalid wrapper");
         require(wrapper.decimals() == 18 && IWstGBP(GEM).decimals() == 18, "invalid decimals");
         require(feed.decimals() == 8 && address(ema.chainlinkFeed()) == address(feed), "invalid feed");
         require(ema.OBSERVATIONS() == 20 && ema.INTERVAL() == 30, "invalid EMA");
@@ -90,7 +84,7 @@ contract WstGBPFxOracle is IPriceOracle {
 
     // Read redemption NAV and check for a NAV pause or stale GBP/USD.
     function _quote() private view returns (uint256 quote, bool useCachedPrice) {
-        if (PIP.read() == 0) return (0, true);
+        if (WSGEM.navprice() == 0) return (0, true);
         quote = WSGEM.burncost();
         if (quote == 0) return (0, false);
         (, int256 answer,, uint256 updatedAt,) = FX_FEED.latestRoundData();
