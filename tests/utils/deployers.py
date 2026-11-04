@@ -136,6 +136,10 @@ SYRUP_USDC_RATE_CALCULATOR_DEPLOYER = boa.load_partial(
     MPOLICIES_CONTRACT_PATH / "v2" / "rate_calculators" / "SyrupUSDCRateCalculator.vy",
     compiler_args=compiler_args_default,
 )
+WSTETH_RATE_CALCULATOR_DEPLOYER = boa.load_partial(
+    MPOLICIES_CONTRACT_PATH / "v2" / "rate_calculators" / "WstETHRateCalculator.vy",
+    compiler_args=compiler_args_default,
+)
 
 # Price oracles
 DUMMY_PRICE_ORACLE_DEPLOYER = boa.load_partial(
