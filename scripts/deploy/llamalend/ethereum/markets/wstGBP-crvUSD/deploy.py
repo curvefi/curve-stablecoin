@@ -10,7 +10,7 @@ Per market this deploys, in order:
          b. WstGBPFxOracle(wstGBP, ChainlinkEMA)
               -> capped burncost() in tGBP x smoothed GBP/USD; crvUSD is $1.
                  FX pricing uses only the EMA adapter, without a feed-age cutoff.
-                 A NAV pause reuses the saved NAV while FX keeps updating.
+                 A NAV pause reuses the saved redemption rate while FX keeps updating.
     2. HyperbolicMP(controller, curve params...) - fixed target rate, for
        stable collateral / stable debt markets.
     3. factory.create(crvUSD, wstGBP, ... oracle, monetary_policy, supply_limit).
@@ -249,7 +249,7 @@ def _deploy(
         voting = boa.from_etherscan(dao["voting"], api_key=etherscan_api_key)
         assert voting.canCreateNewVote(deployer), "Deployer is not eligible to propose"
 
-    # 1. Smooth GBP/USD, then combine it with the rate-limited redemption quote.
+    # 1. Smooth GBP/USD, then combine it with the capped redemption rate.
     solcx.install_solc("0.8.25")
     solcx.set_solc_version("0.8.25")
     chainlink_adapter = boa.load_partial_solc(CHAINLINK_EMA).deploy(
