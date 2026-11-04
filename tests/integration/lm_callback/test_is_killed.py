@@ -27,7 +27,7 @@ def test_is_not_killed_before_attachment(
 
 
 @pytest.mark.parametrize("checkpoint", [False, True])
-def test_is_killed_while_attached(lm_callback, checkpoint):
+def test_is_not_killed_while_attached(lm_callback, checkpoint):
     with boa.env.anchor():
         if checkpoint:
             lm_callback.user_checkpoint(ZERO_ADDRESS)
