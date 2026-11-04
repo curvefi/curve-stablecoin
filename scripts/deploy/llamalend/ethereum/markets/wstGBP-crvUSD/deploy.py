@@ -7,9 +7,9 @@ Borrowed token: crvUSD. Collateral: wstGBP (tGBP redemption wrapper).
 Per market this deploys, in order:
     1. Oracle stack (prices wstGBP in USD):
          a. ChainlinkEMA(GBP/USD, 20 observations, 30-second interval)
-         b. WstGBPFxOracle(wstGBP, GBP/USD feed, ChainlinkEMA)
-              -> capped burncost() in tGBP x smoothed GBP/USD. The raw feed's
-                 updatedAt is checked for staleness; crvUSD is counted at $1.
+         b. WstGBPFxOracle(wstGBP, ChainlinkEMA)
+              -> capped burncost() in tGBP x smoothed GBP/USD; crvUSD is $1.
+                 FX pricing uses only the EMA adapter, without a feed-age cutoff.
     2. HyperbolicMP(controller, curve params...) - fixed target rate, for
        stable collateral / stable debt markets.
     3. factory.create(crvUSD, wstGBP, ... oracle, monetary_policy, supply_limit).
@@ -23,8 +23,8 @@ same deploying account proposes an Ownership DAO vote to set the borrow cap
 and admin fee, attach the callback, and register both gauges (type 0, zero weight).
 Activation requires governance to pass and execute the vote.
 
-The oracle checks that the wrapper uses an 18-decimal gem and the EMA is built
-over the 8-decimal GBP/USD feed with 20 observations at 30-second intervals.
+The oracle checks that the wrapper uses an 18-decimal gem and the EMA uses
+20 observations at 30-second intervals. Deployment checks the adapter's feed.
 
 HyperbolicMP binds its Controller as an immutable set in the constructor, but
 the Controller is only created inside factory.create() (which itself needs the
@@ -255,7 +255,7 @@ def _deploy(
         CHAINLINK_FEED, OBSERVATIONS, INTERVAL
     )
     oracle = boa.load_partial_solc(WSTGBP_FX_ORACLE).deploy(
-        WSTGBP, CHAINLINK_FEED, chainlink_adapter.address
+        WSTGBP, chainlink_adapter.address
     )
 
     price = oracle.price()

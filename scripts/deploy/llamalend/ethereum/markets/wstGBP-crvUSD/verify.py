@@ -7,7 +7,7 @@ Reads the deployment report written by
 and submits source + constructor args for each contract that script deploys
 directly:
     1. ChainlinkEMA        (chainlink_adapter)          -- ctor: (GBP/USD feed, 20, 30)
-    2. WstGBPFxOracle     (price_oracle)    -- ctor: (wstGBP, feed, chainlink_adapter)
+    2. WstGBPFxOracle     (price_oracle)    -- ctor: (wstGBP, chainlink_adapter)
     3. HyperbolicMP        (monetary_policy) -- ctor: (controller, target_util,
                                                 target_rate, low, high, rate_shift)
 
@@ -383,8 +383,8 @@ def main() -> None:
             "v0.8.25+commit.b61c2a91",
             "solidity-standard-json-input",
             encode(
-                ["address", "address", "address"],
-                [collateral, chainlink_feed, chainlink_adapter_addr],
+                ["address", "address"],
+                [collateral, chainlink_adapter_addr],
             ).hex(),
             "0",
         ),

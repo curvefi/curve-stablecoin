@@ -3,7 +3,7 @@
 // https://github.com/Arb-Capital/wsgem-llamalend/blob/8596dfa09fb94a832017c65dab536a2e480dbc03/src/WsgemFxLlamalendOracle.sol
 pragma solidity 0.8.25;
 
-import {ChainlinkEMA, IChainlinkAggregator, IPriceOracle} from "./ChainlinkEMA.sol";
+import {ChainlinkEMA, IPriceOracle} from "./ChainlinkEMA.sol";
 
 interface IWstGBP {
     function navprice() external view returns (uint256); // Raw NAV; zero means paused.
@@ -13,31 +13,27 @@ interface IWstGBP {
 }
 
 /// @notice USD per wstGBP: capped redemption NAV times smoothed GBP/USD. crvUSD is $1.
-/// @dev Hold the last price on a NAV pause or stale GBP/USD. Contract-call failures revert normally.
+/// @dev Hold the last price on a NAV pause. Contract-call failures revert normally.
 contract WstGBPFxOracle is IPriceOracle {
     uint256 private constant WAD = 1e18; // 18-decimal price scale: 1e18 represents one unit.
     uint256 public constant MAX_ELAPSED = 7 days; // Maximum time credited to NAV growth.
     uint256 public constant MAX_UPSIDE_SPEED = 28_935_185_185; // 0.25% per day
-    uint256 public constant CHAINLINK_STALENESS_LIMIT = 30 hours; // Maximum age of the raw GBP/USD round.
 
     // These addresses are readable by anyone (public) and fixed at deployment (immutable).
     IWstGBP public immutable WSGEM; // wstGBP collateral wrapper.
-    IChainlinkAggregator public immutable CHAINLINK_FEED; // Raw GBP/USD feed, checked for freshness.
     ChainlinkEMA public immutable CHAINLINK_ADAPTER; // Curve's stateful EMA adapter over the GBP/USD feed.
 
     uint256 public cachedQuote; // Saved capped NAV: tGBP per wstGBP, scaled by 1e18.
     uint256 public cachedTimestamp; // Last price_w() checkpoint time, in Unix seconds.
     uint256 public cachedPrice; // Saved USD price, including the one-wei zero-NAV floor.
 
-    /// @notice Configure the wrapper and GBP/USD sources and initialize the price.
-    constructor(IWstGBP wrapper, IChainlinkAggregator feed, ChainlinkEMA adapter) {
+    /// @notice Configure the wrapper and Chainlink EMA adapter and initialize the price.
+    constructor(IWstGBP wrapper, ChainlinkEMA adapter) {
         WSGEM = wrapper;
         address redemptionToken = wrapper.gem();
-        CHAINLINK_FEED = feed;
         CHAINLINK_ADAPTER = adapter;
         require(redemptionToken != address(0), "invalid wrapper");
         require(wrapper.decimals() == 18 && IWstGBP(redemptionToken).decimals() == 18, "invalid decimals");
-        require(feed.decimals() == 8 && address(adapter.chainlinkFeed()) == address(feed), "invalid feed");
         require(adapter.OBSERVATIONS() == 20 && adapter.INTERVAL() == 30, "invalid EMA");
         (uint256 quote, bool useCachedPrice) = _getNav();
         require(!useCachedPrice && quote > 0, "unusable initial price");
@@ -76,7 +72,7 @@ contract WstGBPFxOracle is IPriceOracle {
         cachedPrice = result;
     }
 
-    /// @notice Whether pricing uses the cached price due to a NAV pause or stale GBP/USD.
+    /// @notice Whether pricing uses the cached price due to a NAV pause.
     function frozen() external view returns (bool useCachedPrice) {
         (, useCachedPrice) = _getNav();
     }
@@ -87,14 +83,10 @@ contract WstGBPFxOracle is IPriceOracle {
         return cachedQuote * (WAD + MAX_UPSIDE_SPEED * elapsed) / WAD;
     }
 
-    // Read fee-adjusted NAV; use the cached USD price on a NAV pause or stale GBP/USD.
+    // Read fee-adjusted NAV; use the cached USD price on a NAV pause.
     function _getNav() private view returns (uint256 quote, bool useCachedPrice) {
         if (WSGEM.navprice() == 0) return (0, true);
-        quote = WSGEM.burncost();
-        if (quote == 0) return (0, false);
-        (, int256 answer,, uint256 updatedAt,) = CHAINLINK_FEED.latestRoundData();
-        require(answer > 0 && updatedAt > 0 && updatedAt <= block.timestamp, "invalid GBP/USD round");
-        useCachedPrice = block.timestamp - updatedAt > CHAINLINK_STALENESS_LIMIT;
+        return (WSGEM.burncost(), false);
     }
 
     // USD per wstGBP = GBP NAV * GBP/USD; divide by WAD to keep 18 decimals.
