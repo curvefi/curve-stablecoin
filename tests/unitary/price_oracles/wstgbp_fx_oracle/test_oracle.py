@@ -15,32 +15,6 @@ solcx.set_solc_version("0.8.25")
 WAD = 10**18
 ORACLE_SRC = "curve_stablecoin/price_oracles/v2/WstGBPFxOracle.sol"
 
-PIP = boa.loads_partial(
-    """
-# pragma version 0.4.3
-value: public(uint256)
-fail: public(bool)
-
-@deploy
-def __init__():
-    self.value = 1
-
-@external
-def set_value(x: uint256):
-    self.value = x
-
-@external
-def set_fail(x: bool):
-    self.fail = x
-
-@external
-@view
-def read() -> uint256:
-    assert not self.fail
-    return self.value
-"""
-)
-
 GEM = boa.loads_partial(
     """
 # pragma version 0.4.3
@@ -55,19 +29,25 @@ WRAPPER = boa.loads_partial(
     """
 # pragma version 0.4.3
 
-interface Pip:
-    def read() -> uint256: view
-
-pip: address
 gem: public(address)
+nav: uint256
 redemption_rate: public(uint256)
+nav_fail: bool
 fail: public(bool)
 
 @deploy
-def __init__(pip_: address, gem_: address):
-    self.pip = pip_
+def __init__(gem_: address):
     self.gem = gem_
+    self.nav = 10**18
     self.redemption_rate = 10**18
+
+@external
+def set_nav(x: uint256):
+    self.nav = x
+
+@external
+def set_nav_fail(x: bool):
+    self.nav_fail = x
 
 @external
 def set_redemption_rate(x: uint256):
@@ -85,7 +65,8 @@ def decimals() -> uint8:
 @external
 @view
 def navprice() -> uint256:
-    return staticcall Pip(self.pip).read()
+    assert not self.nav_fail
+    return self.nav
 
 @external
 @view
@@ -169,19 +150,30 @@ def price_w() -> uint256:
 
 
 @pytest.fixture
-def market():
+def wrapper():
     with boa.env.anchor():
-        pip = PIP.deploy()
-        gem = GEM.deploy()
-        wrapper = WRAPPER.deploy(pip.address, gem.address)
-        feed = FEED.deploy()
-        ema = EMA.deploy(feed.address)
-        oracle = boa.load_partial_solc(ORACLE_SRC).deploy(wrapper.address, ema.address)
-        yield oracle, pip, wrapper, feed, ema
+        yield WRAPPER.deploy(GEM.deploy().address)
+
+
+@pytest.fixture
+def market(wrapper):
+    feed = FEED.deploy()
+    ema = EMA.deploy(feed.address)
+    oracle = boa.load_partial_solc(ORACLE_SRC).deploy(wrapper.address, ema.address)
+    return oracle, wrapper, feed, ema
+
+
+@pytest.fixture
+def real_ema_market(wrapper):
+    feed = FEED_DEPLOYER.deploy(8)
+    feed.add_rounds(1, 130000000, boa.env.timestamp - 7200, 600, 12)
+    ema = CHAINLINK_EMA_DEPLOYER.deploy(feed.address, 20, 30)
+    oracle = boa.load_partial_solc(ORACLE_SRC).deploy(wrapper.address, ema.address)
+    return oracle, wrapper, feed, ema
 
 
 def test_redemption_rate_cap_downside_and_gbp_usd_leg(market):
-    oracle, _, wrapper, feed, ema = market
+    oracle, wrapper, feed, ema = market
     assert oracle.price() == oracle.price_w() == 13 * 10**17
 
     wrapper.set_redemption_rate(2 * WAD)
@@ -212,10 +204,10 @@ def test_redemption_rate_cap_downside_and_gbp_usd_leg(market):
 
 
 def test_nav_pause_holds_redemption_rate_while_fx_keeps_updating(market):
-    oracle, pip, wrapper, _, ema = market
+    oracle, wrapper, _, ema = market
     oracle.price_w()
     wrapper.set_redemption_rate(2 * WAD)
-    pip.set_value(0)
+    wrapper.set_nav(0)
     wrapper.set_fail(True)
     boa.env.time_travel(seconds=86400)
     assert oracle.navPaused()
@@ -225,13 +217,13 @@ def test_nav_pause_holds_redemption_rate_while_fx_keeps_updating(market):
         assert oracle.cachedRedemptionRate() == WAD
     assert oracle.redemptionRateAnchor() == WAD
     wrapper.set_fail(False)
-    pip.set_value(1)
+    wrapper.set_nav(WAD)
     assert not oracle.navPaused()
     assert oracle.price() == oracle.price_w() == 12 * 10**17
 
 
 def test_fx_uses_adapter_without_reading_feed(market):
-    oracle, _, wrapper, feed, ema = market
+    oracle, wrapper, feed, ema = market
     feed.set_fail(True)
     wrapper.set_redemption_rate(WAD // 2)
     ema.set_price(14 * 10**17)
@@ -239,23 +231,27 @@ def test_fx_uses_adapter_without_reading_feed(market):
 
 
 def test_paused_nav_does_not_hide_ema_read_failure(market):
-    oracle, pip, _, _, ema = market
-    pip.set_value(0)
+    oracle, wrapper, _, ema = market
+    wrapper.set_nav(0)
     ema.set_fail(True)
     for entrypoint in (oracle.price, oracle.price_w):
         with boa.reverts():
             entrypoint()
 
 
-@pytest.mark.parametrize("source", [1, 2, 4], ids=["pip", "wrapper", "ema"])
+@pytest.mark.parametrize("source", ["nav", "redemption_rate", "ema"])
 def test_failed_reads_revert(market, source):
-    oracle = market[0]
+    oracle, wrapper, _, ema = market
     saved = (
         oracle.redemptionRateAnchor(),
         oracle.cachedRedemptionRate(),
         oracle.cachedTimestamp(),
     )
-    market[source].set_fail(True)
+    {
+        "nav": wrapper.set_nav_fail,
+        "redemption_rate": wrapper.set_fail,
+        "ema": ema.set_fail,
+    }[source](True)
     for entrypoint in (oracle.price, oracle.price_w):
         with boa.reverts():
             entrypoint()
@@ -268,7 +264,7 @@ def test_failed_reads_revert(market, source):
 
 @pytest.mark.parametrize("paused", [False, True])
 def test_failed_ema_write_reverts_atomically(market, paused):
-    oracle, pip, wrapper, _, ema = market
+    oracle, wrapper, _, ema = market
     saved = (
         oracle.redemptionRateAnchor(),
         oracle.cachedRedemptionRate(),
@@ -276,7 +272,7 @@ def test_failed_ema_write_reverts_atomically(market, paused):
     )
     boa.env.time_travel(seconds=60)
     if paused:
-        pip.set_value(0)
+        wrapper.set_nav(0)
     wrapper.set_redemption_rate(WAD // 2)
     ema.set_price(14 * 10**17)
     ema.set_write_fail(True)
@@ -294,7 +290,7 @@ def test_failed_ema_write_reverts_atomically(market, paused):
     assert oracle.redemptionRateAnchor() == (WAD if paused else WAD // 2)
 
 
-@pytest.mark.parametrize("source", [1, 2, 4], ids=["pip", "wrapper", "ema"])
+@pytest.mark.parametrize("source", [1, 3], ids=["wrapper", "ema"])
 def test_malformed_reads_revert(market, source):
     oracle = market[0]
     boa.env.set_code(market[source].address, bytes.fromhex("60006000f3"))
@@ -304,102 +300,82 @@ def test_malformed_reads_revert(market, source):
 
 
 def test_constructor_rejects_unusable_initial_redemption_rate(market):
-    _, pip, wrapper, _, ema = market
+    _, wrapper, _, ema = market
     deployer = boa.load_partial_solc(ORACLE_SRC)
-    pip.set_value(0)
+    wrapper.set_nav(0)
     with pytest.raises(Revert, match="unusable initial price"):
         deployer.deploy(wrapper.address, ema.address)
-    pip.set_value(1)
+    wrapper.set_nav(WAD)
     wrapper.set_redemption_rate(0)
     with pytest.raises(Revert, match="unusable initial price"):
         deployer.deploy(wrapper.address, ema.address)
 
 
 @pytest.mark.parametrize("paused", [False, True])
-def test_real_chainlink_ema_smooths_gbp_usd_round(paused):
-    with boa.env.anchor():
-        pip = PIP.deploy()
-        gem = GEM.deploy()
-        wrapper = WRAPPER.deploy(pip.address, gem.address)
-        feed = FEED_DEPLOYER.deploy(8)
-        now = boa.env.timestamp
-        feed.add_rounds(1, 130000000, now - 7200, 600, 12)
-        ema = CHAINLINK_EMA_DEPLOYER.deploy(feed.address, 20, 30)
-        oracle = boa.load_partial_solc(ORACLE_SRC).deploy(wrapper.address, ema.address)
-        if paused:
-            pip.set_value(0)
-            wrapper.set_redemption_rate(2 * WAD)
-        old_price = oracle.price_w()
-        for answer in (140000000, 120000000):
-            feed.add_rounds(1, answer, boa.env.timestamp, 1, 1)
-            boa.env.time_travel(seconds=31)
-            smoothed = oracle.price()
-            target = answer * 10**10
-            assert min(old_price, target) < smoothed < max(old_price, target)
-            assert oracle.price_w() == oracle.price() == smoothed
-            assert ema.storedPrice() == smoothed
-            old_price = smoothed
+def test_real_chainlink_ema_smooths_gbp_usd_round(real_ema_market, paused):
+    oracle, wrapper, feed, ema = real_ema_market
+    if paused:
+        wrapper.set_nav(0)
+        wrapper.set_redemption_rate(2 * WAD)
+    old_price = oracle.price_w()
+    for answer in (140000000, 120000000):
+        feed.add_rounds(1, answer, boa.env.timestamp, 1, 1)
+        boa.env.time_travel(seconds=31)
+        smoothed = oracle.price()
+        target = answer * 10**10
+        assert min(old_price, target) < smoothed < max(old_price, target)
+        assert oracle.price_w() == oracle.price() == smoothed
+        assert ema.storedPrice() == smoothed
+        old_price = smoothed
 
 
-def test_old_chainlink_round_updates_price_instead_of_holding_older_cache():
-    with boa.env.anchor():
-        pip = PIP.deploy()
-        gem = GEM.deploy()
-        wrapper = WRAPPER.deploy(pip.address, gem.address)
-        feed = FEED_DEPLOYER.deploy(8)
-        feed.add_rounds(1, 130000000, boa.env.timestamp - 7200, 600, 12)
-        ema = CHAINLINK_EMA_DEPLOYER.deploy(feed.address, 20, 30)
-        oracle = boa.load_partial_solc(ORACLE_SRC).deploy(wrapper.address, ema.address)
-        old_price = oracle.price()
+def test_old_chainlink_round_updates_price_instead_of_holding_older_cache(
+    real_ema_market,
+):
+    oracle, wrapper, feed, _ = real_ema_market
+    old_price = oracle.price()
 
-        boa.env.time_travel(seconds=3600)
-        feed.add_rounds(1, 140000000, boa.env.timestamp, 1, 1)
-        boa.env.time_travel(seconds=31 * 3600)
-        wrapper.set_redemption_rate(WAD // 2)
+    boa.env.time_travel(seconds=3600)
+    feed.add_rounds(1, 140000000, boa.env.timestamp, 1, 1)
+    boa.env.time_travel(seconds=31 * 3600)
+    wrapper.set_redemption_rate(WAD // 2)
 
-        # The latest FX round is 31 hours old; our cached valuation is 32 hours old.
-        assert old_price == 13 * 10**17
-        assert not oracle.navPaused()
-        assert oracle.price() == oracle.price_w() == 7 * 10**17
-        assert oracle.redemptionRateAnchor() == WAD // 2
+    # The latest FX round is 31 hours old; our cached valuation is 32 hours old.
+    assert old_price == 13 * 10**17
+    assert not oracle.navPaused()
+    assert oracle.price() == oracle.price_w() == 7 * 10**17
+    assert oracle.redemptionRateAnchor() == WAD // 2
 
 
 @pytest.mark.parametrize("answer", [0, -1])
-def test_invalid_answer_reverts_through_real_adapter(answer):
-    with boa.env.anchor():
-        pip = PIP.deploy()
-        gem = GEM.deploy()
-        wrapper = WRAPPER.deploy(pip.address, gem.address)
-        feed = FEED_DEPLOYER.deploy(8)
-        feed.add_rounds(1, 130000000, boa.env.timestamp - 7200, 600, 12)
-        ema = CHAINLINK_EMA_DEPLOYER.deploy(feed.address, 20, 30)
-        oracle = boa.load_partial_solc(ORACLE_SRC).deploy(wrapper.address, ema.address)
-        feed.add_rounds(1, answer, boa.env.timestamp, 1, 1)
-        boa.env.time_travel(seconds=31)
-        for entrypoint in (oracle.price, oracle.price_w):
-            with boa.reverts("DFM: Chainlink answer too low"):
-                entrypoint()
+def test_invalid_answer_reverts_through_real_adapter(real_ema_market, answer):
+    oracle, _, feed, _ = real_ema_market
+    feed.add_rounds(1, answer, boa.env.timestamp, 1, 1)
+    boa.env.time_travel(seconds=31)
+    for entrypoint in (oracle.price, oracle.price_w):
+        with boa.reverts("DFM: Chainlink answer too low"):
+            entrypoint()
 
 
 def test_zero_redemption_rate_stays_zero_during_pause_and_recovers(market):
-    oracle, pip, wrapper, _, _ = market
+    oracle, wrapper, _, _ = market
     anchor = oracle.redemptionRateAnchor()
     wrapper.set_redemption_rate(0)
     assert oracle.price() == oracle.price_w() == 1
     assert oracle.cachedRedemptionRate() == 0
     assert oracle.redemptionRateAnchor() == anchor
     wrapper.set_redemption_rate(2 * WAD)
-    pip.set_value(0)
+    wrapper.set_nav(0)
     boa.env.time_travel(seconds=30 * 3600 + 1)
     assert oracle.navPaused()
     assert oracle.price() == oracle.price_w() == 1
-    pip.set_value(1)
+    wrapper.set_nav(WAD)
     assert oracle.price() == oracle.price_w() == anchor * 13 // 10
     assert oracle.redemptionRateAnchor() == anchor
 
 
 def test_zero_redemption_rate_does_not_need_gbp_usd(market):
-    oracle, _, wrapper, feed, ema = market
+    oracle, wrapper, feed, ema = market
     wrapper.set_redemption_rate(0)
     feed.set_fail(True)
     ema.set_fail(True)
