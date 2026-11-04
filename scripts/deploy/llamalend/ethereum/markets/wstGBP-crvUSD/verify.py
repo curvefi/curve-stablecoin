@@ -40,8 +40,8 @@ from eth_abi import encode
 # Contract sources (must match deploy.py)
 # ---------------------------------------------------------------------------
 
-CHAINLINK_EMA_SRC = "curve_stablecoin/price_oracles/v2/ChainlinkEMA.vy"
-WSTGBP_FX_ORACLE_SRC = "curve_stablecoin/price_oracles/v2/WstGBPFxOracle.vy"
+CHAINLINK_EMA_SRC = "curve_stablecoin/price_oracles/v2/ChainlinkEMA.sol"
+WSTGBP_FX_ORACLE_SRC = "curve_stablecoin/price_oracles/v2/WstGBPFxOracle.sol"
 HYPERBOLIC_MP_SRC = "curve_stablecoin/mpolicies/v2/HyperbolicMP.vy"
 
 DEFAULT_DEPLOYMENT = "deployments/llamalend/ethereum/markets/wstGBP-crvUSD.jsonc"
@@ -193,6 +193,22 @@ def _build_vyper_json(main_path: Path, optimize: str | None = None) -> dict:
         "language": "Vyper",
         "sources": {k: {"content": v} for k, v in sources.items()},
         "settings": settings,
+    }
+
+
+def _build_solidity_json(*sources: str) -> dict:
+    return {
+        "language": "Solidity",
+        "sources": {
+            key: {"content": (PROJECT_ROOT / key).read_text()} for key in sources
+        },
+        "settings": {
+            "optimizer": {"enabled": False, "runs": 200},
+            "evmVersion": "cancun",
+            "outputSelection": {
+                "*": {"*": ["abi", "evm.bytecode", "evm.deployedBytecode"]}
+            },
+        },
     }
 
 
@@ -348,29 +364,29 @@ def main() -> None:
     contracts = [
         (
             fx_ema_addr,
-            "ChainlinkEMA (Vyper 0.4.3)",
+            "ChainlinkEMA (Solidity 0.8.25)",
             f"{CHAINLINK_EMA_SRC}:ChainlinkEMA",
-            vy_json(CHAINLINK_EMA_SRC),
-            "vyper:0.4.3",
-            "vyper-json",
+            _build_solidity_json(CHAINLINK_EMA_SRC),
+            "v0.8.25+commit.b61c2a91",
+            "solidity-standard-json-input",
             encode(
                 ["address", "uint256", "uint256"],
                 [gbp_usd_feed, observations, interval],
             ).hex(),
-            "1",
+            "0",
         ),
         (
             oracle_addr,
-            "WstGBPFxOracle (Vyper 0.4.3)",
+            "WstGBPFxOracle (Solidity 0.8.25)",
             f"{WSTGBP_FX_ORACLE_SRC}:WstGBPFxOracle",
-            vy_json(WSTGBP_FX_ORACLE_SRC),
-            "vyper:0.4.3",
-            "vyper-json",
+            _build_solidity_json(WSTGBP_FX_ORACLE_SRC, CHAINLINK_EMA_SRC),
+            "v0.8.25+commit.b61c2a91",
+            "solidity-standard-json-input",
             encode(
                 ["address", "address", "address"],
                 [collateral, gbp_usd_feed, fx_ema_addr],
             ).hex(),
-            "1",
+            "0",
         ),
         (
             monetary_policy_addr,

@@ -1,4 +1,7 @@
 import boa
+import boa_solidity
+import solcx
+from eth.exceptions import Revert
 import pytest
 
 from tests.unitary.price_oracles.chainlink_ema.conftest import (
@@ -7,8 +10,10 @@ from tests.unitary.price_oracles.chainlink_ema.conftest import (
 )
 
 
+solcx.set_solc_version("0.8.25")
+
 WAD = 10**18
-ORACLE_SRC = "curve_stablecoin/price_oracles/v2/WstGBPFxOracle.vy"
+ORACLE_SRC = "curve_stablecoin/price_oracles/v2/WstGBPFxOracle.sol"
 
 PIP = boa.loads_partial(
     """
@@ -172,7 +177,7 @@ def market():
         wrapper = WRAPPER.deploy(pip.address, gem.address)
         feed = FEED.deploy()
         ema = EMA.deploy(feed.address)
-        oracle = boa.load_partial(ORACLE_SRC).deploy(
+        oracle = boa.load_partial_solc(ORACLE_SRC).deploy(
             wrapper.address, feed.address, ema.address
         )
         yield oracle, pip, wrapper, feed, ema
@@ -272,13 +277,13 @@ def test_ema_write_failure_preserves_quote_and_exact_nav_anchor(market):
 
 def test_constructor_rejects_unusable_inputs_and_wrong_ema_feed(market):
     _, pip, wrapper, feed, ema = market
-    deployer = boa.load_partial(ORACLE_SRC)
+    deployer = boa.load_partial_solc(ORACLE_SRC)
     pip.set_value(0)
-    with boa.reverts("unusable initial price"):
+    with pytest.raises(Revert, match="unusable initial price"):
         deployer.deploy(wrapper.address, feed.address, ema.address)
     pip.set_value(1)
     other_feed = FEED.deploy()
-    with boa.reverts():
+    with pytest.raises(Revert):
         deployer.deploy(wrapper.address, other_feed.address, ema.address)
 
 
@@ -291,7 +296,7 @@ def test_real_chainlink_ema_smooths_fx_round():
         now = boa.env.evm.patch.timestamp
         feed.add_rounds(1, 130000000, now - 7200, 600, 12)
         ema = CHAINLINK_EMA_DEPLOYER.deploy(feed.address, 20, 30)
-        oracle = boa.load_partial(ORACLE_SRC).deploy(
+        oracle = boa.load_partial_solc(ORACLE_SRC).deploy(
             wrapper.address, feed.address, ema.address
         )
         old_price = oracle.price_w()
@@ -301,3 +306,29 @@ def test_real_chainlink_ema_smooths_fx_round():
         smoothed = oracle.price()
         assert old_price < smoothed < 14 * 10**17
         assert oracle.price_w() == oracle.price() == smoothed
+
+
+@pytest.mark.parametrize("source", [1, 2, 3, 4], ids=["pip", "wrapper", "feed", "ema"])
+@pytest.mark.parametrize(
+    "code", ["60006000f3", "5b600056"], ids=["short-return", "gas-burn"]
+)
+def test_unreadable_sources_freeze(market, source, code):
+    oracle = market[0]
+    held = oracle.price_w()
+    boa.env.set_code(market[source].address, bytes.fromhex(code))
+    assert oracle.frozen()
+    assert oracle.price() == oracle.price_w() == held
+
+
+def test_live_zero_recovers_without_changing_the_nav_anchor(market):
+    oracle, _, wrapper, feed, _ = market
+    anchor = oracle.cachedQuote()
+    wrapper.set_quote(0)
+    assert oracle.price_w() == 1
+    boa.env.time_travel(seconds=86400)
+    assert oracle.price_w() == 1
+    assert oracle.cachedQuote() == anchor
+    wrapper.set_quote(2 * WAD)
+    feed.set_round(130000000, boa.env.timestamp)
+    assert oracle.price() == oracle.price_w() == anchor * 13 // 10
+    assert not oracle.liveZeroReported()
