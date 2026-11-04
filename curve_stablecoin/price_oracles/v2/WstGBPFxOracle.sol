@@ -12,22 +12,21 @@ interface IWstGBP {
     function decimals() external view returns (uint8);
 }
 
-/// @notice USD per wstGBP: capped redemption rate times smoothed GBP/USD. crvUSD is $1.
-/// @dev Hold the redemption rate on a NAV pause; FX continues. Contract-call failures revert normally.
+/// @notice USD per wstGBP, scaled by 1e18; crvUSD is $1.
+/// @dev NAV pauses hold the redemption rate while FX keeps updating.
 contract WstGBPFxOracle is IPriceOracle {
-    uint256 private constant WAD = 1e18; // 18-decimal price scale: 1e18 represents one unit.
-    uint256 public constant MAX_ELAPSED = 7 days; // Maximum time credited to redemption-rate growth.
+    uint256 private constant WAD = 1e18;
+    uint256 public constant MAX_ELAPSED = 7 days; // Maximum growth allowance.
     uint256 public constant MAX_UPSIDE_SPEED = 28_935_185_185; // 0.25% per day
 
-    // These addresses are readable by anyone (public) and fixed at deployment (immutable).
-    IWstGBP public immutable WSGEM; // wstGBP collateral wrapper.
-    IPriceOracle public immutable CHAINLINK_ADAPTER; // Curve's stateful EMA adapter over the GBP/USD feed.
+    IWstGBP public immutable WSGEM; // wstGBP wrapper.
+    IPriceOracle public immutable CHAINLINK_ADAPTER; // GBP/USD EMA.
 
-    uint256 public redemptionRateAnchor; // Positive redemption rate used by the upside cap, scaled by 1e18.
-    uint256 public cachedTimestamp; // Last price_w() checkpoint time, in Unix seconds.
-    uint256 public cachedRedemptionRate; // Last capped tGBP per wstGBP, including zero, scaled by 1e18.
+    // Redemption rates are 1e18-scaled tGBP per wstGBP.
+    uint256 public redemptionRateAnchor; // Positive anchor for the growth cap.
+    uint256 public cachedTimestamp; // Last price_w() checkpoint.
+    uint256 public cachedRedemptionRate; // Last capped rate, including zero.
 
-    /// @notice Configure the wrapper and Chainlink EMA adapter and initialize the price.
     constructor(IWstGBP wrapper, IPriceOracle adapter) {
         WSGEM = wrapper;
         address redemptionToken = wrapper.gem();
@@ -41,7 +40,7 @@ contract WstGBPFxOracle is IPriceOracle {
         cachedTimestamp = block.timestamp;
     }
 
-    /// @notice Read USD per wstGBP, scaled by 1e18, without updating checkpoints.
+    /// @notice Read USD per wstGBP.
     function price() external view returns (uint256) {
         uint256 redemptionRate = _getRedemptionRate();
         if (redemptionRate == 0) return 1;
@@ -50,8 +49,7 @@ contract WstGBPFxOracle is IPriceOracle {
         return _toUsdPrice(redemptionRate, gbpUsdRate);
     }
 
-    /// @notice Return USD per wstGBP, scaled by 1e18, and save the pricing checkpoints.
-    // EMA state lives in its adapter; the redemption-rate cap and cache live here.
+    /// @notice Return USD per wstGBP and update checkpoints.
     function price_w() external returns (uint256 usdPrice) {
         uint256 redemptionRate = _getRedemptionRate();
         if (redemptionRate == 0) {
@@ -62,30 +60,30 @@ contract WstGBPFxOracle is IPriceOracle {
             usdPrice = _toUsdPrice(redemptionRate, gbpUsdRate);
             redemptionRateAnchor = redemptionRate;
         }
-        // Each checkpoint resets the cap clock; a zero redemption rate preserves the anchor.
+        // Zero rates preserve the cap anchor.
         cachedTimestamp = block.timestamp;
         cachedRedemptionRate = redemptionRate;
     }
 
-    /// @notice Whether NAV reporting is paused and the cached redemption rate is used.
+    /// @notice Whether the issuer's NAV reporting is paused.
     function navPaused() external view returns (bool) {
         return WSGEM.navprice() == 0;
     }
 
-    /// @notice Maximum redemption rate in tGBP per wstGBP allowed by the cap, scaled by 1e18.
+    /// @notice Maximum redemption rate allowed by the growth cap.
     function redemptionRateCeiling() public view returns (uint256) {
         uint256 elapsed = _min(block.timestamp - cachedTimestamp, MAX_ELAPSED);
         return redemptionRateAnchor * (WAD + MAX_UPSIDE_SPEED * elapsed) / WAD;
     }
 
-    // Read tGBP per wstGBP after redemption fees, or reuse the cached rate during a NAV pause.
+    // Fee-adjusted tGBP per wstGBP; cached during NAV pauses.
     function _getRedemptionRate() private view returns (uint256) {
         if (WSGEM.navprice() == 0) return cachedRedemptionRate;
         return WSGEM.burncost();
     }
 
-    // USD per wstGBP = tGBP per wstGBP * USD per GBP; divide by WAD to keep 18 decimals.
-    // Floor at one wei so the oracle never returns zero.
+    // USD per wstGBP = tGBP per wstGBP * USD per GBP.
+    // LlamaLend requires a nonzero price.
     function _toUsdPrice(uint256 redemptionRate, uint256 gbpUsdRate) private pure returns (uint256) {
         uint256 usdPrice = redemptionRate * gbpUsdRate / WAD;
         return usdPrice == 0 ? 1 : usdPrice;
