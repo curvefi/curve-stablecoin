@@ -63,6 +63,8 @@ from getpass import getpass
 from pathlib import Path
 
 import boa
+import boa_solidity
+import solcx
 import curve_dao
 from boa.network import NetworkEnv
 from boa.rpc import EthereumRPC
@@ -96,7 +98,7 @@ EMA_TIME = 866
 # --- Contract sources ---
 ORACLE_FROM_CURVE_POOLS = "curve_stablecoin/price_oracles/v2/OracleFromCurvePools.vy"
 ERC4626_EMA_WRAPPER = "curve_stablecoin/price_oracles/v2/ERC4626EMAWrapper.vy"
-CHAINLINK_EMA = "curve_stablecoin/price_oracles/v2/ChainlinkEMA.vy"
+CHAINLINK_EMA = "curve_stablecoin/price_oracles/v2/ChainlinkEMA.sol"
 CHAIN_ORACLE = "curve_stablecoin/price_oracles/v2/ChainOracle.vy"
 HYPERBOLIC_MP = "curve_stablecoin/mpolicies/v2/HyperbolicMP.vy"
 LEND_FACTORY = "curve_stablecoin/lending/LendFactory.vy"
@@ -240,7 +242,9 @@ def _deploy(
     pool_oracle = boa.load_partial(ORACLE_FROM_CURVE_POOLS).deploy(
         [POOL], [POOL_BORROWED_IDX], [POOL_COLLATERAL_IDX]
     )
-    usdc_ema = boa.load_partial(CHAINLINK_EMA).deploy(
+    solcx.install_solc("0.8.25")
+    solcx.set_solc_version("0.8.25")
+    usdc_ema = boa.load_partial_solc(CHAINLINK_EMA).deploy(
         USDC_USD_FEED, OBSERVATIONS, INTERVAL
     )
     base_oracle = boa.load_partial(CHAIN_ORACLE).deploy(

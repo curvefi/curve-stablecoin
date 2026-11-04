@@ -46,7 +46,7 @@ ORACLE_FROM_CURVE_POOLS_SRC = (
     "curve_stablecoin/price_oracles/v2/OracleFromCurvePools.vy"
 )
 ERC4626_EMA_WRAPPER_SRC = "curve_stablecoin/price_oracles/v2/ERC4626EMAWrapper.vy"
-CHAINLINK_EMA_SRC = "curve_stablecoin/price_oracles/v2/ChainlinkEMA.vy"
+CHAINLINK_EMA_SRC = "curve_stablecoin/price_oracles/v2/ChainlinkEMA.sol"
 CHAIN_ORACLE_SRC = "curve_stablecoin/price_oracles/v2/ChainOracle.vy"
 HYPERBOLIC_MP_SRC = "curve_stablecoin/mpolicies/v2/HyperbolicMP.vy"
 
@@ -199,6 +199,22 @@ def _build_vyper_json(main_path: Path, optimize: str | None = None) -> dict:
         "language": "Vyper",
         "sources": {k: {"content": v} for k, v in sources.items()},
         "settings": settings,
+    }
+
+
+def _build_solidity_json(*sources: str) -> dict:
+    return {
+        "language": "Solidity",
+        "sources": {
+            key: {"content": (PROJECT_ROOT / key).read_text()} for key in sources
+        },
+        "settings": {
+            "optimizer": {"enabled": False, "runs": 200},
+            "evmVersion": "cancun",
+            "outputSelection": {
+                "*": {"*": ["abi", "evm.bytecode", "evm.deployedBytecode"]}
+            },
+        },
     }
 
 
@@ -373,16 +389,16 @@ def main() -> None:
         ),
         (
             usdc_ema_addr,
-            "ChainlinkEMA (Vyper 0.4.3)",
+            "ChainlinkEMA (Solidity 0.8.25)",
             f"{CHAINLINK_EMA_SRC}:ChainlinkEMA",
-            vy_json(CHAINLINK_EMA_SRC),
-            "vyper:0.4.3",
-            "vyper-json",
+            _build_solidity_json(CHAINLINK_EMA_SRC),
+            "v0.8.25+commit.b61c2a91",
+            "solidity-standard-json-input",
             encode(
                 ["address", "uint256", "uint256"],
                 [usdc_usd_feed, observations, interval],
             ).hex(),
-            "1",
+            "0",
         ),
         (
             base_oracle_addr,
