@@ -22,8 +22,7 @@ contract WstGBPFxOracle is IPriceOracle {
 
     // These addresses are readable by anyone (public) and fixed at deployment (immutable).
     IWstGBP public immutable WSGEM; // wstGBP collateral wrapper.
-    address public immutable GEM; // tGBP token the wrapper redeems into.
-    IChainlinkAggregator public immutable FX_FEED; // Raw Chainlink GBP/USD feed, checked for freshness.
+    IChainlinkAggregator public immutable CHAINLINK_GBP_USD_FEED; // Raw GBP/USD feed, checked for freshness.
     ChainlinkEMA public immutable FX_EMA; // Smoothed GBP/USD price used for conversion to USD.
 
     uint256 public cachedQuote; // Saved capped NAV: tGBP per wstGBP, scaled by 1e18.
@@ -33,11 +32,11 @@ contract WstGBPFxOracle is IPriceOracle {
     /// @notice Configure the wrapper and GBP/USD sources and initialize the price.
     constructor(IWstGBP wrapper, IChainlinkAggregator feed, ChainlinkEMA ema) {
         WSGEM = wrapper;
-        GEM = wrapper.gem();
-        FX_FEED = feed;
+        address redemptionToken = wrapper.gem();
+        CHAINLINK_GBP_USD_FEED = feed;
         FX_EMA = ema;
-        require(GEM != address(0), "invalid wrapper");
-        require(wrapper.decimals() == 18 && IWstGBP(GEM).decimals() == 18, "invalid decimals");
+        require(redemptionToken != address(0), "invalid wrapper");
+        require(wrapper.decimals() == 18 && IWstGBP(redemptionToken).decimals() == 18, "invalid decimals");
         require(feed.decimals() == 8 && address(ema.chainlinkFeed()) == address(feed), "invalid feed");
         require(ema.OBSERVATIONS() == 20 && ema.INTERVAL() == 30, "invalid EMA");
         (uint256 quote, bool useCachedPrice) = _quote();
@@ -87,7 +86,7 @@ contract WstGBPFxOracle is IPriceOracle {
         if (WSGEM.navprice() == 0) return (0, true);
         quote = WSGEM.burncost();
         if (quote == 0) return (0, false);
-        (, int256 answer,, uint256 updatedAt,) = FX_FEED.latestRoundData();
+        (, int256 answer,, uint256 updatedAt,) = CHAINLINK_GBP_USD_FEED.latestRoundData();
         require(answer > 0 && updatedAt > 0 && updatedAt <= block.timestamp, "invalid FX round");
         useCachedPrice = block.timestamp - updatedAt > MAX_FX_AGE;
     }

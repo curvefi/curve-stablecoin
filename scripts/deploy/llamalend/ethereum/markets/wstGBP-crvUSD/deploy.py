@@ -262,7 +262,10 @@ def _deploy(
     print(f"  wstGBP/USD: {price / 10**18:.6f}")
     assert price > 0
     assert to_checksum_address(str(oracle.WSGEM())) == to_checksum_address(WSTGBP)
-    assert to_checksum_address(str(oracle.GEM())) == to_checksum_address(TGBP)
+    wrapper = boa.load_partial_solc(WSTGBP_FX_ORACLE, contract_name="IWstGBP").at(
+        WSTGBP
+    )
+    assert to_checksum_address(str(wrapper.gem())) == to_checksum_address(TGBP)
     assert to_checksum_address(str(oracle.FX_EMA())) == fx_ema.address
     assert to_checksum_address(str(fx_ema.chainlinkFeed())) == to_checksum_address(
         GBP_USD_FEED
