@@ -8,6 +8,9 @@ event Attached:
 event Detached:
     pass
 
+event SetKilled:
+    killed: bool
+
 event UpdateInflationRate:
     new_rate: uint256
     future_epoch_time: uint256
@@ -53,6 +56,12 @@ def COLLATERAL_TOKEN() -> address:
     ...
 
 
+@view
+@external
+def lp_token() -> address:
+    ...
+
+
 # Lowercase to follow the gauge convention, which pairs with the factory's
 # `is_valid_gauge()` - see the getter's docstring in `LMCallback.vy`
 @view
@@ -76,6 +85,17 @@ def attached() -> bool:
 @view
 @external
 def detached() -> bool:
+    ...
+
+
+@view
+@external
+def is_killed() -> bool:
+    ...
+
+
+@external
+def set_killed(killed: bool):
     ...
 
 

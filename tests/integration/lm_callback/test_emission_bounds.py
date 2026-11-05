@@ -1,8 +1,8 @@
 """Regression tests for LMCallback CRV emission bounds.
 
 Every test here encodes an invariant the callback is supposed to hold. Emissions
-can only be stopped by detaching the callback from its AMM, and a detached
-callback latches `detached` and is permanently inert. Two things can go wrong
+can be paused while attached; detaching the callback from its AMM instead
+latches `detached` and is permanently inert. Two things can go wrong
 once the AMM stops calling it:
 
   Mechanism B - it keeps accruing off stale `collateral_per_share`. That map is
