@@ -4,9 +4,9 @@ Rehearse the Optimism LlamaLend V2 migration on a fork, before the DAO vote.
 
     1. Deploy the replacement ChainlinkEMA oracles and the wstETH/WETH monetary policy,
        using oracles/deploy.py and monetary_policies/wstETH-WETH/deploy.py.
-    2. Run the governance actions as the ownership agent, the Configurator's
-       default_admin: set_price_oracle for each market and set_monetary_policy for
-       wstETH/WETH. Their calldata is printed for the vote.
+    2. Run the vote's messages from migration_vote.py as the ownership agent, which
+       calls the Configurator through its owner, the LendingOwnerProxy:
+       set_price_oracle for each market and set_monetary_policy for wstETH/WETH.
     3. Check every market is bound to the new contracts, prices are unchanged and the
        rate was updated.
     4. Exercise each market: deposit, create_loan, borrow_more, add_collateral, an AMM
@@ -63,8 +63,6 @@ def _abi(*entries):
 
 CONFIGURATOR_ABI = boa.loads_abi(
     _abi(
-        ("set_price_oracle", ["address", "address", "uint256"], [], "nonpayable"),
-        ("set_monetary_policy", ["address", "address"], [], "nonpayable"),
         ("default_admin", [], ["address"], "view"),
     ),
     name="Configurator",
@@ -280,23 +278,19 @@ def rehearse() -> list:
     )
 
     print("\n=== 2. Governance actions as the ownership agent")
+    vote_script = _load_script(SCRIPTS / "migration_vote.py")
     configurator = CONFIGURATOR_ABI.at(CONFIGURATOR)
     _check(
         results,
-        "agent is the Configurator default_admin",
-        configurator.default_admin() == OWNERSHIP_AGENT,
+        "LendingOwnerProxy is the Configurator default_admin",
+        configurator.default_admin() == vote_script.OWNER_PROXY,
     )
-    actions = [
-        (
-            configurator.set_price_oracle,
-            (e["controller"], e["price_oracle"], oracles_script.MAX_DEVIATION),
-        )
-        for e in oracles["oracles"].values()
-    ] + [(configurator.set_monetary_policy, (mp["controller"], mp["monetary_policy"]))]
-    for fn, args in actions:
-        print(f"  {CONFIGURATOR} {fn.name}{args}")
-        print(f"    calldata: 0x{fn.prepare_calldata(*args).hex()}")
-        fn(*args, sender=OWNERSHIP_AGENT)
+    messages = vote_script._messages(oracles, mp, oracles_script.MAX_DEVIATION)
+    for target, calldata in messages:
+        print(f"  {target} 0x{calldata.hex()}")
+    # the agent only takes calls from its Relayer
+    agent = vote_script.AGENT_ABI.at(OWNERSHIP_AGENT)
+    agent.execute(messages, sender=vote_script.RELAYER)
 
     print("\n=== 3. Bindings")
     for market, m in contracts.items():
