@@ -167,7 +167,7 @@ def market(wrapper):
 def real_ema_market(wrapper):
     feed = FEED_DEPLOYER.deploy(8)
     feed.add_rounds(1, 130000000, boa.env.timestamp - 7200, 600, 12)
-    ema = CHAINLINK_EMA_DEPLOYER.deploy(feed.address, 20, 30)
+    ema = CHAINLINK_EMA_DEPLOYER.deploy(feed.address, 10, 60)
     oracle = boa.load_partial_solc(ORACLE_SRC).deploy(wrapper.address, ema.address)
     return oracle, wrapper, feed, ema
 
@@ -320,7 +320,7 @@ def test_real_chainlink_ema_smooths_gbp_usd_round(real_ema_market, paused):
     old_price = oracle.price_w()
     for answer in (140000000, 120000000):
         feed.add_rounds(1, answer, boa.env.timestamp, 1, 1)
-        boa.env.time_travel(seconds=31)
+        boa.env.time_travel(seconds=61)
         smoothed = oracle.price()
         target = answer * 10**10
         assert min(old_price, target) < smoothed < max(old_price, target)
@@ -351,7 +351,7 @@ def test_old_chainlink_round_updates_price_instead_of_holding_older_cache(
 def test_invalid_answer_reverts_through_real_adapter(real_ema_market, answer):
     oracle, _, feed, _ = real_ema_market
     feed.add_rounds(1, answer, boa.env.timestamp, 1, 1)
-    boa.env.time_travel(seconds=31)
+    boa.env.time_travel(seconds=61)
     for entrypoint in (oracle.price, oracle.price_w):
         with boa.reverts("DFM: Chainlink answer too low"):
             entrypoint()

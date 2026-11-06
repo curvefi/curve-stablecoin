@@ -6,7 +6,7 @@ Reads the deployment report written by
     deploy.py
 and submits source + constructor args for each contract that script deploys
 directly:
-    1. ChainlinkEMA        (chainlink_adapter)          -- ctor: (GBP/USD feed, 20, 30)
+    1. ChainlinkEMA        (chainlink_adapter)          -- ctor: (GBP/USD feed, 10, 60)
     2. WstGBPFxOracle     (price_oracle)    -- ctor: (wstGBP, chainlink_adapter)
     3. HyperbolicMP        (monetary_policy) -- ctor: (controller, target_util,
                                                 target_rate, low, high, rate_shift)

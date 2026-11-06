@@ -6,7 +6,7 @@ Borrowed token: crvUSD. Collateral: wstGBP (tGBP redemption wrapper).
 
 Per market this deploys, in order:
     1. Oracle stack (prices wstGBP in USD):
-         a. ChainlinkEMA(GBP/USD, 20 observations, 30-second interval)
+         a. ChainlinkEMA(GBP/USD, 10 observations, 60-second interval)
          b. WstGBPFxOracle(wstGBP, ChainlinkEMA)
               -> capped burncost() in tGBP x smoothed GBP/USD; crvUSD is $1.
                  FX pricing uses only the EMA adapter, without a feed-age cutoff.
@@ -25,7 +25,7 @@ and admin fee, attach the callback, and register both gauges (type 0, zero weigh
 Activation requires governance to pass and execute the vote.
 
 The oracle checks the wrapper's gem and both token decimals. Deployment checks
-the expected gem and adapter feed, plus 20 observations at 30-second intervals.
+the expected gem and adapter feed, plus 10 observations at 60-second intervals.
 
 HyperbolicMP binds its Controller as an immutable set in the constructor, but
 the Controller is only created inside factory.create() (which itself needs the
@@ -79,8 +79,8 @@ TGBP = "0x27f6c8289550fCE67f6B50BeD1F519966aFE5287"
 
 # --- Oracle config ---
 CHAINLINK_FEED = "0x5c0Ab2d9b5a7ed9f470386e82BB36A3613cDd4b5"
-OBSERVATIONS = 20
-INTERVAL = 30
+OBSERVATIONS = 10
+INTERVAL = 60
 
 # --- Liquidity-mining factories and callback blueprint ---
 # Deploys the gauge over the vault's ERC4626 shares - CRV for lenders.
