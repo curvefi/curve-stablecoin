@@ -34,6 +34,9 @@ exports: (
     core.liquidate_health_preview,
 )
 
+MAX_RECENT_DEBT: constant(uint256) = 15 * 10**16  # 15% of borrow_cap
+RECENT_DEBT_DECAY: constant(uint256) = 5 * 10**16  # 5% of borrow_cap per day
+
 
 @deploy
 def __init__(
@@ -99,6 +102,27 @@ def _get_cap() -> uint256:
     return min(available_balance, cap)
 
 
+@internal
+@view
+def _recent_debt_cap(_recent_debt_packed: uint256) -> uint256:
+    """
+    @notice Amount left under the recent debt limit, by the rule of LendController._on_debt_increased
+    """
+    ll_core: ILendController = ILendController(
+        core.CONTROLLER.address
+    )
+    # RECENT_DEBT_DECAY / WAD == 1 / 20 and MAX_RECENT_DEBT / RECENT_DEBT_DECAY == 3 exactly
+    freed_per_day: uint256 = unsafe_div(self._borrow_cap(), core.WAD // RECENT_DEBT_DECAY)
+    # No overflow unless borrow_cap > 2**220, and then no debt gets near the limit
+    freed: uint256 = unsafe_div(
+        unsafe_mul(freed_per_day, unsafe_sub(block.timestamp, _recent_debt_packed & (2**40 - 1))), 86400
+    )
+    return crv_math.sub_or_zero(
+        unsafe_mul(freed_per_day, MAX_RECENT_DEBT // RECENT_DEBT_DECAY),
+        crv_math.sub_or_zero(_recent_debt_packed >> 40, unsafe_add(staticcall ll_core.repaid(), freed)),
+    )
+
+
 @external
 @view
 def max_borrowable(
@@ -120,6 +144,23 @@ def max_borrowable(
     return crv_math.sub_or_zero(
         core._max_borrowable(user_state[0] + _d_collateral, N, self._get_cap() + user_state[2] , _user),
         user_state[2],
+    )
+
+
+@external
+@view
+def max_borrowable_now(
+    _d_collateral: uint256,
+    _N: uint256,
+    _user: address,
+    _recent_debt_packed: uint256,
+) -> uint256:
+    """
+    @notice Natspec for this function is available in its controller contract
+    """
+    return min(
+        staticcall IControllerView(self).max_borrowable(_d_collateral, _N, _user),
+        self._recent_debt_cap(_recent_debt_packed),
     )
 
 
