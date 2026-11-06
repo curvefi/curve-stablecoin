@@ -1,0 +1,9 @@
+@external
+def deploy_gauge(_lp_token: address) -> address:
+    ...
+
+
+@view
+@external
+def get_gauge_from_lp_token(_lp_token: address) -> address:
+    ...
