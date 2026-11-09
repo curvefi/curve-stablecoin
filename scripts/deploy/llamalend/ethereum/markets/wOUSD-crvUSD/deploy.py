@@ -8,7 +8,7 @@ Per market this deploys, in order:
     1. Oracle stack (prices wOUSD in USD):
          a. OracleFromCurvePools(OUSD/USDC pool, USDC idx, OUSD idx)
               -> OUSD/USDC, using the pool's own EMA.
-         b. ChainlinkEMA(USDC/USD, 20 observations, 30-second interval)
+         b. ChainlinkEMA(USDC/USD, 10 observations, 60-second interval)
               -> smoothed USDC/USD; no extra staleness check or freeze wrapper.
          c. ChainOracle([pool oracle, USDC/USD EMA]) -> OUSD/USD.
          d. ERC4626EMAWrapper(chain oracle, wOUSD, 866) -> wOUSD/USD.
@@ -83,8 +83,8 @@ POOL = "0x6d18E1a7faeB1F0467A77C0d293872ab685426dc"  # OUSD/USDC NG
 POOL_BORROWED_IDX = 1  # USDC quote
 POOL_COLLATERAL_IDX = 0  # OUSD
 USDC_USD_FEED = "0x8fFfFfd4AfB6115b954Bd326cbe7B4BA576818f6"
-OBSERVATIONS = 20
-INTERVAL = 30
+OBSERVATIONS = 10
+INTERVAL = 60
 
 # --- Liquidity-mining factories and callback blueprint ---
 # Deploys the gauge over the vault's ERC4626 shares - CRV for lenders.

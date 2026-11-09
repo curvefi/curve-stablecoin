@@ -7,7 +7,7 @@ Reads the deployment report written by
 and submits source + constructor args for each contract that script deploys
 directly:
     1. OracleFromCurvePools (pool_oracle)    -- ctor: ([pool], [USDC idx], [OUSD idx])
-    2. ChainlinkEMA       (usdc_ema)        -- ctor: (USDC/USD feed, 20, 30)
+    2. ChainlinkEMA       (usdc_ema)        -- ctor: (USDC/USD feed, 10, 60)
     3. ChainOracle        (base_oracle)     -- ctor: ([pool_oracle, usdc_ema])
     4. ERC4626EMAWrapper  (price_oracle)    -- ctor: (base_oracle, wOUSD, ema_time)
     5. HyperbolicMP        (monetary_policy) -- ctor: (controller, target_util,
