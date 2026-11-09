@@ -445,6 +445,7 @@ def main() -> None:
         ),
     ]
 
+    failed = False
     for (
         address,
         label,
@@ -478,8 +479,12 @@ def main() -> None:
                 _poll(api_key, guid, label)
             print(f"  https://etherscan.io/address/{address}#code")
         except RuntimeError as e:
+            failed = True
             print(f"  FAILED: {e}")
             print(f"  UNVERIFIED: {label} at {address}")
+
+    if failed:
+        raise SystemExit("One or more contracts were not verified")
 
 
 if __name__ == "__main__":
