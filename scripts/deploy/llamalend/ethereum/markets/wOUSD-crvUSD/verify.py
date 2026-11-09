@@ -13,12 +13,10 @@ directly:
     5. HyperbolicMP        (monetary_policy) -- ctor: (controller, target_util,
                                                 target_rate, low, high, rate_shift)
 
-Deliberately not submitted - everything deployed from a blueprint, whose
-implementation is verified once, elsewhere:
+Deliberately not submitted - factory-deployed contracts whose implementations
+are verified elsewhere:
   * vault / controller / amm - blueprint copies from the lending factory, covered
     by scripts/deploy/llamalend/ethereum/factory/verify.py;
-  * lm_callback - blueprint copy from the LM callback factory, covered by
-    scripts/deploy/llamalend/ethereum/lm-callback-factory/verify.py;
   * gauge - from the DAO's gauge factory, whose implementation lives outside
     this repo.
 

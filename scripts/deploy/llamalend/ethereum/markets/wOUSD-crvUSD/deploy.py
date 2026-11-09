@@ -19,13 +19,11 @@ Per market this deploys, in order:
     3. factory.create(crvUSD, wOUSD, ... oracle, monetary_policy, supply_limit).
     4. GaugeFactory.deploy_gauge(vault) - liquidity gauge over the vault's ERC4626
        shares, i.e. the lender side of CRV emissions.
-    5. LMCallbackFactory.deploy_lm_callback(amm) - gauge-like callback over the
-       AMM's collateral, i.e. the borrower side.
 
-Both liquidity-mining factories are permissionless. With --create-vote, the
-same deploying account proposes an Ownership DAO vote to set the borrow cap
-and admin fee, attach the callback, and register both gauges (type 0, zero weight).
-Activation requires governance to pass and execute the vote.
+The gauge factory is permissionless. With --create-vote, the same deploying
+account proposes an Ownership DAO vote to set the borrow cap and admin fee,
+and register the vault gauge (type 0, zero weight). Activation requires
+governance to pass and execute the vote.
 
 The OUSD/USDC pool has coin 0 = OUSD, coin 1 = USDC. Its price_oracle(0)
 returns USDC in OUSD, so OracleFromCurvePools inverts it.
@@ -86,12 +84,9 @@ USDC_USD_FEED = "0x8fFfFfd4AfB6115b954Bd326cbe7B4BA576818f6"
 OBSERVATIONS = 10
 INTERVAL = 60
 
-# --- Liquidity-mining factories and callback blueprint ---
+# --- Liquidity gauge factory ---
 # Deploys the gauge over the vault's ERC4626 shares - CRV for lenders.
 GAUGE_FACTORY = "0x64e1a69732fAC63F6790b3d8a34C5D713cC623E6"
-# Deploys the callback over the AMM's collateral - CRV for borrowers.
-LM_CALLBACK_FACTORY = "0x916E2B5E3Df268Ce2348265d2AAD4BB9f2B3dFA0"
-LM_CALLBACK_BLUEPRINT = "0x0fDFE9c8F16AffF693EA16544d6d1Bac555343c4"
 # Share-price upside EMA horizon. 866 seconds gives about a 10-minute half-life.
 EMA_TIME = 866
 
@@ -105,9 +100,6 @@ LEND_FACTORY = "curve_stablecoin/lending/LendFactory.vy"
 CONFIGURATOR = "curve_stablecoin/Configurator.vy"
 LEND_CONTROLLER = "curve_stablecoin/lending/LendController.vy"
 GAUGE_FACTORY_INTERFACE = "curve_stablecoin/interfaces/IGaugeFactory.vyi"
-LM_CALLBACK_FACTORY_SRC = "curve_stablecoin/lm_callback/LMCallbackFactory.vy"
-LM_CALLBACK_SRC = "curve_stablecoin/lm_callback/LMCallback.vy"
-AMM_SRC = "curve_stablecoin/AMM.vy"
 
 # --- Monetary policy curve (HyperbolicMP) — subject to governance review ---
 TARGET_UTILIZATION = 90 * 10**16  # 90%
@@ -162,24 +154,21 @@ def _create_activation_vote(
     configurator_addr: str,
     controller_addr: str,
     gauge_addr: str,
-    lm_callback_addr: str,
     dry_run: bool,
     etherscan_api_key: str,
     pinata_token: str | None,
 ) -> int:
-    # Register both gauges with type 0 and zero initial weight.
+    # Register the vault gauge with type 0 and zero initial weight.
     actions = [
         (configurator_addr, "set_borrow_cap", controller_addr, BORROW_CAP),
         (configurator_addr, "set_admin_percentage", controller_addr, ADMIN_FEE),
         (GAUGE_CONTROLLER, "add_gauge", gauge_addr, 0, 0),
-        (configurator_addr, "set_callback", controller_addr, lm_callback_addr),
-        (GAUGE_CONTROLLER, "add_gauge", lm_callback_addr, 0, 0),
     ]
     description = (
         "Activate wOUSD/crvUSD LlamaLend V2 on Ethereum: "
         f"set a {BORROW_CAP // 10**18:,} crvUSD borrow cap and "
-        f"{ADMIN_FEE / 10**16:g}% admin fee, attach the LM callback and "
-        "register the vault and callback gauges with type 0 and zero initial weight."
+        f"{ADMIN_FEE / 10**16:g}% admin fee, and register the vault gauge "
+        "with type 0 and zero initial weight."
     )
     return curve_dao.create_vote(
         VOTE_DAO,
@@ -222,12 +211,6 @@ def _deploy(
     assert existing["chain_id"] == CHAIN_ID
     assert configurator.default_admin() == factory.admin()
     assert not factory.paused(), "Lending factory is paused"
-    lm_callback_factory = boa.load_partial(LM_CALLBACK_FACTORY_SRC).at(
-        LM_CALLBACK_FACTORY
-    )
-    assert lm_callback_factory.version() == "1.0.0"
-    assert not lm_callback_factory.paused(), "LM callback factory is paused"
-    assert lm_callback_factory.lm_callback_blueprint() == LM_CALLBACK_BLUEPRINT
 
     if create_vote:
         assert boa.env.eoa == deployer, "Proposer must be the deploying account"
@@ -300,7 +283,7 @@ def _deploy(
         f"got {to_checksum_address(controller_addr)}"
     )
 
-    # 4. Deploy the liquidity gauge and LM callback permissionlessly.
+    # 4. Deploy the vault liquidity gauge permissionlessly.
     gauge_factory = boa.load_vyi(GAUGE_FACTORY_INTERFACE).at(GAUGE_FACTORY)
     gauge_addr = to_checksum_address(
         str(gauge_factory.deploy_gauge(vault_addr, sender=deployer))
@@ -311,34 +294,10 @@ def _deploy(
         == gauge_addr
     ), "gauge not registered for the vault"
 
-    lm_callback_addr = to_checksum_address(
-        str(lm_callback_factory.deploy_lm_callback(amm_addr, sender=deployer))
-    )
-    assert lm_callback_factory.is_valid_gauge(lm_callback_addr), (
-        "LM callback not registered by its factory"
-    )
-    assert lm_callback_factory.get_lm_callback_by_amm(amm_addr) == lm_callback_addr
-    assert (
-        lm_callback_factory.get_blueprint_by_lm_callback(lm_callback_addr)
-        == LM_CALLBACK_BLUEPRINT
-    )
-    lm_callback = boa.load_partial(LM_CALLBACK_SRC).at(lm_callback_addr)
-    # The other direction of the gauge round trip: the callback names its factory
-    assert to_checksum_address(str(lm_callback.factory())) == to_checksum_address(
-        LM_CALLBACK_FACTORY
-    ), "LM callback points at another factory"
-    assert to_checksum_address(str(lm_callback.AMM())) == to_checksum_address(
-        amm_addr
-    ), "LM callback bound to the wrong AMM"
-
     controller = boa.load_partial(LEND_CONTROLLER).at(controller_addr)
     # Read the initial settings for the deployment report.
     borrow_cap = controller.borrow_cap()
     admin_fee = controller.admin_percentage()
-    amm = boa.load_partial(AMM_SRC).at(amm_addr)
-    attached_callback = to_checksum_address(str(amm.liquidity_mining_callback()))
-    callback_attached = attached_callback == lm_callback_addr
-
     report = {
         "chain_id": chain_id,
         "deployer": deployer,
@@ -356,8 +315,6 @@ def _deploy(
         "controller": controller_addr,
         "amm": amm_addr,
         "gauge": gauge_addr,
-        "lm_callback": lm_callback_addr,
-        "callback_attached": callback_attached,
         "params": {
             "borrowed_token": CRVUSD,
             "collateral_token": WOUSD,
@@ -381,7 +338,6 @@ def _deploy(
             "borrow_cap": borrow_cap,
             "admin_fee": admin_fee,
             "gauge_factory": GAUGE_FACTORY,
-            "lm_callback_factory": LM_CALLBACK_FACTORY,
             "initial_price": price,
             "initial_ousd_price": ousd_price,
             "initial_usdc_price": usdc_price,
@@ -397,7 +353,6 @@ def _deploy(
             configurator.address,
             controller_addr,
             gauge_addr,
-            lm_callback_addr,
             dry_run,
             etherscan_api_key,
             pinata_token,
@@ -408,7 +363,6 @@ def _deploy(
 
     print(f"Controller borrow cap    : {borrow_cap / 10**18:,.0f} crvUSD")
     print(f"Controller admin fee     : {admin_fee / 10**16:g}%")
-    print(f"AMM callback             : {amm.liquidity_mining_callback()}")
     print("Market:", report["market"])
     print("Pool Oracle:", pool_oracle.address)
     print("USDC EMA:", usdc_ema.address)
@@ -419,11 +373,6 @@ def _deploy(
     print("Controller:", controller_addr)
     print("AMM:", amm_addr)
     print("Gauge (vault):", gauge_addr)
-    print(
-        "LM Callback (AMM):",
-        lm_callback_addr,
-        "(attached)" if callback_attached else "(not attached yet)",
-    )
     print("Report:", report_path)
 
 
