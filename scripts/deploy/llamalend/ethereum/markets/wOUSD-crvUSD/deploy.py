@@ -119,6 +119,9 @@ SUPPLY_LIMIT = 2**256 - 1  # unlimited; borrow cap set separately
 BORROW_CAP = 950_000 * 10**18  # crvUSD
 ADMIN_FEE = 10**17  # 10%
 GAUGE_CONTROLLER = "0x2F50D538606Fa9EDD2B11E2446BEb18C9D5846bB"
+# Factory/Configurator admin. The Ownership agent reaches the Configurator through
+# EDAO_PROXY.execute(configurator, calldata).
+EDAO_PROXY = "0xeDA020b067872717901916a3B8C724C21f6080d1"
 VOTE_DAO = curve_dao.DAO.OWNERSHIP
 
 
@@ -150,18 +153,41 @@ def _predict_controller(factory_addr: str) -> str:
     )
 
 
+def _proxy_owner(proxy) -> str | None:
+    """Owner of the eDAO proxy, if it exposes a common owner getter."""
+    for getter in ("owner", "admin", "agent"):
+        fn = getattr(proxy, getter, None)
+        if fn is not None:
+            return to_checksum_address(str(fn()))
+    return None
+
+
 def _create_activation_vote(
-    configurator_addr: str,
+    configurator,
+    proxy_addr: str,
     controller_addr: str,
     gauge_addr: str,
     dry_run: bool,
     etherscan_api_key: str,
     pinata_token: str | None,
 ) -> int:
-    # Register the vault gauge with type 0 and zero initial weight.
+    # The Configurator's admin is the eDAO proxy, not the agent, so its calls
+    # go agent -> proxy.execute(configurator, calldata). The calldata is encoded
+    # here, before it goes into the vote script.
+    def via_proxy(calldata: bytes) -> tuple:
+        return (proxy_addr, "execute", configurator.address, calldata)
+
+    # The GaugeController is owned by the agent directly. The vault gauge is
+    # added with type 0 and zero initial weight.
     actions = [
-        (configurator_addr, "set_borrow_cap", controller_addr, BORROW_CAP),
-        (configurator_addr, "set_admin_percentage", controller_addr, ADMIN_FEE),
+        via_proxy(
+            configurator.set_borrow_cap.prepare_calldata(controller_addr, BORROW_CAP)
+        ),
+        via_proxy(
+            configurator.set_admin_percentage.prepare_calldata(
+                controller_addr, ADMIN_FEE
+            )
+        ),
         (GAUGE_CONTROLLER, "add_gauge", gauge_addr, 0, 0),
     ]
     description = (
@@ -215,9 +241,23 @@ def _deploy(
     if create_vote:
         assert boa.env.eoa == deployer, "Proposer must be the deploying account"
         dao = curve_dao.get_dao_parameters(VOTE_DAO)
-        assert factory.admin() == dao["agent"], (
-            "Factory admin must be the Ownership DAO"
+        agent = to_checksum_address(dao["agent"])
+        # The factory/configurator admin is the eDAO proxy; the vote calls
+        # EDAO_PROXY.execute(configurator, calldata) from the Ownership agent.
+        proxy_addr = to_checksum_address(EDAO_PROXY)
+        assert to_checksum_address(str(factory.admin())) == proxy_addr, (
+            f"Factory admin is {factory.admin()}, expected the eDAO proxy {proxy_addr}"
         )
+        proxy = boa.from_etherscan(proxy_addr, name="eDAOProxy", api_key=etherscan_api_key)
+        assert hasattr(proxy, "execute"), "eDAO proxy has no execute() method"
+        owner = _proxy_owner(proxy)
+        if owner is None:
+            print("  WARNING: could not read the eDAO proxy owner; "
+                  "the dry-run vote simulation is the check")
+        else:
+            assert owner == agent, (
+                f"eDAO proxy is owned by {owner}, not the Ownership agent {agent}"
+            )
         voting = boa.from_etherscan(dao["voting"], api_key=etherscan_api_key)
         assert voting.canCreateNewVote(deployer), "Deployer is not eligible to propose"
 
@@ -350,7 +390,8 @@ def _deploy(
 
     if create_vote:
         vote_id = _create_activation_vote(
-            configurator.address,
+            configurator,
+            proxy_addr,
             controller_addr,
             gauge_addr,
             dry_run,
@@ -360,6 +401,15 @@ def _deploy(
         report["activation_vote_id"] = vote_id
         report_path.write_text(json.dumps(report, indent=2) + "\n")
         print("Activation vote:", vote_id)
+
+        if dry_run:
+            # Pass and execute the vote on the fork to prove the proxy routing works.
+            curve_dao.simulate(vote_id, VOTE_DAO, etherscan_api_key)
+            assert controller.borrow_cap() == BORROW_CAP, "borrow cap not set"
+            assert controller.admin_percentage() == ADMIN_FEE, "admin fee not set"
+            print("Vote simulation: executed OK, controller settings applied")
+            borrow_cap = controller.borrow_cap()
+            admin_fee = controller.admin_percentage()
 
     print(f"Controller borrow cap    : {borrow_cap / 10**18:,.0f} crvUSD")
     print(f"Controller admin fee     : {admin_fee / 10**16:g}%")
