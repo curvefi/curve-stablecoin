@@ -248,12 +248,16 @@ def _deploy(
         assert to_checksum_address(str(factory.admin())) == proxy_addr, (
             f"Factory admin is {factory.admin()}, expected the eDAO proxy {proxy_addr}"
         )
-        proxy = boa.from_etherscan(proxy_addr, name="eDAOProxy", api_key=etherscan_api_key)
+        proxy = boa.from_etherscan(
+            proxy_addr, name="eDAOProxy", api_key=etherscan_api_key
+        )
         assert hasattr(proxy, "execute"), "eDAO proxy has no execute() method"
         owner = _proxy_owner(proxy)
         if owner is None:
-            print("  WARNING: could not read the eDAO proxy owner; "
-                  "the dry-run vote simulation is the check")
+            print(
+                "  WARNING: could not read the eDAO proxy owner; "
+                "the dry-run vote simulation is the check"
+            )
         else:
             assert owner == agent, (
                 f"eDAO proxy is owned by {owner}, not the Ownership agent {agent}"
