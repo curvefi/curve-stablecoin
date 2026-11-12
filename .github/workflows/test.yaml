@@ -98,7 +98,10 @@ jobs:
             runs-on: "ubuntu-latest"
           - folder: "tests/zaps"
             runs-on: "ubuntu-latest"
-          - folder: "tests/amm"
+          # Own job: workers grow ~5 MB/s each in this file, which may exhaust the runner's memory
+          - folder: "tests/amm/test_st_exchange_dy.py"
+            runs-on: "ubuntu-latest"
+          - folder: "tests/amm --ignore=tests/amm/test_st_exchange_dy.py"
             runs-on: "ubuntu-latest"
           - folder: "tests/lending --ignore=tests/lending/test_bigfuzz.py --ignore=tests/lending/test_oracle_attack.py"
             runs-on: "ubuntu-latest"

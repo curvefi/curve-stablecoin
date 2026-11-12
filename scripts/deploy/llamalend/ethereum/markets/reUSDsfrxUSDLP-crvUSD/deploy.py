@@ -125,6 +125,7 @@ HYPERBOLIC_MP = "curve_stablecoin/mpolicies/v2/HyperbolicMP.vy"
 LEND_FACTORY = "curve_stablecoin/lending/LendFactory.vy"
 CONFIGURATOR = "curve_stablecoin/Configurator.vy"
 LEND_CONTROLLER = "curve_stablecoin/lending/LendController.vy"
+GAUGE_FACTORY_INTERFACE = "curve_stablecoin/interfaces/IGaugeFactory.vyi"
 LM_CALLBACK_FACTORY_SRC = "curve_stablecoin/lm_callback/LMCallbackFactory.vy"
 LM_CALLBACK_SRC = "curve_stablecoin/lm_callback/LMCallback.vy"
 AMM_SRC = "curve_stablecoin/AMM.vy"
@@ -159,27 +160,6 @@ POOL_ABI = json.dumps(
             "inputs": [{"name": "arg0", "type": "uint256"}],
             "outputs": [{"name": "", "type": "address"}],
         }
-    ]
-)
-
-
-# Minimal ABI for the gauge factory (only the two entry points used here).
-GAUGE_FACTORY_ABI = json.dumps(
-    [
-        {
-            "name": "deploy_gauge",
-            "type": "function",
-            "stateMutability": "nonpayable",
-            "inputs": [{"name": "_lp_token", "type": "address"}],
-            "outputs": [{"name": "", "type": "address"}],
-        },
-        {
-            "name": "get_gauge_from_lp_token",
-            "type": "function",
-            "stateMutability": "view",
-            "inputs": [{"name": "arg0", "type": "address"}],
-            "outputs": [{"name": "", "type": "address"}],
-        },
     ]
 )
 
@@ -390,7 +370,7 @@ def _deploy(
     )
 
     # 4. Deploy the liquidity gauge and LM callback permissionlessly.
-    gauge_factory = boa.loads_abi(GAUGE_FACTORY_ABI).at(GAUGE_FACTORY)
+    gauge_factory = boa.load_vyi(GAUGE_FACTORY_INTERFACE).at(GAUGE_FACTORY)
     gauge_addr = to_checksum_address(
         str(gauge_factory.deploy_gauge(vault_addr, sender=deployer))
     )
@@ -490,8 +470,42 @@ def _deploy(
             pinata_token,
         )
         report["activation_vote_id"] = vote_id
-        report_path.write_text(json.dumps(report, indent=2) + "\n")
         print("Activation vote:", vote_id)
+
+        if dry_run:
+            # Fork only: pass and execute the vote, then re-read what it changes.
+            curve_dao.simulate(vote_id, VOTE_DAO, etherscan_api_key)
+
+            borrow_cap = controller.borrow_cap()
+            admin_fee = controller.admin_percentage()
+            callback_attached = (
+                to_checksum_address(str(amm.liquidity_mining_callback()))
+                == lm_callback_addr
+            )
+            gauge_controller = boa.from_etherscan(
+                GAUGE_CONTROLLER, api_key=etherscan_api_key
+            )
+            gauge_type = gauge_controller.gauge_types(gauge_addr)
+            lm_callback_gauge_type = gauge_controller.gauge_types(lm_callback_addr)
+
+            assert borrow_cap == BORROW_CAP, "borrow cap not set by vote"
+            assert admin_fee == ADMIN_FEE, "admin fee not set by vote"
+            assert callback_attached, "LM callback not attached by vote"
+            assert gauge_type == 0, "vault gauge not added with type 0"
+            assert lm_callback_gauge_type == 0, (
+                "LM callback gauge not added with type 0"
+            )
+
+            report["post_vote"] = {
+                "borrow_cap": borrow_cap,
+                "admin_fee": admin_fee,
+                "callback_attached": callback_attached,
+                "gauge_type": gauge_type,
+                "lm_callback_gauge_type": lm_callback_gauge_type,
+            }
+            print("Vote simulated and executed on fork")
+
+        report_path.write_text(json.dumps(report, indent=2) + "\n")
 
     print(f"Controller borrow cap    : {borrow_cap / 10**18:,.0f} crvUSD")
     print(f"Controller admin fee     : {admin_fee / 10**16:g}%")
