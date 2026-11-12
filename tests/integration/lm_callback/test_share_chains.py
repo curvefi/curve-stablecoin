@@ -395,10 +395,10 @@ def test_reattached_callback_stays_inert(
     deploy_lm_callback,
     away,
 ):
-    """A callback set again after another one (or none) pays nothing more.
+    """A retired callback set again after another one (or none) pays nothing more.
 
-    Nothing armed its latch while it was away, and a loan joined the running
-    chain meanwhile with no baseline in it. Attaching it again latches it.
+    It is retired as its kill note asks, and a loan joins the running chain
+    while it is away, with no baseline in it.
     """
     users = [
         new_borrower(f"borrower_{i}", collateral_token, borrowed_token, controller)
@@ -423,7 +423,9 @@ def test_reattached_callback_stays_inert(
     else:
         configurator.set_callback(controller, ZERO_ADDRESS, sender=admin)
         boa.env.time_travel(seconds=WEEK)
-    assert not lm_callback.detached()
+    # Retirement: a checkpoint after the detach, before the AMM moves on
+    lm_callback.user_checkpoint(ZERO_ADDRESS)
+    assert lm_callback.detached()
     # Joins the chain of users[1] while the callback is away
     controller.create_loan(COLLATERAL, DEBT, N_BANDS, sender=users[2])
     configurator.set_callback(controller, lm_callback, sender=admin)

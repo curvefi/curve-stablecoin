@@ -1724,15 +1724,10 @@ def set_fee(fee: uint256):
 @nonreentrant
 def set_callback(liquidity_mining_callback: ILMCallback):
     """
-    @notice Set a gauge address with callbacks for liquidity mining for collateral.
-            A liquidity mining callback which is a contract is checkpointed first: an LMCallback which went live
-            before and is not the callback now latches `detached` and stays inert
+    @notice Set a gauge address with callbacks for liquidity mining for collateral
     @param liquidity_mining_callback Gauge address
     """
     assert msg.sender == self.admin  # dev: admin only
-    # Deposits made while it was not the callback have no baseline in it
-    if liquidity_mining_callback.address.is_contract:
-        self._callback_collateral_shares(liquidity_mining_callback, 0, 0, False)
     self._liquidity_mining_callback = liquidity_mining_callback
 
 

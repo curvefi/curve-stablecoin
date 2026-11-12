@@ -55,22 +55,19 @@ def test_add_new_lm_callback(
     assert trader_balances0[0] > trader_balances1[0]
     assert trader_balances0[1] < trader_balances1[1]
 
-    # Wire up the new LM Callback reverting on any AMM interaction. The AMM
-    # checkpoints a callback before it takes it, so this one is refused
+    # Wire up the new LM Callback reverting on any AMM interaction
     with boa.env.prank(admin):
         new_cb = LM_CALLBACK_WITH_REVERTS_DEPLOYER.deploy()
-        with boa.reverts("Error"):
-            configurator.set_callback(controller, new_cb)
+        configurator.set_callback(controller, new_cb)
         gauge_controller.add_gauge(new_cb.address, 0, 10**18)
-    assert amm.liquidity_mining_callback() == ZERO_ADDRESS
 
-    # Market does not revert, but collateral is never bought back
-    amm.exchange(0, 1, 10**20, 0, sender=trader)
-    with boa.reverts("Wrong index"):
-        amm.exchange(1, 0, 10**20, 0, sender=trader)
+    # Market reverts (collateral is never bought back, so the trade sells it)
+    with boa.reverts():
+        amm.exchange(0, 1, 10**20, 0, sender=trader)
 
-    # Market does not revert
-    controller.borrow_more(10**17, 10**20, sender=borrower)
+    # Market reverts
+    with boa.reverts():
+        controller.borrow_more(10**17, 10**20, sender=borrower)
 
     borrower_balances2 = [
         borrowed_token.balanceOf(borrower),
@@ -81,7 +78,7 @@ def test_add_new_lm_callback(
         collateral_token.balanceOf(trader),
     ]
 
-    assert borrower_balances2[0] - borrower_balances1[0] == 10**20
-    assert borrower_balances1[1] - borrower_balances2[1] == 10**17
-    assert trader_balances1[0] > trader_balances2[0]
-    assert trader_balances1[1] < trader_balances2[1]
+    assert borrower_balances2[0] == borrower_balances1[0]
+    assert borrower_balances1[1] == borrower_balances2[1]
+    assert trader_balances1[0] == trader_balances2[0]
+    assert trader_balances1[1] == trader_balances2[1]

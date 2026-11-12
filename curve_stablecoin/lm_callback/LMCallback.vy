@@ -6,8 +6,7 @@
 @notice LM callback works like a gauge for collateral in LlamaLend/crvUSD AMMs
 @dev Use this contract only on Ethereum Mainnet since CRV, GAUGE_CONTROLLER and MINTER addresses are hardcoded.
      Use it only with the AMM of this version: it relies on no trade bringing
-     collateral back to a band, on the AMM's call at the end of a share chain
-     and on the AMM's set_callback checkpointing it first.
+     collateral back to a band and on the AMM's call at the end of a share chain.
 @custom:security security@curve.finance
 @custom:kill The factory owner can pause CRV rewards with set_killed(True);
              accounting and earned reward claims continue. False resumes rewards
