@@ -8,6 +8,7 @@ from tests.utils import mint_for_testing
 Test that get_x_down and get_y_up don't change:
 * if we do trades at constant p_o (immediate trades)
 * or if we do adiabatic trade keeping p = p_o (adiabatic_trades)
+Collateral is never bought back: x counts in get_y_up at p_o
 """
 
 
@@ -75,7 +76,12 @@ def test_immediate(
         j = 0
 
     with boa.env.prank(user):
-        amm.exchange(i, j, trade_amount, 0)
+        if is_pump:
+            amm.exchange(i, j, trade_amount, 0)
+        else:
+            # Collateral is never bought back
+            with boa.reverts("Wrong index"):
+                amm.exchange(i, j, trade_amount, 0)
 
     p_after_2 = amm.get_p()
     x1 = amm.get_x_down(user)
@@ -106,6 +112,9 @@ def test_immediate_above_p0(amm, price_oracle, collateral_token, borrowed_token,
         amm.eval(f"self.fee = 0")
         amm.deposit_range(user, deposit_amount, 6, 6)
         mint_for_testing(collateral_token, amm.address, deposit_amount)
+        # p_oracle at the top of the band: the band trades at p_o and above
+        price_oracle.set_price(amm.p_oracle_up(6) - 10**6)
+    boa.env.time_travel(600)  # To reset the prev p_o counter
 
     p_before = amm.get_p()
 
@@ -122,7 +131,9 @@ def test_immediate_above_p0(amm, price_oracle, collateral_token, borrowed_token,
     mint_for_testing(collateral_token, user, trade_amount)
 
     with boa.env.prank(user):
-        amm.exchange(1, 0, trade_amount, 0)
+        # Collateral is never bought back
+        with boa.reverts("Wrong index"):
+            amm.exchange(1, 0, trade_amount, 0)
 
     p_after_2 = amm.get_p()
     x1 = amm.get_x_down(user)
@@ -155,6 +166,9 @@ def test_immediate_in_band(amm, price_oracle, collateral_token, borrowed_token, 
         amm.eval(f"self.fee = 0")
         amm.deposit_range(user, deposit_amount, 4, 4)
         mint_for_testing(collateral_token, amm.address, deposit_amount)
+        # p_oracle in the middle of the band
+        price_oracle.set_price((amm.p_oracle_up(4) + amm.p_oracle_down(4)) // 2)
+    boa.env.time_travel(600)  # To reset the prev p_o counter
 
     p_before = amm.get_p()
 
@@ -256,13 +270,16 @@ def test_adiabatic(
             i = 0
             j = 1
             mint_for_testing(borrowed_token, user, amount)
+            with boa.env.prank(user):
+                amm.exchange(i, j, amount, 0)
         else:
+            # Collateral is never bought back: no trade brings the price down
             i = 1
             j = 0
-            mint_for_testing(collateral_token, user, amount)
-
-        with boa.env.prank(user):
-            amm.exchange(i, j, amount, 0)
+            assert amount == 0
+            with boa.env.prank(user):
+                with boa.reverts("Wrong index"):
+                    amm.exchange(i, j, 1, 0)
 
         if k == 0:
             x0 = amm.get_x_down(user)
@@ -271,11 +288,24 @@ def test_adiabatic(
         x = amm.get_x_down(user)
         y = amm.get_y_up(user)
 
+        # x counts in y at p_o: y follows 1 / p_o where the position is x
+        y_min = y0 * min(p_o_1 / p_o, 1)
+        y_max = y0 * max(p_o_1 / p_o, 1)
+
         assert x >= x0 * (1 - precision)
-        assert y >= y0 * (1 - precision)
+        assert y + 1 >= y_min * (1 - precision)
 
         assert x == pytest.approx(x0, rel=precision + fee_component * (k + 1))
-        assert y == pytest.approx(y0, rel=precision + fee_component * (k + 1))
+        assert y + 1 >= y_min * (1 - precision - fee_component * (k + 1))
+        assert y <= y_max * (1 + precision + fee_component * (k + 1)) + 1
+        if amm.get_sum_xy(user)[1] == 0:
+            # All is sold: y is x at p_o, up to a unit of each and the bands' rounding
+            x_unit = 10 ** (18 - borrowed_token.decimals())
+            y_unit = 10 ** (18 - collateral_token.decimals())
+            assert (
+                abs(y - x * x_unit * 10**18 // (p_o * y_unit))
+                <= 1 + (2 * (n1 + 1) + x_unit * 10**18 // p_o) // y_unit
+            )
 
         if k != N_STEPS - 1:
             p_o = int(p_o * p_o_mul)

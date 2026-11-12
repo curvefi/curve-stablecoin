@@ -52,14 +52,19 @@ _MAX_INT256 = 2**255 - 1
 _N_SHRINK = 6  # bands needed for shrink tests (> MIN_TICKS so shrink is possible)
 
 
-def _push_underwater(borrower, controller, amm, borrowed_token):
+def _push_underwater(borrower, controller, amm, borrowed_token, price_oracle, admin):
     """Exchange debt//2 of borrowed tokens for collateral to create xy[0] > 0."""
     trader = boa.env.generate_address("trader")
     debt = controller.debt(borrower)
     boa.deal(borrowed_token, trader, debt // 2)
+    # Collateral is sold only from bands which p_oracle has reached
+    p_o = price_oracle.price()
+    p_o_down = amm.p_oracle_down(amm.read_user_tick_numbers(borrower)[1])
+    price_oracle.set_price(p_o_down, sender=admin)
     with boa.env.prank(trader):
         max_approve(borrowed_token, amm)
         amm.exchange(0, 1, debt // 2, 0)
+    price_oracle.set_price(p_o, sender=admin)
 
     assert (
         controller.user_state(borrower)[0] > 0
@@ -67,18 +72,24 @@ def _push_underwater(borrower, controller, amm, borrowed_token):
     )
 
 
-def _open_shrinkable_loan(controller, collateral_token, amm, borrowed_token, debt):
+def _open_shrinkable_loan(
+    controller, collateral_token, amm, borrowed_token, debt, price_oracle, admin
+):
     """Open a loan with _N_SHRINK bands and soft-liquidate one band so that
     shrink is possible (active band inside position bands, xy[0] > 0)."""
     borrower = open_max_loan(controller, collateral_token, debt, _N_SHRINK)
     ticks = amm.read_user_tick_numbers(borrower)
     amount_out = max(amm.bands_y(ticks[0]) // 100, 1)
+    # Collateral is sold only from bands which p_oracle has reached
+    p_o = price_oracle.price()
+    price_oracle.set_price(amm.p_oracle_down(ticks[0]), sender=admin)
     dx = amm.get_dx(0, 1, amount_out)
     trader = boa.env.generate_address()
     boa.deal(borrowed_token, trader, dx)
     with boa.env.prank(trader):
         max_approve(borrowed_token, amm)
         amm.exchange_dy(0, 1, amount_out, dx + 1)
+    price_oracle.set_price(p_o, sender=admin)
 
     assert (
         controller.user_state(borrower)[0] > 0
@@ -255,6 +266,8 @@ def test_vault_operation_reverts_in_full_repay_from_xy0_and_callback(
     borrowed_token,
     cb,
     seed_liquidity,
+    price_oracle,
+    admin,
 ):
     """
     Vault operation must revert during repay callback when the position is
@@ -265,7 +278,7 @@ def test_vault_operation_reverts_in_full_repay_from_xy0_and_callback(
 
     debt = seed_liquidity // 10
     borrower = open_max_loan(controller, collateral_token, debt, N)
-    _push_underwater(borrower, controller, amm, borrowed_token)
+    _push_underwater(borrower, controller, amm, borrowed_token, price_oracle, admin)
 
     if action in (ACTION_WITHDRAW, ACTION_REDEEM):
         seed_shares(cb, borrowed_token, WAD + 1)
@@ -292,6 +305,8 @@ def test_pps_stable_during_full_repay_from_xy0_and_callback(
     borrowed_token,
     cb,
     seed_liquidity,
+    price_oracle,
+    admin,
 ):
     """
     PPS must be stable before, during, and after repay when the position is
@@ -301,7 +316,7 @@ def test_pps_stable_during_full_repay_from_xy0_and_callback(
 
     debt = seed_liquidity // 10
     borrower = open_max_loan(controller, collateral_token, debt, N)
-    _push_underwater(borrower, controller, amm, borrowed_token)
+    _push_underwater(borrower, controller, amm, borrowed_token, price_oracle, admin)
 
     xy0 = controller.user_state(borrower)[1]
     cb_portion = controller.debt(borrower) - xy0 + 1  # +1 for rounding
@@ -336,6 +351,8 @@ def test_vault_operation_reverts_in_full_repay_from_xy0_wallet_and_callback(
     borrowed_token,
     cb,
     seed_liquidity,
+    price_oracle,
+    admin,
 ):
     """
     Vault operation must revert during repay callback when the position is
@@ -345,7 +362,7 @@ def test_vault_operation_reverts_in_full_repay_from_xy0_wallet_and_callback(
 
     debt = seed_liquidity // 10
     borrower = open_max_loan(controller, collateral_token, debt, N)
-    _push_underwater(borrower, controller, amm, borrowed_token)
+    _push_underwater(borrower, controller, amm, borrowed_token, price_oracle, admin)
 
     if action in (ACTION_WITHDRAW, ACTION_REDEEM):
         seed_shares(cb, borrowed_token, WAD + 1)
@@ -376,6 +393,8 @@ def test_pps_stable_during_full_repay_from_xy0_wallet_and_callback(
     borrowed_token,
     cb,
     seed_liquidity,
+    price_oracle,
+    admin,
 ):
     """
     PPS must be stable before, during, and after repay when the position is
@@ -385,7 +404,7 @@ def test_pps_stable_during_full_repay_from_xy0_wallet_and_callback(
 
     debt = seed_liquidity // 10
     borrower = open_max_loan(controller, collateral_token, debt, N)
-    _push_underwater(borrower, controller, amm, borrowed_token)
+    _push_underwater(borrower, controller, amm, borrowed_token, price_oracle, admin)
 
     xy0 = controller.user_state(borrower)[1]
     remaining = controller.debt(borrower) - xy0
@@ -575,6 +594,8 @@ def test_vault_operation_reverts_in_partial_repay_from_xy0_and_callback_underwat
     borrowed_token,
     cb,
     seed_liquidity,
+    price_oracle,
+    admin,
 ):
     """
     Vault operation must revert during a shrink repay callback when the position
@@ -584,7 +605,7 @@ def test_vault_operation_reverts_in_partial_repay_from_xy0_and_callback_underwat
 
     debt = seed_liquidity // 10
     borrower = _open_shrinkable_loan(
-        controller, collateral_token, amm, borrowed_token, debt
+        controller, collateral_token, amm, borrowed_token, debt, price_oracle, admin
     )
 
     if action in (ACTION_WITHDRAW, ACTION_REDEEM):
@@ -609,6 +630,8 @@ def test_pps_stable_during_partial_repay_from_xy0_and_callback_underwater_shrink
     borrowed_token,
     cb,
     seed_liquidity,
+    price_oracle,
+    admin,
 ):
     """
     PPS must be stable before, during, and after a shrink repay where the
@@ -618,7 +641,7 @@ def test_pps_stable_during_partial_repay_from_xy0_and_callback_underwater_shrink
 
     debt = seed_liquidity // 10
     borrower = _open_shrinkable_loan(
-        controller, collateral_token, amm, borrowed_token, debt
+        controller, collateral_token, amm, borrowed_token, debt, price_oracle, admin
     )
 
     payer = setup_caller(controller, borrower, different_payer)
@@ -651,6 +674,8 @@ def test_vault_operation_reverts_in_partial_repay_from_xy0_wallet_and_callback_u
     borrowed_token,
     cb,
     seed_liquidity,
+    price_oracle,
+    admin,
 ):
     """
     Vault operation must revert during a shrink repay callback when xy[0],
@@ -660,7 +685,7 @@ def test_vault_operation_reverts_in_partial_repay_from_xy0_wallet_and_callback_u
 
     debt = seed_liquidity // 10
     borrower = _open_shrinkable_loan(
-        controller, collateral_token, amm, borrowed_token, debt
+        controller, collateral_token, amm, borrowed_token, debt, price_oracle, admin
     )
 
     if action in (ACTION_WITHDRAW, ACTION_REDEEM):
@@ -690,6 +715,8 @@ def test_pps_stable_during_partial_repay_from_xy0_wallet_and_callback_underwater
     borrowed_token,
     cb,
     seed_liquidity,
+    price_oracle,
+    admin,
 ):
     """
     PPS must be stable before, during, and after a shrink repay where xy[0],
@@ -699,7 +726,7 @@ def test_pps_stable_during_partial_repay_from_xy0_wallet_and_callback_underwater
 
     debt = seed_liquidity // 10
     borrower = _open_shrinkable_loan(
-        controller, collateral_token, amm, borrowed_token, debt
+        controller, collateral_token, amm, borrowed_token, debt, price_oracle, admin
     )
 
     payer = setup_caller(controller, borrower, different_payer)

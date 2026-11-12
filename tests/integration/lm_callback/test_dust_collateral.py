@@ -1,6 +1,6 @@
 """Once the AMM holds only dust collateral, the callback stops distributing.
 
-`AMM.vy:1082` recomputes a band's `collateral_per_share = y * 1e18 //
+`AMM.vy:684` recomputes a band's `collateral_per_share = y * 1e18 //
 total_shares[n]` after every exchange. Shares stay constant while `y` collapses
 during soft liquidation, so once `y` is dust the ratio floors to **0** and
 `LMCallback._checkpoint_collateral_shares` (`LMCallback.vy:192`) credits nothing -
@@ -33,16 +33,15 @@ def dust_threshold(deposit: int, n_bands: int = N_BANDS) -> int:
     """Smallest band collateral that still earns, in wei.
 
     A first deposit into an empty band mints `ds = (0 + DEAD_SHARES) * y // (0 + 1)`
-    shares (`AMM.vy:696`), i.e. exactly `DEAD_SHARES` per wei deposited, and shares
+    shares (`AMM.vy:812`), i.e. exactly `DEAD_SHARES` per wei deposited, and shares
     never change afterwards - only `y` does. So the band's
     `collateral_per_share = y * 1e18 // total_shares` reaches 0 as soon as
 
         y * 1e18 < DEAD_SHARES * y_deposited
 
-    Later deposits mint pro rata (`ds = (s + DEAD_SHARES) * y // (total_y + 1)`,
-    and `deposit_range` only accepts bands with `bands_x == 0`), so the
-    `DEAD_SHARES`-per-wei ratio holds for a band with any number of depositors -
-    pass the sum of what they put in.
+    Later deposits mint pro rata (`ds = (s + DEAD_SHARES) * y // (total_y + 1)`),
+    so until the band is traded the `DEAD_SHARES`-per-wei ratio holds for a band
+    with any number of depositors - pass the sum of what they put in.
 
     The last band to be soft-liquidated is `n2`, which holds a plain
     `y_per_band = deposit // n_bands` (`n1` gets the division remainder on top).
@@ -72,6 +71,7 @@ def test_no_rewards_on_dust_collateral(
     crv,
     controller,
     amm,
+    price_oracle,
     lm_callback,
     minter,
 ):
@@ -85,6 +85,10 @@ def test_no_rewards_on_dust_collateral(
         lm_callback.user_checkpoint(borrower, sender=borrower)
         accrued = lm_callback.integrate_fraction(borrower)
         assert accrued > 0
+
+        # Collateral is sold only from bands which p_oracle has reached
+        n2 = amm.read_user_tick_numbers(borrower)[1]
+        price_oracle.set_price(amm.p_oracle_down(n2), sender=admin)
 
         # Soft-liquidate the position down to 1 wei of collateral
         amm.exchange_dy(0, 1, deposit - 1, MAX_UINT256, sender=trader)
@@ -127,6 +131,7 @@ def test_dust_threshold(
     crv,
     controller,
     amm,
+    price_oracle,
     lm_callback,
     minter,
     deposit,
@@ -145,6 +150,10 @@ def test_dust_threshold(
         boa.env.time_travel(seconds=WEEK)
         lm_callback.user_checkpoint(borrower, sender=borrower)
         rate = crv.rate()
+
+        # Collateral is sold only from bands which p_oracle has reached
+        n2 = amm.read_user_tick_numbers(borrower)[1]
+        price_oracle.set_price(amm.p_oracle_down(n2), sender=admin)
 
         rewards = {}
         for leftover in (threshold - 1, threshold):

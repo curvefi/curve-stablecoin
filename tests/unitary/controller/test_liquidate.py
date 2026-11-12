@@ -245,11 +245,17 @@ def test_liquidate_full_from_wallet_underwater(
     trader = boa.env.generate_address()
     debt = controller.debt(borrower)
     boa.deal(borrowed_token, trader, debt // 5)
+    if is_healthy:
+        # Collateral is sold only from bands which p_oracle has reached
+        p_o = price_oracle.price()
+        p_o_down = amm.p_oracle_down(amm.read_user_tick_numbers(borrower)[1])
+        price_oracle.set_price(p_o_down, sender=admin)
     with boa.env.prank(trader):
         max_approve(borrowed_token, amm)
         amm.exchange(0, 1, debt // 5, 0)
 
     if is_healthy:
+        price_oracle.set_price(p_o, sender=admin)
         assert controller.health(borrower) > 0
     else:
         assert controller.health(borrower) < 0
@@ -587,11 +593,17 @@ def test_liquidate_full_from_callback_underwater(
     trader = boa.env.generate_address()
     debt = controller.debt(borrower)
     boa.deal(borrowed_token, trader, debt // 5)
+    if is_healthy:
+        # Collateral is sold only from bands which p_oracle has reached
+        p_o = price_oracle.price()
+        p_o_down = amm.p_oracle_down(amm.read_user_tick_numbers(borrower)[1])
+        price_oracle.set_price(p_o_down, sender=admin)
     with boa.env.prank(trader):
         max_approve(borrowed_token, amm)
         amm.exchange(0, 1, debt // 5, 0)
 
     if is_healthy:
+        price_oracle.set_price(p_o, sender=admin)
         assert controller.health(borrower) > 0
     else:
         assert controller.health(borrower) < 0
@@ -776,11 +788,17 @@ def test_liquidate_full_from_xy0_underwater(
     debt = controller.debt(borrower)
     assert debt > 0
     boa.deal(borrowed_token, trader, debt * 10_001 // 10_000)
+    if is_healthy:
+        # Collateral is sold only from bands which p_oracle has reached
+        p_o = price_oracle.price()
+        p_o_down = amm.p_oracle_down(amm.read_user_tick_numbers(borrower)[1])
+        price_oracle.set_price(p_o_down, sender=admin)
     with boa.env.prank(trader):
         max_approve(borrowed_token, amm)
         amm.exchange(0, 1, debt * 10_001 // 10_000, 0)
 
     if is_healthy:
+        price_oracle.set_price(p_o, sender=admin)
         assert controller.health(borrower) > 0
     else:
         assert controller.health(borrower) < 0
@@ -804,10 +822,15 @@ def test_liquidate_full_from_xy0_underwater(
 
     # ================= Execute liquidation via callback =================
 
-    if different_liquidator and is_healthy:
-        # Can't liquidate healthy users without approval
-        with boa.reverts("Not enough rekt"):
-            controller.liquidate(borrower, user_state_before[1], sender=liquidator)
+    if different_liquidator:
+        if is_healthy:
+            # Can't liquidate healthy users without approval
+            with boa.reverts("Not enough rekt"):
+                controller.liquidate(borrower, user_state_before[1], sender=liquidator)
+        else:
+            # Without approval the liquidation is capped: can't take the whole position
+            with boa.reverts("Slippage"):
+                controller.liquidate(borrower, user_state_before[1], sender=liquidator)
         controller.approve(liquidator, True, sender=borrower)
 
     with boa.reverts("Slippage"):
@@ -933,26 +956,36 @@ def test_liquidate_full_from_xy0_underwater_exact(
     debt = controller.debt(borrower)
     assert debt > 0
     boa.deal(borrowed_token, trader, debt * 10_001 // 10_000)
+    if is_healthy:
+        # Collateral is sold only from bands which p_oracle has reached
+        p_o = price_oracle.price()
+        p_o_down = amm.p_oracle_down(amm.read_user_tick_numbers(borrower)[1])
+        price_oracle.set_price(p_o_down, sender=admin)
     with boa.env.prank(trader):
         max_approve(borrowed_token, amm)
-        amm.exchange(0, 1, debt * 10_001 // 10_000, 0)
-
-        # Make debt == xy[0]
-        _, x, d, _ = controller.user_state(borrower)
         if borrowed_token.decimals() == 2:
+            amm.exchange(0, 1, debt * 10_001 // 10_000, 0)
+
+            # Make debt == xy[0]
+            _, x, d, _ = controller.user_state(borrower)
             while x > d:
                 boa.env.time_travel(86400)
                 _, x, d, _ = controller.user_state(borrower)
             assert x == d
         else:
-            max_approve(collateral_token, amm)
-            # Some inaccuracy
-            if is_healthy:
-                amm.exchange_dy(1, 0, x - d + 1, MAX_UINT256)
-            else:
-                amm.exchange_dy(1, 0, x - d + 2, MAX_UINT256)
+            # Make debt == xy[0]: collateral is never bought back, so dx is tuned
+            dx = debt
+            for _ in range(10):
+                with boa.env.anchor():
+                    amm.exchange(0, 1, dx, 0)
+                    _, x, d, _ = controller.user_state(borrower)
+                if x == d:
+                    break
+                dx += d - x
+            amm.exchange(0, 1, dx, 0)
 
     if is_healthy:
+        price_oracle.set_price(p_o, sender=admin)
         assert controller.health(borrower) > 0
     else:
         assert controller.health(borrower) < 0
@@ -976,10 +1009,15 @@ def test_liquidate_full_from_xy0_underwater_exact(
 
     # ================= Execute liquidation via callback =================
 
-    if different_liquidator and is_healthy:
-        # Can't liquidate healthy users without approval
-        with boa.reverts("Not enough rekt"):
-            controller.liquidate(borrower, user_state_before[1], sender=liquidator)
+    if different_liquidator:
+        if is_healthy:
+            # Can't liquidate healthy users without approval
+            with boa.reverts("Not enough rekt"):
+                controller.liquidate(borrower, user_state_before[1], sender=liquidator)
+        else:
+            # Without approval the liquidation is capped: can't take the whole position
+            with boa.reverts("Slippage"):
+                controller.liquidate(borrower, user_state_before[1], sender=liquidator)
         controller.approve(liquidator, True, sender=borrower)
 
     with boa.reverts("Slippage"):
@@ -1068,6 +1106,7 @@ def test_liquidate_full_from_xy0_underwater_exact(
 @pytest.fixture(scope="module")
 def get_f_remove(controller):
     """
+    Returns the debt to repay and the fraction of the position withdrawn for it.
     Note. Approval is required to liquidate healthy users, so we always consider h = 0 for such cases.
     """
 
@@ -1076,7 +1115,10 @@ def get_f_remove(controller):
         if is_healthy or borrower == sender or controller.approval(borrower, sender):
             h = 0
 
-        return controller.eval(f"core._get_f_remove({frac}, {h})")
+        return controller.eval(
+            f"core._calculate_debt_f_remove({borrower}, {controller.debt(borrower)}, {frac}, {h}, "
+            "core.AMM, core.COLLATERAL_PRECISION, core.BORROWED_PRECISION)"
+        )
 
     return f
 
@@ -1132,7 +1174,7 @@ def test_liquidate_partial_from_wallet(
 
     # ================= Calc tokens to remove from AMM =================
 
-    f_remove = get_f_remove(frac, borrower, liquidator, is_healthy)
+    debt_to_repay, f_remove = get_f_remove(frac, borrower, liquidator, is_healthy)
     collateral_to_remove = user_state_before[0] * f_remove // WAD
 
     # ================= Setup liquidator tokens =================
@@ -1140,7 +1182,6 @@ def test_liquidate_partial_from_wallet(
     tokens_needed = (
         controller.tokens_to_liquidate(borrower, frac, sender=liquidator) + 1
     )  # Inaccuracy
-    debt_to_repay = (debt * frac + WAD - 1) // WAD
     assert tokens_needed == pytest.approx(debt_to_repay, abs=1)
 
     if different_liquidator:
@@ -1321,11 +1362,17 @@ def test_liquidate_partial_from_wallet_underwater(
     trader = boa.env.generate_address()
     debt = controller.debt(borrower)
     boa.deal(borrowed_token, trader, debt // 5)
+    if is_healthy:
+        # Collateral is sold only from bands which p_oracle has reached
+        p_o = price_oracle.price()
+        p_o_down = amm.p_oracle_down(amm.read_user_tick_numbers(borrower)[1])
+        price_oracle.set_price(p_o_down, sender=admin)
     with boa.env.prank(trader):
         max_approve(borrowed_token, amm)
         amm.exchange(0, 1, debt // 5, 0)
 
     if is_healthy:
+        price_oracle.set_price(p_o, sender=admin)
         assert controller.health(borrower) > 0
     else:
         assert controller.health(borrower) < 0
@@ -1343,7 +1390,7 @@ def test_liquidate_partial_from_wallet_underwater(
 
     # ================= Calc tokens to remove from AMM =================
 
-    f_remove = get_f_remove(frac, borrower, liquidator, is_healthy)
+    debt_to_repay, f_remove = get_f_remove(frac, borrower, liquidator, is_healthy)
     collateral_to_remove = user_state_before[0] * f_remove // WAD
     borrowed_to_remove = user_state_before[1] * f_remove // WAD
 
@@ -1355,7 +1402,6 @@ def test_liquidate_partial_from_wallet_underwater(
         # so we pass sender=borrower to get the correct number as for approved user
         tokens_needed = controller.tokens_to_liquidate(borrower, frac, sender=borrower)
     tokens_needed += 1  # Inaccuracy
-    debt_to_repay = (debt * frac + WAD - 1) // WAD
     assert 0 < tokens_needed == pytest.approx(debt_to_repay - borrowed_to_remove, abs=1)
     assert tokens_needed >= debt_to_repay - borrowed_to_remove
 
@@ -1553,7 +1599,7 @@ def test_liquidate_partial_from_callback(
 
     # ================= Calc tokens to remove from AMM =================
 
-    f_remove = get_f_remove(frac, borrower, liquidator, is_healthy)
+    debt_to_repay, f_remove = get_f_remove(frac, borrower, liquidator, is_healthy)
     collateral_to_remove = user_state_before[0] * f_remove // WAD
 
     # ================= Setup callback tokens =================
@@ -1561,7 +1607,6 @@ def test_liquidate_partial_from_callback(
     tokens_needed = (
         controller.tokens_to_liquidate(borrower, frac, sender=liquidator) + 1
     )  # Inaccuracy
-    debt_to_repay = (debt * frac + WAD - 1) // WAD
     assert 0 < tokens_needed == pytest.approx(debt_to_repay, abs=1)
     assert tokens_needed >= debt_to_repay
     profit = 1
@@ -1760,11 +1805,17 @@ def test_liquidate_partial_from_callback_underwater(
     trader = boa.env.generate_address()
     debt = controller.debt(borrower)
     boa.deal(borrowed_token, trader, debt // 5)
+    if is_healthy:
+        # Collateral is sold only from bands which p_oracle has reached
+        p_o = price_oracle.price()
+        p_o_down = amm.p_oracle_down(amm.read_user_tick_numbers(borrower)[1])
+        price_oracle.set_price(p_o_down, sender=admin)
     with boa.env.prank(trader):
         max_approve(borrowed_token, amm)
         amm.exchange(0, 1, debt // 5, 0)
 
     if is_healthy:
+        price_oracle.set_price(p_o, sender=admin)
         assert controller.health(borrower) > 0
     else:
         assert controller.health(borrower) < 0
@@ -1782,7 +1833,7 @@ def test_liquidate_partial_from_callback_underwater(
 
     # ================= Calc tokens to removed from AMM =================
 
-    f_remove = get_f_remove(frac, borrower, liquidator, is_healthy)
+    debt_to_repay, f_remove = get_f_remove(frac, borrower, liquidator, is_healthy)
     collateral_to_remove = user_state_before[0] * f_remove // WAD
     borrowed_to_remove = user_state_before[1] * f_remove // WAD
 
@@ -1793,7 +1844,6 @@ def test_liquidate_partial_from_callback_underwater(
         # Approval is required to liquidate healthy users,
         # so we pass sender=borrower to get the correct number as for approved user
         tokens_needed = controller.tokens_to_liquidate(borrower, frac, sender=borrower)
-    debt_to_repay = (debt * frac + WAD - 1) // WAD
     assert 0 < tokens_needed == pytest.approx(debt_to_repay - borrowed_to_remove, abs=1)
     profit = 1
     callback_collateral = collateral_to_remove // 3

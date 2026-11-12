@@ -292,6 +292,8 @@ def test_repay_full_from_xy0(
     amm,
     snapshot,
     collateral_amount,
+    price_oracle,
+    admin,
     different_payer,
 ):
     """
@@ -317,9 +319,14 @@ def test_repay_full_from_xy0(
 
     trader = boa.env.generate_address()
     boa.deal(borrowed_token, trader, debt * 10_001 // 10_000)
+    # Collateral is sold only from bands which p_oracle has reached
+    p_o = price_oracle.price()
+    p_o_down = amm.p_oracle_down(amm.read_user_tick_numbers(borrower)[1])
+    price_oracle.set_price(p_o_down, sender=admin)
     with boa.env.prank(trader):
         max_approve(borrowed_token, amm)
         amm.exchange(0, 1, debt * 10_001 // 10_000, 0)
+    price_oracle.set_price(p_o, sender=admin)
 
     # ================= Capture initial state =================
 
@@ -542,6 +549,8 @@ def test_repay_full_from_xy0_and_wallet(
     amm,
     snapshot,
     collateral_amount,
+    price_oracle,
+    admin,
     different_payer,
 ):
     """
@@ -566,9 +575,14 @@ def test_repay_full_from_xy0_and_wallet(
 
     trader = boa.env.generate_address()
     boa.deal(borrowed_token, trader, debt // 2)
+    # Collateral is sold only from bands which p_oracle has reached
+    p_o = price_oracle.price()
+    p_o_down = amm.p_oracle_down(amm.read_user_tick_numbers(borrower)[1])
+    price_oracle.set_price(p_o_down, sender=admin)
     with boa.env.prank(trader):
         max_approve(borrowed_token, amm)
         amm.exchange(0, 1, debt // 2, 0)
+    price_oracle.set_price(p_o, sender=admin)
 
     # ================= Capture initial state =================
 
@@ -667,6 +681,8 @@ def test_repay_full_from_xy0_and_callback(
     snapshot,
     fake_leverage,
     collateral_amount,
+    price_oracle,
+    admin,
     different_payer,
 ):
     """
@@ -692,9 +708,14 @@ def test_repay_full_from_xy0_and_callback(
 
     trader = boa.env.generate_address()
     boa.deal(borrowed_token, trader, debt // 2)
+    # Collateral is sold only from bands which p_oracle has reached
+    p_o = price_oracle.price()
+    p_o_down = amm.p_oracle_down(amm.read_user_tick_numbers(borrower)[1])
+    price_oracle.set_price(p_o_down, sender=admin)
     with boa.env.prank(trader):
         max_approve(borrowed_token, amm)
         amm.exchange(0, 1, debt // 2, 0)
+    price_oracle.set_price(p_o, sender=admin)
 
     # ================= Capture initial state =================
 
@@ -804,6 +825,8 @@ def test_repay_full_from_wallet_and_xy0_and_callback(
     snapshot,
     fake_leverage,
     collateral_amount,
+    price_oracle,
+    admin,
     different_payer,
 ):
     """
@@ -828,9 +851,14 @@ def test_repay_full_from_wallet_and_xy0_and_callback(
 
     trader = boa.env.generate_address()
     boa.deal(borrowed_token, trader, debt // 2)
+    # Collateral is sold only from bands which p_oracle has reached
+    p_o = price_oracle.price()
+    p_o_down = amm.p_oracle_down(amm.read_user_tick_numbers(borrower)[1])
+    price_oracle.set_price(p_o_down, sender=admin)
     with boa.env.prank(trader):
         max_approve(borrowed_token, amm)
         amm.exchange(0, 1, debt // 2, 0)
+    price_oracle.set_price(p_o, sender=admin)
 
     # ================= Capture initial state =================
 
