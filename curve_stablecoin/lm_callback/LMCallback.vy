@@ -4,7 +4,9 @@
 @author Curve.Finance
 @license Copyright (c) Curve.Finance, 2020-2026 - all rights reserved
 @notice LM callback works like a gauge for collateral in LlamaLend/crvUSD AMMs
-@dev Use this contract only on Ethereum Mainnet since CRV, GAUGE_CONTROLLER and MINTER addresses are hardcoded
+@dev Use this contract only on Ethereum Mainnet since CRV, GAUGE_CONTROLLER and MINTER addresses are hardcoded.
+     Use it only with the AMM of this version: it relies on no trade bringing
+     collateral back to a band and on the AMM's call at the end of a share chain.
 @custom:security security@curve.finance
 @custom:kill The factory owner can pause CRV rewards with set_killed(True);
              accounting and earned reward claims continue. False resumes rewards
@@ -87,6 +89,7 @@ I_rpc: public(ILMCallback.IntegralRPC)
 
 # Rewards per share:
 # I_rps[i] = integral(cs[i] * rrpc * dt) = sum(cs[i] * delta(I_rpc))
+# plus 1 each time collateral comes back to band i after this contract saw it at 0 (paid to nobody)
 
 I_rps: public(HashMap[int256, ILMCallback.IntegralRPS])
 
@@ -96,6 +99,15 @@ I_rps: public(HashMap[int256, ILMCallback.IntegralRPS])
 
 I_rpu: public(HashMap[address, HashMap[int256, ILMCallback.IntegralRPU]])
 integrate_fraction: public(HashMap[address, uint256])
+
+# Share chains: no trade brings collateral back to a band, so collateral which comes back after
+# this contract saw the band at 0 comes with a deposit, which ended the chain holding the band (or
+# the band had no holders, or its collateral per share was below 1 / 10**18). The shares of the
+# ended chain earn nothing more.
+# chain_rps[i][0] - 0 until band i is seen with no collateral, then 1 + number of such returns
+# chain_rps[i][k], k >= 1 - I_rps of band i at its k-th return (the end of the chain before it)
+
+chain_rps: HashMap[int256, HashMap[uint256, uint256]]
 
 
 @deploy
@@ -273,6 +285,18 @@ def _checkpoint_collateral_shares(n_start: int256, collateral_per_share: DynArra
         I_rps: ILMCallback.IntegralRPS = self.I_rps[_n]
         I_rps.rps += unsafe_div(old_cps * unsafe_sub(I_rpc.rpc, I_rps.rpc), 10**18)
         I_rps.rpc = I_rpc.rpc
+        if len(collateral_per_share) > 0:
+            if collateral_per_share[i] == 0:
+                if self.chain_rps[_n][0] == 0:
+                    self.chain_rps[_n][0] = 1
+            elif old_cps == 0:
+                k: uint256 = self.chain_rps[_n][0]
+                if k != 0:
+                    # Collateral again in a band which had none - the chain which held the band (if any)
+                    # ended here, and the shares of the new one start above that end
+                    self.chain_rps[_n][k] = I_rps.rps
+                    self.chain_rps[_n][0] = k + 1
+                    I_rps.rps += 1
         self.I_rps[_n] = I_rps
         log ILMCallback.CheckpointBand(n=_n, rps=I_rps.rps, collateral_per_share=old_cps)
 
@@ -284,7 +308,8 @@ def _checkpoint_user_shares(user: address, n_start: int256, old_user_shares: Dyn
     @dev Updates the CRV emissions a user is entitled to receive
     @param user The address of the user
     @param n_start Index of the first band to checkpoint
-    @param old_user_shares User's shares by bands taken BEFORE the action
+    @param old_user_shares User's shares by bands taken BEFORE the action, 0 for shares of a chain
+           which ended while this contract was not the AMM's callback
     @param size The number of bands to checkpoint starting from `n_start`
     """
     if not self._attached():
@@ -300,6 +325,25 @@ def _checkpoint_user_shares(user: address, n_start: int256, old_user_shares: Dyn
 
         I_rpu: ILMCallback.IntegralRPU = self.I_rpu[user][_n]
         I_rps: uint256 = self.I_rps[_n].rps
+        # Chain ends of the band
+        k: uint256 = 0
+        if old_user_shares_i != 0:
+            k = self.chain_rps[_n][0]
+            if k != 0:
+                k -= 1
+        if k != 0 and I_rpu.rps <= self.chain_rps[_n][k]:
+            # The shares' chain ended - they earned up to the first chain end at or above their checkpoint
+            j: uint256 = 1
+            # Fewer than 2**32 chains in a band
+            for _: uint256 in range(32):
+                if j == k:
+                    break
+                mid: uint256 = unsafe_div(j + k, 2)
+                if self.chain_rps[_n][mid] < I_rpu.rps:
+                    j = mid + 1
+                else:
+                    k = mid
+            I_rps = self.chain_rps[_n][j]
         d_rpu: uint256 = unsafe_div(old_user_shares_i * unsafe_sub(I_rps, I_rpu.rps), 10**18)
         I_rpu.rpu += d_rpu
         I_rpu.rps = I_rps
@@ -353,7 +397,8 @@ def callback_user_shares(user: address, n_start: int256, old_user_shares: DynArr
          Can be called only be the corresponding AMM.
     @param user The address of the user
     @param n_start Index of the first band to checkpoint
-    @param old_user_shares User's shares by bands taken BEFORE the action
+    @param old_user_shares User's shares by bands taken BEFORE the action, 0 for shares of a chain
+           which ended while this contract was not the AMM's callback
     @param size The number of bands to checkpoint starting from `n_start`
     """
     assert msg.sender == AMM.address
@@ -369,7 +414,9 @@ def _user_checkpoint(addr: address):
     ns: int256[2] = staticcall AMM.read_user_tick_numbers(addr)
     user_shares: DynArray[uint256, MAX_TICKS_UINT] = staticcall AMM.read_user_ticks(addr)
     self._checkpoint_collateral_shares(ns[0], [], ns[1] - ns[0] + 1)
-    if len(user_shares) > 0 and user_shares[0] > 0:
+    # The AMM can read the first band's shares as 0
+    # (a chain which ended while this contract was not its callback)
+    if staticcall AMM.has_liquidity(addr):
         self._checkpoint_user_shares(addr, ns[0], user_shares, ns[1] - ns[0] + 1)
 
 

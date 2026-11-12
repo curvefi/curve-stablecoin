@@ -68,13 +68,23 @@ def test_amount_for_price(
         if is_pump:
             mint_for_testing(borrowed_token, user, amount)
             if amm.get_dy(0, 1, amount) == 0:
+                # Nothing is quoted only if no collateral is left, p_oracle has not reached
+                # the next band which holds it or the target is short of that band
+                bands = (n for n in range(max(n0, n1), n2 + 1) if amm.bands_y(n) > 0)
+                n = next(bands, None)
+                assert (
+                    amount > 0
+                    or n is None
+                    or amm.p_oracle_up(n) < amm.price_oracle()
+                    or p_final <= max(p_initial, amm.p_current_down(n)) * (1 + 1e-3)
+                )
                 return
             amm.exchange(0, 1, amount, 0)
+            # Collateral is sold only from bands which p_oracle has reached
+            assert amm.p_oracle_up(amm.active_band()) >= amm.price_oracle()
         else:
-            mint_for_testing(collateral_token, user, amount)
-            if amm.get_dy(1, 0, amount) == 0:
-                return
-            amm.exchange(1, 0, amount, 0)
+            # Only a pump can move the price: nothing is bought back
+            assert amount == 0
 
     p = amm.get_p()
     n_final = amm.active_band()
@@ -97,23 +107,22 @@ def test_amount_for_price(
                 # The AMM gives the wrong price based on n0 band. It should be DUMP, not PUMP
                 assert n_final == n0 and amount == 0
             else:
-                # Nothing to pump for OR too far to pump
+                # Nothing to pump for OR too far to pump OR p_oracle is still in this band
+                # and the band is bought out (the AMM's rounding keeps at most 1 wei)
                 _n_final = max(n_final, n1)
                 p_o_ratio = amm.p_oracle_up(_n_final) / oracle_price
-                assert collateral_token.balanceOf(
-                    amm
-                ) == 0 or p_o_ratio < a_ratio**-50 * (1 + 1e-8)
-        else:
-            if p_max == p_final:
-                # The AMM gives the wrong price based on n0 band. It should be PUMP, not DUMP
-                assert n_final == n0 and amount == 0
-            else:
-                # Nothing to dump for OR too far to dump
-                _n_final = min(n_final, n2)
-                p_o_ratio = amm.p_oracle_up(_n_final) / oracle_price
-                assert borrowed_token.balanceOf(amm) == 0 or p_o_ratio > a_ratio**50 * (
-                    1 - 1e-8
+                p_o = amm.price_oracle()
+                assert (
+                    collateral_token.balanceOf(amm) == 0
+                    or p_o_ratio < a_ratio**-50 * (1 + 1e-8)
+                    or (
+                        amm.p_oracle_down(n_final) < p_o <= amm.p_oracle_up(n_final)
+                        and amm.bands_y(n_final) <= 1
+                    )
                 )
+        else:
+            # The price stays where it was
+            assert n_final == n0 and p == p_initial
 
 
 def test_amount_for_price_ticks_too_far(

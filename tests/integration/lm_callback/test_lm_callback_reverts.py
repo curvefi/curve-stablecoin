@@ -13,6 +13,7 @@ def test_add_new_lm_callback(
     controller,
     configurator,
     amm,
+    price_oracle,
     gauge_controller,
 ):
     borrower = boa.env.generate_address("borrower")
@@ -35,6 +36,9 @@ def test_add_new_lm_callback(
 
     # Market interactions
     controller.create_loan(10**21, 10**21 * 2600, 10, sender=borrower)
+    # Collateral is sold only from bands which p_oracle has reached
+    n1 = amm.read_user_tick_numbers(borrower)[0]
+    price_oracle.set_price(amm.p_oracle_up(n1), sender=admin)
     amm.exchange(0, 1, 10**20, 0, sender=trader)
 
     borrower_balances1 = [
@@ -57,9 +61,9 @@ def test_add_new_lm_callback(
         configurator.set_callback(controller, new_cb)
         gauge_controller.add_gauge(new_cb.address, 0, 10**18)
 
-    # Market reverts
+    # Market reverts (collateral is never bought back, so the trade sells it)
     with boa.reverts():
-        amm.exchange(1, 0, 10**20, 0, sender=trader)
+        amm.exchange(0, 1, 10**20, 0, sender=trader)
 
     # Market reverts
     with boa.reverts():

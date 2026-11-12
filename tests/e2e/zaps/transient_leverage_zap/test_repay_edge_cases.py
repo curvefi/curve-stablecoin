@@ -107,7 +107,9 @@ def max_leverage_position(
 
 
 @pytest.fixture
-def soft_liquidate(amm, controller, collateral_token, borrowed_token):
+def soft_liquidate(
+    amm, controller, collateral_token, borrowed_token, price_oracle, admin
+):
     """
     Let an arbitrageur buy the top of the position out of the AMM, which is what puts a
     position into soft liquidation: part of it comes back as the borrowed token.
@@ -119,6 +121,9 @@ def soft_liquidate(amm, controller, collateral_token, borrowed_token):
         amount_out = (amm.bands_y(ns[0]) + amm.bands_y(ns[0] + 1) // 2) // 10 ** (
             18 - cd
         )
+        # Collateral is sold only from bands which p_oracle has reached
+        p_o = price_oracle.price()
+        price_oracle.set_price(amm.p_oracle_down(ns[0] + 1), sender=admin)
         amount_in = amm.get_dx(0, 1, amount_out)
 
         trader = boa.env.generate_address()
@@ -126,6 +131,7 @@ def soft_liquidate(amm, controller, collateral_token, borrowed_token):
         with boa.env.prank(trader):
             borrowed_token.approve(amm.address, MAX_UINT256)
             amm.exchange_dy(0, 1, amount_out, amount_in + 1)
+        price_oracle.set_price(p_o, sender=admin)
 
         assert controller.user_state(borrower)[1] > 0
 

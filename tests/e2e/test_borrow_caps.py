@@ -43,14 +43,15 @@ def test_borrow_cap(
     with boa.reverts("Borrow cap exceeded"):
         controller.create_loan(amounts["collateral"], debt, N_BANDS)
 
-    # Raise the cap modestly and open a loan that consumes the allowance
-    configurator.set_borrow_cap(controller, debt, sender=admin)
+    # Raise the cap (recent debt is limited to 15% of it) and open a loan
+    configurator.set_borrow_cap(controller, 7 * debt, sender=admin)
     assert controller.available_balance() > 0
     controller.create_loan(amounts["collateral"], debt, N_BANDS)
     assert controller.available_balance() > 0
     assert controller.total_debt() == debt
 
-    # Attempts to borrow beyond the cap should revert
+    # Cut the cap to the debt: attempts to borrow beyond the cap should revert
+    configurator.set_borrow_cap(controller, debt, sender=admin)
     with boa.reverts("Borrow cap exceeded"):
         controller.borrow_more(0, 1)
 
@@ -60,7 +61,9 @@ def test_borrow_cap(
     current_debt = controller.debt(boa.env.eoa)
     extra_debt = controller.max_borrowable(0, 0, boa.env.eoa)
     assert extra_debt > 0
-    configurator.set_borrow_cap(controller, current_debt + extra_debt, sender=admin)
+    configurator.set_borrow_cap(
+        controller, 7 * (current_debt + extra_debt), sender=admin
+    )
     assert controller.available_balance() > 0
     controller.borrow_more(0, extra_debt)
     assert controller.available_balance() > 0

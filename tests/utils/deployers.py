@@ -176,6 +176,10 @@ ORACLE_FROM_CURVE_POOLS_DEPLOYER = boa.load_partial(
     PRICE_ORACLES_CONTRACT_PATH / "v2" / "OracleFromCurvePools.vy",
     compiler_args=compiler_args_default,
 )
+WINDOW_ORACLE_DEPLOYER = boa.load_partial(
+    PRICE_ORACLES_CONTRACT_PATH / "v2" / "WindowOracle.vy",
+    compiler_args=compiler_args_default,
+)
 
 # Proxy oracle contracts - have #pragma optimize gas
 PROXY_ORACLE_DEPLOYER = boa.load_partial(

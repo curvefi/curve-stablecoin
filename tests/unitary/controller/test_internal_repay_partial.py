@@ -500,6 +500,7 @@ def test_repay_partial_from_wallet_underwater(
     admin,
     fake_leverage,
     collateral_amount,
+    price_oracle,
     different_payer,
 ):
     """
@@ -524,9 +525,14 @@ def test_repay_partial_from_wallet_underwater(
 
     trader = boa.env.generate_address()
     boa.deal(borrowed_token, trader, debt // 2)
+    # Collateral is sold only from bands which p_oracle has reached
+    p_o = price_oracle.price()
+    p_o_down = amm.p_oracle_down(amm.read_user_tick_numbers(borrower)[1])
+    price_oracle.set_price(p_o_down, sender=admin)
     with boa.env.prank(trader):
         max_approve(borrowed_token, amm)
         amm.exchange(0, 1, debt // 2, 0)
+    price_oracle.set_price(p_o, sender=admin)
 
     # ================= Set new liquidation discount =================
 
@@ -665,6 +671,7 @@ def test_repay_partial_from_xy0_underwater_shrink(
     admin,
     fake_leverage,
     collateral_amount,
+    price_oracle,
     different_payer,
 ):
     """
@@ -695,11 +702,15 @@ def test_repay_partial_from_xy0_underwater_shrink(
     assert ticks_before[1] - ticks_before[0] == 5
     amount_out = amm.bands_y(ticks_before[0]) + amm.bands_y(ticks_before[0] + 1) // 2
     amount_out = amount_out // 10 ** (18 - collateral_token.decimals())
+    # Collateral is sold only from bands which p_oracle has reached
+    p_o = price_oracle.price()
+    price_oracle.set_price(amm.p_oracle_down(ticks_before[0] + 1), sender=admin)
     amount_in = amm.get_dx(0, 1, amount_out)
     boa.deal(borrowed_token, trader, amount_in)
     with boa.env.prank(trader):
         max_approve(borrowed_token, amm)
         amm.exchange_dy(0, 1, amount_out, amount_in + 1)
+    price_oracle.set_price(p_o, sender=admin)
     assert controller.tokens_to_shrink(borrower) == 0
 
     # ================= Set new liquidation discount =================
@@ -827,6 +838,7 @@ def test_repay_partial_from_xy0_and_wallet_underwater_shrink(
     admin,
     fake_leverage,
     collateral_amount,
+    price_oracle,
     different_payer,
 ):
     """
@@ -858,6 +870,9 @@ def test_repay_partial_from_xy0_and_wallet_underwater_shrink(
         amm.bands_y(ticks_before[0]) // 100 // 10 ** (18 - collateral_token.decimals())
     )  # 1 / 100
     amount_out = max(amount_out, 1)
+    # Collateral is sold only from bands which p_oracle has reached,
+    # p_oracle stays there: the position is in soft liquidation
+    price_oracle.set_price(amm.p_oracle_down(ticks_before[0]), sender=admin)
     amount_in = amm.get_dx(0, 1, amount_out)
     boa.deal(borrowed_token, trader, amount_in)
     with boa.env.prank(trader):
@@ -999,6 +1014,7 @@ def test_repay_partial_from_xy0_and_callback_underwater_shrink(
     admin,
     fake_leverage,
     collateral_amount,
+    price_oracle,
     different_payer,
 ):
     """
@@ -1030,6 +1046,9 @@ def test_repay_partial_from_xy0_and_callback_underwater_shrink(
         amm.bands_y(ticks_before[0]) // 100 // 10 ** (18 - collateral_token.decimals())
     )  # 1 / 100
     amount_out = max(amount_out, 1)
+    # Collateral is sold only from bands which p_oracle has reached,
+    # p_oracle stays there: the position is in soft liquidation
+    price_oracle.set_price(amm.p_oracle_down(ticks_before[0]), sender=admin)
     amount_in = amm.get_dx(0, 1, amount_out)
     boa.deal(borrowed_token, trader, amount_in)
     with boa.env.prank(trader):
@@ -1182,6 +1201,7 @@ def test_repay_partial_from_xy0_and_wallet_and_callback_underwater_shrink(
     admin,
     fake_leverage,
     collateral_amount,
+    price_oracle,
     different_payer,
 ):
     """
@@ -1213,6 +1233,9 @@ def test_repay_partial_from_xy0_and_wallet_and_callback_underwater_shrink(
         amm.bands_y(ticks_before[0]) // 100 // 10 ** (18 - collateral_token.decimals())
     )  # 1 / 100
     amount_out = max(amount_out, 1)
+    # Collateral is sold only from bands which p_oracle has reached,
+    # p_oracle stays there: the position is in soft liquidation
+    price_oracle.set_price(amm.p_oracle_down(ticks_before[0]), sender=admin)
     amount_in = amm.get_dx(0, 1, amount_out)
     boa.deal(borrowed_token, trader, amount_in)
     with boa.env.prank(trader):
@@ -1377,6 +1400,7 @@ def test_repay_partial_cannot_shrink(
     admin,
     fake_leverage,
     collateral_amount,
+    price_oracle,
     different_payer,
 ):
     """
@@ -1408,11 +1432,15 @@ def test_repay_partial_cannot_shrink(
         + amm.bands_y(ticks_before[0] + 2) // 2
     )
     amount_out = amount_out // 10 ** (18 - collateral_token.decimals())
+    # Collateral is sold only from bands which p_oracle has reached
+    p_o = price_oracle.price()
+    price_oracle.set_price(amm.p_oracle_down(ticks_before[0] + 2), sender=admin)
     amount_in = amm.get_dx(0, 1, amount_out)
     boa.deal(borrowed_token, trader, amount_in)
     with boa.env.prank(trader):
         max_approve(borrowed_token, amm)
         amm.exchange_dy(0, 1, amount_out, amount_in + 1)
+    price_oracle.set_price(p_o, sender=admin)
 
     # ================= Capture initial state =================
 

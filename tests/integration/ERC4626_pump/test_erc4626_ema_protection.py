@@ -54,6 +54,21 @@ PUMP = 12 * 10**17  # +20% share price (1.2e18)
 DUMP = 7 * 10**17  # -30% share price (0.7e18)
 
 
+def _convert_position(amm, base_oracle, admin, borrowed_token, user, trader):
+    """Collateral is sold only from bands which p_oracle has reached:
+    walk the oracle down through the user's bands (just below the top of each)
+    so the trader converts the whole position, then put the oracle back.
+    """
+    p = base_oracle.price()
+    n1, n2 = amm.read_user_tick_numbers(user)
+    for n in range(n1, n2 + 1):
+        p_o_up = amm.p_oracle_up(n)
+        base_oracle.set_price(p_o_up - p_o_up // 10**12, sender=admin)
+        with boa.env.prank(trader):
+            amm.exchange(0, 1, borrowed_token.balanceOf(trader), 0)
+    base_oracle.set_price(p, sender=admin)
+
+
 def test_erc4626_ema_blocks_pump_liquidation(
     controller,
     amm,
@@ -63,6 +78,7 @@ def test_erc4626_ema_blocks_pump_liquidation(
     price_oracle,
     borrowed_token,
     collateral_token,
+    admin,
 ):
     victim = boa.env.generate_address("victim")
     attacker = boa.env.generate_address("attacker")
@@ -90,8 +106,7 @@ def test_erc4626_ema_blocks_pump_liquidation(
     # ----- 2) attacker trades through the whole victim position -----
     attacker_reserves = 5 * victim_collateral * p // 10**18
     boa.deal(borrowed_token, attacker, attacker_reserves)
-    with boa.env.prank(attacker):
-        amm.exchange(0, 1, attacker_reserves, 0)
+    _convert_position(amm, base_oracle, admin, borrowed_token, victim, attacker)
 
     victim_state = controller.user_state(victim)
     assert victim_state[0] == 0  # collateral fully converted
@@ -206,11 +221,13 @@ def test_erc4626_ema_sustained_pump_eventually_liquidates(
     borrowed_token,
     collateral_token,
     ema_time,
+    admin,
 ):
     """The EMA only *delays* an upward manipulation.  If the attacker sustains
     the pumped share price across several blocks (~ema_time), the EMA converges
-    to the pumped value, the victim's health goes negative and the liquidation
-    that was impossible atomically becomes possible.
+    to the pumped value.  The victim's position holds only the borrowed token,
+    which the AMM never converts back: it is valued at face, its health does not
+    move with the pumped price, and the liquidation stays impossible.
     """
     victim = boa.env.generate_address("slow_victim")
     attacker = boa.env.generate_address("slow_attacker")
@@ -239,8 +256,7 @@ def test_erc4626_ema_sustained_pump_eventually_liquidates(
     # collateral must first be converted away, exactly as in the naive attack.
     attacker_reserves = 5 * victim_collateral * p // 10**18
     boa.deal(borrowed_token, attacker, attacker_reserves)
-    with boa.env.prank(attacker):
-        amm.exchange(0, 1, attacker_reserves, 0)
+    _convert_position(amm, base_oracle, admin, borrowed_token, victim, attacker)
     assert controller.user_state(victim)[0] == 0  # collateral gone
 
     # ----- attacker pumps the share price +20% and SUSTAINS it -----
@@ -264,11 +280,12 @@ def test_erc4626_ema_sustained_pump_eventually_liquidates(
         if h < 0 and not crossed:
             crossed = True
 
-    assert crossed, "sustained pump should eventually push health < 0"
-    assert controller.health(victim, True) < 0
+    assert not crossed, "the borrowed token in the bands is valued at face"
+    assert controller.health(victim, True) > 0
 
-    # ----- the liquidation that was impossible atomically now succeeds -----
+    # ----- the liquidation stays impossible -----
     boa.deal(borrowed_token, attacker, max_debt)
     with boa.env.prank(attacker):
-        controller.liquidate(victim, 0)
-    assert not controller.loan_exists(victim)
+        with boa.reverts("Not enough rekt"):
+            controller.liquidate(victim, 0)
+    assert controller.loan_exists(victim)

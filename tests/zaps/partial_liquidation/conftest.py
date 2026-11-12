@@ -34,6 +34,7 @@ def controller_for_liquidation(
     monetary_policy,
     admin,
     configurator,
+    price_oracle,
 ):
     def f(sleep_time, user):
         N = 5
@@ -52,8 +53,13 @@ def controller_for_liquidation(
             controller.create_loan(collateral_amount, debt, N)
 
         health_0 = controller.health(user)
+        # Collateral is sold only from bands which p_oracle has reached
+        p_o = price_oracle.price()
+        p_o_down = amm.p_oracle_down(amm.read_user_tick_numbers(user)[1])
+        price_oracle.set_price(p_o_down, sender=admin)
         with boa.env.prank(user):
             amm.exchange(0, 1, debt, 0)
+        price_oracle.set_price(p_o, sender=admin)
         health_1 = controller.health(user)
 
         assert health_0 <= health_1

@@ -39,7 +39,7 @@ lm_callback_blueprint: public(address)
 # and LM Callbacks are gauges from their point of view
 is_valid_gauge: public(HashMap[address, bool])
 # The newest callback this factory deployed for an AMM - deploy-time intent, not
-# live state: the Configurator can attach any address it likes, and a detach is
+# live state: the Configurator can attach another address, and a detach is
 # never reflected here. Ask the AMM itself for what is currently attached
 get_lm_callback_by_amm: public(HashMap[address, address])
 # Blueprint each callback was created from, kept for the duplicate check in

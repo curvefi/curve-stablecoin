@@ -139,7 +139,7 @@ def trade_to_price(amm, price_oracle, admin, trader, p_target):
     """Move the oracle to `p_target` and let the trader arbitrage the AMM to it.
 
     Returns whether anything was actually traded: `AMM.exchange` bails out before
-    touching the callback when either leg rounds down to 0 (AMM.vy:1029, 1059), and
+    touching the callback when either leg rounds down to 0 (AMM.vy:1124, 1148), and
     a model checkpoint without a matching contract one drifts the CRV epoch caches.
     """
     price_oracle.set_price(p_target, sender=admin)
@@ -147,8 +147,15 @@ def trade_to_price(amm, price_oracle, admin, trader, p_target):
     with boa.env.prank(trader):
         if pump:
             traded = amm.exchange(0, 1, amount, 0)
+            # An amount which pays for 2 wei of collateral cannot round down to nothing
+            dy, dx = amm.get_dydx(0, 1, 2)
+            assert traded[0] > 0 or dy < 2 or dx > amount
         else:
-            traded = amm.exchange(1, 0, amount, 0)
+            # Only a pump can move the price: nothing is bought back
+            assert amount == 0
+            with boa.reverts("Wrong index"):
+                amm.exchange(1, 0, amount, 0)
+            return False
     return traded[0] > 0
 
 
@@ -159,6 +166,7 @@ def test_simple_exchange(
     crv,
     controller,
     amm,
+    price_oracle,
     lm_callback,
     minter,
 ):
@@ -181,6 +189,10 @@ def test_simple_exchange(
     rewards_borrower1 = lm_callback.integrate_fraction(borrower1)
     rewards_borrower2 = lm_callback.integrate_fraction(borrower2)
     assert rewards_borrower1 == rewards_borrower2
+
+    # Collateral is sold only from bands which p_oracle has reached
+    n2 = amm.read_user_tick_numbers(borrower1)[1]
+    price_oracle.set_price(amm.p_oracle_down(n2), sender=admin)
 
     # Trader buys crvUSD --> collateral and takes a half of borrower1's deposit
     amm.exchange_dy(0, 1, 10**21 // 2, 2**255, sender=trader)
@@ -251,7 +263,7 @@ def test_gauge_integral_with_exchanges(
         #
         # 1. The contract gets there through four integer divisions:
         #
-        #      cps[n]  = y[n] * 1e18 // s[n]                (AMM.vy:709, :1082)
+        #      cps[n]  = y[n] * 1e18 // s[n]                (AMM.vy:684)
         #      d_rpc   = rate * w * dt // S                 (LMCallback.vy:157-161)
         #      d_rps[n] = cps[n] * d_rpc // 1e18            (LMCallback.vy:190)
         #      d_rpu[n] = u[n] * d_rps[n] // 1e18           (LMCallback.vy:217)
@@ -290,7 +302,7 @@ def test_gauge_integral_with_exchanges(
         #        = s[n] / (y[n] * 1e18)
         #
         #    Shares are minted at DEAD_SHARES (= 1000) per wei of collateral
-        #    (AMM.vy:696) and then frozen - only `y[n]` moves afterwards. So for an
+        #    (AMM.vy:812) and then frozen - only `y[n]` moves afterwards. So for an
         #    untouched band `s[n] = 1000 * y[n]` and the bound is 1e-15 of the
         #    interval, i.e. the assertion stays as tight as the old `rel=1e-14` one.
         #    As soft liquidation drains `y[n]`, `s[n] / y[n]` grows, and the bound
