@@ -7,18 +7,16 @@ Reads the deployment report written by
 and submits source + constructor args for each contract that script deploys
 directly:
     1. OracleFromCurvePools (pool_oracle)    -- ctor: ([pool], [USDC idx], [OUSD idx])
-    2. ChainlinkEMA       (usdc_ema)        -- ctor: (USDC/USD feed, 20, 30)
+    2. ChainlinkEMA       (usdc_ema)        -- ctor: (USDC/USD feed, 10, 60)
     3. ChainOracle        (base_oracle)     -- ctor: ([pool_oracle, usdc_ema])
     4. ERC4626EMAWrapper  (price_oracle)    -- ctor: (base_oracle, wOUSD, ema_time)
     5. HyperbolicMP        (monetary_policy) -- ctor: (controller, target_util,
                                                 target_rate, low, high, rate_shift)
 
-Deliberately not submitted - everything deployed from a blueprint, whose
-implementation is verified once, elsewhere:
+Deliberately not submitted - factory-deployed contracts whose implementations
+are verified elsewhere:
   * vault / controller / amm - blueprint copies from the lending factory, covered
     by scripts/deploy/llamalend/ethereum/factory/verify.py;
-  * lm_callback - blueprint copy from the LM callback factory, covered by
-    scripts/deploy/llamalend/ethereum/lm-callback-factory/verify.py;
   * gauge - from the DAO's gauge factory, whose implementation lives outside
     this repo.
 
@@ -445,6 +443,7 @@ def main() -> None:
         ),
     ]
 
+    failed = False
     for (
         address,
         label,
@@ -478,8 +477,12 @@ def main() -> None:
                 _poll(api_key, guid, label)
             print(f"  https://etherscan.io/address/{address}#code")
         except RuntimeError as e:
+            failed = True
             print(f"  FAILED: {e}")
             print(f"  UNVERIFIED: {label} at {address}")
+
+    if failed:
+        raise SystemExit("One or more contracts were not verified")
 
 
 if __name__ == "__main__":
