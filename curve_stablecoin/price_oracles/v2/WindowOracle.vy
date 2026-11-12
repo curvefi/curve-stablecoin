@@ -13,6 +13,9 @@
 @dev Nothing a caller does inside a block can change what it reads, so
      `price_w` may be called by anyone. Once the last write is WINDOW
      seconds old, `price` follows the average since that write alone.
+     Writes in the same 12 s share an observation, so with blocks less
+     than 12 s apart a highest or lowest average may count up to 11 s
+     longer, never shorter.
      The price is of coin `POOL_IX + 1` in coin 0, in USD, as the pool
      quotes it: stableswap-ng quotes a coin with a rate oracle (ERC4626,
      rebasing) per rate-scaled unit, and caps the price it averages at 2.
@@ -50,7 +53,8 @@ interface Stableswap:
 
 WAD: constant(uint256) = c.WAD
 SWAD: constant(int256) = c.SWAD
-# Observations kept, one per block: WINDOW / 12 + 1 are needed
+# Observations kept, one per 12 s (writes in the same 12 s share one): all of the last
+# WINDOW seconds are kept while WINDOW <= (N_OBS - 1) * 12
 N_OBS: constant(uint256) = 4
 
 POOL: public(immutable(Pool))
@@ -78,8 +82,12 @@ packed_band: uint256
 # timestamp (40) | next observation slot (24) | pool price_oracle at the last write (88) | factor (64) |
 # factor timestamp (40)
 packed_last: uint256
-# Two observations per slot: timestamp (40) | average block-end price (88)
+# Two observations per slot: timestamp (40) | average block-end price (88). When several writes
+# share the 12 s of an observation, it keeps the time and the average of the latest write, and
+# sets the top bit of its timestamp; their highest and lowest averages are then in packed_obs_hl
 packed_obs: uint256[N_OBS // 2]
+# Highest average << 128 | lowest average (88 bits each) of each observation with that bit set
+packed_obs_hl: uint256[N_OBS]
 
 
 @deploy
@@ -102,7 +110,7 @@ def __init__(
     @param _ix Index passed to `price_oracle`: 1 = ETH in tricrypto; 0 in a pool of two coins.
     @param _stableswap crvUSD / coin 0 of the pool; empty when coin 0 is crvUSD.
     @param _stable_aggregator crvUSD stable aggregator, gives the crvUSD/USD price.
-    @param _window Seconds of block-end prices the band takes the highest and lowest of.
+    @param _window Seconds of block-end prices the band takes the highest and lowest of, at most (N_OBS - 1) * 12.
     @param _tau Time constant (seconds) the band follows them with.
     @param _cap Max move of the band per 12 s (1e18 = 100%).
     @param _stale Age (seconds) after which the USD conversion factor, and the aggregator's last written price, is re-read.
@@ -158,6 +166,7 @@ def __init__(
     # pool, which keeps ma_time in the low 64 bits of packed_rebalancing_params().
     PACKED_MA_TIME = not success or len(res) == 0
 
+    assert _window <= (N_OBS - 1) * 12, "Window too long"
     WINDOW = _window
     TAU = _tau
     CAP = _cap
@@ -246,11 +255,16 @@ def _band(_packed_last: uint256) -> uint256[5]:
         observation: uint256 = packed_obs[i // 2] >> unsafe_mul(128, i % 2) & (2**128 - 1)
         if observation == 0:
             continue
-        t: uint256 = observation >> 88
+        t: uint256 = (observation >> 88) & (2**39 - 1)
         p: uint256 = observation & (2**88 - 1)
         if t > t_start:
+            p_lo: uint256 = p
+            if observation >> 127 != 0:
+                p_hl: uint256 = self.packed_obs_hl[i]
+                p = p_hl >> 128
+                p_lo = p_hl & (2**88 - 1)
             p_max = max(p_max, p)
-            p_min = min(p_min, p)
+            p_min = min(p_min, p_lo)
         elif t >= t_prev:
             t_prev = t
             p_prev = p
@@ -371,6 +385,28 @@ def _price_w() -> uint256:
         t_factor = block.timestamp
     if block.timestamp > packed_last >> 216:
         i: uint256 = (packed_last >> 192) & (2**24 - 1)
+        if block.timestamp // 12 == (packed_last >> 216) // 12:
+            # The last write was in the same 12 s: its observation keeps the highest and the lowest average,
+            # and the latest one for when it is the one before the window
+            self.packed_band = self._pack_band(band[0], band[1], band[2])
+            self.packed_last = self._pack_last(block.timestamp, i, band[4], factor, t_factor)
+            i = unsafe_sub(unsafe_add(i, N_OBS), 1) % N_OBS
+            bits: uint256 = unsafe_mul(128, i % 2)
+            packed_obs: uint256 = self.packed_obs[i // 2]
+            observation: uint256 = (packed_obs >> bits) & (2**128 - 1)
+            p: uint256 = observation & (2**88 - 1)
+            p_hl: uint256 = (p << 128) | p
+            if observation >> 127 != 0:
+                p_hl = self.packed_obs_hl[i]
+            observation = 2**127 | self._pack_obs(block.timestamp, band[3])
+            if i % 2 == 0:
+                packed_obs = (packed_obs & ((2**128 - 1) << 128)) | observation
+            else:
+                packed_obs = (packed_obs & (2**128 - 1)) | (observation << 128)
+            self.packed_obs[i // 2] = packed_obs
+            p_hl = (max(p_hl >> 128, band[3]) << 128) | min(p_hl & (2**88 - 1), band[3])
+            self.packed_obs_hl[i] = p_hl
+            return unsafe_div(band[2] * factor, WAD)
         packed_obs: uint256 = self.packed_obs[i // 2]
         if i % 2 == 0:
             packed_obs = (packed_obs & ((2**128 - 1) << 128)) | self._pack_obs(block.timestamp, band[3])

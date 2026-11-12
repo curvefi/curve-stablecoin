@@ -13,8 +13,8 @@ once the AMM stops calling it:
   baseline seeded, and can then claim the band's entire banked `I_rps`.
   Reachable two ways: `test_detached_*` (path 1, the permissionless
   `user_checkpoint`) and `test_reattached_*` (path 2, `callback_user_shares`
-  fired by the AMM after re-attachment - still open, needs the AMM to announce
-  the detach).
+  fired by the AMM after re-attachment - closed by the AMM's `set_callback`,
+  which checkpoints the incoming callback first).
 
 The yardstick is `weight_budget`: the gauge's entitlement is bounded by
 integral(rate * relative_weight dt), computed here from CRV's own schedule and
@@ -353,8 +353,9 @@ def test_reattached_deposit_earns_nothing_for_the_gap(
 ):
     """Path 2: deposit lands during a detach window, then the callback is re-attached.
 
-    Nothing calls the callback while it is detached, so a lazily-set guard never
-    trips. On re-attachment the AMM legitimately fires `callback_user_shares`
+    Nothing calls the callback while it is detached, so a lazily-set guard trips
+    only when the AMM's `set_callback` checkpoints it on re-attachment (it is
+    armed by hand here). The AMM then legitimately fires `callback_user_shares`
     during the withdrawal, with real old shares against an unseeded baseline.
     """
     with boa.env.anchor():
