@@ -434,9 +434,8 @@ def set_min_liquidity(_min_liquidity: uint256):
     @param _min_liquidity WAD-scaled TVL threshold.
     """
     assert msg.sender == self.admin, "only admin"
-    # A source far below 1e-18 of total TVL gets zero weight and can break the
-    # weighted average.
-    assert _min_liquidity >= WAD, "min liquidity too low"
+    # A zero threshold would activate empty sources and break the weighted average.
+    assert _min_liquidity > 0, "zero min liquidity"
     self.min_liquidity = _min_liquidity
     log SetMinLiquidity(min_liquidity=_min_liquidity)
 

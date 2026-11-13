@@ -71,6 +71,9 @@ def exp_penalized_price(
     #   exp_weight[i] = weight[i] * exp(-(e[i] - min(e)))
     # Subtracting min(e) keeps the largest exponential at 1.0 and avoids
     # underweighting every source when all prices are far from p_ref.
+    # min(e) is taken over sources with non-zero weight only, so a zero-weight
+    # source does not affect the result and the nearest weighted source keeps
+    # its full weight.
     sigma_sq: uint256 = self.sigma**2 // WAD
     e: DynArray[uint256, MAX_N] = []
     e_min: uint256 = max_value(uint256)
@@ -78,12 +81,15 @@ def exp_penalized_price(
         p: uint256 = prices[i]
         price_delta: uint256 = max(p, p_ref) - min(p, p_ref)
         e.append(price_delta**2 // sigma_sq)
-        e_min = min(e[i], e_min)
+        if weights[i] > 0:
+            e_min = min(e[i], e_min)
 
     exp_weights: DynArray[uint256, MAX_N] = []
     for i: uint256 in range(len(prices), bound=MAX_N):
+        # max() only matters for zero-weight sources closer to p_ref than e_min.
+        penalty: uint256 = max(e[i], e_min) - e_min
         exp_weights.append(
-            weights[i] * convert(math._wad_exp(-convert(e[i] - e_min, int256)), uint256) // WAD
+            weights[i] * convert(math._wad_exp(-convert(penalty, int256)), uint256) // WAD
         )
     return self.weighted_avg(prices, exp_weights)
 

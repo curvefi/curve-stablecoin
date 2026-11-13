@@ -91,3 +91,24 @@ def test_smaller_sigma_penalizes_reference_outlier_more(weighted_price_deployer)
     wide_price = wide.exp_penalized_price(prices, weights, WAD)
 
     assert WAD <= narrow_price <= wide_price <= 110 * WAD // 100
+
+
+def test_exp_penalized_price_ignores_zero_weight_sources(weighted_price):
+    weighted_price.set_sigma(10**16)
+    prices = [93 * WAD // 100, 107 * WAD // 100]
+    weights = [WAD // 2, WAD // 2]
+    expected = weighted_price.exp_penalized_price(prices, weights, WAD)
+
+    # Zero-weight source closer to the reference than any weighted one.
+    assert (
+        weighted_price.exp_penalized_price(prices + [WAD], weights + [0], WAD)
+        == expected
+    )
+    # Zero-weight source farther from the reference.
+    assert (
+        weighted_price.exp_penalized_price(prices + [2 * WAD], weights + [0], WAD)
+        == expected
+    )
+
+    with boa.reverts():
+        weighted_price.exp_penalized_price(prices, [0, 0], WAD)

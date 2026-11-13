@@ -346,9 +346,9 @@ def test_set_min_liquidity_admin_flow(
     with boa.reverts("only admin"):
         with boa.env.prank(new_emergency_admin):
             agg.set_min_liquidity(1)
-    with boa.reverts("min liquidity too low"):
+    with boa.reverts("zero min liquidity"):
         with boa.env.prank(admin):
-            agg.set_min_liquidity(WAD - 1)
+            agg.set_min_liquidity(0)
 
     thin_pool = old_pool_factory(price=105 * WAD // 100, tvl=MIN_LIQUIDITY // 2)
     active_pool = old_pool_factory(price=11 * WAD // 10, tvl=MIN_LIQUIDITY)
@@ -368,6 +368,23 @@ def test_set_min_liquidity_admin_flow(
     assert agg.min_liquidity() == MIN_LIQUIDITY // 2
     assert agg.share_cap() == 70 * WAD // 100
     assert 105 * WAD // 100 < agg.price() < 11 * WAD // 10
+
+
+def test_dust_source_does_not_block_price(agg, ng_pool_factory, admin):
+    # A source too small to get a non-zero weight sits exactly at the reference
+    # price while every weighted source is far from it.
+    prices = [93 * WAD // 100] * 3 + [1105 * WAD // 1000] * 2
+    with boa.env.prank(admin):
+        agg.set_sigma(10**16)
+        agg.set_min_liquidity(1)
+        for price in prices:
+            agg.add_price_pair(ng_pool_factory(price=price, tvl=10**6 * WAD).address)
+        expected = agg.price()
+        agg.add_price_pair(ng_pool_factory(price=WAD, tvl=1).address)
+
+    assert agg.price() == expected
+    boa.env.time_travel(1)
+    assert agg.price_w() == expected
 
 
 def test_set_tvl_ma_time_admin_flow(agg, old_pool_factory, admin, new_emergency_admin):

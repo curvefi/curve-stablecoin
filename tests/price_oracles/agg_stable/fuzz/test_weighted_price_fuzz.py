@@ -80,3 +80,26 @@ def test_smaller_sigma_moves_outlier_result_toward_reference(
     assert min(WAD, outlier_price) <= narrow_price <= max(WAD, outlier_price)
     assert min(WAD, outlier_price) <= wide_price <= max(WAD, outlier_price)
     assert abs(narrow_price - WAD) <= abs(wide_price - WAD)
+
+
+@given(
+    prices=st.lists(
+        st.integers(min_value=50 * WAD // 100, max_value=150 * WAD // 100),
+        min_size=1,
+        max_size=5,
+    ),
+    weight=st.integers(min_value=1, max_value=WAD),
+    dust_price=st.integers(min_value=50 * WAD // 100, max_value=150 * WAD // 100),
+    p_ref=st.integers(min_value=50 * WAD // 100, max_value=150 * WAD // 100),
+    sigma=st.integers(min_value=10**9, max_value=WAD),
+)
+@FUZZ_SETTINGS
+def test_zero_weight_source_does_not_change_price(
+    weighted_price, prices, weight, dust_price, p_ref, sigma
+):
+    weighted_price.set_sigma(sigma)
+    weights = [weight] * len(prices)
+
+    assert weighted_price.exp_penalized_price(
+        prices + [dust_price], weights + [0], p_ref
+    ) == weighted_price.exp_penalized_price(prices, weights, p_ref)
