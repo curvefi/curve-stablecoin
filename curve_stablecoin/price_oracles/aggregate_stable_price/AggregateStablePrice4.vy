@@ -80,6 +80,7 @@ event SetTvlMaTime:
 MAX_PAIRS: constant(uint256) = 20
 MAX_N: constant(uint256) = 64
 WAD: constant(uint256) = 10**18
+MAX_TVL_MA_TIME: constant(uint256) = 30 * 86400  # s
 
 STABLECOIN: immutable(address)
 price_pairs: public(PricePair[MAX_PAIRS])
@@ -432,8 +433,9 @@ def set_min_liquidity(_min_liquidity: uint256):
     @param _min_liquidity WAD-scaled TVL threshold.
     """
     assert msg.sender == self.admin, "only admin"
-    # A zero threshold would activate empty sources and break the weighted average.
-    assert _min_liquidity > 0, "zero min liquidity"
+    # A source far below 1e-18 of total TVL gets zero weight and can break the
+    # weighted average.
+    assert _min_liquidity >= WAD, "min liquidity too low"
     self.min_liquidity = _min_liquidity
     log SetMinLiquidity(min_liquidity=_min_liquidity)
 
@@ -444,10 +446,11 @@ def set_tvl_ma_time(_tvl_ma_time: uint256):
     @notice Set the EMA window of legacy pool TVL.
     @dev Sources are checkpointed first, so the new window is not applied to
          the time already elapsed.
-    @param _tvl_ma_time Window in seconds.
+    @param _tvl_ma_time Window in seconds, at most `MAX_TVL_MA_TIME`.
     """
     assert msg.sender == self.admin, "only admin"
     assert _tvl_ma_time > 0, "zero ma time"
+    assert _tvl_ma_time <= MAX_TVL_MA_TIME, "ma time too high"
     self._price_w()
     self.tvl_ma_time = _tvl_ma_time
     log SetTvlMaTime(tvl_ma_time=_tvl_ma_time)

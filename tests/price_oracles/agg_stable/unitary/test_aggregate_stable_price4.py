@@ -346,9 +346,9 @@ def test_set_min_liquidity_admin_flow(
     with boa.reverts("only admin"):
         with boa.env.prank(new_emergency_admin):
             agg.set_min_liquidity(1)
-    with boa.reverts("zero min liquidity"):
+    with boa.reverts("min liquidity too low"):
         with boa.env.prank(admin):
-            agg.set_min_liquidity(0)
+            agg.set_min_liquidity(WAD - 1)
 
     thin_pool = old_pool_factory(price=105 * WAD // 100, tvl=MIN_LIQUIDITY // 2)
     active_pool = old_pool_factory(price=11 * WAD // 10, tvl=MIN_LIQUIDITY)
@@ -377,6 +377,9 @@ def test_set_tvl_ma_time_admin_flow(agg, old_pool_factory, admin, new_emergency_
     with boa.reverts("zero ma time"):
         with boa.env.prank(admin):
             agg.set_tvl_ma_time(0)
+    with boa.reverts("ma time too high"):
+        with boa.env.prank(admin):
+            agg.set_tvl_ma_time(30 * 86400 + 1)
 
     window = agg.tvl_ma_time()
     pool = old_pool_factory(tvl=MIN_LIQUIDITY * 2)
