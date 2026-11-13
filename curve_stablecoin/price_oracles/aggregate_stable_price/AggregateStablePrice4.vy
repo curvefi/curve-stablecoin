@@ -85,6 +85,7 @@ MAX_TVL_MA_TIME: constant(uint256) = 30 * 86400  # s
 STABLECOIN: immutable(address)
 price_pairs: public(PricePair[MAX_PAIRS])
 n_price_pairs: public(uint256)
+price_pair_i: HashMap[Stableswap, uint256]  # 1 + index of pool in price_pairs
 # Only take into account pools with enough liquidity
 min_liquidity: public(uint256)
 
@@ -338,10 +339,9 @@ def add_price_pair(_pool: Stableswap):
     @param _pool StableSwap pool containing the configured stablecoin.
     """
     assert msg.sender == self.admin, "only admin"
+    assert self.price_pair_i[_pool] == 0, "pool already added"
     self._price_w()
     n: uint256 = self.n_price_pairs
-    for i: uint256 in range(n, bound=MAX_PAIRS):
-        assert self.price_pairs[i].pool != _pool, "pool already added"
 
     price_pair: PricePair = empty(PricePair)
     price_pair.pool = _pool
@@ -368,6 +368,7 @@ def add_price_pair(_pool: Stableswap):
     # registration cannot seed its weight; NG sources read `D_oracle()` directly.
     self.price_pairs[n] = price_pair  # dev: too many pairs
     self.n_price_pairs = n + 1
+    self.price_pair_i[_pool] = n + 1
     log AddPricePair(
         n=n,
         pool=_pool,
@@ -377,11 +378,11 @@ def add_price_pair(_pool: Stableswap):
 
 
 @external
-def remove_price_pair(n: uint256):
+def remove_price_pair(_pool: Stableswap):
     """
-    @notice Remove a price source by index.
+    @notice Remove a price source.
     @dev Admin can remove without limit; emergency admin consumes one removal.
-    @param n Index of the price source to remove.
+    @param _pool Pool of the price source to remove.
     """
     if msg.sender == self.admin:
         # Checking admin first, so admin==emergency_admin case
@@ -391,19 +392,19 @@ def remove_price_pair(n: uint256):
         assert msg.sender == self.emergency_admin, "only admin"
         self.emergency_remove_count -= 1  # dev: no emergency removals
 
-    n_max: uint256 = self.n_price_pairs - 1  # dev: no pairs to remove
-    assert n <= n_max, "bad pair index"
-
-    pool: Stableswap = self.price_pairs[n].pool
+    n: uint256 = self.price_pair_i[_pool] - 1  # dev: pool not found
+    n_max: uint256 = self.n_price_pairs - 1
     if n < n_max:
         self.price_pairs[n] = self.price_pairs[n_max]
         self.last_tvl[n] = self.last_tvl[n_max]
+        self.price_pair_i[self.price_pairs[n].pool] = n + 1
         log MovePricePair(n_from=n_max, n_to=n)
     # Clear the vacated tail slot so public getters do not expose stale data.
     self.price_pairs[n_max] = empty(PricePair)
     self.last_tvl[n_max] = 0
     self.n_price_pairs = n_max
-    log RemovePricePair(n=n, pool=pool)
+    self.price_pair_i[_pool] = 0
+    log RemovePricePair(n=n, pool=_pool)
 
 
 @external

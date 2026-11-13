@@ -34,7 +34,7 @@ def test_admin_recovers_from_bad_dominant_source_with_emergency_removal(
         agg.set_emergency_remove_count(1)
 
     with boa.env.prank(emergency_admin):
-        agg.remove_price_pair(0)
+        agg.remove_price_pair(dominant_bad.address)
 
     assert agg.emergency_remove_count() == 0
     assert agg.price() == WAD
@@ -69,7 +69,7 @@ def test_oracle_handles_pool_lifecycle_and_price_updates(
     assert agg.price_w() == 105 * WAD // 100
 
     with boa.env.prank(admin):
-        agg.remove_price_pair(0)
+        agg.remove_price_pair(old_pool.address)
 
     assert agg.price() == WAD
 
@@ -114,7 +114,7 @@ def test_admin_configures_oracle_and_events_match_state(
     assert 99 * WAD // 100 <= agg.price() <= 101 * WAD // 100
 
     with boa.env.prank(new_emergency_admin):
-        agg.remove_price_pair(1)
+        agg.remove_price_pair(ng_pool.address)
         remove_logs = _logs(agg, "RemovePricePair")
         assert len(remove_logs) == 1
         assert remove_logs[0].n == 1

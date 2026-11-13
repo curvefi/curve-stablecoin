@@ -425,24 +425,25 @@ def test_remove_price_pair_admin_and_emergency_flow(
 
     with boa.reverts("only admin"):
         with boa.env.prank(new_emergency_admin):
-            agg.remove_price_pair(0)
+            agg.remove_price_pair(pools[0].address)
 
     with boa.reverts(dev="no emergency removals"):
         with boa.env.prank(emergency_admin):
-            agg.remove_price_pair(0)
+            agg.remove_price_pair(pools[0].address)
 
     with boa.env.prank(admin):
         agg.set_emergency_remove_count(1)
 
     with boa.env.prank(emergency_admin):
-        agg.remove_price_pair(1)
+        agg.remove_price_pair(pools[1].address)
 
     assert agg.emergency_remove_count() == 0
     assert agg.price_pairs(1)[0] == pools[2].address
 
+    # The moved source is still found by its pool address.
     with boa.env.prank(admin):
-        agg.remove_price_pair(1)
-        agg.remove_price_pair(0)
+        agg.remove_price_pair(pools[2].address)
+        agg.remove_price_pair(pools[0].address)
 
     assert agg.n_price_pairs() == 0
     assert agg.price() == WAD
@@ -456,7 +457,7 @@ def test_remove_price_pair_clears_tail_slot(agg, old_pool_factory, admin):
     warm_up(agg)
 
     with boa.env.prank(admin):
-        agg.remove_price_pair(0)
+        agg.remove_price_pair(pools[0].address)
 
     logs = _logs(agg, "RemovePricePair")
     assert len(logs) == 1
@@ -479,18 +480,20 @@ def test_remove_price_pair_clears_tail_slot(agg, old_pool_factory, admin):
     assert agg.price_pairs(2)[0] == pools[0].address
 
 
-def test_remove_price_pair_rejects_empty_and_bad_index(agg, old_pool_factory, admin):
-    with boa.reverts(dev="no pairs to remove"):
-        with boa.env.prank(admin):
-            agg.remove_price_pair(0)
-
+def test_remove_price_pair_rejects_unknown_pool(agg, old_pool_factory, admin):
     pool = old_pool_factory()
+    with boa.reverts(dev="pool not found"):
+        with boa.env.prank(admin):
+            agg.remove_price_pair(pool.address)
+
     with boa.env.prank(admin):
         agg.add_price_pair(pool.address)
+        agg.remove_price_pair(pool.address)
 
-    with boa.reverts("bad pair index"):
+    # A removed pool cannot be removed twice.
+    with boa.reverts(dev="pool not found"):
         with boa.env.prank(admin):
-            agg.remove_price_pair(1)
+            agg.remove_price_pair(pool.address)
 
 
 def test_admin_can_rotate_roles(agg, admin, emergency_admin, new_emergency_admin):
