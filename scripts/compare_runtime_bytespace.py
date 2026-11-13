@@ -80,6 +80,21 @@ def build_report(
             ]
         )
 
+    if "missing" in (base_report.status, head_report.status):
+        missing = "Base" if base_report.status == "missing" else "Head"
+        return f"### {contract}\n\n- {missing} runtime bytespace report is missing; skipping comparison."
+
+    if head_report.status == "failed":
+        lines = [
+            f"### {contract}",
+            "",
+            "- Head compilation failed; skipping runtime bytespace comparison.",
+        ]
+        if base_report.base_size is not None:
+            lines.append(f"- Base runtime size: {base_report.base_size} bytes")
+        lines.append(f"- Head error: `{summarize_error(head_report.error)}`")
+        return "\n".join(lines)
+
     if base_report.status == "failed":
         lines = [
             f"### {contract}",
