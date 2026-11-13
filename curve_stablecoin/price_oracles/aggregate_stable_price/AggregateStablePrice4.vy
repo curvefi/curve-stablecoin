@@ -293,10 +293,10 @@ def price() -> uint256:
     return self._price(self._ema_tvl())
 
 
-@external
-def price_w() -> uint256:
+@internal
+def _price_w() -> uint256:
     """
-    @notice Compute the aggregated price and checkpoint EMA TVLs.
+    @dev Checkpoint EMA TVLs and the aggregated price once per timestamp.
     @return WAD-scaled stablecoin price.
     """
     if self.last_timestamp == block.timestamp:
@@ -312,6 +312,15 @@ def price_w() -> uint256:
 
 
 @external
+def price_w() -> uint256:
+    """
+    @notice Compute the aggregated price and checkpoint EMA TVLs.
+    @return WAD-scaled stablecoin price.
+    """
+    return self._price_w()
+
+
+@external
 def add_price_pair(_pool: Stableswap):
     """
     @notice Add a pool as a price source.
@@ -323,10 +332,12 @@ def add_price_pair(_pool: Stableswap):
          exercised here so that an incompatible or misclassified pool reverts
          at registration instead of breaking aggregate reads. A legacy source
          starts from zero stored TVL and phases in through the EMA; any source
-         stays inactive until its TVL reaches `min_liquidity`.
+         stays inactive until its TVL reaches `min_liquidity`. Existing
+         sources are checkpointed first, so the phase-in starts now.
     @param _pool StableSwap pool containing the configured stablecoin.
     """
     assert msg.sender == self.admin, "only admin"
+    self._price_w()
     n: uint256 = self.n_price_pairs
     for i: uint256 in range(n, bound=MAX_PAIRS):
         assert self.price_pairs[i].pool != _pool, "pool already added"
@@ -431,10 +442,13 @@ def set_min_liquidity(_min_liquidity: uint256):
 def set_tvl_ma_time(_tvl_ma_time: uint256):
     """
     @notice Set the EMA window of legacy pool TVL.
+    @dev Sources are checkpointed first, so the new window is not applied to
+         the time already elapsed.
     @param _tvl_ma_time Window in seconds.
     """
     assert msg.sender == self.admin, "only admin"
     assert _tvl_ma_time > 0, "zero ma time"
+    self._price_w()
     self.tvl_ma_time = _tvl_ma_time
     log SetTvlMaTime(tvl_ma_time=_tvl_ma_time)
 

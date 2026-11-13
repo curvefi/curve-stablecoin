@@ -233,6 +233,20 @@ def test_legacy_source_phases_in_from_zero(agg, old_pool_factory, admin):
     assert agg.last_tvl(0) == tvl
 
 
+def test_add_price_pair_checkpoints_before_registration(agg, old_pool_factory, admin):
+    # No checkpoint for a long time before registration, as at bootstrap.
+    boa.env.time_travel(50 * agg.tvl_ma_time())
+    pool = old_pool_factory(tvl=MIN_LIQUIDITY * 2)
+    with boa.env.prank(admin):
+        agg.add_price_pair(pool.address)
+
+    # Phase-in starts at registration, not at the previous checkpoint.
+    assert agg.last_timestamp() == boa.env.evm.patch.timestamp
+    assert agg.ema_tvl() == [0]
+    boa.env.time_travel(1)
+    assert agg.ema_tvl()[0] < MIN_LIQUIDITY // 1000
+
+
 def test_only_active_sources_are_used(agg, old_pool_factory, admin):
     thin_pool = old_pool_factory(price=8 * WAD // 10, tvl=MIN_LIQUIDITY - 1)
     active_pool = old_pool_factory(price=11 * WAD // 10, tvl=MIN_LIQUIDITY)
@@ -378,6 +392,24 @@ def test_set_tvl_ma_time_admin_flow(agg, old_pool_factory, admin, new_emergency_
     boa.env.time_travel(window)
     expected = MIN_LIQUIDITY * 2 * (1 - math.exp(-10))
     assert agg.ema_tvl()[0] == pytest.approx(expected, rel=1e-9)
+
+
+def test_set_tvl_ma_time_is_not_retroactive(agg, old_pool_factory, admin):
+    window = agg.tvl_ma_time()
+    tvl = MIN_LIQUIDITY * 2
+    pool = old_pool_factory(tvl=tvl)
+    with boa.env.prank(admin):
+        agg.add_price_pair(pool.address)
+
+    boa.env.time_travel(window // 10)
+    before = agg.ema_tvl()[0]
+    with boa.env.prank(admin):
+        agg.set_tvl_ma_time(1)
+
+    # Elapsed time is checkpointed with the old window.
+    assert agg.last_tvl(0) == before
+    assert agg.ema_tvl()[0] == before
+    assert before == pytest.approx(tvl * (1 - math.exp(-0.1)), rel=1e-6)
 
 
 def test_remove_price_pair_admin_and_emergency_flow(
