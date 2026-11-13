@@ -87,6 +87,8 @@ jobs:
             runs-on: "ubuntu-latest"
           - folder: "tests/integration"
             runs-on: "ubuntu-latest"
+          - folder: "tests/fuzz --ignore=tests/fuzz/stateful"
+            runs-on: "ubuntu-latest"
           # - folder: "tests/stateful" not ready yet
           #   runs-on: "ubuntu-latest"
           # Old tests to be migrated
