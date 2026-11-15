@@ -148,28 +148,16 @@ DUMMY_PRICE_ORACLE_DEPLOYER = boa.load_partial(
 BROKEN_PRICE_ORACLE_DEPLOYER = boa.load_partial(
     TESTING_CONTRACT_PATH / "BrokenPriceOracle.vy", compiler_args=compiler_args_default
 )
-CRYPTO_FROM_POOL_DEPLOYER = boa.load_partial(
-    PRICE_ORACLES_CONTRACT_PATH / "CryptoFromPool.vy",
+CURVE_POOL_ORACLE_DEPLOYER = boa.load_partial(
+    PRICE_ORACLES_CONTRACT_PATH / "v2" / "CurvePoolOracle.vy",
     compiler_args=compiler_args_default,
 )
 ERC4626_EMA_WRAPPER_DEPLOYER = boa.load_partial(
     PRICE_ORACLES_CONTRACT_PATH / "v2" / "ERC4626EMAWrapper.vy",
     compiler_args=compiler_args_default,
 )
-EMA_PRICE_ORACLE_DEPLOYER = boa.load_partial(
-    PRICE_ORACLES_CONTRACT_PATH / "EmaPriceOracle.vy",
-    compiler_args=compiler_args_default,
-)
 AGGREGATE_STABLE_PRICE3_DEPLOYER = boa.load_partial(
     PRICE_ORACLES_CONTRACT_PATH / "AggregateStablePrice3.vy",
-    compiler_args=compiler_args_default,
-)
-CRYPTO_WITH_STABLE_PRICE_DEPLOYER = boa.load_partial(
-    PRICE_ORACLES_CONTRACT_PATH / "CryptoWithStablePrice.vy",
-    compiler_args=compiler_args_default,
-)
-CRYPTO_WITH_STABLE_PRICE_AND_CHAINLINK_DEPLOYER = boa.load_partial(
-    PRICE_ORACLES_CONTRACT_PATH / "CryptoWithStablePriceAndChainlink.vy",
     compiler_args=compiler_args_default,
 )
 ORACLE_FROM_CURVE_POOLS_DEPLOYER = boa.load_partial(
@@ -320,10 +308,6 @@ MOCK_PEG_KEEPER_DEPLOYER = boa.load_partial(
 )
 MOCK_RATE_ORACLE_DEPLOYER = boa.load_partial(
     TESTING_CONTRACT_PATH / "MockRateOracle.vy", compiler_args=compiler_args_default
-)
-CHAINLINK_AGGREGATOR_MOCK_DEPLOYER = boa.load_partial(
-    TESTING_CONTRACT_PATH / "ChainlinkAggregatorMock.vy",
-    compiler_args=compiler_args_default,
 )
 TRICRYPTO_MOCK_DEPLOYER = boa.load_partial(
     TESTING_CONTRACT_PATH / "TricryptoMock.vy", compiler_args=compiler_args_default
