@@ -177,33 +177,10 @@ ORACLE_FROM_CURVE_POOLS_DEPLOYER = boa.load_partial(
     compiler_args=compiler_args_default,
 )
 
-# Proxy oracle contracts - have #pragma optimize gas
-PROXY_ORACLE_DEPLOYER = boa.load_partial(
-    PRICE_ORACLES_CONTRACT_PATH / "proxy" / "ProxyOracle.vy",
-    compiler_args=compiler_args_gas,
-)
-PROXY_ORACLE_FACTORY_DEPLOYER = boa.load_partial(
-    PRICE_ORACLES_CONTRACT_PATH / "proxy" / "ProxyOracleFactory.vy",
-    compiler_args=compiler_args_gas,
-)
-
 # LP oracle contracts
 REUSD_CRVUSD_ADAPTER_DEPLOYER = boa.load_partial(
     PRICE_ORACLES_CONTRACT_PATH / "v2" / "adapters" / "ReusdCrvUSDAdapter.vy",
     compiler_args=compiler_args_default,
-)
-LP_ORACLE_STABLE_DEPLOYER = boa.load_partial(
-    PRICE_ORACLES_CONTRACT_PATH / "lp-oracles" / "LPOracleStable.vy",
-    compiler_args=compiler_args_default,
-)
-LP_ORACLE_CRYPTO_DEPLOYER = boa.load_partial(
-    PRICE_ORACLES_CONTRACT_PATH / "lp-oracles" / "LPOracleCrypto.vy",
-    compiler_args=compiler_args_default,
-)
-# LPOracleFactory.vy has #pragma optimize gas
-LP_ORACLE_FACTORY_DEPLOYER = boa.load_partial(
-    PRICE_ORACLES_CONTRACT_PATH / "lp-oracles" / "LPOracleFactory.vy",
-    compiler_args=compiler_args_gas,
 )
 # StableSwapNGLPOracle.vy has #pragma optimize codesize
 LP_ORACLE_STABLESWAP_NG_DEPLOYER = boa.load_partial(
@@ -361,22 +338,6 @@ SWAP_FACTORY_DEPLOYER = boa.load_partial(
     TESTING_CONTRACT_PATH / "SwapFactory.vy", compiler_args=compiler_args_default
 )
 
-# LP oracle testing contracts
-MOCK_STABLE_SWAP_DEPLOYER = boa.load_partial(
-    PRICE_ORACLES_CONTRACT_PATH / "lp-oracles" / "testing" / "MockStableSwap.vy",
-    compiler_args=compiler_args_default,
-)
-MOCK_CRYPTO_SWAP_DEPLOYER = boa.load_partial(
-    PRICE_ORACLES_CONTRACT_PATH / "lp-oracles" / "testing" / "MockCryptoSwap.vy",
-    compiler_args=compiler_args_default,
-)
-MOCK_STABLE_SWAP_NO_ARGUMENT_DEPLOYER = boa.load_partial(
-    PRICE_ORACLES_CONTRACT_PATH
-    / "lp-oracles"
-    / "testing"
-    / "MockStableSwapNoArgument.vy",
-    compiler_args=compiler_args_default,
-)
 
 # Stableswap NG contracts
 # TODO will fix
