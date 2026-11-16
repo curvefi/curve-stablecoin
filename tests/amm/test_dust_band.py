@@ -1,17 +1,17 @@
 """A band holding dust `x` and no `y` makes the AMM's view math divide by zero.
 
-`_get_y0(x, 0, p_o, p_o_up)` (`AMM.vy:432`) computes
+`_get_y0(x, 0, p_o, p_o_up)` (`AMM.vy:444`) computes
 `b = p_o_up * (A - 1) * x // p_o` and returns `b * 1e18 // (A * p_o)`, so `y0`
 truncates to **0** once `x` falls below roughly `p_o / 1e18` - a few thousand wei.
 `f`, `g` and `Inv` are all proportional to `y0`, so they go to 0 with it, and the
 next line divides by one of them:
 
-    get_xy_up:1429            x_o = sub_or_zero(Inv // (g + y_o), f)
-    get_amount_for_price:1583 xnew = sub_or_zero(Inv // (g + ynew), f)
+    get_xy_up:1472            x_o = Inv // (g + y_o)
+    get_amount_for_price:1659 xnew = sub_or_zero(Inv // (g + ynew), f)
 
-The band has to be *below* the active band - `get_xy_up` reads `y` only for
-`n >= n_active`, so a crossed band always presents `y == 0` - with the oracle
-price back inside it, which is just the AMM lagging an oracle that moved up.
+The band has to be the active band or *below* it - `get_xy_up` reads `y` only
+for `n >= n_active`, so a crossed band always presents `y == 0` - and p_oracle has
+to be inside it: collateral is sold only from bands which p_oracle has reached.
 
 Reachable in production: the `lm_callback` fuzz run (run2) hit it organically and
 dumped `bands_x = {45: 1261113747837, 46: 1, 47: 4}`, `bands_y = {47: 20288}` -
@@ -22,7 +22,7 @@ truncation point once converted), so the dust comes from withdrawal rounding -
 remain. This test writes the same state directly instead of hunting for the
 rounding that produces it.
 
-Impact: `get_x_down` / `get_y_up` back `controller._health` (`controller.vy:1187`)
+Impact: `get_x_down` / `get_y_up` back `controller._health` (`controller.vy:1198`)
 and `ControllerView`, so a position with such a band has unreadable health and
 cannot be liquidated, and `repay` / `remove_collateral` / `borrow_more` revert on
 it too. `get_amount_for_price` breaks quoting for the whole AMM while the price is
@@ -52,6 +52,10 @@ def dust_band(price_oracle, amm, collateral_token, borrowed_token, admin):
             amm.deposit_range(user, deposit, BAND, BAND)
             mint_for_testing(collateral_token, amm.address, deposit)
 
+        # Collateral is sold only from bands which p_oracle has reached
+        p_o = (amm.p_oracle_up(BAND) + amm.p_oracle_down(BAND)) // 2
+        price_oracle.set_price(p_o, sender=admin)
+
         # Buy the whole band out, so it holds borrowed token and no collateral
         boa.env.time_travel(600)  # to reset the prev p_o counter
         mint_for_testing(borrowed_token, user, 2**128)
@@ -60,12 +64,8 @@ def dust_band(price_oracle, amm, collateral_token, borrowed_token, admin):
         assert amm.bands_x(BAND) > 0
         assert amm.active_band() >= BAND
 
-        # Dust left over by rounding, and an oracle that has moved back into the
-        # band without anyone arbitraging the AMM yet
+        # Dust left over by rounding, with the oracle price still inside the band
         amm.eval(f"self.bands_x[{BAND}] = {x}")
-        p_o = (amm.p_oracle_up(BAND) + amm.p_oracle_down(BAND)) // 2
-        price_oracle.set_price(p_o, sender=admin)
-        boa.env.time_travel(600)
         assert amm.p_oracle_down(BAND) <= amm.price_oracle() <= amm.p_oracle_up(BAND)
 
         return user, p_o
@@ -88,16 +88,16 @@ def test_dust_band_views_do_not_revert(dust_band, amm, x):
     # health. Not reverting is the point; the values pin the safe direction
     assert amm.get_y_up(user) == 0
     assert amm.get_x_down(user) == 0
-    amm.get_amount_for_price(p_o)  # quoting must stay up for the whole AMM
+    amm.get_amount_for_price(amm.get_p())  # quoting must stay up for the whole AMM
 
 
 @pytest.mark.parametrize("x", [1, 4])
 def test_dust_band_swaps_are_unaffected(dust_band, amm, x):
     """Only the view math is broken.
 
-    `_get_p` returns early on `y == 0` (`AMM.vy:479`) without ever computing
-    `y0`, and `_calc_swap` skips the band behind its `if y != 0: if g != 0:` /
-    `if x != 0: if f != 0:` guards (`AMM.vy:872`, `909`).
+    `_get_p` returns early on `y == 0` (`AMM.vy:492`) without ever computing
+    `y0`, and `calc_swap_out` skips the band behind its `if y != 0: if g != 0:`
+    guard (`AMM.vy:1002`).
     """
     dust_band(x)
 
@@ -119,4 +119,7 @@ def test_band_above_the_truncation_point_is_fine(dust_band, amm):
 
     assert amm.get_y_up(user) > 0
     assert amm.get_x_down(user) > 0
-    assert amm.get_amount_for_price(p_o)[0] > 0
+    # Only a pump can move the price, and it is already above `p_o`
+    assert amm.get_amount_for_price(p_o) == (0, False)
+    # A quote at the price goes through the view math and finds nothing to buy
+    assert amm.get_amount_for_price(amm.get_p()) == (0, True)

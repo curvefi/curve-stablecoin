@@ -57,7 +57,14 @@ def test_active_loan(controller, collateral_amount, debt_amount, borrower_with_l
 
 
 def test_soft_liquidation(
-    controller, amm, borrowed_token, collateral_amount, debt_amount, borrower_with_loan
+    controller,
+    amm,
+    borrowed_token,
+    collateral_amount,
+    debt_amount,
+    borrower_with_loan,
+    price_oracle,
+    admin,
 ):
     """
     user_state during soft-liquidation: some collateral has been converted to
@@ -68,10 +75,15 @@ def test_soft_liquidation(
     # Push position into soft liquidation by having a trader swap borrowed → collateral
     trader = boa.env.generate_address()
     boa.deal(borrowed_token, trader, debt_amount // 2)
+    # Collateral is sold only from bands which p_oracle has reached
+    p_o = price_oracle.price()
+    p_o_down = amm.p_oracle_down(amm.read_user_tick_numbers(borrower)[1])
+    price_oracle.set_price(p_o_down, sender=admin)
     with boa.env.prank(trader):
         max_approve(borrowed_token, amm)
         expected_collateral = amm.get_dy(0, 1, debt_amount // 2)
         amm.exchange(0, 1, debt_amount // 2, 0)
+    price_oracle.set_price(p_o, sender=admin)
 
     state = controller.user_state(borrower)
     xy = amm.get_sum_xy(borrower)

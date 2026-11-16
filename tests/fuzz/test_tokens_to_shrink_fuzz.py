@@ -65,6 +65,11 @@ def test_tokens_to_shrink(
     amm.exchange(0, 1, trade_amount, 0)
     user_state = controller.user_state(boa.env.eoa)
     active_band = amm.active_band()
+    if user_state[1] == 0:
+        # p_oracle has not reached the user's bands: the AMM sold no collateral
+        assert user_state[0] == collateral_amount
+        assert controller.tokens_to_shrink(boa.env.eoa) == 0
+        return
 
     # --- Repay ---
 

@@ -260,10 +260,11 @@ def seed_liquidity(borrowed_token):
 
 @pytest.fixture(scope="module")
 def borrow_cap(seed_liquidity):
-    """Default borrow cap for lending markets equals `seed_liquidity`.
+    """Default borrow cap for lending markets equals 7 * `seed_liquidity`:
+    the limit on recent debt (15% of the cap) is then above the liquidity.
     Override to adjust or set to None to skip setting. Ignored for mint.
     """
-    return seed_liquidity
+    return 7 * seed_liquidity
 
 
 # ============== Account Fixtures ==============

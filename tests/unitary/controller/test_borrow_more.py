@@ -712,9 +712,12 @@ def test_borrow_more_underwater(
     borrowed_token,
     collateral_token,
     amounts,
+    price_oracle,
+    admin,
 ):
     """
-    Test that borrowing more when position is underwater reverts.
+    Test that borrowing more when position is underwater first repays debt
+    with the borrowed tokens in the bands.
     """
 
     # ================= Create loan with max debt =================
@@ -732,9 +735,14 @@ def test_borrow_more_underwater(
     debt = controller.debt(borrower)
     assert debt > 0
     boa.deal(borrowed_token, trader, debt // 2)
+    # Collateral is sold only from bands which p_oracle has reached
+    p_o = price_oracle.price()
+    p_o_down = amm.p_oracle_down(amm.read_user_tick_numbers(borrower)[1])
+    price_oracle.set_price(p_o_down, sender=admin)
     with boa.env.prank(trader):
         max_approve(borrowed_token, amm)
         amm.exchange(0, 1, debt // 2, 0)
+    price_oracle.set_price(p_o, sender=admin)
 
     # Verify position is underwater (xy[0] > 0)
     user_state = controller.user_state(borrower)
@@ -742,10 +750,20 @@ def test_borrow_more_underwater(
 
     # ================= Execute borrow_more =================
 
-    # Try to borrow more when underwater - should revert
-    with boa.reverts("Underwater"):
-        controller.borrow_more(
-            amounts["additional_collateral"],
-            amounts["additional_debt"],
-            sender=borrower,
-        )
+    # Borrowed tokens in the bands repay debt before the bands move
+    boa.deal(collateral_token, borrower, amounts["additional_collateral"])
+    controller.borrow_more(
+        amounts["additional_collateral"],
+        amounts["additional_debt"],
+        sender=borrower,
+    )
+
+    user_state_after = controller.user_state(borrower)
+    assert (
+        user_state_after[0] == user_state[0] + amounts["additional_collateral"]
+    )  # collateral increased
+    assert user_state_after[1] == 0  # no borrowed tokens in AMM
+    assert (
+        user_state_after[2]
+        == user_state[2] - user_state[1] + amounts["additional_debt"]
+    )  # debt repaid from AMM, then increased

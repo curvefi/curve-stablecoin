@@ -31,8 +31,6 @@ implements: IView
 
 implements: core.VirtualMethods
 
-initializes: core
-
 from curve_std import token as tkn
 
 exports: (
@@ -91,10 +89,24 @@ exports: (
     core.max_borrowable,
 )
 
+interface ILendView:
+    def max_borrowable_now(
+        _d_collateral: uint256, _N: uint256, _user: address, _recent_debt_packed: uint256
+    ) -> uint256: view
+
 borrow_cap: public(uint256)
 VAULT: immutable(IVault)
+MAX_RECENT_DEBT: constant(uint256) = 15 * 10**16  # 15% of borrow_cap
+RECENT_DEBT_DECAY: constant(uint256) = 5 * 10**16  # 5% of borrow_cap per day
 
 _available_balance: uint256
+# timestamp | (core.repaid + recent debt) << 40
+_recent_debt_packed: uint256
+# Amount of the last on_borrowed_token_transfer_out
+stashed_amount: transient(uint256)
+
+# Last, so that the variables above take small slots, in front of core.loans
+initializes: core
 
 
 @external
@@ -207,9 +219,11 @@ def on_borrowed_token_transfer_out(_amount: uint256):
     @param _amount Amount of borrowed tokens transferred out
     """
     assert msg.sender == VAULT.address or msg.sender == self # dev: vault or controller only
+    available_balance: uint256 = self._available_balance
     # core._admin_fees() == 0 in case of collect_fees()
-    assert _amount <= crv_math.sub_or_zero(self._available_balance, core._admin_fees()), "Available balance exceeded"
-    self._available_balance -= _amount
+    assert _amount <= crv_math.sub_or_zero(available_balance, core._admin_fees()), "Available balance exceeded"
+    self._available_balance = unsafe_sub(available_balance, _amount)
+    self.stashed_amount = _amount
 
 
 @external
@@ -217,10 +231,48 @@ def on_borrowed_token_transfer_out(_amount: uint256):
 def _on_debt_increased(_total_debt: uint256):
     """
     @notice Hook called when debt is increased
+    @dev Recent debt is freed up by time and by repayments
     @param _total_debt New total debt after the increase
     """
     assert msg.sender == self # dev: virtual method protection (controller only)
     assert _total_debt <= self.borrow_cap, "Borrow cap exceeded"
+
+    packed: uint256 = self._recent_debt_packed
+    repaid: uint256 = core.repaid
+    # RECENT_DEBT_DECAY / WAD == 1 / 20 and MAX_RECENT_DEBT / RECENT_DEBT_DECAY == 3 exactly
+    freed_per_day: uint256 = unsafe_div(self.borrow_cap, core.WAD // RECENT_DEBT_DECAY)
+    # No overflow unless borrow_cap > 2**220, and then no debt gets near the limit
+    freed: uint256 = unsafe_div(
+        unsafe_mul(freed_per_day, unsafe_sub(block.timestamp, packed & (2**40 - 1))), 86400
+    )
+    recent_debt: uint256 = unsafe_add(
+        crv_math.sub_or_zero(packed >> 40, unsafe_add(repaid, freed)), self.stashed_amount
+    )
+    assert (
+        recent_debt <= unsafe_mul(freed_per_day, MAX_RECENT_DEBT // RECENT_DEBT_DECAY)
+    ), "Borrow limit exceeded"
+    # repaid + recent_debt is truncated to 216 bits, which only lowers recent debt
+    self._recent_debt_packed = block.timestamp | (unsafe_add(repaid, recent_debt) << 40)
+
+
+@external
+@view
+def max_borrowable_now(
+    _d_collateral: uint256, _N: uint256, _user: address
+) -> uint256:
+    """
+    @notice Calculation of maximum which can be borrowed now.
+            Same as max_borrowable, also bounded by the recent debt limit.
+    @param _d_collateral Collateral amount against which to borrow
+                         (additional amount if the user has a position)
+    @param _N Number of bands to have the deposit into (to be ignored if the user has a position)
+    @param _user User to calculate the value for
+                 (can be zero address for create_loan if the user doesn't have extra_health)
+    @return Maximum (additional) amount of borrowed asset to borrow
+    """
+    return staticcall ILendView(core._view.address).max_borrowable_now(
+        _d_collateral, _N, _user, self._recent_debt_packed
+    )
 
 
 @external

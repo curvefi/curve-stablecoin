@@ -112,7 +112,9 @@ class StatefulLendBorrow(RuleBasedStateMachine):
                 if "Too deep" in str(e) and c_amount * 3000 / amount < 1e-3:
                     pass
                 else:
-                    if c_amount // n <= (2**128 - 1) // DEAD_SHARES:
+                    # The AMM counts shares on the amount in 18 decimals
+                    c_amount_18 = c_amount * 10 ** (18 - self.collateral.decimals())
+                    if c_amount_18 // n <= (2**128 - 1) // DEAD_SHARES:
                         raise
 
     @rule(amount=amount, user_id=user_id)

@@ -39,7 +39,7 @@ def test_exact_in_round_trip_across_amm_bands(
         max_approve(collateral_token, amm.address)
 
     # Seed liquidity above the active band so oracle moves force the AMM to
-    # traverse the deposited range in both directions.
+    # traverse the deposited range.
     with boa.env.prank(controller.address):
         amm.deposit_range(depositor, deposit_amount, N1, N2)
     boa.deal(
@@ -56,7 +56,8 @@ def test_exact_in_round_trip_across_amm_bands(
     # real upward trade path rather than assuming one exists after one step.
     lowered_oracle_price = initial_oracle_price
     for _ in range(MAX_STEPS):
-        if amm.get_p() < lowered_oracle_price:
+        # Collateral is sold only from bands which p_oracle has reached
+        if amm.get_p() < lowered_oracle_price < amm.p_oracle_up(N1):
             break
         lowered_oracle_price = (
             lowered_oracle_price * ORACLE_STEP_NUMERATOR // ORACLE_STEP_DENOMINATOR
@@ -103,7 +104,7 @@ def test_exact_in_round_trip_across_amm_bands(
     y_after_up = sum(amm.bands_y(n) for n in range(N1, N2 + 1))
     assert x_after_up > 0
 
-    # Walk the oracle back up until the AMM price is above it, then sell
+    # Walk the oracle back up until the AMM price is above it, then try to sell
     # collateral back through the same band range.
     raised_oracle_price = lowered_oracle_price
     for _ in range(MAX_STEPS):
@@ -118,33 +119,19 @@ def test_exact_in_round_trip_across_amm_bands(
         raise AssertionError("oracle walk did not create a tradable price gap")
 
     collateral_step = max(deposit_amount // 100, 1)
-    downward_trades = 0
-    for _ in range(MAX_STEPS):
-        current_price = amm.get_p()
-        if current_price <= raised_oracle_price:
-            break
+    boa.deal(
+        collateral_token,
+        trader,
+        collateral_token.balanceOf(trader) + collateral_step,
+    )
 
-        boa.deal(
-            collateral_token,
-            trader,
-            collateral_token.balanceOf(trader) + collateral_step,
-        )
-
-        band_before = amm.active_band()
-        with boa.env.prank(trader):
+    # Collateral is never bought back
+    with boa.env.prank(trader):
+        with boa.reverts("Wrong index"):
             amm.exchange(1, 0, collateral_step, 0)
 
-        band_after = amm.active_band()
-        price_after = amm.get_p()
-        if band_before == band_after:
-            assert price_after <= current_price
-        assert amm.p_current_down(band_after) <= price_after
-        assert price_after <= amm.p_current_up(band_after)
-        downward_trades += 1
-
-    assert downward_trades > 0
-    assert sum(amm.bands_x(n) for n in range(N1, N2 + 1)) < x_after_up
-    assert sum(amm.bands_y(n) for n in range(N1, N2 + 1)) > y_after_up
+    assert sum(amm.bands_x(n) for n in range(N1, N2 + 1)) == x_after_up
+    assert sum(amm.bands_y(n) for n in range(N1, N2 + 1)) == y_after_up
 
 
 def test_exact_out_quotes_match_execution_while_flipping_bands(
@@ -176,7 +163,8 @@ def test_exact_out_quotes_match_execution_while_flipping_bands(
     initial_oracle_price = price_oracle.price()
     lowered_oracle_price = initial_oracle_price
     for _ in range(MAX_STEPS):
-        if amm.get_p() < lowered_oracle_price:
+        # Collateral is sold only from bands which p_oracle has reached
+        if amm.get_p() < lowered_oracle_price < amm.p_oracle_up(N1):
             break
         lowered_oracle_price = (
             lowered_oracle_price * ORACLE_STEP_NUMERATOR // ORACLE_STEP_DENOMINATOR
@@ -226,25 +214,11 @@ def test_exact_out_quotes_match_execution_while_flipping_bands(
         raise AssertionError("oracle walk did not create a tradable price gap")
 
     desired_borrowed_out = max(borrowed_in_bands // 4, 1)
-    quoted_collateral_in = amm.get_dx(1, 0, desired_borrowed_out)
-    boa.deal(
-        collateral_token,
-        trader,
-        collateral_token.balanceOf(trader) + quoted_collateral_in,
-    )
-
-    band_before = amm.active_band()
-    price_before = amm.get_p()
+    # Collateral is never bought back
+    with boa.reverts("Wrong index"):
+        amm.get_dx(1, 0, desired_borrowed_out)
     with boa.env.prank(trader):
-        spent, received = amm.exchange_dy(
-            1, 0, desired_borrowed_out, quoted_collateral_in
-        )
+        with boa.reverts("Wrong index"):
+            amm.exchange_dy(1, 0, desired_borrowed_out, 2**256 - 1)
 
-    assert spent == quoted_collateral_in
-    assert received == desired_borrowed_out
-    band_after = amm.active_band()
-    price_after = amm.get_p()
-    if band_before == band_after:
-        assert price_after <= price_before
-    assert amm.p_current_down(band_after) <= price_after
-    assert price_after <= amm.p_current_up(band_after)
+    assert sum(amm.bands_x(n) for n in range(N1, N2 + 1)) == borrowed_in_bands

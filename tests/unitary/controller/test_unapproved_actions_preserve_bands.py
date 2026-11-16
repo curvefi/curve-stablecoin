@@ -47,6 +47,8 @@ def test_unapproved_controller_and_amm_actions_preserve_user_bands(
     borrowed_token,
     collateral_token,
     create_loan,
+    price_oracle,
+    admin,
 ):
     borrower, collateral_amount, debt_amount = create_loan()
     attacker = boa.env.generate_address("attacker")
@@ -101,6 +103,10 @@ def test_unapproved_controller_and_amm_actions_preserve_user_bands(
     trader = boa.env.generate_address("trader")
     boa.deal(borrowed_token, trader, debt_amount)
     max_approve(borrowed_token, amm, sender=trader)
+
+    # Collateral is sold only from bands which p_oracle has reached
+    p_o_down = amm.p_oracle_down(amm.read_user_tick_numbers(borrower)[1])
+    price_oracle.set_price(p_o_down, sender=admin)
 
     ticks_before_swap = tuple(amm.read_user_tick_numbers(borrower))
     state_before_swap = tuple(controller.user_state(borrower))

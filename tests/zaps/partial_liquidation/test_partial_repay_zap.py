@@ -41,15 +41,14 @@ def _get_zap_indices(market_type, mint_factory, factory, controller):
 @pytest.mark.parametrize("is_approved", [True, False])
 def test_users_to_liquidate_callback(
     controller_for_liquidation,
-    accounts,
     partial_repay_zap,
     market_type,
     mint_factory,
     factory,
     is_approved,
 ):
-    user = accounts[1]
-    controller = controller_for_liquidation(sleep_time=int(33 * 86400), user=user)
+    user = boa.env.generate_address("user")
+    controller = controller_for_liquidation(sleep_time=int(31.3 * 86400), user=user)
     c_idx = _get_zap_indices(market_type, mint_factory, factory, controller)
 
     if is_approved:
@@ -67,15 +66,14 @@ def test_users_to_liquidate_callback(
 def test_liquidate_partial(
     borrowed_token,
     controller_for_liquidation,
-    accounts,
     partial_repay_zap,
     market_type,
     mint_factory,
     factory,
 ):
-    user = accounts[1]
-    liquidator = accounts[2]
-    controller = controller_for_liquidation(sleep_time=int(30.7 * 86400), user=user)
+    user = boa.env.generate_address("user")
+    liquidator = boa.env.generate_address("liquidator")
+    controller = controller_for_liquidation(sleep_time=int(29.0 * 86400), user=user)
     c_idx = _get_zap_indices(market_type, mint_factory, factory, controller)
     someone_else = str(partial_repay_zap.address)
     controller.approve(someone_else, True, sender=user)
@@ -97,16 +95,15 @@ def test_liquidate_partial_callback(
     borrowed_token,
     collateral_token,
     controller_for_liquidation,
-    accounts,
     partial_repay_zap,
     partial_repay_zap_tester,
     market_type,
     mint_factory,
     factory,
 ):
-    user = accounts[1]
-    liquidator = accounts[2]
-    controller = controller_for_liquidation(sleep_time=int(30.7 * 86400), user=user)
+    user = boa.env.generate_address("user")
+    liquidator = boa.env.generate_address("liquidator")
+    controller = controller_for_liquidation(sleep_time=int(29.0 * 86400), user=user)
     c_idx = _get_zap_indices(market_type, mint_factory, factory, controller)
     controller.approve(partial_repay_zap.address, True, sender=user)
     borrowed_from_sender = partial_repay_zap.users_to_liquidate(c_idx)[0].dx
@@ -139,7 +136,6 @@ def test_liquidate_partial_callback(
 
 @pytest.mark.parametrize("use_callback", [True, False])
 def test_liquidate_partial_uses_exact_amount(
-    accounts,
     borrowed_token,
     collateral_token,
     controller_for_liquidation,
@@ -150,9 +146,9 @@ def test_liquidate_partial_uses_exact_amount(
     factory,
     use_callback,
 ):
-    user = accounts[1]
-    liquidator = accounts[2]
-    controller = controller_for_liquidation(sleep_time=int(30.7 * 86400), user=user)
+    user = boa.env.generate_address("user")
+    liquidator = boa.env.generate_address("liquidator")
+    controller = controller_for_liquidation(sleep_time=int(29.0 * 86400), user=user)
     c_idx = _get_zap_indices(market_type, mint_factory, factory, controller)
     controller.approve(partial_repay_zap.address, True, sender=user)
 

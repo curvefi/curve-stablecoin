@@ -55,6 +55,15 @@ class BigFuzz(RuleBasedStateMachine):
         )
         self.fees = 0
         self.collateral_mul = 10 ** (18 - self.collateral_token.decimals())
+        users = [boa.env.generate_address() for _ in range(9)]
+        # User 0 is the fee receiver: collect_fees reads its balance
+        self.accounts = [self.controller_factory.fee_receiver()] + users
+        for u in self.accounts:
+            with boa.env.prank(u):
+                self.collateral_token.approve(self.market_amm, 2**256 - 1)
+                self.stablecoin.approve(self.market_amm, 2**256 - 1)
+                self.collateral_token.approve(self.market_controller, 2**256 - 1)
+                self.stablecoin.approve(self.market_controller, 2**256 - 1)
 
     # Auxiliary methods #
     def collect_fees(self):
@@ -318,7 +327,9 @@ class BigFuzz(RuleBasedStateMachine):
             else:
                 amount = int(r * self.collateral_token.totalSupply())
                 boa.deal(self.collateral_token, user, amount)
-                self.market_amm.exchange(1, 0, amount, 0)
+                # Collateral is never bought back
+                with boa.reverts("Wrong index"):
+                    self.market_amm.exchange(1, 0, amount, 0)
         self.remove_stablecoins(user)
 
     # Liquidations
@@ -527,7 +538,6 @@ def test_big_fuzz(
     collateral_digits,
     stablecoin,
     price_oracle,
-    accounts,
     get_fake_leverage,
     admin,
     _tmp,
@@ -558,7 +568,6 @@ def test_noraise(
     collateral_token,
     stablecoin,
     price_oracle,
-    accounts,
     fake_leverage,
     admin,
 ):
@@ -582,7 +591,6 @@ def test_noraise_2(
     collateral_token,
     stablecoin,
     price_oracle,
-    accounts,
     fake_leverage,
     admin,
 ):
@@ -603,7 +611,6 @@ def test_exchange_fails(
     collateral_token,
     stablecoin,
     price_oracle,
-    accounts,
     fake_leverage,
     admin,
 ):
@@ -634,7 +641,6 @@ def test_noraise_3(
     collateral_token,
     stablecoin,
     price_oracle,
-    accounts,
     fake_leverage,
     admin,
 ):
@@ -654,7 +660,6 @@ def test_repay_error_1(
     collateral_token,
     stablecoin,
     price_oracle,
-    accounts,
     fake_leverage,
     admin,
 ):
@@ -675,7 +680,6 @@ def test_not_enough_collateral(
     collateral_token,
     stablecoin,
     price_oracle,
-    accounts,
     fake_leverage,
     admin,
 ):
@@ -700,7 +704,6 @@ def test_noraise_4(
     collateral_token,
     stablecoin,
     price_oracle,
-    accounts,
     fake_leverage,
     admin,
 ):
@@ -721,7 +724,6 @@ def test_debt_nonequal(
     collateral_token,
     stablecoin,
     price_oracle,
-    accounts,
     fake_leverage,
     admin,
 ):
@@ -743,7 +745,6 @@ def test_noraise_5(
     collateral_token,
     stablecoin,
     price_oracle,
-    accounts,
     fake_leverage,
     admin,
 ):
@@ -769,7 +770,6 @@ def test_add_collateral_fail(
     collateral_token,
     stablecoin,
     price_oracle,
-    accounts,
     fake_leverage,
     admin,
 ):
@@ -803,7 +803,6 @@ def test_debt_eq_repay_no_coins(
     collateral_token,
     stablecoin,
     price_oracle,
-    accounts,
     fake_leverage,
     admin,
 ):
@@ -833,7 +832,6 @@ def test_amount_not_too_low(
     collateral_token,
     stablecoin,
     price_oracle,
-    accounts,
     fake_leverage,
     admin,
 ):
@@ -855,7 +853,6 @@ def test_debt_too_high(
     collateral_token,
     stablecoin,
     price_oracle,
-    accounts,
     fake_leverage,
     admin,
 ):
@@ -877,7 +874,6 @@ def test_debt_too_high_2(
     collateral_token,
     stablecoin,
     price_oracle,
-    accounts,
     fake_leverage,
     admin,
 ):
@@ -898,7 +894,6 @@ def test_change_debt_ceiling_error(
     collateral_token,
     stablecoin,
     price_oracle,
-    accounts,
     fake_leverage,
     admin,
 ):
@@ -920,7 +915,6 @@ def test_borrow_zero_norevert(
     collateral_token,
     stablecoin,
     price_oracle,
-    accounts,
     fake_leverage,
     admin,
 ):
@@ -941,7 +935,6 @@ def test_debt_too_high_3(
     collateral_token,
     stablecoin,
     price_oracle,
-    accounts,
     fake_leverage,
     admin,
 ):
@@ -962,7 +955,6 @@ def test_debt_too_high_4(
     collateral_token,
     stablecoin,
     price_oracle,
-    accounts,
     fake_leverage,
     admin,
 ):
@@ -983,7 +975,6 @@ def test_loan_doesnt_exist(
     collateral_token,
     stablecoin,
     price_oracle,
-    accounts,
     fake_leverage,
     admin,
 ):
@@ -1018,7 +1009,6 @@ def test_debt_too_high_2_users(
     collateral_token,
     stablecoin,
     price_oracle,
-    accounts,
     fake_leverage,
     admin,
 ):
@@ -1049,7 +1039,6 @@ def test_cannot_create_loan(
     monetary_policy,
     stablecoin,
     price_oracle,
-    accounts,
     get_fake_leverage,
     admin,
     collateral_token,

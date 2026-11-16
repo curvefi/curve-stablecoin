@@ -175,7 +175,8 @@ def _add_collateral_borrow_health_preview(
     xy: uint256[2] = staticcall AMM.get_sum_xy(_for)
 
     assert debt > 0, "debt==0"
-    assert xy[0] == 0, "Underwater"
+    # Borrowed tokens held in the bands repay debt before the bands move
+    debt -= xy[0]
 
     collateral: uint256 = xy[1]
     if _remove:
@@ -255,11 +256,11 @@ def repay_health_preview(
     ns: int256[2] = staticcall AMM.read_user_tick_numbers(_for)
     debt: uint256 = self._debt(_for)
     active_band: int256 = staticcall AMM.active_band_with_skip()
+    xy: uint256[2] = staticcall AMM.get_sum_xy(_for)
 
     assert debt > 0, "Loan doesn't exist"
 
-    if ns[0] > active_band or _shrink:  # re-deposit
-        xy: uint256[2] = staticcall AMM.get_sum_xy(_for)
+    if (ns[0] > active_band and xy[0] == 0) or _shrink:  # re-deposit
         d_debt: uint256 = _d_debt + xy[0]
         assert d_debt > 0, "No coins to repay"
         assert debt > d_debt, "Repay amount is too high"
@@ -310,10 +311,13 @@ def liquidate_health_preview(
         assert staticcall CONTROLLER.health(_user, True) < 0, "Not enough rekt"
         ld = self._liquidation_discounts(_user)
         health_limit = ld
-    f_remove: uint256 = core._get_f_remove(_frac, health_limit)
+    debt_f_remove: uint256[2] = core._calculate_debt_f_remove(
+        _user, debt, _frac, health_limit, AMM, COLLATERAL_PRECISION, BORROWED_PRECISION
+    )
+    f_remove: uint256 = debt_f_remove[1]
 
     x_eff: uint256 = staticcall AMM.get_x_down(_user) * (WAD - f_remove) // WAD
-    debt = debt * (WAD - _frac) // WAD
+    debt -= debt_f_remove[0]
     health: int256 = self._calc_health(x_eff, debt, ld)
 
     if _full and ns[0] > active_band:
@@ -322,7 +326,7 @@ def liquidate_health_preview(
         p0: uint256 = staticcall AMM.p_oracle_up(ns[0])
         p_diff: uint256 = crv_math.sub_or_zero(staticcall AMM.price_oracle(), p0)
 
-        if p_diff > 0:
+        if p_diff > 0 and xy[0] == 0:  # Bands holding x stay in liquidation mode
             health += unsafe_div(
                 convert(p_diff, int256) * convert(collateral * COLLATERAL_PRECISION, int256),
                 convert(debt * BORROWED_PRECISION, int256)
@@ -450,6 +454,10 @@ def _max_p_base(_amm: IAMM, _logn_a_ration: int256) -> uint256:
         )  # This is to deal with vyper's rounding of negative numbers
     n1 = unsafe_div(n1, _logn_a_ration) + MAX_P_BASE_BANDS
     n_min: int256 = staticcall _amm.active_band_with_skip()
+    # Bands holding x can be skipped as well if the AMM allows it
+    n_skip: int256 = staticcall _amm.active_band() - convert(MAX_SKIP_TICKS, int256)
+    if n_min > n_skip and staticcall _amm.can_skip_bands(n_min - 1):
+        n_min = n_skip
     n1 = max(n1, n_min + 1)
     p_base: uint256 = staticcall _amm.p_oracle_up(n1)
 
