@@ -272,6 +272,10 @@ def main() -> None:
     sol_dir = PROJECT_ROOT / "scripts/deploy/llamalend/optimism/solidity"
 
     contracts = [
+        # NOTE: wstETHRateCalculator.vy has been removed from the repo, so this entry
+        # no longer works as is. Use
+        # curve_stablecoin/mpolicies/v2/rate_calculators/WstETHRateCalculator.vy
+        # instead (see ../../monetary_policies/wstETH-WETH/verify.py).
         (
             rate_calculator_addr,
             "wstETHRateCalculator (Vyper 0.4.3)",
@@ -285,6 +289,9 @@ def main() -> None:
             ).hex(),
             "1",
         ),
+        # NOTE: EMAMonetaryPolicy.vy has been removed from the repo, so this entry
+        # no longer works as is. Use curve_stablecoin/mpolicies/v2/HyperbolicDynamicMP.vy
+        # instead (see ../../monetary_policies/wstETH-WETH/verify.py).
         (
             monetary_policy_addr,
             "EMAMonetaryPolicy (Vyper 0.3.10)",

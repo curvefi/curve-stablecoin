@@ -34,6 +34,8 @@ BORROW_CAP = 824 * 10**18  # 824 wstETH
 ADMIN_PERCENTAGE = 10**16  # 1%
 
 # RATE_CALCULATOR parameters
+# NOTE: wstETHRateCalculator.vy has been removed from the repo; use
+# curve_stablecoin/mpolicies/v2/rate_calculators/WstETHRateCalculator.vy instead.
 
 WSTETH_RATE_ORACLE = (
     "0x294ED1f214F4e0ecAE31C3Eae4F04EBB3b36C9d0"  # Lido TokenRateOracle (wstETH/stETH)
@@ -42,6 +44,8 @@ OWNERSHIP_AGENT = "0x28c4A1Fa47EEE9226F8dE7D6AF0a41C62Ca98267"
 AVG_WINDOW = 7 * 86400  # 7 days
 
 # EMAMonetaryPolicy parameters
+# NOTE: EMAMonetaryPolicy.vy has been removed from the repo; use
+# curve_stablecoin/mpolicies/v2/HyperbolicDynamicMP.vy instead.
 TARGET_UTILIZATION = int(0.85 * 10**18)  # 85%
 LOW_RATIO = int(0.50 * 10**18)  # 50%
 HIGH_RATIO = int(3.0 * 10**18)  # 3x
@@ -96,6 +100,10 @@ def _deploy(
         existing["configurator"]
     )
 
+    # NOTE: wstETHRateCalculator.vy has been removed from the repo, so this step no
+    # longer works as is. Use
+    # curve_stablecoin/mpolicies/v2/rate_calculators/WstETHRateCalculator.vy
+    # instead (see ../../monetary_policies/wstETH-WETH/deploy.py).
     rate_calculator = boa.load_partial(
         "curve_stablecoin/mpolicies/wstETHRateCalculator.vy"
     ).deploy(
@@ -104,6 +112,9 @@ def _deploy(
         AVG_WINDOW,
     )
 
+    # NOTE: EMAMonetaryPolicy.vy has been removed from the repo, so this step no
+    # longer works as is. Use curve_stablecoin/mpolicies/v2/HyperbolicDynamicMP.vy
+    # instead (see ../../monetary_policies/wstETH-WETH/deploy.py).
     monetary_policy = boa.load_partial(
         "curve_stablecoin/mpolicies/EMAMonetaryPolicy.vy"
     ).deploy(

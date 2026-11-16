@@ -10,10 +10,7 @@ be caught.
 import boa
 import pytest
 
-from tests.utils.deployers import (
-    MPOLICIES_CONTRACT_PATH,
-    WSTETH_RATE_CALCULATOR_DEPLOYER,
-)
+from tests.utils.deployers import WSTETH_RATE_CALCULATOR_DEPLOYER
 
 DAY = 86400
 WINDOW = 7 * DAY
@@ -72,11 +69,6 @@ def getTokenRateByIndex(_index: uint256) -> (uint256, uint256, uint256):
     # the rate reaches the L2 1-3 hours after the L1 report, varying per entry
     return self.rates[_index], self.timestamps[_index], self.timestamps[_index] + (_index % 3 + 1) * 3600
 """
-
-# The calculator live on Optimism before the move to the v2 monetary policy.
-LEGACY_CALCULATOR_DEPLOYER = boa.load_partial(
-    MPOLICIES_CONTRACT_PATH / "wstETHRateCalculator.vy"
-)
 
 
 def expected_rate(entries, window=WINDOW):

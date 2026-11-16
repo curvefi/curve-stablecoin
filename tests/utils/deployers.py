@@ -116,10 +116,6 @@ SEMILOG_MONETARY_POLICY_DEPLOYER = boa.load_partial(
     MPOLICIES_CONTRACT_PATH / "SemilogMonetaryPolicy.vy",
     compiler_args=compiler_args_default,
 )
-SECONDARY_MONETARY_POLICY_DEPLOYER = boa.load_partial(
-    MPOLICIES_CONTRACT_PATH / "SecondaryMonetaryPolicy.vy",
-    compiler_args=compiler_args_default,
-)
 AGG_MONETARY_POLICY4_DEPLOYER = boa.load_partial(
     MPOLICIES_CONTRACT_PATH / "AggMonetaryPolicy4.vy",
     compiler_args=compiler_args_default,
@@ -293,9 +289,6 @@ MOCK_FACTORY_DEPLOYER = boa.load_partial(
 )
 MOCK_MARKET_DEPLOYER = boa.load_partial(
     TESTING_CONTRACT_PATH / "MockMarket.vy", compiler_args=compiler_args_default
-)
-MOCK_RATE_SETTER_DEPLOYER = boa.load_partial(
-    TESTING_CONTRACT_PATH / "MockRateSetter.vy", compiler_args=compiler_args_default
 )
 MOCK_RATE_CALCULATOR_DEPLOYER = boa.load_partial(
     TESTING_CONTRACT_PATH / "MockRateCalculator.vy", compiler_args=compiler_args_default
