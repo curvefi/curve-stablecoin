@@ -74,8 +74,8 @@ def create_from_pool(
             collateral_ix = i
     if collateral_ix == 100 or borrowed_ix == 100:
         raise "Tokens not in pool"
+    # CurvePoolOracle(pool, base_idx, quote_idx): base is collateral, quote is borrowed
     price_oracle: IPriceOracle = IPriceOracle(
-        # CurvePoolOracle(pool, base_idx, quote_idx): base is collateral, quote is borrowed
         create_from_blueprint(POOL_PRICE_ORACLE_BLUEPRINT, _pool, collateral_ix, borrowed_ix)
     )
 
