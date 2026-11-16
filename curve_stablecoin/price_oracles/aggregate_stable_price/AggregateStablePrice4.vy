@@ -351,6 +351,7 @@ def add_price_pair(_pool: Stableswap):
         _pool.address,
         abi_encode(convert(0, uint256), method_id=method_id("price_oracle(uint256)")),
         max_outsize=32,
+        is_static_call=True,
         revert_on_failure=False,
     )
     if success and len(response) == 32:
