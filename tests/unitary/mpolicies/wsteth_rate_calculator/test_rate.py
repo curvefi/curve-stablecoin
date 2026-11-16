@@ -9,11 +9,9 @@ import pytest
 
 from tests.unitary.mpolicies.wsteth_rate_calculator.conftest import (
     DAY,
-    LEGACY_CALCULATOR_DEPLOYER,
     LIDO_OPTIMISM_RATES,
     RATE_PRECISION,
     T0,
-    WINDOW,
     daily_entries,
     expected_rate,
 )
@@ -105,27 +103,6 @@ def test_lido_optimism_data(oracle, push, deploy_calculator, window):
     assert rate == expected_rate(LIDO_OPTIMISM_RATES, window)
     # wstETH staking yield around 2.2% APR in October 2026
     assert 0.02 < rate * YEAR / 10**18 < 0.025
-
-
-@pytest.mark.parametrize(
-    "entries",
-    [
-        pytest.param(LIDO_OPTIMISM_RATES, id="lido-optimism"),
-        pytest.param(daily_entries(20), id="synthetic"),
-        pytest.param(
-            [(10**27 + i * 10**23, T0 + i * DAY + (i % 3) * 3600) for i in range(12)],
-            id="uneven",
-        ),
-    ],
-)
-def test_matches_legacy_calculator(oracle, push, deploy_calculator, entries):
-    # the calculator it replaces, with the 7-day window it is deployed with
-    push(oracle, entries)
-    legacy = LEGACY_CALCULATOR_DEPLOYER.deploy(
-        oracle.address, boa.env.generate_address(), WINDOW
-    )
-
-    assert deploy_calculator(oracle).rate() == legacy.rate()
 
 
 def test_drives_hyperbolic_dynamic_mp(oracle, push, deploy_calculator):

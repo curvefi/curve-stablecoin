@@ -4,7 +4,7 @@ from itertools import permutations
 from tests.utils.deployers import (
     MOCK_SWAP2_DEPLOYER,
     MOCK_SWAP3_DEPLOYER,
-    CRYPTO_FROM_POOL_DEPLOYER,
+    CURVE_POOL_ORACLE_DEPLOYER,
 )
 
 
@@ -28,7 +28,7 @@ def test_oracle(swap2, swap3, coin_ids):
     else:
         swap = swap3
     borrowed_ix, collateral_ix = coin_ids[:2]
-    oracle = CRYPTO_FROM_POOL_DEPLOYER.deploy(swap, N, borrowed_ix, collateral_ix)
+    oracle = CURVE_POOL_ORACLE_DEPLOYER.deploy(swap, collateral_ix, borrowed_ix)
 
     p0 = 0.1
     for p in [1, 10, 100]:

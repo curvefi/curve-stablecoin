@@ -6,6 +6,7 @@
 @license Copyright (c) Curve.Finance, 2020-2026 - all rights reserved
 @notice Disposable contract to create lending markets using existing Curve pools as price oracles.
         Needs to be redeployed to change pool_price_oracle_blueprint.
+        The blueprint is expected to be price_oracles/v2/CurvePoolOracle.vy.
 @custom:security security@curve.finance
 @custom:kill Pause factory to halt deployments.
 """
@@ -54,7 +55,6 @@ def create_from_pool(
     borrowed_ix: uint256 = 100
     collateral_ix: uint256 = 100
     # TODO duplicated code
-    N: uint256 = 0
     for i: uint256 in range(10):
         success: bool = False
         res: Bytes[32] = empty(Bytes[32])
@@ -68,15 +68,15 @@ def create_from_pool(
         coin: IERC20 = IERC20(convert(res, address))
         if not success or coin == empty(IERC20):
             break
-        N += 1
         if coin == _borrowed_token:
             borrowed_ix = i
         elif coin == _collateral_token:
             collateral_ix = i
     if collateral_ix == 100 or borrowed_ix == 100:
         raise "Tokens not in pool"
+    # CurvePoolOracle(pool, base_idx, quote_idx): base is collateral, quote is borrowed
     price_oracle: IPriceOracle = IPriceOracle(
-        create_from_blueprint(POOL_PRICE_ORACLE_BLUEPRINT, _pool, N, borrowed_ix, collateral_ix)
+        create_from_blueprint(POOL_PRICE_ORACLE_BLUEPRINT, _pool, collateral_ix, borrowed_ix)
     )
 
     res: address[3] = extcall FACTORY.create(

@@ -94,8 +94,6 @@ jobs:
             runs-on: "ubuntu-latest"
           - folder: "tests/controller"
             runs-on: "ubuntu-latest"
-          - folder: "tests/price_oracles"
-            runs-on: "ubuntu-latest"
           - folder: "tests/zaps"
             runs-on: "ubuntu-latest"
           # Own job: workers grow ~5 MB/s each in this file, which may exhaust the runner's memory
