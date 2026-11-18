@@ -83,9 +83,7 @@ class HealthPreviewStateful(ControllerStateful):
             label="health_preview_add_collateral",
         )
 
-        preview = self.controller.add_collateral_health_preview(
-            collateral, user, False
-        )
+        preview = self.controller.add_collateral_health_preview(collateral, user, False)
         preview_full = self.controller.add_collateral_health_preview(
             collateral, user, True
         )

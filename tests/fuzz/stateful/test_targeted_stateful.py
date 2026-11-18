@@ -79,10 +79,13 @@ class VaultDepositorTargetMixin:
 
     def teardown(self):
         depositors = len(self.seen_vault_users)
-        target(min(depositors, self.target_vault_depositor_goal), label="vault_depositors")
+        target(
+            min(depositors, self.target_vault_depositor_goal), label="vault_depositors"
+        )
 
         density_bps = (
-            self.target_vault_depositors_created * 10_000
+            self.target_vault_depositors_created
+            * 10_000
             // self.target_vault_deposit_steps
             if self.target_vault_deposit_steps
             else 0

@@ -29,7 +29,9 @@ class VaultERC4626Stateful(LlamalendStatefulBase):
         max_assets = min(int(self.vault.maxDeposit(user)), 10**6 * 10**token_decimals)
         assume(max_assets > 0)
 
-        max_shares = min(int(self.vault.maxMint(user)), int(self.vault.previewDeposit(max_assets)))
+        max_shares = min(
+            int(self.vault.maxMint(user)), int(self.vault.previewDeposit(max_assets))
+        )
         assume(max_shares > 0)
         return data.draw(integers(min_value=1, max_value=max_shares), label=label)
 
@@ -52,7 +54,10 @@ class VaultERC4626Stateful(LlamalendStatefulBase):
 
         assert minted == expected_shares
         assert self.vault.balanceOf(receiver) - receiver_shares_before == minted
-        assert sender_before + assets - self.vault_borrowed_token.balanceOf(sender) == assets
+        assert (
+            sender_before + assets - self.vault_borrowed_token.balanceOf(sender)
+            == assets
+        )
         assert self.vault.totalAssets() >= total_assets_before + assets
         self.vault_users.append(receiver)
         event("stateful:vault:deposit_for")
@@ -61,7 +66,9 @@ class VaultERC4626Stateful(LlamalendStatefulBase):
     def mint_for(self, data):
         note("[VAULT MINT FOR]")
         sender = boa.env.generate_address(f"vault_minter_{len(self.vault_users)}")
-        receiver = boa.env.generate_address(f"vault_mint_receiver_{len(self.vault_users)}")
+        receiver = boa.env.generate_address(
+            f"vault_mint_receiver_{len(self.vault_users)}"
+        )
         shares = self.bounded_share_amount(data, receiver, "vault_mint_shares")
 
         expected_assets = self.vault.previewMint(shares)
