@@ -273,6 +273,17 @@ def factory() -> IFactory:
 @external
 @view
 @reentrant
+def configurator() -> address:
+    """
+    @notice Address of the configurator
+    @return Address of the configurator contract
+    """
+    return CONFIGURATOR.address
+
+
+@external
+@view
+@reentrant
 def amm() -> IAMM:
     """
     @notice Address of the AMM

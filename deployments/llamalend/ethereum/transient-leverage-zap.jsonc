@@ -1,0 +1,15 @@
+{
+  "chain_id": 1,
+  "deployer": "0xE6B328e141EF304739892A864CebFe148a04353e",
+  "dry_run": false,
+  "timestamp": 1788187431,
+  "factory": "0x8f6B56EC5ddF1F2691a1059f1D3cd97Ac9EaB0bd",
+  "exchanges": [
+    "0x45312ea0eFf7E09C83CBE249fa1d7598c4C8cd4e",
+    "0xF75584eF6673aD213a685a1B58Cc0330B8eA22Cf",
+    "0xa1c7a8360eb4049595a24d6919e74e105b409cb5",
+    "0x0000000000001fF3684f28c67538d4D072C22734",
+    "0x6131B5fae19EA4f9D964eAc0408E4408b66337b5"
+  ],
+  "transient_leverage_zap": "0x676D83f9fD0E4bf0aB7539463c0c4a23E13982BF"
+}

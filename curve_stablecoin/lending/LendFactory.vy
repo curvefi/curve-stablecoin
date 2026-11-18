@@ -1,11 +1,11 @@
 # pragma version 0.4.3
 # pragma nonreentrancy on
 """
-@title LlamaLend Factory
-@notice Factory for one-way lending markets powered by LlamaLend AMM
-@author Curve.fi
-@license Copyright (c) Curve.Fi, 2020-2025 - all rights reserved
-@custom:security security@curve.fi
+@title LlamaLend V2 Lend Factory
+@author Curve.Finance
+@license Copyright (c) Curve.Finance, 2020-2026 - all rights reserved
+@notice Factory for LlamaLend V2 lending markets powered by LLAMMA
+@custom:security security@curve.finance
 @custom:kill Pause factory to halt deployments.
 """
 

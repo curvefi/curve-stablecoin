@@ -35,7 +35,7 @@ jobs:
           if [ "${{ inputs.dry_run }}" = "true" ]; then
             DRY_FLAG="--dry-run"
           fi
-          uv run python scripts/boa-deploy-llamalend-op.py \
+          uv run python scripts/deploy-llamalend-op.py \
             --rpc-url "$OP_RPC_URL" \
             $DRY_FLAG
 

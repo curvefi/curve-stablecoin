@@ -119,7 +119,6 @@ def test_create_loan_within_max_borrowable(
 
     calldata = make_deposit_calldata(
         controller_id,
-        0,
         max_leverage_collateral,
         dummy_router,
         borrowed_token,
@@ -166,7 +165,6 @@ def test_create_loan_debt_too_high_reverts(
     # keep leverage_collateral fixed — more debt with same swap output → unhealthy
     calldata = make_deposit_calldata(
         controller_id,
-        0,
         exceed_leverage_collateral,
         dummy_router,
         borrowed_token,
@@ -218,7 +216,6 @@ def test_create_loan_exceeds_available_balance_reverts(
 
     calldata = make_deposit_calldata(
         controller_id,
-        0,
         exceed_collateral,
         dummy_router,
         borrowed_token,
@@ -289,7 +286,6 @@ def test_borrow_more_within_max_borrowable(
 
     calldata = make_deposit_calldata(
         controller_id,
-        0,
         d_leverage_coll,
         dummy_router,
         borrowed_token,
@@ -339,7 +335,6 @@ def test_borrow_more_up_to_create_loan_max(
 
     create_calldata = make_deposit_calldata(
         controller_id,
-        0,
         initial_leverage_coll,
         dummy_router,
         borrowed_token,
@@ -389,7 +384,6 @@ def test_borrow_more_up_to_create_loan_max(
 
     borrow_calldata = make_deposit_calldata(
         controller_id,
-        0,
         d_leverage_coll,
         dummy_router,
         borrowed_token,
@@ -451,7 +445,6 @@ def test_borrow_more_debt_too_high_reverts(
     calldata = make_deposit_calldata(
         controller_id,
         0,
-        0,
         dummy_router,
         borrowed_token,
         collateral_token,
@@ -494,7 +487,6 @@ def test_borrow_more_exceeds_available_balance_reverts(
 
     calldata = make_deposit_calldata(
         controller_id,
-        0,
         0,
         dummy_router,
         borrowed_token,

@@ -5,27 +5,33 @@ CALLDATA_MAX_SIZE: constant(uint256) = c.CALLDATA_MAX_SIZE
 
 
 event Deposit:
+    controller: indexed(address)
     user: indexed(address)
-    user_collateral: uint256
-    user_borrowed: uint256
-    user_collateral_from_borrowed: uint256
-    debt: uint256
     leverage_collateral: uint256
+    d_debt: uint256
 
 
 event Repay:
+    controller: indexed(address)
     user: indexed(address)
     state_collateral_used: uint256
     borrowed_from_state_collateral: uint256
-    user_collateral: uint256
-    user_collateral_used: uint256
-    borrowed_from_user_collateral: uint256
-    user_borrowed: uint256
+
+
+event SetExchange:
+    exchange: indexed(address)
+    approved: bool
 
 
 @view
 @external
 def FACTORY() -> address:
+    ...
+
+
+@view
+@external
+def admin() -> address:
     ...
 
 

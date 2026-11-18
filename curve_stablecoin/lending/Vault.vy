@@ -2,11 +2,11 @@
 # pragma optimize codesize
 # pragma nonreentrancy on
 """
-@title LlamaLend Vault
+@title LlamaLend V2 Vault
+@author Curve.Finance
+@license Copyright (c) Curve.Finance, 2020-2026 - all rights reserved
 @notice ERC4626+ Vault for lending using LLAMMA algorithm
-@author Curve.Fi
-@license Copyright (c) Curve.Fi, 2020-2025 - all rights reserved
-@custom:security security@curve.fi
+@custom:security security@curve.finance
 @custom:kill Set max_supply to 0 via set_max_supply() to prevent new deposits. Existing positions can still be withdrawn.
 """
 

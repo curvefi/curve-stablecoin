@@ -28,7 +28,7 @@ from tests.utils.deployers import (
     LENDING_FACTORY_DEPLOYER,
     # Price oracles
     DUMMY_PRICE_ORACLE_DEPLOYER,
-    CRYPTO_FROM_POOL_DEPLOYER,
+    CURVE_POOL_ORACLE_DEPLOYER,
     # Monetary policies
     CONSTANT_MONETARY_POLICY_DEPLOYER,
     CONSTANT_MONETARY_POLICY_LENDING_DEPLOYER,
@@ -114,7 +114,7 @@ class Llamalend:
             blueprints.update(
                 mint_controller=self._mint_controller_deployer,
                 mint_controller_view=CONTROLLER_VIEW_DEPLOYER,
-                price_oracle=CRYPTO_FROM_POOL_DEPLOYER,
+                price_oracle=CURVE_POOL_ORACLE_DEPLOYER,
                 mpolicy=CONSTANT_MONETARY_POLICY_LENDING_DEPLOYER,
             )
 
