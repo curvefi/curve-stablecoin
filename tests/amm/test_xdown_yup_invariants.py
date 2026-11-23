@@ -25,7 +25,6 @@ def test_immediate(
     price_oracle,
     collateral_token,
     borrowed_token,
-    accounts,
     admin,
     p_o,
     n1,
@@ -36,10 +35,13 @@ def test_immediate(
     is_pump,
 ):
     deposit_amount = deposit_amount // 10 ** (18 - collateral_token.decimals())
-    user = accounts[0]
+    user = boa.env.generate_address()
+    with boa.env.prank(user):
+        collateral_token.approve(amm.address, 2**256 - 1)
+        borrowed_token.approve(amm.address, 2**256 - 1)
     with boa.env.prank(admin):
         price_oracle.set_price(p_o)
-        amm.set_fee(0)
+        amm.eval(f"self.fee = 0")
         amm.deposit_range(user, deposit_amount, n1, n1 + dn)
         mint_for_testing(collateral_token, amm.address, deposit_amount)
     pump_amount = int(p_o * deposit_amount / 10**18 * f_pump / 10**12)
@@ -92,15 +94,16 @@ def test_immediate(
     assert y0 == pytest.approx(y1, rel=fee, abs=100)
 
 
-def test_immediate_above_p0(
-    amm, price_oracle, collateral_token, borrowed_token, accounts, admin
-):
+def test_immediate_above_p0(amm, price_oracle, collateral_token, borrowed_token, admin):
     deposit_amount = 5805319702344997833315303
     deposit_amount = deposit_amount // 10 ** (18 - collateral_token.decimals())
-    user = accounts[0]
+    user = boa.env.generate_address()
+    with boa.env.prank(user):
+        collateral_token.approve(amm.address, 2**256 - 1)
+        borrowed_token.approve(amm.address, 2**256 - 1)
 
     with boa.env.prank(admin):
-        amm.set_fee(0)
+        amm.eval(f"self.fee = 0")
         amm.deposit_range(user, deposit_amount, 6, 6)
         mint_for_testing(collateral_token, amm.address, deposit_amount)
 
@@ -139,15 +142,17 @@ def test_immediate_above_p0(
     assert y0 == pytest.approx(y1, rel=fee)
 
 
-def test_immediate_in_band(
-    amm, price_oracle, collateral_token, borrowed_token, accounts, admin
-):
+def test_immediate_in_band(amm, price_oracle, collateral_token, borrowed_token, admin):
     deposit_amount = 835969548449222546344625
     deposit_amount = deposit_amount // 10 ** (18 - collateral_token.decimals())
 
-    user = accounts[0]
+    user = boa.env.generate_address()
+    with boa.env.prank(user):
+        collateral_token.approve(amm.address, 2**256 - 1)
+        borrowed_token.approve(amm.address, 2**256 - 1)
+
     with boa.env.prank(admin):
-        amm.set_fee(0)
+        amm.eval(f"self.fee = 0")
         amm.deposit_range(user, deposit_amount, 4, 4)
         mint_for_testing(collateral_token, amm.address, deposit_amount)
 
@@ -198,7 +203,6 @@ def test_adiabatic(
     price_oracle,
     collateral_token,
     borrowed_token,
-    accounts,
     admin,
     p_o_1,
     p_o_2,
@@ -208,10 +212,14 @@ def test_adiabatic(
 ):
     deposit_amount = deposit_amount // 10 ** (18 - collateral_token.decimals())
     N_STEPS = 101
-    user = accounts[0]
+
+    user = boa.env.generate_address()
+    with boa.env.prank(user):
+        collateral_token.approve(amm.address, 2**256 - 1)
+        borrowed_token.approve(amm.address, 2**256 - 1)
 
     with boa.env.prank(admin):
-        amm.set_fee(0)
+        amm.eval(f"self.fee = 0")
         amm.deposit_range(user, deposit_amount, dn, n1 + dn)
         mint_for_testing(collateral_token, amm.address, deposit_amount)
         for i in range(2):
@@ -273,16 +281,13 @@ def test_adiabatic(
             p_o = int(p_o * p_o_mul)
 
 
-def test_adiabatic_fail_1(
-    amm, price_oracle, collateral_token, borrowed_token, accounts, admin
-):
+def test_adiabatic_fail_1(amm, price_oracle, collateral_token, borrowed_token, admin):
     with boa.env.anchor():
         test_adiabatic.hypothesis.inner_test(
             amm,
             price_oracle,
             collateral_token,
             borrowed_token,
-            accounts,
             admin,
             p_o_1=2296376199582847058288,
             p_o_2=2880636282130384399567,

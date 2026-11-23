@@ -1,0 +1,108 @@
+from curve_stablecoin.interfaces import IController
+from curve_stablecoin.zaps.transient_leverage_zap import transient_leverage_zap_constants as zc
+
+EXCHANGE_CALLDATA_MAX_SIZE: constant(uint256) = zc.EXCHANGE_CALLDATA_MAX_SIZE
+CALLBACK_CALLDATA_MAX_SIZE: constant(uint256) = zc.CALLBACK_CALLDATA_MAX_SIZE
+
+
+event Deposit:
+    controller: indexed(address)
+    user: indexed(address)
+    leverage_collateral: uint256
+    d_debt: uint256
+
+
+event Repay:
+    controller: indexed(address)
+    user: indexed(address)
+    state_collateral_used: uint256
+    borrowed_from_state_collateral: uint256
+
+
+event SetExchange:
+    exchange: indexed(address)
+    approved: bool
+
+
+@view
+@external
+def version() -> String[5]:
+    ...
+
+
+@view
+@external
+def FACTORY() -> address:
+    ...
+
+
+@view
+@external
+def admin() -> address:
+    ...
+
+
+@view
+@external
+def is_approved_exchange(_exchange: address) -> bool:
+    ...
+
+
+@view
+@external
+def max_borrowable(_controller: IController, _user_collateral: uint256, _leverage_collateral: uint256, _N: uint256, _p_avg: uint256) -> uint256:
+    ...
+
+
+@external
+def create_loan(
+    _controller_id: uint256,
+    _collateral: uint256,
+    _debt: uint256,
+    _N: uint256,
+    _min_recv: uint256,
+    _exchange_address: address,
+    _exchange_calldata: Bytes[EXCHANGE_CALLDATA_MAX_SIZE],
+):
+    ...
+
+
+@external
+def borrow_more(
+    _controller_id: uint256,
+    _collateral: uint256,
+    _debt: uint256,
+    _min_recv: uint256,
+    _exchange_address: address,
+    _exchange_calldata: Bytes[EXCHANGE_CALLDATA_MAX_SIZE],
+):
+    ...
+
+
+@external
+def repay(
+    _controller_id: uint256,
+    _wallet_d_debt: uint256,
+    _collateral_to_spend: uint256,
+    _min_recv: uint256,
+    _exchange_address: address,
+    _exchange_calldata: Bytes[EXCHANGE_CALLDATA_MAX_SIZE],
+    _max_active_band: int256 = max_value(int256),
+    _shrink: bool = False,
+):
+    ...
+
+
+@external
+def callback_deposit(_user: address, _borrowed: uint256, _user_collateral: uint256, _d_debt: uint256, _calldata: Bytes[CALLBACK_CALLDATA_MAX_SIZE]) -> uint256[2]:
+    ...
+
+
+@external
+def callback_repay(_user: address, _borrowed: uint256, _collateral: uint256, _debt: uint256, _calldata: Bytes[CALLBACK_CALLDATA_MAX_SIZE]) -> uint256[2]:
+    ...
+
+
+@external
+def set_exchange(_exchange: address, _approved: bool):
+    ...

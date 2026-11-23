@@ -53,6 +53,7 @@ def test_set_borrowing_discounts_emits_set_borrowing_discounts(
 
     log = single_configurator_event(configurator, "SetBorrowingDiscounts")
 
+    assert log.controller == controller.address
     assert log.loan_discount == LOAN_DISCOUNT
     assert log.liquidation_discount == LIQUIDATION_DISCOUNT
 

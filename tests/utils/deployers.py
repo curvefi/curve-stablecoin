@@ -4,6 +4,7 @@ Each deployer is a VyperDeployer object returned using boa.load_partial().
 """
 
 import curve_stablecoin
+import stableswap_ng
 from pathlib import Path
 
 import boa
@@ -30,6 +31,7 @@ _PACKAGE_ROOT = Path(curve_stablecoin.__file__).parent
 BASE_CONTRACT_PATH = _PACKAGE_ROOT
 TESTING_CONTRACT_PATH = _PACKAGE_ROOT / "testing"
 LENDING_CONTRACT_PATH = _PACKAGE_ROOT / "lending"
+LM_CALLBACK_CONTRACT_PATH = _PACKAGE_ROOT / "lm_callback"
 MPOLICIES_CONTRACT_PATH = _PACKAGE_ROOT / "mpolicies"
 PRICE_ORACLES_CONTRACT_PATH = _PACKAGE_ROOT / "price_oracles"
 STABILIZER_CONTRACT_PATH = _PACKAGE_ROOT / "stabilizer"
@@ -38,6 +40,9 @@ STABLESWAP_NG_PATH = (
     _PACKAGE_ROOT / "testing" / "stableswap-ng" / "curve_stablecoin" / "main"
 )
 ZAPS_CONTRACT_PATH = _PACKAGE_ROOT / "zaps"
+
+# Contracts shipped by the installed `stableswap-ng` dependency (namespace package)
+STABLESWAP_NG_PACKAGE_PATH = Path(list(stableswap_ng.__path__)[0])
 
 # Constants contract (for accessing constants)
 CONSTANTS_DEPLOYER = boa.load_partial(
@@ -111,12 +116,24 @@ SEMILOG_MONETARY_POLICY_DEPLOYER = boa.load_partial(
     MPOLICIES_CONTRACT_PATH / "SemilogMonetaryPolicy.vy",
     compiler_args=compiler_args_default,
 )
-SECONDARY_MONETARY_POLICY_DEPLOYER = boa.load_partial(
-    MPOLICIES_CONTRACT_PATH / "SecondaryMonetaryPolicy.vy",
-    compiler_args=compiler_args_default,
-)
 AGG_MONETARY_POLICY4_DEPLOYER = boa.load_partial(
     MPOLICIES_CONTRACT_PATH / "AggMonetaryPolicy4.vy",
+    compiler_args=compiler_args_default,
+)
+HYPERBOLIC_DYNAMIC_MP_DEPLOYER = boa.load_partial(
+    MPOLICIES_CONTRACT_PATH / "v2" / "HyperbolicDynamicMP.vy",
+    compiler_args=compiler_args_default,
+)
+HYPERBOLIC_MP_DEPLOYER = boa.load_partial(
+    MPOLICIES_CONTRACT_PATH / "v2" / "HyperbolicMP.vy",
+    compiler_args=compiler_args_default,
+)
+SYRUP_USDC_RATE_CALCULATOR_DEPLOYER = boa.load_partial(
+    MPOLICIES_CONTRACT_PATH / "v2" / "rate_calculators" / "SyrupUSDCRateCalculator.vy",
+    compiler_args=compiler_args_default,
+)
+WSTETH_RATE_CALCULATOR_DEPLOYER = boa.load_partial(
+    MPOLICIES_CONTRACT_PATH / "v2" / "rate_calculators" / "WstETHRateCalculator.vy",
     compiler_args=compiler_args_default,
 )
 
@@ -127,49 +144,38 @@ DUMMY_PRICE_ORACLE_DEPLOYER = boa.load_partial(
 BROKEN_PRICE_ORACLE_DEPLOYER = boa.load_partial(
     TESTING_CONTRACT_PATH / "BrokenPriceOracle.vy", compiler_args=compiler_args_default
 )
-CRYPTO_FROM_POOL_DEPLOYER = boa.load_partial(
-    PRICE_ORACLES_CONTRACT_PATH / "CryptoFromPool.vy",
+CURVE_POOL_ORACLE_DEPLOYER = boa.load_partial(
+    PRICE_ORACLES_CONTRACT_PATH / "v2" / "CurvePoolOracle.vy",
     compiler_args=compiler_args_default,
 )
-EMA_PRICE_ORACLE_DEPLOYER = boa.load_partial(
-    PRICE_ORACLES_CONTRACT_PATH / "EmaPriceOracle.vy",
+ERC4626_EMA_WRAPPER_DEPLOYER = boa.load_partial(
+    PRICE_ORACLES_CONTRACT_PATH / "v2" / "ERC4626EMAWrapper.vy",
     compiler_args=compiler_args_default,
 )
 AGGREGATE_STABLE_PRICE4_DEPLOYER = boa.load_partial(
     PRICE_ORACLES_CONTRACT_PATH / "aggregate_stable_price" / "AggregateStablePrice4.vy",
     compiler_args=compiler_args_default,
 )
-CRYPTO_WITH_STABLE_PRICE_DEPLOYER = boa.load_partial(
-    PRICE_ORACLES_CONTRACT_PATH / "CryptoWithStablePrice.vy",
+ORACLE_FROM_CURVE_POOLS_DEPLOYER = boa.load_partial(
+    PRICE_ORACLES_CONTRACT_PATH / "v2" / "OracleFromCurvePools.vy",
     compiler_args=compiler_args_default,
-)
-CRYPTO_WITH_STABLE_PRICE_AND_CHAINLINK_DEPLOYER = boa.load_partial(
-    PRICE_ORACLES_CONTRACT_PATH / "CryptoWithStablePriceAndChainlink.vy",
-    compiler_args=compiler_args_default,
-)
-
-# Proxy oracle contracts - have #pragma optimize gas
-PROXY_ORACLE_DEPLOYER = boa.load_partial(
-    PRICE_ORACLES_CONTRACT_PATH / "proxy" / "ProxyOracle.vy",
-    compiler_args=compiler_args_gas,
-)
-PROXY_ORACLE_FACTORY_DEPLOYER = boa.load_partial(
-    PRICE_ORACLES_CONTRACT_PATH / "proxy" / "ProxyOracleFactory.vy",
-    compiler_args=compiler_args_gas,
 )
 
 # LP oracle contracts
-LP_ORACLE_STABLE_DEPLOYER = boa.load_partial(
-    PRICE_ORACLES_CONTRACT_PATH / "lp-oracles" / "LPOracleStable.vy",
+REUSD_CRVUSD_ADAPTER_DEPLOYER = boa.load_partial(
+    PRICE_ORACLES_CONTRACT_PATH / "v2" / "adapters" / "ReusdCrvUSDAdapter.vy",
     compiler_args=compiler_args_default,
 )
-LP_ORACLE_CRYPTO_DEPLOYER = boa.load_partial(
-    PRICE_ORACLES_CONTRACT_PATH / "lp-oracles" / "LPOracleCrypto.vy",
-    compiler_args=compiler_args_default,
+# StableSwapNGLPOracle.vy has #pragma optimize codesize
+LP_ORACLE_STABLESWAP_NG_DEPLOYER = boa.load_partial(
+    PRICE_ORACLES_CONTRACT_PATH / "v2" / "StableSwapNGLPOracle.vy",
+    compiler_args=compiler_args_codesize,
 )
-# LPOracleFactory.vy has #pragma optimize gas
-LP_ORACLE_FACTORY_DEPLOYER = boa.load_partial(
-    PRICE_ORACLES_CONTRACT_PATH / "lp-oracles" / "LPOracleFactory.vy",
+# Upstream (stableswap-ng package) LP oracle reading the pool's *spot* virtual
+# price - the un-hardened counterpart of StableSwapNGLPOracle.
+# It has #pragma optimize gas.
+STABLESWAP_NG_SPOT_LP_ORACLE_DEPLOYER = boa.load_partial(
+    STABLESWAP_NG_PACKAGE_PATH / "LPOracle.vy",
     compiler_args=compiler_args_gas,
 )
 
@@ -186,10 +192,17 @@ PEG_KEEPER_OFFBOARDING_DEPLOYER = boa.load_partial(
     compiler_args=compiler_args_default,
 )
 
-# Callback contracts
+# LMCallback contracts
 LM_CALLBACK_DEPLOYER = boa.load_partial(
-    BASE_CONTRACT_PATH / "LMCallback.vy", compiler_args=compiler_args_default
+    LM_CALLBACK_CONTRACT_PATH / "LMCallback.vy",
+    compiler_args=compiler_args_default,
 )
+
+LM_CALLBACK_FACTORY_DEPLOYER = boa.load_partial(
+    LM_CALLBACK_CONTRACT_PATH / "LMCallbackFactory.vy",
+    compiler_args=compiler_args_default,
+)
+
 
 # Testing/Mock contracts
 ERC20_MOCK_DEPLOYER = boa.load_partial(
@@ -221,16 +234,44 @@ VAULT_REENTRANCY_CALLBACK_DEPLOYER = boa.load_partial(
     compiler_args=compiler_args_default,
 )
 LEVERAGE_ZAP_LENDING_DEPLOYER = boa.load_partial(
-    ZAPS_CONTRACT_PATH / "LeverageZapLending.vy",
+    ZAPS_CONTRACT_PATH / "LeverageZapLend.vy",
     compiler_args=compiler_args_codesize,
 )
 LEVERAGE_ZAP_MINT_DEPLOYER = boa.load_partial(
     ZAPS_CONTRACT_PATH / "LeverageZapMint.vy",
     compiler_args=compiler_args_codesize,
 )
+TRANSIENT_LEVERAGE_ZAP_LENDING_DEPLOYER = boa.load_partial(
+    ZAPS_CONTRACT_PATH / "transient_leverage_zap" / "TransientLeverageZapLend.vy",
+    compiler_args=compiler_args_codesize,
+)
+TRANSIENT_LEVERAGE_ZAP_MINT_DEPLOYER = boa.load_partial(
+    ZAPS_CONTRACT_PATH / "transient_leverage_zap" / "TransientLeverageZapMint.vy",
+    compiler_args=compiler_args_codesize,
+)
+TRANSIENT_LEVERAGE_ZAP_CONSTANTS_DEPLOYER = boa.load_partial(
+    ZAPS_CONTRACT_PATH
+    / "transient_leverage_zap"
+    / "transient_leverage_zap_constants.vy",
+    compiler_args=compiler_args_default,
+)
 
 DUMMY_ROUTER_DEPLOYER = boa.load_partial(
     TESTING_CONTRACT_PATH / "DummyRouter.vy",
+)
+
+# Testing helpers for the transient leverage zaps
+MALICIOUS_ROUTER_DEPLOYER = boa.load_partial(
+    TESTING_CONTRACT_PATH / "zaps" / "MaliciousRouter.vy",
+    compiler_args=compiler_args_default,
+)
+PADDED_ROUTER_DEPLOYER = boa.load_partial(
+    TESTING_CONTRACT_PATH / "zaps" / "PaddedRouter.vy",
+    compiler_args=compiler_args_default,
+)
+ZAP_BATCHER_DEPLOYER = boa.load_partial(
+    TESTING_CONTRACT_PATH / "zaps" / "ZapBatcher.vy",
+    compiler_args=compiler_args_default,
 )
 
 DUMMY_FLASH_BORROWER_DEPLOYER = boa.load_partial(
@@ -249,18 +290,17 @@ MOCK_FACTORY_DEPLOYER = boa.load_partial(
 MOCK_MARKET_DEPLOYER = boa.load_partial(
     TESTING_CONTRACT_PATH / "MockMarket.vy", compiler_args=compiler_args_default
 )
-MOCK_RATE_SETTER_DEPLOYER = boa.load_partial(
-    TESTING_CONTRACT_PATH / "MockRateSetter.vy", compiler_args=compiler_args_default
+MOCK_RATE_CALCULATOR_DEPLOYER = boa.load_partial(
+    TESTING_CONTRACT_PATH / "MockRateCalculator.vy", compiler_args=compiler_args_default
+)
+MOCK_CONTROLLER_MP_DEPLOYER = boa.load_partial(
+    TESTING_CONTRACT_PATH / "MockControllerMP.vy", compiler_args=compiler_args_default
 )
 MOCK_PEG_KEEPER_DEPLOYER = boa.load_partial(
     TESTING_CONTRACT_PATH / "MockPegKeeper.vy", compiler_args=compiler_args_default
 )
 MOCK_RATE_ORACLE_DEPLOYER = boa.load_partial(
     TESTING_CONTRACT_PATH / "MockRateOracle.vy", compiler_args=compiler_args_default
-)
-CHAINLINK_AGGREGATOR_MOCK_DEPLOYER = boa.load_partial(
-    TESTING_CONTRACT_PATH / "ChainlinkAggregatorMock.vy",
-    compiler_args=compiler_args_default,
 )
 TRICRYPTO_MOCK_DEPLOYER = boa.load_partial(
     TESTING_CONTRACT_PATH / "TricryptoMock.vy", compiler_args=compiler_args_default
@@ -275,22 +315,6 @@ SWAP_FACTORY_DEPLOYER = boa.load_partial(
     TESTING_CONTRACT_PATH / "SwapFactory.vy", compiler_args=compiler_args_default
 )
 
-# LP oracle testing contracts
-MOCK_STABLE_SWAP_DEPLOYER = boa.load_partial(
-    PRICE_ORACLES_CONTRACT_PATH / "lp-oracles" / "testing" / "MockStableSwap.vy",
-    compiler_args=compiler_args_default,
-)
-MOCK_CRYPTO_SWAP_DEPLOYER = boa.load_partial(
-    PRICE_ORACLES_CONTRACT_PATH / "lp-oracles" / "testing" / "MockCryptoSwap.vy",
-    compiler_args=compiler_args_default,
-)
-MOCK_STABLE_SWAP_NO_ARGUMENT_DEPLOYER = boa.load_partial(
-    PRICE_ORACLES_CONTRACT_PATH
-    / "lp-oracles"
-    / "testing"
-    / "MockStableSwapNoArgument.vy",
-    compiler_args=compiler_args_default,
-)
 
 # Stableswap NG contracts
 # TODO will fix

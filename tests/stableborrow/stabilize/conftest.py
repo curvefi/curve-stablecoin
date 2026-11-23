@@ -11,13 +11,10 @@ from tests.utils.deployers import (
     CURVE_STABLESWAP_NG_VIEWS_DEPLOYER,
     AGGREGATE_STABLE_PRICE4_DEPLOYER,
     TRICRYPTO_MOCK_DEPLOYER,
-    CRYPTO_WITH_STABLE_PRICE_DEPLOYER,
-    CRYPTO_WITH_STABLE_PRICE_AND_CHAINLINK_DEPLOYER,
     MOCK_PEG_KEEPER_DEPLOYER,
     PEG_KEEPER_REGULATOR_DEPLOYER,
     PEG_KEEPER_V2_DEPLOYER,
     AGG_MONETARY_POLICY4_DEPLOYER,
-    CHAINLINK_AGGREGATOR_MOCK_DEPLOYER,
     AMM_DEPLOYER,
     LEND_CONTROLLER_DEPLOYER,
 )
@@ -204,34 +201,6 @@ def agg(
             stableswap_a.add_liquidity([500000 * 10**6, 500000 * 10**18], 0)
             stableswap_b.add_liquidity([500000 * 10**18, 500000 * 10**18], 0)
         yield price_aggregator
-
-
-@pytest.fixture(scope="module")
-def crypto_agg(dummy_tricrypto, agg, stableswap_a, admin):
-    with boa.env.prank(admin):
-        crypto_agg = CRYPTO_WITH_STABLE_PRICE_DEPLOYER.deploy(
-            dummy_tricrypto.address, 0, stableswap_a, agg, 5000
-        )
-        crypto_agg.price_w()
-        return crypto_agg
-
-
-@pytest.fixture(scope="module")
-def crypto_agg_with_external_oracle(
-    dummy_tricrypto, agg, stableswap_a, chainlink_price_oracle, admin
-):
-    with boa.env.prank(admin):
-        crypto_agg = CRYPTO_WITH_STABLE_PRICE_AND_CHAINLINK_DEPLOYER.deploy(
-            dummy_tricrypto.address,
-            0,
-            stableswap_a,
-            agg,
-            chainlink_price_oracle.address,
-            5000,
-            1,
-        )
-        crypto_agg.price_w()
-        return crypto_agg
 
 
 @pytest.fixture(scope="module")
@@ -525,8 +494,3 @@ def mint_alice(
         with boa.env.prank(liquidity_provider):
             rtoken.approve(swap, 2**256 - 1)
             stablecoin.approve(swap, 2**256 - 1)
-
-
-@pytest.fixture(scope="module")
-def chainlink_price_oracle(admin):
-    return CHAINLINK_AGGREGATOR_MOCK_DEPLOYER.deploy(8, admin, 1000)

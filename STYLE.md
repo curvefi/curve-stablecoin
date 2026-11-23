@@ -52,7 +52,7 @@ All deployable contracts (CamelCase `.vy` files) must include a `@custom:kill` a
 ```vyper
 """
 @title My Contract
-@author Curve.fi
+@author Curve.finance
 @custom:kill Describe how to kill/disable this contract
 """
 ```

@@ -19,17 +19,19 @@ def set_rate(rate: uint256):
 
 
 @external
-def rate_write(_for: address = msg.sender) -> uint256:
-    _: uint256 = staticcall IController(_for).available_balance()
-    _ = staticcall IController(_for).total_debt()
-    _ = staticcall IController(_for).admin_fees()
+def rate_write() -> uint256:
+    controller: IController = IController(msg.sender)
+    _: uint256 = staticcall controller.available_balance()
+    _ = staticcall controller.total_debt()
+    _ = staticcall controller.admin_fees()
     return self._rate
 
 
 @external
 @view
-def rate(_for: address = msg.sender) -> uint256:
-    _: uint256 = staticcall IController(_for).available_balance()
-    _ = staticcall IController(_for).total_debt()
-    _ = staticcall IController(_for).admin_fees()
+def rate() -> uint256:
+    controller: IController = IController(msg.sender)
+    _: uint256 = staticcall controller.available_balance()
+    _ = staticcall controller.total_debt()
+    _ = staticcall controller.admin_fees()
     return self._rate

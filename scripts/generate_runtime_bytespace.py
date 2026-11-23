@@ -113,6 +113,37 @@ def dummy_return(ret_type: str | None) -> str:
     return f"return empty({ret_type})"
 
 
+def read_pragma_version(source_lines: list[str]) -> str | None:
+    for line in source_lines[:20]:
+        m = re.match(r"#\s*(?:@version|pragma\s+version)\s+(.+)", line.strip())
+        if m:
+            return m.group(1).strip()
+    return None
+
+
+def installed_vyper_version() -> str | None:
+    result = subprocess.run(["vyper", "--version"], text=True, capture_output=True)
+    if result.returncode != 0:
+        return None
+    return result.stdout.strip().split("+")[0]
+
+
+def version_compatible(spec: str | None, version: str | None) -> bool:
+    # When either side is unknown we can't decide, so let the compile attempt
+    # proceed and surface any real error itself.
+    if not spec or not version:
+        return True
+    try:
+        from packaging.specifiers import SpecifierSet
+        from packaging.version import Version
+
+        normalized = spec if spec[0] in "<>=~!" else "==" + spec
+        return Version(version) in SpecifierSet(normalized)
+    except Exception:
+        token = re.split(r"[,\s]", spec.lstrip("<>=~!"))[0]
+        return token == version
+
+
 def compile_runtime(source_path: Path) -> str:
     result = subprocess.run(
         ["vyper", "-f", "bytecode_runtime", str(source_path)],
@@ -133,61 +164,6 @@ def compile_runtime(source_path: Path) -> str:
             stderr=result.stderr,
         )
     return result.stdout
-
-
-def vyper_version() -> str:
-    result = subprocess.run(
-        ["vyper", "--version"],
-        text=True,
-        capture_output=True,
-        check=True,
-    )
-    return result.stdout.strip()
-
-
-def version_spec(source_lines: list[str]) -> str | None:
-    for line in source_lines:
-        stripped = line.strip()
-        if not stripped:
-            continue
-        match = re.match(r"#\s*@version\s+(.+)", stripped)
-        if match:
-            return match.group(1).strip()
-        match = re.match(r"#\s*pragma\s+version\s+(.+)", stripped)
-        if match:
-            return match.group(1).strip()
-        if not stripped.startswith("#"):
-            return None
-    return None
-
-
-def major_minor(version: str) -> tuple[int, int] | None:
-    match = re.match(r"(?:==)?(\d+)\.(\d+)\.", version)
-    if not match:
-        return None
-    return (int(match.group(1)), int(match.group(2)))
-
-
-def is_version_compatible(spec: str | None, compiler_version: str) -> bool:
-    if spec is None:
-        return True
-    if not spec.startswith(("==", "0")):
-        return True
-    expected = major_minor(spec)
-    actual = major_minor(compiler_version)
-    return expected is None or actual is None or expected == actual
-
-
-def write_skipped_report(report_md: Path, report_csv: Path, reason: str) -> None:
-    report_md.write_text(
-        f"# Runtime bytespace report\n\n- Status: skipped\n- Error: {reason}\n"
-    )
-    with report_csv.open("w", newline="") as f:
-        writer = csv.writer(f)
-        writer.writerow(["function", "base_size", "new_size", "savings", "savings_pct"])
-    print(f"Skipping runtime bytespace report: {reason}")
-    print(report_md)
-    print(report_csv)
 
 
 def format_compile_error(exc: subprocess.CalledProcessError) -> str:
@@ -223,29 +199,39 @@ def main() -> None:
 
     if not source_path.exists():
         raise FileNotFoundError(f"Source file not found: {source_path}")
+
+    source_lines = source_path.read_text().splitlines()
+
+    declared_version = read_pragma_version(source_lines)
+    installed_version = installed_vyper_version()
+    if not version_compatible(declared_version, installed_version):
+        runtime_root.mkdir(parents=True, exist_ok=True)
+        reason = (
+            f"contract targets vyper {declared_version}, "
+            f"but installed compiler is {installed_version}"
+        )
+        (runtime_root / "bytespace-report-runtime.md").write_text(
+            f"# Runtime bytespace report\n\n- Status: skipped\n- Reason: {reason}\n"
+        )
+        with (runtime_root / "bytespace-report-runtime.csv").open("w", newline="") as f:
+            csv.writer(f).writerow(
+                ["function", "base_size", "new_size", "savings", "savings_pct"]
+            )
+        print(f"Skipping {args.source}: {reason}")
+        return
+
     runtime_dir = runtime_root / "contracts"
     results_dir = runtime_root / "results"
     runtime_dir.mkdir(parents=True, exist_ok=True)
     results_dir.mkdir(parents=True, exist_ok=True)
 
-    source_lines = source_path.read_text().splitlines()
     funcs = parse_functions(source_lines)
-
-    report_md = runtime_root / "bytespace-report-runtime.md"
-    report_csv = runtime_root / "bytespace-report-runtime.csv"
-
-    spec = version_spec(source_lines)
-    compiler_version = vyper_version()
-    if not is_version_compatible(spec, compiler_version):
-        write_skipped_report(
-            report_md,
-            report_csv,
-            f"version {spec} is not compatible with compiler {compiler_version}",
-        )
-        return
 
     base_out = compile_runtime(source_path)
     base_size = len(base_out.encode())
+
+    report_md = runtime_root / "bytespace-report-runtime.md"
+    report_csv = runtime_root / "bytespace-report-runtime.csv"
 
     def compile_function(func: dict) -> tuple[str, int | None, int | None]:
         name = func["name"]

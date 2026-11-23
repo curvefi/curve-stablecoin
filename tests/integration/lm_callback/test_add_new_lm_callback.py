@@ -1,5 +1,4 @@
 import boa
-from tests.utils.deployers import LM_CALLBACK_DEPLOYER
 from tests.utils.constants import MAX_UINT256, ZERO_ADDRESS
 
 WEEK = 7 * 86400
@@ -8,13 +7,11 @@ WEEK = 7 * 86400
 def test_add_new_lm_callback(
     admin,
     collateral_token,
-    crv,
     controller,
     configurator,
     amm,
-    minter,
     gauge_controller,
-    lm_factory,
+    deploy_lm_callback,
 ):
     borrower1 = boa.env.generate_address("borrower1")
     borrower2 = boa.env.generate_address("borrower2")
@@ -33,10 +30,8 @@ def test_add_new_lm_callback(
     controller.create_loan(10**21, 10**21 * 2600, 10, sender=borrower2)
 
     # Wire up the new LM Callback to the gauge controller to have proper rates and stuff
+    new_cb = deploy_lm_callback(amm)
     with boa.env.prank(admin):
-        new_cb = LM_CALLBACK_DEPLOYER.deploy(
-            amm, crv, gauge_controller, minter, lm_factory
-        )
         configurator.set_callback(controller, new_cb)
         gauge_controller.add_gauge(new_cb.address, 0, 10**18)
 

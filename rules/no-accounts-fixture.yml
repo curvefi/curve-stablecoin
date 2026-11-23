@@ -2,6 +2,7 @@ id: no-accounts-fixture
 language: Python
 ignores:
   - tests/conftest.py
+  - tests/stableborrow/stabilize/**
 rule:
   any:
     - all:

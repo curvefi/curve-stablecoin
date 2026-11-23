@@ -7,9 +7,9 @@ def market_type():
     return "lending"
 
 
-@pytest.fixture(scope="module", params=[5 * 10**17, 10**18])
+@pytest.fixture(scope="module", params=[10**17, 5 * 10**17, 10**18])
 def admin_percentage(request, controller, configurator, admin):
-    """Parametrize admin_percentage for lending markets (50% and 100%)."""
+    """Parametrize admin_percentage for lending markets."""
     configurator.set_admin_percentage(controller, request.param, sender=admin)
     return request.param
 

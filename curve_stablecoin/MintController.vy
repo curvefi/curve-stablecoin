@@ -2,14 +2,12 @@
 # pragma nonreentrancy on
 # pragma optimize codesize
 """
-@title Llamalend Mint Market Controller
-@author Curve.Fi
-@license Copyright (c) Curve.Fi, 2020-2025 - all rights reserved
-@notice Main contract to interact with a Llamalend Mint Market. Each
-    contract is specific to a single mint market.
-@dev This is just a simple adapter not to have to deploy a new
-    factory for mint markets.
-@custom:security security@curve.fi
+@title Llamalend V2 Mint Market Controller
+@author Curve.Finance
+@license Copyright (c) Curve.Finance, 2020-2026 - all rights reserved
+@notice Main contract to interact with a Llamalend Mint Market. Each contract is specific to a single mint market.
+@dev This is just a simple adapter not to have to deploy a new factory for mint markets.
+@custom:security security@curve.finance
 @custom:kill Set debt_ceiling to 0 via ControllerFactory to prevent new loans. Existing loans can still be repaid/liquidated.
 """
 
@@ -32,6 +30,15 @@ def __init__(
     _liquidation_discount: uint256,
     _amm: core.IAMM,
 ):
+    """
+    @notice Mint Controller constructor
+    @param _collateral_token Token used as collateral
+    @param _monetary_policy Address of the monetary policy contract
+    @param _loan_discount Discount of the maximum loan size compared to get_x_down() value
+    @param _liquidation_discount Discount of the maximum loan size compared to
+           get_x_down() for "bad liquidation" purposes
+    @param _amm AMM address (already deployed from blueprint)
+    """
     core.__init__(
         _collateral_token,
         staticcall core.IFactory(msg.sender).stablecoin(),
