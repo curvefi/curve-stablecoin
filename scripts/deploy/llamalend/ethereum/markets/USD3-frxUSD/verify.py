@@ -6,9 +6,10 @@ Reads the deployment report written by
     deploy.py
 and submits source + constructor args for each contract that script deploys
 directly:
-    1. ERC4626EMAOracle        (price_oracle)    -- ctor: (USD3, ema_time)
-    2. SyrupUSDCRateCalculator (rate_calculator) -- ctor: (USD3)
-    3. HyperbolicDynamicMP     (monetary_policy) -- ctor: (controller,
+    1. ChainlinkEMA            (usdc_ema)        -- ctor: (USDC/USD feed, 10, 60)
+    2. ERC4626EMAWrapper       (price_oracle)    -- ctor: (usdc_ema, USD3, ema_time)
+    3. SyrupUSDCRateCalculator (rate_calculator) -- ctor: (USD3)
+    4. HyperbolicDynamicMP     (monetary_policy) -- ctor: (controller,
                                                     rate_calculator, target_util,
                                                     low, high, rate_shift)
 
@@ -39,7 +40,8 @@ from eth_abi import encode
 # Contract sources (must match deploy.py)
 # ---------------------------------------------------------------------------
 
-ERC4626_EMA_ORACLE_SRC = "curve_stablecoin/price_oracles/v2/ERC4626EMAOracle.vy"
+ERC4626_EMA_WRAPPER_SRC = "curve_stablecoin/price_oracles/v2/ERC4626EMAWrapper.vy"
+CHAINLINK_EMA_SRC = "curve_stablecoin/price_oracles/v2/ChainlinkEMA.sol"
 RATE_CALCULATOR_SRC = (
     "curve_stablecoin/mpolicies/v2/rate_calculators/SyrupUSDCRateCalculator.vy"
 )
@@ -129,7 +131,7 @@ def _decollide(sources: dict[str, str]) -> dict[str, str]:
 
     Vyper's `vyper-json` keys contract uniqueness on the *basename stem*, so two
     files sharing a name (e.g. `curve_stablecoin/constants.vy` and
-    `curve_std/constants.vy`, both pulled in by ERC4626EMAOracle via the `ema`
+    `curve_std/constants.vy`, both pulled in by ERC4626EMAWrapper via the `ema`
     module) raise "Contract namespace collision" and the compile aborts - which
     Etherscan reports as "Unable to locate a matching contract".
 
@@ -194,6 +196,22 @@ def _build_vyper_json(main_path: Path, optimize: str | None = None) -> dict:
         "language": "Vyper",
         "sources": {k: {"content": v} for k, v in sources.items()},
         "settings": settings,
+    }
+
+
+def _build_solidity_json(*sources: str) -> dict:
+    return {
+        "language": "Solidity",
+        "sources": {
+            key: {"content": (PROJECT_ROOT / key).read_text()} for key in sources
+        },
+        "settings": {
+            "optimizer": {"enabled": False, "runs": 200},
+            "evmVersion": "cancun",
+            "outputSelection": {
+                "*": {"*": ["abi", "evm.bytecode", "evm.deployedBytecode"]}
+            },
+        },
     }
 
 
@@ -328,6 +346,7 @@ def main() -> None:
         raise SystemExit(f"{deployment_path} is a dry-run report (fork addresses)")
     params = deployment["params"]
 
+    usdc_ema_addr = deployment["usdc_ema"]
     oracle_addr = deployment["price_oracle"]
     rate_calculator_addr = deployment["rate_calculator"]
     monetary_policy_addr = deployment["monetary_policy"]
@@ -335,6 +354,9 @@ def main() -> None:
 
     collateral = params["collateral_token"]
     ema_time = params["ema_time"]
+    usdc_usd_feed = params["usdc_usd_feed"]
+    observations = params["observations"]
+    interval = params["interval"]
     target_utilization = params["target_utilization"]
     low_ratio = params["low_ratio"]
     high_ratio = params["high_ratio"]
@@ -345,13 +367,29 @@ def main() -> None:
 
     contracts = [
         (
+            usdc_ema_addr,
+            "ChainlinkEMA (Solidity 0.8.25)",
+            f"{CHAINLINK_EMA_SRC}:ChainlinkEMA",
+            _build_solidity_json(CHAINLINK_EMA_SRC),
+            "v0.8.25+commit.b61c2a91",
+            "solidity-standard-json-input",
+            encode(
+                ["address", "uint256", "uint256"],
+                [usdc_usd_feed, observations, interval],
+            ).hex(),
+            "0",
+        ),
+        (
             oracle_addr,
-            "ERC4626EMAOracle (Vyper 0.4.3)",
-            f"{ERC4626_EMA_ORACLE_SRC}:ERC4626EMAOracle",
-            vy_json(ERC4626_EMA_ORACLE_SRC),
+            "ERC4626EMAWrapper (Vyper 0.4.3)",
+            f"{ERC4626_EMA_WRAPPER_SRC}:ERC4626EMAWrapper",
+            vy_json(ERC4626_EMA_WRAPPER_SRC),
             "vyper:0.4.3",
             "vyper-json",
-            encode(["address", "uint256"], [collateral, ema_time]).hex(),
+            encode(
+                ["address", "address", "uint256"],
+                [usdc_ema_addr, collateral, ema_time],
+            ).hex(),
             "1",
         ),
         (

@@ -5,9 +5,12 @@ Deploy the USD3/frxUSD LlamaLend V2 market on Ethereum Mainnet.
 Borrowed token: frxUSD. Collateral: USD3 (3Jane's senior ERC4626 vault on USDC).
 
 Per market this deploys, in order:
-    1. ERC4626EMAOracle(USD3, 866) -> USDC per USD3.
-         Share-price increases are smoothed; falls pass through immediately.
-         There is no base oracle. USDC and frxUSD are each counted at $1.
+    1. Oracle stack (prices USD3 in USD):
+         a. ChainlinkEMA(USDC/USD, 10 observations, 60-second interval)
+              -> smoothed USDC/USD; no extra staleness check or freeze wrapper.
+         b. ERC4626EMAWrapper(USDC/USD EMA, USD3, 866) -> USD3/USD.
+              Share-price increases are smoothed; falls pass through immediately.
+              frxUSD debt is counted at $1.
     2. SyrupUSDCRateCalculator(USD3) -> growth of USD3's share price
        across up to 7 daily records. The contract is unchanged; its only call
        on the vault is convertToAssets(1e18).
@@ -59,6 +62,8 @@ from getpass import getpass
 from pathlib import Path
 
 import boa
+import boa_solidity
+import solcx
 import curve_dao
 from boa.network import NetworkEnv
 from boa.rpc import EthereumRPC
@@ -72,6 +77,10 @@ CHAIN_ID = 1
 # --- Tokens ---
 FRXUSD = "0xCAcd6fd266aF91b8AeD52aCCc382b4e165586E29"  # borrowed
 USD3 = "0x056B269Eb1f75477a8666ae8C7fE01b64dD55eCc"  # collateral
+# --- Oracle config ---
+USDC_USD_FEED = "0x8fFfFfd4AfB6115b954Bd326cbe7B4BA576818f6"
+OBSERVATIONS = 10
+INTERVAL = 60
 
 # --- Liquidity gauge factory ---
 # Deploys the gauge over the vault's ERC4626 shares - CRV for lenders.
@@ -80,7 +89,8 @@ GAUGE_FACTORY = "0x64e1a69732fAC63F6790b3d8a34C5D713cC623E6"
 EMA_TIME = 866
 
 # --- Contract sources ---
-ERC4626_EMA_ORACLE = "curve_stablecoin/price_oracles/v2/ERC4626EMAOracle.vy"
+ERC4626_EMA_WRAPPER = "curve_stablecoin/price_oracles/v2/ERC4626EMAWrapper.vy"
+CHAINLINK_EMA = "curve_stablecoin/price_oracles/v2/ChainlinkEMA.sol"
 RATE_CALCULATOR = (
     "curve_stablecoin/mpolicies/v2/rate_calculators/SyrupUSDCRateCalculator.vy"
 )
@@ -253,14 +263,26 @@ def _deploy(
         voting = boa.from_etherscan(dao["voting"], api_key=etherscan_api_key)
         assert voting.canCreateNewVote(deployer), "Deployer is not eligible to propose"
 
-    # 1. Share-price oracle, read directly on USD3.
-    oracle = boa.load_partial(ERC4626_EMA_ORACLE).deploy(USD3, EMA_TIME)
+    # 1. USDC/USD from Chainlink, then USD3's share-price EMA on top.
+    solcx.install_solc("0.8.25")
+    solcx.set_solc_version("0.8.25")
+    usdc_ema = boa.load_partial_solc(CHAINLINK_EMA).deploy(
+        USDC_USD_FEED, OBSERVATIONS, INTERVAL
+    )
+    oracle = boa.load_partial(ERC4626_EMA_WRAPPER).deploy(
+        usdc_ema.address, USD3, EMA_TIME
+    )
+
+    usdc_price = usdc_ema.price()
     price = oracle.price()
-    print(f"  USD3/USDC: {price / 10**18:.6f}")
-    # The oracle does not revert on a vault whose decimals differ from its asset's,
+    print(f"  USDC/USD: {usdc_price / 10**18:.6f}")
+    print(f"  USD3/USD: {price / 10**18:.6f}")
+    # The wrapper does not revert on a vault whose decimals differ from its asset's,
     # or that has a decimals offset: it reports a price off by a power of ten.
     assert 10**18 <= price < 10**19, "oracle price is not 1e18-scaled"
+    assert oracle.ORACLE() == usdc_ema.address
     assert oracle.VAULT() == USD3
+    assert usdc_ema.chainlinkFeed() == USDC_USD_FEED
 
     # 2. Rate calculator reading the same vault.
     rate_calculator = boa.load_partial(RATE_CALCULATOR).deploy(USD3)
@@ -323,6 +345,7 @@ def _deploy(
         "market": "USD3/frxUSD",
         "factory": factory.address,
         "configurator": configurator.address,
+        "usdc_ema": usdc_ema.address,
         "price_oracle": oracle.address,
         "rate_calculator": rate_calculator.address,
         "monetary_policy": monetary_policy.address,
@@ -334,6 +357,9 @@ def _deploy(
             "borrowed_token": FRXUSD,
             "collateral_token": USD3,
             "ema_time": EMA_TIME,
+            "usdc_usd_feed": USDC_USD_FEED,
+            "observations": OBSERVATIONS,
+            "interval": INTERVAL,
             "A": A,
             "fee": FEE,
             "loan_discount": LOAN_DISCOUNT,
@@ -347,6 +373,7 @@ def _deploy(
             "admin_fee": admin_fee,
             "gauge_factory": GAUGE_FACTORY,
             "initial_price": price,
+            "initial_usdc_price": usdc_price,
         },
     }
 
@@ -380,6 +407,7 @@ def _deploy(
     print(f"Controller borrow cap    : {borrow_cap / 10**18:,.0f} frxUSD")
     print(f"Controller admin fee     : {admin_fee / 10**16:g}%")
     print("Market:", report["market"])
+    print("USDC EMA:", usdc_ema.address)
     print("Price Oracle:", oracle.address, f"(price={price / 10**18:.6f})")
     print("Rate Calculator:", rate_calculator.address)
     print("Monetary Policy:", monetary_policy.address)
