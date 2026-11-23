@@ -247,7 +247,8 @@ def _active_sources(
 def _price(tvls: DynArray[uint256, MAX_PAIRS]) -> uint256:
     """
     @dev Aggregate prices from active sources using capped TVL weights and
-         exponential deviation penalty.
+         exponential deviation penalty. With no active sources the last
+         checkpointed price is returned (1.0 before the first checkpoint).
     @param tvls TVL values aligned to price-pair slots.
     @return Aggregated WAD-scaled stablecoin price.
     """
@@ -255,7 +256,7 @@ def _price(tvls: DynArray[uint256, MAX_PAIRS]) -> uint256:
     D: DynArray[uint256, MAX_PAIRS] = []
     prices, D = self._active_sources(tvls)
     if len(D) == 0:
-        return WAD  # Placeholder for no active pools
+        return self.last_price  # No active sources: hold the last checkpoint
 
     # Limit impact of a single source by capping its relative share.
     weights: DynArray[uint256, MAX_N] = capped_share.capped_weights(D)

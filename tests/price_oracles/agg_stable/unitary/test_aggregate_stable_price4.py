@@ -260,6 +260,37 @@ def test_only_active_sources_are_used(agg, old_pool_factory, admin):
     assert agg.price() == 11 * WAD // 10
 
 
+def test_no_active_sources_holds_last_price(agg, old_pool_factory, admin):
+    assert agg.price() == WAD  # initial value before any checkpoint
+
+    last_price = 97 * WAD // 100
+    pool = old_pool_factory(price=last_price, tvl=MIN_LIQUIDITY * 2)
+    with boa.env.prank(admin):
+        agg.add_price_pair(pool.address)
+    warm_up(agg)
+    assert agg.last_price() == last_price
+
+    # The source goes below the threshold: its price is no longer read.
+    with boa.env.prank(admin):
+        pool.set_price(103 * WAD // 100)
+        pool.set_tvl(MIN_LIQUIDITY - 1, WAD)
+    boa.env.time_travel(50 * agg.tvl_ma_time())
+
+    assert agg.price() == last_price
+    assert agg.price_w() == last_price
+    assert agg.last_price() == last_price
+
+    # Once the source is active again the price follows it.
+    with boa.env.prank(admin):
+        pool.set_tvl(MIN_LIQUIDITY * 2, WAD)
+    warm_up(agg)
+    assert agg.last_price() == 103 * WAD // 100
+
+    with boa.env.prank(admin):
+        agg.remove_price_pair(pool.address)
+    assert agg.price() == 103 * WAD // 100
+
+
 def test_price_w_checkpoints_tvl_and_caches_same_block(agg, old_pool_factory, admin):
     pool = old_pool_factory(price=WAD, tvl=MIN_LIQUIDITY * 2)
     with boa.env.prank(admin):

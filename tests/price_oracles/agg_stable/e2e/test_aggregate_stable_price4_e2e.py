@@ -71,7 +71,8 @@ def test_oracle_handles_pool_lifecycle_and_price_updates(
     with boa.env.prank(admin):
         agg.remove_price_pair(old_pool.address)
 
-    assert agg.price() == WAD
+    # No active sources left: the last checkpointed price is held.
+    assert agg.price() == 105 * WAD // 100
 
 
 def test_admin_configures_oracle_and_events_match_state(
