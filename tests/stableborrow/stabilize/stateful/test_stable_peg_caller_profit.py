@@ -23,18 +23,18 @@ class StateMachine(base.StateMachine):
         """
         for peg_keeper, swap in zip(self.peg_keepers, self.swaps):
             assert swap.fee() > 0
-            initial_caller_balance = swap.balanceOf(self.alice)
+            initial_caller_balance = swap.balanceOf(self.liquidity_provider)
             expected_caller_profit = peg_keeper.estimate_caller_profit()
 
             caller_profit = 0
             try:
-                with boa.env.prank(self.alice):
+                with boa.env.prank(self.liquidity_provider):
                     caller_profit = peg_keeper.update()
             except BoaError as e:
                 if "peg unprofitable" in str(e):
                     continue
 
-            caller_balance = swap.balanceOf(self.alice)
+            caller_balance = swap.balanceOf(self.liquidity_provider)
             if caller_profit > 0:  # expected_caller_profit might be 0 in this case
                 assert caller_profit == caller_balance - initial_caller_balance
                 assert caller_profit >= expected_caller_profit - 1
@@ -52,7 +52,7 @@ def test_stable_peg(
     peg_keepers,
     redeemable_tokens,
     stablecoin,
-    alice,
+    liquidity_provider,
     receiver,
     admin,
 ):
@@ -76,7 +76,7 @@ def test_expected_profit_amount(
     peg_keepers,
     redeemable_tokens,
     stablecoin,
-    alice,
+    liquidity_provider,
     receiver,
     admin,
 ):
@@ -119,7 +119,7 @@ def test_expected_profit_amount_2(
     peg_keepers,
     redeemable_tokens,
     stablecoin,
-    alice,
+    liquidity_provider,
     receiver,
     admin,
 ):
@@ -194,7 +194,7 @@ def test_calc_revert(
     peg_keepers,
     redeemable_tokens,
     stablecoin,
-    alice,
+    liquidity_provider,
     receiver,
     admin,
 ):

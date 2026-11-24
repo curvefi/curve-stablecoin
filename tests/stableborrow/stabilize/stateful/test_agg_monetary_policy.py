@@ -13,7 +13,7 @@ from tests.utils.deployers import (
     AGG_MONETARY_POLICY4_DEPLOYER,
     ERC20_MOCK_DEPLOYER,
     PEG_KEEPER_V2_DEPLOYER,
-    AGGREGATE_STABLE_PRICE3_DEPLOYER,
+    AGGREGATE_STABLE_PRICE4_DEPLOYER,
     PEG_KEEPER_REGULATOR_DEPLOYER,
 )
 from tests.utils.constants import ZERO_ADDRESS
@@ -48,8 +48,8 @@ class AggMonetaryPolicyCreation(RuleBasedStateMachine):
         self.one_usd = []
         self.swaps = []
         self.peg_keepers = []
-        self.agg = AGGREGATE_STABLE_PRICE3_DEPLOYER.deploy(
-            self.stablecoin.address, 10**15, self.admin
+        self.agg = AGGREGATE_STABLE_PRICE4_DEPLOYER.deploy(
+            self.stablecoin.address, 10**15, self.admin, self.admin
         )
         self.reg = PEG_KEEPER_REGULATOR_DEPLOYER.deploy(
             self.stablecoin.address, self.agg, self.admin, self.admin, self.admin
