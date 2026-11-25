@@ -35,6 +35,9 @@ from eth_abi import encode
 # Contract sources (must match deploy.py)
 # ---------------------------------------------------------------------------
 
+# NOTE: SyrupUSDCRateCalculator was later generalized and renamed to
+# DeltaPPSRateCalculator.vy (SYRUP_USDC -> VAULT, ISyrupUSDC -> IERC4626; logic unchanged).
+# This path refers to the source as deployed; see commit 533438c0 for that version.
 RATE_CALCULATOR_SRC = (
     "curve_stablecoin/mpolicies/v2/rate_calculators/SyrupUSDCRateCalculator.vy"
 )

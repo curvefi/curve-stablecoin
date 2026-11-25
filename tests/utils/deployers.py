@@ -128,8 +128,8 @@ HYPERBOLIC_MP_DEPLOYER = boa.load_partial(
     MPOLICIES_CONTRACT_PATH / "v2" / "HyperbolicMP.vy",
     compiler_args=compiler_args_default,
 )
-SYRUP_USDC_RATE_CALCULATOR_DEPLOYER = boa.load_partial(
-    MPOLICIES_CONTRACT_PATH / "v2" / "rate_calculators" / "SyrupUSDCRateCalculator.vy",
+DELTA_PPS_RATE_CALCULATOR_DEPLOYER = boa.load_partial(
+    MPOLICIES_CONTRACT_PATH / "v2" / "rate_calculators" / "DeltaPPSRateCalculator.vy",
     compiler_args=compiler_args_default,
 )
 WSTETH_RATE_CALCULATOR_DEPLOYER = boa.load_partial(
