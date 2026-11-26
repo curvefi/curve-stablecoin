@@ -166,6 +166,10 @@ REUSD_CRVUSD_ADAPTER_DEPLOYER = boa.load_partial(
     PRICE_ORACLES_CONTRACT_PATH / "v2" / "adapters" / "ReusdCrvUSDAdapter.vy",
     compiler_args=compiler_args_default,
 )
+FXSAVE_ADAPTER_DEPLOYER = boa.load_partial(
+    PRICE_ORACLES_CONTRACT_PATH / "v2" / "adapters" / "FxSAVEAdapter.vy",
+    compiler_args=compiler_args_default,
+)
 # StableSwapNGLPOracle.vy has #pragma optimize codesize
 LP_ORACLE_STABLESWAP_NG_DEPLOYER = boa.load_partial(
     PRICE_ORACLES_CONTRACT_PATH / "v2" / "StableSwapNGLPOracle.vy",
