@@ -81,6 +81,9 @@ CRVUSD_AGGREGATOR_WRAPPER = (
 )
 SYRUP_USDC_ADAPTER = "curve_stablecoin/price_oracles/v2/adapters/SyrupUSDCAdapter.vy"
 ERC4626_EMA_WRAPPER = "curve_stablecoin/price_oracles/v2/ERC4626EMAWrapper.vy"
+# NOTE: SyrupUSDCRateCalculator was later generalized and renamed to
+# DeltaPPSRateCalculator.vy (SYRUP_USDC -> VAULT, ISyrupUSDC -> IERC4626; logic unchanged).
+# This path refers to the source as deployed; see commit 533438c0 for that version.
 RATE_CALCULATOR = (
     "curve_stablecoin/mpolicies/v2/rate_calculators/SyrupUSDCRateCalculator.vy"
 )

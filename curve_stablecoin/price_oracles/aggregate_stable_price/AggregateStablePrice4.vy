@@ -1,0 +1,491 @@
+# pragma version 0.4.3
+"""
+@title AggregatorStablePrice - aggregator of stablecoin prices for crvUSD
+@author Curve Finance
+@license MIT
+@dev The emergency admin can remove a limited number of price sources. The
+     limit is set by admin via `set_emergency_remove_count`.
+"""
+# Returns price of stablecoin in "dollars" based on multiple redeemable stablecoins
+# Recommended to use 3+ price sources
+# Version3: Works with -ng pools
+# Version4: Caps relative TVL weights before computing the aggregate price,
+#           adds emergency_admin limited price pair removal and adjustable sigma
+
+from snekmate.utils import math
+
+from curve_stablecoin.price_oracles.aggregate_stable_price import capped_share
+from curve_stablecoin.price_oracles.aggregate_stable_price import weighted_price
+
+initializes: capped_share
+initializes: weighted_price
+exports: (
+    capped_share.custom_share_cap,
+    capped_share.default_cap,
+    weighted_price.sigma,
+)
+
+
+interface Stableswap:
+    def price_oracle(i: uint256 = 0) -> uint256: view
+    def coins(i: uint256) -> address: view
+    def get_virtual_price() -> uint256: view
+    def totalSupply() -> uint256: view
+    def D_oracle() -> uint256: view
+
+
+struct PricePair:
+    pool: Stableswap
+    is_inverse: bool
+    is_ng: bool
+
+
+event AddPricePair:
+    n: uint256
+    pool: indexed(Stableswap)
+    is_inverse: bool
+    is_ng: bool
+
+
+event RemovePricePair:
+    n: uint256
+    pool: indexed(Stableswap)
+
+
+event MovePricePair:
+    n_from: uint256
+    n_to: uint256
+
+
+event SetAdmin:
+    admin: address
+
+
+event SetEmergencyAdmin:
+    emergency_admin: address
+
+
+event SetEmergencyRemoveCount:
+    emergency_remove_count: uint256
+
+
+event SetMinLiquidity:
+    min_liquidity: uint256
+
+
+event SetTvlMaTime:
+    tvl_ma_time: uint256
+
+
+MAX_PAIRS: constant(uint256) = 20
+MAX_N: constant(uint256) = 64
+WAD: constant(uint256) = 10**18
+MAX_TVL_MA_TIME: constant(uint256) = 30 * 86400  # s
+
+STABLECOIN: immutable(address)
+price_pairs: public(PricePair[MAX_PAIRS])
+n_price_pairs: public(uint256)
+price_pair_i: HashMap[Stableswap, uint256]  # 1 + index of pool in price_pairs
+# Only take into account pools with enough liquidity
+min_liquidity: public(uint256)
+
+last_timestamp: public(uint256)
+last_tvl: public(uint256[MAX_PAIRS])
+tvl_ma_time: public(uint256)  # s, EMA window of legacy pool TVL
+last_price: public(uint256)
+
+admin: public(address)
+emergency_admin: public(address)
+emergency_remove_count: public(uint256)
+
+
+@deploy
+def __init__(
+    _stablecoin: address,
+    _sigma: uint256,
+    _admin: address,
+    _emergency_admin: address,
+):
+    """
+    @notice Contract constructor.
+    @param _stablecoin Stablecoin whose price is aggregated by this oracle.
+    @param _sigma Width parameter for exponential price-source penalty.
+    @param _admin Address allowed to manage sources and parameters.
+    @param _emergency_admin Address of the emergency role.
+    """
+    assert _stablecoin != empty(address), "zero stablecoin"
+    STABLECOIN = _stablecoin
+    weighted_price.__init__(_sigma)
+    assert _admin != empty(address), "zero admin"  # Needed to set up the oracle
+    self.admin = _admin
+    self.emergency_admin = _emergency_admin
+
+    self.min_liquidity = 100_000 * WAD
+    self.tvl_ma_time = 50_000  # ~13.88h
+    self.last_price = WAD
+    self.last_timestamp = block.timestamp
+
+
+@external
+@view
+def stablecoin() -> address:
+    """
+    @notice Stablecoin address used by the aggregator.
+    @return Stablecoin address.
+    """
+    return STABLECOIN
+
+
+@internal
+@view
+def _legacy_tvl(pool: Stableswap) -> uint256:
+    """
+    @dev Legacy pool TVL as `totalSupply * virtual_price`. A pool with zero
+         LP supply has zero TVL; `get_virtual_price()` is not called because
+         legacy StableSwap reverts on division by zero supply.
+    @param pool Legacy StableSwap pool.
+    @return WAD-scaled TVL observation.
+    """
+    supply: uint256 = staticcall pool.totalSupply()
+    if supply == 0:
+        return 0
+    return supply * (staticcall pool.get_virtual_price()) // WAD
+
+
+@internal
+@view
+def _ema_tvl() -> DynArray[uint256, MAX_PAIRS]:
+    """
+    @dev Compute current TVL values with EMA smoothing for non-NG pools.
+    @return TVLs aligned to configured price-pair slots.
+    """
+    tvls: DynArray[uint256, MAX_PAIRS] = []
+    last_timestamp: uint256 = self.last_timestamp
+
+    # alpha = exp(-dt / tvl_ma_time), WAD-scaled.
+    # EMA = current_tvl * (1 - alpha) + last_tvl * alpha.
+    alpha: uint256 = WAD
+    if last_timestamp < block.timestamp:
+        dt: uint256 = block.timestamp - last_timestamp
+        alpha = convert(math._wad_exp(-convert(dt * WAD // self.tvl_ma_time, int256)), uint256)
+    n_price_pairs: uint256 = self.n_price_pairs
+
+    for i: uint256 in range(n_price_pairs, bound=MAX_PAIRS):
+        price_pair: PricePair = self.price_pairs[i]
+        tvl: uint256 = 0
+        if price_pair.is_ng:
+            tvl = staticcall price_pair.pool.D_oracle()
+        else:
+            tvl = self.last_tvl[i]
+            if alpha != WAD:
+                new_tvl: uint256 = self._legacy_tvl(price_pair.pool)
+                tvl = (new_tvl * (WAD - alpha) + tvl * alpha) // WAD
+        tvls.append(tvl)
+
+    return tvls
+
+
+@internal
+@view
+def _get_p(price_pair: PricePair) -> uint256:
+    """
+    @dev Read a pool oracle price.
+    @param price_pair Pool metadata.
+    @return WAD-scaled stablecoin price.
+    """
+    p: uint256 = 0
+    if price_pair.is_ng:
+        p = staticcall price_pair.pool.price_oracle(0)
+    else:
+        p = staticcall price_pair.pool.price_oracle()
+    if price_pair.is_inverse:
+        p = 10**36 // p
+    return p
+
+
+@internal
+@view
+def _n_active_sources(tvls: DynArray[uint256, MAX_PAIRS]) -> uint256:
+    """
+    @dev Count TVL entries above the minimum liquidity threshold.
+    @param tvls TVL values aligned to configured price-pair slots.
+    @return Number of active sources.
+    """
+    min_liquidity: uint256 = self.min_liquidity
+    n_active: uint256 = 0
+    for tvl: uint256 in tvls:
+        if tvl >= min_liquidity:
+            n_active += 1
+    return n_active
+
+
+@internal
+@view
+def _active_sources(
+    tvls: DynArray[uint256, MAX_PAIRS]
+) -> (DynArray[uint256, MAX_PAIRS], DynArray[uint256, MAX_PAIRS]):
+    """
+    @dev Collect compact arrays of prices and TVLs for active sources only.
+    @param tvls TVL values aligned to price-pair slots.
+    @return Active source prices.
+    @return Active source TVLs.
+    """
+    min_liquidity: uint256 = self.min_liquidity
+    prices: DynArray[uint256, MAX_PAIRS] = []
+    D: DynArray[uint256, MAX_PAIRS] = []
+    for i: uint256 in range(len(tvls), bound=MAX_PAIRS):
+        # Only sufficiently deep pools participate in price aggregation.
+        if tvls[i] >= min_liquidity:
+            prices.append(self._get_p(self.price_pairs[i]))
+            D.append(tvls[i])
+
+    return prices, D
+
+
+@internal
+@view
+def _price(tvls: DynArray[uint256, MAX_PAIRS]) -> uint256:
+    """
+    @dev Aggregate prices from active sources using capped TVL weights and
+         exponential deviation penalty. With no active sources the last
+         checkpointed price is returned (1.0 before the first checkpoint).
+    @param tvls TVL values aligned to price-pair slots.
+    @return Aggregated WAD-scaled stablecoin price.
+    """
+    prices: DynArray[uint256, MAX_PAIRS] = []
+    D: DynArray[uint256, MAX_PAIRS] = []
+    prices, D = self._active_sources(tvls)
+    if len(D) == 0:
+        return self.last_price  # No active sources: hold the last checkpoint
+
+    # Limit impact of a single source by capping its relative share.
+    weights: DynArray[uint256, MAX_N] = capped_share.capped_weights(D)
+    # Take weighted average price as reference.
+    p_ref: uint256 = weighted_price.weighted_avg(prices, weights)
+    # Penalize price sources according to the selected reference price.
+    return weighted_price.exp_penalized_price(prices, weights, p_ref)
+
+
+@external
+@view
+def share_cap() -> uint256:
+    """
+    @notice Return the share cap currently used for active sources.
+    @return Custom cap if set, otherwise the default cap for current active count.
+    """
+    return capped_share.share_cap(self._n_active_sources(self._ema_tvl()))
+
+
+@external
+@view
+def ema_tvl() -> DynArray[uint256, MAX_PAIRS]:
+    """
+    @notice Compute current EMA TVL values without updating storage.
+    @return TVL values aligned to price-pair slots.
+    """
+    return self._ema_tvl()
+
+
+@external
+@view
+def price() -> uint256:
+    """
+    @notice Compute the aggregated price without updating storage.
+    @return WAD-scaled stablecoin price.
+    """
+    return self._price(self._ema_tvl())
+
+
+@internal
+def _price_w() -> uint256:
+    """
+    @dev Checkpoint EMA TVLs and the aggregated price once per timestamp.
+    @return WAD-scaled stablecoin price.
+    """
+    if self.last_timestamp == block.timestamp:
+        return self.last_price
+    else:
+        ema_tvl: DynArray[uint256, MAX_PAIRS] = self._ema_tvl()
+        self.last_timestamp = block.timestamp
+        for i: uint256 in range(len(ema_tvl), bound=MAX_PAIRS):
+            self.last_tvl[i] = ema_tvl[i]
+        p: uint256 = self._price(ema_tvl)
+        self.last_price = p
+        return p
+
+
+@external
+def price_w() -> uint256:
+    """
+    @notice Compute the aggregated price and checkpoint EMA TVLs.
+    @return WAD-scaled stablecoin price.
+    """
+    return self._price_w()
+
+
+@external
+def add_price_pair(_pool: Stableswap):
+    """
+    @notice Add a pool as a price source.
+    @dev The pool is expected to be a two-coin StableSwap pool pairing the
+         stablecoin with a redeemable asset: only `coins(0)` and `coins(1)`
+         are inspected and NG pools are read via `price_oracle(0)`.
+         The pool is classified as NG when `price_oracle(uint256)` returns a
+         word; the price and TVL read paths used later by `price()` are then
+         exercised here so that an incompatible or misclassified pool reverts
+         at registration instead of breaking aggregate reads. A legacy source
+         starts from zero stored TVL and phases in through the EMA; any source
+         stays inactive until its TVL reaches `min_liquidity`. Existing
+         sources are checkpointed first, so the phase-in starts now.
+    @param _pool StableSwap pool containing the configured stablecoin.
+    """
+    assert msg.sender == self.admin, "only admin"
+    assert self.price_pair_i[_pool] == 0, "pool already added"
+    self._price_w()
+    n: uint256 = self.n_price_pairs
+
+    price_pair: PricePair = empty(PricePair)
+    price_pair.pool = _pool
+    success: bool = False
+    response: Bytes[32] = b""
+    success, response = raw_call(
+        _pool.address,
+        abi_encode(convert(0, uint256), method_id=method_id("price_oracle(uint256)")),
+        max_outsize=32,
+        is_static_call=True,
+        revert_on_failure=False,
+    )
+    if success and len(response) == 32:
+        price_pair.is_ng = True
+    coins: address[2] = [staticcall _pool.coins(0), staticcall _pool.coins(1)]
+    if coins[0] == STABLECOIN:
+        price_pair.is_inverse = True
+    else:
+        assert coins[1] == STABLECOIN, "not stablecoin pair"
+    # Exercise the same read paths as `price()` before storing the source.
+    assert self._get_p(price_pair) > 0, "bad price"
+    tvl: uint256 = staticcall _pool.D_oracle() if price_pair.is_ng else self._legacy_tvl(_pool)
+    # `tvl` is read only to validate the interface. A legacy source starts from
+    # zero stored TVL and phases in through the EMA, so liquidity supplied around
+    # registration cannot seed its weight; NG sources read `D_oracle()` directly.
+    self.price_pairs[n] = price_pair  # dev: too many pairs
+    self.n_price_pairs = n + 1
+    self.price_pair_i[_pool] = n + 1
+    log AddPricePair(
+        n=n,
+        pool=_pool,
+        is_inverse=price_pair.is_inverse,
+        is_ng=price_pair.is_ng,
+    )
+
+
+@external
+def remove_price_pair(_pool: Stableswap):
+    """
+    @notice Remove a price source.
+    @dev Admin can remove without limit; emergency admin consumes one removal.
+    @param _pool Pool of the price source to remove.
+    """
+    if msg.sender == self.admin:
+        # Checking admin first, so admin==emergency_admin case
+        # does not create issues with remove counter
+        pass
+    else:
+        assert msg.sender == self.emergency_admin, "only admin"
+        self.emergency_remove_count -= 1  # dev: no emergency removals
+
+    n: uint256 = self.price_pair_i[_pool] - 1  # dev: pool not found
+    n_max: uint256 = self.n_price_pairs - 1
+    if n < n_max:
+        self.price_pairs[n] = self.price_pairs[n_max]
+        self.last_tvl[n] = self.last_tvl[n_max]
+        self.price_pair_i[self.price_pairs[n].pool] = n + 1
+        log MovePricePair(n_from=n_max, n_to=n)
+    # Clear the vacated tail slot so public getters do not expose stale data.
+    self.price_pairs[n_max] = empty(PricePair)
+    self.last_tvl[n_max] = 0
+    self.n_price_pairs = n_max
+    self.price_pair_i[_pool] = 0
+    log RemovePricePair(n=n, pool=_pool)
+
+
+@external
+def set_share_cap(_share_cap: uint256):
+    """
+    @notice Set a custom per-source share cap.
+    @param _share_cap WAD-scaled cap value.
+    """
+    assert msg.sender == self.admin, "only admin"
+    capped_share.set_custom_share_cap(_share_cap)
+
+
+@external
+def set_sigma(_sigma: uint256):
+    """
+    @notice Set the width of the exponential price-source penalty.
+    @param _sigma WAD-scaled sigma value.
+    """
+    assert msg.sender == self.admin, "only admin"
+    weighted_price.set_sigma(_sigma)
+
+
+@external
+def set_min_liquidity(_min_liquidity: uint256):
+    """
+    @notice Set the TVL below which a source is inactive.
+    @param _min_liquidity WAD-scaled TVL threshold.
+    """
+    assert msg.sender == self.admin, "only admin"
+    # A zero threshold would activate empty sources and break the weighted average.
+    assert _min_liquidity > 0, "zero min liquidity"
+    self.min_liquidity = _min_liquidity
+    log SetMinLiquidity(min_liquidity=_min_liquidity)
+
+
+@external
+def set_tvl_ma_time(_tvl_ma_time: uint256):
+    """
+    @notice Set the EMA window of legacy pool TVL.
+    @dev Sources are checkpointed first, so the new window is not applied to
+         the time already elapsed.
+    @param _tvl_ma_time Window in seconds, at most `MAX_TVL_MA_TIME`.
+    """
+    assert msg.sender == self.admin, "only admin"
+    assert _tvl_ma_time > 0, "zero ma time"
+    assert _tvl_ma_time <= MAX_TVL_MA_TIME, "ma time too high"
+    self._price_w()
+    self.tvl_ma_time = _tvl_ma_time
+    log SetTvlMaTime(tvl_ma_time=_tvl_ma_time)
+
+
+@external
+def set_admin(_admin: address):
+    """
+    @notice Set the admin address.
+    @param _admin New admin address.
+    """
+    assert msg.sender == self.admin, "only admin"
+    self.admin = _admin
+    log SetAdmin(admin=_admin)
+
+
+@external
+def set_emergency_admin(_emergency_admin: address):
+    """
+    @notice Set the emergency admin address.
+    @param _emergency_admin New emergency admin address.
+    """
+    assert msg.sender == self.admin, "only admin"
+    self.emergency_admin = _emergency_admin
+    log SetEmergencyAdmin(emergency_admin=_emergency_admin)
+
+
+@external
+def set_emergency_remove_count(_emergency_remove_count: uint256):
+    """
+    @notice Set how many sources the emergency admin may remove.
+    @param _emergency_remove_count Number of permitted emergency removals.
+    """
+    assert msg.sender == self.admin, "only admin"
+    self.emergency_remove_count = _emergency_remove_count
+    log SetEmergencyRemoveCount(emergency_remove_count=_emergency_remove_count)

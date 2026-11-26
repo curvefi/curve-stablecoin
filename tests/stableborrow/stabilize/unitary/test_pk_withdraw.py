@@ -13,13 +13,13 @@ pytestmark = pytest.mark.usefixtures(
 @given(amount=st.integers(min_value=10**20, max_value=10**24))
 def test_withdraw(
     swaps,
-    alice,
+    liquidity_provider,
     amount,
     peg_keepers,
     peg_keeper_updater,
 ):
     for swap, peg_keeper in zip(swaps, peg_keepers):
-        with boa.env.prank(alice):
+        with boa.env.prank(liquidity_provider):
             swap.add_liquidity([0, amount], 0)
         balances = [swap.balances(0), swap.balances(1)]
 
@@ -34,7 +34,7 @@ def test_withdraw(
 def test_withdraw_insufficient_debt(
     swaps,
     stablecoin,
-    alice,
+    liquidity_provider,
     initial_amounts,
     peg_keepers,
     peg_keeper_updater,
@@ -43,8 +43,8 @@ def test_withdraw_insufficient_debt(
     """Provide 10x of pegged, so Peg Keeper can't withdraw the whole 1/5 part."""
     for swap, peg_keeper, initial in zip(swaps, peg_keepers, initial_amounts):
         amount = 10 * initial[1]
-        _mint(alice, [stablecoin], [amount])
-        with boa.env.prank(alice):
+        _mint(liquidity_provider, [stablecoin], [amount])
+        with boa.env.prank(liquidity_provider):
             swap.add_liquidity([0, amount], 0)
         balances = [swap.balances(0), swap.balances(1)]
 
@@ -59,7 +59,7 @@ def test_withdraw_insufficient_debt(
 def test_withdraw_dust_debt(
     swaps,
     stablecoin,
-    alice,
+    liquidity_provider,
     initial_amounts,
     redeemable_tokens,
     peg_keepers,
@@ -71,10 +71,10 @@ def test_withdraw_dust_debt(
     ):
         rtoken_mul = 10 ** (18 - rtoken.decimals())
         amount = 5 * (initial[1] - 1)
-        _mint(alice, [stablecoin], [2 * amount])
+        _mint(liquidity_provider, [stablecoin], [2 * amount])
 
         # Peg Keeper withdraws almost all debt
-        with boa.env.prank(alice):
+        with boa.env.prank(liquidity_provider):
             swap.add_liquidity([0, amount], 0)
         with boa.env.prank(peg_keeper_updater):
             assert peg_keeper.update()
@@ -84,12 +84,12 @@ def test_withdraw_dust_debt(
         ) // rtoken_mul == swap.balances(0)
 
         remove_amount = swap.balances(1) - swap.balances(0) * rtoken_mul
-        with boa.env.prank(alice):
+        with boa.env.prank(liquidity_provider):
             swap.remove_liquidity_imbalance([0, remove_amount], 2**256 - 1)
         assert swap.balances(0) == swap.balances(1) // rtoken_mul
 
         # Does not withdraw anything
-        with boa.env.prank(alice):
+        with boa.env.prank(liquidity_provider):
             swap.add_liquidity([0, amount], 0)
         with boa.env.prank(peg_keeper_updater):
             assert not peg_keeper.update()
@@ -97,14 +97,14 @@ def test_withdraw_dust_debt(
 
 def test_almost_balanced(
     swaps,
-    alice,
+    liquidity_provider,
     admin,
     peg_keepers,
     peg_keeper_updater,
     set_fee,
 ):
     for swap, peg_keeper in zip(swaps, peg_keepers):
-        with boa.env.prank(alice):
+        with boa.env.prank(liquidity_provider):
             swap.add_liquidity([0, 10**18], 0)
         set_fee(swap, 10**6)
         with boa.reverts():  # dev: peg was unprofitable

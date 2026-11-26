@@ -49,9 +49,9 @@ class StateMachine(base.StateMachine):
                 )
                 if amount < 0:
                     return
-                StateMachine._mint(self.alice, [self.stablecoin], [amount])
+                StateMachine._mint(self.liquidity_provider, [self.stablecoin], [amount])
                 self._disable_fees()
-                with boa.env.prank(self.alice):
+                with boa.env.prank(self.liquidity_provider):
                     swap.add_liquidity([0, amount], 0)
                 self._enable_fees()
                 if hasattr(swap, "offpeg_fee_multiplier"):
@@ -77,7 +77,7 @@ def test_withdraw_profit(
     peg_keepers,
     redeemable_tokens,
     stablecoin,
-    alice,
+    liquidity_provider,
     receiver,
     admin,
     always_withdraw,
@@ -99,7 +99,7 @@ def test_withdraw_profit_example_1(
     peg_keepers,
     redeemable_tokens,
     stablecoin,
-    alice,
+    liquidity_provider,
     receiver,
     admin,
     _mint,
@@ -151,7 +151,7 @@ def test_withdraw_profit_example_2(
     peg_keepers,
     redeemable_tokens,
     stablecoin,
-    alice,
+    liquidity_provider,
     receiver,
     admin,
     _mint,

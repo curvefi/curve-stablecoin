@@ -9,7 +9,7 @@ from tests.utils.deployers import (
     CURVE_STABLESWAP_NG_DEPLOYER,
     CURVE_STABLESWAP_NG_MATH_DEPLOYER,
     CURVE_STABLESWAP_NG_VIEWS_DEPLOYER,
-    AGGREGATE_STABLE_PRICE3_DEPLOYER,
+    AGGREGATE_STABLE_PRICE4_DEPLOYER,
     TRICRYPTO_MOCK_DEPLOYER,
     MOCK_PEG_KEEPER_DEPLOYER,
     PEG_KEEPER_REGULATOR_DEPLOYER,
@@ -25,23 +25,28 @@ BASE_AMOUNT = 10**6
 
 # Accounts
 @pytest.fixture(scope="module")
-def receiver(accounts):
-    return accounts[1]
+def receiver():
+    return boa.env.generate_address("fee_receiver")
 
 
 @pytest.fixture(scope="module")
-def peg_keeper_updater(accounts):
-    return accounts[2]
+def peg_keeper_updater():
+    return boa.env.generate_address("peg_keeper_updater")
 
 
 @pytest.fixture(scope="module")
-def alice(accounts):
-    return accounts[3]
+def liquidity_provider():
+    return boa.env.generate_address("liquidity_provider")
 
 
 @pytest.fixture(scope="module")
-def bob(accounts):
-    return accounts[4]
+def caller():
+    return boa.env.generate_address("caller")
+
+
+@pytest.fixture(scope="module")
+def market_actors():
+    return [boa.env.generate_address(f"market_actor_{i}") for i in range(5)]
 
 
 @pytest.fixture(scope="module")
@@ -99,7 +104,7 @@ def swap_impl_ng(admin, swap_deployer, rate_oracle):
 
 
 @pytest.fixture(scope="module")
-def unsafe_factory(controller_factory, stablecoin, admin, accounts):
+def unsafe_factory(controller_factory, stablecoin, admin):
     with boa.env.anchor():
         with boa.env.prank(admin):
             # Give admin ability to mint coins for testing (don't do that at home!)
@@ -150,7 +155,9 @@ def redeemable_tokens(stablecoin_a, stablecoin_b):
 @pytest.fixture(scope="module")
 def price_aggregator(stablecoin, stableswap_a, stableswap_b, admin):
     with boa.env.prank(admin):
-        agg = AGGREGATE_STABLE_PRICE3_DEPLOYER.deploy(stablecoin.address, 10**15, admin)
+        agg = AGGREGATE_STABLE_PRICE4_DEPLOYER.deploy(
+            stablecoin.address, 10**15, admin, admin
+        )
         agg.add_price_pair(stableswap_a.address)
         agg.add_price_pair(stableswap_b.address)
         return agg
@@ -288,9 +295,9 @@ def market_agg(
 
 
 @pytest.fixture(scope="module")
-def market_amm_agg(market, collateral_token, stablecoin, amm_impl, accounts):
+def market_amm_agg(market, collateral_token, stablecoin, amm_impl, market_actors):
     amm = AMM_DEPLOYER.at(market.get_amm(collateral_token.address))
-    for acc in accounts:
+    for acc in market_actors:
         with boa.env.prank(acc):
             collateral_token.approve(amm.address, 2**256 - 1)
             stablecoin.approve(amm.address, 2**256 - 1)
@@ -304,12 +311,12 @@ def market_controller_agg(
     collateral_token,
     controller_impl,
     controller_factory,
-    accounts,
+    market_actors,
 ):
     controller = LEND_CONTROLLER_DEPLOYER.at(
         market_agg.get_controller(collateral_token.address)
     )
-    for acc in accounts:
+    for acc in market_actors:
         with boa.env.prank(acc):
             collateral_token.approve(controller.address, 2**256 - 1)
             stablecoin.approve(controller.address, 2**256 - 1)
@@ -357,14 +364,14 @@ def add_initial_liquidity(
     swaps,
     collateral_token,
     market_controller_agg,
-    alice,
+    liquidity_provider,
     _mint,
 ):
-    with boa.env.prank(alice):
+    with boa.env.prank(liquidity_provider):
         for (amount_r, amount_s), redeemable, pool in zip(
             initial_amounts, redeemable_tokens, swaps
         ):
-            _mint(alice, [redeemable, stablecoin], [amount_r, amount_s])
+            _mint(liquidity_provider, [redeemable, stablecoin], [amount_r, amount_s])
             stablecoin.approve(pool.address, 2**256 - 1)
             redeemable.approve(pool.address, 2**256 - 1)
             pool.add_liquidity([amount_r, amount_s], 0)
@@ -372,16 +379,21 @@ def add_initial_liquidity(
 
 @pytest.fixture(scope="module")
 def provide_token_to_peg_keepers_no_sleep(
-    initial_amounts, swaps, peg_keepers, redeemable_tokens, alice, peg_keeper_updater
+    initial_amounts,
+    swaps,
+    peg_keepers,
+    redeemable_tokens,
+    liquidity_provider,
+    peg_keeper_updater,
 ):
     for (amount_r, amount_s), swap, pk, rtoken in zip(
         initial_amounts, swaps, peg_keepers, redeemable_tokens
     ):
-        with boa.env.prank(alice):
+        with boa.env.prank(liquidity_provider):
             # Mint necessary amount of redeemable token
             rtoken.approve(pk.address, 2**256 - 1)
             amount = amount_r * 5
-            boa.deal(rtoken, alice, amount)
+            boa.deal(rtoken, liquidity_provider, amount)
 
             # Add redeemable token's liquidity to the stableswap pool
             swap.add_liquidity([amount, 0], 0)
@@ -389,7 +401,7 @@ def provide_token_to_peg_keepers_no_sleep(
         with boa.env.prank(peg_keeper_updater):
             pk.update()
 
-        with boa.env.prank(alice):
+        with boa.env.prank(liquidity_provider):
             rtoken_mul = 10 ** (18 - rtoken.decimals())
             remove_amount = (
                 swap.balances(0) * rtoken_mul - swap.balances(1)
@@ -412,11 +424,11 @@ def imbalance_pool(
     stablecoin,
     collateral_token,
     market_controller_agg,
-    alice,
+    liquidity_provider,
     _mint,
 ):
     def _inner(swap, i, amount=None, add_diff=False):
-        with boa.env.prank(alice):
+        with boa.env.prank(liquidity_provider):
             rtoken, initial = [
                 (r, i)
                 for r, i in zip(redeemable_tokens, initial_amounts)
@@ -430,7 +442,7 @@ def imbalance_pool(
                     - swap.balances(i) * token_mul[i]
                 ) // token_mul[i]
             amounts[i] = amount or initial[i] // 3
-            _mint(alice, [rtoken, stablecoin], amounts)
+            _mint(liquidity_provider, [rtoken, stablecoin], amounts)
             swap.add_liquidity(amounts, 0)
 
     return _inner
@@ -444,11 +456,11 @@ def imbalance_pools(
     stablecoin,
     collateral_token,
     market_controller_agg,
-    alice,
+    liquidity_provider,
     _mint,
 ):
     def _inner(i, amount=None, add_diff=False):
-        with boa.env.prank(alice):
+        with boa.env.prank(liquidity_provider):
             for initial, swap, rtoken in zip(initial_amounts, swaps, redeemable_tokens):
                 token_mul = [10 ** (18 - rtoken.decimals()), 1]
                 amounts = [0, 0]
@@ -458,25 +470,27 @@ def imbalance_pools(
                         - swap.balances(i) * token_mul[i]
                     ) // token_mul[i]
                 amounts[i] = amount or initial[i] // 3
-                _mint(alice, [rtoken, stablecoin], amounts)
+                _mint(liquidity_provider, [rtoken, stablecoin], amounts)
                 swap.add_liquidity(amounts, 0)
 
     return _inner
 
 
 @pytest.fixture(scope="module")
-def mint_bob(bob, stablecoin, redeemable_tokens, swaps, initial_amounts, _mint):
+def mint_bob(caller, stablecoin, redeemable_tokens, swaps, initial_amounts, _mint):
     for swap, rtoken, amounts in zip(swaps, redeemable_tokens, initial_amounts):
-        _mint(bob, [rtoken, stablecoin], amounts)
-        with boa.env.prank(bob):
+        _mint(caller, [rtoken, stablecoin], amounts)
+        with boa.env.prank(caller):
             rtoken.approve(swap, 2**256 - 1)
             stablecoin.approve(swap, 2**256 - 1)
 
 
 @pytest.fixture(scope="module")
-def mint_alice(alice, stablecoin, redeemable_tokens, swaps, initial_amounts, _mint):
+def mint_alice(
+    liquidity_provider, stablecoin, redeemable_tokens, swaps, initial_amounts, _mint
+):
     for swap, rtoken, amounts in zip(swaps, redeemable_tokens, initial_amounts):
-        _mint(alice, [rtoken, stablecoin], amounts)
-        with boa.env.prank(alice):
+        _mint(liquidity_provider, [rtoken, stablecoin], amounts)
+        with boa.env.prank(liquidity_provider):
             rtoken.approve(swap, 2**256 - 1)
             stablecoin.approve(swap, 2**256 - 1)
