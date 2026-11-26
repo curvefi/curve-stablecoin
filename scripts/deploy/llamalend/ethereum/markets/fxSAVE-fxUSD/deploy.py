@@ -11,9 +11,8 @@ Per market this deploys, in order:
     2. ERC4626EMAOracle(adapter, 866) -> fxUSD per fxSAVE.
          NAV increases are smoothed; falls pass through immediately.
          There is no base oracle. The debt is fxUSD, so no market price enters.
-    3. SyrupUSDCRateCalculator(adapter) -> growth of the NAV
-       across up to 7 daily records. The contract is unchanged; its only call
-       on the adapter is convertToAssets(1e18).
+    3. DeltaPPSRateCalculator(adapter) -> growth of the NAV across up to 7
+       daily records.
     4. HyperbolicDynamicMP(controller, rate_calculator, curve params...) -
        borrow rate follows fxSAVE's realized yield.
     5. factory.create(fxUSD, fxSAVE, ... oracle, monetary_policy, supply_limit).
@@ -86,7 +85,7 @@ EMA_TIME = 866
 FXSAVE_ADAPTER = "curve_stablecoin/price_oracles/v2/adapters/FxSAVEAdapter.vy"
 ERC4626_EMA_ORACLE = "curve_stablecoin/price_oracles/v2/ERC4626EMAOracle.vy"
 RATE_CALCULATOR = (
-    "curve_stablecoin/mpolicies/v2/rate_calculators/SyrupUSDCRateCalculator.vy"
+    "curve_stablecoin/mpolicies/v2/rate_calculators/DeltaPPSRateCalculator.vy"
 )
 HYPERBOLIC_DYNAMIC_MP = "curve_stablecoin/mpolicies/v2/HyperbolicDynamicMP.vy"
 LEND_FACTORY = "curve_stablecoin/lending/LendFactory.vy"
