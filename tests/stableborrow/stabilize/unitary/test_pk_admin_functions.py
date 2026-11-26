@@ -45,17 +45,17 @@ def test_set_new_caller_share_bad_value(peg_keepers, admin):
                 pk.set_new_caller_share(10**5 + 1)
 
 
-def test_set_new_caller_share_only_admin(peg_keepers, alice):
-    with boa.env.prank(alice):
+def test_set_new_caller_share_only_admin(peg_keepers, liquidity_provider):
+    with boa.env.prank(liquidity_provider):
         for pk in peg_keepers:
             with boa.reverts():  # dev: only admin
                 pk.set_new_caller_share(5 * 10**4)
 
 
-def test_set_new_regulator(peg_keepers, admin, alice, bob):
-    new_regulator = bob
+def test_set_new_regulator(peg_keepers, admin, liquidity_provider, caller):
+    new_regulator = caller
     for pk in peg_keepers:
-        with boa.env.prank(alice):
+        with boa.env.prank(liquidity_provider):
             with boa.reverts():  # dev: only admin
                 pk.set_new_regulator(new_regulator)
         with boa.env.prank(admin):
@@ -65,44 +65,44 @@ def test_set_new_regulator(peg_keepers, admin, alice, bob):
                 pk.set_new_regulator(ZERO_ADDRESS)
 
 
-def test_new_admin(peg_keepers, admin, alice, bob):
+def test_new_admin(peg_keepers, admin, liquidity_provider, caller):
     for pk in peg_keepers:
         # commit_new_admin
-        with boa.env.prank(alice):
+        with boa.env.prank(liquidity_provider):
             with boa.reverts():  # dev: only admin
-                pk.commit_new_admin(alice)
+                pk.commit_new_admin(liquidity_provider)
         with boa.env.prank(admin):
-            pk.commit_new_admin(alice)
+            pk.commit_new_admin(liquidity_provider)
 
         assert pk.admin() == admin
-        assert pk.future_admin() == alice
+        assert pk.future_admin() == liquidity_provider
         assert boa.env.timestamp + ADMIN_ACTIONS_DEADLINE == pk.new_admin_deadline()
 
         # apply_new_admin
         boa.env.time_travel(ADMIN_ACTIONS_DEADLINE - 60)
         with boa.reverts():  # dev: insufficient time
-            with boa.env.prank(alice):
+            with boa.env.prank(liquidity_provider):
                 pk.apply_new_admin()
 
         boa.env.time_travel(60)
         with boa.reverts():  # dev: only new admin
-            with boa.env.prank(bob):
+            with boa.env.prank(caller):
                 pk.apply_new_admin()
-        with boa.env.prank(alice):
+        with boa.env.prank(liquidity_provider):
             pk.apply_new_admin()
 
         with boa.reverts():  # dev: no active action
-            with boa.env.prank(alice):
+            with boa.env.prank(liquidity_provider):
                 pk.apply_new_admin()
 
-        assert pk.admin() == alice
-        assert pk.future_admin() == alice
+        assert pk.admin() == liquidity_provider
+        assert pk.future_admin() == liquidity_provider
         assert pk.new_admin_deadline() == 0
 
 
-def test_revert_new_admin(peg_keepers, admin, alice):
+def test_revert_new_admin(peg_keepers, admin, liquidity_provider):
     for pk in peg_keepers:
         with boa.env.prank(admin):
-            pk.commit_new_admin(alice)
+            pk.commit_new_admin(liquidity_provider)
             pk.commit_new_admin(admin)
         assert pk.future_admin() == admin

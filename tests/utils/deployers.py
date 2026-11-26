@@ -128,8 +128,8 @@ HYPERBOLIC_MP_DEPLOYER = boa.load_partial(
     MPOLICIES_CONTRACT_PATH / "v2" / "HyperbolicMP.vy",
     compiler_args=compiler_args_default,
 )
-SYRUP_USDC_RATE_CALCULATOR_DEPLOYER = boa.load_partial(
-    MPOLICIES_CONTRACT_PATH / "v2" / "rate_calculators" / "SyrupUSDCRateCalculator.vy",
+DELTA_PPS_RATE_CALCULATOR_DEPLOYER = boa.load_partial(
+    MPOLICIES_CONTRACT_PATH / "v2" / "rate_calculators" / "DeltaPPSRateCalculator.vy",
     compiler_args=compiler_args_default,
 )
 WSTETH_RATE_CALCULATOR_DEPLOYER = boa.load_partial(
@@ -152,8 +152,8 @@ ERC4626_EMA_WRAPPER_DEPLOYER = boa.load_partial(
     PRICE_ORACLES_CONTRACT_PATH / "v2" / "ERC4626EMAWrapper.vy",
     compiler_args=compiler_args_default,
 )
-AGGREGATE_STABLE_PRICE3_DEPLOYER = boa.load_partial(
-    PRICE_ORACLES_CONTRACT_PATH / "AggregateStablePrice3.vy",
+AGGREGATE_STABLE_PRICE4_DEPLOYER = boa.load_partial(
+    PRICE_ORACLES_CONTRACT_PATH / "aggregate_stable_price" / "AggregateStablePrice4.vy",
     compiler_args=compiler_args_default,
 )
 ORACLE_FROM_CURVE_POOLS_DEPLOYER = boa.load_partial(

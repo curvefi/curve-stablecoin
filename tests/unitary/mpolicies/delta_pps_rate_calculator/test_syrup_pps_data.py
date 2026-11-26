@@ -1,7 +1,8 @@
 """Recorded syrupUSDC price-per-share samples (~1/day, ~30 days).
 
-Generated from a mainnet fork replay of SyrupUSDCRateCalculator.rate_w()
-(see syrup_pps_records.txt). Each entry is one daily rate_w() call:
+Generated from a mainnet fork replay of rate_w() on syrupUSDC (recorded with
+SyrupUSDCRateCalculator, since renamed to DeltaPPSRateCalculator with unchanged
+logic). Each entry is one daily rate_w() call:
   ts    -> block.timestamp at the call
   pps   -> syrupUSDC.convertToAssets(1e18) at that block
   rate  -> expected rate_w() return (per-second growth, 1e18-scaled)
@@ -9,7 +10,7 @@ Generated from a mainnet fork replay of SyrupUSDCRateCalculator.rate_w()
 """
 
 import pytest
-from tests.unitary.mpolicies.syrup_usdc_rate_calculator.conftest import DAY, WAD
+from tests.unitary.mpolicies.delta_pps_rate_calculator.conftest import DAY, WAD
 
 # fmt: off
 SYRUP_PPS_DAYS = [

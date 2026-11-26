@@ -43,9 +43,9 @@ class StateMachine(RuleBasedStateMachine):
         amounts = [0, 0]
         amounts[idx] = int(self.dmul[pool_idx][idx] * BASE_AMOUNT * pct)
         coins = [self.redeemable_tokens[pool_idx], self.stablecoin]
-        if coins[idx].balanceOf(self.alice) < amounts[idx]:
+        if coins[idx].balanceOf(self.liquidity_provider) < amounts[idx]:
             return
-        with boa.env.prank(self.alice):
+        with boa.env.prank(self.liquidity_provider):
             self.swaps[pool_idx].add_liquidity(amounts, 0)
 
     @rule(amount_0=st_pct, amount_1=st_pct, pool_idx=st_pool)
@@ -59,9 +59,9 @@ class StateMachine(RuleBasedStateMachine):
         ]
         coins = [self.redeemable_tokens[pool_idx], self.stablecoin]
         for idx in [0, 1]:
-            if coins[idx].balanceOf(self.alice) < amounts[idx]:
+            if coins[idx].balanceOf(self.liquidity_provider) < amounts[idx]:
                 return
-        with boa.env.prank(self.alice):
+        with boa.env.prank(self.liquidity_provider):
             self.swaps[pool_idx].add_liquidity(amounts, 0)
 
     @rule(idx=st_idx, pct=st_pct, pool_idx=st_pool)
@@ -69,8 +69,8 @@ class StateMachine(RuleBasedStateMachine):
         """
         Remove liquidity from the pool in only one coin.
         """
-        supply = self.swaps[pool_idx].balanceOf(self.alice)
-        with boa.env.prank(self.alice):
+        supply = self.swaps[pool_idx].balanceOf(self.liquidity_provider)
+        with boa.env.prank(self.liquidity_provider):
             self.swaps[pool_idx].remove_liquidity_one_coin(int(supply * pct), idx, 0)
 
     @rule(amount_0=st_pct, amount_1=st_pct, pool_idx=st_pool)
@@ -92,9 +92,9 @@ class StateMachine(RuleBasedStateMachine):
             # Most likely we want to withdraw more than the pool has
             return
 
-        if token_amount > self.swaps[pool_idx].balanceOf(self.alice):
+        if token_amount > self.swaps[pool_idx].balanceOf(self.liquidity_provider):
             return
-        with boa.env.prank(self.alice):
+        with boa.env.prank(self.liquidity_provider):
             self.swaps[pool_idx].remove_liquidity_imbalance(amounts, 2**256 - 1)
 
     @rule(pct=st_pct, pool_idx=st_pool)
@@ -102,8 +102,8 @@ class StateMachine(RuleBasedStateMachine):
         """
         Remove liquidity from the pool.
         """
-        amount = int(self.swaps[pool_idx].balanceOf(self.alice) * pct)
-        with boa.env.prank(self.alice):
+        amount = int(self.swaps[pool_idx].balanceOf(self.liquidity_provider) * pct)
+        with boa.env.prank(self.liquidity_provider):
             self.swaps[pool_idx].remove_liquidity(amount, [0] * 2)
 
     @rule(idx=st_idx, pct=st_pct, pool_idx=st_pool)
@@ -113,9 +113,9 @@ class StateMachine(RuleBasedStateMachine):
         """
         amount_in = int(self.dmul[pool_idx][idx] * BASE_AMOUNT * pct)
         coins = [self.redeemable_tokens[pool_idx], self.stablecoin]
-        if coins[idx].balanceOf(self.alice) < amount_in:
+        if coins[idx].balanceOf(self.liquidity_provider) < amount_in:
             return
-        with boa.env.prank(self.alice):
+        with boa.env.prank(self.liquidity_provider):
             self.swaps[pool_idx].exchange(idx, 1 - idx, amount_in, 0)
 
     @invariant()
