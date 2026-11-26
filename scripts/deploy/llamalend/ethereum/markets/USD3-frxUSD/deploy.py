@@ -11,9 +11,8 @@ Per market this deploys, in order:
          b. ERC4626EMAWrapper(USDC/USD EMA, USD3, 866) -> USD3/USD.
               Share-price increases are smoothed; falls pass through immediately.
               frxUSD debt is counted at $1.
-    2. SyrupUSDCRateCalculator(USD3) -> growth of USD3's share price
-       across up to 7 daily records. The contract is unchanged; its only call
-       on the vault is convertToAssets(1e18).
+    2. DeltaPPSRateCalculator(USD3) -> growth of USD3's share price across
+       up to 7 daily records.
     3. HyperbolicDynamicMP(controller, rate_calculator, curve params...) -
        borrow rate follows USD3's realized yield.
     4. factory.create(frxUSD, USD3, ... oracle, monetary_policy, supply_limit).
@@ -92,7 +91,7 @@ EMA_TIME = 866
 ERC4626_EMA_WRAPPER = "curve_stablecoin/price_oracles/v2/ERC4626EMAWrapper.vy"
 CHAINLINK_EMA = "curve_stablecoin/price_oracles/v2/ChainlinkEMA.sol"
 RATE_CALCULATOR = (
-    "curve_stablecoin/mpolicies/v2/rate_calculators/SyrupUSDCRateCalculator.vy"
+    "curve_stablecoin/mpolicies/v2/rate_calculators/DeltaPPSRateCalculator.vy"
 )
 HYPERBOLIC_DYNAMIC_MP = "curve_stablecoin/mpolicies/v2/HyperbolicDynamicMP.vy"
 LEND_FACTORY = "curve_stablecoin/lending/LendFactory.vy"
