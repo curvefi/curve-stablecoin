@@ -7,7 +7,7 @@ Reads the deployment report written by
 and submits source + constructor args for each contract that script deploys
 directly:
     1. ERC4626EMAOracle        (price_oracle)    -- ctor: (sUSG, ema_time)
-    2. SyrupUSDCRateCalculator (rate_calculator) -- ctor: (sUSG)
+    2. DeltaPPSRateCalculator  (rate_calculator) -- ctor: (sUSG)
     3. HyperbolicDynamicMP     (monetary_policy) -- ctor: (controller,
                                                     rate_calculator, target_util,
                                                     low, high, rate_shift)
@@ -41,7 +41,7 @@ from eth_abi import encode
 
 ERC4626_EMA_ORACLE_SRC = "curve_stablecoin/price_oracles/v2/ERC4626EMAOracle.vy"
 RATE_CALCULATOR_SRC = (
-    "curve_stablecoin/mpolicies/v2/rate_calculators/SyrupUSDCRateCalculator.vy"
+    "curve_stablecoin/mpolicies/v2/rate_calculators/DeltaPPSRateCalculator.vy"
 )
 HYPERBOLIC_DYNAMIC_MP_SRC = "curve_stablecoin/mpolicies/v2/HyperbolicDynamicMP.vy"
 
@@ -356,8 +356,8 @@ def main() -> None:
         ),
         (
             rate_calculator_addr,
-            "SyrupUSDCRateCalculator (Vyper 0.4.3)",
-            f"{RATE_CALCULATOR_SRC}:SyrupUSDCRateCalculator",
+            "DeltaPPSRateCalculator (Vyper 0.4.3)",
+            f"{RATE_CALCULATOR_SRC}:DeltaPPSRateCalculator",
             vy_json(RATE_CALCULATOR_SRC),
             "vyper:0.4.3",
             "vyper-json",

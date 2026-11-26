@@ -8,9 +8,8 @@ Per market this deploys, in order:
     1. ERC4626EMAOracle(sUSG, 866) -> USG per sUSG.
          Share-price increases are smoothed; falls pass through immediately.
          There is no base oracle. USG and frxUSD are each counted at $1.
-    2. SyrupUSDCRateCalculator(sUSG) -> growth of sUSG's share price
-       across up to 7 daily records. The contract is unchanged; its only call
-       on the vault is convertToAssets(1e18).
+    2. DeltaPPSRateCalculator(sUSG) -> growth of sUSG's share price across
+       up to 7 daily records.
     3. HyperbolicDynamicMP(controller, rate_calculator, curve params...) -
        borrow rate follows sUSG's realized yield.
     4. factory.create(frxUSD, sUSG, ... oracle, monetary_policy, supply_limit).
@@ -82,7 +81,7 @@ EMA_TIME = 866
 # --- Contract sources ---
 ERC4626_EMA_ORACLE = "curve_stablecoin/price_oracles/v2/ERC4626EMAOracle.vy"
 RATE_CALCULATOR = (
-    "curve_stablecoin/mpolicies/v2/rate_calculators/SyrupUSDCRateCalculator.vy"
+    "curve_stablecoin/mpolicies/v2/rate_calculators/DeltaPPSRateCalculator.vy"
 )
 HYPERBOLIC_DYNAMIC_MP = "curve_stablecoin/mpolicies/v2/HyperbolicDynamicMP.vy"
 LEND_FACTORY = "curve_stablecoin/lending/LendFactory.vy"
