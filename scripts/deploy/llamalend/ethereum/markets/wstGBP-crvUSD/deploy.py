@@ -8,7 +8,7 @@ Per market this deploys, in order:
     1. Oracle stack (prices wstGBP in USD):
          a. ChainlinkEMA(GBP/USD, 10 observations, 60-second interval)
          b. WstGBPFxOracle(wstGBP, ChainlinkEMA)
-              -> capped burncost() in tGBP x smoothed GBP/USD; crvUSD is $1.
+              -> capped NAV, then wrapper redemption fee, then smoothed GBP/USD; crvUSD is $1.
                  FX pricing uses only the EMA adapter, without a feed-age cutoff.
                  A NAV pause reuses the saved redemption rate while FX keeps updating.
     2. HyperbolicMP(controller, curve params...) - fixed target rate, for
