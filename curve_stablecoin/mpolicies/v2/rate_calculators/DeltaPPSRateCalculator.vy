@@ -1,10 +1,10 @@
 #pragma version 0.4.3
 
 """
-@title syrupUSDC Rate Calculator
+@title Delta-PPS Rate Calculator
 @author Curve.Finance
 @license Copyright (c) Curve.Finance, 2020-2026 - all rights reserved
-@notice Provides a per-second yield rate for syrupUSDC, derived from the change in
+@notice Provides a per-second yield rate for an ERC4626 vault, derived from the change in
         price-per-share (PPS) across up to 7 stored records spanning roughly the last week
 @dev `rate_w()` is mutating: each call appends a PPS record when a day has passed (at most
      one per day) and returns the realized per-second growth over the stored window.
@@ -18,14 +18,14 @@ from curve_stablecoin.interfaces import IRateCalculator
 implements: IRateCalculator
 
 
-interface ISyrupUSDC:
+interface IERC4626:
     def convertToAssets(_shares: uint256) -> uint256: view
 
 
 DAY: constant(uint256) = 86400
 WAD: constant(uint256) = 10**18
 
-SYRUP_USDC: public(immutable(ISyrupUSDC))
+VAULT: public(immutable(IERC4626))
 
 
 struct Record:
@@ -37,22 +37,24 @@ pps_records: public(Record[7])
 
 
 @deploy
-def __init__(_syrup_usdc: address):
+def __init__(_vault: address):
     """
-    @param _syrup_usdc Address of the syrupUSDC vault contract
-    @notice Initializes the rate calculator with the syrupUSDC contract address
+    @param _vault Address of the ERC4626 vault contract
+    @notice Initializes the rate calculator with the vault contract address
     """
-    SYRUP_USDC = ISyrupUSDC(_syrup_usdc)
+    VAULT = IERC4626(_vault)
 
 
 @internal
 @view
 def _pps() -> uint256:
     """
-    @notice Current price-per-share: assets for one whole share
-            (gross, doesn't take into account impairment losses)
+    @notice Current price-per-share, as reported by the vault's own `convertToAssets`
+            accounting (e.g. gross of any not-yet-realized impairment losses)
+    @dev WAD shares is an arbitrary probe amount: only relative PPS growth is used,
+         so the vault's share decimals don't matter
     """
-    return staticcall SYRUP_USDC.convertToAssets(WAD)
+    return staticcall VAULT.convertToAssets(WAD)
 
 
 @internal
@@ -117,7 +119,7 @@ def _rate(_newest_i: uint256, _newest_ts: uint256) -> uint256:
 @view
 def rate() -> uint256:
     """
-    @notice Read-only per-second yield rate for syrupUSDC
+    @notice Read-only per-second yield rate for the vault
     @dev Returns exactly what `rate_w` would return at the current block, but without
          recording a new PPS sample (pps_records is left unchanged). Returns 0 until at
          least two records exist, or if PPS did not grow.
@@ -133,7 +135,7 @@ def rate() -> uint256:
 def rate_w() -> uint256:
     """
     @notice Records the current PPS (if a day has passed since the newest record) and
-            returns the realized per-second yield rate for syrupUSDC
+            returns the realized per-second yield rate for the vault
     @dev Mutating: appends a PPS record when due, so it must be called via a normal
          (non-static) call. Records are written to a 7-slot ring buffer in sequential
          order, at least DAY apart. The rate window is therefore variable (up to ~7
