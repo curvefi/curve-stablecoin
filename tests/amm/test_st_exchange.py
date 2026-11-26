@@ -30,13 +30,16 @@ class StatefulExchange(RuleBasedStateMachine):
         super().__init__()
         self.total_deposited = 0
 
-    @initialize(amounts=amounts, ns=ns, dns=dns)
-    def initializer(self, amounts, ns, dns):
+    @initialize(amounts=amounts, ns=ns, dns=dns, part=pump)
+    def initializer(self, amounts, ns, dns, part=False):
         self.borrowed_mul = 10 ** (18 - self.borrowed_digits)
         self.collateral_mul = 10 ** (18 - self.collateral_digits)
         amounts = [a // self.collateral_mul for a in amounts]
-        for user, amount, n1, dn in zip(self.accounts, amounts, ns, dns):
+        for user, amount, n1, dn in zip(self.users, amounts, ns, dns):
             n2 = n1 + dn
+            with boa.env.prank(user):
+                self.collateral_token.approve(self.amm.address, 2**256 - 1)
+                self.borrowed_token.approve(self.amm.address, 2**256 - 1)
 
             amount_too_low = deposit_amount_too_low(
                 self.amm, amount, n1, n2, self.collateral_mul
@@ -50,11 +53,21 @@ class StatefulExchange(RuleBasedStateMachine):
                     assert amount_too_low
                 else:
                     raise
-        self.total_deposited = sum(self.amm.bands_y(n) for n in range(42))
+        self.deposited = [self.amm.bands_y(n) for n in range(42)]
+        self.total_deposited = sum(self.deposited)
+        # Nothing is sold before p_oracle reaches the bands
+        assert self.amm.get_dxdy(0, 1, 10**30) == (0, 0)
+        # p_oracle falls to the deepest deposited band or only half way to it
+        self.n_o = self.amm.max_band()
+        if part:
+            self.n_o //= 2
+        with boa.env.prank(self.admin):
+            self.price_oracle.set_price(self.amm.p_oracle_down(self.n_o))
+        boa.env.time_travel(600)  # To reset the prev p_o counter
 
     @rule(amount=amount, pump=pump, user_id=user_id)
     def exchange(self, amount, pump, user_id):
-        u = self.accounts[user_id]
+        u = self.users[user_id]
         if pump:
             amount = amount // self.borrowed_mul
             i = 0
@@ -69,7 +82,12 @@ class StatefulExchange(RuleBasedStateMachine):
         if amount > u_amount:
             mint_for_testing(in_token, u, amount - u_amount)
         with boa.env.prank(u):
-            self.amm.exchange(i, j, amount, 0)
+            if pump:
+                self.amm.exchange(i, j, amount, 0)
+            else:
+                # Collateral is never bought back
+                with boa.reverts("Wrong index"):
+                    self.amm.exchange(i, j, amount, 0)
 
     @invariant()
     def amm_solvent(self):
@@ -80,42 +98,44 @@ class StatefulExchange(RuleBasedStateMachine):
 
     @invariant()
     def dy_back(self):
-        n = self.amm.active_band()
         to_swap = self.total_deposited * 10 // self.collateral_mul
-        left_in_amm = sum(self.amm.bands_y(n) for n in range(42))
-        if n < 50:
-            dx, dy = self.amm.get_dxdy(1, 0, to_swap)
+        # Sold collateral is never bought back
+        with boa.reverts("Wrong index"):
+            self.amm.get_dxdy(1, 0, to_swap)
+        for n in range(42):
+            sold = self.deposited[n] - self.amm.bands_y(n)
+            p_down = self.amm.p_current_down(n)
             assert (
-                dx * self.collateral_mul >= self.total_deposited - left_in_amm
+                self.amm.bands_x(n) * (10**18 - self.amm.fee()) >= sold * p_down
             )  # With fees, AMM will have more
+            if n > self.amm.active_band():
+                assert self.amm.bands_x(n) == 0
+            if n > self.n_o + 1:
+                # Collateral is sold only from bands which p_oracle has reached
+                assert sold == 0
 
     def teardown(self):
         if not hasattr(self, "amm"):
             return
-        u = self.accounts[0]
-        # Trade back and do the check
-        n = self.amm.active_band()
+        u = self.users[0]
+        # Nothing is traded back
         to_swap = self.total_deposited * 10 // self.collateral_mul
-        if n < 50:
-            _, dy = self.amm.get_dxdy(1, 0, to_swap)
-            if dy > 0:
-                mint_for_testing(self.collateral_token, u, to_swap)
-                with boa.env.prank(u):
-                    self.amm.exchange(1, 0, to_swap, 0)
-                left_in_amm = sum(self.amm.bands_y(n) for n in range(42))
-                assert left_in_amm >= self.total_deposited
+        mint_for_testing(self.collateral_token, u, to_swap)
+        with boa.env.prank(u):
+            with boa.reverts("Wrong index"):
+                self.amm.exchange(1, 0, to_swap, 0)
 
 
 @pytest.mark.parametrize("borrowed_digits", [6, 8, 18])
 @pytest.mark.parametrize("collateral_digits", [6, 8, 18])
-def test_exchange(admin, accounts, get_amm, borrowed_digits, collateral_digits):
+def test_exchange(admin, price_oracle, get_amm, borrowed_digits, collateral_digits):
     StatefulExchange.TestCase.settings = settings(
         max_examples=20,
         stateful_step_count=10,
         phases=(Phase.explicit, Phase.reuse, Phase.generate, Phase.target),
         suppress_health_check=[HealthCheck.data_too_large],
     )
-    accounts = accounts[:5]
+    users = [boa.env.generate_address() for _ in range(5)]
 
     borrowed_token = ERC20_MOCK_DEPLOYER.deploy(borrowed_digits)
     collateral_token = ERC20_MOCK_DEPLOYER.deploy(collateral_digits)
@@ -126,8 +146,8 @@ def test_exchange(admin, accounts, get_amm, borrowed_digits, collateral_digits):
     run_state_machine_as_test(StatefulExchange)
 
 
-def test_raise_at_dy_back(admin, accounts, get_amm):
-    accounts = accounts[:5]
+def test_raise_at_dy_back(admin, price_oracle, get_amm):
+    users = [boa.env.generate_address() for _ in range(5)]
 
     borrowed_digits = 18
     collateral_digits = 18
@@ -153,8 +173,8 @@ def test_raise_at_dy_back(admin, accounts, get_amm):
     state.teardown()
 
 
-def test_raise_rounding(admin, accounts, get_amm):
-    accounts = accounts[:5]
+def test_raise_rounding(admin, price_oracle, get_amm):
+    users = [boa.env.generate_address() for _ in range(5)]
 
     borrowed_digits = 16
     collateral_digits = 18
@@ -174,8 +194,8 @@ def test_raise_rounding(admin, accounts, get_amm):
     state.teardown()
 
 
-def test_raise_rounding_2(admin, accounts, get_amm):
-    accounts = accounts[:5]
+def test_raise_rounding_2(admin, price_oracle, get_amm):
+    users = [boa.env.generate_address() for _ in range(5)]
 
     borrowed_digits = 18
     collateral_digits = 18
@@ -203,8 +223,8 @@ def test_raise_rounding_2(admin, accounts, get_amm):
     state.teardown()
 
 
-def test_raise_rounding_3(admin, accounts, get_amm):
-    accounts = accounts[:5]
+def test_raise_rounding_3(admin, price_oracle, get_amm):
+    users = [boa.env.generate_address() for _ in range(5)]
 
     borrowed_digits = 17
     collateral_digits = 18

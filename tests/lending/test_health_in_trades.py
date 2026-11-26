@@ -98,7 +98,9 @@ class AdiabaticTrader(RuleBasedStateMachine):
             else:
                 amount = int(self.collateral_amount * amount_fraction)
                 boa.deal(self.collateral, user, amount)
-                self.amm.exchange(1, 0, amount, 0)
+                # Collateral is never bought back
+                with boa.reverts("Wrong index"):
+                    self.amm.exchange(1, 0, amount, 0)
 
     @rule(t=t)
     def time_travel(self, t):
@@ -125,7 +127,6 @@ def test_adiabatic_follow(
     collateral_token,
     borrowed_token,
     price_oracle,
-    accounts,
     admin,
 ):
     AdiabaticTrader.TestCase.settings = settings(
@@ -133,4 +134,6 @@ def test_adiabatic_follow(
     )
     for k, v in locals().items():
         setattr(AdiabaticTrader, k, v)
+    users = [boa.env.generate_address() for _ in range(10)]
+    setattr(AdiabaticTrader, "accounts", users)
     run_state_machine_as_test(AdiabaticTrader)

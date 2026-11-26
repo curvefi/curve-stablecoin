@@ -48,8 +48,8 @@ def test_lender_yield_matches_apr(
         borrowed_token.approve(vault, MAX_UINT256)
         vault.deposit(deposit_amount)
 
-    # Increase borrow cap to allow loans
-    configurator.set_borrow_cap(controller, deposit_amount, sender=admin)
+    # Increase borrow cap to allow loans (recent debt is limited to 15% of the cap)
+    configurator.set_borrow_cap(controller, 7 * deposit_amount, sender=admin)
 
     initial_shares = vault.balanceOf(lender)
     initial_assets = vault.convertToAssets(initial_shares)

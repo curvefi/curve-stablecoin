@@ -173,10 +173,15 @@ def controller_for_liquidation(
             market_controller.create_loan(collateral_amount, debt, N)
 
         health_0 = market_controller.health(user)
+        # Collateral is sold only from bands which p_oracle has reached
+        p_o = price_oracle.price()
+        p_o_down = market_amm.p_oracle_down(market_amm.read_user_tick_numbers(user)[1])
+        price_oracle.set_price(p_o_down, sender=admin)
         # We put mostly USD into AMM, and its quantity remains constant while
         # interest is accruing. Therefore, we will be at liquidation at some point
         with boa.env.prank(user):
             market_amm.exchange(0, 1, debt, 0)
+        price_oracle.set_price(p_o, sender=admin)
         health_1 = market_controller.health(user)
 
         assert health_0 <= health_1  # Earns fees on dynamic fee

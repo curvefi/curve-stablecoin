@@ -1,7 +1,9 @@
 import boa
 
 
-def test_empty_user_state(controller, amm, collateral_token, borrowed_token):
+def test_empty_user_state(
+    controller, amm, collateral_token, borrowed_token, price_oracle, admin
+):
     user = boa.env.eoa
 
     # Setup
@@ -29,7 +31,12 @@ def test_empty_user_state(controller, amm, collateral_token, borrowed_token):
 
     # Exchange
     borrowed_token.approve(amm, debt_amount)
+    # Collateral is sold only from bands which p_oracle has reached
+    p_o = price_oracle.price()
+    p_o_down = amm.p_oracle_down(amm.read_user_tick_numbers(user)[1])
+    price_oracle.set_price(p_o_down, sender=admin)
     amm.exchange(0, 1, debt_amount, 0)
+    price_oracle.set_price(p_o, sender=admin)
 
     x, _ = amm.get_sum_xy(user)
     assert x > 0

@@ -138,6 +138,11 @@ class StatefulLendBorrow(RuleBasedStateMachine):
                         )
                         < 0
                     )
+                elif "Borrow limit exceeded" in str(e):
+                    # Recent debt is limited to 15% of the borrow cap
+                    assert amount > self.controller.max_borrowable_now(
+                        c_amount, n, user
+                    )
                 else:
                     if (
                         c_amount * self.collateral_precision // n

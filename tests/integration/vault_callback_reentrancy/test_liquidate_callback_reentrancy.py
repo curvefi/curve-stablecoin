@@ -72,14 +72,19 @@ def _make_liquidatable(controller, price_oracle, admin, borrower):
     assert controller.health(borrower, True) < 0
 
 
-def _push_underwater(borrower, controller, amm, borrowed_token):
+def _push_underwater(borrower, controller, amm, borrowed_token, price_oracle, admin):
     """Exchange debt//2 of borrowed tokens for collateral to create xy[0] > 0."""
     trader = boa.env.generate_address("trader")
     debt = controller.debt(borrower)
     boa.deal(borrowed_token, trader, debt // 2)
+    # Collateral is sold only from bands which p_oracle has reached
+    p_o = price_oracle.price()
+    p_o_down = amm.p_oracle_down(amm.read_user_tick_numbers(borrower)[1])
+    price_oracle.set_price(p_o_down, sender=admin)
     with boa.env.prank(trader):
         max_approve(borrowed_token, amm)
         amm.exchange(0, 1, debt // 2, 0)
+    price_oracle.set_price(p_o, sender=admin)
 
     assert (
         controller.user_state(borrower)[0] > 0
@@ -212,7 +217,7 @@ def test_vault_operation_reverts_in_liquidate_full_from_callback_underwater(
 
     debt = seed_liquidity // 10
     borrower = open_max_loan(controller, collateral_token, debt, N)
-    _push_underwater(borrower, controller, amm, borrowed_token)
+    _push_underwater(borrower, controller, amm, borrowed_token, price_oracle, admin)
     if is_healthy:
         assert controller.health(borrower, True) > 0
     else:
@@ -253,7 +258,7 @@ def test_pps_stable_during_liquidate_full_from_callback_underwater(
 
     debt = seed_liquidity // 10
     borrower = open_max_loan(controller, collateral_token, debt, N)
-    _push_underwater(borrower, controller, amm, borrowed_token)
+    _push_underwater(borrower, controller, amm, borrowed_token, price_oracle, admin)
     if is_healthy:
         assert controller.health(borrower, True) > 0
     else:
@@ -397,7 +402,7 @@ def test_vault_operation_reverts_in_liquidate_partial_from_callback_underwater(
 
     debt = seed_liquidity // 10
     borrower = open_max_loan(controller, collateral_token, debt, N)
-    _push_underwater(borrower, controller, amm, borrowed_token)
+    _push_underwater(borrower, controller, amm, borrowed_token, price_oracle, admin)
     if is_healthy:
         assert controller.health(borrower, True) > 0
     else:
@@ -439,7 +444,7 @@ def test_pps_stable_during_liquidate_partial_from_callback_underwater(
 
     debt = seed_liquidity // 10
     borrower = open_max_loan(controller, collateral_token, debt, N)
-    _push_underwater(borrower, controller, amm, borrowed_token)
+    _push_underwater(borrower, controller, amm, borrowed_token, price_oracle, admin)
     if is_healthy:
         assert controller.health(borrower, True) > 0
     else:

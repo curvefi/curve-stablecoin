@@ -160,6 +160,10 @@ ORACLE_FROM_CURVE_POOLS_DEPLOYER = boa.load_partial(
     PRICE_ORACLES_CONTRACT_PATH / "v2" / "OracleFromCurvePools.vy",
     compiler_args=compiler_args_default,
 )
+WINDOW_ORACLE_DEPLOYER = boa.load_partial(
+    PRICE_ORACLES_CONTRACT_PATH / "v2" / "WindowOracle.vy",
+    compiler_args=compiler_args_default,
+)
 
 # LP oracle contracts
 REUSD_CRVUSD_ADAPTER_DEPLOYER = boa.load_partial(

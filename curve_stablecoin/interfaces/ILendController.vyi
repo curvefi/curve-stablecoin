@@ -29,6 +29,12 @@ def borrow_cap() -> uint256:
 
 @external
 @view
+def max_borrowable_now(_d_collateral: uint256, _N: uint256, _user: address) -> uint256:
+    ...
+
+
+@external
+@view
 def lent() -> uint256:
     ...
 

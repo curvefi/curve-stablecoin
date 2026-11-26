@@ -24,14 +24,16 @@ def test_buy_with_shift(
     collateral_token,
     borrowed_token,
     price_oracle,
-    accounts,
     admin,
     n1,
     dn,
     amount,
     price_shift,
 ):
-    user = accounts[1]
+    user = boa.env.generate_address()
+    with boa.env.prank(user):
+        collateral_token.approve(amm.address, 2**256 - 1)
+        borrowed_token.approve(amm.address, 2**256 - 1)
     collateral_amount = 10 ** collateral_token.decimals()
 
     # Deposit
@@ -79,49 +81,62 @@ def test_sell_with_shift(
     collateral_token,
     borrowed_token,
     price_oracle,
-    accounts,
     admin,
     n1,
     dn,
     amount,
     price_shift,
 ):
-    user = accounts[1]
+    user = boa.env.generate_address()
+    with boa.env.prank(user):
+        collateral_token.approve(amm.address, 2**256 - 1)
+        borrowed_token.approve(amm.address, 2**256 - 1)
     collateral_amount = 10 ** collateral_token.decimals()
     MANY = 10**24
-    b_balances = []
+    b_balances = [MANY]
+    c_balances = [0]
 
     # Deposit
     with boa.env.prank(admin):
         amm.deposit_range(user, collateral_amount, n1, n1 + dn)
         mint_for_testing(collateral_token, amm.address, collateral_amount)
+        # Collateral is sold only from bands which p_oracle has reached
+        price_oracle.set_price((amm.p_oracle_up(n1) + amm.p_oracle_down(n1)) // 2)
+    boa.env.time_travel(600)  # To reset the prev p_o counter
 
     # Swap max (buy)
     mint_for_testing(borrowed_token, user, MANY)
     with boa.env.prank(user):
         amm.exchange(0, 1, MANY, 0)
-
-    # Swap back some amount (sell)
+    assert amm.active_band() == n1
     b_balances += [borrowed_token.balanceOf(user)]
+    c_balances += [collateral_token.balanceOf(user)]
+
+    # Swap back some amount (sell): nothing is bought back
     amount = min(amount, collateral_token.balanceOf(user))
     with boa.env.prank(user):
-        amm.exchange(1, 0, amount, 0)
-    b_balances += [borrowed_token.balanceOf(user)]
-    if b_balances[0] == b_balances[1]:
-        return  # No swap -> stop it
+        with boa.reverts("Wrong index"):
+            amm.exchange(1, 0, amount, 0)
+    assert borrowed_token.balanceOf(user) == b_balances[1] < MANY
 
     # Shift oracle
     with boa.env.prank(admin):
         price_oracle.set_price(int(price_oracle.price() * price_shift))
 
-    # Swap max (buy) to trade back
+    # Swap max (buy) again
     with boa.env.prank(user):
         amm.exchange(0, 1, MANY, 0)
     b_balances += [borrowed_token.balanceOf(user)]
+    c_balances += [collateral_token.balanceOf(user)]
 
     # Measure profit
     profit = b_balances[-1] - MANY
     assert profit <= 0
+    # The shift does not make the collateral cheaper
+    dx = [b_balances[0] - b_balances[1], b_balances[1] - b_balances[2]]
+    dy = [c_balances[1] - c_balances[0], c_balances[2] - c_balances[1]]
+    # The collateral bought is rounded down
+    assert dx[1] * (dy[0] + 1) >= dx[0] * dy[1]
 
 
 @given(
@@ -137,7 +152,6 @@ def test_no_untradable_funds(
     collateral_token,
     borrowed_token,
     price_oracle,
-    accounts,
     admin,
     n1,
     dn,
@@ -145,7 +159,10 @@ def test_no_untradable_funds(
     price_shift,
 ):
     # Same as buy test at the beginning
-    user = accounts[1]
+    user = boa.env.generate_address()
+    with boa.env.prank(user):
+        collateral_token.approve(amm.address, 2**256 - 1)
+        borrowed_token.approve(amm.address, 2**256 - 1)
     collateral_amount = 10 ** collateral_token.decimals()
 
     # Deposit
@@ -202,7 +219,6 @@ def test_no_untradable_funds_in(
     collateral_token,
     borrowed_token,
     price_oracle,
-    accounts,
     admin,
     n1,
     dn,
@@ -210,7 +226,10 @@ def test_no_untradable_funds_in(
     price_shift,
 ):
     # Same as test_no_untradable_funds but with exchange_dy
-    user = accounts[1]
+    user = boa.env.generate_address()
+    with boa.env.prank(user):
+        collateral_token.approve(amm.address, 2**256 - 1)
+        borrowed_token.approve(amm.address, 2**256 - 1)
     collateral_amount = 10 ** collateral_token.decimals()
 
     # Deposit

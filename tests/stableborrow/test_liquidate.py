@@ -40,10 +40,15 @@ def controller_for_liquidation(
         with boa.env.prank(user):
             market_controller.create_loan(collateral_amount, debt, N)
         health_0 = market_controller.health(user)
+        # Collateral is sold only from bands which p_oracle has reached
+        p_o = price_oracle.price()
+        p_o_down = market_amm.p_oracle_down(market_amm.read_user_tick_numbers(user)[1])
+        price_oracle.set_price(p_o_down, sender=admin)
         # We put mostly USD into AMM, and its quantity remains constant while
         # interest is accruing. Therefore, we will be at liquidation at some point
         with boa.env.prank(user):
             market_amm.exchange(0, 1, debt, 0)
+        price_oracle.set_price(p_o, sender=admin)
         health_1 = market_controller.health(user)
 
         assert health_0 <= health_1  # Eearns fees on dynamic fee
@@ -108,18 +113,6 @@ def test_liquidate_callback(
 ):
     user = admin
     fee_receiver = controller_factory.fee_receiver()
-    ld = int(0.02 * 1e18)
-    if frac < 10**18:
-        # f = ((1 + h/2) / (1 + h) * (1 - frac) + frac) * frac
-        f = (
-            ((10**18 + ld // 2) * (10**18 - frac) // (10**18 + ld) + frac)
-            * frac
-            // 10**18
-            // 5
-            * 5
-        )  # The latter part is rounding off for multiple bands
-    else:
-        f = 10**18
     # Partial liquidation improves health.
     # In case AMM has stablecoins in addition to collateral (our test), it means more stablecoins there.
     # But that requires more stablecoins than exist.
@@ -128,6 +121,12 @@ def test_liquidate_callback(
     controller = controller_for_liquidation(sleep_time=45 * 86400, discount=0)
     # Health here is not too bad, so we still can profitably liquidate
     x = market_amm.get_sum_xy(user)[0]
+    # Fraction of the position withdrawn for frac, as the controller computes it
+    f = controller.eval(
+        f"core._calculate_debt_f_remove({user}, {controller.debt(user)}, {frac}, "
+        f"{controller.liquidation_discounts(user)}, "
+        "core.AMM, core.COLLATERAL_PRECISION, core.BORROWED_PRECISION)"
+    )[1]
 
     boa.deal(stablecoin, fee_receiver, stablecoin.balanceOf(fee_receiver) + 10**10)
 
