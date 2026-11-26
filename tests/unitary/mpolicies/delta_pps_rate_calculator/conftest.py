@@ -1,6 +1,6 @@
-"""Fixtures for SyrupUSDCRateCalculator unit tests.
+"""Fixtures for DeltaPPSRateCalculator unit tests.
 
-The calculator's only external collaborator is syrupUSDC, read through
+The calculator's only external collaborator is the ERC4626 vault, read through
 `convertToAssets`. It is mocked inline with a settable price-per-share
 (pps == assets for one whole 1e18 share), so tests can drive the PPS
 directly instead of forking mainnet.
@@ -9,13 +9,13 @@ directly instead of forking mainnet.
 import boa
 import pytest
 
-from tests.utils.deployers import SYRUP_USDC_RATE_CALCULATOR_DEPLOYER
+from tests.utils.deployers import DELTA_PPS_RATE_CALCULATOR_DEPLOYER
 
 WAD = 10**18
 DAY = 86400
 
-# Inline syrupUSDC stand-in: convertToAssets(shares) == shares * pps / 1e18.
-_SYRUP_MOCK = """
+# Inline ERC4626 vault stand-in: convertToAssets(shares) == shares * pps / 1e18.
+_VAULT_MOCK = """
 WAD: constant(uint256) = 10**18
 
 pps: public(uint256)
@@ -36,15 +36,15 @@ def set_pps(_pps: uint256):
 
 
 @pytest.fixture
-def syrup():
-    """Fresh syrupUSDC mock, seeded at 1:1 pps (tests set it explicitly)."""
-    return boa.loads(_SYRUP_MOCK, WAD)
+def vault():
+    """Fresh vault mock, seeded at 1:1 pps (tests set it explicitly)."""
+    return boa.loads(_VAULT_MOCK, WAD)
 
 
 @pytest.fixture
-def rate_calc(syrup):
-    """Fresh SyrupUSDCRateCalculator wired to the mock."""
-    return SYRUP_USDC_RATE_CALCULATOR_DEPLOYER.deploy(syrup.address)
+def rate_calc(vault):
+    """Fresh DeltaPPSRateCalculator wired to the mock."""
+    return DELTA_PPS_RATE_CALCULATOR_DEPLOYER.deploy(vault.address)
 
 
 @pytest.fixture
@@ -68,9 +68,9 @@ def step():
     Returns the rate_w() return value.
     """
 
-    def _step(rate_calc, syrup, ts, pps):
+    def _step(rate_calc, vault, ts, pps):
         boa.env.evm.patch.timestamp = ts
-        syrup.set_pps(pps)
+        vault.set_pps(pps)
 
         rate_view = rate_calc.rate()  # @view: cannot mutate pps_records
         rate_write = rate_calc.rate_w()

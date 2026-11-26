@@ -41,7 +41,7 @@ def test_price_order(
     initial_amounts,
     stablecoin,
     admin,
-    alice,
+    liquidity_provider,
     mint_alice,
     reg,
     agg,
@@ -58,7 +58,7 @@ def test_price_order(
                 # Price change break aggregator.price() check
                 agg.remove_price_pair(i)
 
-            with boa.env.prank(alice):
+            with boa.env.prank(liquidity_provider):
                 amount = 7 * initial_amount // 1000  # Just in
                 # Make sure small decline still works
                 swap.exchange(0, 1, amount, 0)
@@ -167,7 +167,7 @@ def test_set_killed(reg, peg_keepers, admin, stablecoin):
         assert not reg.withdraw_allowed(peg_keeper)
 
 
-def test_admin(reg, admin, alice, agg, receiver):
+def test_admin(reg, admin, liquidity_provider, agg, receiver):
     # initial parameters
     assert reg.worst_price_threshold() == 3 * 10 ** (18 - 4)
     assert reg.price_deviation() == 100 * 10**18
@@ -179,7 +179,7 @@ def test_admin(reg, admin, alice, agg, receiver):
     assert reg.admin() == admin
 
     # third party has no access
-    with boa.env.prank(alice):
+    with boa.env.prank(liquidity_provider):
         with boa.reverts():
             reg.set_worst_price_threshold(10 ** (18 - 3))
         with boa.reverts():
@@ -187,15 +187,15 @@ def test_admin(reg, admin, alice, agg, receiver):
         with boa.reverts():
             reg.set_debt_parameters(10**18 // 2, 10**18 // 5)
         with boa.reverts():
-            reg.set_aggregator(alice)
+            reg.set_aggregator(liquidity_provider)
         with boa.reverts():
-            reg.set_fee_receiver(alice)
+            reg.set_fee_receiver(liquidity_provider)
         with boa.reverts():
-            reg.set_emergency_admin(alice)
+            reg.set_emergency_admin(liquidity_provider)
         with boa.reverts():
             reg.set_killed(1)
         with boa.reverts():
-            reg.set_admin(alice)
+            reg.set_admin(liquidity_provider)
 
     # admin has access
     with boa.env.prank(admin):
@@ -208,23 +208,23 @@ def test_admin(reg, admin, alice, agg, receiver):
         reg.set_debt_parameters(10**18 // 2, 10**18 // 5)
         assert (reg.alpha(), reg.beta()) == (10**18 // 2, 10**18 // 5)
 
-        reg.set_aggregator(alice)
-        assert reg.aggregator() == alice
+        reg.set_aggregator(liquidity_provider)
+        assert reg.aggregator() == liquidity_provider
 
-        reg.set_fee_receiver(alice)
-        assert reg.fee_receiver() == alice
+        reg.set_fee_receiver(liquidity_provider)
+        assert reg.fee_receiver() == liquidity_provider
 
-        reg.set_emergency_admin(alice)
-        assert reg.emergency_admin() == alice
+        reg.set_emergency_admin(liquidity_provider)
+        assert reg.emergency_admin() == liquidity_provider
 
         reg.set_killed(1)
         assert reg.is_killed() == 1
-        with boa.env.prank(alice):  # emergency admin
+        with boa.env.prank(liquidity_provider):  # emergency admin
             reg.set_killed(2)
             assert reg.is_killed() == 2
 
-        reg.set_admin(alice)
-        assert reg.admin() == alice
+        reg.set_admin(liquidity_provider)
+        assert reg.admin() == liquidity_provider
 
 
 def get_peg_keepers(reg):
