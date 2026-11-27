@@ -138,37 +138,6 @@ def stablecoin() -> address:
 # ----------------------------------- Allowance ----------------------------------
 
 
-@internal
-@view
-def _total_debt() -> uint256:
-    """
-    @return Debt of all registered Peg Keepers
-    """
-    total: uint256 = 0
-    for pk: PegKeeper in self.peg_keepers:
-        total += staticcall pk.debt()
-    return total
-
-
-@internal
-@view
-def _delta_limit(_pk: PegKeeper) -> uint256:
-    """
-    @notice crvUSD the keeper may still provide in its delta window: the larger of debt_delta_share
-        of the total debt and ceiling_delta_share of the keeper's debt ceiling (debt + undrawn),
-        minus what it has provided net of withdrawn in the window
-    """
-    limit: int256 = convert(
-        max(
-            self.debt_delta_share * self._total_debt(),
-            self.ceiling_delta_share * (staticcall _pk.debt() + staticcall _pk.undrawn()),
-        ) // ONE,
-        int256,
-    )
-    delta: int256 = staticcall _pk.rolling_delta()
-    return convert(limit - min(limit, delta), uint256)
-
-
 @external
 @view
 def provide_allowed(_pk: address = msg.sender) -> uint256:
@@ -179,7 +148,9 @@ def provide_allowed(_pk: address = msg.sender) -> uint256:
         1) stablecoin price is above 1
         2) Peg Keeper is registered
         3) paired coin price from the optional coin oracle is above its min price
-        4) provided in the keeper's delta window is below its delta limit
+        4) provided in the keeper's delta window is below its limit: the larger of
+           debt_delta_share of the total debt of all keepers and ceiling_delta_share of the
+           keeper's debt ceiling (debt + undrawn), minus rolling_delta()
     @return Amount of stablecoin allowed to provide
     """
     if Killed.Provide in self.is_killed:
@@ -195,7 +166,14 @@ def provide_allowed(_pk: address = msg.sender) -> uint256:
     if coin_oracle.oracle.address != empty(address):
         if staticcall coin_oracle.oracle.price() < coin_oracle.min_price:
             return 0
-    return self._delta_limit(PegKeeper(_pk))
+    total_debt: uint256 = 0
+    for pk: PegKeeper in self.peg_keepers:
+        total_debt += staticcall pk.debt()
+    ceiling: uint256 = staticcall PegKeeper(_pk).debt() + staticcall PegKeeper(_pk).undrawn()
+    limit: int256 = convert(
+        max(self.debt_delta_share * total_debt, self.ceiling_delta_share * ceiling) // ONE, int256
+    )
+    return convert(limit - min(limit, staticcall PegKeeper(_pk).rolling_delta()), uint256)
 
 
 @external
