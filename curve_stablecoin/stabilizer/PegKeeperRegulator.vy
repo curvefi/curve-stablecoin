@@ -10,7 +10,8 @@
     total debt of all keepers and ceiling_delta_share of its own debt ceiling, net of what it has
     provided in the window (rolling_delta()); provide_allowed() returns 0 instead of reverting when
     nothing is allowed; the spot-vs-EMA range check (price_deviation) is removed from both
-    allowances.
+    allowances; peg_keepers() and AddPegKeeper carry only the keeper address: pool, is_inverse
+    and include_index served the removed price checks.
 @custom:kill admin or emergency_admin can pause provide and / or withdraw for all Peg Keepers
     via set_killed(); only admin can unpause. Keepers can be detached from this regulator by
     their owners.
@@ -18,25 +19,14 @@
 """
 
 
-interface ERC20:
-    def balanceOf(_owner: address) -> uint256: view
-
-
-interface StableSwap:
-    def price_oracle(_i: uint256 = 0) -> uint256: view
-
-
 interface PegKeeper:
-    def pool() -> StableSwap: view
     def debt() -> uint256: view
     def undrawn() -> uint256: view
     def rolling_delta() -> int256: view
-    def IS_INVERSE() -> bool: view
 
 
 interface Aggregator:
     def price() -> uint256: view
-    def price_w() -> uint256: nonpayable
 
 
 interface PriceOracle:
@@ -45,8 +35,6 @@ interface PriceOracle:
 
 event AddPegKeeper:
     peg_keeper: PegKeeper
-    pool: StableSwap
-    is_inverse: bool
 
 
 event RemovePegKeeper:
@@ -85,13 +73,6 @@ event SetEmergencyAdmin:
     admin: address
 
 
-struct PegKeeperInfo:
-    peg_keeper: PegKeeper
-    pool: StableSwap
-    is_inverse: bool
-    include_index: bool
-
-
 struct CoinOracle:
     oracle: PriceOracle  # empty(address) = no check
     min_price: uint256  # 1e18 = 1.0
@@ -108,9 +89,9 @@ ONE: constant(uint256) = 10**18
 debt_delta_share: public(uint256)  # Share of the total debt of all keepers
 ceiling_delta_share: public(uint256)  # Share of the keeper's own debt ceiling
 
-STABLECOIN: immutable(ERC20)
+STABLECOIN: immutable(address)
 aggregator: public(Aggregator)
-peg_keepers: public(DynArray[PegKeeperInfo, MAX_LEN])
+peg_keepers: public(DynArray[PegKeeper, MAX_LEN])
 peg_keeper_i: HashMap[PegKeeper, uint256]  # 1 + index of peg keeper in a list
 coin_oracle: public(HashMap[PegKeeper, CoinOracle])  # Optional depeg protection of the paired coin
 
@@ -123,13 +104,13 @@ emergency_admin: public(address)
 
 @deploy
 def __init__(
-    _stablecoin: ERC20,
+    _stablecoin: address,
     _agg: Aggregator,
     _fee_receiver: address,
     _admin: address,
     _emergency_admin: address,
 ):
-    assert _stablecoin.address != empty(address)  # dev: bad stablecoin
+    assert _stablecoin != empty(address)  # dev: bad stablecoin
     assert _agg.address != empty(address)  # dev: bad aggregator
     assert _fee_receiver != empty(address)  # dev: bad fee receiver
     assert _admin != empty(address)  # dev: bad admin
@@ -150,7 +131,7 @@ def __init__(
 
 @external
 @view
-def stablecoin() -> ERC20:
+def stablecoin() -> address:
     return STABLECOIN
 
 
@@ -164,8 +145,8 @@ def _total_debt() -> uint256:
     @return Debt of all registered Peg Keepers
     """
     total: uint256 = 0
-    for info: PegKeeperInfo in self.peg_keepers:
-        total += staticcall info.peg_keeper.debt()
+    for pk: PegKeeper in self.peg_keepers:
+        total += staticcall pk.debt()
     return total
 
 
@@ -245,7 +226,7 @@ def withdraw_allowed(_pk: address = msg.sender) -> uint256:
 @external
 def add_peg_keepers(_peg_keepers: DynArray[PegKeeper, MAX_LEN]):
     """
-    @notice Register Peg Keepers; pool and IS_INVERSE are read from each keeper
+    @notice Register Peg Keepers
     @param _peg_keepers Peg Keepers to add
     """
     assert msg.sender == self.admin
@@ -253,20 +234,10 @@ def add_peg_keepers(_peg_keepers: DynArray[PegKeeper, MAX_LEN]):
     i: uint256 = len(self.peg_keepers)
     for pk: PegKeeper in _peg_keepers:
         assert self.peg_keeper_i[pk] == empty(uint256)  # dev: duplicate
-        pool: StableSwap = staticcall pk.pool()
-        success: bool = raw_call(
-            pool.address,
-            abi_encode(convert(0, uint256), method_id=method_id("price_oracle(uint256)")),
-            revert_on_failure=False,
-        )
-        info: PegKeeperInfo = PegKeeperInfo(
-            peg_keeper=pk, pool=pool, is_inverse=staticcall pk.IS_INVERSE(), include_index=success
-        )
-        self.peg_keepers.append(info)  # dev: too many pairs
+        self.peg_keepers.append(pk)  # dev: too many pairs
         i += 1
         self.peg_keeper_i[pk] = i
-
-        log AddPegKeeper(peg_keeper=info.peg_keeper, pool=info.pool, is_inverse=info.is_inverse)
+        log AddPegKeeper(peg_keeper=pk)
 
 
 @external
@@ -276,13 +247,13 @@ def remove_peg_keepers(_peg_keepers: DynArray[PegKeeper, MAX_LEN]):
     """
     assert msg.sender == self.admin
 
-    peg_keepers: DynArray[PegKeeperInfo, MAX_LEN] = self.peg_keepers
+    peg_keepers: DynArray[PegKeeper, MAX_LEN] = self.peg_keepers
     for pk: PegKeeper in _peg_keepers:
         i: uint256 = self.peg_keeper_i[pk] - 1  # dev: pool not found
         max_n: uint256 = len(peg_keepers) - 1
         if i < max_n:
             peg_keepers[i] = peg_keepers[max_n]
-            self.peg_keeper_i[peg_keepers[i].peg_keeper] = 1 + i
+            self.peg_keeper_i[peg_keepers[i]] = 1 + i
 
         peg_keepers.pop()
         self.peg_keeper_i[pk] = empty(uint256)
