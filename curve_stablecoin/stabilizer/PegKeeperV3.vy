@@ -216,9 +216,8 @@ caller_share: public(uint256)
 provide_min_profit: public(uint256)  # min profit per provided crvUSD, with PRECISION
 withdraw_min_profit: public(uint256)  # min profit per withdrawn crvUSD, with PRECISION
 MAX_DISCOUNT_TOLERANCE: constant(uint256) = PRECISION // 100  # 1%
-discount_tolerance: public(
-    uint256
-)  # paired coin discount to the aggregated price ignored as noise, with PRECISION
+# Paired coin discount to the aggregated price ignored as noise, with PRECISION
+discount_tolerance: public(uint256)
 
 
 @deploy
@@ -343,10 +342,7 @@ def _calc_profit() -> uint256:
     @notice Calculate PegKeeper's profit using current values
     """
     lp_value: uint256 = self._lp_value(staticcall POOL.get_virtual_price())
-    debt: uint256 = self.debt
-    if lp_value <= debt:
-        return 0
-    return lp_value - debt
+    return lp_value - min(lp_value, self.debt)
 
 
 @internal
@@ -457,12 +453,15 @@ def _idle(_ceiling: uint256) -> uint256:
 
 @internal
 @view
-def _calc_balance() -> uint256:
+def _undrawn() -> uint256:
     """
     @notice Idle crvUSD the keeper may use, 0 with the ceiling at 0 (decommissioned keeper)
     """
     ceiling: uint256 = staticcall FACTORY.debt_ceiling(self)
     if ceiling == 0:
+        # All the residual is reserved for the rug, so _idle() is the balance above it: excess
+        # (donation, offloaded LP proceeds above the hole). It leaves via recover_excess() and
+        # must not become debt, which sync_debt() equates to the residual
         return 0
     return self._idle(ceiling)
 
@@ -473,7 +472,7 @@ def undrawn() -> uint256:
     """
     @notice crvUSD the keeper may still provide, i.e. turn into debt, as the regulator counts it
     """
-    return self._calc_balance()
+    return self._undrawn()
 
 
 # ------------------------------------- Pool ------------------------------------
@@ -553,17 +552,11 @@ def _balance_diff() -> BalanceDiff:
         Rounded down so we never try to move more value than the observed imbalance.
     """
     rates: uint256[2] = self._rates()
-    normalized_pegged: uint256 = staticcall POOL.balances(I) * rates[I] // PRECISION
-    normalized_paired: uint256 = staticcall POOL.balances(1 - I) * rates[1 - I] // PRECISION
-
-    if normalized_pegged >= normalized_paired:
-        return BalanceDiff(
-            amount=unsafe_sub(normalized_pegged, normalized_paired) * PRECISION // rates[I],
-            deficit=False,
-        )
+    pegged: uint256 = staticcall POOL.balances(I) * rates[I] // PRECISION
+    paired: uint256 = staticcall POOL.balances(1 - I) * rates[1 - I] // PRECISION
     return BalanceDiff(
-        amount=unsafe_sub(normalized_paired, normalized_pegged) * PRECISION // rates[I],
-        deficit=True,
+        amount=(max(pegged, paired) - min(pegged, paired)) * PRECISION // rates[I],
+        deficit=paired > pegged,
     )
 
 
@@ -586,26 +579,22 @@ def _calc_caller_profit(_amount: uint256, _deficit: bool) -> uint256:
     @dev Provide adds LP and debt, withdraw removes both, so the change of (lp_value - debt)
         is the difference between LP value moved and crvUSD moved. Returns 0 if below the min
     """
-    lp_balance: uint256 = staticcall POOL.balanceOf(self)
     virtual_price: uint256 = staticcall POOL.get_virtual_price()
-    debt: uint256 = self.debt
 
     amount: uint256 = 0
     if _deficit:
-        amount = min(_amount, self._calc_balance())
+        amount = min(_amount, self._undrawn())
     else:
-        amount = min(min(_amount, debt), lp_balance * virtual_price // PRECISION)
+        amount = min(min(_amount, self.debt), self._lp_value(virtual_price))
 
     amounts: uint256[2] = empty(uint256[2])
     amounts[I] = amount
     lp_balance_diff: uint256 = self._calc_token_amount(amounts, _deficit)
 
     value_diff: uint256 = lp_balance_diff * virtual_price // PRECISION  # LP moved, in crvUSD
-    after: uint256 = value_diff if _deficit else amount
-    before: uint256 = amount if _deficit else value_diff
-    if after <= before:
-        return 0
-    profit: uint256 = after - before
+    profit: uint256 = (
+        value_diff - min(value_diff, amount) if _deficit else amount - min(amount, value_diff)
+    )
     if profit < self._min_profit(amount, _deficit):
         return 0
     return profit * self.caller_share // SHARE_PRECISION
@@ -683,12 +672,11 @@ def update(_beneficiary: address = msg.sender) -> uint256:
     lp_value: uint256 = self._lp_value(staticcall POOL.get_virtual_price())
     debt: uint256 = self.debt
 
-    balance: uint256 = self._calc_balance()
     allowed: uint256 = self._allowed(diff.deficit)
     assert allowed > 0, "Regulator ban"
     amount: uint256 = min(diff.amount // IMBALANCE_FRACTION, allowed)
     if diff.deficit:
-        amount = self._provide(min(amount, balance))  # this dumps stablecoin
+        amount = self._provide(min(amount, self._undrawn()))  # this dumps stablecoin
     else:
         # Up to LP value: then a profitable withdraw always has enough LP to burn and to pay
         amount = self._withdraw(min(amount, lp_value))  # this pumps stablecoin
@@ -718,11 +706,14 @@ def _deposit_donation() -> uint256:
         crvUSD scarce: 50/50 by value with idle crvUSD (crvUSD part is debt).
         crvUSD abundant: paired coin only, up to 1/5 of the imbalance per call, no debt.
         Silently does nothing if there is nothing to deposit, the regulator does not allow the
-        provide, or the pool would mint less than MAX_DONATION_LOSS tolerates.
-        While A is ramping, calc_token_amount() of an NG pool is off by up to ~0.2 ppm, so the
-        deposit can still revert right at the tolerance; pass _deposit_donation=False then
+        provide, or the pool refuses the deposit for any reason, e.g. it would mint less than
+        MAX_DONATION_LOSS tolerates. Reverts only if the regulator or the pool views revert
     @dev Both branches move the pool towards balance and earn the scarce coin premium;
-        the loss in a balanced pool is bounded by fee / 2 on the deposit
+        the loss in a balanced pool is bounded by fee / 2 on the deposit.
+        The crvUSD part is capped by provide_allowed() per call but is not recorded in the
+        rolling delta and is not an action for action_delay: anyone can trigger a deposit with
+        dust, and recording would let them postpone update() and slow the forgetting down.
+        Passing the cap this way costs the donor the same value of the paired coin
     @return Amount of LP tokens minted
     """
     paired: uint256 = staticcall PAIRED.balanceOf(self)
@@ -734,7 +725,7 @@ def _deposit_donation() -> uint256:
     pegged: uint256 = 0
     if diff.deficit:
         # crvUSD is scarce: 50/50 by value, crvUSD part is a provide
-        pegged = min(self._to_pegged(paired, rates), self._calc_balance())
+        pegged = min(self._to_pegged(paired, rates), self._undrawn())
         pegged = min(pegged, staticcall self.regulator.provide_allowed())
         if pegged == 0:
             return 0
@@ -751,10 +742,25 @@ def _deposit_donation() -> uint256:
     min_mint_amount: uint256 = (
         value * (PRECISION - MAX_DONATION_LOSS) // staticcall POOL.get_virtual_price()
     )
-    if self._calc_token_amount(amounts, True) < min_mint_amount:
+
+    # min_mint_amount is checked by the pool: a failed call is a skipped deposit
+    data: Bytes[164] = b""
+    if IS_NG:
+        ng_amounts: DynArray[uint256, 2] = [amounts[0], amounts[1]]
+        data = abi_encode(
+            ng_amounts, min_mint_amount, method_id=method_id("add_liquidity(uint256[],uint256)")
+        )
+    else:
+        data = abi_encode(
+            amounts, min_mint_amount, method_id=method_id("add_liquidity(uint256[2],uint256)")
+        )
+    success: bool = False
+    response: Bytes[32] = b""
+    success, response = raw_call(POOL.address, data, max_outsize=32, revert_on_failure=False)
+    if not success:
         return 0
 
-    lp_amount: uint256 = self._add_liquidity(amounts, min_mint_amount)
+    lp_amount: uint256 = convert(response, uint256)
     self.debt += pegged
     log DepositDonation(paired_amount=paired, pegged_amount=pegged, lp_amount=lp_amount)
     return lp_amount
@@ -782,13 +788,14 @@ def withdraw_profit(_deposit_donation: bool = True) -> uint256:
         so LP tokens keep backing the whole debt and (debt + idle balance) does not change.
         Limited by the idle balance above a pending debt ceiling cut; the rest can be
         withdrawn after the next withdraw.
-    @param _deposit_donation Deposit donated paired coin first (skipped silently if not possible)
+    @param _deposit_donation Deposit donated paired coin first, skipped silently if the pool
+        refuses it. Pass False if the deposit itself reverts (e.g. the regulator does)
     @return Amount of crvUSD sent to fee receiver
     """
     if _deposit_donation:
         self._deposit_donation()
 
-    amount: uint256 = min(self._calc_profit(), self._calc_balance())
+    amount: uint256 = min(self._calc_profit(), self._undrawn())
     if amount == 0:
         return 0
 
@@ -920,12 +927,13 @@ def set_new_delta_window(_new_delta_window: uint256):
     """
     @notice Set new window over which moved crvUSD is remembered
     @dev The sum remembered so far is carried over as of now and forgotten over the new window;
-        like a donation deposit, the change counts as an action for action_delay
+        the change counts as an action for action_delay
     @param _new_delta_window Window in seconds, 0 disables the memory
     """
     ownable._check_owner()
     assert _new_delta_window <= MAX_DELTA_WINDOW  # dev: bad window
 
+    self._record_delta(0, True)  # forget over the old window up to now
     self.delta_window = _new_delta_window
 
     log SetNewDeltaWindow(delta_window=_new_delta_window)

@@ -185,9 +185,7 @@ def _delta_limit(_pk: PegKeeper) -> uint256:
         int256,
     )
     delta: int256 = staticcall _pk.rolling_delta()
-    if delta >= limit:
-        return 0
-    return convert(limit - delta, uint256)
+    return convert(limit - min(limit, delta), uint256)
 
 
 @external
@@ -198,8 +196,8 @@ def provide_allowed(_pk: address = msg.sender) -> uint256:
     @dev Can return more amount than available
     @custom:dev Checks
         1) stablecoin price is above 1
-        2) paired coin price from the optional coin oracle is above its min price
-        3) Peg Keeper is registered
+        2) Peg Keeper is registered
+        3) paired coin price from the optional coin oracle is above its min price
         4) provided in the keeper's delta window is below its delta limit
     @return Amount of stablecoin allowed to provide
     """
@@ -209,12 +207,13 @@ def provide_allowed(_pk: address = msg.sender) -> uint256:
     if staticcall self.aggregator.price() < ONE:
         return 0
 
+    if self.peg_keeper_i[PegKeeper(_pk)] == 0:
+        return 0
+
     coin_oracle: CoinOracle = self.coin_oracle[PegKeeper(_pk)]
     if coin_oracle.oracle.address != empty(address):
         if staticcall coin_oracle.oracle.price() < coin_oracle.min_price:
             return 0
-    if self.peg_keeper_i[PegKeeper(_pk)] == 0:
-        return 0
     return self._delta_limit(PegKeeper(_pk))
 
 
